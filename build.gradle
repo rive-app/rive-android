@@ -21,6 +21,12 @@ allprojects {
     }
 }
 
+task cleanDeps(type: Exec) {
+    workingDir './cpp'
+    commandLine './build.clean.sh'
+}
+
 task clean(type: Delete) {
+    dependsOn(cleanDeps)
     delete rootProject.buildDir
 }
