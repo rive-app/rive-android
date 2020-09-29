@@ -46,7 +46,6 @@ class Renderer {
         canvas.setMatrix(
             canvas.getMatrix().times(matrix)
         )
-//        matrix.times()
     }
 
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
