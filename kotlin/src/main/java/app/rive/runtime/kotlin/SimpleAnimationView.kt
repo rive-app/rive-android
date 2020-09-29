@@ -10,7 +10,7 @@ class SimpleAnimationView : View {
 
     val renderer: Renderer
     val artboard: Artboard
-    val animationInstances:  ArrayList<LinearAnimationInstance>
+    val animationInstances: ArrayList<LinearAnimationInstance>
 
     lateinit var targetBounds: AABB
     var isPlaying = true
