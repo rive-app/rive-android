@@ -1,0 +1,21 @@
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+cpp/*.o
+cpp/*.so
+cpp/build
+cpp/Toolchains
+*.iml
+.gradle
+local.properties
+.idea
+.DS_Store
+build
+captures
+app/src/main/jniLibs
