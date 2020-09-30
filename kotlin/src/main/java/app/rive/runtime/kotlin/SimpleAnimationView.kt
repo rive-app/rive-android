@@ -25,7 +25,6 @@ class SimpleAnimationView : View {
             }
         }
 
-
     constructor(_renderer: Renderer, _artboard: Artboard, context: Context) : super(context) {
         lastTime = System.currentTimeMillis()
         renderer = _renderer

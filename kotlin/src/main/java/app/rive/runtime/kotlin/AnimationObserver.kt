@@ -1,6 +1,6 @@
 package app.rive.runtime.kotlin
 
-class AnimationObserver {
+abstract class AnimationObserver {
     val address: Long
 
     external private fun constructor(): Long
@@ -9,15 +9,7 @@ class AnimationObserver {
         address = constructor()
     }
 
-    fun onFinished() {
-        println("Android done!")
-    }
-
-    fun onLoop() {
-        println("Android loop!")
-    }
-
-    fun onPingPong() {
-        println("Android ping-pong!")
-    }
+    abstract fun onFinished(animation: String)
+    abstract fun onLoop(animation: String)
+    abstract fun onPingPong(animation: String)
 }

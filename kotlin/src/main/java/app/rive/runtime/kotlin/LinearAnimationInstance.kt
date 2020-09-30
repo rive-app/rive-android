@@ -14,14 +14,16 @@ class LinearAnimationInstance {
     constructor(_animation: Animation) : super() {
         animation = _animation
         nativePointer = constructor(animation.nativePointer);
-        val observer = AnimationObserver()
-        nativeAddObserver(nativePointer, observer.address)
     }
 
     companion object {
         init {
             System.loadLibrary("jnirivebridge")
         }
+    }
+
+    fun addObserver(observer: AnimationObserver) {
+        nativeAddObserver(nativePointer, observer.address)
     }
 
     fun advance(elapsedTime: Float) {
