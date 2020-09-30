@@ -18,26 +18,14 @@ class MainActivity : AppCompatActivity() {
         layout.weightSum = 2.0f
 
         var file = File(
-            getResources().openRawResource(R.raw.off_road_car_blog).readBytes()
+            getResources().openRawResource(R.raw.android_sheep).readBytes()
         )
         var artboard = file.artboard()
         var renderer = Renderer()
 
         var simpleView = SimpleAnimationView(renderer, artboard, this)
 
-        simpleView.animationInstances.add(
-            LinearAnimationInstance(artboard.animation(0))
-        )
-        simpleView.animationInstances.add(
-            LinearAnimationInstance(artboard.animation("bouncing"))
-        )
-        simpleView.animationInstances.add(
-            LinearAnimationInstance(artboard.animation(2))
-        )
-        simpleView.animationInstances.add(
-            LinearAnimationInstance(artboard.animation(3))
-        )
-
+        val sheepObserver = SheepObserver(artboard, simpleView.animationInstances)
 
         val btnTag = Button(this)
         val layoutParams =

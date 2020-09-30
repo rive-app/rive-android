@@ -15,18 +15,20 @@ jmethodID AnimationObserver::jOnLoop = nullptr;
 jmethodID AnimationObserver::jOnPingPong = nullptr;
 std::vector<AnimationObserver *> AnimationObserver::m_RegisteredObservers = {};
 
-void AnimationObserver::onFinished()
+void AnimationObserver::onFinished(std::string const &animationName)
 {
-    android_log("Animation finished!");
+    jstring jName = globalJNIEnv->NewStringUTF(animationName.c_str());
+    globalJNIEnv->CallVoidMethod(m_Observer, jOnFinished, jName);
 }
 
-void AnimationObserver::onLoop()
+void AnimationObserver::onLoop(std::string const &animationName)
 {
-    android_log("Animation looped!");
-    globalJNIEnv->CallVoidMethod(m_Observer, jOnLoop);
+    jstring jName = globalJNIEnv->NewStringUTF(animationName.c_str());
+    globalJNIEnv->CallVoidMethod(m_Observer, jOnLoop, jName);
 }
 
-void AnimationObserver::onPingPong()
+void AnimationObserver::onPingPong(std::string const &animationName)
 {
-    android_log("Animation ping-pong'd!");
+    jstring jName = globalJNIEnv->NewStringUTF(animationName.c_str());
+    globalJNIEnv->CallVoidMethod(m_Observer, jOnPingPong, jName);
 }

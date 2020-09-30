@@ -30,16 +30,14 @@ namespace rive_android
 
         static void jniInit(JNIEnv *env)
         {
-            android_log("Init'ing jni!");
             auto jObserverClass = env->FindClass("app/rive/runtime/kotlin/AnimationObserver");
 
             jvmClass = (jclass)env->NewGlobalRef(jObserverClass);
             addressField = env->GetFieldID(jvmClass, "address", "J");
 
-            jOnFinished = env->GetMethodID(jvmClass, "onFinished", "()V");
-            jOnLoop = env->GetMethodID(jvmClass, "onLoop", "()V");
-            jOnPingPong = env->GetMethodID(jvmClass, "onPingPong", "()V");
-            __android_log_print(ANDROID_LOG_INFO, __FILE__, "I'm not sure here %p", jOnLoop);
+            jOnFinished = env->GetMethodID(jvmClass, "onFinished", "(Ljava/lang/String;)V");
+            jOnLoop = env->GetMethodID(jvmClass, "onLoop", "(Ljava/lang/String;)V");
+            jOnPingPong = env->GetMethodID(jvmClass, "onPingPong", "(Ljava/lang/String;)V");
         }
 
         static void jniDispose(JNIEnv *env)
@@ -60,9 +58,9 @@ namespace rive_android
 
         ~AnimationObserver() {}
 
-        void onFinished();
-        void onLoop();
-        void onPingPong();
+        void onFinished(std::string const &);
+        void onLoop(std::string const &);
+        void onPingPong(std::string const &);
     };
 } // namespace rive_android
 
