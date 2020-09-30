@@ -98,6 +98,8 @@ namespace rive_android
 	extern jmethodID clipPathMethodId;
 	// extern jmethodID invalidateMethodId;
 
+	extern jclass loopClass;
+
 	void update(JNIEnv *env);
 	void disposeRefs(JNIEnv *env);
 

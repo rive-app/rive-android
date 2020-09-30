@@ -44,7 +44,7 @@ export LIBRIVE=$PWD/../submodules/rive-cpp
 export SYSROOT=$TOOLCHAIN/sysroot
 export INCLUDE=$SYSROOT/usr/include
 export INCLUDE_CXX=$INCLUDE/c++/v1
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -g -Iinclude -fPIC"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -g -Iinclude -fPIC -Oz"
 
 function buildFor()
 {
