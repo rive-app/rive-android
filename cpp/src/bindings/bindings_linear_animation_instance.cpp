@@ -4,6 +4,7 @@
 
 // From rive-cpp
 #include "animation/linear_animation_instance.hpp"
+#include "animation/loop.hpp"
 //
 
 #include <jni.h>
@@ -28,7 +29,12 @@ extern "C"
         return (jlong)animationInstance;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
+    jfieldID getJavaLoop(JNIEnv *env, const char *name)
+    {
+        return env->GetStaticFieldID(loopClass, name, "Lapp/rive/runtime/kotlin/Loop;");
+    }
+
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -37,20 +43,33 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        animationInstance->advance(elapsedTime);
+        rive::Loop loop;
+        animationInstance->advance(elapsedTime, loop);
+
+        switch (loop)
+        {
+        case rive::Loop::oneShot:
+            return env->NewStringUTF("ONESHOT");
+        case rive::Loop::loop:
+            return env->NewStringUTF("LOOP");
+        case rive::Loop::pingPong:
+            return env->NewStringUTF("PINGPONG");
+        default:
+            return nullptr;
+        }
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeApply(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
-        jlong artbaordRef,
+        jlong artboardRef,
         jfloat mix)
     {
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        rive::Artboard *artboard = (rive::Artboard *)artbaordRef;
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
         animationInstance->apply(artboard, mix);
     }
 
@@ -75,14 +94,6 @@ extern "C"
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->time(time);
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAddObserver(JNIEnv *env, jobject thisObj, jlong ref, jlong observerRef)
-    {
-        ::globalJNIEnv = env;
-        auto animationInstance = (rive::LinearAnimationInstance *)ref;
-        auto observer = (AnimationObserver *)observerRef;
-        animationInstance->attachObserver(observer);
     }
 
 #ifdef __cplusplus

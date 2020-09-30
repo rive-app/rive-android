@@ -98,6 +98,8 @@ namespace rive_android
 	jmethodID clipPathMethodId;
 	// jmethodID invalidateMethodId;
 
+	jclass loopClass;
+
 	void update(JNIEnv *env)
 	{
 		fitClass = static_cast<jclass>(
@@ -225,7 +227,8 @@ namespace rive_android
 			"clipPath",
 			"(Landroid/graphics/Path;)Z");
 		// invalidateMethodId = env->GetMethodID(riveRendererClass, "invalidate", "()V");
-		AnimationObserver::jniInit(env);
+		loopClass = (jclass)
+					   env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop"));
 	}
 
 	void disposeRefs(JNIEnv *env)
@@ -245,6 +248,6 @@ namespace rive_android
 		env->DeleteGlobalRef(androidCanvasClass);
 		env->DeleteGlobalRef(pathClass);
 		env->DeleteGlobalRef(fillTypeClass);
-		AnimationObserver::jniDispose(env);
+		env->DeleteGlobalRef(loopClass);
 	}
 } // namespace rive_android

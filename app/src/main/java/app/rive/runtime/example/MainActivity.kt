@@ -25,7 +25,9 @@ class MainActivity : AppCompatActivity() {
 
         var simpleView = SimpleAnimationView(renderer, artboard, this)
 
-        val sheepObserver = SheepObserver(artboard, simpleView.animationInstances)
+        simpleView.animationInstances.add(
+            LinearAnimationInstance(artboard.animation(2))
+        )
 
         val btnTag = Button(this)
         val layoutParams =
@@ -34,7 +36,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         btnTag.setLayoutParams(layoutParams)
-        btnTag.setText("Button")
+        btnTag.setText("Pause")
         btnTag.setOnClickListener {
             simpleView.isPlaying = (!simpleView.isPlaying)
         }
