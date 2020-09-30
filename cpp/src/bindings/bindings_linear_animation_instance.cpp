@@ -1,5 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "models/animation_observer.hpp"
 
 // From rive-cpp
 #include "animation/linear_animation_instance.hpp"
@@ -74,6 +75,14 @@ extern "C"
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->time(time);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAddObserver(JNIEnv *env, jobject thisObj, jlong ref, jlong observerRef)
+    {
+        ::globalJNIEnv = env;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto observer = (AnimationObserver *)observerRef;
+        animationInstance->attachObserver(observer);
     }
 
 #ifdef __cplusplus

@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include "jni_refs.hpp"
+#include "models/animation_observer.hpp"
 
 namespace rive_android
 {
@@ -224,6 +225,7 @@ namespace rive_android
 			"clipPath",
 			"(Landroid/graphics/Path;)Z");
 		// invalidateMethodId = env->GetMethodID(riveRendererClass, "invalidate", "()V");
+		AnimationObserver::jniInit(env);
 	}
 
 	void disposeRefs(JNIEnv *env)
@@ -243,5 +245,6 @@ namespace rive_android
 		env->DeleteGlobalRef(androidCanvasClass);
 		env->DeleteGlobalRef(pathClass);
 		env->DeleteGlobalRef(fillTypeClass);
+		AnimationObserver::jniDispose(env);
 	}
 } // namespace rive_android
