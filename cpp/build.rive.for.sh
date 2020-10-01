@@ -104,7 +104,7 @@ elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     export AR=$TOOLCHAIN/bin/$ARCH-linux-android-ar
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
-    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
+    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
 elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     echo "==== ARMv7 ===="
     ARCH=arm
