@@ -17,6 +17,18 @@ function usage
    exit 1 # Exit script after printing help
 }
 
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    HOST_TAG=linux-x86_64
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    HOST_TAG=darwin-x86_64
+fi
+
+if [ -z "$HOST_TAG" ]
+then
+   echo "Unkown host tag for OS: $OSTYPE"
+   exit 1
+fi
+
 while getopts "a:c" opt
 do
    case "$opt" in
@@ -39,12 +51,12 @@ if [[ -z ${NDK_PATH+x} ]]; then
 fi
 
 # Common variables.
-TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/darwin-x86_64
+TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG
 export LIBRIVE=$PWD/../submodules/rive-cpp
 export SYSROOT=$TOOLCHAIN/sysroot
 export INCLUDE=$SYSROOT/usr/include
 export INCLUDE_CXX=$INCLUDE/c++/v1
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -g -Iinclude -fPIC -Oz"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz -g"
 
 function buildFor()
 {
