@@ -60,17 +60,17 @@ export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz 
 
 function buildFor()
 {
-    pushd $LIBRIVE/build
+    pushd $LIBRIVE
     if ${NEEDS_CLEAN}; then
-        echo 'cleaning!'
-        make clean
+        # echo 'cleaning!'
+        ./build.sh clean
     fi
-    make -j7
+    ./build.sh
     popd
 
     mkdir -p $BUILD_DIR
     if ${NEEDS_CLEAN}; then
-        echo 'cleaning!'
+        # echo 'cleaning!'
         make clean
     fi
 
