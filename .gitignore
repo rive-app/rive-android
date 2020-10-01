@@ -18,4 +18,3 @@ local.properties
 .DS_Store
 build
 captures
-kotlin/src/main/jniLibs
