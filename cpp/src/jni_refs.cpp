@@ -1,7 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
 #include "jni_refs.hpp"
-#include "models/animation_observer.hpp"
 
 namespace rive_android
 {

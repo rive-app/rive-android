@@ -5,9 +5,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.File
-import app.rive.runtime.kotlin.Renderer
-import app.rive.runtime.kotlin.SimpleAnimationView
 import app.rive.runtime.kotlin.LinearAnimationInstance
+import app.rive.runtime.kotlin.Renderer
 
 class MainActivity : AppCompatActivity() {
 
@@ -18,15 +17,24 @@ class MainActivity : AppCompatActivity() {
         layout.weightSum = 2.0f
 
         var file = File(
-            getResources().openRawResource(R.raw.android_sheep).readBytes()
+            getResources().openRawResource(R.raw.off_road_car_blog).readBytes()
         )
         var artboard = file.artboard()
         var renderer = Renderer()
 
-        var simpleView = SimpleAnimationView(renderer, artboard, this)
+        var simpleView = AnimationView(renderer, artboard, this)
 
         simpleView.animationInstances.add(
+            LinearAnimationInstance(artboard.animation(0))
+        )
+        simpleView.animationInstances.add(
+            LinearAnimationInstance(artboard.animation(1))
+        )
+        simpleView.animationInstances.add(
             LinearAnimationInstance(artboard.animation(2))
+        )
+        simpleView.animationInstances.add(
+            LinearAnimationInstance(artboard.animation(3))
         )
 
         val btnTag = Button(this)
