@@ -1,15 +1,17 @@
 package app.rive.runtime.kotlin
 
 enum class Loop {
-    ONESHOT, LOOP, PINGPONG
+    NONE, ONESHOT, LOOP, PINGPONG
 }
 
 class LinearAnimationInstance {
     private var nativePointer: Long
-    private var animation: Animation
+    var animation: Animation
+        private set
+
 
     external private fun constructor(animationPointer: Long): Long
-    external private fun nativeAdvance(pointer: Long, elapsedTime: Float): String?
+    external private fun nativeAdvance(pointer: Long, elapsedTime: Float): String
     external private fun nativeApply(pointer: Long, artboardPointer: Long, mix: Float)
     external private fun nativeGetTime(pointer: Long): Float
     external private fun nativeSetTime(pointer: Long, time: Float)
@@ -25,10 +27,9 @@ class LinearAnimationInstance {
         }
     }
 
-    fun advance(elapsedTime: Float): String? {
+    fun advance(elapsedTime: Float): Loop {
         val loop = nativeAdvance(nativePointer, elapsedTime)
-        println("LOOP? $loop")
-        return loop;
+        return Loop.valueOf(loop)
     }
 
     fun apply(artboard: Artboard, mix: Float = 1.0f) {
