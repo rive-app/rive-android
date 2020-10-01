@@ -70,7 +70,7 @@ function buildFor()
     JNI_DEST=../kotlin/src/main/jniLibs/$ARCH_NAME
     mkdir -p $JNI_DEST
     cp  $BUILD_DIR/libjnirivebridge.so $JNI_DEST
-    echo "cp  $LIBCXX/libc++_shared.so $JNI_DEST"
+    # echo "cp  $LIBCXX/libc++_shared.so $JNI_DEST"
     cp  $LIBCXX/libc++_shared.so $JNI_DEST
 }
 
@@ -96,11 +96,12 @@ elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
 elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     echo "==== ARMv7 ===="
     ARCH=arm
+    ARCH_PREFIX=armv7a
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export AR=$TOOLCHAIN/bin/$ARCH-linux-androideabi-ar
-    export CXX=$TOOLCHAIN/bin/$ARCH_NAME-linux-androideabi$API-clang++
-    export CC=$TOOLCHAIN/bin/$ARCH_NAME-linux-androideabi$API-clang
-    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
+    export CXX=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang++
+    export CC=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang
+    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
 elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     ARCH=aarch64
