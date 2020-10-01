@@ -1,6 +1,5 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "models/animation_observer.hpp"
 
 // From rive-cpp
 #include "animation/linear_animation_instance.hpp"
@@ -43,19 +42,20 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        rive::Loop loop;
-        animationInstance->advance(elapsedTime, loop);
+        auto loopEvent = rive::LoopEvent::none;
+        animationInstance->advance(elapsedTime, loopEvent);
 
-        switch (loop)
+        switch (loopEvent)
         {
-        case rive::Loop::oneShot:
+        case rive::LoopEvent::oneShot:
             return env->NewStringUTF("ONESHOT");
-        case rive::Loop::loop:
+        case rive::LoopEvent::loop:
             return env->NewStringUTF("LOOP");
-        case rive::Loop::pingPong:
+        case rive::LoopEvent::pingPong:
             return env->NewStringUTF("PINGPONG");
         default:
-            return nullptr;
+        case rive::LoopEvent::none:
+            return env->NewStringUTF("NONE");
         }
     }
 
