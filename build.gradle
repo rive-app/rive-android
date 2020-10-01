@@ -27,6 +27,6 @@ task cleanDeps(type: Exec) {
 }
 
 task clean(type: Delete) {
-    dependsOn(cleanDeps)
+    // dependsOn(cleanDeps)
     delete rootProject.buildDir
 }
