@@ -11,7 +11,7 @@ class LinearAnimationInstance {
     var mix: Float = 1.0f
 
     external private fun constructor(animationPointer: Long): Long
-    external private fun nativeAdvance(pointer: Long, elapsedTime: Float): String
+    external private fun nativeAdvance(pointer: Long, elapsedTime: Float): Loop
     external private fun nativeApply(pointer: Long, artboardPointer: Long, mix: Float)
     external private fun nativeGetTime(pointer: Long): Float
     external private fun nativeSetTime(pointer: Long, time: Float)
@@ -29,7 +29,7 @@ class LinearAnimationInstance {
 
     fun advance(elapsedTime: Float): Loop {
         val loop = nativeAdvance(nativePointer, elapsedTime)
-        return Loop.valueOf(loop)
+        return loop
     }
 
     fun apply(artboard: Artboard, mix: Float = 1.0f) {

@@ -98,6 +98,10 @@ namespace rive_android
 	// jmethodID invalidateMethodId;
 
 	jclass loopClass;
+	jfieldID noneLoopField;
+	jfieldID oneShotLoopField;
+	jfieldID loopLoopField;
+	jfieldID pingPongLoopField;
 
 	void update(JNIEnv *env)
 	{
@@ -226,8 +230,19 @@ namespace rive_android
 			"clipPath",
 			"(Landroid/graphics/Path;)Z");
 		// invalidateMethodId = env->GetMethodID(riveRendererClass, "invalidate", "()V");
-		loopClass = (jclass)
-					   env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop"));
+		loopClass = static_cast<jclass>(
+			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop")));
+		noneLoopField = env->GetStaticFieldID(
+			loopClass, "NONE", "Lapp/rive/runtime/kotlin/Loop;");
+		oneShotLoopField = env->GetStaticFieldID(
+			loopClass, "ONESHOT", "Lapp/rive/runtime/kotlin/Loop;");
+		;
+		loopLoopField = env->GetStaticFieldID(
+			loopClass, "LOOP", "Lapp/rive/runtime/kotlin/Loop;");
+		;
+		pingPongLoopField = env->GetStaticFieldID(
+			loopClass, "PINGPONG", "Lapp/rive/runtime/kotlin/Loop;");
+		;
 	}
 
 	void disposeRefs(JNIEnv *env)
