@@ -8,7 +8,7 @@ class LinearAnimationInstance {
     private var nativePointer: Long
     var animation: Animation
         private set
-
+    var mix: Float = 1.0f
 
     external private fun constructor(animationPointer: Long): Long
     external private fun nativeAdvance(pointer: Long, elapsedTime: Float): String
