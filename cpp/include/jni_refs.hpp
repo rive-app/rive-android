@@ -99,6 +99,10 @@ namespace rive_android
 	// extern jmethodID invalidateMethodId;
 
 	extern jclass loopClass;
+	extern jfieldID noneLoopField;
+	extern jfieldID oneShotLoopField;
+	extern jfieldID loopLoopField;
+	extern jfieldID pingPongLoopField;
 
 	void update(JNIEnv *env);
 	void disposeRefs(JNIEnv *env);

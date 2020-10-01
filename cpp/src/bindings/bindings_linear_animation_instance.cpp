@@ -23,6 +23,8 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimation *animation = (rive::LinearAnimation *)animationRef;
+
+        // TODO: delete this object?
         auto animationInstance = new rive::LinearAnimationInstance(animation);
 
         return (jlong)animationInstance;
@@ -33,7 +35,7 @@ extern "C"
         return env->GetStaticFieldID(loopClass, name, "Lapp/rive/runtime/kotlin/Loop;");
     }
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
+    JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -42,21 +44,31 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        auto loopEvent = rive::LoopEvent::none;
-        animationInstance->advance(elapsedTime, loopEvent);
+        bool didLoop = false;
+        animationInstance->advance(elapsedTime, didLoop);
 
-        switch (loopEvent)
+        jfieldID enumField = ::noneLoopField;
+
+        if (didLoop)
         {
-        case rive::LoopEvent::oneShot:
-            return env->NewStringUTF("ONESHOT");
-        case rive::LoopEvent::loop:
-            return env->NewStringUTF("LOOP");
-        case rive::LoopEvent::pingPong:
-            return env->NewStringUTF("PINGPONG");
-        default:
-        case rive::LoopEvent::none:
-            return env->NewStringUTF("NONE");
+            auto loopType = animationInstance->animation()->loop();
+            switch (loopType)
+            {
+            case rive::Loop::oneShot:
+                enumField = ::oneShotLoopField;
+                break;
+            case rive::Loop::loop:
+                enumField = ::loopLoopField;
+                break;
+            case rive::Loop::pingPong:
+                enumField = ::pingPongLoopField;
+                break;
+            }
         }
+
+        jobject loopValue = env->GetStaticObjectField(::loopClass, enumField);
+
+        return loopValue;
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeApply(
