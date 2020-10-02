@@ -26,4 +26,4 @@ The `/kotlin` subfolder is its own module in the Android Studio project and it c
 With the Android Studio project open, in the menu select **`Build` > `Make Module 'kotlin'`**.
 Android Studio will put the `.aar` library file in `kotlin/build/outputs/aar`.
 
-[The documentation](https://developer.android.com/studio/projects/android-library#AddDependency) lists all the stesp to add the library to your own projects.
+[The documentation](https://developer.android.com/studio/projects/android-library#AddDependency) lists all the steps to add the library to your own projects.
