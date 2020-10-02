@@ -17,6 +17,18 @@ function usage
    exit 1 # Exit script after printing help
 }
 
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    HOST_TAG=linux-x86_64
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    HOST_TAG=darwin-x86_64
+fi
+
+if [ -z "$HOST_TAG" ]
+then
+   echo "Unkown host tag for OS: $OSTYPE"
+   exit 1
+fi
+
 while getopts "a:c" opt
 do
    case "$opt" in
@@ -39,26 +51,26 @@ if [[ -z ${NDK_PATH+x} ]]; then
 fi
 
 # Common variables.
-TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/darwin-x86_64
+TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG
 export LIBRIVE=$PWD/../submodules/rive-cpp
 export SYSROOT=$TOOLCHAIN/sysroot
 export INCLUDE=$SYSROOT/usr/include
 export INCLUDE_CXX=$INCLUDE/c++/v1
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -g -Iinclude -fPIC"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz -g"
 
 function buildFor()
 {
-    pushd $LIBRIVE/build
+    pushd $LIBRIVE
     if ${NEEDS_CLEAN}; then
-        echo 'cleaning!'
-        make clean
+        # echo 'cleaning!'
+        ./build.sh clean
     fi
-    make -j7
+    ./build.sh
     popd
 
     mkdir -p $BUILD_DIR
     if ${NEEDS_CLEAN}; then
-        echo 'cleaning!'
+        # echo 'cleaning!'
         make clean
     fi
 
@@ -70,7 +82,7 @@ function buildFor()
     JNI_DEST=../kotlin/src/main/jniLibs/$ARCH_NAME
     mkdir -p $JNI_DEST
     cp  $BUILD_DIR/libjnirivebridge.so $JNI_DEST
-    echo "cp  $LIBCXX/libc++_shared.so $JNI_DEST"
+    # echo "cp  $LIBCXX/libc++_shared.so $JNI_DEST"
     cp  $LIBCXX/libc++_shared.so $JNI_DEST
 }
 
@@ -92,15 +104,16 @@ elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     export AR=$TOOLCHAIN/bin/$ARCH-linux-android-ar
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
-    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
+    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
 elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     echo "==== ARMv7 ===="
     ARCH=arm
+    ARCH_PREFIX=armv7a
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export AR=$TOOLCHAIN/bin/$ARCH-linux-androideabi-ar
-    export CXX=$TOOLCHAIN/bin/$ARCH_NAME-linux-androideabi$API-clang++
-    export CC=$TOOLCHAIN/bin/$ARCH_NAME-linux-androideabi$API-clang
-    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
+    export CXX=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang++
+    export CC=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang
+    LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
 elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     ARCH=aarch64
