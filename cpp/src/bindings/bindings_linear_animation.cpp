@@ -22,6 +22,46 @@ extern "C"
         return env->NewStringUTF(animation->name().c_str());
     }
 
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_Animation_nativeDuration(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive_android::globalJNIEnv = env;
+        auto *animation = (rive::LinearAnimation *)ref;
+        return (jint)animation->duration();
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_Animation_nativeFps(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive_android::globalJNIEnv = env;
+        auto *animation = (rive::LinearAnimation *)ref;
+        return (jint)animation->fps();
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_Animation_nativeWorkStart(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive_android::globalJNIEnv = env;
+        auto *animation = (rive::LinearAnimation *)ref;
+        return (jint)animation->workStart();
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_Animation_nativeWorkEnd(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive_android::globalJNIEnv = env;
+        auto *animation = (rive::LinearAnimation *)ref;
+        return (jint)animation->workEnd();
+    }
+
 #ifdef __cplusplus
 }
 #endif
