@@ -5,9 +5,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.File
-import app.rive.runtime.kotlin.Renderer
-import app.rive.runtime.kotlin.SimpleAnimationView
 import app.rive.runtime.kotlin.LinearAnimationInstance
+import app.rive.runtime.kotlin.Renderer
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,13 +22,13 @@ class MainActivity : AppCompatActivity() {
         var artboard = file.artboard()
         var renderer = Renderer()
 
-        var simpleView = SimpleAnimationView(renderer, artboard, this)
+        var simpleView = AnimationView(renderer, artboard, this)
 
         simpleView.animationInstances.add(
             LinearAnimationInstance(artboard.animation(0))
         )
         simpleView.animationInstances.add(
-            LinearAnimationInstance(artboard.animation("bouncing"))
+            LinearAnimationInstance(artboard.animation(1))
         )
         simpleView.animationInstances.add(
             LinearAnimationInstance(artboard.animation(2))
@@ -38,7 +37,6 @@ class MainActivity : AppCompatActivity() {
             LinearAnimationInstance(artboard.animation(3))
         )
 
-
         val btnTag = Button(this)
         val layoutParams =
             LinearLayout.LayoutParams(
@@ -46,7 +44,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         btnTag.setLayoutParams(layoutParams)
-        btnTag.setText("Button")
+        btnTag.setText("Pause")
         btnTag.setOnClickListener {
             simpleView.isPlaying = (!simpleView.isPlaying)
         }

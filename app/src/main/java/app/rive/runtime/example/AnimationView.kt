@@ -1,11 +1,12 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.example
 
 import android.content.Context
 import android.graphics.Canvas
 import android.view.View
+import app.rive.runtime.kotlin.*
 
 
-class SimpleAnimationView : View {
+class AnimationView : View {
     private var lastTime: Long = 0
 
     val renderer: Renderer
@@ -25,12 +26,15 @@ class SimpleAnimationView : View {
             }
         }
 
-
     constructor(_renderer: Renderer, _artboard: Artboard, context: Context) : super(context) {
-        lastTime = System.currentTimeMillis()
         renderer = _renderer
         artboard = _artboard
         animationInstances = ArrayList<LinearAnimationInstance>()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        lastTime = System.currentTimeMillis()
     }
 
     override fun onDraw(canvas: Canvas) {

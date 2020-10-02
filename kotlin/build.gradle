@@ -37,9 +37,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 }
 
-gradle.projectsEvaluated {
-    preBuild.dependsOn(buildJNI)
-}
+// gradle.projectsEvaluated {
+//     preBuild.dependsOn(buildJNI)
+// }
 
 def getDeviceAbi() {
     return "adb shell getprop ro.product.cpu.abi".execute().text.trim()

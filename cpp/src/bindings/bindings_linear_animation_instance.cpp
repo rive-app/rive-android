@@ -3,6 +3,7 @@
 
 // From rive-cpp
 #include "animation/linear_animation_instance.hpp"
+#include "animation/loop.hpp"
 //
 
 #include <jni.h>
@@ -22,12 +23,19 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimation *animation = (rive::LinearAnimation *)animationRef;
+
+        // TODO: delete this object?
         auto animationInstance = new rive::LinearAnimationInstance(animation);
 
         return (jlong)animationInstance;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
+    jfieldID getJavaLoop(JNIEnv *env, const char *name)
+    {
+        return env->GetStaticFieldID(loopClass, name, "Lapp/rive/runtime/kotlin/Loop;");
+    }
+
+    JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -36,20 +44,44 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        animationInstance->advance(elapsedTime);
+        bool didLoop = false;
+        animationInstance->advance(elapsedTime, didLoop);
+
+        jfieldID enumField = ::noneLoopField;
+
+        if (didLoop)
+        {
+            auto loopType = animationInstance->animation()->loop();
+            switch (loopType)
+            {
+            case rive::Loop::oneShot:
+                enumField = ::oneShotLoopField;
+                break;
+            case rive::Loop::loop:
+                enumField = ::loopLoopField;
+                break;
+            case rive::Loop::pingPong:
+                enumField = ::pingPongLoopField;
+                break;
+            }
+        }
+
+        jobject loopValue = env->GetStaticObjectField(::loopClass, enumField);
+
+        return loopValue;
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeApply(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
-        jlong artbaordRef,
+        jlong artboardRef,
         jfloat mix)
     {
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        rive::Artboard *artboard = (rive::Artboard *)artbaordRef;
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
         animationInstance->apply(artboard, mix);
     }
 

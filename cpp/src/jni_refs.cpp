@@ -97,6 +97,12 @@ namespace rive_android
 	jmethodID clipPathMethodId;
 	// jmethodID invalidateMethodId;
 
+	jclass loopClass;
+	jfieldID noneLoopField;
+	jfieldID oneShotLoopField;
+	jfieldID loopLoopField;
+	jfieldID pingPongLoopField;
+
 	void update(JNIEnv *env)
 	{
 		fitClass = static_cast<jclass>(
@@ -224,6 +230,19 @@ namespace rive_android
 			"clipPath",
 			"(Landroid/graphics/Path;)Z");
 		// invalidateMethodId = env->GetMethodID(riveRendererClass, "invalidate", "()V");
+		loopClass = static_cast<jclass>(
+			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop")));
+		noneLoopField = env->GetStaticFieldID(
+			loopClass, "NONE", "Lapp/rive/runtime/kotlin/Loop;");
+		oneShotLoopField = env->GetStaticFieldID(
+			loopClass, "ONESHOT", "Lapp/rive/runtime/kotlin/Loop;");
+		;
+		loopLoopField = env->GetStaticFieldID(
+			loopClass, "LOOP", "Lapp/rive/runtime/kotlin/Loop;");
+		;
+		pingPongLoopField = env->GetStaticFieldID(
+			loopClass, "PINGPONG", "Lapp/rive/runtime/kotlin/Loop;");
+		;
 	}
 
 	void disposeRefs(JNIEnv *env)
@@ -243,5 +262,6 @@ namespace rive_android
 		env->DeleteGlobalRef(androidCanvasClass);
 		env->DeleteGlobalRef(pathClass);
 		env->DeleteGlobalRef(fillTypeClass);
+		env->DeleteGlobalRef(loopClass);
 	}
 } // namespace rive_android
