@@ -21,6 +21,14 @@ namespace rive_android
 	JNIEnv *globalJNIEnv;
 	jobject globalJNIObj;
 	jobject androidCanvas;
+	int sdkVersion;
+
+	void setSDKVersion()
+	{
+		char sdk_ver_str[255];
+		__system_property_get("ro.build.version.sdk", sdk_ver_str);
+		sdkVersion = atoi(sdk_ver_str);
+	}
 
 	rive::Fit getFit(JNIEnv *env, jobject jfit)
 	{
