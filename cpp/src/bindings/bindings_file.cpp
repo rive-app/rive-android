@@ -20,7 +20,7 @@ extern "C"
         jint length)
     {
         ::globalJNIEnv = env;
-
+        rive_android::setSDKVersion();
         ::update(env);
 
         auto file = ::import(
