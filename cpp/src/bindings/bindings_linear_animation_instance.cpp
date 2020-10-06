@@ -43,7 +43,7 @@ extern "C"
         animationInstance->advance(elapsedTime, didLoop);
 
         jfieldID enumField;
-        jobject loopValue;
+        jobject loopValue = nullptr;
 
         if (didLoop)
         {
