@@ -3,7 +3,8 @@ package app.rive.runtime.kotlin
 enum class Loop(val value: Int) {
     ONESHOT(0),
     LOOP(1),
-    PINGPONG(2);
+    PINGPONG(2),
+    NONE(3);
 
     companion object {
         private val map = Loop.values().associateBy(Loop::value)
@@ -36,8 +37,7 @@ class LinearAnimationInstance {
     }
 
     fun advance(elapsedTime: Float): Loop? {
-        val loop = nativeAdvance(nativePointer, elapsedTime)
-        return loop
+        return nativeAdvance(nativePointer, elapsedTime)
     }
 
     fun apply(artboard: Artboard, mix: Float = 1.0f) {

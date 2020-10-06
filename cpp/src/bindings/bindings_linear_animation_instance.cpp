@@ -59,6 +59,9 @@ extern "C"
             case rive::Loop::pingPong:
                 enumField = ::pingPongLoopField;
                 break;
+            default:
+                enumField = ::noneLoopField;
+                break;
             }
             
             loopValue = env->GetStaticObjectField(::loopClass, enumField);

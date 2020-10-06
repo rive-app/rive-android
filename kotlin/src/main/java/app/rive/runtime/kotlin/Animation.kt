@@ -25,10 +25,7 @@ class Animation {
     var loop: Loop
         get() {
             val intLoop = nativeGetLoop(nativePointer)
-            val loop = Loop.fromInt(intLoop)
-            if (loop == null) {
-                throw IndexOutOfBoundsException()
-            }
+            val loop = Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
             return loop
         }
         set(loop) = nativeSetLoop(nativePointer, loop.value)
