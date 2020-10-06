@@ -6,6 +6,12 @@ import android.graphics.Paint
 import android.graphics.Path
 import androidx.core.graphics.times
 
+// NOTE: included for alternative setMatrix implementation
+//import kotlin.math.atan2
+//import kotlin.math.cos
+//import kotlin.math.sqrt
+
+
 enum class Fit {
     FILL, CONTAIN, COVER, FIT_WIDTH, FIT_HEIGHT, NONE, SCALE_DOWN
 }
@@ -43,9 +49,35 @@ class Renderer {
 
     fun setMatrix(matrix: Matrix) {
         // TODO: use translate, scale, rotate instead?
+
         canvas.setMatrix(
             canvas.getMatrix().times(matrix)
         )
+//        NOTE: alternative implementation using translate/scale/rotate
+//        val matrixVals = FloatArray(9)
+//        matrix.getValues(matrixVals)
+//
+//        var rotation = (
+//                atan2(
+//                    matrixVals[Matrix.MSKEW_Y],
+//                    matrixVals[Matrix.MSCALE_Y]
+//                ) * 180 / Math.PI
+//                ).toFloat()
+//
+//        var scaleX = sqrt(
+//            matrixVals[Matrix.MSCALE_X] * matrixVals[Matrix.MSCALE_X] +
+//                    matrixVals[Matrix.MSKEW_X] * matrixVals[Matrix.MSKEW_X]
+//        )
+//        var scaleY =
+//            sqrt(
+//                matrixVals[Matrix.MSCALE_Y] * matrixVals[Matrix.MSCALE_Y] +
+//                        matrixVals[Matrix.MSKEW_Y] * matrixVals[Matrix.MSKEW_Y]
+//            )
+//
+//        canvas.translate(matrixVals[Matrix.MTRANS_X], matrixVals[Matrix.MTRANS_Y]);
+//        canvas.scale(scaleX, scaleY);
+//        canvas.rotate(rotation);
+
     }
 
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
