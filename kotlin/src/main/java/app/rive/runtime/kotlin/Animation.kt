@@ -9,6 +9,8 @@ class Animation {
     external private fun nativeFps(nativePointer: Long): Int
     external private fun nativeWorkStart(nativePointer: Long): Int
     external private fun nativeWorkEnd(nativePointer: Long): Int
+    external private fun nativeGetLoop(nativePointer: Long) : Int
+    external private fun nativeSetLoop(nativePointer: Long, value: Int)
 
     val duration: Int
         get() = nativeDuration(nativePointer)
@@ -20,6 +22,16 @@ class Animation {
         get() = nativeWorkEnd(nativePointer)
     val name: String
         get() = nativeName(nativePointer)
+    var loop: Loop
+        get() {
+            val intLoop = nativeGetLoop(nativePointer)
+            val loop = Loop.fromInt(intLoop)
+            if (loop == null) {
+                throw IndexOutOfBoundsException()
+            }
+            return loop
+        }
+        set(loop) = nativeSetLoop(nativePointer, loop.value)
 
     constructor(_nativePointer: Long) : super() {
         nativePointer = _nativePointer

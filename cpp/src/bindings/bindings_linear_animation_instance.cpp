@@ -30,11 +30,6 @@ extern "C"
         return (jlong)animationInstance;
     }
 
-    jfieldID getJavaLoop(JNIEnv *env, const char *name)
-    {
-        return env->GetStaticFieldID(loopClass, name, "Lapp/rive/runtime/kotlin/Loop;");
-    }
-
     JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
@@ -47,7 +42,8 @@ extern "C"
         bool didLoop = false;
         animationInstance->advance(elapsedTime, didLoop);
 
-        jfieldID enumField = ::noneLoopField;
+        jfieldID enumField;
+        jobject loopValue;
 
         if (didLoop)
         {
@@ -64,9 +60,9 @@ extern "C"
                 enumField = ::pingPongLoopField;
                 break;
             }
+            
+            loopValue = env->GetStaticObjectField(::loopClass, enumField);
         }
-
-        jobject loopValue = env->GetStaticObjectField(::loopClass, enumField);
 
         return loopValue;
     }

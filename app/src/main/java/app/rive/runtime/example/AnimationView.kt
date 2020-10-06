@@ -56,7 +56,7 @@ class AnimationView : View {
 
         canvas.save()
         artboard.advance(elapsed)
-        artboard.draw(renderer, canvas)
+        artboard.draw(renderer)
         canvas.restore()
 
         if (isPlaying) {
