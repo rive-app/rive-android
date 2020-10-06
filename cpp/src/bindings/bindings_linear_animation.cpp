@@ -61,6 +61,28 @@ extern "C"
         auto *animation = (rive::LinearAnimation *)ref;
         return (jint)animation->workEnd();
     }
+    
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_Animation_nativeGetLoop(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive_android::globalJNIEnv = env;
+        auto * animation = (rive::LinearAnimation*) ref;
+        return (jint)animation->loop();
+    }
+    
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_Animation_nativeSetLoop(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref, 
+        jint loopType)
+    {
+        rive_android::globalJNIEnv = env;
+        auto *animation = (rive::LinearAnimation *)ref;
+        
+        animation->loopValue(loopType);
+    }    
 
 #ifdef __cplusplus
 }

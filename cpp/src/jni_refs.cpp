@@ -232,8 +232,6 @@ namespace rive_android
 		// invalidateMethodId = env->GetMethodID(riveRendererClass, "invalidate", "()V");
 		loopClass = static_cast<jclass>(
 			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop")));
-		noneLoopField = env->GetStaticFieldID(
-			loopClass, "NONE", "Lapp/rive/runtime/kotlin/Loop;");
 		oneShotLoopField = env->GetStaticFieldID(
 			loopClass, "ONESHOT", "Lapp/rive/runtime/kotlin/Loop;");
 		;

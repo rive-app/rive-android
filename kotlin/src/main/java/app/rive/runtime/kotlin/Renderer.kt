@@ -17,7 +17,7 @@ enum class Alignment {
 }
 
 class Renderer {
-    var nativePointer: Long
+    val nativePointer: Long
     lateinit var canvas: Canvas
 
     external private fun nativeAlign(
