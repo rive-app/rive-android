@@ -63,8 +63,8 @@ class Artboard {
         nativeAdvance(nativePointer, elapsedTime)
     }
 
-    fun draw(renderer: Renderer, canvas: Canvas) {
-        nativeDraw(nativePointer, renderer.nativePointer, renderer, canvas)
+    fun draw(renderer: Renderer) {
+        nativeDraw(nativePointer, renderer.nativePointer, renderer, renderer.canvas)
     }
 
     fun bounds(): AABB {
