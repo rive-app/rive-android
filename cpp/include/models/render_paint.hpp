@@ -13,6 +13,7 @@ namespace rive_android
 	{
 	private:
 		JNIGradientBuilder *gradientBuilder;
+		void porterDuffBlendMode(rive::BlendMode value);
 
 	public:
 		jobject jObject;

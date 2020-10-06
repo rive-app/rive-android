@@ -1,6 +1,10 @@
 #include <jni.h>
+
 #include <android/log.h>
+#include <sys/system_properties.h>
+#include <stdlib.h>
 #include "jni_refs.hpp"
+#include "helpers/general.hpp"
 
 namespace rive_android
 {
@@ -95,6 +99,7 @@ namespace rive_android
 	jmethodID translateMethodId;
 	jmethodID drawPathMethodId;
 	jmethodID clipPathMethodId;
+
 	// jmethodID invalidateMethodId;
 
 	jclass loopClass;
@@ -103,8 +108,33 @@ namespace rive_android
 	jfieldID loopLoopField;
 	jfieldID pingPongLoopField;
 
+	jclass porterDuffClass;
+	jclass porterDuffXferModeClass;
+	jmethodID porterDuffXferModeInitMethodId;
+	jmethodID setXfermodeMethodId;
+
+	jfieldID pdClear;
+	jfieldID pdSrc;
+	jfieldID pdDst;
+	jfieldID pdSrcOver;
+	jfieldID pdDstOver;
+	jfieldID pdSrcIn;
+	jfieldID pdDstIn;
+	jfieldID pdSrcOut;
+	jfieldID pdDstOut;
+	jfieldID pdSrcAtop;
+	jfieldID pdDstAtop;
+	jfieldID pdXor;
+	jfieldID pdDarken;
+	jfieldID pdLighten;
+	jfieldID pdMultiply;
+	jfieldID pdScreen;
+	jfieldID pdAdd;
+	jfieldID pdOverlay;
+
 	void update(JNIEnv *env)
 	{
+
 		fitClass = static_cast<jclass>(
 			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Fit")));
 		alignmentClass = static_cast<jclass>(
@@ -123,8 +153,6 @@ namespace rive_android
 			env->NewGlobalRef(env->FindClass("android/graphics/Paint$Join")));
 		capClass = static_cast<jclass>(
 			env->NewGlobalRef(env->FindClass("android/graphics/Paint$Cap")));
-		blendModeClass = static_cast<jclass>(
-			env->NewGlobalRef(env->FindClass("android/graphics/BlendMode")));
 		matrixClass = static_cast<jclass>(
 			env->NewGlobalRef(env->FindClass("android/graphics/Matrix")));
 		riveRendererClass = static_cast<jclass>(
@@ -155,7 +183,6 @@ namespace rive_android
 		setStrokeWidthMethodId = env->GetMethodID(paintClass, "setStrokeWidth", "(F)V");
 		setStrokeJoinMethodId = env->GetMethodID(paintClass, "setStrokeJoin", "(Landroid/graphics/Paint$Join;)V");
 		setStrokeCapMethodId = env->GetMethodID(paintClass, "setStrokeCap", "(Landroid/graphics/Paint$Cap;)V");
-		setBlendModeMethodId = env->GetMethodID(paintClass, "setBlendMode", "(Landroid/graphics/BlendMode;)V");
 
 		fillId = env->GetStaticFieldID(styleClass, "FILL", "Landroid/graphics/Paint$Style;");
 		strokeId = env->GetStaticFieldID(styleClass, "STROKE", "Landroid/graphics/Paint$Style;");
@@ -167,24 +194,6 @@ namespace rive_android
 		capButtID = env->GetStaticFieldID(capClass, "BUTT", "Landroid/graphics/Paint$Cap;");
 		capRoundId = env->GetStaticFieldID(capClass, "ROUND", "Landroid/graphics/Paint$Cap;");
 		capSquareId = env->GetStaticFieldID(capClass, "SQUARE", "Landroid/graphics/Paint$Cap;");
-
-		srcOver = env->GetStaticFieldID(blendModeClass, "SRC_OVER", "Landroid/graphics/BlendMode;");
-		screen = env->GetStaticFieldID(blendModeClass, "SCREEN", "Landroid/graphics/BlendMode;");
-		overlay = env->GetStaticFieldID(blendModeClass, "OVERLAY", "Landroid/graphics/BlendMode;");
-		darken = env->GetStaticFieldID(blendModeClass, "DARKEN", "Landroid/graphics/BlendMode;");
-		lighten = env->GetStaticFieldID(blendModeClass, "LIGHTEN", "Landroid/graphics/BlendMode;");
-		colorDodge = env->GetStaticFieldID(blendModeClass, "COLOR_DODGE", "Landroid/graphics/BlendMode;");
-		colorBurn = env->GetStaticFieldID(blendModeClass, "COLOR_BURN", "Landroid/graphics/BlendMode;");
-		hardLight = env->GetStaticFieldID(blendModeClass, "HARD_LIGHT", "Landroid/graphics/BlendMode;");
-		softLight = env->GetStaticFieldID(blendModeClass, "SOFT_LIGHT", "Landroid/graphics/BlendMode;");
-		difference = env->GetStaticFieldID(blendModeClass, "DIFFERENCE", "Landroid/graphics/BlendMode;");
-		exclusion = env->GetStaticFieldID(blendModeClass, "EXCLUSION", "Landroid/graphics/BlendMode;");
-		multiply = env->GetStaticFieldID(blendModeClass, "MULTIPLY", "Landroid/graphics/BlendMode;");
-		hue = env->GetStaticFieldID(blendModeClass, "HUE", "Landroid/graphics/BlendMode;");
-		saturation = env->GetStaticFieldID(blendModeClass, "SATURATION", "Landroid/graphics/BlendMode;");
-		color = env->GetStaticFieldID(blendModeClass, "COLOR", "Landroid/graphics/BlendMode;");
-		luminosity = env->GetStaticFieldID(blendModeClass, "LUMINOSITY", "Landroid/graphics/BlendMode;");
-		clear = env->GetStaticFieldID(blendModeClass, "CLEAR", "Landroid/graphics/BlendMode;");
 
 		evenOddId = env->GetStaticFieldID(fillTypeClass, "EVEN_ODD", "Landroid/graphics/Path$FillType;");
 		nonZeroId = env->GetStaticFieldID(fillTypeClass, "WINDING", "Landroid/graphics/Path$FillType;");
@@ -234,13 +243,63 @@ namespace rive_android
 			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Loop")));
 		oneShotLoopField = env->GetStaticFieldID(
 			loopClass, "ONESHOT", "Lapp/rive/runtime/kotlin/Loop;");
-		;
+
 		loopLoopField = env->GetStaticFieldID(
 			loopClass, "LOOP", "Lapp/rive/runtime/kotlin/Loop;");
-		;
+
 		pingPongLoopField = env->GetStaticFieldID(
 			loopClass, "PINGPONG", "Lapp/rive/runtime/kotlin/Loop;");
-		;
+
+		setXfermodeMethodId = env->GetMethodID(paintClass, "setXfermode", "(Landroid/graphics/Xfermode;)Landroid/graphics/Xfermode;");
+
+		if (rive_android::sdkVersion >= 29)
+		{
+			blendModeClass = static_cast<jclass>(
+				env->NewGlobalRef(env->FindClass("android/graphics/BlendMode")));
+
+			setBlendModeMethodId = env->GetMethodID(paintClass, "setBlendMode", "(Landroid/graphics/BlendMode;)V");
+
+			srcOver = env->GetStaticFieldID(blendModeClass, "SRC_OVER", "Landroid/graphics/BlendMode;");
+			screen = env->GetStaticFieldID(blendModeClass, "SCREEN", "Landroid/graphics/BlendMode;");
+			overlay = env->GetStaticFieldID(blendModeClass, "OVERLAY", "Landroid/graphics/BlendMode;");
+			darken = env->GetStaticFieldID(blendModeClass, "DARKEN", "Landroid/graphics/BlendMode;");
+			lighten = env->GetStaticFieldID(blendModeClass, "LIGHTEN", "Landroid/graphics/BlendMode;");
+			colorDodge = env->GetStaticFieldID(blendModeClass, "COLOR_DODGE", "Landroid/graphics/BlendMode;");
+			colorBurn = env->GetStaticFieldID(blendModeClass, "COLOR_BURN", "Landroid/graphics/BlendMode;");
+			hardLight = env->GetStaticFieldID(blendModeClass, "HARD_LIGHT", "Landroid/graphics/BlendMode;");
+			softLight = env->GetStaticFieldID(blendModeClass, "SOFT_LIGHT", "Landroid/graphics/BlendMode;");
+			difference = env->GetStaticFieldID(blendModeClass, "DIFFERENCE", "Landroid/graphics/BlendMode;");
+			exclusion = env->GetStaticFieldID(blendModeClass, "EXCLUSION", "Landroid/graphics/BlendMode;");
+			multiply = env->GetStaticFieldID(blendModeClass, "MULTIPLY", "Landroid/graphics/BlendMode;");
+			hue = env->GetStaticFieldID(blendModeClass, "HUE", "Landroid/graphics/BlendMode;");
+			saturation = env->GetStaticFieldID(blendModeClass, "SATURATION", "Landroid/graphics/BlendMode;");
+			color = env->GetStaticFieldID(blendModeClass, "COLOR", "Landroid/graphics/BlendMode;");
+			luminosity = env->GetStaticFieldID(blendModeClass, "LUMINOSITY", "Landroid/graphics/BlendMode;");
+			clear = env->GetStaticFieldID(blendModeClass, "CLEAR", "Landroid/graphics/BlendMode;");
+		}
+		porterDuffClass = static_cast<jclass>(
+			env->NewGlobalRef(env->FindClass("android/graphics/PorterDuff$Mode")));
+		porterDuffXferModeClass = static_cast<jclass>(
+			env->NewGlobalRef(env->FindClass("android/graphics/PorterDuffXfermode")));
+		porterDuffXferModeInitMethodId = env->GetMethodID(porterDuffXferModeClass, "<init>", "(Landroid/graphics/PorterDuff$Mode;)V");
+		pdClear = env->GetStaticFieldID(porterDuffClass, "CLEAR", "Landroid/graphics/PorterDuff$Mode;");
+		pdSrc = env->GetStaticFieldID(porterDuffClass, "SRC", "Landroid/graphics/PorterDuff$Mode;");
+		pdDst = env->GetStaticFieldID(porterDuffClass, "DST", "Landroid/graphics/PorterDuff$Mode;");
+		pdSrcOver = env->GetStaticFieldID(porterDuffClass, "SRC_OVER", "Landroid/graphics/PorterDuff$Mode;");
+		pdDstOver = env->GetStaticFieldID(porterDuffClass, "DST_OVER", "Landroid/graphics/PorterDuff$Mode;");
+		pdSrcIn = env->GetStaticFieldID(porterDuffClass, "SRC_IN", "Landroid/graphics/PorterDuff$Mode;");
+		pdDstIn = env->GetStaticFieldID(porterDuffClass, "DST_IN", "Landroid/graphics/PorterDuff$Mode;");
+		pdSrcOut = env->GetStaticFieldID(porterDuffClass, "SRC_OUT", "Landroid/graphics/PorterDuff$Mode;");
+		pdDstOut = env->GetStaticFieldID(porterDuffClass, "DST_OUT", "Landroid/graphics/PorterDuff$Mode;");
+		pdSrcAtop = env->GetStaticFieldID(porterDuffClass, "SRC_ATOP", "Landroid/graphics/PorterDuff$Mode;");
+		pdDstAtop = env->GetStaticFieldID(porterDuffClass, "DST_ATOP", "Landroid/graphics/PorterDuff$Mode;");
+		pdXor = env->GetStaticFieldID(porterDuffClass, "XOR", "Landroid/graphics/PorterDuff$Mode;");
+		pdDarken = env->GetStaticFieldID(porterDuffClass, "DARKEN", "Landroid/graphics/PorterDuff$Mode;");
+		pdLighten = env->GetStaticFieldID(porterDuffClass, "LIGHTEN", "Landroid/graphics/PorterDuff$Mode;");
+		pdMultiply = env->GetStaticFieldID(porterDuffClass, "MULTIPLY", "Landroid/graphics/PorterDuff$Mode;");
+		pdScreen = env->GetStaticFieldID(porterDuffClass, "SCREEN", "Landroid/graphics/PorterDuff$Mode;");
+		pdAdd = env->GetStaticFieldID(porterDuffClass, "ADD", "Landroid/graphics/PorterDuff$Mode;");
+		pdOverlay = env->GetStaticFieldID(porterDuffClass, "OVERLAY", "Landroid/graphics/PorterDuff$Mode;");
 	}
 
 	void disposeRefs(JNIEnv *env)
