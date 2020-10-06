@@ -26,7 +26,6 @@ class LinearAnimationInstance {
 
     constructor(_animation: Animation) : super() {
         animation = _animation
-        println("Animation details: $animation")
         nativePointer = constructor(animation.nativePointer);
     }
 
