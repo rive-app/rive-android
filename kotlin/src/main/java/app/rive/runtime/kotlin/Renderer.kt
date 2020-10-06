@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-import androidx.core.graphics.times
 
 enum class Fit {
     FILL, CONTAIN, COVER, FIT_WIDTH, FIT_HEIGHT, NONE, SCALE_DOWN
@@ -42,10 +41,8 @@ class Renderer {
     }
 
     fun setMatrix(matrix: Matrix) {
-        // TODO: use translate, scale, rotate instead?
-        canvas.setMatrix(
-            canvas.getMatrix().times(matrix)
-        )
+        canvas.concat(matrix)
+
     }
 
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {

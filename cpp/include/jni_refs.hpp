@@ -76,7 +76,6 @@ namespace rive_android
 	extern jfieldID evenOddId;
 	extern jfieldID nonZeroId;
 
-
 	extern jclass matrixClass;
 	extern jmethodID matrixInitMethodId;
 	extern jmethodID matrixSetValuesMethodId;
@@ -103,6 +102,30 @@ namespace rive_android
 	extern jfieldID oneShotLoopField;
 	extern jfieldID loopLoopField;
 	extern jfieldID pingPongLoopField;
+
+	extern jclass porterDuffClass;
+	extern jclass porterDuffXferModeClass;
+	extern jmethodID porterDuffXferModeInitMethodId;
+	extern jmethodID setXfermodeMethodId;
+
+	extern jfieldID pdClear;
+	extern jfieldID pdSrc;
+	extern jfieldID pdDst;
+	extern jfieldID pdSrcOver;
+	extern jfieldID pdDstOver;
+	extern jfieldID pdSrcIn;
+	extern jfieldID pdDstIn;
+	extern jfieldID pdSrcOut;
+	extern jfieldID pdDstOut;
+	extern jfieldID pdSrcAtop;
+	extern jfieldID pdDstAtop;
+	extern jfieldID pdXor;
+	extern jfieldID pdDarken;
+	extern jfieldID pdLighten;
+	extern jfieldID pdMultiply;
+	extern jfieldID pdScreen;
+	extern jfieldID pdAdd;
+	extern jfieldID pdOverlay;
 
 	void update(JNIEnv *env);
 	void disposeRefs(JNIEnv *env);

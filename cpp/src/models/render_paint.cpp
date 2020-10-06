@@ -5,6 +5,7 @@
 #include "models/radial_gradient_builder.hpp"
 
 #include <vector>
+#include <android/log.h>
 
 using namespace rive_android;
 
@@ -95,8 +96,83 @@ void JNIRenderPaint::cap(rive::StrokeCap value)
         globalJNIEnv->GetStaticObjectField(capClass, capId));
 }
 
+void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
+{
+    __android_log_print(ANDROID_LOG_INFO, __FILE__, "wat??");
+    jfieldID modeId;
+    switch (value)
+    {
+    case rive::BlendMode::srcOver:
+        modeId = ::pdSrcOver;
+        break;
+    case rive::BlendMode::screen:
+        modeId = ::pdScreen;
+        break;
+    case rive::BlendMode::overlay:
+        modeId = ::pdOverlay;
+        break;
+    case rive::BlendMode::darken:
+        modeId = ::pdDarken;
+        break;
+    case rive::BlendMode::lighten:
+        modeId = ::pdLighten;
+        break;
+    case rive::BlendMode::colorDodge:
+        return;
+        break;
+    case rive::BlendMode::colorBurn:
+        return;
+        break;
+    case rive::BlendMode::hardLight:
+        return;
+        break;
+    case rive::BlendMode::softLight:
+        return;
+        break;
+    case rive::BlendMode::difference:
+        return;
+        break;
+    case rive::BlendMode::exclusion:
+        return;
+        break;
+    case rive::BlendMode::multiply:
+        modeId = ::pdMultiply;
+        break;
+    case rive::BlendMode::hue:
+        return;
+        break;
+    case rive::BlendMode::saturation:
+        return;
+        break;
+    case rive::BlendMode::color:
+        return;
+        break;
+    case rive::BlendMode::luminosity:
+        return;
+        break;
+    default:
+        modeId = ::pdClear;
+        break;
+    }
+
+    jobject xferModeClass = globalJNIEnv->NewObject(
+        porterDuffXferModeClass,
+        porterDuffXferModeInitMethodId,
+        globalJNIEnv->GetStaticObjectField(porterDuffClass, modeId));
+
+    globalJNIEnv->CallObjectMethod(
+        jObject,
+        setXfermodeMethodId,
+        xferModeClass);
+}
+
 void JNIRenderPaint::blendMode(rive::BlendMode value)
 {
+    if (::sdkVersion < 29)
+    {
+        return this->porterDuffBlendMode(value);
+    }
+
     jfieldID modeId;
     switch (value)
     {
