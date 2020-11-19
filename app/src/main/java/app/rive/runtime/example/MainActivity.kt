@@ -16,11 +16,12 @@ class MainActivity : AppCompatActivity() {
         layout.orientation = LinearLayout.VERTICAL
         layout.weightSum = 2.0f
 
+        var renderer = Renderer()
+
         var file = File(
             getResources().openRawResource(R.raw.off_road_car_blog).readBytes()
         )
         var artboard = file.artboard()
-        var renderer = Renderer()
 
         var simpleView = AnimationView(renderer, artboard, this)
 

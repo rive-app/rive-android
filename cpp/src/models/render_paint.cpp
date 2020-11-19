@@ -1,11 +1,11 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "models/jni_renderer.hpp"
 #include "models/render_paint.hpp"
 #include "models/linear_gradient_builder.hpp"
 #include "models/radial_gradient_builder.hpp"
 
 #include <vector>
-#include <android/log.h>
 
 using namespace rive_android;
 
@@ -13,6 +13,9 @@ JNIRenderPaint::JNIRenderPaint()
 {
     jObject = globalJNIEnv->NewGlobalRef(
         globalJNIEnv->NewObject(paintClass, paintInitMethod));
+
+    auto aaSetter = globalJNIEnv->GetMethodID(paintClass, "setAntiAlias", "(Z)V");
+    globalJNIEnv->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
 }
 
 void JNIRenderPaint::color(unsigned int value)

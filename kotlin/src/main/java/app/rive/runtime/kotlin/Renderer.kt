@@ -15,9 +15,13 @@ enum class Alignment {
     BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT,
 }
 
-class Renderer {
+class Renderer(antialias: Boolean = true) {
     var nativePointer: Long
     lateinit var canvas: Canvas
+
+    init {
+        nativePointer = constructor(antialias);
+    }
 
     external private fun nativeAlign(
         nativePointer: Long,
@@ -26,18 +30,13 @@ class Renderer {
         targetBoundsPointer: Long,
         srcBoundsPointer: Long
     )
-
-    external private fun constructor(): Long
+    external private fun constructor(antialias: Boolean): Long
     external private fun cleanupJNI(nativePointer: Long)
 
     companion object {
         init {
             System.loadLibrary("jnirivebridge")
         }
-    }
-
-    constructor() {
-        nativePointer = constructor();
     }
 
     fun setMatrix(matrix: Matrix) {

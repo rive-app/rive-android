@@ -18,12 +18,14 @@ extern "C"
     // RENDERER
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Renderer_constructor(
         JNIEnv *env,
-        jobject thisObj)
+        jobject thisObj,
+        jboolean antialias)
     {
         ::globalJNIEnv = env;
         ::globalJNIObj = thisObj;
 
         auto renderer = new ::JNIRenderer();
+        ::JNIRenderer::antialias = (bool)antialias;
         renderer->jRendererObject = ::globalJNIEnv->NewGlobalRef(thisObj);
 
         return (jlong)renderer;

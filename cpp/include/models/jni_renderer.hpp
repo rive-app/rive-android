@@ -10,6 +10,7 @@ namespace rive_android
 	{
 	public:
 		jobject jRendererObject;
+		static bool antialias;
 		~JNIRenderer();
 
 		void save() override;
@@ -19,6 +20,5 @@ namespace rive_android
 		void drawPath(rive::RenderPath *path, rive::RenderPaint *paint) override;
 		void clipPath(rive::RenderPath *path) override;
 	};
-
 } // namespace rive_android
 #endif
