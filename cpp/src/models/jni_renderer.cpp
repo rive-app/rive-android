@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "jni_refs.hpp"
 #include "models/jni_renderer.hpp"
 #include "models/render_path.hpp"
@@ -9,7 +10,9 @@
 
 using namespace rive_android;
 
-JNIRenderer::~JNIRenderer() 
+bool JNIRenderer::antialias = true;
+
+JNIRenderer::~JNIRenderer()
 {
 	// TODO: cleanup.
 }

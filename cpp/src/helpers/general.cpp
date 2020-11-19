@@ -7,7 +7,6 @@
 #include "file.hpp"
 #include "layout.hpp"
 //
-#include <android/log.h>
 
 // lets make sure we stich our rive android renderers into the rive namespace
 namespace rive
