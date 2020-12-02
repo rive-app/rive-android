@@ -42,6 +42,14 @@ class AnimationView : View {
         redraw(canvas)
     }
 
+    fun reset() {
+        animationInstances.forEach {
+            it.time(0f);
+            it.apply(artboard, 1f)
+        }
+        invalidate()
+    }
+
     fun redraw(canvas: Canvas) {
         val currentTime = System.currentTimeMillis()
         val elapsed = (currentTime - lastTime) / 1000f
