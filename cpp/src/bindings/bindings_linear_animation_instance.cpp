@@ -7,6 +7,7 @@
 //
 
 #include <jni.h>
+#include <android/log.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -39,8 +40,8 @@ extern "C"
         ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        bool didLoop = false;
-        animationInstance->advance(elapsedTime, didLoop);
+        animationInstance->advance(elapsedTime);
+        bool didLoop = animationInstance->didLoop();
 
         jfieldID enumField;
         jobject loopValue = nullptr;
