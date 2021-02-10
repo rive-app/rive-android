@@ -1,6 +1,10 @@
 # Rive-Android
 
-This is the Android runtime for [Rive 2](https://beta.rive.app), currently in Beta.
+This is the Android runtime for [Rive](https://rive.app), currently in beta.
+
+## Create and ship interactive animations to any platform
+
+[Rive](https://rive.app/) is a real-time interactive design and animation tool. Use our collaborative editor to create motion graphics that respond to different states and user inputs. Then load your animations into apps, games, and websites with our lightweight open-source runtimes. 
 
 ## Setup
 
