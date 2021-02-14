@@ -2,36 +2,25 @@ package app.rive.runtime.kotlin
 
 import android.graphics.Canvas
 
-class Artboard {
+class Artboard(val nativePointer: Long) {
     //    NOTES:
     //    missing implementations: objects, find
     //    only linearAnimation is implemented
-    var nativePointer: Long
 
-    constructor(_nativePointer: Long) : super() {
-        nativePointer = _nativePointer
-    }
-
-    external private fun nativeName(nativePointer: Long): String
-    external private fun nativeFirstAnimation(nativePointer: Long): Long
-    external private fun nativeAnimationByIndex(nativePointer: Long, index: Int): Long
-    external private fun nativeAnimationByName(nativePointer: Long, name: String): Long
-    external private fun nativeAnimationCount(nativePointer: Long): Int
-    external private fun nativeAdvance(nativePointer: Long, elapsedTime: Float)
-    external private fun nativeDraw(
+    private external fun nativeName(nativePointer: Long): String
+    private external fun nativeFirstAnimation(nativePointer: Long): Long
+    private external fun nativeAnimationByIndex(nativePointer: Long, index: Int): Long
+    private external fun nativeAnimationByName(nativePointer: Long, name: String): Long
+    private external fun nativeAnimationCount(nativePointer: Long): Int
+    private external fun nativeAdvance(nativePointer: Long, elapsedTime: Float)
+    private external fun nativeDraw(
         nativePointer: Long,
         rendererPointer: Long,
         renderer: Renderer,
         canvas: Canvas
     )
 
-    external private fun nativeBounds(nativePointer: Long): Long
-
-    companion object {
-        init {
-            System.loadLibrary("jnirivebridge")
-        }
-    }
+    private external fun nativeBounds(nativePointer: Long): Long
 
     fun name(): String {
         return nativeName(nativePointer)

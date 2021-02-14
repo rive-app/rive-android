@@ -1,65 +1,47 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import android.widget.Button
-import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.File
-import app.rive.runtime.kotlin.LinearAnimationInstance
-import app.rive.runtime.kotlin.Renderer
+import androidx.appcompat.widget.AppCompatButton
+import androidx.appcompat.widget.AppCompatToggleButton
+import app.rive.runtime.kotlin.Loop
+import app.rive.runtime.kotlin.Rive
+import app.rive.runtime.kotlin.RiveAnimationView
 
 class MainActivity : AppCompatActivity() {
 
+    val animationView by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<RiveAnimationView>(R.id.rive_animation)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        var layout = LinearLayout(this);
+        Rive.init()
+        setContentView(R.layout.activity_main)
 
-        layout.orientation = LinearLayout.VERTICAL
-        layout.weightSum = 2.0f
+        animationView.setAnimation(R.raw.flux_capacitor)
+        animationView.setRepeatMode(Loop.LOOP)
+        animationView.start()
 
-        var renderer = Renderer()
-
-        var file = File(
-            getResources().openRawResource(R.raw.flux_capacitor).readBytes()
-        )
-        var artboard = file.artboard()
-
-        var simpleView = AnimationView(renderer, artboard, this)
-        var animationCount = artboard.animationCount();
-        for (i in 0 until animationCount){
-            simpleView.animationInstances.add(
-                LinearAnimationInstance(artboard.animation(i))
-            )
+        val togglePlayback = findViewById<AppCompatToggleButton>(R.id.toggle)
+        togglePlayback.isChecked = animationView.isRunning
+        togglePlayback.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                animationView.start()
+            } else {
+                animationView.pause()
+            }
         }
 
-        var buttons = LinearLayout(this);
-        buttons.orientation = LinearLayout.HORIZONTAL
-
-        val btnTag = Button(this)
-        val layoutParams =
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        btnTag.setLayoutParams(layoutParams)
-        btnTag.setText("Pause")
-        btnTag.setOnClickListener {
-            simpleView.isPlaying = (!simpleView.isPlaying)
+        val reset = findViewById<AppCompatButton>(R.id.reset)
+        reset.setOnClickListener {
+            animationView.reset()
+            togglePlayback.isChecked = false
         }
+    }
 
-        val resetBtnTag = Button(this)
-        resetBtnTag.setLayoutParams(layoutParams)
-        resetBtnTag.setText("Reset")
-        resetBtnTag.setOnClickListener {
-            simpleView.reset()
-        }
-
-        buttons.addView(btnTag)
-        buttons.addView(resetBtnTag)
-        layout.addView(buttons)
-        layout.addView(simpleView)
-
-        setContentView(layout);
-
+    override fun onDestroy() {
+        super.onDestroy()
+        animationView.reset()
     }
 }
