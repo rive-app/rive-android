@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.util.Log
 
 enum class Fit {
     FILL, CONTAIN, COVER, FIT_WIDTH, FIT_HEIGHT, NONE, SCALE_DOWN
@@ -20,28 +21,21 @@ class Renderer(antialias: Boolean = true) {
     lateinit var canvas: Canvas
 
     init {
-        nativePointer = constructor(antialias);
+        nativePointer = constructor(antialias)
     }
 
-    external private fun nativeAlign(
+    private external fun nativeAlign(
         nativePointer: Long,
         fit: Fit,
         alignment: Alignment,
         targetBoundsPointer: Long,
         srcBoundsPointer: Long
     )
-    external private fun constructor(antialias: Boolean): Long
-    external private fun cleanupJNI(nativePointer: Long)
-
-    companion object {
-        init {
-            System.loadLibrary("jnirivebridge")
-        }
-    }
+    private external fun constructor(antialias: Boolean): Long
+    private external fun cleanupJNI(nativePointer: Long)
 
     fun setMatrix(matrix: Matrix) {
         canvas.concat(matrix)
-
     }
 
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
@@ -51,12 +45,12 @@ class Renderer(antialias: Boolean = true) {
             alignment,
             targetBounds.nativePointer,
             sourceBounds.nativePointer
-        );
+        )
     }
 
     fun cleanup() {
-        cleanupJNI(nativePointer);
-        nativePointer = 0;
+        cleanupJNI(nativePointer)
+        nativePointer = 0
     }
 
     fun save(): Int {

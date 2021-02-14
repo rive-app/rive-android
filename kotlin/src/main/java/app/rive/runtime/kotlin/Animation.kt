@@ -1,16 +1,15 @@
 package app.rive.runtime.kotlin
 
 
-class Animation {
-    val nativePointer: Long
+class Animation(val nativePointer: Long) {
 
-    external private fun nativeName(nativePointer: Long): String
-    external private fun nativeDuration(nativePointer: Long): Int
-    external private fun nativeFps(nativePointer: Long): Int
-    external private fun nativeWorkStart(nativePointer: Long): Int
-    external private fun nativeWorkEnd(nativePointer: Long): Int
-    external private fun nativeGetLoop(nativePointer: Long) : Int
-    external private fun nativeSetLoop(nativePointer: Long, value: Int)
+    private external fun nativeName(nativePointer: Long): String
+    private external fun nativeDuration(nativePointer: Long): Int
+    private external fun nativeFps(nativePointer: Long): Int
+    private external fun nativeWorkStart(nativePointer: Long): Int
+    private external fun nativeWorkEnd(nativePointer: Long): Int
+    private external fun nativeGetLoop(nativePointer: Long) : Int
+    private external fun nativeSetLoop(nativePointer: Long, value: Int)
 
     val duration: Int
         get() = nativeDuration(nativePointer)
@@ -29,16 +28,6 @@ class Animation {
             return loop
         }
         set(loop) = nativeSetLoop(nativePointer, loop.value)
-
-    constructor(_nativePointer: Long) : super() {
-        nativePointer = _nativePointer
-    }
-
-    companion object {
-        init {
-            System.loadLibrary("jnirivebridge")
-        }
-    }
 
     override fun toString(): String {
         return "Animation $name\n- Duration$duration\n- fps $fps\n- workStart $workStart\n- workEnd $workEnd"
