@@ -46,7 +46,7 @@ extern "C"
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
-        return (jlong)artboard->firstAnimation<rive::LinearAnimation>();
+        return (jlong)artboard->firstAnimation();
     }
 
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAnimationByIndex(
@@ -59,7 +59,7 @@ extern "C"
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
-        return (jlong)artboard->animation<rive::LinearAnimation>(index);
+        return (jlong)artboard->animation(index);
     }
 
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAnimationByName(
@@ -72,7 +72,7 @@ extern "C"
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
-        return (jlong)artboard->animation<rive::LinearAnimation>(
+        return (jlong)artboard->animation(
             jstring2string(env, name));
     }
 

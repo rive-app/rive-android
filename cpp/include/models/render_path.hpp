@@ -16,7 +16,8 @@ namespace rive_android
 
 		void reset() override;
 		void fillRule(rive::FillRule value) override;
-		void addPath(rive::CommandPath *path, const rive::Mat2D &transform) override;
+		void addRenderPath(rive::RenderPath *path, const rive::Mat2D &transform) override;
+
 		void moveTo(float x, float y) override;
 		void lineTo(float x, float y) override;
 		void cubicTo(
@@ -26,3 +27,10 @@ namespace rive_android
 
 } // namespace rive_android
 #endif
+
+// void SkiaRenderPath::addRenderPath(RenderPath* path, const Mat2D& transform)
+// {
+// 	m_Path.addPath(
+// 	    reinterpret_cast<SkiaRenderPath*>(path)->m_Path,
+// 	    ToSkia::convert(transform));
+// }
