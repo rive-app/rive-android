@@ -24,14 +24,14 @@ void JNIRenderPath::fillRule(rive::FillRule value)
 {
     jfieldID fillTypeId;
     switch (value)
-	{
-		case rive::FillRule::evenOdd:
-            fillTypeId = evenOddId;
-			break;
-		case rive::FillRule::nonZero:
-            fillTypeId = nonZeroId;
-			break;
-	}
+    {
+    case rive::FillRule::evenOdd:
+        fillTypeId = evenOddId;
+        break;
+    case rive::FillRule::nonZero:
+        fillTypeId = nonZeroId;
+        break;
+    }
 
     auto fillId = globalJNIEnv->GetStaticObjectField(fillTypeClass, fillTypeId);
     globalJNIEnv->CallVoidMethod(
@@ -40,7 +40,7 @@ void JNIRenderPath::fillRule(rive::FillRule value)
         fillId);
 }
 
-void JNIRenderPath::addPath(rive::CommandPath *path, const rive::Mat2D &transform)
+void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &transform)
 {
 
     jobject matrix = globalJNIEnv->NewObject(
@@ -63,7 +63,7 @@ void JNIRenderPath::addPath(rive::CommandPath *path, const rive::Mat2D &transfor
     globalJNIEnv->CallVoidMethod(
         jObject,
         addPathMethodId,
-        reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
+        reinterpret_cast<JNIRenderPath *>(path)->jObject,
         matrix);
 }
 
