@@ -7,12 +7,12 @@ void JNILinearGradientBuilder::apply(jobject paint)
 {
     int numStops = stops.size();
 
-    jintArray jcolors = globalJNIEnv->NewIntArray(numStops);
-    jfloatArray jstops = globalJNIEnv->NewFloatArray(numStops);
-    globalJNIEnv->SetIntArrayRegion(jcolors, 0, numStops, colors.data());
-    globalJNIEnv->SetFloatArrayRegion(jstops, 0, numStops, stops.data());
+    jintArray jcolors = getJNIEnv()->NewIntArray(numStops);
+    jfloatArray jstops = getJNIEnv()->NewFloatArray(numStops);
+    getJNIEnv()->SetIntArrayRegion(jcolors, 0, numStops, colors.data());
+    getJNIEnv()->SetFloatArrayRegion(jstops, 0, numStops, stops.data());
 
-    jobject shaderObject = globalJNIEnv->NewObject(
+    jobject shaderObject = getJNIEnv()->NewObject(
         linearGradientClass,
         linearGradientInitMethodId,
         sx,
@@ -21,11 +21,11 @@ void JNILinearGradientBuilder::apply(jobject paint)
         ey,
         jcolors,
         jstops,
-        globalJNIEnv->GetStaticObjectField(
+        getJNIEnv()->GetStaticObjectField(
             tileModeClass,
             clampId));
 
-    globalJNIEnv->CallObjectMethod(
+    getJNIEnv()->CallObjectMethod(
         paint,
         shaderMethodId,
         shaderObject);

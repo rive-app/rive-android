@@ -6,18 +6,20 @@ using namespace rive_android;
 
 JNIRenderPath::JNIRenderPath()
 {
-    jObject = globalJNIEnv->NewGlobalRef(
-        globalJNIEnv->NewObject(pathClass, pathInitMethodId));
+    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "create path");
+    jObject = getJNIEnv()->NewGlobalRef(
+        getJNIEnv()->NewObject(pathClass, pathInitMethodId));
 }
 
 JNIRenderPath::~JNIRenderPath()
 {
-    globalJNIEnv->DeleteGlobalRef(jObject);
+    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "delete path");
+    getJNIEnv()->DeleteGlobalRef(jObject);
 }
 
 void JNIRenderPath::reset()
 {
-    globalJNIEnv->CallVoidMethod(jObject, resetMethodId);
+    getJNIEnv()->CallVoidMethod(jObject, resetMethodId);
 }
 
 void JNIRenderPath::fillRule(rive::FillRule value)
@@ -33,8 +35,8 @@ void JNIRenderPath::fillRule(rive::FillRule value)
         break;
     }
 
-    auto fillId = globalJNIEnv->GetStaticObjectField(fillTypeClass, fillTypeId);
-    globalJNIEnv->CallVoidMethod(
+    auto fillId = getJNIEnv()->GetStaticObjectField(fillTypeClass, fillTypeId);
+    getJNIEnv()->CallVoidMethod(
         jObject,
         setFillTypeMethodId,
         fillId);
@@ -43,7 +45,7 @@ void JNIRenderPath::fillRule(rive::FillRule value)
 void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &transform)
 {
 
-    jobject matrix = globalJNIEnv->NewObject(
+    jobject matrix = getJNIEnv()->NewObject(
         matrixClass,
         matrixInitMethodId);
 
@@ -52,15 +54,15 @@ void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &tra
         transform.xy(), transform.yy(), transform.ty(),
         0, 0, 1};
 
-    jfloatArray matrixArray = globalJNIEnv->NewFloatArray(9);
-    globalJNIEnv->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
+    jfloatArray matrixArray = getJNIEnv()->NewFloatArray(9);
+    getJNIEnv()->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
-    globalJNIEnv->CallVoidMethod(
+    getJNIEnv()->CallVoidMethod(
         matrix,
         matrixSetValuesMethodId,
         matrixArray);
 
-    globalJNIEnv->CallVoidMethod(
+    getJNIEnv()->CallVoidMethod(
         jObject,
         addPathMethodId,
         reinterpret_cast<JNIRenderPath *>(path)->jObject,
@@ -70,21 +72,21 @@ void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &tra
 void JNIRenderPath::moveTo(float x, float y)
 {
 
-    globalJNIEnv->CallVoidMethod(jObject, moveToMethodId, x, y);
+    getJNIEnv()->CallVoidMethod(jObject, moveToMethodId, x, y);
 }
 
 void JNIRenderPath::lineTo(float x, float y)
 {
-    globalJNIEnv->CallVoidMethod(jObject, lineToMethodId, x, y);
+    getJNIEnv()->CallVoidMethod(jObject, lineToMethodId, x, y);
 }
 
 void JNIRenderPath::cubicTo(
     float ox, float oy, float ix, float iy, float x, float y)
 {
-    globalJNIEnv->CallVoidMethod(jObject, cubicToMethodId, ox, oy, ix, iy, x, y);
+    getJNIEnv()->CallVoidMethod(jObject, cubicToMethodId, ox, oy, ix, iy, x, y);
 }
 
 void JNIRenderPath::close()
 {
-    globalJNIEnv->CallVoidMethod(jObject, closeMethodId);
+    getJNIEnv()->CallVoidMethod(jObject, closeMethodId);
 }

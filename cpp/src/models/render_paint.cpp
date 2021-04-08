@@ -11,17 +11,19 @@ using namespace rive_android;
 
 JNIRenderPaint::JNIRenderPaint()
 {
-    jObject = globalJNIEnv->NewGlobalRef(
-        globalJNIEnv->NewObject(paintClass, paintInitMethod));
+    jObject = getJNIEnv()->NewGlobalRef(
+        getJNIEnv()->NewObject(paintClass, paintInitMethod));
 
-    auto aaSetter = globalJNIEnv->GetMethodID(paintClass, "setAntiAlias", "(Z)V");
-    globalJNIEnv->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
+    auto aaSetter = getJNIEnv()->GetMethodID(paintClass, "setAntiAlias", "(Z)V");
+    getJNIEnv()->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
+}
+
 }
 
 void JNIRenderPaint::color(unsigned int value)
 {
 
-    globalJNIEnv->CallVoidMethod(jObject, setColorMethodId, value);
+    getJNIEnv()->CallVoidMethod(jObject, setColorMethodId, value);
 }
 
 void JNIRenderPaint::style(rive::RenderPaintStyle value)
@@ -29,25 +31,25 @@ void JNIRenderPaint::style(rive::RenderPaintStyle value)
 
     if (value == rive::RenderPaintStyle::stroke)
     {
-        globalJNIEnv->CallVoidMethod(
+        getJNIEnv()->CallVoidMethod(
             jObject,
             setStyleMethodId,
-            globalJNIEnv->GetStaticObjectField(
+            getJNIEnv()->GetStaticObjectField(
                 styleClass, strokeId));
     }
     else
     {
-        globalJNIEnv->CallVoidMethod(
+        getJNIEnv()->CallVoidMethod(
             jObject,
             setStyleMethodId,
-            globalJNIEnv->GetStaticObjectField(
+            getJNIEnv()->GetStaticObjectField(
                 styleClass, fillId));
     }
 }
 
 void JNIRenderPaint::thickness(float value)
 {
-    globalJNIEnv->CallVoidMethod(jObject, setStrokeWidthMethodId, value);
+    getJNIEnv()->CallVoidMethod(jObject, setStrokeWidthMethodId, value);
 }
 
 void JNIRenderPaint::join(rive::StrokeJoin value)
@@ -69,10 +71,10 @@ void JNIRenderPaint::join(rive::StrokeJoin value)
         joinId = miterId;
         break;
     }
-    globalJNIEnv->CallVoidMethod(
+    getJNIEnv()->CallVoidMethod(
         jObject,
         setStrokeJoinMethodId,
-        globalJNIEnv->GetStaticObjectField(joinClass, joinId));
+        getJNIEnv()->GetStaticObjectField(joinClass, joinId));
 }
 
 void JNIRenderPaint::cap(rive::StrokeCap value)
@@ -93,15 +95,14 @@ void JNIRenderPaint::cap(rive::StrokeCap value)
         capId = capButtID;
         break;
     }
-    globalJNIEnv->CallVoidMethod(
+    getJNIEnv()->CallVoidMethod(
         jObject,
         setStrokeCapMethodId,
-        globalJNIEnv->GetStaticObjectField(capClass, capId));
+        getJNIEnv()->GetStaticObjectField(capClass, capId));
 }
 
 void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
 {
-    __android_log_print(ANDROID_LOG_INFO, __FILE__, "wat??");
     jfieldID modeId;
     switch (value)
     {
@@ -158,12 +159,12 @@ void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
         break;
     }
 
-    jobject xferModeClass = globalJNIEnv->NewObject(
+    jobject xferModeClass = getJNIEnv()->NewObject(
         porterDuffXferModeClass,
         porterDuffXferModeInitMethodId,
-        globalJNIEnv->GetStaticObjectField(porterDuffClass, modeId));
+        getJNIEnv()->GetStaticObjectField(porterDuffClass, modeId));
 
-    globalJNIEnv->CallObjectMethod(
+    getJNIEnv()->CallObjectMethod(
         jObject,
         setXfermodeMethodId,
         xferModeClass);
@@ -232,10 +233,10 @@ void JNIRenderPaint::blendMode(rive::BlendMode value)
         break;
     }
 
-    globalJNIEnv->CallVoidMethod(
+    getJNIEnv()->CallVoidMethod(
         jObject,
         setBlendModeMethodId,
-        globalJNIEnv->GetStaticObjectField(blendModeClass, modeId));
+        getJNIEnv()->GetStaticObjectField(blendModeClass, modeId));
 }
 
 void JNIRenderPaint::linearGradient(float sx, float sy, float ex, float ey)

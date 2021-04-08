@@ -17,10 +17,34 @@ namespace rive
 
 namespace rive_android
 {
-	JNIEnv *globalJNIEnv;
+	JavaVM *globalJavaVM;
 	jobject globalJNIObj;
 	jobject androidCanvas;
 	int sdkVersion;
+
+	JNIEnv *getJNIEnv()
+	{
+		// double check it's all ok
+		JNIEnv *g_env;
+		int getEnvStat = globalJavaVM->GetEnv((void **)&g_env, JNI_VERSION_1_6);
+		if (getEnvStat == JNI_EDETACHED)
+		{
+			// std::cout << "GetEnv: not attached" << std::endl;
+			if (globalJavaVM->AttachCurrentThread((JNIEnv **)&g_env, NULL) != 0)
+			{
+				// std::cout << "Failed to attach" << std::endl;
+			}
+		}
+		else if (getEnvStat == JNI_OK)
+		{
+			//
+		}
+		else if (getEnvStat == JNI_EVERSION)
+		{
+			// std::cout << "GetEnv: version not supported" << std::endl;
+		}
+		return g_env;
+	}
 
 	void setSDKVersion()
 	{
