@@ -13,6 +13,9 @@ class MainActivity : AppCompatActivity() {
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.rive_animation)
     }
+    val animationView2 by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<RiveAnimationView>(R.id.rive_animation2)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,6 +25,11 @@ class MainActivity : AppCompatActivity() {
         animationView.setAnimation(R.raw.flux_capacitor)
         animationView.setRepeatMode(Loop.LOOP)
         animationView.start()
+
+
+        animationView2.setAnimation(R.raw.off_road_car_blog)
+        animationView2.setRepeatMode(Loop.LOOP)
+        animationView2.start()
 
         val togglePlayback = findViewById<AppCompatToggleButton>(R.id.toggle)
         togglePlayback.isChecked = animationView.isRunning
