@@ -19,7 +19,8 @@ extern "C"
         jbyteArray bytes,
         jint length)
     {
-        ::globalJNIEnv = env;
+        // pretty much considered the entrypoint.
+        env->GetJavaVM(&::globalJavaVM);
         rive_android::setSDKVersion();
         ::update(env);
 
@@ -35,7 +36,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
+        env->GetJavaVM(&::globalJavaVM);
 
         rive::File *file = (rive::File *)ref;
 

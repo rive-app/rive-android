@@ -18,53 +18,48 @@ JNIRenderer::~JNIRenderer()
 
 void JNIRenderer::save()
 {
-	globalJNIEnv->CallIntMethod(jRendererObject, saveMethodId);
+	getJNIEnv()->CallIntMethod(jRendererObject, saveMethodId);
 }
 
 void JNIRenderer::restore()
 {
-	globalJNIEnv->CallVoidMethod(jRendererObject, restoreMethodId);
+	getJNIEnv()->CallVoidMethod(jRendererObject, restoreMethodId);
 }
 
 void JNIRenderer::transform(const rive::Mat2D &transform)
 {
-	auto env = globalJNIEnv;
 
-	jobject matrix = env->NewObject(matrixClass, matrixInitMethodId);
+	jobject matrix = getJNIEnv()->NewObject(matrixClass, matrixInitMethodId);
 
 	float threeDMatrix[9] = {
 		transform.xx(), transform.yx(), transform.tx(),
 		transform.xy(), transform.yy(), transform.ty(),
 		0, 0, 1};
 
-	jfloatArray matrixArray = env->NewFloatArray(9);
-	env->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
+	jfloatArray matrixArray = getJNIEnv()->NewFloatArray(9);
+	getJNIEnv()->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
-	env->CallVoidMethod(
+	getJNIEnv()->CallVoidMethod(
 		matrix,
 		matrixSetValuesMethodId,
 		matrixArray);
 
-	env->CallVoidMethod(
+	getJNIEnv()->CallVoidMethod(
 		jRendererObject,
 		setMatrixMethodId,
 		matrix);
-	env->DeleteLocalRef(matrix);
+	getJNIEnv()->DeleteLocalRef(matrix);
 }
 
 void JNIRenderer::translate(float x, float y)
 {
-	auto env = globalJNIEnv;
-
-	env->CallVoidMethod(
+	getJNIEnv()->CallVoidMethod(
 		jRendererObject, translateMethodId, x, y);
 }
 
 void JNIRenderer::drawPath(rive::RenderPath *path, rive::RenderPaint *paint)
 {
-	auto env = globalJNIEnv;
-
-	env->CallVoidMethod(
+	getJNIEnv()->CallVoidMethod(
 		jRendererObject,
 		drawPathMethodId,
 		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
@@ -73,9 +68,7 @@ void JNIRenderer::drawPath(rive::RenderPath *path, rive::RenderPaint *paint)
 
 void JNIRenderer::clipPath(rive::RenderPath *path)
 {
-	auto env = globalJNIEnv;
-
-	env->CallBooleanMethod(
+	getJNIEnv()->CallBooleanMethod(
 		jRendererObject,
 		clipPathMethodId,
 		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject);
