@@ -11,6 +11,7 @@ using namespace rive_android;
 
 JNIRenderPaint::JNIRenderPaint()
 {
+    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "create paint");
     jObject = getJNIEnv()->NewGlobalRef(
         getJNIEnv()->NewObject(paintClass, paintInitMethod));
 
@@ -18,6 +19,9 @@ JNIRenderPaint::JNIRenderPaint()
     getJNIEnv()->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
 }
 
+JNIRenderPaint::~JNIRenderPaint()
+{
+    getJNIEnv()->DeleteGlobalRef(jObject);
 }
 
 void JNIRenderPaint::color(unsigned int value)

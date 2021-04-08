@@ -320,5 +320,9 @@ namespace rive_android
 		env->DeleteGlobalRef(pathClass);
 		env->DeleteGlobalRef(fillTypeClass);
 		env->DeleteGlobalRef(loopClass);
+
+		env->DeleteGlobalRef(blendModeClass);
+		env->DeleteGlobalRef(porterDuffClass);
+		env->DeleteGlobalRef(porterDuffXferModeClass);
 	}
 } // namespace rive_android
