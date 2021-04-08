@@ -13,7 +13,7 @@ bool JNIRenderer::antialias = true;
 
 JNIRenderer::~JNIRenderer()
 {
-	// TODO: cleanup.
+	getJNIEnv()->DeleteGlobalRef(jRendererObject);
 }
 
 void JNIRenderer::save()
