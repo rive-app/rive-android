@@ -21,12 +21,11 @@ extern "C"
         jobject thisObj,
         jboolean antialias)
     {
-        ::globalJNIEnv = env;
         ::globalJNIObj = thisObj;
 
         auto renderer = new ::JNIRenderer();
         ::JNIRenderer::antialias = (bool)antialias;
-        renderer->jRendererObject = ::globalJNIEnv->NewGlobalRef(thisObj);
+        renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
 
         return (jlong)renderer;
     }
@@ -50,7 +49,6 @@ extern "C"
         jlong targetBoundsRef,
         jlong sourceBoundsRef)
     {
-        ::globalJNIEnv = env;
         ::globalJNIObj = thisObj;
 
         ::JNIRenderer *renderer = (::JNIRenderer *)ref;

@@ -106,7 +106,11 @@ class RiveDrawable : Drawable(), Animatable {
         animator.currentPlayTime = 0
 
         animations.forEach {
-            it.time(0f)
+            if (it.animation.workStart != -1) {
+                it.time(it.animation.workStart.toFloat());
+            } else {
+                it.time(0f);
+            }
             artboard?.let { ab ->
                 it.apply(ab, 1f)
                 ab.advance(0f)

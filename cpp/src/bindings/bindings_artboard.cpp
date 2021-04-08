@@ -30,8 +30,6 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
         return env->NewStringUTF(artboard->name().c_str());
@@ -42,8 +40,6 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
         return (jlong)artboard->firstAnimation();
@@ -55,10 +51,7 @@ extern "C"
         jlong ref,
         jint index)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
-
         return (jlong)artboard->animation(index);
     }
 
@@ -68,8 +61,6 @@ extern "C"
         jlong ref,
         jstring name)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
         return (jlong)artboard->animation(
@@ -81,8 +72,6 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
         return (jint)artboard->animationCount();
@@ -94,8 +83,6 @@ extern "C"
         jlong ref,
         jfloat elapsedTime)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
         artboard->advance(elapsedTime);
     }
@@ -105,8 +92,6 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
-
         rive::Artboard *artboard = (rive::Artboard *)ref;
         auto bounds = new rive::AABB(artboard->bounds());
         return (jlong)bounds;
@@ -119,7 +104,6 @@ extern "C"
         jlong rendererRef,
         jobject rendererObj)
     {
-        ::globalJNIEnv = env;
         ::globalJNIObj = rendererObj;
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
