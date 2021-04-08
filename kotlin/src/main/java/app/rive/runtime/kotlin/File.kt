@@ -1,23 +1,16 @@
 package app.rive.runtime.kotlin
 
+// TODO: rename to RiveFile
+class File(bytes: ByteArray) {
 
-class File {
-    private var nativePointer: Long
-    external private fun import(bytes: ByteArray, length: Int): Long
-    external private fun nativeArtboard(nativePointer: Long): Long
+    private val nativePointer: Long
 
-    companion object {
-        init {
-            System.loadLibrary("jnirivebridge")
-        }
+    init {
+        nativePointer = import(bytes, bytes.size)
     }
 
-    constructor(bytes: ByteArray) : super() {
-        nativePointer = import(
-            bytes,
-            bytes.size
-        )
-    }
+    private external fun import(bytes: ByteArray, length: Int): Long
+    private external fun nativeArtboard(nativePointer: Long): Long
 
     fun artboard(): Artboard {
         return Artboard(
