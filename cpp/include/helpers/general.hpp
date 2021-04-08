@@ -13,17 +13,18 @@
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-
 namespace rive_android
 {
-	extern JNIEnv *globalJNIEnv;
+	extern JavaVM *globalJavaVM;
 	extern jobject globalJNIObj;
 	extern jobject androidCanvas;
 	extern int sdkVersion;
 	void setSDKVersion();
 	long import(uint8_t *bytes, jint length);
+
 	rive::Alignment getAlignment(JNIEnv *env, jobject jalignment);
 	rive::Fit getFit(JNIEnv *env, jobject jfit);
+	JNIEnv *getJNIEnv();
 
 } // namespace rive_android
 #endif

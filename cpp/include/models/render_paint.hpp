@@ -20,6 +20,7 @@ namespace rive_android
 		jclass jClass;
 
 		JNIRenderPaint();
+		~JNIRenderPaint();
 		void color(unsigned int value) override;
 		void style(rive::RenderPaintStyle value) override;
 		void thickness(float value) override;

@@ -20,7 +20,6 @@ extern "C"
         jobject thisObj,
         jlong animationRef)
     {
-        ::globalJNIEnv = env;
 
         rive::LinearAnimation *animation = (rive::LinearAnimation *)animationRef;
 
@@ -36,8 +35,6 @@ extern "C"
         jlong ref,
         jfloat elapsedTime)
     {
-        ::globalJNIEnv = env;
-
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->advance(elapsedTime);
         bool didLoop = animationInstance->didLoop();
@@ -63,7 +60,7 @@ extern "C"
                 enumField = ::noneLoopField;
                 break;
             }
-            
+
             loopValue = env->GetStaticObjectField(::loopClass, enumField);
         }
 
@@ -77,8 +74,6 @@ extern "C"
         jlong artboardRef,
         jfloat mix)
     {
-        ::globalJNIEnv = env;
-
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         rive::Artboard *artboard = (rive::Artboard *)artboardRef;
         animationInstance->apply(artboard, mix);
@@ -89,7 +84,6 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        ::globalJNIEnv = env;
 
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         return animationInstance->time();
@@ -101,8 +95,6 @@ extern "C"
         jlong ref,
         jfloat time)
     {
-        ::globalJNIEnv = env;
-
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->time(time);
     }
