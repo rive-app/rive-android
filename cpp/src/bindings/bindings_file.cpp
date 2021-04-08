@@ -43,6 +43,19 @@ extern "C"
         return (jlong)file->artboard();
     }
 
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_File_nativeDelete(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        // if we're wiping the file, we really should wipe all those refs?
+
+        env->GetJavaVM(&::globalJavaVM);
+
+        rive::File *file = (rive::File *)ref;
+        delete file;
+    }
+
 #ifdef __cplusplus
 }
 #endif
