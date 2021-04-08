@@ -132,9 +132,14 @@ namespace rive_android
 	jfieldID pdAdd;
 	jfieldID pdOverlay;
 
+	bool done = false;
+
 	void update(JNIEnv *env)
 	{
-
+		if (done)
+		{
+			return;
+		}
 		fitClass = static_cast<jclass>(
 			env->NewGlobalRef(env->FindClass("app/rive/runtime/kotlin/Fit")));
 		alignmentClass = static_cast<jclass>(
@@ -300,6 +305,7 @@ namespace rive_android
 		pdScreen = env->GetStaticFieldID(porterDuffClass, "SCREEN", "Landroid/graphics/PorterDuff$Mode;");
 		pdAdd = env->GetStaticFieldID(porterDuffClass, "ADD", "Landroid/graphics/PorterDuff$Mode;");
 		pdOverlay = env->GetStaticFieldID(porterDuffClass, "OVERLAY", "Landroid/graphics/PorterDuff$Mode;");
+		done = true;
 	}
 
 	void disposeRefs(JNIEnv *env)
@@ -313,7 +319,6 @@ namespace rive_android
 		env->DeleteGlobalRef(styleClass);
 		env->DeleteGlobalRef(joinClass);
 		env->DeleteGlobalRef(capClass);
-		env->DeleteGlobalRef(blendModeClass);
 		env->DeleteGlobalRef(matrixClass);
 		env->DeleteGlobalRef(riveRendererClass);
 		env->DeleteGlobalRef(androidCanvasClass);
