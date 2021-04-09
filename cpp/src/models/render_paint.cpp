@@ -11,7 +11,6 @@ using namespace rive_android;
 
 JNIRenderPaint::JNIRenderPaint()
 {
-    __android_log_print(ANDROID_LOG_INFO, __FILE__, "create paint");
     auto env = getJNIEnv();
     jObject = env->NewGlobalRef(
         env->NewObject(getPaintClass(), getPaintInitMethod()));
