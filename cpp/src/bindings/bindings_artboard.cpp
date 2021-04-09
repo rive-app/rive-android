@@ -104,7 +104,6 @@ extern "C"
         jlong rendererRef,
         jobject rendererObj)
     {
-        ::globalJNIObj = rendererObj;
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
         ::JNIRenderer *renderer = (::JNIRenderer *)rendererRef;

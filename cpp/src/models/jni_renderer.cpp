@@ -18,18 +18,18 @@ JNIRenderer::~JNIRenderer()
 
 void JNIRenderer::save()
 {
-	getJNIEnv()->CallIntMethod(jRendererObject, saveMethodId);
+	getJNIEnv()->CallIntMethod(jRendererObject, getSaveMethodId());
 }
 
 void JNIRenderer::restore()
 {
-	getJNIEnv()->CallVoidMethod(jRendererObject, restoreMethodId);
+	getJNIEnv()->CallVoidMethod(jRendererObject, getRestoreMethodId());
 }
 
 void JNIRenderer::transform(const rive::Mat2D &transform)
 {
 
-	jobject matrix = getJNIEnv()->NewObject(matrixClass, matrixInitMethodId);
+	jobject matrix = getJNIEnv()->NewObject(getMatrixClass(), getMatrixInitMethodId());
 
 	float threeDMatrix[9] = {
 		transform.xx(), transform.yx(), transform.tx(),
@@ -41,12 +41,12 @@ void JNIRenderer::transform(const rive::Mat2D &transform)
 
 	getJNIEnv()->CallVoidMethod(
 		matrix,
-		matrixSetValuesMethodId,
+		getMatrixSetValuesMethodId(),
 		matrixArray);
 
 	getJNIEnv()->CallVoidMethod(
 		jRendererObject,
-		setMatrixMethodId,
+		getSetMatrixMethodId(),
 		matrix);
 	getJNIEnv()->DeleteLocalRef(matrix);
 }
@@ -54,14 +54,14 @@ void JNIRenderer::transform(const rive::Mat2D &transform)
 void JNIRenderer::translate(float x, float y)
 {
 	getJNIEnv()->CallVoidMethod(
-		jRendererObject, translateMethodId, x, y);
+		jRendererObject, getTranslateMethodId(), x, y);
 }
 
 void JNIRenderer::drawPath(rive::RenderPath *path, rive::RenderPaint *paint)
 {
 	getJNIEnv()->CallVoidMethod(
 		jRendererObject,
-		drawPathMethodId,
+		getDrawPathMethodId(),
 		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
 		reinterpret_cast<JNIRenderPaint *>(paint)->jObject);
 }
@@ -70,6 +70,6 @@ void JNIRenderer::clipPath(rive::RenderPath *path)
 {
 	getJNIEnv()->CallBooleanMethod(
 		jRendererObject,
-		clipPathMethodId,
+		getClipPathMethodId(),
 		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject);
 }

@@ -18,7 +18,6 @@ namespace rive
 namespace rive_android
 {
 	JavaVM *globalJavaVM;
-	jobject globalJNIObj;
 	jobject androidCanvas;
 	int sdkVersion;
 
@@ -55,7 +54,7 @@ namespace rive_android
 
 	rive::Fit getFit(JNIEnv *env, jobject jfit)
 	{
-		jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::fitNameMethodId);
+		jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::getFitNameMethodId());
 		const char *fitValueNative = env->GetStringUTFChars(fitValue, 0);
 
 		rive::Fit fit = rive::Fit::none;
@@ -92,7 +91,7 @@ namespace rive_android
 
 	rive::Alignment getAlignment(JNIEnv *env, jobject jalignment)
 	{
-		jstring alignmentValue = (jstring)env->CallObjectMethod(jalignment, rive_android::alignmentNameMethodId);
+		jstring alignmentValue = (jstring)env->CallObjectMethod(jalignment, rive_android::getAlignmentNameMethodId());
 		const char *alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
 
 		rive::Alignment alignment = rive::Alignment::center;
@@ -137,7 +136,6 @@ namespace rive_android
 
 	long import(uint8_t *bytes, jint length)
 	{
-
 		auto reader = rive::BinaryReader(bytes, length);
 		rive::File *file = nullptr;
 		auto result = rive::File::import(reader, &file);

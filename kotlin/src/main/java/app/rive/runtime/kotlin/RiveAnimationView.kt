@@ -28,8 +28,9 @@ class RiveAnimationView : AppCompatImageView {
             destroy()
         }
 
-        val file = File(resources.openRawResource(resId).readBytes())
+
         drawable = RiveDrawable().apply {
+            val file = File(resources.openRawResource(resId).readBytes())
             setAnimationFile(file)
             setImageDrawable(this)
         }
