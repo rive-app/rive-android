@@ -21,7 +21,7 @@ extern "C"
         jobject thisObj,
         jboolean antialias)
     {
-        ::globalJNIObj = thisObj;
+        env->GetJavaVM(&::globalJavaVM);
 
         auto renderer = new ::JNIRenderer();
         ::JNIRenderer::antialias = (bool)antialias;
@@ -48,8 +48,6 @@ extern "C"
         jlong targetBoundsRef,
         jlong sourceBoundsRef)
     {
-        ::globalJNIObj = thisObj;
-
         ::JNIRenderer *renderer = (::JNIRenderer *)ref;
 
         auto fit = ::getFit(env, jfit);
