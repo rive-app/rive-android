@@ -11,12 +11,13 @@ using namespace rive_android;
 
 JNIRenderPaint::JNIRenderPaint()
 {
-    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "create paint");
-    jObject = getJNIEnv()->NewGlobalRef(
-        getJNIEnv()->NewObject(paintClass, paintInitMethod));
+    __android_log_print(ANDROID_LOG_INFO, __FILE__, "create paint");
+    auto env = getJNIEnv();
+    jObject = env->NewGlobalRef(
+        env->NewObject(getPaintClass(), getPaintInitMethod()));
 
-    auto aaSetter = getJNIEnv()->GetMethodID(paintClass, "setAntiAlias", "(Z)V");
-    getJNIEnv()->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
+    auto aaSetter = env->GetMethodID(getPaintClass(), "setAntiAlias", "(Z)V");
+    env->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
 }
 
 JNIRenderPaint::~JNIRenderPaint()
@@ -27,7 +28,7 @@ JNIRenderPaint::~JNIRenderPaint()
 void JNIRenderPaint::color(unsigned int value)
 {
 
-    getJNIEnv()->CallVoidMethod(jObject, setColorMethodId, value);
+    getJNIEnv()->CallVoidMethod(jObject, getSetColorMethodId(), value);
 }
 
 void JNIRenderPaint::style(rive::RenderPaintStyle value)
@@ -37,23 +38,23 @@ void JNIRenderPaint::style(rive::RenderPaintStyle value)
     {
         getJNIEnv()->CallVoidMethod(
             jObject,
-            setStyleMethodId,
+            getSetStyleMethodId(),
             getJNIEnv()->GetStaticObjectField(
-                styleClass, strokeId));
+                getStyleClass(), getStrokeId()));
     }
     else
     {
         getJNIEnv()->CallVoidMethod(
             jObject,
-            setStyleMethodId,
+            getSetStyleMethodId(),
             getJNIEnv()->GetStaticObjectField(
-                styleClass, fillId));
+                getStyleClass(), getFillId()));
     }
 }
 
 void JNIRenderPaint::thickness(float value)
 {
-    getJNIEnv()->CallVoidMethod(jObject, setStrokeWidthMethodId, value);
+    getJNIEnv()->CallVoidMethod(jObject, getSetStrokeWidthMethodId(), value);
 }
 
 void JNIRenderPaint::join(rive::StrokeJoin value)
@@ -63,22 +64,22 @@ void JNIRenderPaint::join(rive::StrokeJoin value)
     switch (value)
     {
     case rive::StrokeJoin::miter:
-        joinId = miterId;
+        joinId = getMiterId();
         break;
     case rive::StrokeJoin::round:
-        joinId = roundId;
+        joinId = getRoundId();
         break;
     case rive::StrokeJoin::bevel:
-        joinId = bevelId;
+        joinId = getBevelId();
         break;
     default:
-        joinId = miterId;
+        joinId = getMiterId();
         break;
     }
     getJNIEnv()->CallVoidMethod(
         jObject,
-        setStrokeJoinMethodId,
-        getJNIEnv()->GetStaticObjectField(joinClass, joinId));
+        getSetStrokeJoinMethodId(),
+        getJNIEnv()->GetStaticObjectField(getJoinClass(), joinId));
 }
 
 void JNIRenderPaint::cap(rive::StrokeCap value)
@@ -87,22 +88,22 @@ void JNIRenderPaint::cap(rive::StrokeCap value)
     switch (value)
     {
     case rive::StrokeCap::butt:
-        capId = capButtID;
+        capId = getCapButtID();
         break;
     case rive::StrokeCap::round:
-        capId = capRoundId;
+        capId = getCapRoundId();
         break;
     case rive::StrokeCap::square:
-        capId = capSquareId;
+        capId = getCapSquareId();
         break;
     default:
-        capId = capButtID;
+        capId = getCapButtID();
         break;
     }
     getJNIEnv()->CallVoidMethod(
         jObject,
-        setStrokeCapMethodId,
-        getJNIEnv()->GetStaticObjectField(capClass, capId));
+        getSetStrokeCapMethodId(),
+        getJNIEnv()->GetStaticObjectField(getCapClass(), capId));
 }
 
 void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
@@ -111,19 +112,19 @@ void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
     switch (value)
     {
     case rive::BlendMode::srcOver:
-        modeId = ::pdSrcOver;
+        modeId = ::getPdSrcOver();
         break;
     case rive::BlendMode::screen:
-        modeId = ::pdScreen;
+        modeId = ::getPdScreen();
         break;
     case rive::BlendMode::overlay:
-        modeId = ::pdOverlay;
+        modeId = ::getPdOverlay();
         break;
     case rive::BlendMode::darken:
-        modeId = ::pdDarken;
+        modeId = ::getPdDarken();
         break;
     case rive::BlendMode::lighten:
-        modeId = ::pdLighten;
+        modeId = ::getPdLighten();
         break;
     case rive::BlendMode::colorDodge:
         return;
@@ -144,7 +145,7 @@ void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
         return;
         break;
     case rive::BlendMode::multiply:
-        modeId = ::pdMultiply;
+        modeId = ::getPdMultiply();
         break;
     case rive::BlendMode::hue:
         return;
@@ -159,18 +160,18 @@ void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
         return;
         break;
     default:
-        modeId = ::pdClear;
+        modeId = ::getPdClear();
         break;
     }
 
     jobject xferModeClass = getJNIEnv()->NewObject(
-        porterDuffXferModeClass,
-        porterDuffXferModeInitMethodId,
-        getJNIEnv()->GetStaticObjectField(porterDuffClass, modeId));
+        getPorterDuffXferModeClass(),
+        getPorterDuffXferModeInitMethodId(),
+        getJNIEnv()->GetStaticObjectField(getPorterDuffClass(), modeId));
 
     getJNIEnv()->CallObjectMethod(
         jObject,
-        setXfermodeMethodId,
+        getSetXfermodeMethodId(),
         xferModeClass);
 }
 
@@ -185,62 +186,62 @@ void JNIRenderPaint::blendMode(rive::BlendMode value)
     switch (value)
     {
     case rive::BlendMode::srcOver:
-        modeId = ::srcOver;
+        modeId = ::getSrcOver();
         break;
     case rive::BlendMode::screen:
-        modeId = ::screen;
+        modeId = ::getScreen();
         break;
     case rive::BlendMode::overlay:
-        modeId = ::overlay;
+        modeId = ::getOverlay();
         break;
     case rive::BlendMode::darken:
-        modeId = ::darken;
+        modeId = ::getDarken();
         break;
     case rive::BlendMode::lighten:
-        modeId = ::lighten;
+        modeId = ::getLighten();
         break;
     case rive::BlendMode::colorDodge:
-        modeId = ::colorDodge;
+        modeId = ::getColorDodge();
         break;
     case rive::BlendMode::colorBurn:
-        modeId = ::colorBurn;
+        modeId = ::getColorBurn();
         break;
     case rive::BlendMode::hardLight:
-        modeId = ::hardLight;
+        modeId = ::getHardLight();
         break;
     case rive::BlendMode::softLight:
-        modeId = ::softLight;
+        modeId = ::getSoftLight();
         break;
     case rive::BlendMode::difference:
-        modeId = ::difference;
+        modeId = ::getDifference();
         break;
     case rive::BlendMode::exclusion:
-        modeId = ::exclusion;
+        modeId = ::getExclusion();
         break;
     case rive::BlendMode::multiply:
-        modeId = ::multiply;
+        modeId = ::getMultiply();
         break;
     case rive::BlendMode::hue:
-        modeId = ::hue;
+        modeId = ::getHue();
         break;
     case rive::BlendMode::saturation:
-        modeId = ::saturation;
+        modeId = ::getSaturation();
         break;
     case rive::BlendMode::color:
-        modeId = ::color;
+        modeId = ::getColor();
         break;
     case rive::BlendMode::luminosity:
-        modeId = ::luminosity;
+        modeId = ::getLuminosity();
         break;
     default:
-        modeId = ::clear;
+        modeId = ::getClear();
         break;
     }
 
     getJNIEnv()->CallVoidMethod(
         jObject,
-        setBlendModeMethodId,
-        getJNIEnv()->GetStaticObjectField(blendModeClass, modeId));
+        getSetBlendModeMethodId(),
+        getJNIEnv()->GetStaticObjectField(getBlendModeClass(), modeId));
 }
 
 void JNIRenderPaint::linearGradient(float sx, float sy, float ex, float ey)

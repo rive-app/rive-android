@@ -19,19 +19,19 @@ void JNIRadialGradientBuilder::apply(jobject paint)
     float radius = rive::Vec2D::distance(rive::Vec2D(sx, sy), rive::Vec2D(ex, ey));
 
     jobject shaderObject = getJNIEnv()->NewObject(
-        radialGradientClass,
-        radialGradientInitMethodId,
+        getRadialGradientClass(),
+        getRadialGradientInitMethodId(),
         sx,
         sy,
         radius,
         jcolors,
         jstops,
         getJNIEnv()->GetStaticObjectField(
-            tileModeClass,
-            clampId));
+            getTileModeClass(),
+            getClampId()));
 
     getJNIEnv()->CallObjectMethod(
         paint,
-        shaderMethodId,
+        getShaderMethodId(),
         shaderObject);
 }
