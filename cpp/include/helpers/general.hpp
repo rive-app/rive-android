@@ -16,7 +16,6 @@
 namespace rive_android
 {
 	extern JavaVM *globalJavaVM;
-	extern jobject globalJNIObj;
 	extern jobject androidCanvas;
 	extern int sdkVersion;
 	void setSDKVersion();

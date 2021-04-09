@@ -18,7 +18,6 @@ namespace rive
 namespace rive_android
 {
 	JavaVM *globalJavaVM;
-	jobject globalJNIObj;
 	jobject androidCanvas;
 	int sdkVersion;
 
