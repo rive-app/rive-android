@@ -22,12 +22,9 @@ extern "C"
         // pretty much considered the entrypoint.
         env->GetJavaVM(&::globalJavaVM);
         rive_android::setSDKVersion();
-        ::update(env);
-
         auto file = ::import(
             (uint8_t *)env->GetByteArrayElements(bytes, NULL),
             length);
-
         return (jlong)file;
     }
 
