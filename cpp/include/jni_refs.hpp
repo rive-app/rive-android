@@ -4,131 +4,126 @@
 
 namespace rive_android
 {
-	extern jclass fitClass;
-	extern jmethodID fitNameMethodId;
+	extern jclass getFitClass();
+	extern jmethodID getFitNameMethodId();
 
-	extern jclass alignmentClass;
-	extern jmethodID alignmentNameMethodId;
+	extern jclass getAlignmentClass();
+	extern jmethodID getAlignmentNameMethodId();
 
-	extern jclass radialGradientClass;
-	extern jmethodID radialGradientInitMethodId;
+	extern jclass getRadialGradientClass();
+	extern jmethodID getRadialGradientInitMethodId();
 
-	extern jclass linearGradientClass;
-	extern jmethodID linearGradientInitMethodId;
+	extern jclass getLinearGradientClass();
+	extern jmethodID getLinearGradientInitMethodId();
 
-	extern jclass tileModeClass;
-	extern jfieldID clampId;
-	extern jfieldID repeatId;
-	extern jfieldID mirrorId;
+	extern jclass getTileModeClass();
+	extern jfieldID getClampId();
+	extern jfieldID getRepeatId();
+	extern jfieldID getMirrorId();
 
-	extern jclass paintClass;
-	extern jmethodID paintInitMethod;
-	extern jmethodID setColorMethodId;
-	extern jmethodID shaderMethodId;
-	extern jmethodID setStyleMethodId;
+	extern jclass getPaintClass();
+	extern jmethodID getPaintInitMethod();
+	extern jmethodID getSetColorMethodId();
+	extern jmethodID getShaderMethodId();
+	extern jmethodID getSetStyleMethodId();
 
-	extern jclass styleClass;
-	extern jfieldID fillId;
-	extern jfieldID strokeId;
+	extern jclass getStyleClass();
+	extern jfieldID getFillId();
+	extern jfieldID getStrokeId();
 
-	extern jclass joinClass;
-	extern jfieldID miterId;
-	extern jfieldID roundId;
-	extern jfieldID bevelId;
+	extern jclass getJoinClass();
+	extern jfieldID getMiterId();
+	extern jfieldID getRoundId();
+	extern jfieldID getBevelId();
 
-	extern jmethodID setStrokeWidthMethodId;
-	extern jmethodID setStrokeJoinMethodId;
+	extern jmethodID getSetStrokeWidthMethodId();
+	extern jmethodID getSetStrokeJoinMethodId();
 
-	extern jclass capClass;
+	extern jclass getCapClass();
 
-	extern jfieldID capButtID;
-	extern jfieldID capRoundId;
-	extern jfieldID capSquareId;
+	extern jfieldID getCapButtID();
+	extern jfieldID getCapRoundId();
+	extern jfieldID getCapSquareId();
 
-	extern jmethodID setStrokeCapMethodId;
-	extern jclass blendModeClass;
+	extern jmethodID getSetStrokeCapMethodId();
+	extern jclass getBlendModeClass();
 
-	extern jfieldID srcOver;
-	extern jfieldID screen;
-	extern jfieldID overlay;
-	extern jfieldID darken;
-	extern jfieldID lighten;
-	extern jfieldID colorDodge;
-	extern jfieldID colorBurn;
-	extern jfieldID hardLight;
-	extern jfieldID softLight;
-	extern jfieldID difference;
-	extern jfieldID exclusion;
-	extern jfieldID multiply;
-	extern jfieldID hue;
-	extern jfieldID saturation;
-	extern jfieldID color;
-	extern jfieldID luminosity;
-	extern jfieldID clear;
-	extern jmethodID setBlendModeMethodId;
+	extern jfieldID getSrcOver();
+	extern jfieldID getScreen();
+	extern jfieldID getOverlay();
+	extern jfieldID getDarken();
+	extern jfieldID getLighten();
+	extern jfieldID getColorDodge();
+	extern jfieldID getColorBurn();
+	extern jfieldID getHardLight();
+	extern jfieldID getSoftLight();
+	extern jfieldID getDifference();
+	extern jfieldID getExclusion();
+	extern jfieldID getMultiply();
+	extern jfieldID getHue();
+	extern jfieldID getSaturation();
+	extern jfieldID getColor();
+	extern jfieldID getLuminosity();
+	extern jfieldID getClear();
+	extern jmethodID getSetBlendModeMethodId();
 
-	extern jclass pathClass;
-	extern jmethodID pathInitMethodId;
-	extern jmethodID resetMethodId;
-	extern jmethodID setFillTypeMethodId;
+	extern jclass getPathClass();
+	extern jmethodID getPathInitMethodId();
+	extern jmethodID getResetMethodId();
+	extern jmethodID getSetFillTypeMethodId();
 
-	extern jclass fillTypeClass;
-	extern jfieldID evenOddId;
-	extern jfieldID nonZeroId;
+	extern jclass getFillTypeClass();
+	extern jfieldID getEvenOddId();
+	extern jfieldID getNonZeroId();
 
-	extern jclass matrixClass;
-	extern jmethodID matrixInitMethodId;
-	extern jmethodID matrixSetValuesMethodId;
-	extern jmethodID addPathMethodId;
-	extern jmethodID moveToMethodId;
-	extern jmethodID lineToMethodId;
-	extern jmethodID cubicToMethodId;
-	extern jmethodID closeMethodId;
+	extern jclass getMatrixClass();
+	extern jmethodID getMatrixInitMethodId();
+	extern jmethodID getMatrixSetValuesMethodId();
+	extern jmethodID getAddPathMethodId();
+	extern jmethodID getMoveToMethodId();
+	extern jmethodID getLineToMethodId();
+	extern jmethodID getCubicToMethodId();
+	extern jmethodID getCloseMethodId();
 
-	extern jclass riveRendererClass;
-	// extern jfieldID riveCanvasFieldId;
+	extern jclass getRiveRendererClass();
 
-	extern jclass androidCanvasClass;
-	extern jmethodID saveMethodId;
-	extern jmethodID restoreMethodId;
-	extern jmethodID setMatrixMethodId;
-	extern jmethodID translateMethodId;
-	extern jmethodID drawPathMethodId;
-	extern jmethodID clipPathMethodId;
-	// extern jmethodID invalidateMethodId;
+	extern jclass getAndroidCanvasClass();
+	extern jmethodID getSaveMethodId();
+	extern jmethodID getRestoreMethodId();
+	extern jmethodID getSetMatrixMethodId();
+	extern jmethodID getTranslateMethodId();
+	extern jmethodID getDrawPathMethodId();
+	extern jmethodID getClipPathMethodId();
 
-	extern jclass loopClass;
-	extern jfieldID noneLoopField;
-	extern jfieldID oneShotLoopField;
-	extern jfieldID loopLoopField;
-	extern jfieldID pingPongLoopField;
+	extern jclass getLoopClass();
+	extern jfieldID getNoneLoopField();
+	extern jfieldID getOneShotLoopField();
+	extern jfieldID getLoopLoopField();
+	extern jfieldID getPingPongLoopField();
 
-	extern jclass porterDuffClass;
-	extern jclass porterDuffXferModeClass;
-	extern jmethodID porterDuffXferModeInitMethodId;
-	extern jmethodID setXfermodeMethodId;
+	extern jclass getPorterDuffClass();
+	extern jclass getPorterDuffXferModeClass();
+	extern jmethodID getPorterDuffXferModeInitMethodId();
+	extern jmethodID getSetXfermodeMethodId();
 
-	extern jfieldID pdClear;
-	extern jfieldID pdSrc;
-	extern jfieldID pdDst;
-	extern jfieldID pdSrcOver;
-	extern jfieldID pdDstOver;
-	extern jfieldID pdSrcIn;
-	extern jfieldID pdDstIn;
-	extern jfieldID pdSrcOut;
-	extern jfieldID pdDstOut;
-	extern jfieldID pdSrcAtop;
-	extern jfieldID pdDstAtop;
-	extern jfieldID pdXor;
-	extern jfieldID pdDarken;
-	extern jfieldID pdLighten;
-	extern jfieldID pdMultiply;
-	extern jfieldID pdScreen;
-	extern jfieldID pdAdd;
-	extern jfieldID pdOverlay;
-
-	void update(JNIEnv *env);
-	void disposeRefs(JNIEnv *env);
+	extern jfieldID getPdClear();
+	extern jfieldID getPdSrc();
+	extern jfieldID getPdDst();
+	extern jfieldID getPdSrcOver();
+	extern jfieldID getPdDstOver();
+	extern jfieldID getPdSrcIn();
+	extern jfieldID getPdDstIn();
+	extern jfieldID getPdSrcOut();
+	extern jfieldID getPdDstOut();
+	extern jfieldID getPdSrcAtop();
+	extern jfieldID getPdDstAtop();
+	extern jfieldID getPdXor();
+	extern jfieldID getPdDarken();
+	extern jfieldID getPdLighten();
+	extern jfieldID getPdMultiply();
+	extern jfieldID getPdScreen();
+	extern jfieldID getPdAdd();
+	extern jfieldID getPdOverlay();
 
 } // namespace rive_android
 #endif

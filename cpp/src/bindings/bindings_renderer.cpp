@@ -35,7 +35,6 @@ extern "C"
         jobject thisObj,
         jlong rendererRef)
     {
-        ::disposeRefs(env);
         ::JNIRenderer *renderer = (::JNIRenderer *)rendererRef;
         delete renderer;
     }
