@@ -6,14 +6,12 @@ using namespace rive_android;
 
 JNIRenderPath::JNIRenderPath()
 {
-    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "create path");
     jObject = getJNIEnv()->NewGlobalRef(
         getJNIEnv()->NewObject(getPathClass(), getPathInitMethodId()));
 }
 
 JNIRenderPath::~JNIRenderPath()
 {
-    // __android_log_print(ANDROID_LOG_INFO, __FILE__, "delete path");
     getJNIEnv()->DeleteGlobalRef(jObject);
 }
 
