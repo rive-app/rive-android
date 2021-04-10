@@ -101,6 +101,14 @@ class RiveDrawable : Drawable(), Animatable {
         }
     }
 
+    override fun getIntrinsicWidth(): Int {
+        return artboard?.bounds()?.width?.toInt() ?: -1
+    }
+
+    override fun getIntrinsicHeight(): Int {
+        return artboard?.bounds()?.height?.toInt() ?: -1
+    }
+
     fun reset() {
         animator.cancel()
         animator.currentPlayTime = 0
