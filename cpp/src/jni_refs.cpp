@@ -21,6 +21,12 @@ namespace rive_android
 		return getJNIEnv()->GetStaticFieldID(clazz, name, sig);
 	}
 
+	jint throwRiveError(const char *message)
+	{
+		jclass exClass = getClass("app/rive/runtime/kotlin/RiveException");
+		return getJNIEnv()->ThrowNew(exClass, message);
+	}
+
 	jclass getFitClass()
 	{
 		return getClass("app/rive/runtime/kotlin/Fit");
