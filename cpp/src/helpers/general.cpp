@@ -139,20 +139,22 @@ namespace rive_android
 		auto reader = rive::BinaryReader(bytes, length);
 		rive::File *file = nullptr;
 		auto result = rive::File::import(reader, &file);
-
 		if (result == rive::ImportResult::success)
 		{
 			return (long)file;
 		}
 		else if (result == rive::ImportResult::unsupportedVersion)
 		{
-			__android_log_print(ANDROID_LOG_INFO, __FILE__, "unsupported version");
+			return throwRiveError("Unsupported Rive File Version.");
 		}
 		else if (result == rive::ImportResult::malformed)
 		{
-			__android_log_print(ANDROID_LOG_INFO, __FILE__, "malformed");
+			return throwRiveError("Malformed Rive File.");
 		}
-		return (long)-1;
+		else
+		{
+			return throwRiveError("Unknown error loading file.");
+		}
 	}
 
 } // namespace rive_android
