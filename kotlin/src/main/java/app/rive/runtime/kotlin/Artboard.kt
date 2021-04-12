@@ -27,20 +27,32 @@ class Artboard(val nativePointer: Long) {
     }
 
     fun firstAnimation(): Animation {
+        var animationPointer = nativeFirstAnimation(nativePointer);
+        if (animationPointer == 0L) {
+            throw RiveException("No Animations found.")
+        }
         return Animation(
-            nativeFirstAnimation(nativePointer)
+            animationPointer
         )
     }
 
     fun animation(index: Int): Animation {
+        var animationPointer = nativeAnimationByIndex(nativePointer, index)
+        if (animationPointer == 0L) {
+            throw RiveException("No Animation found at index $index.")
+        }
         return Animation(
-            nativeAnimationByIndex(nativePointer, index)
+            animationPointer
         )
     }
 
     fun animation(name: String): Animation {
+        var animationPointer= nativeAnimationByName(nativePointer, name)
+        if (animationPointer == 0L) {
+            throw RiveException("No Animation found with name $name.")
+        }
         return Animation(
-            nativeAnimationByName(nativePointer, name)
+            animationPointer
         )
     }
 
