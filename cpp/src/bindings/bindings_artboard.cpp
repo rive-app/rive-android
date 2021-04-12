@@ -9,13 +9,6 @@
 
 #include <jni.h>
 
-std::string jstring2string(JNIEnv *env, jstring jStr)
-{
-    const char *cstr = env->GetStringUTFChars(jStr, NULL);
-    std::string str = std::string(cstr);
-    return str;
-}
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -93,6 +86,7 @@ extern "C"
         jlong ref)
     {
         rive::Artboard *artboard = (rive::Artboard *)ref;
+        // TODO: garbage collection?
         auto bounds = new rive::AABB(artboard->bounds());
         return (jlong)bounds;
     }
