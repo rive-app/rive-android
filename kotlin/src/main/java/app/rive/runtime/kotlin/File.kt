@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin
 
+import java.lang.Exception
+
 // TODO: rename to RiveFile
 class File(bytes: ByteArray) {
 
@@ -19,6 +21,8 @@ class File(bytes: ByteArray) {
         )
     }
     protected fun finalize() {
-        nativeDelete(nativePointer)
+        if (nativePointer != -1L) {
+            nativeDelete(nativePointer)
+        }
     }
 }
