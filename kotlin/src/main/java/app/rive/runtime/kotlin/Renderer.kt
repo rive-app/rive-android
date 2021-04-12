@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-import android.util.Log
 
 enum class Fit {
     FILL, CONTAIN, COVER, FIT_WIDTH, FIT_HEIGHT, NONE, SCALE_DOWN
@@ -31,6 +30,7 @@ class Renderer(antialias: Boolean = true) {
         targetBoundsPointer: Long,
         srcBoundsPointer: Long
     )
+
     private external fun constructor(antialias: Boolean): Long
     private external fun cleanupJNI(nativePointer: Long)
 
