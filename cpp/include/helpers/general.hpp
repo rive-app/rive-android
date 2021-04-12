@@ -3,6 +3,7 @@
 
 #include "layout.hpp"
 #include <jni.h>
+#include <string>
 
 #include <android/log.h>
 
@@ -24,6 +25,8 @@ namespace rive_android
 	rive::Alignment getAlignment(JNIEnv *env, jobject jalignment);
 	rive::Fit getFit(JNIEnv *env, jobject jfit);
 	JNIEnv *getJNIEnv();
+
+	std::string jstring2string(JNIEnv *env, jstring jStr);
 
 } // namespace rive_android
 #endif
