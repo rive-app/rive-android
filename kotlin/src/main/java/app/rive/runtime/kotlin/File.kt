@@ -1,7 +1,5 @@
 package app.rive.runtime.kotlin
 
-import java.lang.Exception
-
 // TODO: rename to RiveFile
 class File(bytes: ByteArray) {
 

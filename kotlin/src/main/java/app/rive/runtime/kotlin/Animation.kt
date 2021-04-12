@@ -8,7 +8,7 @@ class Animation(val nativePointer: Long) {
     private external fun nativeFps(nativePointer: Long): Int
     private external fun nativeWorkStart(nativePointer: Long): Int
     private external fun nativeWorkEnd(nativePointer: Long): Int
-    private external fun nativeGetLoop(nativePointer: Long) : Int
+    private external fun nativeGetLoop(nativePointer: Long): Int
     private external fun nativeSetLoop(nativePointer: Long, value: Int)
 
     val duration: Int
