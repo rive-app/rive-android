@@ -40,6 +40,20 @@ extern "C"
         return (jlong)file->artboard();
     }
 
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_File_nativeGetArtboardByName(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jstring name)
+    {
+        env->GetJavaVM(&::globalJavaVM);
+
+        rive::File *file = (rive::File *)ref;
+
+        return (jlong)file->artboard(
+            jstring2string(env, name));
+    }
+
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_File_nativeDelete(
         JNIEnv *env,
         jobject thisObj,
