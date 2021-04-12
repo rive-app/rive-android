@@ -10,20 +10,38 @@ class LinearAnimationInstance(val animation: Animation) {
     private external fun nativeGetTime(pointer: Long): Float
     private external fun nativeSetTime(pointer: Long, time: Float)
 
+
+    /**
+     * Advance the animation by the [elapsedTime]. Returns true if the
+     * animation will continue to animate after this advance.
+     */
     fun advance(elapsedTime: Float): Loop? {
         return nativeAdvance(nativePointer, elapsedTime)
     }
 
+
+    /**
+     * Applies the animation instance's current set of transformations to an [artboard].
+     * The mix (a value between 0 and 1) is the strength at which the animation is mixed with
+     * other animations applied to the artboard.
+     */
     fun apply(artboard: Artboard, mix: Float = 1.0f) {
         nativeApply(nativePointer, artboard.nativePointer, mix)
     }
 
+    /**
+     * Returns the current point in time at which this instance has advance
+     * to
+     */
     fun time(): Float {
         return nativeGetTime(nativePointer)
     }
 
-    fun time(_time: Float) {
-        nativeSetTime(nativePointer, _time)
+    /**
+     * Sets the animation's point in time to [time]
+     */
+    fun time(time: Float) {
+        nativeSetTime(nativePointer, time)
     }
 }
 
