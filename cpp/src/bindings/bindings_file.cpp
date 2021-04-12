@@ -19,8 +19,6 @@ extern "C"
         jbyteArray bytes,
         jint length)
     {
-        // pretty much considered the entrypoint.
-        env->GetJavaVM(&::globalJavaVM);
         rive_android::setSDKVersion();
         auto file = ::import(
             (uint8_t *)env->GetByteArrayElements(bytes, NULL),
@@ -33,10 +31,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        env->GetJavaVM(&::globalJavaVM);
-
         rive::File *file = (rive::File *)ref;
-
         return (jlong)file->artboard();
     }
 
@@ -46,10 +41,7 @@ extern "C"
         jlong ref,
         jstring name)
     {
-        env->GetJavaVM(&::globalJavaVM);
-
         rive::File *file = (rive::File *)ref;
-
         return (jlong)file->artboard(
             jstring2string(env, name));
     }
@@ -60,9 +52,6 @@ extern "C"
         jlong ref)
     {
         // if we're wiping the file, we really should wipe all those refs?
-
-        env->GetJavaVM(&::globalJavaVM);
-
         rive::File *file = (rive::File *)ref;
         delete file;
     }
