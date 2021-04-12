@@ -21,8 +21,6 @@ extern "C"
         jobject thisObj,
         jboolean antialias)
     {
-        env->GetJavaVM(&::globalJavaVM);
-
         auto renderer = new ::JNIRenderer();
         ::JNIRenderer::antialias = (bool)antialias;
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
