@@ -1,4 +1,6 @@
 // From rive-cpp
+#include "jni_refs.hpp"
+#include "helpers/general.hpp"
 #include "math/aabb.hpp"
 //
 #include <jni.h>
@@ -19,6 +21,24 @@ extern "C"
         rive::AABB *aabb = new rive::AABB(0, 0, width, height);
         return (jlong)aabb;
     }
+
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_AABB_nativeWidth(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::AABB *aabb = (rive::AABB *)ref;
+        return (jfloat)aabb->width();
+    }
+
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_AABB_nativeHeight(
+            JNIEnv *env,
+            jobject thisObj,
+            jlong ref)
+        {
+            rive::AABB *aabb = (rive::AABB *)ref;
+            return (jfloat)aabb->height();
+        }
 
 #ifdef __cplusplus
 }
