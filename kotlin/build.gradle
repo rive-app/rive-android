@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'org.jetbrains.dokka'
 
 android {
     compileSdkVersion 29
@@ -28,6 +29,15 @@ android {
     }
     testOptions {
         unitTests.includeAndroidResources = true
+    }
+    dokkaGfm {
+        dokkaSourceSets {
+            named("main") {
+                noAndroidSdkLink.set(false)
+                outputDirectory.set(buildDir.resolve("dokka"))
+                reportUndocumented.set(true)
+            }
+        }
     }
 }
 
