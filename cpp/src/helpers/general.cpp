@@ -6,7 +6,6 @@
 // From 'rive-cpp'
 #include "file.hpp"
 #include "layout.hpp"
-//
 
 // lets make sure we stich our rive android renderers into the rive namespace
 namespace rive
@@ -155,6 +154,13 @@ namespace rive_android
 		{
 			return throwRiveError("Unknown error loading file.");
 		}
+	}
+
+	std::string jstring2string(JNIEnv *env, jstring jStr)
+	{
+		const char *cstr = env->GetStringUTFChars(jStr, NULL);
+		std::string str = std::string(cstr);
+		return str;
 	}
 
 } // namespace rive_android

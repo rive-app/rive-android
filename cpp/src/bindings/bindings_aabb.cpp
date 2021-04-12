@@ -15,6 +15,7 @@ extern "C"
         jfloat width,
         jfloat height)
     {
+        // TODO: garbage collection?
         rive::AABB *aabb = new rive::AABB(0, 0, width, height);
         return (jlong)aabb;
     }
