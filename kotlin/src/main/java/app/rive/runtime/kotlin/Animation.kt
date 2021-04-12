@@ -11,16 +11,56 @@ class Animation(val nativePointer: Long) {
     private external fun nativeGetLoop(nativePointer: Long): Int
     private external fun nativeSetLoop(nativePointer: Long, value: Int)
 
+    /**
+     * Get the duration of an animation in frames, this does not take [workStart]
+     * and [workEnd] into account
+     */
     val duration: Int
         get() = nativeDuration(nativePointer)
+
+    /**
+     * Get the duration of an animation in frames, taking [workStart]
+     * and [workEnd] into account
+     */
+    val effectiveDuration: Int
+        get() {
+            if (workStart == -1) {
+                return duration
+            }
+            return workEnd-workStart
+        }
+
+
+    /**
+     * Return the fps configured for the animation
+     */
     val fps: Int
         get() = nativeFps(nativePointer)
+
+    /**
+     * Return the offset in frames to the beginning of an animations work area.
+     * Animations will start playing from here.
+     */
     val workStart: Int
         get() = nativeWorkStart(nativePointer)
+
+    /**
+     * Return the offset in frames to the end of an animations work area.
+     * Animations will will loop, pingpong and stop once this is reached.
+     */
     val workEnd: Int
         get() = nativeWorkEnd(nativePointer)
+
+    /**
+     * Return the name given to an animation
+     */
     val name: String
         get() = nativeName(nativePointer)
+
+    /**
+     * Configure the [Loop] mode configured against an animation. can be either
+     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.NONE]
+     */
     var loop: Loop
         get() {
             val intLoop = nativeGetLoop(nativePointer)
