@@ -4,6 +4,7 @@
 
 namespace rive_android
 {
+	extern jint throwRiveError(const char *message);
 	extern jclass getFitClass();
 	extern jmethodID getFitNameMethodId();
 
