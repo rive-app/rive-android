@@ -35,7 +35,7 @@ class RiveDrawable : Drawable(), Animatable {
 
     fun setAnimationFile(file: File) {
         this.file = file
-        val artboard = file.artboard().also {
+        val artboard = file.artboard.also {
             this.artboard = it
         }
         val animationCount = artboard.animationCount

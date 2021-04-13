@@ -41,7 +41,7 @@ class RiveAnimationLoadTest {
     fun artboardHasNoAnimations () {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
-        var artboard = file.artboard()
+        var artboard = file.artboard
         assertEquals(artboard.animationCount,0)
     }
 
@@ -49,7 +49,7 @@ class RiveAnimationLoadTest {
     fun loadFirstAnimationNoExists () {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
-        var artboard = file.artboard()
+        var artboard = file.artboard
         artboard.firstAnimation
     }
 
@@ -57,7 +57,7 @@ class RiveAnimationLoadTest {
     fun loadAnimationByIndexDoesntExist () {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
-        var artboard = file.artboard()
+        var artboard = file.artboard
         artboard.animation(1)
     }
 
@@ -65,7 +65,7 @@ class RiveAnimationLoadTest {
     fun loadAnimationByNameDoesntExist () {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
-        var artboard = file.artboard()
+        var artboard = file.artboard
         artboard.animation("foo")
     }
 }
