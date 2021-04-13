@@ -15,7 +15,7 @@ extern "C"
     using namespace rive_android;
 
     // ANIMATION INSTANCE
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_constructor(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_constructor(
         JNIEnv *env,
         jobject thisObj,
         jlong animationRef)
@@ -29,7 +29,7 @@ extern "C"
         return (jlong)animationInstance;
     }
 
-    JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeAdvance(
+    JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -67,7 +67,7 @@ extern "C"
         return loopValue;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeApply(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeApply(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -79,7 +79,7 @@ extern "C"
         animationInstance->apply(artboard, mix);
     }
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeGetTime(
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeGetTime(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -89,7 +89,7 @@ extern "C"
         return animationInstance->time();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_LinearAnimationInstance_nativeSetTime(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeSetTime(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

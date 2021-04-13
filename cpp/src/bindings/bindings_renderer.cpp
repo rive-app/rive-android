@@ -16,7 +16,7 @@ extern "C"
     using namespace rive_android;
 
     // RENDERER
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Renderer_constructor(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Renderer_constructor(
         JNIEnv *env,
         jobject thisObj,
         jboolean antialias)
@@ -28,7 +28,7 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_Renderer_cleanupJNI(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cleanupJNI(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -37,7 +37,7 @@ extern "C"
         delete renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_Renderer_nativeAlign(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_nativeAlign(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

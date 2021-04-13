@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 /**
  * [Animation]s as designed in the Rive animation editor.

@@ -1,7 +1,8 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.runtime.kotlin.core.Rive
 import org.junit.Assert.assertEquals
 
 

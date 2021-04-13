@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 /**
  * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
