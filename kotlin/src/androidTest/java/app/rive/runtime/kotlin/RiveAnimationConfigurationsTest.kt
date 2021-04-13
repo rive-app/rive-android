@@ -13,11 +13,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun loop() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("loop")
         assertEquals(animation.loop, Loop.LOOP)
@@ -25,11 +21,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun pingpong() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("pingpong")
         assertEquals(animation.loop, Loop.PINGPONG)
@@ -37,11 +29,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun oneshot() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("oneshot")
         assertEquals(animation.loop, Loop.ONESHOT)
@@ -49,11 +37,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec60fps () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("1sec60fps")
         assertEquals(animation.duration, 60)
@@ -65,11 +49,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec120fps () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("1sec120fps")
         assertEquals(animation.duration, 120)
@@ -81,11 +61,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec60fps_f30f50 () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("1sec60fps_f30f50")
         assertEquals(animation.duration, 60)
@@ -97,11 +73,7 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec120fps_f30f50 () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         var animation = file.artboard().animation("1sec120fps_f50f80")
         assertEquals(animation.duration, 120)
