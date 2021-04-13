@@ -65,7 +65,7 @@ function buildFor()
         # echo 'cleaning!'
         ./build.sh clean
     fi
-    ./build.sh
+    ./build.sh debug
     popd
 
     mkdir -p $BUILD_DIR

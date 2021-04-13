@@ -4,8 +4,8 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatToggleButton
-import app.rive.runtime.kotlin.Loop
-import app.rive.runtime.kotlin.Rive
+import app.rive.runtime.kotlin.core.Loop
+import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.RiveAnimationView
 
 class MainActivity : AppCompatActivity() {

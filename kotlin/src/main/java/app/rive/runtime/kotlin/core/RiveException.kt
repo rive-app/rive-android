@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 /**
  * A Custom Exception signifying a problem with some Rive components.

@@ -18,7 +18,7 @@ extern "C"
 
     // ARTBOARD
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeName(
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -28,7 +28,7 @@ extern "C"
         return env->NewStringUTF(artboard->name().c_str());
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeFirstAnimation(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeFirstAnimation(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -38,7 +38,7 @@ extern "C"
         return (jlong)artboard->firstAnimation();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAnimationByIndex(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationByIndex(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -48,7 +48,7 @@ extern "C"
         return (jlong)artboard->animation(index);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAnimationByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -60,7 +60,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAnimationCount(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -70,7 +70,7 @@ extern "C"
         return (jint)artboard->animationCount();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeAdvance(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -80,7 +80,7 @@ extern "C"
         artboard->advance(elapsedTime);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeBounds(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeBounds(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -91,7 +91,7 @@ extern "C"
         return (jlong)bounds;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_Artboard_nativeDraw(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeDraw(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

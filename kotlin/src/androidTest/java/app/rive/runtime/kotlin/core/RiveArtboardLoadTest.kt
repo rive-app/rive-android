@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R

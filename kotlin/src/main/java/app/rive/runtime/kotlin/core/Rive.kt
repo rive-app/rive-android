@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 object Rive {
     private external fun nativeInitialize()
