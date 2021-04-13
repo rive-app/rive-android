@@ -13,11 +13,7 @@ class RiveAnimationLoadTest {
 
     @Test
     fun loadAnimationFirstAnimation () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard1")
 
@@ -28,11 +24,7 @@ class RiveAnimationLoadTest {
 
     @Test
     fun loadAnimationSecondAnimation () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard2")
         var artboard2animation1 = artboard.animation(0)
@@ -47,11 +39,7 @@ class RiveAnimationLoadTest {
 
     @Test
     fun artboardHasNoAnimations () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
         assertEquals(artboard.animationCount(),0)
@@ -59,11 +47,7 @@ class RiveAnimationLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadFirstAnimationNoExists () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
         artboard.firstAnimation()
@@ -71,11 +55,7 @@ class RiveAnimationLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadAnimationByIndexDoesntExist () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
         artboard.animation(1)
@@ -83,11 +63,7 @@ class RiveAnimationLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadAnimationByNameDoesntExist () {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
-
-        Rive.init()
+        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
         artboard.animation("foo")
