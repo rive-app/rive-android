@@ -3,6 +3,9 @@ package app.rive.runtime.kotlin
 /**
  * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
  *
+ * This object has a counterpart in c++, which implements a lot of functionality.
+ * The [nativePointer] keeps track of this relationship.
+ *
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
