@@ -42,7 +42,7 @@ class RiveAnimationLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
-        assertEquals(artboard.animationCount(),0)
+        assertEquals(artboard.animationCount,0)
     }
 
     @Test(expected = RiveException::class)
@@ -50,7 +50,7 @@ class RiveAnimationLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.artboard()
-        artboard.firstAnimation()
+        artboard.firstAnimation
     }
 
     @Test(expected = RiveException::class)

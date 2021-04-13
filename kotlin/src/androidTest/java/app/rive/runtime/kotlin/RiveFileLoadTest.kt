@@ -29,13 +29,13 @@ class RiveFileLoadTest {
     fun loadFormatFlux() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.flux_capacitor).readBytes())
-        assertEquals(file.artboard().animationCount(), 1);
+        assertEquals(file.artboard().animationCount, 1);
     }
 
     @Test
     fun loadFormatBuggy() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.off_road_car_blog).readBytes())
-        assertEquals(file.artboard().animationCount(), 5);
+        assertEquals(file.artboard().animationCount, 5);
     }
 }
