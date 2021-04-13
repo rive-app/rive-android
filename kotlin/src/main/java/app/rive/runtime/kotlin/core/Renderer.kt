@@ -1,4 +1,4 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.core
 
 import android.graphics.Canvas
 import android.graphics.Matrix
