@@ -1,6 +1,11 @@
 package app.rive.runtime.kotlin
 
-
+/**
+ * [Animation]s as designed in the Rive animation editor.
+ *
+ * These can be used with [LinearAnimationInstance]s and [Artboard]s to draw frames
+ * The constructor uses a [nativePointer] to point to its c++ counterpart object.
+ */
 class Animation(val nativePointer: Long) {
 
     private external fun nativeName(nativePointer: Long): String
