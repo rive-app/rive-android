@@ -1,6 +1,16 @@
 package app.rive.runtime.kotlin
 
-// TODO: rename to RiveFile
+/**
+ * [File]s are created in the rive editor.
+ *
+ * You can export these .riv files and load them up. [File]s can contain multiple artboards.
+ *
+ * If the given file cannot be loaded this will throw a [RiveException].
+ * The Rive [File] format is evolving, and while we attempt to keep backwards (and forwards) compatibility
+ * where possible, there are times when this is not possible.
+ *
+ * The rive editor will always let you download your file in the latest runtime format.
+ */
 class File(bytes: ByteArray) {
 
     private val nativePointer: Long
@@ -14,17 +24,27 @@ class File(bytes: ByteArray) {
     private external fun nativeGetArtboardByName(nativePointer: Long, name: String): Long
     private external fun nativeDelete(nativePointer: Long)
 
-    fun artboard(): Artboard {
-        var artboardPointer = nativeArtboard(nativePointer)
-        if (artboardPointer == 0L) {
-            throw RiveException("No Artboard found.")
+    /**
+     * Get the first artboard in the file.
+     */
+    val artboard: Artboard
+        @Throws(RiveException::class)
+        get() {
+            var artboardPointer = nativeArtboard(nativePointer)
+            if (artboardPointer == 0L) {
+                throw RiveException("No Artboard found.")
+            }
+
+            return Artboard(
+                artboardPointer
+            )
         }
 
-        return Artboard(
-            artboardPointer
-        )
-    }
-
+    /**
+     * Get the artboard called [name] in the file.
+     *
+     * If multiple [Artboard]s have the same [name] it will return the first match.
+     */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
         var artboardPointer = nativeGetArtboardByName(nativePointer, name)
