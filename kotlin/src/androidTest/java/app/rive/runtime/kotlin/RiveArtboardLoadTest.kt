@@ -13,14 +13,14 @@ class RiveArtboardLoadTest {
     fun loadArtboard() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
-        file.artboard()
+        file.artboard
     }
 
     @Test(expected = RiveException::class)
     fun loadArtboardNoArtboard() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
-        file.artboard()
+        file.artboard
     }
 
     @Test
@@ -28,7 +28,10 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
-        assertEquals(artboard1.animationCount(), 1);
+        assertEquals(artboard1.animationCount, 1);
+        assertEquals(artboard1.name, "artboard1");
+        assertEquals(artboard1.bounds.height, 500f);
+        assertEquals(artboard1.bounds.width, 500f);
     }
 
     @Test
@@ -36,15 +39,15 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
-        assertEquals(artboard2.animationCount(), 2);
+        assertEquals(artboard2.animationCount, 2);
+        assertEquals(artboard2.name, "artboard2");
     }
 
     @Test(expected = RiveException::class)
     fun loadArtboardThree() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
-        var artboard3 = file.artboard(name = "artboard3")
-        assertEquals(artboard3.animationCount(), 3);
+        file.artboard(name = "artboard3")
     }
 
     @Test
