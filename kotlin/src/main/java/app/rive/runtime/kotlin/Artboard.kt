@@ -5,6 +5,9 @@ import android.graphics.Canvas
 /**
  * [Artboard]s as designed in the Rive animation editor.
  *
+ * This object has a counterpart in c++, which implements a lot of functionality.
+ * The [nativePointer] keeps track of this relationship.
+ *
  * [Artboard]s provide access to available [Animation]s, and some basic properties.
  * You can [draw] artboards using a [Renderer] that is tied to a canvas.
  *

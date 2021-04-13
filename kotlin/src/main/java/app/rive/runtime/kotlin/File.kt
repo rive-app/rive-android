@@ -3,6 +3,9 @@ package app.rive.runtime.kotlin
 /**
  * [File]s are created in the rive editor.
  *
+ * This object has a counterpart in c++, which implements a lot of functionality.
+ * The [nativePointer] keeps track of this relationship.
+ *
  * You can export these .riv files and load them up. [File]s can contain multiple artboards.
  *
  * If the given file cannot be loaded this will throw a [RiveException].
