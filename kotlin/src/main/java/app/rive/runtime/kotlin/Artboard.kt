@@ -2,11 +2,18 @@ package app.rive.runtime.kotlin
 
 import android.graphics.Canvas
 
+/**
+ * [Artboard]s as designed in the Rive animation editor.
+ *
+ * This object has a counterpart in c++, which implements a lot of functionality.
+ * The [nativePointer] keeps track of this relationship.
+ *
+ * [Artboard]s provide access to available [Animation]s, and some basic properties.
+ * You can [draw] artboards using a [Renderer] that is tied to a canvas.
+ *
+ * The constructor uses a [nativePointer] to point to its c++ counterpart object.
+ */
 class Artboard(val nativePointer: Long) {
-    //    NOTES:
-    //    missing implementations: objects, find
-    //    only linearAnimation is implemented
-
     private external fun nativeName(nativePointer: Long): String
     private external fun nativeFirstAnimation(nativePointer: Long): Long
     private external fun nativeAnimationByIndex(nativePointer: Long, index: Int): Long
@@ -22,20 +29,36 @@ class Artboard(val nativePointer: Long) {
 
     private external fun nativeBounds(nativePointer: Long): Long
 
-    fun name(): String {
-        return nativeName(nativePointer)
-    }
+    /**
+     * Get the [name] of the Artboard.
+     */
+    val name: String
+        get() = nativeName(nativePointer)
 
-    fun firstAnimation(): Animation {
-        var animationPointer = nativeFirstAnimation(nativePointer);
-        if (animationPointer == 0L) {
-            throw RiveException("No Animations found.")
+    /**
+     * Get the first [Animation] of the [Artboard].
+     *
+     * If you use more than one animation, it is preferred to use the [animation] functions.
+     */
+    val firstAnimation: Animation
+        @Throws(RiveException::class)
+        get() {
+            var animationPointer = nativeFirstAnimation(nativePointer);
+            if (animationPointer == 0L) {
+                throw RiveException("No Animations found.")
+            }
+            return Animation(
+                animationPointer
+            )
         }
-        return Animation(
-            animationPointer
-        )
-    }
 
+
+    /**
+     * Get the animation at a given [index] in the [Artboard].
+     *
+     * This starts at 0.
+     */
+    @Throws(RiveException::class)
     fun animation(index: Int): Animation {
         var animationPointer = nativeAnimationByIndex(nativePointer, index)
         if (animationPointer == 0L) {
@@ -46,6 +69,10 @@ class Artboard(val nativePointer: Long) {
         )
     }
 
+    /**
+     * Get the animation with a given [name] in the [Artboard].
+     */
+    @Throws(RiveException::class)
     fun animation(name: String): Animation {
         var animationPointer= nativeAnimationByName(nativePointer, name)
         if (animationPointer == 0L) {
@@ -56,19 +83,38 @@ class Artboard(val nativePointer: Long) {
         )
     }
 
-    fun animationCount(): Int {
-        return nativeAnimationCount(nativePointer)
-    }
+    /**
+     * Get the number of animations stored inside the [Artboard].
+     */
+    val animationCount: Int
+        get() = nativeAnimationCount(nativePointer)
 
+    /**
+     * Advancing the artboard updates the layout for all dirty components contained in the [Artboard]
+     * updates the positions forces all components in the [Artboard] to be laid out.
+     *
+     * Components are all the shapes, bones and groups of an [Artboard].
+     * Whenever components are added to an artboard, for example when an artboard is first loaded, they are considered dirty.
+     * Whenever animations change properties of components, move a shape or change a color, they are marked as dirty.
+     *
+     * Before any changes to components will be visible in the next rendered frame, the artbaord needs to be [advance]d.
+     *
+     * [elapsedTime] is currently not taken into account.
+     */
     fun advance(elapsedTime: Float) {
         nativeAdvance(nativePointer, elapsedTime)
     }
 
+    /**
+     * Draw the the artboard to the [renderer].
+     */
     fun draw(renderer: Renderer) {
         nativeDraw(nativePointer, renderer.nativePointer, renderer, renderer.canvas)
     }
 
-    fun bounds(): AABB {
-        return AABB(nativeBounds(nativePointer))
-    }
+    /**
+     * Get the bounds of Artboard as defined in the rive editor.
+     */
+    val bounds: AABB
+        get() =  AABB(nativeBounds(nativePointer))
 }
