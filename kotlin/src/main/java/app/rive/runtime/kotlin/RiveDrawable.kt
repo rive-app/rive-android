@@ -8,6 +8,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import app.rive.runtime.kotlin.core.*
 
 class RiveDrawable : Drawable(), Animatable {
 

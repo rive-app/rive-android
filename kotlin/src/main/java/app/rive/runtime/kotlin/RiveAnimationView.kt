@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.AttributeSet
 import androidx.annotation.RawRes
 import androidx.appcompat.widget.AppCompatImageView
+import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.core.Loop
 
 class RiveAnimationView : AppCompatImageView {
 

@@ -23,13 +23,13 @@ namespace rive_android
 
 	jint throwRiveError(const char *message)
 	{
-		jclass exClass = getClass("app/rive/runtime/kotlin/RiveException");
+		jclass exClass = getClass("app/rive/runtime/kotlin/core/RiveException");
 		return getJNIEnv()->ThrowNew(exClass, message);
 	}
 
 	jclass getFitClass()
 	{
-		return getClass("app/rive/runtime/kotlin/Fit");
+		return getClass("app/rive/runtime/kotlin/core/Fit");
 	};
 	jmethodID getFitNameMethodId()
 	{
@@ -38,7 +38,7 @@ namespace rive_android
 
 	jclass getAlignmentClass()
 	{
-		return getClass("app/rive/runtime/kotlin/Alignment");
+		return getClass("app/rive/runtime/kotlin/core/Alignment");
 	}
 	jmethodID getAlignmentNameMethodId()
 	{
@@ -186,7 +186,7 @@ namespace rive_android
 
 	jclass getRiveRendererClass()
 	{
-		return getClass("app/rive/runtime/kotlin/Renderer");
+		return getClass("app/rive/runtime/kotlin/core/Renderer");
 	};
 
 	jclass getAndroidCanvasClass()
@@ -218,7 +218,7 @@ namespace rive_android
 
 	jclass getLoopClass()
 	{
-		return getClass("app/rive/runtime/kotlin/Loop");
+		return getClass("app/rive/runtime/kotlin/core/Loop");
 	};
 
 	jclass getPorterDuffClass()
@@ -249,10 +249,10 @@ namespace rive_android
 	jfieldID getEvenOddId() { return getStaticFieldId(getFillTypeClass(), "EVEN_ODD", "Landroid/graphics/Path$FillType;"); };
 	jfieldID getNonZeroId() { return getStaticFieldId(getFillTypeClass(), "WINDING", "Landroid/graphics/Path$FillType;"); };
 
-	jfieldID getNoneLoopField() { return getStaticFieldId(getLoopClass(), "NONE", "Lapp/rive/runtime/kotlin/Loop;"); };
-	jfieldID getOneShotLoopField() { return getStaticFieldId(getLoopClass(), "ONESHOT", "Lapp/rive/runtime/kotlin/Loop;"); };
-	jfieldID getLoopLoopField() { return getStaticFieldId(getLoopClass(), "LOOP", "Lapp/rive/runtime/kotlin/Loop;"); };
-	jfieldID getPingPongLoopField() { return getStaticFieldId(getLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/Loop;"); };
+	jfieldID getNoneLoopField() { return getStaticFieldId(getLoopClass(), "NONE", "Lapp/rive/runtime/kotlin/core/Loop;"); };
+	jfieldID getOneShotLoopField() { return getStaticFieldId(getLoopClass(), "ONESHOT", "Lapp/rive/runtime/kotlin/core/Loop;"); };
+	jfieldID getLoopLoopField() { return getStaticFieldId(getLoopClass(), "LOOP", "Lapp/rive/runtime/kotlin/core/Loop;"); };
+	jfieldID getPingPongLoopField() { return getStaticFieldId(getLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;"); };
 
 	jfieldID getSrcOver() { return getStaticFieldId(getBlendModeClass(), "SRC_OVER", "Landroid/graphics/BlendMode;"); };
 	jfieldID getScreen() { return getStaticFieldId(getBlendModeClass(), "SCREEN", "Landroid/graphics/BlendMode;"); };

@@ -13,7 +13,7 @@ extern "C"
     using namespace rive_android;
 
     // FILE
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_File_import(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_import(
         JNIEnv *env,
         jobject thisObj,
         jbyteArray bytes,
@@ -26,7 +26,7 @@ extern "C"
         return (jlong)file;
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_File_nativeArtboard(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboard(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -35,7 +35,7 @@ extern "C"
         return (jlong)file->artboard();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_File_nativeGetArtboardByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeGetArtboardByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -46,7 +46,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_File_nativeDelete(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_File_nativeDelete(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
