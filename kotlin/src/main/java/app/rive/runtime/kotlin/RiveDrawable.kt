@@ -38,7 +38,7 @@ class RiveDrawable : Drawable(), Animatable {
         val artboard = file.artboard().also {
             this.artboard = it
         }
-        val animationCount = artboard.animationCount()
+        val animationCount = artboard.animationCount
 
         for (i in 0 until animationCount) {
             val animation = artboard.animation(i)
@@ -64,7 +64,7 @@ class RiveDrawable : Drawable(), Animatable {
             }
 
             renderer.canvas = canvas
-            renderer.align(Fit.CONTAIN, Alignment.CENTER, targetBounds, ab.bounds())
+            renderer.align(Fit.CONTAIN, Alignment.CENTER, targetBounds, ab.bounds)
             val saved = canvas.save()
             ab.draw(renderer)
             canvas.restoreToCount(saved)
@@ -102,11 +102,11 @@ class RiveDrawable : Drawable(), Animatable {
     }
 
     override fun getIntrinsicWidth(): Int {
-        return artboard?.bounds()?.width?.toInt() ?: -1
+        return artboard?.bounds?.width?.toInt() ?: -1
     }
 
     override fun getIntrinsicHeight(): Int {
-        return artboard?.bounds()?.height?.toInt() ?: -1
+        return artboard?.bounds?.height?.toInt() ?: -1
     }
 
     fun reset() {
