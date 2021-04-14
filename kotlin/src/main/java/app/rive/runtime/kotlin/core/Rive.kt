@@ -2,6 +2,13 @@ package app.rive.runtime.kotlin.core
 
 object Rive {
     private external fun nativeInitialize()
+    private external fun nativeCalculateRequiredBounds(
+        fit: Fit, alignment: Alignment,
+        availableBoundsPointer: Long,
+        artboardBoundsPointer: Long,
+        requiredBoundsPointer: Long
+    )
+
 
     /**
      * Initialises Rive.
@@ -15,5 +22,21 @@ object Rive {
         nativeInitialize()
     }
 
+    fun calculateRequiredBounds(
+        fit: Fit,
+        alignment: Alignment,
+        availableBounds: AABB,
+        artboardBounds: AABB
+    ): AABB {
+        var requiredBounds = AABB(0f, 0f)
+        nativeCalculateRequiredBounds(
+            fit,
+            alignment,
+            availableBounds.nativePointer,
+            artboardBounds.nativePointer,
+            requiredBounds.nativePointer
+        )
+        return requiredBounds;
+    }
 
 }
