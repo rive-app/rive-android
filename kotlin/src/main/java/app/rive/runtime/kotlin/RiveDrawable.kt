@@ -8,9 +8,10 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
-class RiveDrawable : Drawable(), Animatable {
+class RiveDrawable(val fit: Fit=Fit.CONTAIN, val alignment: Alignment=Alignment.CENTER, val loop: Loop=Loop.LOOP) : Drawable(), Animatable {
 
     private val animator = TimeAnimator()
     private val renderer = Renderer()
@@ -18,6 +19,7 @@ class RiveDrawable : Drawable(), Animatable {
     private var artboard: Artboard? = null
     private val animations = mutableListOf<LinearAnimationInstance>()
     private var targetBounds: AABB
+
 
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
@@ -32,6 +34,7 @@ class RiveDrawable : Drawable(), Animatable {
             }
             invalidateSelf()
         }
+        setRepeatMode(loop)
     }
 
     fun setAnimationFile(file: File) {
@@ -63,9 +66,8 @@ class RiveDrawable : Drawable(), Animatable {
                 boundsCache = bounds
                 targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
             }
-
             renderer.canvas = canvas
-            renderer.align(Fit.CONTAIN, Alignment.CENTER, targetBounds, ab.bounds)
+            renderer.align(fit, alignment, targetBounds, ab.bounds)
             val saved = canvas.save()
             ab.draw(renderer)
             canvas.restoreToCount(saved)
@@ -81,7 +83,8 @@ class RiveDrawable : Drawable(), Animatable {
     }
 
     fun setRepeatMode(mode: Loop) {
-
+        // TODO: investigate the impact of setting modes against the animator. will this do what
+        // our animator does as well?
         when (mode) {
             Loop.ONESHOT -> {
                 animator.repeatCount = 1
@@ -110,6 +113,14 @@ class RiveDrawable : Drawable(), Animatable {
         return artboard?.bounds?.height?.toInt() ?: -1
     }
 
+    fun arboardBounds():AABB{
+        var output =artboard?.bounds;
+        if (output==null) {
+            output = AABB(0f, 0f);
+        }
+        return output;
+    }
+
     fun reset() {
         animator.cancel()
         animator.currentPlayTime = 0
@@ -125,7 +136,6 @@ class RiveDrawable : Drawable(), Animatable {
                 ab.advance(0f)
             }
         }
-
         invalidateSelf()
     }
 
