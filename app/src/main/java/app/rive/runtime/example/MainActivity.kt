@@ -7,12 +7,36 @@ import androidx.appcompat.widget.AppCompatToggleButton
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Rive
 
-class MainActivity : AppCompatActivity() {
+fun max(a:Int, b:Int):Int {
+    if (a>b) return a
+    return b
+}
 
+fun min(a:Int, b:Int):Int {
+    if (a<b) return a
+    return b
+}
+
+class MainActivity : AppCompatActivity() {
+    var index = 0;
+
+    val resources = listOf(
+        R.raw.off_road_car_blog,
+        R.raw.flux_capacitor,
+        R.raw.basketball,
+        R.raw.explorer,
+        R.raw.f22,
+        R.raw.mascot,
+        R.raw.progress,
+        R.raw.pull,
+        R.raw.rope,
+        R.raw.trailblaze,
+        R.raw.vader,
+        R.raw.wacky
+    )
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.rive_animation)
     }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Rive.init()
@@ -32,6 +56,16 @@ class MainActivity : AppCompatActivity() {
         reset.setOnClickListener {
             animationView.reset()
             togglePlayback.isChecked = false
+        }
+        val previous = findViewById<AppCompatButton>(R.id.previous)
+        previous.setOnClickListener {
+            index = max(0, --index)
+            animationView.setRiveResource(resources[index])
+        }
+        val next = findViewById<AppCompatButton>(R.id.next)
+        next.setOnClickListener {
+            index = min(resources.size-1, ++index)
+            animationView.setRiveResource(resources[index])
         }
     }
 
