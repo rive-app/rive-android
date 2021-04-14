@@ -27,10 +27,3 @@ namespace rive_android
 
 } // namespace rive_android
 #endif
-
-// void SkiaRenderPath::addRenderPath(RenderPath* path, const Mat2D& transform)
-// {
-// 	m_Path.addPath(
-// 	    reinterpret_cast<SkiaRenderPath*>(path)->m_Path,
-// 	    ToSkia::convert(transform));
-// }

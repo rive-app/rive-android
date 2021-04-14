@@ -1,58 +1,127 @@
 package app.rive.runtime.kotlin
 
 import android.content.Context
+import android.graphics.Canvas
 import android.util.AttributeSet
+import android.view.View
 import androidx.annotation.RawRes
-import androidx.appcompat.widget.AppCompatImageView
-import app.rive.runtime.kotlin.core.File
-import app.rive.runtime.kotlin.core.Loop
+import app.rive.runtime.kotlin.core.*
 
-class RiveAnimationView : AppCompatImageView {
+class RiveAnimationView : View {
+    private var autoplay: Boolean = true
+    private var loop: Loop = Loop.LOOP
+    private var fit: Fit = Fit.CONTAIN
+    private var alignment: Alignment = Alignment.CENTER
+    private var drawable: RiveDrawable = RiveDrawable()
 
-    private var drawable: RiveDrawable? = null
+    constructor(context: Context) : super(context) {
+    }
+
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
+        initialize(context, attrs)
+    }
+
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr) {
+        initialize(context, attrs)
+    }
+
+    private fun initialize(context: Context, attrs: AttributeSet?){
+        context.theme.obtainStyledAttributes(
+            attrs,
+            R.styleable.RiveAnimationView,
+            0, 0
+        ).apply {
+            try {
+                val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
+                alignment = Alignment.values()[alignmentIndex]
+
+                val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
+                fit = Fit.values()[fitIndex]
+
+                val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 1)
+                loop = Loop.values()[loopIndex]
+
+                autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
+
+                val resId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
+                if (resId != -1) {
+                    setRiveResource(resId)
+                }
+            } finally {
+                recycle()
+            }
+        }
+    }
+
+    fun pause() {
+        drawable.pause()
+    }
+
+    fun start() {
+        drawable.start()
+    }
+
+    fun reset() {
+        drawable.reset()
+    }
+
     val isRunning: Boolean
-        get() = drawable?.isRunning ?: false
+        get() = drawable.isRunning ?: false
 
-    constructor(context: Context) : super(context)
+    fun setRiveResource(@RawRes resId: Int) {
+        val file = File(resources.openRawResource(resId).readBytes())
+        setAnimationFile(file)
+    }
 
-    // TODO: Add attrs to use in xml layout
-    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
-        context,
-        attrs,
-        defStyleAttr
-    )
-
-    // TODO: add async
-    fun setAnimation(@RawRes resId: Int) {
-        drawable?.run {
+    fun setAnimationFile(file: File) {
+        drawable.run {
             reset()
             destroy()
         }
-
-
-        drawable = RiveDrawable().apply {
-            val file = File(resources.openRawResource(resId).readBytes())
+        drawable = RiveDrawable(fit, alignment, loop).apply {
             setAnimationFile(file)
-            setImageDrawable(this)
+            background = this
+        }
+        if (autoplay) {
+            start()
         }
         requestLayout()
     }
 
-    fun setRepeatMode(mode: Loop) {
-        drawable?.setRepeatMode(mode)
-    }
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
-    fun reset() {
-        drawable?.reset()
-    }
 
-    fun start() {
-        drawable?.start()
-    }
+        var widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        var heightSize = MeasureSpec.getSize(heightMeasureSpec);
 
-    fun pause() {
-        drawable?.pause()
+        var usedBounds = Rive.calculateRequiredBounds(
+            fit,
+            alignment,
+            AABB(widthSize.toFloat(), heightSize.toFloat()),
+            drawable.arboardBounds()
+        )
+
+        var width: Int
+        var height: Int
+
+        //Measure Width
+        when (MeasureSpec.getMode(widthMeasureSpec)) {
+            MeasureSpec.EXACTLY -> width = widthSize
+            MeasureSpec.AT_MOST -> width = Math.min(usedBounds.width.toInt(), widthSize)
+            else ->
+                width = usedBounds.width.toInt()
+        }
+
+        //Measure Height
+        when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.EXACTLY -> height = heightSize
+            MeasureSpec.AT_MOST -> height = Math.min(usedBounds.height.toInt(), heightSize)
+            else ->
+                height = usedBounds.height.toInt()
+        }
+
+        setMeasuredDimension(width, height);
     }
 
     override fun onDetachedFromWindow() {

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="RiveAnimationView">
+        <attr name="riveAutoPlay" format="boolean"/>
+        <attr name="riveAnimation" format="string"/>
+        <attr name="riveFit" format="enum">
+            <enum name="COVER" value="0"/>
+            <enum name="CONTAIN" value="1"/>
+            <enum name="FILL" value="2"/>
+            <enum name="FIT_WIDTH" value="3"/>
+            <enum name="FIT_HEIGHT" value="4"/>
+            <enum name="NONE" value="5"/>
+            <enum name="SCALE_DOWN" value="6"/>
+        </attr>
+        <attr name="riveAlignment" format="enum">
+            <enum name="TOP_LEFT" value="0"/>
+            <enum name="TOP_CENTER" value="1"/>
+            <enum name="TOP_RIGHT" value="2"/>
+            <enum name="CENTER_LEFT" value="3"/>
+            <enum name="CENTER" value="4"/>
+            <enum name="CENTER_RIGHT" value="5"/>
+            <enum name="BOTTOM_LEFT" value="6"/>
+            <enum name="BOTTOM_CENTER" value="7"/>
+            <enum name="BOTTOM_RIGHT" value="8"/>
+        </attr>
+        <attr name="riveLoop" format="enum">
+            <enum name="ONESHOT" value="0"/>
+            <enum name="LOOP" value="1"/>
+            <enum name="PINGPONG" value="2"/>
+            <enum name="NONE" value="3"/>
+        </attr>
+        <attr name="riveResource" format="reference"/>
+    </declare-styleable>
+</resources>
