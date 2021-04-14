@@ -1,18 +1,19 @@
 package app.rive.runtime.kotlin
 
 import android.content.Context
-import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
 
 class RiveAnimationView : View {
-    private var autoplay: Boolean = true
-    private var loop: Loop = Loop.LOOP
+    private var autoplay: Boolean = true;
     private var fit: Fit = Fit.CONTAIN
+    private var loop: Loop = Loop.LOOP
     private var alignment: Alignment = Alignment.CENTER
-    private var drawable: RiveDrawable = RiveDrawable()
+    private var drawable: RiveDrawable = RiveDrawable(fit, alignment, loop);
+
 
     constructor(context: Context) : super(context) {
     }
@@ -21,11 +22,15 @@ class RiveAnimationView : View {
         initialize(context, attrs)
     }
 
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr) {
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
+        context,
+        attrs,
+        defStyleAttr
+    ) {
         initialize(context, attrs)
     }
 
-    private fun initialize(context: Context, attrs: AttributeSet?){
+    private fun initialize(context: Context, attrs: AttributeSet?) {
         context.theme.obtainStyledAttributes(
             attrs,
             R.styleable.RiveAnimationView,
@@ -43,10 +48,11 @@ class RiveAnimationView : View {
 
                 autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
 
-                val resId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
-                if (resId != -1) {
-                    setRiveResource(resId)
+                val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
+                if (resourceId != -1) {
+                    setRiveResource(resourceId)
                 }
+
             } finally {
                 recycle()
             }
@@ -66,7 +72,7 @@ class RiveAnimationView : View {
     }
 
     val isRunning: Boolean
-        get() = drawable.isRunning ?: false
+        get() = drawable.isRunning
 
     fun setRiveResource(@RawRes resId: Int) {
         val file = File(resources.openRawResource(resId).readBytes())
@@ -120,7 +126,6 @@ class RiveAnimationView : View {
             else ->
                 height = usedBounds.height.toInt()
         }
-
         setMeasuredDimension(width, height);
     }
 

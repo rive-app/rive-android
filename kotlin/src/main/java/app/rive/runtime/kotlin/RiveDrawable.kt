@@ -11,19 +11,19 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
-class RiveDrawable(val fit: Fit=Fit.CONTAIN, val alignment: Alignment=Alignment.CENTER, val loop: Loop=Loop.LOOP) : Drawable(), Animatable {
+class RiveDrawable(private var fit: Fit=Fit.CONTAIN, private var alignment: Alignment=Alignment.CENTER, private var loop: Loop=Loop.LOOP) : Drawable(), Animatable {
 
-    private val animator = TimeAnimator()
     private val renderer = Renderer()
+    private val animator = TimeAnimator()
+
+    private var animations = mutableListOf<LinearAnimationInstance>()
     private var file: File? = null
     private var artboard: Artboard? = null
-    private val animations = mutableListOf<LinearAnimationInstance>()
     private var targetBounds: AABB
-
 
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
-        animator.setTimeListener { animation, total, delta ->
+        animator.setTimeListener { _, _, delta ->
             artboard?.let { ab ->
                 val elapsed = delta.toFloat() / 1000
                 animations.forEach {
