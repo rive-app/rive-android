@@ -9,20 +9,34 @@
 
     <app.rive.runtime.kotlin.RiveAnimationView
         android:id="@+id/rive_animation"
-        android:layout_width="match_parent"
-        android:layout_height="250dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/rive_animation2"
-        android:layout_width="wrap_content"
-        android:layout_height="250dp"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
         android:adjustViewBounds="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rive_animation" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:riveAutoPlay="true"
+        app:riveFit="CONTAIN"
+        app:riveAlignment="TOP_LEFT"
+        app:riveLoop="LOOP"
+        app:riveResource="@raw/off_road_car_blog"
+        />
+
+
+    <app.rive.runtime.kotlin.RiveAnimationView
+        android:id="@+id/rive_animation2"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/reset"
+        app:riveAutoPlay="true"
+        app:riveFit="CONTAIN"
+        app:riveAlignment="TOP_LEFT"
+        app:riveLoop="LOOP"
+        app:riveResource="@raw/flux_capacitor"
+        />
 
     <androidx.appcompat.widget.AppCompatToggleButton
         android:id="@+id/toggle"
@@ -33,7 +47,8 @@
         app:layout_constraintEnd_toStartOf="@id/reset"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rive_animation2" />
+        app:layout_constraintTop_toBottomOf="@+id/rive_animation"
+        />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/reset"
@@ -43,6 +58,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toEndOf="@id/toggle"
-        app:layout_constraintTop_toBottomOf="@+id/rive_animation2" />
+        app:layout_constraintTop_toBottomOf="@+id/rive_animation"
+        />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
