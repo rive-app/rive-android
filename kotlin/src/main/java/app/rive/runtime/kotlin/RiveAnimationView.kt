@@ -7,31 +7,16 @@ import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
 
-class RiveAnimationView : View {
-    private var artboard: String? = null;
+class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
+    private var animationName: String? = null;
+    private var artboardName: String? = null;
     private var autoplay: Boolean = true;
     private var fit: Fit = Fit.CONTAIN
     private var loop: Loop = Loop.LOOP
     private var alignment: Alignment = Alignment.CENTER
     private var drawable: RiveDrawable = RiveDrawable(fit, alignment, loop);
 
-
-    constructor(context: Context) : super(context) {
-    }
-
-    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
-        initialize(context, attrs)
-    }
-
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
-        context,
-        attrs,
-        defStyleAttr
-    ) {
-        initialize(context, attrs)
-    }
-
-    private fun initialize(context: Context, attrs: AttributeSet?) {
+    init {
         context.theme.obtainStyledAttributes(
             attrs,
             R.styleable.RiveAnimationView,
@@ -49,7 +34,8 @@ class RiveAnimationView : View {
 
                 autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
 
-                artboard = getString(R.styleable.RiveAnimationView_riveArtboard)
+                artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
+                animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
 
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
                 if (resourceId != -1) {
@@ -61,7 +47,6 @@ class RiveAnimationView : View {
             }
         }
     }
-
     fun pause() {
         drawable.pause()
     }
@@ -87,7 +72,7 @@ class RiveAnimationView : View {
             reset()
             destroy()
         }
-        drawable = RiveDrawable(fit, alignment, loop, artboard).apply {
+        drawable = RiveDrawable(fit, alignment, loop, artboardName, animationName).apply {
             setAnimationFile(file)
             background = this
         }
@@ -141,13 +126,13 @@ class RiveAnimationView : View {
             else ->
                 height = usedBounds.height.toInt()
         }
-// Leaving this here as this is probably going to need some tweaking as we figure out how this works.
-//        Log.d("$artboard", "Width exactly: ${widthMode==MeasureSpec.EXACTLY} at_most: ${heightMode==MeasureSpec.AT_MOST}")
-//        Log.d("$artboard", "Height exactly: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.EXACTLY} at_most: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.AT_MOST}")
-//        Log.d("$artboard", "Provided Width: $providedWidth Height:$providedHeight")
-//        Log.d("$artboard", "Artboard Used Width: ${usedBounds.width.toInt()} Height:${usedBounds.height.toInt()}")
-//
-//        Log.d("$artboard", "Selected Width: $width Height:$height")
+        // Leaving this here as this is probably going to need some tweaking as we figure out how this works.
+        //        Log.d("$artboard", "Width exactly: ${widthMode==MeasureSpec.EXACTLY} at_most: ${heightMode==MeasureSpec.AT_MOST}")
+        //        Log.d("$artboard", "Height exactly: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.EXACTLY} at_most: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.AT_MOST}")
+        //        Log.d("$artboard", "Provided Width: $providedWidth Height:$providedHeight")
+        //        Log.d("$artboard", "Artboard Used Width: ${usedBounds.width.toInt()} Height:${usedBounds.height.toInt()}")
+        //
+        //        Log.d("$artboard", "Selected Width: $width Height:$height")
         setMeasuredDimension(width, height);
     }
 

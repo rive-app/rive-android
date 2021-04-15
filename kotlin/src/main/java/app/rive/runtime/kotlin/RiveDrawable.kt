@@ -15,6 +15,7 @@ class RiveDrawable(
     private var alignment: Alignment = Alignment.CENTER,
     private var loop: Loop = Loop.LOOP,
     private var artboardName: String? = null,
+    private var animationName: String? = null,
 ) : Drawable(), Animatable {
 
     private val renderer = Renderer()
@@ -44,22 +45,26 @@ class RiveDrawable(
     fun setAnimationFile(file: File) {
         this.file = file
 
-        artboardName?.let{
+        artboardName?.let {
             setArtboard(file.artboard(it))
-        } ?: run{
+        } ?: run {
             setArtboard(file.artboard)
         }
-
-
     }
 
     fun setArtboard(artboard: Artboard){
         this.artboard=artboard
         val animationCount = artboard.animationCount
-        for (i in 0 until animationCount) {
-            val animation = artboard.animation(i)
+        animationName?.let{
+            val animation = artboard.animation(it)
             animations.add(LinearAnimationInstance(animation))
+        }?:run{
+            for (i in 0 until animationCount) {
+                val animation = artboard.animation(i)
+                animations.add(LinearAnimationInstance(animation))
+            }
         }
+
     }
 
     override fun onBoundsChange(bounds: Rect?) {
