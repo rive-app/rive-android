@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
@@ -47,20 +46,21 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
             }
         }
     }
+
     fun pause() {
         drawable.pause()
     }
 
-    fun start() {
-        drawable.start()
+    fun play(animationNames: List<String>? = null, animationName: String? = null) {
+        drawable.play(animationNames = animationNames, animationName = animationName)
     }
 
     fun reset() {
         drawable.reset()
     }
 
-    val isRunning: Boolean
-        get() = drawable.isRunning
+    val isPlaying: Boolean
+        get() = drawable.isPlaying
 
     fun setRiveResource(@RawRes resId: Int) {
         val file = File(resources.openRawResource(resId).readBytes())
@@ -72,12 +72,16 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
             reset()
             destroy()
         }
-        drawable = RiveDrawable(fit, alignment, loop, artboardName, animationName).apply {
+        drawable = RiveDrawable(
+            fit = fit,
+            alignment = alignment,
+            loop = loop,
+            artboardName = artboardName,
+            animationName = animationName,
+            autoplay = autoplay
+        ).apply {
             setAnimationFile(file)
             background = this
-        }
-        if (autoplay) {
-            start()
         }
         requestLayout()
     }
