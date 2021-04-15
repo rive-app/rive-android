@@ -16,24 +16,34 @@
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/textView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Square" />
+                android:text="Square - go around" />
 
             <app.rive.runtime.kotlin.RiveAnimationView
                 android:id="@+id/artboard_square"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
                 app:riveArtboard="Square"
+                app:riveAnimation="goaround"
                 app:riveResource="@raw/artboard_animations" />
 
             <TextView
-                android:id="@+id/textView2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Square - roll around" />
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/artboard_square_rollaround"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                app:riveArtboard="Square"
+                app:riveAnimation="rollaround"
+                app:riveResource="@raw/artboard_animations" />
+
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Circle" />
@@ -43,9 +53,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/artboard_square"
                 app:riveArtboard="Circle"
                 app:riveResource="@raw/artboard_animations" />
 
@@ -60,9 +67,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/artboard_circle"
                 app:riveArtboard="Star"
                 app:riveResource="@raw/artboard_animations" />
         </LinearLayout>
