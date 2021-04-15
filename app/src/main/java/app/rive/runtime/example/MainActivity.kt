@@ -1,76 +1,28 @@
 package app.rive.runtime.example
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatButton
-import androidx.appcompat.widget.AppCompatToggleButton
-import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Rive
 
-fun max(a:Int, b:Int):Int {
-    if (a>b) return a
-    return b
-}
-
-fun min(a:Int, b:Int):Int {
-    if (a<b) return a
-    return b
-}
 
 class MainActivity : AppCompatActivity() {
-    var index = 0;
-
-    val resources = listOf(
-        R.raw.off_road_car_blog,
-        R.raw.flux_capacitor,
-        R.raw.basketball,
-        R.raw.explorer,
-        R.raw.f22,
-        R.raw.mascot,
-        R.raw.progress,
-        R.raw.pull,
-        R.raw.rope,
-        R.raw.trailblaze,
-        R.raw.vader,
-        R.raw.wacky
-    )
-    val animationView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveAnimationView>(R.id.rive_animation)
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Rive.init()
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.example_selection)
 
-        val togglePlayback = findViewById<AppCompatToggleButton>(R.id.toggle)
-        togglePlayback.isChecked = animationView.isRunning
-        togglePlayback.setOnCheckedChangeListener { _, checked ->
-            if (checked) {
-                animationView.start()
-            } else {
-                animationView.pause()
-            }
+        findViewById<Button>(R.id.go_animations).setOnClickListener {
+            startActivity(
+                Intent(this, AnimationsActivity::class.java)
+            )
+        }
+        findViewById<Button>(R.id.go_artboards).setOnClickListener {
+            startActivity(
+                Intent(this, ArtboardActivity::class.java)
+            )
         }
 
-        val reset = findViewById<AppCompatButton>(R.id.reset)
-        reset.setOnClickListener {
-            animationView.reset()
-            togglePlayback.isChecked = false
-        }
-        val previous = findViewById<AppCompatButton>(R.id.previous)
-        previous.setOnClickListener {
-            index = max(0, --index)
-            animationView.setRiveResource(resources[index])
-        }
-        val next = findViewById<AppCompatButton>(R.id.next)
-        next.setOnClickListener {
-            index = min(resources.size-1, ++index)
-            animationView.setRiveResource(resources[index])
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.reset()
     }
 }
