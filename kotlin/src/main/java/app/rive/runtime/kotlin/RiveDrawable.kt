@@ -8,10 +8,14 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
-class RiveDrawable(private var fit: Fit=Fit.CONTAIN, private var alignment: Alignment=Alignment.CENTER, private var loop: Loop=Loop.LOOP) : Drawable(), Animatable {
+class RiveDrawable(
+    private var fit: Fit = Fit.CONTAIN,
+    private var alignment: Alignment = Alignment.CENTER,
+    private var loop: Loop = Loop.LOOP,
+    private var artboardName: String? = null,
+) : Drawable(), Animatable {
 
     private val renderer = Renderer()
     private val animator = TimeAnimator()
@@ -39,11 +43,19 @@ class RiveDrawable(private var fit: Fit=Fit.CONTAIN, private var alignment: Alig
 
     fun setAnimationFile(file: File) {
         this.file = file
-        val artboard = file.artboard.also {
-            this.artboard = it
-        }
-        val animationCount = artboard.animationCount
 
+        artboardName?.let{
+            setArtboard(file.artboard(it))
+        } ?: run{
+            setArtboard(file.artboard)
+        }
+
+
+    }
+
+    fun setArtboard(artboard: Artboard){
+        this.artboard=artboard
+        val animationCount = artboard.animationCount
         for (i in 0 until animationCount) {
             val animation = artboard.animation(i)
             animations.add(LinearAnimationInstance(animation))
@@ -113,9 +125,9 @@ class RiveDrawable(private var fit: Fit=Fit.CONTAIN, private var alignment: Alig
         return artboard?.bounds?.height?.toInt() ?: -1
     }
 
-    fun arboardBounds():AABB{
-        var output =artboard?.bounds;
-        if (output==null) {
+    fun arboardBounds(): AABB {
+        var output = artboard?.bounds;
+        if (output == null) {
             output = AABB(0f, 0f);
         }
         return output;
