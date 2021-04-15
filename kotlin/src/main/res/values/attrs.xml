@@ -2,6 +2,7 @@
 <resources>
     <declare-styleable name="RiveAnimationView">
         <attr name="riveAutoPlay" format="boolean"/>
+        <attr name="riveArtboard" format="string"/>
         <attr name="riveAnimation" format="string"/>
         <attr name="riveFit" format="enum">
             <enum name="COVER" value="0"/>
