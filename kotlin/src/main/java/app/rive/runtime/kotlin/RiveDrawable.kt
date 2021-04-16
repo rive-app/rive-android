@@ -8,6 +8,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 class RiveDrawable(
@@ -16,26 +17,39 @@ class RiveDrawable(
     private var loop: Loop = Loop.LOOP,
     private var artboardName: String? = null,
     private var animationName: String? = null,
+    private var autoplay: Boolean = true
 ) : Drawable(), Animatable {
 
     private val renderer = Renderer()
     private val animator = TimeAnimator()
-
     private var animations = mutableListOf<LinearAnimationInstance>()
     private var file: File? = null
     private var artboard: Artboard? = null
     private var targetBounds: AABB
 
+    private var playingAnimations = HashSet<LinearAnimationInstance>()
+
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
         animator.setTimeListener { _, _, delta ->
+
+            var continuePlaying = true;
             artboard?.let { ab ->
                 val elapsed = delta.toFloat() / 1000
+
                 animations.forEach {
-                    it.advance(elapsed)
-                    it.apply(ab, 1f)
+                    // order of animations is important.
+                    if (playingAnimations.contains(it)) {
+                        // TODO: remove animation from playing if its come to an end?
+                        it.advance(elapsed)
+                        it.apply(ab, 1f)
+                    }
                 }
                 ab.advance(elapsed)
+            }
+            // TODO: set continuePlaying to false if all animations have come to an end.
+            if (!continuePlaying) {
+                animator.pause()
             }
             invalidateSelf()
         }
@@ -52,19 +66,13 @@ class RiveDrawable(
         }
     }
 
-    fun setArtboard(artboard: Artboard){
-        this.artboard=artboard
-        val animationCount = artboard.animationCount
-        animationName?.let{
-            val animation = artboard.animation(it)
-            animations.add(LinearAnimationInstance(animation))
-        }?:run{
-            for (i in 0 until animationCount) {
-                val animation = artboard.animation(i)
-                animations.add(LinearAnimationInstance(animation))
-            }
+    fun setArtboard(artboard: Artboard) {
+        this.artboard = artboard
+        if (autoplay) {
+            play(animationName = animationName)
+        }else {
+            artboard.advance(0f)
         }
-
     }
 
     override fun onBoundsChange(bounds: Rect?) {
@@ -156,8 +164,64 @@ class RiveDrawable(
         invalidateSelf()
     }
 
-    fun pause() {
-        animator.pause()
+    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach { name->
+                playingAnimations = playingAnimations.filter {
+                    it.animation.name != name
+                }.toHashSet()
+            }
+        }
+        animationName?.let{ name->
+            playingAnimations = playingAnimations.filter {
+                it.animation.name != name
+            }.toHashSet()
+        }
+        if (animationName == null && animationNames ==null){
+            playingAnimations.clear()
+        }
+
+    }
+
+    fun play(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach {
+                _playAnimation(it)
+            }
+        }
+        animationName?.let{
+            _playAnimation(it)
+        }
+        if (animationName == null && animationNames ==null){
+            _playAllAnimations()
+        }
+        animator.start()
+    }
+
+
+    private fun _playAnimation(animationName: String) {
+        val foundAnimationInstance = animations.find { it.animation.name == animationName }
+        if (foundAnimationInstance == null) {
+            artboard?.let {
+                _addAnimation(it.animation(animationName))
+            }
+        } else {
+            playingAnimations.add(foundAnimationInstance)
+        }
+    }
+
+    private fun _playAllAnimations() {
+        artboard?.let{
+            for (i in 0 until it.animationCount) {
+                _playAnimation(it.animation(i).name)
+            }
+        }
+    }
+
+    private fun _addAnimation(animation:Animation){
+        var linearAnimation = LinearAnimationInstance(animation)
+        animations.add(linearAnimation)
+        playingAnimations.add(linearAnimation)
     }
 
     override fun start() {
@@ -168,8 +232,12 @@ class RiveDrawable(
         animator.cancel()
     }
 
+    val isPlaying: Boolean
+        get() = animator.isRunning && !animator.isPaused
+
+
     override fun isRunning(): Boolean {
-        return (animator.isRunning && !animator.isPaused)
+        return isPlaying
     }
 
     fun destroy() {
