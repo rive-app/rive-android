@@ -47,8 +47,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         }
     }
 
-    fun pause() {
-        drawable.pause()
+    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
+        drawable.pause(animationNames = animationNames, animationName = animationName)
     }
 
     fun play(animationNames: List<String>? = null, animationName: String? = null) {

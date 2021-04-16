@@ -17,6 +17,7 @@
         </activity>
         <activity android:name=".AnimationsActivity"></activity>
         <activity android:name=".ArtboardActivity"></activity>
+        <activity android:name=".BuggyActivity"></activity>
     </application>
 
 </manifest>
