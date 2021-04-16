@@ -24,5 +24,11 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        findViewById<Button>(R.id.go_buggy).setOnClickListener {
+            startActivity(
+                Intent(this, BuggyActivity::class.java)
+            )
+        }
+
     }
 }

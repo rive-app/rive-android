@@ -43,10 +43,10 @@ class AnimationsActivity : AppCompatActivity() {
         setContentView(R.layout.animations)
 
         val togglePlayback = findViewById<AppCompatToggleButton>(R.id.toggle)
-        togglePlayback.isChecked = animationView.isRunning
+        togglePlayback.isChecked = animationView.isPlaying
         togglePlayback.setOnCheckedChangeListener { _, checked ->
             if (checked) {
-                animationView.start()
+                animationView.play()
             } else {
                 animationView.pause()
             }
