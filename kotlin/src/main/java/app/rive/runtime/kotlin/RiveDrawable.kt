@@ -70,6 +70,8 @@ class RiveDrawable(
         this.artboard = artboard
         if (autoplay) {
             play(animationName = animationName)
+        }else {
+            artboard.advance(0f)
         }
     }
 
@@ -162,9 +164,40 @@ class RiveDrawable(
         invalidateSelf()
     }
 
-    fun pause() {
-        playingAnimations.clear()
+    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach { name->
+                playingAnimations = playingAnimations.filter {
+                    it.animation.name != name
+                }.toHashSet()
+            }
+        }
+        animationName?.let{ name->
+            playingAnimations = playingAnimations.filter {
+                it.animation.name != name
+            }.toHashSet()
+        }
+        if (animationName == null && animationNames ==null){
+            playingAnimations.clear()
+        }
+
     }
+
+    fun play(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach {
+                _playAnimation(it)
+            }
+        }
+        animationName?.let{
+            _playAnimation(it)
+        }
+        if (animationName == null && animationNames ==null){
+            _playAllAnimations()
+        }
+        animator.start()
+    }
+
 
     private fun _playAnimation(animationName: String) {
         val foundAnimationInstance = animations.find { it.animation.name == animationName }
@@ -189,21 +222,6 @@ class RiveDrawable(
         var linearAnimation = LinearAnimationInstance(animation)
         animations.add(linearAnimation)
         playingAnimations.add(linearAnimation)
-    }
-
-    fun play(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach {
-                _playAnimation(it)
-            }
-        }
-        animationName?.let{
-            _playAnimation(it)
-        }
-        if (animationName == null && animationNames ==null){
-            _playAllAnimations()
-        }
-        animator.start()
     }
 
     override fun start() {
