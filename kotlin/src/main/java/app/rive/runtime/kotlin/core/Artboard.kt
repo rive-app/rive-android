@@ -117,4 +117,10 @@ class Artboard(val nativePointer: Long) {
      */
     val bounds: AABB
         get() =  AABB(nativeBounds(nativePointer))
+
+    /**
+     * Get the names of the animations in the artboard.
+     */
+    val animationNames: List<String>
+        get() = (0 until animationCount).map{animation(it).name}
 }
