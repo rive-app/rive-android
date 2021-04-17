@@ -24,13 +24,15 @@ class File(bytes: ByteArray) {
 
     private external fun import(bytes: ByteArray, length: Int): Long
     private external fun nativeArtboard(nativePointer: Long): Long
-    private external fun nativeGetArtboardByName(nativePointer: Long, name: String): Long
+    private external fun nativeArtboardByName(nativePointer: Long, name: String): Long
+    private external fun nativeArtboardByIndex(nativePointer: Long, index: Int): Long
+    private external fun nativeArtboardCount(nativePointer: Long): Int
     private external fun nativeDelete(nativePointer: Long)
 
     /**
      * Get the first artboard in the file.
      */
-    val artboard: Artboard
+    val firstArtboard: Artboard
         @Throws(RiveException::class)
         get() {
             var artboardPointer = nativeArtboard(nativePointer)
@@ -50,7 +52,7 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
-        var artboardPointer = nativeGetArtboardByName(nativePointer, name)
+        var artboardPointer = nativeArtboardByName(nativePointer, name)
         if (artboardPointer == 0L) {
             throw RiveException("Artboard $name not found.")
         }
@@ -59,6 +61,36 @@ class File(bytes: ByteArray) {
             artboardPointer
         )
     }
+
+    /**
+     * Get the artboard at a given [index] in the [File].
+     *
+     * This starts at 0.
+     */
+    @Throws(RiveException::class)
+    fun artboard(index: Int): Artboard {
+        var nativePointer = nativeArtboardByIndex(nativePointer, index)
+        if (nativePointer == 0L) {
+            throw RiveException("No Artboard found at index $index.")
+        }
+        return Artboard(
+            nativePointer
+        )
+    }
+
+
+    /**
+     * Get the number of artboards in the file.
+     */
+    val artboardCount: Int
+        get() = nativeArtboardCount(nativePointer)
+
+    /**
+     * Get the names of the artboards in the file.
+     */
+    val artboardNames: List<String>
+        get() = (0 until artboardCount).map{artboard(it).name}
+
 
     protected fun finalize() {
         if (nativePointer != -1L) {

@@ -60,7 +60,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
