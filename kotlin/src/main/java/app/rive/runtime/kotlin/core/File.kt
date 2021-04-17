@@ -85,6 +85,12 @@ class File(bytes: ByteArray) {
     val artboardCount: Int
         get() = nativeArtboardCount(nativePointer)
 
+    /**
+     * Get the names of the artboards in the file.
+     */
+    val artboardNames: List<String>
+        get() = (0 until artboardCount).map{artboard(it).name}
+
 
     protected fun finalize() {
         if (nativePointer != -1L) {
