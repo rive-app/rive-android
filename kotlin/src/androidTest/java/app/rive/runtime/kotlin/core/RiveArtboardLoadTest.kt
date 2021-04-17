@@ -19,6 +19,7 @@ class RiveArtboardLoadTest {
         // Note index order seems to be reversed.
         assertEquals(file.artboard(name = "artboard1").nativePointer, file.artboard(1).nativePointer)
         assertEquals(file.artboard(name = "artboard2").nativePointer, file.artboard(0).nativePointer)
+        assertEquals(file.artboardNames, listOf<String>("artboard2", "artboard1"))
     }
 
     @Test(expected = RiveException::class)
@@ -33,6 +34,7 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
         assertEquals(file.artboardCount, 0);
+        assertEquals(file.artboardNames, listOf<String>())
     }
 
     @Test
