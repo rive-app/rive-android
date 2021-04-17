@@ -13,14 +13,26 @@ class RiveArtboardLoadTest {
     fun loadArtboard() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
-        file.artboard
+        // Access an artboard can bail when we don't have one.
+        file.firstArtboard
+        assertEquals(file.artboardCount, 2);
+        // Note index order seems to be reversed.
+        assertEquals(file.artboard(name = "artboard1").nativePointer, file.artboard(1).nativePointer)
+        assertEquals(file.artboard(name = "artboard2").nativePointer, file.artboard(0).nativePointer)
     }
 
     @Test(expected = RiveException::class)
     fun loadArtboardNoArtboard() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
-        file.artboard
+        file.firstArtboard
+    }
+
+
+    fun loadArtboardNoArtboardCheck() {
+        val appContext = initTests()
+        var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
+        assertEquals(file.artboardCount, 0);
     }
 
     @Test
@@ -48,6 +60,13 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         file.artboard(name = "artboard3")
+    }
+
+    @Test(expected = RiveException::class)
+    fun loadArtboardThreeAlt() {
+        val appContext = initTests()
+        var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
+        file.artboard(2)
     }
 
     @Test
