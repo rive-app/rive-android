@@ -19,6 +19,7 @@ class RiveAnimationLoadTest {
         var animationAlt = artboard.animation(0)
         var animation = artboard.animation("artboard1animation1")
         assertEquals(animation.nativePointer, animationAlt.nativePointer)
+        assertEquals(artboard.animationNames, listOf("artboard1animation1"))
     }
 
     @Test
@@ -33,7 +34,7 @@ class RiveAnimationLoadTest {
         var artboard2animation2 = artboard.animation(1)
         var artboard2animation2Alt = artboard.animation("artboard2animation2")
         assertEquals(artboard2animation2.nativePointer, artboard2animation2Alt.nativePointer)
-
+        assertEquals(artboard.animationNames, listOf("artboard2animation1", "artboard2animation2"))
     }
 
     @Test
@@ -42,6 +43,7 @@ class RiveAnimationLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         assertEquals(artboard.animationCount,0)
+        assertEquals(artboard.animationNames, listOf<String>())
     }
 
     @Test(expected = RiveException::class)
