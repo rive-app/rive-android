@@ -62,7 +62,7 @@ class RiveDrawable(
         artboardName?.let {
             setArtboard(file.artboard(it))
         } ?: run {
-            setArtboard(file.artboard)
+            setArtboard(file.firstArtboard)
         }
     }
 

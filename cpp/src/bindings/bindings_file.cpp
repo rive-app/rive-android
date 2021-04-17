@@ -35,7 +35,7 @@ extern "C"
         return (jlong)file->artboard();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeGetArtboardByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -54,6 +54,26 @@ extern "C"
         // if we're wiping the file, we really should wipe all those refs?
         rive::File *file = (rive::File *)ref;
         delete file;
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardCount(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::File *file = (rive::File *)ref;
+
+        return (jint)file->artboardCount();
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardByIndex(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint index)
+    {
+        rive::File *file = (rive::File *)ref;
+        return (jlong)file->artboard(index);
     }
 
 #ifdef __cplusplus
