@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatToggleButton
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.Rive
 import kotlin.math.absoluteValue
 
@@ -32,33 +33,33 @@ class LoopActivity : AppCompatActivity() {
         }
 
         findViewById<AppCompatButton>(R.id.loop_oneshot).setOnClickListener { _->
-            animationView.loop(animationName = "oneshot")
+            animationView.play(animationName = "oneshot", loop=Loop.LOOP)
         }
         findViewById<AppCompatButton>(R.id.loop_loop).setOnClickListener { _->
-            animationView.loop(animationName = "loop")
+            animationView.play(animationName = "loop", loop=Loop.LOOP)
         }
         findViewById<AppCompatButton>(R.id.loop_pingpong).setOnClickListener { _->
-            animationView.loop(animationName = "pingpong")
+            animationView.play(animationName = "pingpong", loop=Loop.LOOP)
         }
 
         findViewById<AppCompatButton>(R.id.oneshot_oneshot).setOnClickListener { _->
-            animationView.oneshot(animationName = "oneshot")
+            animationView.play(animationName = "oneshot", loop=Loop.ONESHOT)
         }
         findViewById<AppCompatButton>(R.id.oneshot_loop).setOnClickListener { _->
-            animationView.oneshot(animationName = "loop")
+            animationView.play(animationName = "loop", loop=Loop.ONESHOT)
         }
         findViewById<AppCompatButton>(R.id.oneshot_pingpong).setOnClickListener { _->
-            animationView.oneshot(animationName = "pingpong")
+            animationView.play(animationName = "pingpong", loop=Loop.ONESHOT)
         }
 
         findViewById<AppCompatButton>(R.id.pingpong_oneshot).setOnClickListener { _->
-            animationView.pingpong(animationName = "oneshot")
+            animationView.play(animationName = "oneshot", loop=Loop.PINGPONG)
         }
         findViewById<AppCompatButton>(R.id.pingpong_loop).setOnClickListener { _->
-            animationView.pingpong(animationName = "loop")
+            animationView.play(animationName = "loop", loop=Loop.PINGPONG)
         }
         findViewById<AppCompatButton>(R.id.pingpong_pingpong).setOnClickListener { _->
-            animationView.pingpong(animationName = "pingpong")
+            animationView.play(animationName = "pingpong", loop=Loop.PINGPONG)
         }
     }
 

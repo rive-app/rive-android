@@ -1,14 +1,12 @@
 package app.rive.runtime.kotlin
 
 import android.animation.TimeAnimator
-import android.animation.ValueAnimator
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 class RiveDrawable(
@@ -44,7 +42,7 @@ class RiveDrawable(
                         // TODO: we should probably think of a clearer way of doing this.
                         val looped = it.advance(elapsed)
                         it.apply(ab, 1f)
-                        if (looped == Loop.ONESHOT){
+                        if (looped == Loop.ONESHOT) {
                             // we're done. with our oneshot. might regret resetting time?
                             it.time(it.animation.workStartTime)
                             playingAnimations.remove(it)
@@ -79,7 +77,7 @@ class RiveDrawable(
         this.artboard = artboard
         if (autoplay) {
             play(animationName = animationName)
-        }else {
+        } else {
             artboard.advance(0f)
         }
     }
@@ -146,7 +144,7 @@ class RiveDrawable(
         animator.currentPlayTime = 0
         playingAnimations.clear()
         animations.clear()
-        file?.let{
+        file?.let {
             setAnimationFile(it)
         }
         invalidateSelf()
@@ -154,168 +152,71 @@ class RiveDrawable(
 
     fun pause(animationNames: List<String>? = null, animationName: String? = null) {
         animationNames?.let {
-            it.forEach { name->
+            it.forEach { name ->
                 playingAnimations = playingAnimations.filter {
                     it.animation.name != name
                 }.toHashSet()
             }
         }
-        animationName?.let{ name->
+        animationName?.let { name ->
             playingAnimations = playingAnimations.filter {
                 it.animation.name != name
             }.toHashSet()
         }
-        if (animationName == null && animationNames ==null){
+        if (animationName == null && animationNames == null) {
             playingAnimations.clear()
         }
 
     }
 
-    fun loop(animationNames: List<String>? = null, animationName: String? = null) {
+
+    fun play(
+        animationNames: List<String>? = null,
+        animationName: String? = null,
+        loop: Loop = Loop.NONE
+    ) {
         animationNames?.let {
             it.forEach {
-                _loopAnimation(it)
+                _playAnimation(it, loop)
             }
         }
-        animationName?.let{
-            _loopAnimation(it)
+        animationName?.let {
+            _playAnimation(it, loop)
         }
-        if (animationName == null && animationNames ==null){
-            _loopAllAnimations()
+        if (animationName == null && animationNames == null) {
+            _playAllAnimations(loop)
         }
         animator.start()
     }
 
 
-    fun oneshot(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach {
-                _oneshotAnimation(it)
-            }
-        }
-        animationName?.let{
-            _oneshotAnimation(it)
-        }
-        if (animationName == null && animationNames ==null){
-            _oneshotAllAnimations()
-        }
-        animator.start()
-    }
-
-    fun pingpong(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach {
-                _pingpongAnimation(it)
-            }
-        }
-        animationName?.let{
-            _pingpongAnimation(it)
-        }
-        if (animationName == null && animationNames ==null){
-            _pingpongAllAnimations()
-        }
-        animator.start()
-    }
-
-    fun play(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach {
-                _playAnimation(it)
-            }
-        }
-        animationName?.let{
-            _playAnimation(it)
-        }
-        if (animationName == null && animationNames ==null){
-            _playAllAnimations()
-        }
-        animator.start()
-    }
-
-
-    private fun _playAnimation(animationName: String) {
-        val foundAnimationInstance = animations.find { it.animation.name == animationName }
-        if (foundAnimationInstance == null) {
-            artboard?.let {
-                _addAnimation(it.animation(animationName))
-            }
-        } else {
-            playingAnimations.add(foundAnimationInstance)
-        }
-    }
-
-    private fun _loopAnimation(animationName: String) {
+    private fun _playAnimation(animationName: String, loop: Loop = Loop.NONE) {
         val foundAnimationInstance = animations.find { it.animation.name == animationName }
         if (foundAnimationInstance == null) {
             artboard?.let {
                 val animation = it.animation(animationName)
-                animation.loop = Loop.LOOP
+                if (loop != Loop.NONE) {
+                    animation.loop = loop
+                }
                 _addAnimation(animation)
             }
         } else {
-            foundAnimationInstance.animation.loop = Loop.LOOP
+            if (loop != Loop.NONE) {
+                foundAnimationInstance.animation.loop = loop
+            }
             playingAnimations.add(foundAnimationInstance)
         }
     }
 
-    private fun _oneshotAnimation(animationName: String) {
-        val foundAnimationInstance = animations.find { it.animation.name == animationName }
-        if (foundAnimationInstance == null) {
-            artboard?.let {
-                val animation = it.animation(animationName)
-                animation.loop = Loop.ONESHOT
-                _addAnimation(animation)
-            }
-        } else {
-            foundAnimationInstance.animation.loop = Loop.ONESHOT
-            playingAnimations.add(foundAnimationInstance)
-        }
-    }
-
-    private fun _pingpongAnimation(animationName: String) {
-        val foundAnimationInstance = animations.find { it.animation.name == animationName }
-        if (foundAnimationInstance == null) {
-            artboard?.let {
-                val animation = it.animation(animationName)
-                animation.loop = Loop.PINGPONG
-                _addAnimation(animation)
-            }
-        } else {
-            foundAnimationInstance.animation.loop = Loop.PINGPONG
-            playingAnimations.add(foundAnimationInstance)
-        }
-    }
-
-    private fun _playAllAnimations() {
-        artboard?.let{
+    private fun _playAllAnimations(loop: Loop = Loop.NONE) {
+        artboard?.let {
             for (i in 0 until it.animationCount) {
-                _playAnimation(it.animation(i).name)
-            }
-        }
-    }
-    private fun _loopAllAnimations() {
-        artboard?.let{
-            for (i in 0 until it.animationCount) {
-                _loopAnimation(it.animation(i).name)
-            }
-        }
-    }
-    private fun _oneshotAllAnimations() {
-        artboard?.let{
-            for (i in 0 until it.animationCount) {
-                _oneshotAnimation(it.animation(i).name)
-            }
-        }
-    }
-    private fun _pingpongAllAnimations() {
-        artboard?.let{
-            for (i in 0 until it.animationCount) {
-                _pingpongAnimation(it.animation(i).name)
+                _playAnimation(it.animation(i).name, loop)
             }
         }
     }
 
-    private fun _addAnimation(animation:Animation){
+    private fun _addAnimation(animation: Animation) {
         var linearAnimation = LinearAnimationInstance(animation)
         animations.add(linearAnimation)
         playingAnimations.add(linearAnimation)
