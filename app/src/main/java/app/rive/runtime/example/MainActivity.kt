@@ -30,5 +30,11 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        findViewById<Button>(R.id.go_loopy).setOnClickListener {
+            startActivity(
+                Intent(this, LoopActivity::class.java)
+            )
+        }
+
     }
 }
