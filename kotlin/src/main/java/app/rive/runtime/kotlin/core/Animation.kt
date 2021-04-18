@@ -54,6 +54,13 @@ class Animation(val nativePointer: Long) {
         get() = nativeWorkStart(nativePointer)
 
     /**
+     * Return the offset in frames to the beginning of an animations work area.
+     * Animations will start playing from here.
+     */
+    val workStartTime: Float
+        get() = workStart.toFloat()/fps
+
+    /**
      * Return the offset in frames to the end of an animations work area.
      * Animations will will loop, pingpong and stop once this is reached.
      */
