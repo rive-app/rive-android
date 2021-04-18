@@ -49,24 +49,17 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
     }
 
     fun pause(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.pause(animationNames = animationNames, animationName = animationName)
+        drawable.pause(animationNames, animationName)
     }
 
-    fun play(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.play(animationNames = animationNames, animationName = animationName)
+    fun play(
+        animationNames: List<String>? = null,
+        animationName: String? = null,
+        loop: Loop = Loop.NONE
+    ) {
+        drawable.play(animationNames, animationName, loop)
     }
 
-    fun loop(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.loop(animationNames = animationNames, animationName = animationName)
-    }
-
-    fun oneshot(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.oneshot(animationNames = animationNames, animationName = animationName)
-    }
-
-    fun pingpong(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.pingpong(animationNames = animationNames, animationName = animationName)
-    }
 
     fun reset() {
         drawable.reset()
