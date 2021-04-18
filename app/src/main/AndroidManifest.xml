@@ -18,6 +18,7 @@
         <activity android:name=".AnimationsActivity"></activity>
         <activity android:name=".ArtboardActivity"></activity>
         <activity android:name=".BuggyActivity"></activity>
+        <activity android:name=".LoopActivity"></activity>
     </application>
 
 </manifest>
