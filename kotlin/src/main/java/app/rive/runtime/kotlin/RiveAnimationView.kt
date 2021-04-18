@@ -14,6 +14,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
     private var loop: Loop = Loop.LOOP
     private var alignment: Alignment = Alignment.CENTER
     private var drawable: RiveDrawable = RiveDrawable(fit, alignment, loop);
+    private var resourceId: Int? = null;
 
     init {
         context.theme.obtainStyledAttributes(
@@ -55,16 +56,33 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         drawable.play(animationNames = animationNames, animationName = animationName)
     }
 
+    fun loop(animationNames: List<String>? = null, animationName: String? = null) {
+        drawable.loop(animationNames = animationNames, animationName = animationName)
+    }
+
+    fun oneshot(animationNames: List<String>? = null, animationName: String? = null) {
+        drawable.oneshot(animationNames = animationNames, animationName = animationName)
+    }
+
+    fun pingpong(animationNames: List<String>? = null, animationName: String? = null) {
+        drawable.pingpong(animationNames = animationNames, animationName = animationName)
+    }
+
     fun reset() {
         drawable.reset()
+        resourceId?.let {
+            setRiveResource(it)
+        }
     }
 
     val isPlaying: Boolean
         get() = drawable.isPlaying
 
     fun setRiveResource(@RawRes resId: Int) {
+        resourceId = resId
         val file = File(resources.openRawResource(resId).readBytes())
         setAnimationFile(file)
+
     }
 
     fun setAnimationFile(file: File) {

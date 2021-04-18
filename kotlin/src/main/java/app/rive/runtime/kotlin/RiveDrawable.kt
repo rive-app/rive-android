@@ -14,7 +14,7 @@ import app.rive.runtime.kotlin.core.*
 class RiveDrawable(
     private var fit: Fit = Fit.CONTAIN,
     private var alignment: Alignment = Alignment.CENTER,
-    private var loop: Loop = Loop.LOOP,
+    private var loop: Loop = Loop.NONE,
     private var artboardName: String? = null,
     private var animationName: String? = null,
     private var autoplay: Boolean = true
@@ -40,9 +40,15 @@ class RiveDrawable(
                 animations.forEach {
                     // order of animations is important.
                     if (playingAnimations.contains(it)) {
-                        // TODO: remove animation from playing if its come to an end?
-                        it.advance(elapsed)
+                        // TODO: this gives us a loop mode if the animation hit the end/ looped.
+                        // TODO: we should probably think of a clearer way of doing this.
+                        val looped = it.advance(elapsed)
                         it.apply(ab, 1f)
+                        if (looped == Loop.ONESHOT){
+                            // we're done. with our oneshot. might regret resetting time?
+                            it.time(it.animation.workStartTime)
+                            playingAnimations.remove(it)
+                        }
                     }
                 }
                 ab.advance(elapsed)
@@ -53,7 +59,10 @@ class RiveDrawable(
             }
             invalidateSelf()
         }
-        setRepeatMode(loop)
+        if (loop != Loop.NONE) {
+            // Animaiton instances will figure themselves out if this isn't set.
+            setRepeatMode(loop)
+        }
     }
 
     fun setAnimationFile(file: File) {
@@ -108,22 +117,8 @@ class RiveDrawable(
     }
 
     fun setRepeatMode(mode: Loop) {
-        // TODO: investigate the impact of setting modes against the animator. will this do what
-        // our animator does as well?
-        when (mode) {
-            Loop.ONESHOT -> {
-                animator.repeatCount = 1
-            }
-            Loop.LOOP -> {
-                animator.repeatMode = ValueAnimator.RESTART
-            }
-            Loop.PINGPONG -> {
-                animator.repeatMode = ValueAnimator.REVERSE
-            }
-            Loop.NONE -> {
-                // TODO: handle this
-            }
-        }
+        // TODO: setting anything against the animator here doesnt really make sense
+        // TODO: each animation has its own loop mode.
 
         animations.forEach {
             it.animation.loop = mode
@@ -149,17 +144,10 @@ class RiveDrawable(
     fun reset() {
         animator.cancel()
         animator.currentPlayTime = 0
-
-        animations.forEach {
-            if (it.animation.workStart != -1) {
-                it.time(it.animation.workStart.toFloat());
-            } else {
-                it.time(0f);
-            }
-            artboard?.let { ab ->
-                it.apply(ab, 1f)
-                ab.advance(0f)
-            }
+        playingAnimations.clear()
+        animations.clear()
+        file?.let{
+            setAnimationFile(it)
         }
         invalidateSelf()
     }
@@ -181,6 +169,52 @@ class RiveDrawable(
             playingAnimations.clear()
         }
 
+    }
+
+    fun loop(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach {
+                _loopAnimation(it)
+            }
+        }
+        animationName?.let{
+            _loopAnimation(it)
+        }
+        if (animationName == null && animationNames ==null){
+            _loopAllAnimations()
+        }
+        animator.start()
+    }
+
+
+    fun oneshot(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach {
+                _oneshotAnimation(it)
+            }
+        }
+        animationName?.let{
+            _oneshotAnimation(it)
+        }
+        if (animationName == null && animationNames ==null){
+            _oneshotAllAnimations()
+        }
+        animator.start()
+    }
+
+    fun pingpong(animationNames: List<String>? = null, animationName: String? = null) {
+        animationNames?.let {
+            it.forEach {
+                _pingpongAnimation(it)
+            }
+        }
+        animationName?.let{
+            _pingpongAnimation(it)
+        }
+        if (animationName == null && animationNames ==null){
+            _pingpongAllAnimations()
+        }
+        animator.start()
     }
 
     fun play(animationNames: List<String>? = null, animationName: String? = null) {
@@ -210,10 +244,73 @@ class RiveDrawable(
         }
     }
 
+    private fun _loopAnimation(animationName: String) {
+        val foundAnimationInstance = animations.find { it.animation.name == animationName }
+        if (foundAnimationInstance == null) {
+            artboard?.let {
+                val animation = it.animation(animationName)
+                animation.loop = Loop.LOOP
+                _addAnimation(animation)
+            }
+        } else {
+            foundAnimationInstance.animation.loop = Loop.LOOP
+            playingAnimations.add(foundAnimationInstance)
+        }
+    }
+
+    private fun _oneshotAnimation(animationName: String) {
+        val foundAnimationInstance = animations.find { it.animation.name == animationName }
+        if (foundAnimationInstance == null) {
+            artboard?.let {
+                val animation = it.animation(animationName)
+                animation.loop = Loop.ONESHOT
+                _addAnimation(animation)
+            }
+        } else {
+            foundAnimationInstance.animation.loop = Loop.ONESHOT
+            playingAnimations.add(foundAnimationInstance)
+        }
+    }
+
+    private fun _pingpongAnimation(animationName: String) {
+        val foundAnimationInstance = animations.find { it.animation.name == animationName }
+        if (foundAnimationInstance == null) {
+            artboard?.let {
+                val animation = it.animation(animationName)
+                animation.loop = Loop.PINGPONG
+                _addAnimation(animation)
+            }
+        } else {
+            foundAnimationInstance.animation.loop = Loop.PINGPONG
+            playingAnimations.add(foundAnimationInstance)
+        }
+    }
+
     private fun _playAllAnimations() {
         artboard?.let{
             for (i in 0 until it.animationCount) {
                 _playAnimation(it.animation(i).name)
+            }
+        }
+    }
+    private fun _loopAllAnimations() {
+        artboard?.let{
+            for (i in 0 until it.animationCount) {
+                _loopAnimation(it.animation(i).name)
+            }
+        }
+    }
+    private fun _oneshotAllAnimations() {
+        artboard?.let{
+            for (i in 0 until it.animationCount) {
+                _oneshotAnimation(it.animation(i).name)
+            }
+        }
+    }
+    private fun _pingpongAllAnimations() {
+        artboard?.let{
+            for (i in 0 until it.animationCount) {
+                _pingpongAnimation(it.animation(i).name)
             }
         }
     }
