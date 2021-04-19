@@ -16,6 +16,8 @@ class LinearAnimationInstance(val animation: Animation) {
     private external fun nativeApply(pointer: Long, artboardPointer: Long, mix: Float)
     private external fun nativeGetTime(pointer: Long): Float
     private external fun nativeSetTime(pointer: Long, time: Float)
+    private external fun nativeGetDirection(pointer: Long): Int
+    private external fun nativeSetDirection(pointer: Long, int: Int)
 
 
     /**
@@ -53,6 +55,18 @@ class LinearAnimationInstance(val animation: Animation) {
     fun time(time: Float) {
         nativeSetTime(nativePointer, time)
     }
+
+    /**
+     * Configure the [Direction] of the animation instance
+     * [Direction.FORWARDS] or [Direction.BACKWARDS]
+     */
+    var direction: Direction
+        get() {
+            val intDirection = nativeGetDirection(nativePointer)
+            val direction = Direction.fromInt(intDirection) ?: throw IndexOutOfBoundsException()
+            return direction
+        }
+        set(direction) = nativeSetDirection(nativePointer, direction.value)
 }
 
 enum class Loop(val value: Int) {
@@ -63,6 +77,16 @@ enum class Loop(val value: Int) {
 
     companion object {
         private val map = values().associateBy(Loop::value)
+        fun fromInt(type: Int) = map[type]
+    }
+}
+
+enum class Direction(val value: Int) {
+    BACKWARDS(-1),
+    FORWARDS(1);
+
+    companion object {
+        private val map = values().associateBy(Direction::value)
         fun fromInt(type: Int) = map[type]
     }
 }
