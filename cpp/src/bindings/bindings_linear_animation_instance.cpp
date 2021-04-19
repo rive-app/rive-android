@@ -99,6 +99,25 @@ extern "C"
         animationInstance->time(time);
     }
 
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeSetDirection(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint direction)
+    {
+        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        animationInstance->direction(direction);
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_nativeGetDirection(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        return animationInstance->direction();
+    }
+
 #ifdef __cplusplus
 }
 #endif

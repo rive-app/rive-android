@@ -44,7 +44,12 @@ class RiveDrawable(
                         it.apply(ab, 1f)
                         if (looped == Loop.ONESHOT) {
                             // we're done. with our oneshot. might regret resetting time?
-                            it.time(it.animation.workStartTime)
+                            if (it.direction == Direction.BACKWARDS) {
+                                it.time(it.animation.workEndTime)
+                            } else {
+                                it.time(it.animation.workStartTime)
+                            }
+
                             playingAnimations.remove(it)
                         }
                     }
@@ -58,7 +63,7 @@ class RiveDrawable(
             invalidateSelf()
         }
         if (loop != Loop.NONE) {
-            // Animaiton instances will figure themselves out if this isn't set.
+            // Animation instances will figure themselves out if this isn't set.
             setRepeatMode(loop)
         }
     }
@@ -120,6 +125,15 @@ class RiveDrawable(
 
         animations.forEach {
             it.animation.loop = mode
+        }
+    }
+
+    fun setDirection(direction: Direction) {
+        // TODO: setting anything against the animator here doesnt really make sense
+        // TODO: each animation has its own loop mode.
+
+        animations.forEach {
+            it.direction = direction
         }
     }
 

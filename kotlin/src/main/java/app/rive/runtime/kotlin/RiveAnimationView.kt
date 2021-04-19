@@ -60,6 +60,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         drawable.play(animationNames, animationName, loop)
     }
 
+    fun direction(
+        direction: Direction
+    ) {
+        drawable.setDirection(direction)
+    }
+
 
     fun reset() {
         drawable.reset()
