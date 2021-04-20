@@ -55,5 +55,61 @@ class RiveViewTest {
 
     }
 
+    @Test
+    fun viewDefaultsNoAutoplay() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.autoplay = false
+            view.setRiveResource(R.raw.multipleartboards)
+
+            assertEquals(view.isPlaying, false)
+            view.artboardName = "artboard2"
+            assertEquals(
+                view.animations.map { it.animation.name }.toList(),
+                listOf<String>()
+            )
+            view.play(listOf("artboard2animation1", "artboard2animation2"))
+            assertEquals(
+                view.animations.map { it.animation.name }.toList(),
+                listOf("artboard2animation1", "artboard2animation2")
+            )
+        }
+    }
+
+    @Test
+    fun viewPause() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multipleartboards)
+            assertEquals(view.isPlaying, true)
+            assertEquals(view.animations.size, 2)
+            view.pause()
+            assertEquals(view.isPlaying, false)
+        }
+    }
+
+    @Test
+    fun viewPauseOneByOne() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multipleartboards)
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.animations.map { it.animation.name }.toList(),
+                listOf("artboard2animation1", "artboard2animation2")
+            )
+            view.pause("artboard2animation1")
+            assertEquals(view.isPlaying, true)
+            view.pause("artboard2animation2")
+            assertEquals(view.isPlaying, false)
+        }
+    }
+
 
 }

@@ -31,7 +31,7 @@ class RiveDrawable(
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
         animator.setTimeListener { _, _, delta ->
 
-            var continuePlaying = true;
+
             artboard?.let { ab ->
                 val elapsed = delta.toFloat() / 1000
 
@@ -55,9 +55,10 @@ class RiveDrawable(
                     }
                 }
                 ab.advance(elapsed)
+
             }
             // TODO: set continuePlaying to false if all animations have come to an end.
-            if (!continuePlaying) {
+            if (playingAnimations.isEmpty()) {
                 animator.pause()
             }
             invalidateSelf()
@@ -83,11 +84,11 @@ class RiveDrawable(
         }
     }
 
-    fun setArtboardByName(artboardName: String?){
+    fun setArtboardByName(artboardName: String?) {
         stop()
         if (file == null) {
             this.artboardName = artboardName
-        }else {
+        } else {
             file?.let {
                 if (!it.artboardNames.contains(artboardName)) {
                     throw RiveException("Artboard $artboardName not found")
@@ -105,9 +106,9 @@ class RiveDrawable(
     private fun setArtboard(artboard: Artboard) {
         this.artboard = artboard
         if (autoplay) {
-            animationName?.let{
+            animationName?.let {
                 play(animationName = it)
-            }  ?: run {
+            } ?: run {
                 play()
             }
 
@@ -281,8 +282,7 @@ class RiveDrawable(
     }
 
     val isPlaying: Boolean
-        get() = animator.isRunning && !animator.isPaused
-
+        get() = playingAnimations.isNotEmpty()
 
 
     override fun isRunning(): Boolean {
