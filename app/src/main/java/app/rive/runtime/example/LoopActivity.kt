@@ -5,8 +5,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatToggleButton
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.Rive
+import kotlinx.android.synthetic.main.loopy.view.*
 import kotlin.math.absoluteValue
 
 class LoopActivity : AppCompatActivity() {
@@ -21,6 +23,13 @@ class LoopActivity : AppCompatActivity() {
 
         findViewById<AppCompatButton>(R.id.reset).setOnClickListener { _->
             animationView.reset()
+        }
+
+        findViewById<AppCompatButton>(R.id.forwards).setOnClickListener { _->
+            animationView.direction(Direction.FORWARDS)
+        }
+        findViewById<AppCompatButton>(R.id.backwards).setOnClickListener { _->
+            animationView.direction(Direction.BACKWARDS)
         }
         findViewById<AppCompatButton>(R.id.play_oneshot).setOnClickListener { _->
             animationView.play(animationName = "oneshot")

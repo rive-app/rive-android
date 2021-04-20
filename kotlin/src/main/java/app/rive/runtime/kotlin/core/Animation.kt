@@ -62,6 +62,12 @@ class Animation(val nativePointer: Long) {
 
     /**
      * Return the offset in frames to the end of an animations work area.
+     */
+    val workEndTime: Float
+        get() = workEnd.toFloat()/fps
+
+    /**
+     * Return the offset in frames to the end of an animations work area.
      * Animations will will loop, pingpong and stop once this is reached.
      */
     val workEnd: Int
