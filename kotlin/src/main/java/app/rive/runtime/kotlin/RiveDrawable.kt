@@ -10,18 +10,18 @@ import android.graphics.drawable.Drawable
 import app.rive.runtime.kotlin.core.*
 
 class RiveDrawable(
-    private var fit: Fit = Fit.CONTAIN,
-    private var alignment: Alignment = Alignment.CENTER,
-    private var loop: Loop = Loop.NONE,
-    private var artboardName: String? = null,
-    private var animationName: String? = null,
-    private var autoplay: Boolean = true
+    var fit: Fit = Fit.CONTAIN,
+    var alignment: Alignment = Alignment.CENTER,
+    var loop: Loop = Loop.NONE,
+    var artboardName: String? = null,
+    var animationName: String? = null,
+    var autoplay: Boolean = true
 ) : Drawable(), Animatable {
 
     private val renderer = Renderer()
     private val animator = TimeAnimator()
-    private var animations = mutableListOf<LinearAnimationInstance>()
-    private var file: File? = null
+    var animations = mutableListOf<LinearAnimationInstance>()
+    var file: File? = null
     private var artboard: Artboard? = null
     private var targetBounds: AABB
 
@@ -68,20 +68,49 @@ class RiveDrawable(
         }
     }
 
-    fun setAnimationFile(file: File) {
+    fun setRiveFile(file: File) {
         this.file = file
+        selectArtboard()
+    }
 
-        artboardName?.let {
-            setArtboard(file.artboard(it))
-        } ?: run {
-            setArtboard(file.firstArtboard)
+    private fun selectArtboard() {
+        file?.let { file ->
+            artboardName?.let {
+                setArtboard(file.artboard(it))
+            } ?: run {
+                setArtboard(file.firstArtboard)
+            }
         }
     }
 
-    fun setArtboard(artboard: Artboard) {
+    fun setArtboardByName(artboardName: String?){
+        stop()
+        if (file == null) {
+            this.artboardName = artboardName
+        }else {
+            file?.let {
+                if (!it.artboardNames.contains(artboardName)) {
+                    throw RiveException("Artboard $artboardName not found")
+                }
+                this.artboardName = artboardName
+                selectArtboard()
+            }
+        }
+
+        this.file?.let {
+            setRiveFile(it)
+        }
+    }
+
+    private fun setArtboard(artboard: Artboard) {
         this.artboard = artboard
         if (autoplay) {
-            play(animationName = animationName)
+            animationName?.let{
+                play(animationName = it)
+            }  ?: run {
+                play()
+            }
+
         } else {
             artboard.advance(0f)
         }
@@ -159,7 +188,7 @@ class RiveDrawable(
         playingAnimations.clear()
         animations.clear()
         file?.let {
-            setAnimationFile(it)
+            setRiveFile(it)
         }
         invalidateSelf()
     }
@@ -246,11 +275,14 @@ class RiveDrawable(
     }
 
     override fun stop() {
+        animations.clear()
+        playingAnimations.clear()
         animator.cancel()
     }
 
     val isPlaying: Boolean
         get() = animator.isRunning && !animator.isPaused
+
 
 
     override fun isRunning(): Boolean {

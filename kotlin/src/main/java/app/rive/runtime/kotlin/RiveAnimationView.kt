@@ -6,14 +6,8 @@ import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
 
-class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
-    private var animationName: String? = null;
-    private var artboardName: String? = null;
-    private var autoplay: Boolean = true;
-    private var fit: Fit = Fit.CONTAIN
-    private var loop: Loop = Loop.LOOP
-    private var alignment: Alignment = Alignment.CENTER
-    private var drawable: RiveDrawable = RiveDrawable(fit, alignment, loop);
+class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
+    private var drawable: RiveDrawable = RiveDrawable();
     private var resourceId: Int? = null;
 
     init {
@@ -24,20 +18,20 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         ).apply {
             try {
                 val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
-                alignment = Alignment.values()[alignmentIndex]
-
                 val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
-                fit = Fit.values()[fitIndex]
-
                 val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 1)
-                loop = Loop.values()[loopIndex]
-
-                autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
-
-                artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
-                animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
-
+                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
+                val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
+                val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
+
+                drawable.alignment = Alignment.values()[alignmentIndex]
+                drawable.fit = Fit.values()[fitIndex]
+                drawable.loop = Loop.values()[loopIndex]
+                drawable.autoplay =autoplay
+                drawable.artboardName = artboardName
+                drawable.animationName = animationName
+
                 if (resourceId != -1) {
                     setRiveResource(resourceId)
                 }
@@ -65,14 +59,16 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
     ) {
         drawable.play(loop)
     }
+
     fun play(
         animationNames: List<String>,
         loop: Loop = Loop.NONE
     ) {
         drawable.play(animationNames, loop)
     }
+
     fun play(
-        animationName: String? = null,
+        animationName: String,
         loop: Loop = Loop.NONE
     ) {
         drawable.play(animationName, loop)
@@ -98,26 +94,30 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
     fun setRiveResource(@RawRes resId: Int) {
         resourceId = resId
         val file = File(resources.openRawResource(resId).readBytes())
-        setAnimationFile(file)
+        setRiveFile(file)
 
     }
 
-    fun setAnimationFile(file: File) {
+    fun setRiveFile(file: File) {
         drawable.run {
             reset()
-            destroy()
+
         }
+
+        // TODO: we maybe not be cleaning something up here,
+        //       as we shouldnt have create a new drawable
         drawable = RiveDrawable(
-            fit = fit,
-            alignment = alignment,
-            loop = loop,
-            artboardName = artboardName,
-            animationName = animationName,
-            autoplay = autoplay
-        ).apply {
-            setAnimationFile(file)
-            background = this
-        }
+            fit = drawable.fit,
+            alignment = drawable.alignment,
+            loop = drawable.loop,
+            autoplay = drawable.autoplay,
+            animationName = drawable.animationName,
+            artboardName = drawable.artboardName,
+        )
+
+        drawable.setRiveFile(file)
+        background = drawable
+
         requestLayout()
     }
 
@@ -141,8 +141,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
 
         // Lets work out how much space our artboard is going to actually use.
         var usedBounds = Rive.calculateRequiredBounds(
-            fit,
-            alignment,
+            drawable.fit,
+            drawable.alignment,
             AABB(providedWidth.toFloat(), providedHeight.toFloat()),
             drawable.arboardBounds()
         )
@@ -174,6 +174,18 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         //        Log.d("$artboard", "Selected Width: $width Height:$height")
         setMeasuredDimension(width, height);
     }
+
+    val file: File?
+        get() = drawable.file
+
+    var artboardName: String?
+        get() = drawable.artboardName
+        set(name) {
+            drawable.setArtboardByName(name)
+        }
+
+    val animations: List<LinearAnimationInstance>
+        get() = drawable.animations
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
