@@ -20,7 +20,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
                 val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
                 val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 1)
-                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, true)
+                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, autoplay)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
@@ -28,7 +28,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 drawable.alignment = Alignment.values()[alignmentIndex]
                 drawable.fit = Fit.values()[fitIndex]
                 drawable.loop = Loop.values()[loopIndex]
-                drawable.autoplay =autoplay
+                drawable.autoplay = autoplay
                 drawable.artboardName = artboardName
                 drawable.animationName = animationName
 
@@ -182,6 +182,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         get() = drawable.artboardName
         set(name) {
             drawable.setArtboardByName(name)
+        }
+
+    var autoplay: Boolean
+        get() = drawable.autoplay
+        set(value) {
+            drawable.autoplay = value
         }
 
     val animations: List<LinearAnimationInstance>
