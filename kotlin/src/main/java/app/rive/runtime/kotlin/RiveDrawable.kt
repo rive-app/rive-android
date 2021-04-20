@@ -164,42 +164,47 @@ class RiveDrawable(
         invalidateSelf()
     }
 
-    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach { name ->
-                playingAnimations = playingAnimations.filter {
-                    it.animation.name != name
-                }.toHashSet()
-            }
-        }
-        animationName?.let { name ->
+    fun pause() {
+        playingAnimations.clear()
+    }
+
+    fun pause(animationNames: List<String>) {
+        animationNames.forEach { name ->
             playingAnimations = playingAnimations.filter {
                 it.animation.name != name
             }.toHashSet()
         }
-        if (animationName == null && animationNames == null) {
-            playingAnimations.clear()
-        }
-
     }
 
+    fun pause(animationName: String) {
+        playingAnimations = playingAnimations.filter {
+            it.animation.name != animationName
+        }.toHashSet()
+    }
 
     fun play(
-        animationNames: List<String>? = null,
-        animationName: String? = null,
+        animationNames: List<String>,
         loop: Loop = Loop.NONE
     ) {
-        animationNames?.let {
-            it.forEach {
-                _playAnimation(it, loop)
-            }
-        }
-        animationName?.let {
+        animationNames.forEach {
             _playAnimation(it, loop)
         }
-        if (animationName == null && animationNames == null) {
-            _playAllAnimations(loop)
-        }
+
+        animator.start()
+    }
+
+    fun play(
+        animationName: String,
+        loop: Loop = Loop.NONE
+    ) {
+        _playAnimation(animationName, loop)
+        animator.start()
+    }
+
+    fun play(
+        loop: Loop = Loop.NONE
+    ) {
+        _playAllAnimations(loop)
         animator.start()
     }
 

@@ -48,16 +48,34 @@ class RiveAnimationView(context: Context, attrs: AttributeSet?) : View(context, 
         }
     }
 
-    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
-        drawable.pause(animationNames, animationName)
+    fun pause() {
+        drawable.pause()
+    }
+
+    fun pause(animationNames: List<String>) {
+        drawable.pause(animationNames)
+    }
+
+    fun pause(animationName: String) {
+        drawable.pause(animationName)
     }
 
     fun play(
-        animationNames: List<String>? = null,
+        loop: Loop = Loop.NONE
+    ) {
+        drawable.play(loop)
+    }
+    fun play(
+        animationNames: List<String>,
+        loop: Loop = Loop.NONE
+    ) {
+        drawable.play(animationNames, loop)
+    }
+    fun play(
         animationName: String? = null,
         loop: Loop = Loop.NONE
     ) {
-        drawable.play(animationNames, animationName, loop)
+        drawable.play(animationName, loop)
     }
 
     fun direction(
