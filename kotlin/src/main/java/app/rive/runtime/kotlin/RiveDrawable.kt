@@ -44,7 +44,12 @@ class RiveDrawable(
                         it.apply(ab, 1f)
                         if (looped == Loop.ONESHOT) {
                             // we're done. with our oneshot. might regret resetting time?
-                            it.time(it.animation.workStartTime)
+                            if (it.direction == Direction.BACKWARDS) {
+                                it.time(it.animation.workEndTime)
+                            } else {
+                                it.time(it.animation.workStartTime)
+                            }
+
                             playingAnimations.remove(it)
                         }
                     }
@@ -58,7 +63,7 @@ class RiveDrawable(
             invalidateSelf()
         }
         if (loop != Loop.NONE) {
-            // Animaiton instances will figure themselves out if this isn't set.
+            // Animation instances will figure themselves out if this isn't set.
             setRepeatMode(loop)
         }
     }
@@ -123,6 +128,15 @@ class RiveDrawable(
         }
     }
 
+    fun setDirection(direction: Direction) {
+        // TODO: setting anything against the animator here doesnt really make sense
+        // TODO: each animation has its own loop mode.
+
+        animations.forEach {
+            it.direction = direction
+        }
+    }
+
     override fun getIntrinsicWidth(): Int {
         return artboard?.bounds?.width?.toInt() ?: -1
     }
@@ -150,42 +164,47 @@ class RiveDrawable(
         invalidateSelf()
     }
 
-    fun pause(animationNames: List<String>? = null, animationName: String? = null) {
-        animationNames?.let {
-            it.forEach { name ->
-                playingAnimations = playingAnimations.filter {
-                    it.animation.name != name
-                }.toHashSet()
-            }
-        }
-        animationName?.let { name ->
+    fun pause() {
+        playingAnimations.clear()
+    }
+
+    fun pause(animationNames: List<String>) {
+        animationNames.forEach { name ->
             playingAnimations = playingAnimations.filter {
                 it.animation.name != name
             }.toHashSet()
         }
-        if (animationName == null && animationNames == null) {
-            playingAnimations.clear()
-        }
-
     }
 
+    fun pause(animationName: String) {
+        playingAnimations = playingAnimations.filter {
+            it.animation.name != animationName
+        }.toHashSet()
+    }
 
     fun play(
-        animationNames: List<String>? = null,
-        animationName: String? = null,
+        animationNames: List<String>,
         loop: Loop = Loop.NONE
     ) {
-        animationNames?.let {
-            it.forEach {
-                _playAnimation(it, loop)
-            }
-        }
-        animationName?.let {
+        animationNames.forEach {
             _playAnimation(it, loop)
         }
-        if (animationName == null && animationNames == null) {
-            _playAllAnimations(loop)
-        }
+
+        animator.start()
+    }
+
+    fun play(
+        animationName: String,
+        loop: Loop = Loop.NONE
+    ) {
+        _playAnimation(animationName, loop)
+        animator.start()
+    }
+
+    fun play(
+        loop: Loop = Loop.NONE
+    ) {
+        _playAllAnimations(loop)
         animator.start()
     }
 
