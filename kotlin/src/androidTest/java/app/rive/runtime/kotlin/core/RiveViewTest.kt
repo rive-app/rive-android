@@ -61,9 +61,7 @@ class RiveViewTest {
             val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
-            view.autoplay = false
-            view.setRiveResource(R.raw.multipleartboards)
-
+            view.setRiveResource(R.raw.multipleartboards, autoplay = false)
             assertEquals(view.isPlaying, false)
             view.artboardName = "artboard2"
             assertEquals(
@@ -172,8 +170,7 @@ class RiveViewTest {
             val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
-            view.autoplay=false
-            view.setRiveResource(R.raw.multipleartboards)
+            view.setRiveResource(R.raw.multipleartboards, autoplay = false)
             assertEquals(view.isPlaying, false)
             assertEquals(view.animations.size, 0)
             assertEquals(view.playingAnimations.size, 0)
@@ -189,8 +186,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.autoplay = false
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assertEquals(view.isPlaying, false)
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -200,7 +196,7 @@ class RiveViewTest {
             assertEquals(view.isPlaying, true)
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
-                hashSetOf("one",  )
+                hashSetOf("one")
             )
         }
     }
@@ -210,8 +206,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.autoplay = false
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assertEquals(view.isPlaying, false)
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -226,19 +221,20 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.autoplay = false
-            view.setRiveResource(R.raw.multiple_animations)
-            assertEquals(view.isPlaying, false)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            assertEquals(false, view.isPlaying)
             assertEquals(
+                hashSetOf<LinearAnimationInstance>(),
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
-                hashSetOf<LinearAnimationInstance>()
-            )
+
+                )
             view.play(listOf("one", "two"))
-            assertEquals(view.isPlaying, true)
+            assertEquals(true, view.isPlaying)
             assertEquals(
+                hashSetOf("one", "two"),
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
-                hashSetOf("one", "two", )
-            )
+
+                )
         }
     }
 
@@ -247,8 +243,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.autoplay = false
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             // Mode dictated by animation.
             view.play("one")
@@ -271,4 +266,31 @@ class RiveViewTest {
             assertEquals(view.playingAnimations.first().animation.loop, Loop.ONESHOT)
         }
     }
+
+    @Test
+    fun viewPlayDirection() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+
+            // setting auto direciton doesnt change direction
+            view.play("one")
+            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            view.play("one", direction = Direction.AUTO)
+            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            view.play("one", direction = Direction.BACKWARDS)
+            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+            view.play("one", direction = Direction.AUTO)
+            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+
+            // Pingpong cycles between forwards and backwards
+            view.play("two", loop = Loop.PINGPONG)
+            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            view.drawable.advance(1001f)
+            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+
+        }
+    }
+
 }

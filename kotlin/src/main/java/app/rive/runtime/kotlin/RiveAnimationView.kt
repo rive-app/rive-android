@@ -26,10 +26,18 @@ import java.util.*
  * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
  * - Configure [alignment][R.styleable.RiveAnimationView_riveAlignment] to specify how the animation should be aligned to its container.
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
- * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth.
+ * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
-    private var drawable: RiveDrawable = RiveDrawable();
+    // TODO: stop creating an empty drawable to begin with.
+    private var _drawable: RiveDrawable = RiveDrawable();
+
+    var drawable: RiveDrawable
+        get() = _drawable
+        private set(value) {
+            _drawable = value
+        }
+
     private var resourceId: Int? = null;
 
     init {
@@ -41,21 +49,29 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
             try {
                 val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
                 val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
-                val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 1)
+                val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3)
                 val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, autoplay)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
 
-                drawable.alignment = Alignment.values()[alignmentIndex]
-                drawable.fit = Fit.values()[fitIndex]
-                drawable.loop = Loop.values()[loopIndex]
-                drawable.autoplay = autoplay
-                drawable.artboardName = artboardName
-                drawable.animationName = animationName
-
                 if (resourceId != -1) {
-                    setRiveResource(resourceId)
+                    setRiveResource(
+                        resourceId,
+                        alignment = Alignment.values()[alignmentIndex],
+                        fit = Fit.values()[fitIndex],
+                        loop = Loop.values()[loopIndex],
+                        autoplay = autoplay,
+                        artboardName = artboardName,
+                        animationName = animationName,
+                    )
+                } else {
+                    drawable.alignment = Alignment.values()[alignmentIndex];
+                    drawable.fit = Fit.values()[fitIndex];
+                    drawable.loop = Loop.values()[loopIndex];
+                    drawable.autoplay = autoplay;
+                    drawable.artboardName = artboardName;
+                    drawable.animationName = animationName;
                 }
 
             } finally {
@@ -140,39 +156,101 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         drawable.play(animationName, loop, direction)
     }
 
-
+    /**
+     * Completely reset the view, this will also reload the [resourceId] if one was provided.
+     *
+     * Resetting allows you to go back to the initial state of the artboard, before any animations
+     * were applied and will attempt to setup the same conditions as are set for the currently loaded animations.
+     *
+     * If you want to change this selection [setRiveResource], or [setRiveFile] will offer more options.
+     *
+     * Some rive users will want to create 'idle' or 'reset' animations in the rive editor to get
+     * the file back to a neutral position without having to reload the rive file
+     */
     fun reset() {
-        drawable.reset()
         resourceId?.let {
-            setRiveResource(it)
+            setRiveResource(
+                it,
+                fit = drawable.fit,
+                alignment = drawable.alignment,
+                loop = drawable.loop,
+                artboardName = drawable.artboardName,
+                animationName = drawable.animationName,
+                autoplay = drawable.autoplay
+            )
+        } ?: run {
+            drawable.reset()
         }
     }
 
+    /**
+     * Check if the animation is currently playing
+     */
     val isPlaying: Boolean
         get() = drawable.isPlaying
 
-    fun setRiveResource(@RawRes resId: Int) {
+    /**
+     * Load the [resource Id][resId] as a rive file and load it into the view.
+     *
+     * - Optionally provide an [artboardName] to use, this defaults to the first artboard in the file.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play all animations.
+     * - Enable [autoplay] to start the animation without further prompts.
+     * - Configure [alignment] to specify how the animation should be aligned to its container.
+     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
+     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     */
+    fun setRiveResource(
+        @RawRes resId: Int,
+        artboardName: String? = null,
+        animationName: String? = null,
+        autoplay: Boolean = true,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
+    ) {
         resourceId = resId
         val file = File(resources.openRawResource(resId).readBytes())
-        setRiveFile(file)
-
+        setRiveFile(
+            file,
+            fit = fit,
+            alignment = alignment,
+            loop = loop,
+            artboardName = artboardName,
+            animationName = animationName,
+            autoplay = autoplay
+        )
     }
 
-    fun setRiveFile(file: File) {
-        drawable.run {
-            reset()
-
-        }
+    /**
+     * Load the [rive file][File] into the view.
+     *
+     * - Optionally provide an [artboardName] to use, this defaults to the first artboard in the file.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play all animations.
+     * - Enable [autoplay] to start the animation without further prompts.
+     * - Configure [alignment] to specify how the animation should be aligned to its container.
+     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
+     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     */
+    fun setRiveFile(
+        file: File,
+        artboardName: String? = null,
+        animationName: String? = null,
+        autoplay: Boolean = true,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
+    ) {
+        drawable.reset()
 
         // TODO: we maybe not be cleaning something up here,
         //       as we shouldnt have create a new drawable
         drawable = RiveDrawable(
-            fit = drawable.fit,
-            alignment = drawable.alignment,
-            loop = drawable.loop,
-            autoplay = drawable.autoplay,
-            animationName = drawable.animationName,
-            artboardName = drawable.artboardName,
+            fit = fit,
+            alignment = alignment,
+            loop = loop,
+            autoplay = autoplay,
+            animationName = animationName,
+            artboardName = artboardName,
         )
 
         drawable.setRiveFile(file)
@@ -181,24 +259,40 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         requestLayout()
     }
 
+    /**
+     * Getter for the loaded [Rive file][File].
+     */
     val file: File?
         get() = drawable.file
 
+    /**
+     * Getter/Setter for the currently loaded artboard Name
+     * Setting a new name, will load the new artboard & depending on [autoplay] play them
+     */
     var artboardName: String?
         get() = drawable.artboardName
         set(name) {
             drawable.setArtboardByName(name)
         }
 
+    /**
+     * Getter/Setter for [autoplay].
+     */
     var autoplay: Boolean
         get() = drawable.autoplay
         set(value) {
             drawable.autoplay = value
         }
 
+    /**
+     * Get the currently loaded [animation instances][LinearAnimationInstance].
+     */
     val animations: List<LinearAnimationInstance>
         get() = drawable.animations
 
+    /**
+     * Get the currently playing [animation instances][LinearAnimationInstance].
+     */
     val playingAnimations: HashSet<LinearAnimationInstance>
         get() = drawable.playingAnimations
 

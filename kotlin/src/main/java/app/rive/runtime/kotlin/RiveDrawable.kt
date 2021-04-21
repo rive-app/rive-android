@@ -36,39 +36,41 @@ class RiveDrawable(
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
         animator.setTimeListener { _, _, delta ->
+            advance(delta.toFloat())
+        }
+    }
 
+    fun advance(delta:Float){
+        artboard?.let { ab ->
+            val elapsed = delta / 1000
 
-            artboard?.let { ab ->
-                val elapsed = delta.toFloat() / 1000
-
-                animations.forEach {
-                    // order of animations is important.
-                    if (playingAnimations.contains(it)) {
-                        // TODO: this gives us a loop mode if the animation hit the end/ looped.
-                        // TODO: we should probably think of a clearer way of doing this.
-                        val looped = it.advance(elapsed)
-                        it.apply(ab, 1f)
-                        if (looped == Loop.ONESHOT) {
-                            // we're done. with our oneshot. might regret resetting time?
-                            if (it.direction == Direction.BACKWARDS) {
-                                it.time(it.animation.workEndTime)
-                            } else {
-                                it.time(it.animation.workStartTime)
-                            }
-
-                            playingAnimations.remove(it)
+            animations.forEach {
+                // order of animations is important.
+                if (playingAnimations.contains(it)) {
+                    // TODO: this gives us a loop mode if the animation hit the end/ looped.
+                    // TODO: we should probably think of a clearer way of doing this.
+                    val looped = it.advance(elapsed)
+                    it.apply(ab, 1f)
+                    if (looped == Loop.ONESHOT) {
+                        // we're done. with our oneshot. might regret resetting time?
+                        if (it.direction == Direction.BACKWARDS) {
+                            it.time(it.animation.workEndTime)
+                        } else {
+                            it.time(it.animation.workStartTime)
                         }
+
+                        playingAnimations.remove(it)
                     }
                 }
-                ab.advance(elapsed)
+            }
+            ab.advance(elapsed)
 
-            }
-            // TODO: set continuePlaying to false if all animations have come to an end.
-            if (playingAnimations.isEmpty()) {
-                animator.pause()
-            }
-            invalidateSelf()
         }
+        // TODO: set continuePlaying to false if all animations have come to an end.
+        if (playingAnimations.isEmpty()) {
+            animator.pause()
+        }
+        invalidateSelf()
     }
 
     fun setRiveFile(file: File) {
