@@ -110,6 +110,47 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     }
 
     /**
+     * Stops all [animation instances][LinearAnimationInstance].
+     *
+     * Animations Instances will be disposed of completely.
+     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
+     * for the [animations][Animation] in the file.
+     */
+    fun stop() {
+        drawable.stopAnimations()
+    }
+
+    /**
+     * Stops any [animation instances][LinearAnimationInstance] for [animations][Animation] with
+     * any of the provided [names][animationNames].
+     *
+     * Animations Instances will be disposed of completely.
+     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
+     * for the [animations][Animation] in the file.
+     *
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
+     * [animation][Animation]
+     */
+    fun stop(animationNames: List<String>) {
+        drawable.stopAnimations(animationNames)
+    }
+
+    /**
+     * Stops any [animation instances][LinearAnimationInstance] for an [animation][Animation]
+     * called [animationName].
+     *
+     * Animations Instances will be disposed of completely.
+     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
+     * for the [animations][Animation] in the file.
+     *
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
+     * [animation][Animation]
+     */
+    fun stop(animationName: String) {
+        drawable.stopAnimations(animationName)
+    }
+
+    /**
      * Plays all found [animations][Animation] for a [File].
      *
      * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
