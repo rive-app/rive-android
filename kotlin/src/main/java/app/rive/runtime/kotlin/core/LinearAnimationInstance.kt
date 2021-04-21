@@ -83,7 +83,8 @@ enum class Loop(val value: Int) {
 
 enum class Direction(val value: Int) {
     BACKWARDS(-1),
-    FORWARDS(1);
+    FORWARDS(1),
+    AUTO(0);
 
     companion object {
         private val map = values().associateBy(Direction::value)
