@@ -12,7 +12,7 @@ import kotlinx.android.synthetic.main.loopy.view.*
 import kotlin.math.absoluteValue
 
 class LoopActivity : AppCompatActivity() {
-
+    var direction: Direction = Direction.AUTO
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.loopy)
     }
@@ -26,49 +26,52 @@ class LoopActivity : AppCompatActivity() {
         }
 
         findViewById<AppCompatButton>(R.id.forwards).setOnClickListener { _->
-            animationView.direction(Direction.FORWARDS)
+            direction = Direction.FORWARDS
+        }
+        findViewById<AppCompatButton>(R.id.auto).setOnClickListener { _->
+            direction = Direction.AUTO
         }
         findViewById<AppCompatButton>(R.id.backwards).setOnClickListener { _->
-            animationView.direction(Direction.BACKWARDS)
+            direction = Direction.BACKWARDS
         }
         findViewById<AppCompatButton>(R.id.play_oneshot).setOnClickListener { _->
-            animationView.play(animationName = "oneshot")
+            animationView.play(animationName = "oneshot", direction=direction)
         }
         findViewById<AppCompatButton>(R.id.play_loop).setOnClickListener { _->
-            animationView.play(animationName = "loop")
+            animationView.play(animationName = "loop", direction=direction)
         }
         findViewById<AppCompatButton>(R.id.play_pingpong).setOnClickListener { _->
-            animationView.play(animationName = "pingpong")
+            animationView.play(animationName = "pingpong", direction=direction)
         }
 
         findViewById<AppCompatButton>(R.id.loop_oneshot).setOnClickListener { _->
-            animationView.play(animationName = "oneshot", loop=Loop.LOOP)
+            animationView.play(animationName = "oneshot", loop=Loop.LOOP, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.loop_loop).setOnClickListener { _->
-            animationView.play(animationName = "loop", loop=Loop.LOOP)
+            animationView.play(animationName = "loop", loop=Loop.LOOP, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.loop_pingpong).setOnClickListener { _->
-            animationView.play(animationName = "pingpong", loop=Loop.LOOP)
+            animationView.play(animationName = "pingpong", loop=Loop.LOOP, direction=direction)
         }
 
         findViewById<AppCompatButton>(R.id.oneshot_oneshot).setOnClickListener { _->
-            animationView.play(animationName = "oneshot", loop=Loop.ONESHOT)
+            animationView.play(animationName = "oneshot", loop=Loop.ONESHOT, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.oneshot_loop).setOnClickListener { _->
-            animationView.play(animationName = "loop", loop=Loop.ONESHOT)
+            animationView.play(animationName = "loop", loop=Loop.ONESHOT, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.oneshot_pingpong).setOnClickListener { _->
-            animationView.play(animationName = "pingpong", loop=Loop.ONESHOT)
+            animationView.play(animationName = "pingpong", loop=Loop.ONESHOT, direction=direction)
         }
 
         findViewById<AppCompatButton>(R.id.pingpong_oneshot).setOnClickListener { _->
-            animationView.play(animationName = "oneshot", loop=Loop.PINGPONG)
+            animationView.play(animationName = "oneshot", loop=Loop.PINGPONG, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.pingpong_loop).setOnClickListener { _->
-            animationView.play(animationName = "loop", loop=Loop.PINGPONG)
+            animationView.play(animationName = "loop", loop=Loop.PINGPONG, direction=direction)
         }
         findViewById<AppCompatButton>(R.id.pingpong_pingpong).setOnClickListener { _->
-            animationView.play(animationName = "pingpong", loop=Loop.PINGPONG)
+            animationView.play(animationName = "pingpong", loop=Loop.PINGPONG, direction=direction)
         }
     }
 

@@ -5,7 +5,29 @@ import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
+import java.util.*
 
+/**
+ * This view aims to provide the most straightforward way to get rive animations into your application.
+ *
+ * Simply add the view to your activities, and you are be good to to!
+ *
+ * Very simple animations can be configured completely from a layout file. We also also expose a
+ * thin api layer to allow more control over how animations are playing.
+ *
+ * All of this is built upon the core [rive animation wrappers][app.rive.runtime.kotlin.core],
+ * which are designed to expose our c++ rive animation runtimes directly, and can be used
+ * directly for the most flexibility.
+ *
+ *
+ * Xml [attrs] can be used to set initial values for many
+ * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource] or [setRiveFile].
+ * - Determine the [artboard][R.styleable.RiveAnimationView_riveArtboard] to use, this defaults to the first artboard in the file.
+ * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
+ * - Configure [alignment][R.styleable.RiveAnimationView_riveAlignment] to specify how the animation should be aligned to its container.
+ * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
+ * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth.
+ */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private var drawable: RiveDrawable = RiveDrawable();
     private var resourceId: Int? = null;
@@ -42,42 +64,80 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         }
     }
 
+    /**
+     * Pauses all playing [animation instance][LinearAnimationInstance].
+     */
     fun pause() {
         drawable.pause()
     }
 
+    /**
+     * Pauses any [animation instances][LinearAnimationInstance] for [animations][Animation] with
+     * any of the provided [names][animationNames].
+     *
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
+     * [animation][Animation]
+     */
     fun pause(animationNames: List<String>) {
         drawable.pause(animationNames)
     }
 
+    /**
+     * Pauses any [animation instances][LinearAnimationInstance] for an [animation][Animation]
+     * called [animationName].
+     *
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
+     * [animation][Animation]
+     */
     fun pause(animationName: String) {
         drawable.pause(animationName)
     }
 
+    /**
+     * Plays all found [animations][Animation] for a [File].
+     *
+     * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
+     * Already playing animation instances will be updated to this loop mode if provided.
+     *
+     * @experimental Optionally provide a [direction][Direction] to set the direction an animation is playing in.
+     * Already playing animation instances will be updated to this direction immediately.
+     * Backwards animations will start from the end.
+     *
+     * For [animations][Animation] without an [animation instance][LinearAnimationInstance] one will be created and played.
+     */
     fun play(
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO
     ) {
-        drawable.play(loop)
+        drawable.play(loop, direction)
     }
 
+    /**
+     * Plays any [animation instances][LinearAnimationInstance] for [animations][Animation] with
+     * any of the provided [names][animationNames].
+     *
+     * see [play] for more details on options
+     */
     fun play(
         animationNames: List<String>,
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO
     ) {
-        drawable.play(animationNames, loop)
+        drawable.play(animationNames, loop, direction)
     }
 
+    /**
+     * Plays any [animation instances][LinearAnimationInstance] for an [animation][Animation]
+     * called [animationName].
+     *
+     * see [play] for more details on options
+     */
     fun play(
         animationName: String,
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO
     ) {
-        drawable.play(animationName, loop)
-    }
-
-    fun direction(
-        direction: Direction
-    ) {
-        drawable.setDirection(direction)
+        drawable.play(animationName, loop, direction)
     }
 
 
@@ -119,6 +179,32 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         background = drawable
 
         requestLayout()
+    }
+
+    val file: File?
+        get() = drawable.file
+
+    var artboardName: String?
+        get() = drawable.artboardName
+        set(name) {
+            drawable.setArtboardByName(name)
+        }
+
+    var autoplay: Boolean
+        get() = drawable.autoplay
+        set(value) {
+            drawable.autoplay = value
+        }
+
+    val animations: List<LinearAnimationInstance>
+        get() = drawable.animations
+
+    val playingAnimations: HashSet<LinearAnimationInstance>
+        get() = drawable.playingAnimations
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        pause()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -165,36 +251,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
             else ->
                 height = usedBounds.height.toInt()
         }
-        // Leaving this here as this is probably going to need some tweaking as we figure out how this works.
-        //        Log.d("$artboard", "Width exactly: ${widthMode==MeasureSpec.EXACTLY} at_most: ${heightMode==MeasureSpec.AT_MOST}")
-        //        Log.d("$artboard", "Height exactly: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.EXACTLY} at_most: ${MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.AT_MOST}")
-        //        Log.d("$artboard", "Provided Width: $providedWidth Height:$providedHeight")
-        //        Log.d("$artboard", "Artboard Used Width: ${usedBounds.width.toInt()} Height:${usedBounds.height.toInt()}")
-        //
-        //        Log.d("$artboard", "Selected Width: $width Height:$height")
+
         setMeasuredDimension(width, height);
-    }
-
-    val file: File?
-        get() = drawable.file
-
-    var artboardName: String?
-        get() = drawable.artboardName
-        set(name) {
-            drawable.setArtboardByName(name)
-        }
-
-    var autoplay: Boolean
-        get() = drawable.autoplay
-        set(value) {
-            drawable.autoplay = value
-        }
-
-    val animations: List<LinearAnimationInstance>
-        get() = drawable.animations
-
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        pause()
     }
 }
