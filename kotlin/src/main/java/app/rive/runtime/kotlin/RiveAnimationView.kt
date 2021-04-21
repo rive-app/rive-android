@@ -385,12 +385,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         MeasureSpec.UNSPECIFIED
 
         when (heightMode) {
-            MeasureSpec.EXACTLY -> height = providedWidth
-            MeasureSpec.AT_MOST -> height = Math.min(usedBounds.height.toInt(), providedWidth)
+            MeasureSpec.EXACTLY -> height = providedHeight
+            MeasureSpec.AT_MOST -> height = Math.min(usedBounds.height.toInt(), providedHeight)
             else ->
                 height = usedBounds.height.toInt()
         }
-
         setMeasuredDimension(width, height);
     }
 }
