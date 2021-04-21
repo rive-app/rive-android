@@ -192,21 +192,23 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     /**
      * Load the [resource Id][resId] as a rive file and load it into the view.
      *
-     * - Optionally provide an [artboardName] to use, this defaults to the first artboard in the file.
+     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
      * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play all animations.
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
      * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
     fun setRiveResource(
         @RawRes resId: Int,
-        artboardName: String? = null,
-        animationName: String? = null,
-        autoplay: Boolean = true,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.NONE,
+        artboardName: String? = drawable.artboardName,
+        animationName: String? = drawable.animationName,
+        autoplay: Boolean = drawable.autoplay,
+        fit: Fit = drawable.fit,
+        alignment: Alignment = drawable.alignment,
+        loop: Loop = drawable.loop,
     ) {
         resourceId = resId
         val file = File(resources.openRawResource(resId).readBytes())
@@ -230,15 +232,17 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
      * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
     fun setRiveFile(
         file: File,
-        artboardName: String? = null,
-        animationName: String? = null,
-        autoplay: Boolean = true,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.NONE,
+        artboardName: String? = drawable.artboardName,
+        animationName: String? = drawable.animationName,
+        autoplay: Boolean = drawable.autoplay,
+        fit: Fit = drawable.fit,
+        alignment: Alignment = drawable.alignment,
+        loop: Loop = drawable.loop,
     ) {
         drawable.reset()
 
