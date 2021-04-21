@@ -61,7 +61,8 @@ class RiveViewTest {
             val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multipleartboards, autoplay = false)
+            view.autoplay=false
+            view.setRiveResource(R.raw.multipleartboards)
             assertEquals(view.isPlaying, false)
             view.artboardName = "artboard2"
             assertEquals(
@@ -274,23 +275,60 @@ class RiveViewTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
-            // setting auto direciton doesnt change direction
+            // setting auto direction doesn't change direction
             view.play("one")
-            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            assertEquals(Direction.FORWARDS, view.playingAnimations.first().direction)
             view.play("one", direction = Direction.AUTO)
-            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            assertEquals(Direction.FORWARDS, view.playingAnimations.first().direction)
             view.play("one", direction = Direction.BACKWARDS)
-            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+            assertEquals(Direction.BACKWARDS, view.playingAnimations.first().direction)
             view.play("one", direction = Direction.AUTO)
-            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+            assertEquals(Direction.BACKWARDS, view.playingAnimations.first().direction)
+            view.pause("one")
 
-            // Pingpong cycles between forwards and backwards
+            // PingPong cycles between forwards and backwards
             view.play("two", loop = Loop.PINGPONG)
-            assertEquals(view.playingAnimations.first().direction, Direction.FORWARDS)
+            assertEquals(Direction.FORWARDS, view.playingAnimations.first().direction)
             view.drawable.advance(1001f)
-            assertEquals(view.playingAnimations.first().direction, Direction.BACKWARDS)
+            assertEquals(Direction.BACKWARDS, view.playingAnimations.first().direction)
 
         }
     }
 
+
+    @Test
+    fun viewSetResourceLoadArtboard() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+
+            view.setRiveResource(R.raw.multiple_animations)
+            assertEquals(listOf("four", "three", "two", "one"), view.drawable.file?.firstArtboard?.animationNames)
+
+            view.setRiveResource(R.raw.multipleartboards)
+            assertEquals(listOf("artboard2animation1", "artboard2animation2"), view.drawable.file?.firstArtboard?.animationNames)
+        }
+    }
+
+    @Test(expected = RiveException::class)
+    fun viewSetResourceLoadArtboardArtboardGotcha() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+
+            view.setRiveResource(R.raw.multiple_animations, artboardName = "New Artboard")
+            view.setRiveResource(R.raw.multipleartboards)
+        }
+    }
+
+    @Test
+    fun viewSetResourceLoadArtboardArtboardGotchaOK() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+
+            view.setRiveResource(R.raw.multiple_animations, artboardName = "New Artboard")
+            view.setRiveResource(R.raw.multipleartboards, artboardName = "artboard1")
+        }
+    }
 }
