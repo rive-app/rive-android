@@ -214,6 +214,7 @@ class RiveDrawable(
         playingAnimations = playingAnimations.filter {
             it.animation.name != animationName
         }.toHashSet()
+
         animations = animations.filter {
             it.animation.name != animationName
         }.toMutableList()
