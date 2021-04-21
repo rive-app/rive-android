@@ -40,7 +40,7 @@ class RiveDrawable(
         }
     }
 
-    fun advance(delta:Float){
+    fun advance(delta: Float) {
         artboard?.let { ab ->
             val elapsed = delta / 1000
 
@@ -185,10 +185,8 @@ class RiveDrawable(
     }
 
     fun pause(animationNames: List<String>) {
-        animationNames.forEach { name ->
-            playingAnimations = playingAnimations.filter {
-                it.animation.name != name
-            }.toHashSet()
+        animationNames.forEach { animationName ->
+            pause(animationName)
         }
     }
 
@@ -196,6 +194,29 @@ class RiveDrawable(
         playingAnimations = playingAnimations.filter {
             it.animation.name != animationName
         }.toHashSet()
+    }
+
+    /**
+     * called [stopAnimations] to avoid conflicting with [stop]
+     */
+    fun stopAnimations() {
+        playingAnimations.clear()
+        animations.clear()
+    }
+
+    fun stopAnimations(animationNames: List<String>) {
+        animationNames.forEach { animationName ->
+            stopAnimations(animationName)
+        }
+    }
+
+    fun stopAnimations(animationName: String) {
+        playingAnimations = playingAnimations.filter {
+            it.animation.name != animationName
+        }.toHashSet()
+        animations = animations.filter {
+            it.animation.name != animationName
+        }.toMutableList()
     }
 
     fun play(
@@ -269,7 +290,7 @@ class RiveDrawable(
         var linearAnimation = LinearAnimationInstance(animation)
         if (direction != Direction.AUTO) {
             linearAnimation.direction = direction
-            if (direction == Direction.BACKWARDS){
+            if (direction == Direction.BACKWARDS) {
                 linearAnimation.time(animation.workEndTime)
             }
         }
@@ -283,8 +304,7 @@ class RiveDrawable(
     }
 
     override fun stop() {
-        animations.clear()
-        playingAnimations.clear()
+        stopAnimations()
         animator.cancel()
     }
 
