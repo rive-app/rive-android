@@ -87,29 +87,188 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multipleartboards)
             assertEquals(view.isPlaying, true)
             assertEquals(view.animations.size, 2)
+            assertEquals(view.playingAnimations.size, 2)
             view.pause()
             assertEquals(view.isPlaying, false)
+            assertEquals(view.animations.size, 2)
+            assertEquals(view.playingAnimations.size, 0)
         }
     }
+
 
     @Test
     fun viewPauseOneByOne() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
-
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multipleartboards)
+            view.setRiveResource(R.raw.multiple_animations)
+
             assertEquals(view.isPlaying, true)
             assertEquals(
-                view.animations.map { it.animation.name }.toList(),
-                listOf("artboard2animation1", "artboard2animation2")
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("one", "two", "three", "four")
             )
-            view.pause("artboard2animation1")
+            view.pause("junk")
             assertEquals(view.isPlaying, true)
-            view.pause("artboard2animation2")
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("one", "two", "three", "four")
+            )
+
+            view.pause("one")
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("two", "three", "four")
+            )
+            view.pause("two")
+            assertEquals(view.isPlaying, true)
+
+            view.pause("three")
+            assertEquals(view.isPlaying, true)
+
+            view.pause("four")
             assertEquals(view.isPlaying, false)
+
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf<LinearAnimationInstance>()
+            )
+        }
+    }
+
+    @Test
+    fun viewPauseMultiple() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multiple_animations)
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("one", "two", "three", "four")
+            )
+
+            view.pause(listOf("one", "three"))
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("two", "four")
+            )
+
+            view.pause(listOf("two", "four"))
+            assertEquals(view.isPlaying, false)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf<LinearAnimationInstance>()
+            )
         }
     }
 
 
+    @Test
+    fun viewPlay() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.autoplay=false
+            view.setRiveResource(R.raw.multipleartboards)
+            assertEquals(view.isPlaying, false)
+            assertEquals(view.animations.size, 0)
+            assertEquals(view.playingAnimations.size, 0)
+            view.play()
+            assertEquals(view.isPlaying, true)
+            assertEquals(view.animations.size, 2)
+            assertEquals(view.playingAnimations.size, 2)
+        }
+    }
+
+    @Test
+    fun viewPlayOneByOne() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.autoplay = false
+            view.setRiveResource(R.raw.multiple_animations)
+            assertEquals(view.isPlaying, false)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf<LinearAnimationInstance>()
+            )
+            view.play("one")
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("one",  )
+            )
+        }
+    }
+
+    @Test(expected = RiveException::class)
+    fun viewPlayJunk() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.autoplay = false
+            view.setRiveResource(R.raw.multiple_animations)
+            assertEquals(view.isPlaying, false)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf<LinearAnimationInstance>()
+            )
+            view.play("junk")
+        }
+    }
+
+    @Test
+    fun viewPlayMultiple() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.autoplay = false
+            view.setRiveResource(R.raw.multiple_animations)
+            assertEquals(view.isPlaying, false)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf<LinearAnimationInstance>()
+            )
+            view.play(listOf("one", "two"))
+            assertEquals(view.isPlaying, true)
+            assertEquals(
+                view.playingAnimations.map { it.animation.name }.toHashSet(),
+                hashSetOf("one", "two", )
+            )
+        }
+    }
+
+    @Test
+    fun viewPlayLoopMode() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val view = RiveAnimationView(appContext)
+            view.autoplay = false
+            view.setRiveResource(R.raw.multiple_animations)
+
+            // Mode dictated by animation.
+            view.play("one")
+            assertEquals(view.playingAnimations.first().animation.loop, Loop.ONESHOT)
+
+            // forced loop
+            view.play("one", Loop.LOOP)
+            assertEquals(view.playingAnimations.first().animation.loop, Loop.LOOP)
+
+            // mode unchanged.
+            view.play("one")
+            assertEquals(view.playingAnimations.first().animation.loop, Loop.LOOP)
+
+            // mode unchanged.
+            view.play("one", Loop.PINGPONG)
+            assertEquals(view.playingAnimations.first().animation.loop, Loop.PINGPONG)
+
+            // mode unchanged.
+            view.play("one", Loop.ONESHOT)
+            assertEquals(view.playingAnimations.first().animation.loop, Loop.ONESHOT)
+        }
+    }
 }

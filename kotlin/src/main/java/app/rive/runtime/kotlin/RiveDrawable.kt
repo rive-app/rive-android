@@ -25,7 +25,13 @@ class RiveDrawable(
     private var artboard: Artboard? = null
     private var targetBounds: AABB
 
-    private var playingAnimations = HashSet<LinearAnimationInstance>()
+    private var _playingAnimations = HashSet<LinearAnimationInstance>()
+
+    var playingAnimations: HashSet<LinearAnimationInstance>
+        get() = _playingAnimations
+        private set(value) {
+            _playingAnimations = value
+        }
 
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
@@ -62,10 +68,6 @@ class RiveDrawable(
                 animator.pause()
             }
             invalidateSelf()
-        }
-        if (loop != Loop.NONE) {
-            // Animation instances will figure themselves out if this isn't set.
-            setRepeatMode(loop)
         }
     }
 
@@ -149,24 +151,6 @@ class RiveDrawable(
         return PixelFormat.TRANSLUCENT
     }
 
-    fun setRepeatMode(mode: Loop) {
-        // TODO: setting anything against the animator here doesnt really make sense
-        // TODO: each animation has its own loop mode.
-
-        animations.forEach {
-            it.animation.loop = mode
-        }
-    }
-
-    fun setDirection(direction: Direction) {
-        // TODO: setting anything against the animator here doesnt really make sense
-        // TODO: each animation has its own loop mode.
-
-        animations.forEach {
-            it.direction = direction
-        }
-    }
-
     override fun getIntrinsicWidth(): Int {
         return artboard?.bounds?.width?.toInt() ?: -1
     }
@@ -214,10 +198,11 @@ class RiveDrawable(
 
     fun play(
         animationNames: List<String>,
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO,
     ) {
         animationNames.forEach {
-            _playAnimation(it, loop)
+            _playAnimation(it, loop, direction)
         }
 
         animator.start()
@@ -225,50 +210,70 @@ class RiveDrawable(
 
     fun play(
         animationName: String,
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO,
     ) {
-        _playAnimation(animationName, loop)
+        _playAnimation(animationName, loop, direction)
         animator.start()
     }
 
     fun play(
-        loop: Loop = Loop.NONE
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO,
     ) {
-        _playAllAnimations(loop)
+
+        _playAllAnimations(loop, direction)
         animator.start()
     }
 
+    private fun _playAllAnimations(loop: Loop = Loop.NONE, direction: Direction = Direction.AUTO) {
+        artboard?.let {
+            for (i in 0 until it.animationCount) {
+                _playAnimation(it.animation(i).name, loop, direction)
+            }
+        }
+    }
 
-    private fun _playAnimation(animationName: String, loop: Loop = Loop.NONE) {
+    private fun _playAnimation(
+        animationName: String,
+        loop: Loop = Loop.NONE,
+        direction: Direction = Direction.AUTO
+    ) {
+        // If a loop mode was specified, use it, otherwise fall back to a predefined default loop,
+        // otherwise just use what the animation is configured to be.
+        val appliedLoop = if (loop == Loop.NONE) this.loop else loop
         val foundAnimationInstance = animations.find { it.animation.name == animationName }
         if (foundAnimationInstance == null) {
             artboard?.let {
                 val animation = it.animation(animationName)
-                if (loop != Loop.NONE) {
-                    animation.loop = loop
+                if (appliedLoop != Loop.NONE) {
+                    animation.loop = appliedLoop
                 }
-                _addAnimation(animation)
+                _addAnimation(animation, direction)
             }
         } else {
-            if (loop != Loop.NONE) {
-                foundAnimationInstance.animation.loop = loop
+            if (appliedLoop != Loop.NONE) {
+                foundAnimationInstance.animation.loop = appliedLoop
+            }
+            if (direction != Direction.AUTO) {
+                foundAnimationInstance.direction = direction
             }
             playingAnimations.add(foundAnimationInstance)
         }
     }
 
-    private fun _playAllAnimations(loop: Loop = Loop.NONE) {
-        artboard?.let {
-            for (i in 0 until it.animationCount) {
-                _playAnimation(it.animation(i).name, loop)
+
+    private fun _addAnimation(animation: Animation, direction: Direction) {
+        var linearAnimation = LinearAnimationInstance(animation)
+        if (direction != Direction.AUTO) {
+            linearAnimation.direction = direction
+            if (direction == Direction.BACKWARDS){
+                linearAnimation.time(animation.workEndTime)
             }
         }
-    }
-
-    private fun _addAnimation(animation: Animation) {
-        var linearAnimation = LinearAnimationInstance(animation)
         animations.add(linearAnimation)
         playingAnimations.add(linearAnimation)
+
     }
 
     override fun start() {
