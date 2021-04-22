@@ -49,27 +49,22 @@ class RiveDrawable(
         artboard?.let { ab ->
             val elapsed = delta / 1000
 
-            animations.forEach {
+            // animations could change, lets cut a list.
+            animations.toList().forEach { animationInstance ->
                 // order of animations is important.
-                if (playingAnimations.contains(it)) {
+                if (playingAnimations.contains(animationInstance)) {
                     // TODO: this gives us a loop mode if the animation hit the end/ looped.
                     // TODO: we should probably think of a clearer way of doing this.
-                    val looped = it.advance(elapsed)
-                    it.apply(ab, 1f)
+                    val looped = animationInstance.advance(elapsed)
+                    animationInstance.apply(ab, 1f)
                     if (looped == Loop.ONESHOT) {
-                        // we're done. with our oneshot. might regret resetting time?
-                        if (it.direction == Direction.BACKWARDS) {
-                            it.time(it.animation.workEndTime)
-                        } else {
-                            it.time(it.animation.workStartTime)
-                        }
-
-
+                        _stop(animationInstance)
+                    } else {
+                        notifyLoop(animationInstance)
                     }
                 }
             }
             ab.advance(elapsed)
-
         }
         // TODO: set continuePlaying to false if all animations have come to an end.
         if (playingAnimations.isEmpty()) {
@@ -178,19 +173,22 @@ class RiveDrawable(
      * called [stopAnimations] to avoid conflicting with [stop]
      */
     fun stopAnimations() {
-        playingAnimations.clear()
-        animations.clear()
+        // stop will modify animations, so we cut a list of it first.
+        animations.toList().forEach { animation ->
+            _stop(animation)
+        }
     }
 
     fun stopAnimations(animationNames: List<String>) {
-        animationNames.forEach { animationName ->
-            stopAnimations(animationName)
+        _animations(animationNames).forEach { animation ->
+            _stop(animation)
         }
     }
 
     fun stopAnimations(animationName: String) {
-        var animations = _animations(animationName)
-        _stop(animations)
+        _animations(animationName).forEach { animation ->
+            _stop(animation)
+        }
     }
 
     // PRIVATE FUNCTIONS
@@ -210,27 +208,42 @@ class RiveDrawable(
         loop: Loop = Loop.NONE,
         direction: Direction = Direction.AUTO
     ) {
-        // If a loop mode was specified, use it, otherwise fall back to a predefined default loop,
-        // otherwise just use what the animation is configured to be.
-        val appliedLoop = if (loop == Loop.NONE) this.loop else loop
-        val foundAnimationInstance = animations.find { it.animation.name == animationName }
-        if (foundAnimationInstance == null) {
+        val animationInstances = _animations(animationName)
+        animationInstances.forEach { animationInstance ->
+            _play(animationInstance, loop, direction)
+        }
+        if (animationInstances.isEmpty()) {
             artboard?.let {
                 val animation = it.animation(animationName)
-                if (appliedLoop != Loop.NONE) {
-                    animation.loop = appliedLoop
-                }
-                _addAnimation(animation, direction)
+                val linearAnimation = LinearAnimationInstance(animation)
+                _play(linearAnimation, loop, direction)
             }
-        } else {
-            if (appliedLoop != Loop.NONE) {
-                foundAnimationInstance.animation.loop = appliedLoop
-            }
-            if (direction != Direction.AUTO) {
-                foundAnimationInstance.direction = direction
-            }
-            playingAnimations.add(foundAnimationInstance)
         }
+    }
+
+    private fun _play(
+        animationInstance: LinearAnimationInstance,
+        loop: Loop,
+        direction: Direction
+    ) {
+        // If a loop mode was specified, use it, otherwise fall back to a predefined default loop,
+        // otherwise just use what the animation is configured to be.
+        // not really sure if sticking loop into the xml thing makes much sense...
+        val appliedLoop = if (loop == Loop.NONE) this.loop else loop
+        if (appliedLoop != Loop.NONE) {
+            animationInstance.animation.loop = appliedLoop
+        }
+        if (!animations.contains(animationInstance)) {
+            if (direction == Direction.BACKWARDS) {
+                animationInstance.time(animationInstance.animation.endTime)
+            }
+            animations.add(animationInstance)
+        }
+        if (direction != Direction.AUTO) {
+            animationInstance.direction = direction
+        }
+        playingAnimations.add(animationInstance)
+        notifyPlay(animationInstance)
     }
 
     private fun _playAllAnimations(loop: Loop = Loop.NONE, direction: Direction = Direction.AUTO) {
@@ -243,24 +256,14 @@ class RiveDrawable(
 
     private fun _pause(animation: LinearAnimationInstance) {
         playingAnimations.remove(animation)
+        notifyPause(animation)
     }
 
-    private fun _stop(_animations: List<LinearAnimationInstance>) {
-        playingAnimations.removeAll(_animations)
-        animations.removeAll(_animations)
-    }
 
-    private fun _addAnimation(animation: Animation, direction: Direction) {
-        var linearAnimation = LinearAnimationInstance(animation)
-        if (direction != Direction.AUTO) {
-            linearAnimation.direction = direction
-            if (direction == Direction.BACKWARDS) {
-                linearAnimation.time(animation.workEndTime)
-            }
-        }
-        animations.add(linearAnimation)
-        playingAnimations.add(linearAnimation)
-
+    private fun _stop(animation: LinearAnimationInstance) {
+        playingAnimations.remove(animation)
+        animations.remove(animation)
+        notifyStop(animation)
     }
 
     private fun selectArtboard() {
@@ -366,5 +369,29 @@ class RiveDrawable(
 
     override fun unregisterListener(listener: RiveDrawable.Listener) {
         listeners.remove(listener)
+    }
+
+    private fun notifyPlay(animation: LinearAnimationInstance) {
+        listeners.toList().forEach {
+            it.notifyPlay(animation)
+        }
+    }
+
+    private fun notifyPause(animation: LinearAnimationInstance) {
+        listeners.toList().forEach {
+            it.notifyPause(animation)
+        }
+    }
+
+    private fun notifyStop(animation: LinearAnimationInstance) {
+        listeners.toList().forEach {
+            it.notifyStop(animation)
+        }
+    }
+
+    private fun notifyLoop(animation: LinearAnimationInstance) {
+        listeners.toList().forEach {
+            it.notifyLoop(animation)
+        }
     }
 }
