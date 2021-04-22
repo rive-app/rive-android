@@ -15,6 +15,37 @@ class FlexiActivity : AppCompatActivity() {
     var loop: Loop = Loop.NONE
     var direction: Direction = Direction.AUTO
 
+    val animationResources = listOf(
+        R.raw.artboard_animations,
+        R.raw.basketball,
+        R.raw.explorer,
+        R.raw.f22,
+        R.raw.flux_capacitor,
+        R.raw.loopy,
+        R.raw.mascot,
+        R.raw.off_road_car_blog,
+        R.raw.progress,
+        R.raw.pull,
+        R.raw.rope,
+        R.raw.trailblaze,
+        R.raw.vader,
+        R.raw.wacky
+    )
+
+    val resourceNames: List<String>
+        get() {
+            return animationResources.map { resources.getResourceName(it).split('/').last() }
+        }
+
+    fun loadResource(index: Int) {
+        animationView.artboardName
+        animationView.setRiveResource(animationResources[index], artboardName = null)
+        setSpinner()
+        animationView.drawable.file?.firstArtboard?.name?.let {
+            loadArtboard(it)
+        }
+    }
+
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.flexi_animation)
     }
@@ -121,7 +152,31 @@ class FlexiActivity : AppCompatActivity() {
 
                 override fun onNothingSelected(arg0: AdapterView<*>?) {}
             }
+        }
+    }
 
+
+    fun setResourceSpinner() {
+        animationResources.let { resourceId ->
+            var dropdown = findViewById<Spinner>(R.id.resources)
+            var adapter = ArrayAdapter<String>(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                resourceNames
+            );
+            dropdown.adapter = adapter
+            dropdown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    arg0: AdapterView<*>?,
+                    arg1: View?,
+                    arg2: Int,
+                    arg3: Long
+                ) {
+                    loadResource(arg2)
+                }
+
+                override fun onNothingSelected(arg0: AdapterView<*>?) {}
+            }
         }
     }
 
@@ -130,15 +185,14 @@ class FlexiActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Rive.init()
         setContentView(R.layout.flexi_player)
+        setResourceSpinner()
+        loadResource(0)
 
-        setSpinner()
-        animationView.drawable.file?.firstArtboard?.name?.let {
-            loadArtboard(it)
-        }
+
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        animationView.reset()
+        animationView.destroy()
     }
 }

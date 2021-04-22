@@ -34,7 +34,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     private var _drawable: RiveDrawable = RiveDrawable();
     private var resourceId: Int? = null;
 
-
     var drawable: RiveDrawable
         get() = _drawable
         private set(value) {
@@ -323,7 +322,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         alignment: Alignment = drawable.alignment,
         loop: Loop = drawable.loop,
     ) {
-        drawable.reset()
+        drawable.destroy()
 
         // TODO: we maybe not be cleaning something up here,
         //       as we shouldnt have create a new drawable
@@ -402,4 +401,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     override fun unregisterListener(listener: RiveDrawable.Listener) {
         drawable.unregisterListener(listener)
     }
+
+    fun destroy() {
+        drawable.destroy()
+    }
+
 }

@@ -71,6 +71,6 @@ class AnimationsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        animationView.reset()
+        animationView.destroy()
     }
 }
