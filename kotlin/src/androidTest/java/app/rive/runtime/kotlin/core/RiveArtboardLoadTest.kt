@@ -15,11 +15,17 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         // Access an artboard can bail when we don't have one.
         file.firstArtboard
-        assertEquals(file.artboardCount, 2);
+        assertEquals(2, file.artboardCount);
         // Note index order seems to be reversed.
-        assertEquals(file.artboard(name = "artboard1").nativePointer, file.artboard(1).nativePointer)
-        assertEquals(file.artboard(name = "artboard2").nativePointer, file.artboard(0).nativePointer)
-        assertEquals(file.artboardNames, listOf<String>("artboard2", "artboard1"))
+        assertEquals(
+            file.artboard(name = "artboard1").nativePointer,
+            file.artboard(1).nativePointer
+        )
+        assertEquals(
+            file.artboard(name = "artboard2").nativePointer,
+            file.artboard(0).nativePointer
+        )
+        assertEquals(listOf<String>("artboard2", "artboard1"), file.artboardNames)
     }
 
     @Test(expected = RiveException::class)
@@ -29,12 +35,12 @@ class RiveArtboardLoadTest {
         file.firstArtboard
     }
 
-
+    @Test
     fun loadArtboardNoArtboardCheck() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
-        assertEquals(file.artboardCount, 0);
-        assertEquals(file.artboardNames, listOf<String>())
+        assertEquals(0, file.artboardCount);
+        assertEquals(listOf<String>(), file.artboardNames)
     }
 
     @Test
@@ -42,10 +48,10 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
-        assertEquals(artboard1.animationCount, 1);
-        assertEquals(artboard1.name, "artboard1");
-        assertEquals(artboard1.bounds.height, 500f);
-        assertEquals(artboard1.bounds.width, 500f);
+        assertEquals(1, artboard1.animationCount);
+        assertEquals("artboard1", artboard1.name);
+        assertEquals(500f, artboard1.bounds.height);
+        assertEquals(500f, artboard1.bounds.width);
     }
 
     @Test
@@ -53,8 +59,8 @@ class RiveArtboardLoadTest {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
-        assertEquals(artboard2.animationCount, 2);
-        assertEquals(artboard2.name, "artboard2");
+        assertEquals(2, artboard2.animationCount);
+        assertEquals("artboard2", artboard2.name);
     }
 
     @Test(expected = RiveException::class)
