@@ -28,9 +28,11 @@ import java.util.*
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
-class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
+class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs),
+    Observable<RiveDrawable.Listener> {
     // TODO: stop creating an empty drawable to begin with.
     private var _drawable: RiveDrawable = RiveDrawable();
+    private var resourceId: Int? = null;
 
     var drawable: RiveDrawable
         get() = _drawable
@@ -38,7 +40,42 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
             _drawable = value
         }
 
-    private var resourceId: Int? = null;
+    /**
+     * Getter for the loaded [Rive file][File].
+     */
+    val file: File?
+        get() = drawable.file
+
+    /**
+     * Getter/Setter for the currently loaded artboard Name
+     * Setting a new name, will load the new artboard & depending on [autoplay] play them
+     */
+    var artboardName: String?
+        get() = drawable.artboardName
+        set(name) {
+            drawable.setArtboardByName(name)
+        }
+
+    /**
+     * Getter/Setter for [autoplay].
+     */
+    var autoplay: Boolean
+        get() = drawable.autoplay
+        set(value) {
+            drawable.autoplay = value
+        }
+
+    /**
+     * Get the currently loaded [animation instances][LinearAnimationInstance].
+     */
+    val animations: List<LinearAnimationInstance>
+        get() = drawable.animations
+
+    /**
+     * Get the currently playing [animation instances][LinearAnimationInstance].
+     */
+    val playingAnimations: HashSet<LinearAnimationInstance>
+        get() = drawable.playingAnimations
 
     init {
         context.theme.obtainStyledAttributes(
@@ -285,7 +322,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         alignment: Alignment = drawable.alignment,
         loop: Loop = drawable.loop,
     ) {
-        drawable.reset()
+        drawable.destroy()
 
         // TODO: we maybe not be cleaning something up here,
         //       as we shouldnt have create a new drawable
@@ -304,42 +341,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         requestLayout()
     }
 
-    /**
-     * Getter for the loaded [Rive file][File].
-     */
-    val file: File?
-        get() = drawable.file
-
-    /**
-     * Getter/Setter for the currently loaded artboard Name
-     * Setting a new name, will load the new artboard & depending on [autoplay] play them
-     */
-    var artboardName: String?
-        get() = drawable.artboardName
-        set(name) {
-            drawable.setArtboardByName(name)
-        }
-
-    /**
-     * Getter/Setter for [autoplay].
-     */
-    var autoplay: Boolean
-        get() = drawable.autoplay
-        set(value) {
-            drawable.autoplay = value
-        }
-
-    /**
-     * Get the currently loaded [animation instances][LinearAnimationInstance].
-     */
-    val animations: List<LinearAnimationInstance>
-        get() = drawable.animations
-
-    /**
-     * Get the currently playing [animation instances][LinearAnimationInstance].
-     */
-    val playingAnimations: HashSet<LinearAnimationInstance>
-        get() = drawable.playingAnimations
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
@@ -392,4 +393,17 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         }
         setMeasuredDimension(width, height);
     }
+
+    override fun registerListener(listener: RiveDrawable.Listener) {
+        drawable.registerListener(listener)
+    }
+
+    override fun unregisterListener(listener: RiveDrawable.Listener) {
+        drawable.unregisterListener(listener)
+    }
+
+    fun destroy() {
+        drawable.destroy()
+    }
+
 }

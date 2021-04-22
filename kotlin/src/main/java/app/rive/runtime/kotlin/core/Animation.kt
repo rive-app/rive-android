@@ -36,8 +36,15 @@ class Animation(val nativePointer: Long) {
             if (workStart == -1) {
                 return duration
             }
-            return workEnd-workStart
+            return workEnd - workStart
         }
+
+    /**
+     * Get the duration of an animation in seconds, taking [workStart]
+     * and [workEnd] into account
+     */
+    val effectiveDurationInSeconds: Float
+        get() = effectiveDuration.toFloat()/fps
 
 
     /**
@@ -54,19 +61,6 @@ class Animation(val nativePointer: Long) {
         get() = nativeWorkStart(nativePointer)
 
     /**
-     * Return the offset in frames to the beginning of an animations work area.
-     * Animations will start playing from here.
-     */
-    val workStartTime: Float
-        get() = workStart.toFloat()/fps
-
-    /**
-     * Return the offset in frames to the end of an animations work area.
-     */
-    val workEndTime: Float
-        get() = workEnd.toFloat()/fps
-
-    /**
      * Return the offset in frames to the end of an animations work area.
      * Animations will will loop, pingpong and stop once this is reached.
      */
@@ -78,6 +72,31 @@ class Animation(val nativePointer: Long) {
      */
     val name: String
         get() = nativeName(nativePointer)
+
+    /**
+     * Return the offset in frames to the beginning of an animations.
+     * Animations will start playing from here.
+     */
+    val startTime: Float
+        get() {
+            return if (workStart == -1) {
+                0f
+            } else {
+                workStart.toFloat() / fps
+            }
+        }
+
+    /**
+     * Return the offset in frames to the end of an animation.
+     */
+    val endTime: Float
+        get() {
+            return if (workEnd == -1) {
+                duration.toFloat() / fps
+            } else {
+                workEnd.toFloat() / fps
+            }
+        }
 
     /**
      * Configure the [Loop] mode configured against an animation. can be either
