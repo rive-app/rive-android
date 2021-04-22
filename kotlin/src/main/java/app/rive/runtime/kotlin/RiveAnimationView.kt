@@ -28,7 +28,8 @@ import java.util.*
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
-class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
+class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs),
+    Observable<RiveDrawable.Listener> {
     // TODO: stop creating an empty drawable to begin with.
     private var _drawable: RiveDrawable = RiveDrawable();
     private var resourceId: Int? = null;
@@ -392,5 +393,13 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 height = usedBounds.height.toInt()
         }
         setMeasuredDimension(width, height);
+    }
+
+    override fun registerListener(listener: RiveDrawable.Listener) {
+        drawable.registerListener(listener)
+    }
+
+    override fun unregisterListener(listener: RiveDrawable.Listener) {
+        drawable.unregisterListener(listener)
     }
 }

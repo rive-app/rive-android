@@ -39,6 +39,13 @@ class Animation(val nativePointer: Long) {
             return workEnd - workStart
         }
 
+    /**
+     * Get the duration of an animation in seconds, taking [workStart]
+     * and [workEnd] into account
+     */
+    val effectiveDurationInSeconds: Float
+        get() = effectiveDuration.toFloat()/fps
+
 
     /**
      * Return the fps configured for the animation
