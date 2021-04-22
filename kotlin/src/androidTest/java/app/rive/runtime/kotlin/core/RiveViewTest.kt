@@ -405,34 +405,35 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations)
 
             assertEquals(
-                view.animations.map { it.animation.name }.toHashSet(),
-                hashSetOf("one", "two", "three", "four")
+                hashSetOf("one", "two", "three", "four"),
+                view.animations.map { it.animation.name }.toHashSet()
             )
             view.stop("junk")
-            assertEquals(view.isPlaying, true)
+            assertEquals(true, view.isPlaying)
             assertEquals(
-                view.animations.map { it.animation.name }.toHashSet(),
-                hashSetOf("one", "two", "three", "four")
+                hashSetOf("one", "two", "three", "four"),
+                view.animations.map { it.animation.name }.toHashSet()
             )
 
             view.stop("one")
-            assertEquals(view.isPlaying, true)
+            assertEquals(true, view.isPlaying)
             assertEquals(
-                view.animations.map { it.animation.name }.toHashSet(),
-                hashSetOf("two", "three", "four")
+                hashSetOf("two", "three", "four"),
+                view.animations.map { it.animation.name }.toHashSet()
             )
+
             view.stop("two")
-            assertEquals(view.isPlaying, true)
+            assertEquals(true, view.isPlaying)
 
             view.stop("three")
-            assertEquals(view.isPlaying, true)
+            assertEquals(true, view.isPlaying)
 
             view.stop("four")
-            assertEquals(view.isPlaying, false)
+            assertEquals(false, view.isPlaying)
 
             assertEquals(
-                view.animations.map { it.animation.name }.toHashSet(),
-                hashSetOf<LinearAnimationInstance>()
+                hashSetOf<LinearAnimationInstance>(),
+                view.animations.map { it.animation.name }.toHashSet()
             )
         }
     }
