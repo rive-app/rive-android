@@ -74,7 +74,7 @@ class Artboard(val nativePointer: Long) {
      */
     @Throws(RiveException::class)
     fun animation(name: String): Animation {
-        var animationPointer= nativeAnimationByName(nativePointer, name)
+        var animationPointer = nativeAnimationByName(nativePointer, name)
         if (animationPointer == 0L) {
             throw RiveException("No Animation found with name $name.")
         }
@@ -116,11 +116,11 @@ class Artboard(val nativePointer: Long) {
      * Get the bounds of Artboard as defined in the rive editor.
      */
     val bounds: AABB
-        get() =  AABB(nativeBounds(nativePointer))
+        get() = AABB(nativeBounds(nativePointer))
 
     /**
      * Get the names of the animations in the artboard.
      */
     val animationNames: List<String>
-        get() = (0 until animationCount).map{animation(it).name}
+        get() = (0 until animationCount).map { animation(it).name }
 }

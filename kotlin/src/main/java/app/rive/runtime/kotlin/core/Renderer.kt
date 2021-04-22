@@ -5,15 +5,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 
-enum class Fit {
-    FILL, CONTAIN, COVER, FIT_WIDTH, FIT_HEIGHT, NONE, SCALE_DOWN
-}
-
-enum class Alignment {
-    TOP_LEFT, TOP_CENTER, TOP_RIGHT,
-    CENTER_LEFT, CENTER, CENTER_RIGHT,
-    BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT,
-}
 
 /**
  * A [Renderer] is used to help draw an [Artboard] to a [Canvas]

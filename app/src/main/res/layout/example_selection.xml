@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -8,10 +7,19 @@
     tools:context=".MainActivity">
 
     <Button
+        android:id="@+id/go_buggy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Android Player"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/go_artboards" />
+
+    <Button
         android:id="@+id/go_animations"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Animations"
+        android:text="Simple"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -20,25 +28,17 @@
         android:id="@+id/go_artboards"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Artboard Selection"
+        android:text="Multiple Artboards"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/go_animations" />
 
-    <Button
-        android:id="@+id/go_buggy"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Control Animations"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/go_artboards" />
 
     <Button
         android:id="@+id/go_loopy"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Control Loops"
+        android:text="Loop mode"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/go_buggy" />
