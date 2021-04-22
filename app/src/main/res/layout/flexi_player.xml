@@ -147,6 +147,12 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:textSize="10dp"></LinearLayout>
+            <LinearLayout
+                android:id="@+id/events"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:textSize="10dp"></LinearLayout>
         </LinearLayout>
     </ScrollView>
 
