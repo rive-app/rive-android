@@ -50,16 +50,16 @@ class RiveDrawable(
             val elapsed = delta / 1000
 
             // animations could change, lets cut a list.
+            // order of animations is important.....
             animations.toList().forEach { animationInstance ->
-                // order of animations is important.
+
                 if (playingAnimations.contains(animationInstance)) {
-                    // TODO: this gives us a loop mode if the animation hit the end/ looped.
-                    // TODO: we should probably think of a clearer way of doing this.
                     val looped = animationInstance.advance(elapsed)
+
                     animationInstance.apply(ab, 1f)
                     if (looped == Loop.ONESHOT) {
                         _stop(animationInstance)
-                    } else {
+                    } else if (looped != null) {
                         notifyLoop(animationInstance)
                     }
                 }
@@ -255,15 +255,19 @@ class RiveDrawable(
     }
 
     private fun _pause(animation: LinearAnimationInstance) {
-        playingAnimations.remove(animation)
-        notifyPause(animation)
+        var removed = playingAnimations.remove(animation)
+        if (removed) {
+            notifyPause(animation)
+        }
     }
 
 
     private fun _stop(animation: LinearAnimationInstance) {
         playingAnimations.remove(animation)
-        animations.remove(animation)
-        notifyStop(animation)
+        var removed = animations.remove(animation)
+        if (removed) {
+            notifyStop(animation)
+        }
     }
 
     private fun selectArtboard() {
