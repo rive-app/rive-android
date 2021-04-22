@@ -36,7 +36,7 @@ class Animation(val nativePointer: Long) {
             if (workStart == -1) {
                 return duration
             }
-            return workEnd-workStart
+            return workEnd - workStart
         }
 
 
@@ -58,13 +58,13 @@ class Animation(val nativePointer: Long) {
      * Animations will start playing from here.
      */
     val workStartTime: Float
-        get() = workStart.toFloat()/fps
+        get() = workStart.toFloat() / fps
 
     /**
      * Return the offset in frames to the end of an animations work area.
      */
     val workEndTime: Float
-        get() = workEnd.toFloat()/fps
+        get() = workEnd.toFloat() / fps
 
     /**
      * Return the offset in frames to the end of an animations work area.

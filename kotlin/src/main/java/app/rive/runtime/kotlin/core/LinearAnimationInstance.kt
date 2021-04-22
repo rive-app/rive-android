@@ -69,25 +69,4 @@ class LinearAnimationInstance(val animation: Animation) {
         set(direction) = nativeSetDirection(nativePointer, direction.value)
 }
 
-enum class Loop(val value: Int) {
-    ONESHOT(0),
-    LOOP(1),
-    PINGPONG(2),
-    NONE(3);
 
-    companion object {
-        private val map = values().associateBy(Loop::value)
-        fun fromInt(type: Int) = map[type]
-    }
-}
-
-enum class Direction(val value: Int) {
-    BACKWARDS(-1),
-    FORWARDS(1),
-    AUTO(0);
-
-    companion object {
-        private val map = values().associateBy(Direction::value)
-        fun fromInt(type: Int) = map[type]
-    }
-}
