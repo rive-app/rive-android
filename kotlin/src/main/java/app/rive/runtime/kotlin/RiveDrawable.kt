@@ -9,6 +9,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import app.rive.runtime.kotlin.core.*
 
+
 class RiveDrawable(
     var fit: Fit = Fit.CONTAIN,
     var alignment: Alignment = Alignment.CENTER,
@@ -16,7 +17,21 @@ class RiveDrawable(
     var artboardName: String? = null,
     var animationName: String? = null,
     var autoplay: Boolean = true
-) : Drawable(), Animatable {
+) : Drawable(), Animatable, Observable<RiveDrawable.Listener> {
+    interface Listener {
+        fun notifyDrawComplete()
+        fun notifyCircleShiftedByX(x: Int)
+    }
+
+    private var listeners = HashSet<RiveDrawable.Listener>()
+
+    override fun registerListener(listener: RiveDrawable.Listener) {
+        listeners.add(listener)
+    }
+
+    override fun unregisterListener(listener: RiveDrawable.Listener) {
+        listeners.remove(listener)
+    }
 
     private val renderer = Renderer()
     private val animator = TimeAnimator()
