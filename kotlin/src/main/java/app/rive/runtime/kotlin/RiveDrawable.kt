@@ -88,14 +88,14 @@ class RiveDrawable(
                 if (!it.artboardNames.contains(artboardName)) {
                     throw RiveException("Artboard $artboardName not found")
                 }
-                this.artboardName = artboardName
-                selectArtboard()
+            }
+            this.artboardName = artboardName
+
+            this.file?.let {
+                setRiveFile(it)
             }
         }
 
-        this.file?.let {
-            setRiveFile(it)
-        }
     }
 
     fun arboardBounds(): AABB {
@@ -118,6 +118,7 @@ class RiveDrawable(
     }
 
     fun destroy() {
+        stop()
         renderer.cleanup()
     }
 
@@ -282,6 +283,7 @@ class RiveDrawable(
 
     private fun setArtboard(artboard: Artboard) {
         this.artboard = artboard
+
         if (autoplay) {
             animationName?.let {
                 play(animationName = it)
