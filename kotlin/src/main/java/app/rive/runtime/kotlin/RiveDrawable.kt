@@ -146,8 +146,11 @@ class RiveDrawable(
         loop: Loop = Loop.NONE,
         direction: Direction = Direction.AUTO,
     ) {
-
-        _playAllAnimations(loop, direction)
+        artboard?.let {
+            if (it.animationNames.isNotEmpty()) {
+                _playAnimation(it.animationNames.first(), loop, direction)
+            }
+        }
         animator.start()
     }
 
@@ -245,14 +248,6 @@ class RiveDrawable(
         }
         playingAnimations.add(animationInstance)
         notifyPlay(animationInstance)
-    }
-
-    private fun _playAllAnimations(loop: Loop = Loop.NONE, direction: Direction = Direction.AUTO) {
-        artboard?.let {
-            for (i in 0 until it.animationCount) {
-                _playAnimation(it.animation(i).name, loop, direction)
-            }
-        }
     }
 
     private fun _pause(animation: LinearAnimationInstance) {

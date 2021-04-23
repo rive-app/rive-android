@@ -1,45 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/go_buggy"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Android Player"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/go_artboards" />
+        android:orientation="vertical"
+        >
 
-    <Button
-        android:id="@+id/go_animations"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Simple"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <Button
+            android:id="@+id/go_android_player"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Android Player" />
 
-    <Button
-        android:id="@+id/go_artboards"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Multiple Artboards"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/go_animations" />
+        <Button
+            android:id="@+id/go_simple"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Simple" />
+
+        <Button
+            android:id="@+id/go_multiple_artboards"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Multiple Artboards" />
 
 
-    <Button
-        android:id="@+id/go_loopy"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Loop mode"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/go_buggy" />
+        <Button
+            android:id="@+id/go_loop_mode"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Loop mode" />
+
+        <Button
+            android:id="@+id/go_layout"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Layout" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
