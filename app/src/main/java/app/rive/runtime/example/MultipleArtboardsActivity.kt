@@ -5,10 +5,10 @@ import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.Rive
 
 
-class ArtboardActivity : AppCompatActivity() {
+class MultipleArtboardsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Rive.init()
-        setContentView(R.layout.artboards)
+        setContentView(R.layout.multiple_artboards)
     }
 }

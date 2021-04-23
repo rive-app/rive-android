@@ -13,7 +13,7 @@ import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.Rive
 
-class FlexiActivity : AppCompatActivity() {
+class AndroidPlayerActivity : AppCompatActivity() {
     var loop: Loop = Loop.NONE
     var direction: Direction = Direction.AUTO
 
@@ -33,6 +33,10 @@ class FlexiActivity : AppCompatActivity() {
         R.raw.vader,
         R.raw.wacky
     )
+
+    val animationView by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<RiveAnimationView>(R.id.android_player_view)
+    }
 
     val resourceNames: List<String>
         get() {
@@ -76,9 +80,6 @@ class FlexiActivity : AppCompatActivity() {
         }
     }
 
-    val animationView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveAnimationView>(R.id.flexi_animation)
-    }
 
     fun onLoopModeSelected(view: View) {
         if (view is RadioButton && view.isChecked) {
@@ -214,7 +215,7 @@ class FlexiActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Rive.init()
-        setContentView(R.layout.flexi_player)
+        setContentView(R.layout.android_player)
         setResourceSpinner()
         loadResource(0)
 
