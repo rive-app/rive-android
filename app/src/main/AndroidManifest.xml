@@ -15,10 +15,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".AnimationsActivity"></activity>
-        <activity android:name=".ArtboardActivity"></activity>
-        <activity android:name=".FlexiActivity"></activity>
-        <activity android:name=".LoopActivity"></activity>
+        <activity android:name=".SimpleActivity"></activity>
+        <activity android:name=".MultipleArtboardsActivity"></activity>
+        <activity android:name=".AndroidPlayerActivity"></activity>
+        <activity android:name=".LoopModeActivity"></activity>
+        <activity android:name=".LayoutActivity"></activity>
     </application>
 
 </manifest>

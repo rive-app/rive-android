@@ -8,7 +8,7 @@
 
 
     <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/loopy"
+        android:id="@+id/loop_mode_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:adjustViewBounds="true"
@@ -23,7 +23,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@+id/loopy">
+        app:layout_constraintTop_toBottomOf="@+id/loop_mode_view">
 
         <LinearLayout
             android:layout_width="fill_parent"

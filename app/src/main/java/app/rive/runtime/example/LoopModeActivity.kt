@@ -8,16 +8,16 @@ import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.Rive
 
-class LoopActivity : AppCompatActivity() {
+class LoopModeActivity : AppCompatActivity() {
     var direction: Direction = Direction.AUTO
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveAnimationView>(R.id.loopy)
+        findViewById<RiveAnimationView>(R.id.loop_mode_view)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Rive.init()
-        setContentView(R.layout.loopy)
+        setContentView(R.layout.loop_mode)
 
         findViewById<AppCompatButton>(R.id.reset).setOnClickListener { _ ->
             animationView.reset()

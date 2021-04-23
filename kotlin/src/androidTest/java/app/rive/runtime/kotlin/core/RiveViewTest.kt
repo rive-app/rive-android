@@ -29,7 +29,8 @@ class RiveViewTest {
             val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multipleartboards)
+            view.setRiveResource(R.raw.multipleartboards, autoplay = false)
+            view.play(listOf("artboard2animation1", "artboard2animation2"))
 
             assertEquals(true, view.isPlaying)
             assertEquals(listOf("artboard2", "artboard1"), view.file?.artboardNames)
@@ -86,11 +87,11 @@ class RiveViewTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards)
             assertEquals(true, view.isPlaying)
-            assertEquals(2, view.animations.size)
-            assertEquals(2, view.playingAnimations.size)
+            assertEquals(1, view.animations.size)
+            assertEquals(1, view.playingAnimations.size)
             view.pause()
             assertEquals(false, view.isPlaying)
-            assertEquals(2, view.animations.size)
+            assertEquals(1, view.animations.size)
             assertEquals(0, view.playingAnimations.size)
         }
     }
@@ -101,7 +102,8 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            view.play(listOf("one", "two", "three", "four"))
 
             assertEquals(true, view.isPlaying)
             assertEquals(
@@ -142,7 +144,8 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            view.play(listOf("one", "two", "three", "four"))
             assertEquals(true, view.isPlaying)
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -177,8 +180,8 @@ class RiveViewTest {
             assertEquals(0, view.playingAnimations.size)
             view.play()
             assertEquals(true, view.isPlaying)
-            assertEquals(2, view.animations.size)
-            assertEquals(2, view.playingAnimations.size)
+            assertEquals(1, view.animations.size)
+            assertEquals(1, view.playingAnimations.size)
         }
     }
 
@@ -345,8 +348,8 @@ class RiveViewTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards)
             assertEquals(true, view.isPlaying)
-            assertEquals(2, view.animations.size)
-            assertEquals(2, view.playingAnimations.size)
+            assertEquals(1, view.animations.size)
+            assertEquals(1, view.playingAnimations.size)
             view.stop()
 
             assertEquals(0, view.animations.size)
@@ -360,7 +363,8 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            view.play(listOf("one", "two", "three", "four"))
             assertEquals(true, view.isPlaying)
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
@@ -400,7 +404,8 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_animations)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            view.play(listOf("one", "two", "three", "four"))
 
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
