@@ -40,6 +40,20 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
             _drawable = value
         }
 
+    var fit: Fit
+        get() = drawable.fit
+        set(value) {
+            drawable.fit = value
+            requestLayout()
+        }
+
+    var alignment: Alignment
+        get() = drawable.alignment
+        set(value) {
+            drawable.alignment = value
+            requestLayout()
+        }
+
     /**
      * Getter for the loaded [Rive file][File].
      */
@@ -188,7 +202,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     }
 
     /**
-     * Plays all found [animations][Animation] for a [File].
+     * Plays the first [animations][Animation] found for a [File].
      *
      * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
      * Already playing animation instances will be updated to this loop mode if provided.
@@ -271,7 +285,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Load the [resource Id][resId] as a rive file and load it into the view.
      *
      * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play all animations.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
@@ -305,7 +319,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Load the [rive file][File] into the view.
      *
      * - Optionally provide an [artboardName] to use, this defaults to the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play all animations.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animations.
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.

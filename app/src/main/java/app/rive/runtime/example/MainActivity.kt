@@ -13,28 +13,34 @@ class MainActivity : AppCompatActivity() {
         Rive.init()
         setContentView(R.layout.example_selection)
 
-        findViewById<Button>(R.id.go_animations).setOnClickListener {
+        findViewById<Button>(R.id.go_simple).setOnClickListener {
             startActivity(
-                Intent(this, AnimationsActivity::class.java)
-            )
-        }
-        findViewById<Button>(R.id.go_artboards).setOnClickListener {
-            startActivity(
-                Intent(this, ArtboardActivity::class.java)
+                Intent(this, SimpleActivity::class.java)
             )
         }
 
-        findViewById<Button>(R.id.go_buggy).setOnClickListener {
+        findViewById<Button>(R.id.go_multiple_artboards).setOnClickListener {
             startActivity(
-                Intent(this, FlexiActivity::class.java)
+                Intent(this, MultipleArtboardsActivity::class.java)
             )
         }
 
-        findViewById<Button>(R.id.go_loopy).setOnClickListener {
+        findViewById<Button>(R.id.go_android_player).setOnClickListener {
             startActivity(
-                Intent(this, LoopActivity::class.java)
+                Intent(this, AndroidPlayerActivity::class.java)
             )
         }
 
+        findViewById<Button>(R.id.go_loop_mode).setOnClickListener {
+            startActivity(
+                Intent(this, LoopModeActivity::class.java)
+            )
+        }
+
+        findViewById<Button>(R.id.go_layout).setOnClickListener {
+            startActivity(
+                Intent(this, LayoutActivity::class.java)
+            )
+        }
     }
 }

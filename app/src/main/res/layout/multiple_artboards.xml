@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Square - go around" />
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/artboard_square"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                app:riveArtboard="Square"
+                app:riveAnimation="goaround"
+                app:riveResource="@raw/artboard_animations" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Square - roll around" />
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/artboard_square_rollaround"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                app:riveArtboard="Square"
+                app:riveAnimation="rollaround"
+                app:riveResource="@raw/artboard_animations" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Circle" />
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/artboard_circle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                app:riveArtboard="Circle"
+                app:riveResource="@raw/artboard_animations" />
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Star" />
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/artboard_star"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                app:riveArtboard="Star"
+                app:riveResource="@raw/artboard_animations" />
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
