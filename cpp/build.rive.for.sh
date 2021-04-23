@@ -65,7 +65,7 @@ function buildFor()
         # echo 'cleaning!'
         ./build.sh clean
     fi
-    ./build.sh debug
+    ./build.sh release
     popd
 
     mkdir -p $BUILD_DIR
@@ -74,7 +74,8 @@ function buildFor()
         make clean
     fi
 
-    cp $LIBRIVE/build/bin/debug/librive.a $BUILD_DIR
+    cp $LIBRIVE/build/bin/release/librive.a $BUILD_DIR
+    cp $LIBCXX/libc++_static.a $BUILD_DIR
 
     mkdir -p $BUILD_DIR/obj
     make -j7
@@ -82,8 +83,6 @@ function buildFor()
     JNI_DEST=../kotlin/src/main/jniLibs/$ARCH_NAME
     mkdir -p $JNI_DEST
     cp  $BUILD_DIR/libjnirivebridge.so $JNI_DEST
-    # echo "cp  $LIBCXX/libc++_shared.so $JNI_DEST"
-    cp  $LIBCXX/libc++_shared.so $JNI_DEST
 }
 
 API=23
