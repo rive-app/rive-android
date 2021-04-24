@@ -41,5 +41,13 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:text="Layout" />
+
+        <Button
+            android:id="@+id/go_fragment"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Fragment" />
+
     </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
