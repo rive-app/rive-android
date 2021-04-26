@@ -7,7 +7,7 @@ import app.rive.runtime.kotlin.core.Rive
 
 class SimpleActivity : AppCompatActivity() {
 
-    val animationView by lazy(LazyThreadSafetyMode.NONE) {
+    private val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.simple_view)
     }
 

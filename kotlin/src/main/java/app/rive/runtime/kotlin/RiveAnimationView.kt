@@ -303,7 +303,40 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         loop: Loop = drawable.loop,
     ) {
         resourceId = resId
-        val file = File(resources.openRawResource(resId).readBytes())
+        val bytes = resources.openRawResource(resId).readBytes()
+        setRiveBytes(
+            bytes,
+            fit = fit,
+            alignment = alignment,
+            loop = loop,
+            artboardName = artboardName,
+            animationName = animationName,
+            autoplay = autoplay
+        )
+    }
+
+    /**
+     * Create a view file from a byte array and load it into the view
+     *
+     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Enable [autoplay] to start the animation without further prompts.
+     * - Configure [alignment] to specify how the animation should be aligned to its container.
+     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
+     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     */
+    fun setRiveBytes(
+        bytes: ByteArray,
+        artboardName: String? = drawable.artboardName,
+        animationName: String? = drawable.animationName,
+        autoplay: Boolean = drawable.autoplay,
+        fit: Fit = drawable.fit,
+        alignment: Alignment = drawable.alignment,
+        loop: Loop = drawable.loop,
+    ) {
+        val file = File(bytes)
         setRiveFile(
             file,
             fit = fit,
