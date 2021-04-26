@@ -3,6 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'org.jetbrains.dokka'
 
+
 android {
     compileSdkVersion 29
     buildToolsVersion "30.0.2"
@@ -62,3 +63,11 @@ task buildJNI(type: Exec) {
     workingDir '../cpp'
     commandLine './build.rive.for.sh', '-a', getDeviceAbi()
 }
+
+ext {
+    PUBLISH_GROUP_ID = 'app.rive'
+    PUBLISH_VERSION = '0.0.1'
+    PUBLISH_ARTIFACT_ID = 'rive-android'
+}
+
+apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
