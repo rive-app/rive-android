@@ -48,5 +48,11 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, RiveFragmentActivity::class.java)
             )
         }
+
+        findViewById<Button>(R.id.go_low_level).setOnClickListener {
+            startActivity(
+                    Intent(this, LowLevelActivity::class.java)
+            )
+        }
     }
 }
