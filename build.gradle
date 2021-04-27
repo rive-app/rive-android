@@ -7,7 +7,7 @@ apply plugin: 'com.palantir.git-version'
 def details = versionDetails()
 
 ext {
-    PUBLISH_GROUP_ID = 'io.github.callstack-internal'
+    PUBLISH_GROUP_ID = 'app.rive'
     PUBLISH_VERSION = details.lastTag
     PUBLISH_ARTIFACT_ID = 'rive'
 }
