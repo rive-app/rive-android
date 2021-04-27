@@ -29,7 +29,6 @@ class HttpActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.activity_http)
 
         // Hides the app/action bar
