@@ -14,9 +14,6 @@ task androidSourcesJar(type: Jar) {
     }
 }
 
-artifacts {
-    archives androidSourcesJar
-}
 
 group = PUBLISH_GROUP_ID
 version = PUBLISH_VERSION
@@ -38,19 +35,15 @@ afterEvaluate {
                     artifact("$buildDir/libs/${project.getName()}-${version}.jar")
                 }
 
-                artifact androidSourcesJar
-                // Stub javadoc.jar artifact
-//                artifact(javadocJar.get())
-
                 // Mostly self-explanatory metadata
                 pom {
                     name = PUBLISH_ARTIFACT_ID
-                    description = 'Stream Chat official Android SDK'
+                    description = 'Rive is a real-time interactive design and animation tool. Use our collaborative editor to create motion graphics that respond to different states and user inputs. Then load your animations into apps, games, and websites with our lightweight open-source runtimes.'
                     url = 'https://rive.app'
                     licenses {
                         license {
-                            name = 'Wasm License'
-                            url = 'https://github.com/rive-app/rive-wasm/blob/master/LICENSE'
+                            name = 'MIT License'
+                            url = 'https://github.com/rive-app/rive-android/blob/master/LICENSE'
                         }
                     }
                     developers {
