@@ -46,34 +46,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun loadResource(index: Int) {
         animationView.artboardName
         animationView.setRiveResource(animationResources[index], artboardName = null)
-        val that = this
-        val events = findViewById<LinearLayout>(R.id.events)
-        val listener = object : Listener {
-            override fun notifyPlay(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Play ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyPause(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Pause ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyStop(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Stop ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyLoop(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Loop ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-        }
-        animationView.registerListener(listener)
         setSpinner()
         animationView.drawable.file?.firstArtboard?.name?.let {
             loadArtboard(it)
@@ -218,7 +190,35 @@ class AndroidPlayerActivity : AppCompatActivity() {
         setContentView(R.layout.android_player)
         setResourceSpinner()
         loadResource(0)
+        val that = this
+        val events = findViewById<LinearLayout>(R.id.events)
+        val listener = object : Listener {
+            override fun notifyPlay(animation: LinearAnimationInstance) {
+                val text = TextView(that)
+                text.setText("Play ${animation.animation.name}")
+                events.addView(text, 0)
+            }
 
+            override fun notifyPause(animation: LinearAnimationInstance) {
+                val text = TextView(that)
+                text.setText("Pause ${animation.animation.name}")
+                events.addView(text, 0)
+            }
+
+            override fun notifyStop(animation: LinearAnimationInstance) {
+                val text = TextView(that)
+                text.setText("Stop ${animation.animation.name}")
+                events.addView(text, 0)
+            }
+
+            override fun notifyLoop(animation: LinearAnimationInstance) {
+                val text = TextView(that)
+                text.setText("Loop ${animation.animation.name}")
+                events.addView(text, 0)
+            }
+        }
+
+        animationView.registerListener(listener)
 
     }
 
