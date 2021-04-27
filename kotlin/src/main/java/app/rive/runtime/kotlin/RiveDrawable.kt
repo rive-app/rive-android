@@ -106,11 +106,16 @@ class RiveDrawable(
         return output;
     }
 
-    fun reset() {
+    fun clear(){
         animator.cancel()
         animator.currentPlayTime = 0
         playingAnimations.clear()
         animations.clear()
+
+    }
+
+    fun reset() {
+        clear()
         file?.let {
             setRiveFile(it)
         }
