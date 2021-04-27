@@ -35,12 +35,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
 
     private var resourceId: Int? = null
 
-//    var drawable: RiveDrawable
-//        get() = _drawable
-//        private set(value) {
-//            _drawable = value
-//        }
-
     var fit: Fit
         get() = drawable.fit
         set(value) {
