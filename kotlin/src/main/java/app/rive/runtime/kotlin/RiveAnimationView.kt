@@ -30,15 +30,10 @@ import java.util.*
  */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs),
     Observable<RiveDrawable.Listener> {
-    // TODO: stop creating an empty drawable to begin with.
-    private var _drawable: RiveDrawable = RiveDrawable();
-    private var resourceId: Int? = null;
+    // There's always just one drawable associated with an animation view
+    val drawable = RiveDrawable()
 
-    var drawable: RiveDrawable
-        get() = _drawable
-        private set(value) {
-            _drawable = value
-        }
+    private var resourceId: Int? = null
 
     var fit: Fit
         get() = drawable.fit
@@ -117,12 +112,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                         animationName = animationName,
                     )
                 } else {
-                    drawable.alignment = Alignment.values()[alignmentIndex];
-                    drawable.fit = Fit.values()[fitIndex];
-                    drawable.loop = Loop.values()[loopIndex];
-                    drawable.autoplay = autoplay;
-                    drawable.artboardName = artboardName;
-                    drawable.animationName = animationName;
+                    drawable.alignment = Alignment.values()[alignmentIndex]
+                    drawable.fit = Fit.values()[fitIndex]
+                    drawable.loop = Loop.values()[loopIndex]
+                    drawable.autoplay = autoplay
+                    drawable.artboardName = artboardName
+                    drawable.animationName = animationName
                 }
 
             } finally {
@@ -295,12 +290,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun setRiveResource(
         @RawRes resId: Int,
-        artboardName: String? = drawable.artboardName,
-        animationName: String? = drawable.animationName,
+        artboardName: String? = null,
+        animationName: String? = null,
         autoplay: Boolean = drawable.autoplay,
-        fit: Fit = drawable.fit,
-        alignment: Alignment = drawable.alignment,
-        loop: Loop = drawable.loop,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
     ) {
         resourceId = resId
         val bytes = resources.openRawResource(resId).readBytes()
@@ -329,12 +324,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun setRiveBytes(
         bytes: ByteArray,
-        artboardName: String? = drawable.artboardName,
-        animationName: String? = drawable.animationName,
+        artboardName: String? = null,
+        animationName: String? = null,
         autoplay: Boolean = drawable.autoplay,
-        fit: Fit = drawable.fit,
-        alignment: Alignment = drawable.alignment,
-        loop: Loop = drawable.loop,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
     ) {
         val file = File(bytes)
         setRiveFile(
@@ -360,27 +355,22 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      *
      * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
-    fun setRiveFile(
+    private fun setRiveFile(
         file: File,
-        artboardName: String? = drawable.artboardName,
-        animationName: String? = drawable.animationName,
-        autoplay: Boolean = drawable.autoplay,
-        fit: Fit = drawable.fit,
-        alignment: Alignment = drawable.alignment,
-        loop: Loop = drawable.loop,
+        artboardName: String?,
+        animationName: String?,
+        autoplay: Boolean,
+        fit: Fit,
+        alignment: Alignment,
+        loop: Loop,
     ) {
-        drawable.destroy()
-
-        // TODO: we maybe not be cleaning something up here,
-        //       as we shouldnt have create a new drawable
-        drawable = RiveDrawable(
-            fit = fit,
-            alignment = alignment,
-            loop = loop,
-            autoplay = autoplay,
-            animationName = animationName,
-            artboardName = artboardName,
-        )
+        drawable.clear()
+        drawable.fit = fit
+        drawable.alignment = alignment
+        drawable.loop = loop
+        drawable.autoplay = autoplay
+        drawable.animationName = animationName
+        drawable.artboardName = artboardName
 
         drawable.setRiveFile(file)
         background = drawable

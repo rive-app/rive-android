@@ -32,6 +32,9 @@ class HttpActivity : AppCompatActivity() {
         Rive.init()
         setContentView(R.layout.activity_http)
 
+        // Hides the app/action bar
+        supportActionBar?.hide();
+
         // Load the Rive data asynchronously
         httpViewModel.byteLiveData.observe(
             this,

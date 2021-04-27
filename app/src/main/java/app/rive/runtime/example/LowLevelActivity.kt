@@ -17,6 +17,9 @@ class LowLevelActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_low_level)
 
+        // Hides the app/action bar
+        supportActionBar?.hide();
+
         // Load the Rive from a raw resource
         val file = File(resources.openRawResource(R.raw.basketball).readBytes())
 
