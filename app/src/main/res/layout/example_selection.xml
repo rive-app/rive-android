@@ -58,6 +58,12 @@
                 android:layout_height="wrap_content"
                 android:text="Low Level Renderer" />
 
+            <Button
+                android:id="@+id/go_http"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="HTTP" />
+
         </LinearLayout>
 
     </ScrollView>
