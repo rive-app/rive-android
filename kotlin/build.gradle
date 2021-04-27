@@ -62,3 +62,5 @@ task buildJNI(type: Exec) {
     workingDir '../cpp'
     commandLine './build.rive.for.sh', '-a', getDeviceAbi()
 }
+
+apply from: "${rootDir}/scripts/publish-module.gradle" 
