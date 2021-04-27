@@ -26,7 +26,7 @@ afterEvaluate {
                 groupId PUBLISH_GROUP_ID
                 artifactId PUBLISH_ARTIFACT_ID
                 version PUBLISH_VERSION
-                        if (project.plugins.findPlugin("com.android.library")) {
+                if (project.plugins.findPlugin("com.android.library")) {
                     from components.release
                 } else {
                     artifact("$buildDir/libs/${project.getName()}-${version}.jar")
@@ -36,25 +36,35 @@ afterEvaluate {
 
                 pom {
                     name = PUBLISH_ARTIFACT_ID
-                    description = 'This is the Android runtime for Rive.'
-                    url = 'https://github.com/callstack-internal/rive-android'
+                    description = 'Stream Chat official Android SDK'
+                    url = 'https://rive.app'
                     licenses {
                         license {
-                            name = 'MIT License'
-                            url = 'https://opensource.org/licenses/MIT'
+                            name = 'Wasm License'
+                            url = 'https://github.com/rive-app/rive-wasm/blob/master/LICENSE'
                         }
                     }
                     developers {
                         developer {
-                            id = 'adamTrz'
-                            name = 'Adam Trzcinski'
-                            email = 'adam.trzcinski@callstack.com'
+                            id = 'luigi-rosso'
+                            name = 'Luigi Rosso'
+                            email = 'luigi@rive.app'
+                        }
+                        developer {
+                            id = 'umberto-sonnino'
+                            name = 'Umberto Sonnino'
+                            email = 'umberto@rive.app'
+                        }
+                        developer {
+                            id = 'mjtalbot'
+                            name = 'Maxwell Talbot'
+                            email = 'max@rive.app'
                         }
                     }
                     scm {
-                        connection = 'scm:git:github.com:callstack-internal/rive-android.git'
-                        developerConnection = 'scm:git:ssh://github.com:callstack-internal/rive-android.git'
-                        url = 'https://github.com/callstack-internal/rive-android'
+                        connection = 'scm:git:git@github.com:rive-app/rive-android.git'     
+                        developerConnection = 'scm:git:ssh://git@github.com:rive-app/rive-android.git'
+                        url = 'https://github.com/rive-app/rive-android/tree/master'
                     }
                 }
             }
