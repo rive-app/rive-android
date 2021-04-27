@@ -54,5 +54,11 @@ class MainActivity : AppCompatActivity() {
                     Intent(this, LowLevelActivity::class.java)
             )
         }
+
+        findViewById<Button>(R.id.go_http).setOnClickListener {
+            startActivity(
+                Intent(this, HttpActivity::class.java)
+            )
+        }
     }
 }
