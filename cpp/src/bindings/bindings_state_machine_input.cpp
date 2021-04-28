@@ -53,6 +53,26 @@ extern "C"
         return stateMachineInput->is<rive::StateMachineTrigger>();
     }
 
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineBooleanInput_nativeValue(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+
+        rive::StateMachineBool *stateMachineBool = (rive::StateMachineBool *)ref;
+        return stateMachineBool->value();
+    }
+
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_StateMachineNumberInput_nativeValue(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+
+        rive::StateMachineNumber *stateMachineNumber = (rive::StateMachineNumber *)ref;
+        return stateMachineNumber->value();
+    }
+
 #ifdef __cplusplus
 }
 #endif

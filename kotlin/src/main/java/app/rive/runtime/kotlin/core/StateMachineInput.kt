@@ -10,7 +10,7 @@ package app.rive.runtime.kotlin.core
  *
  * The constructor uses a [nativePointer] to point to its c++ counterpart object.
  */
-class StateMachineInput(val nativePointer: Long) {
+open class StateMachineInput(val nativePointer: Long) {
 
     private external fun nativeName(nativePointer: Long): String
     private external fun nativeIsBoolean(nativePointer: Long): Boolean

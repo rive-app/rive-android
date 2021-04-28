@@ -122,6 +122,24 @@ class RiveStateMachineConfigurationsTest {
         assertEquals(true, state_machine.input("on").isBoolean)
         assertEquals(true, state_machine.input("three").isNumber)
 
+        assertEquals(true, state_machine.input("zero") is StateMachineNumberInput)
+        assertEquals(0f, (state_machine.input("zero") as StateMachineNumberInput).value)
+
+        assertEquals(true, state_machine.input("three") is StateMachineNumberInput)
+        assertEquals(3f, (state_machine.input("three") as StateMachineNumberInput).value)
+
+        assertEquals(true, state_machine.input("two_point_two") is StateMachineNumberInput)
+        assertEquals(2.2f, (state_machine.input("two_point_two") as StateMachineNumberInput).value)
+
+        assertEquals(true, state_machine.input("off") is StateMachineBooleanInput)
+        assertEquals(false, (state_machine.input("off") as StateMachineBooleanInput).value)
+
+        assertEquals(true, state_machine.input("on") is StateMachineBooleanInput)
+        assertEquals(true, (state_machine.input("on") as StateMachineBooleanInput).value)
+
+        assertEquals(true, state_machine.input("trigger") is StateMachineTriggerInput)
+
+
     }
 
 }
