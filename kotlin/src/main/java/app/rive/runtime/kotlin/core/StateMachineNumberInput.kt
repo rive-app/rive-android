@@ -3,11 +3,11 @@ package app.rive.runtime.kotlin.core
 /**
  * [StateMachineNumberInput]s represents a boolean input
  */
-class StateMachineNumberInput(nativePointer: Long) : StateMachineInput(nativePointer) {
-    private external fun nativeValue(nativePointer: Long): Float
+class StateMachineNumberInput(cppPointer: Long) : StateMachineInput(cppPointer) {
+    private external fun cppValue(cppPointer: Long): Float
 
     val value:Float
-        get() = nativeValue(nativePointer)
+        get() = cppValue(cppPointer)
 
     override fun toString(): String {
         return "StateMachineNumberInput $name\n"

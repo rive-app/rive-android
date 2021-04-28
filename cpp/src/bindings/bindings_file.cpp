@@ -26,7 +26,7 @@ extern "C"
         return (jlong)file;
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboard(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboard(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -35,7 +35,7 @@ extern "C"
         return (jlong)file->artboard();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -46,7 +46,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_File_nativeDelete(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_File_cppDelete(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -56,7 +56,7 @@ extern "C"
         delete file;
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -66,7 +66,7 @@ extern "C"
         return (jint)file->artboardCount();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_nativeArtboardByIndex(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardByIndex(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

@@ -18,12 +18,12 @@ class RiveArtboardLoadTest {
         assertEquals(2, file.artboardCount);
         // Note index order seems to be reversed.
         assertEquals(
-            file.artboard(name = "artboard1").nativePointer,
-            file.artboard(1).nativePointer
+            file.artboard(name = "artboard1").cppPointer,
+            file.artboard(1).cppPointer
         )
         assertEquals(
-            file.artboard(name = "artboard2").nativePointer,
-            file.artboard(0).nativePointer
+            file.artboard(name = "artboard2").cppPointer,
+            file.artboard(0).cppPointer
         )
         assertEquals(listOf<String>("artboard2", "artboard1"), file.artboardNames)
     }

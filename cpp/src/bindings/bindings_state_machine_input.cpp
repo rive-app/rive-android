@@ -13,7 +13,7 @@ extern "C"
 #endif
 
     // ANIMATION
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_nativeName(
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -23,7 +23,7 @@ extern "C"
         return env->NewStringUTF(stateMachineInput->name().c_str());
     }
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_nativeIsBoolean(
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsBoolean(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -33,7 +33,7 @@ extern "C"
         return stateMachineInput->is<rive::StateMachineBool>();
     }
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_nativeIsNumber(
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsNumber(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -43,7 +43,7 @@ extern "C"
         return stateMachineInput->is<rive::StateMachineNumber>();
     }
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_nativeIsTrigger(
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsTrigger(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -53,7 +53,7 @@ extern "C"
         return stateMachineInput->is<rive::StateMachineTrigger>();
     }
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineBooleanInput_nativeValue(
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineBooleanInput_cppValue(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -63,7 +63,7 @@ extern "C"
         return stateMachineBool->value();
     }
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_StateMachineNumberInput_nativeValue(
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_StateMachineNumberInput_cppValue(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)

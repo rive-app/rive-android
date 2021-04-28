@@ -4,45 +4,45 @@ package app.rive.runtime.kotlin.core
  * [StateMachine]s as designed in the Rive animation editor.
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [nativePointer] keeps track of this relationship.
+ * The [cppPointer] keeps track of this relationship.
  *
  * These can be used with [StateMachineInstance]s and [Artboard]s to draw frames
  *
- * The constructor uses a [nativePointer] to point to its c++ counterpart object.
+ * The constructor uses a [cppPointer] to point to its c++ counterpart object.
  */
-class StateMachine(val nativePointer: Long) {
+class StateMachine(val cppPointer: Long) {
 
-    private external fun nativeName(nativePointer: Long): String
-    private external fun nativeInputCount(nativePointer: Long): Int
-    private external fun nativeLayerCount(nativePointer: Long): Int
-    private external fun nativeStateMachineInputByIndex(nativePointer: Long, index: Int): Long
-    private external fun nativeStateMachineInputByName(nativePointer: Long, name: String): Long
+    private external fun cppName(cppPointer: Long): String
+    private external fun cppInputCount(cppPointer: Long): Int
+    private external fun cppLayerCount(cppPointer: Long): Int
+    private external fun cppStateMachineInputByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppStateMachineInputByName(cppPointer: Long, name: String): Long
 
     /**
      * Return the name given to an animation
      */
     val name: String
-        get() = nativeName(nativePointer)
+        get() = cppName(cppPointer)
 
     /**
      * Return the number of inputs configured for the state machine.
      */
     val inputCount: Int
-        get() = nativeInputCount(nativePointer)
+        get() = cppInputCount(cppPointer)
 
     /**
      * Return the number of layers configured for the state machine.
      */
     val layerCount: Int
-        get() = nativeLayerCount(nativePointer)
+        get() = cppLayerCount(cppPointer)
 
     fun _convertInput(input: StateMachineInput): StateMachineInput {
         if (input.isBoolean) {
-            return StateMachineBooleanInput(input.nativePointer)
+            return StateMachineBooleanInput(input.cppPointer)
         } else if (input.isTrigger) {
-            return StateMachineTriggerInput(input.nativePointer)
+            return StateMachineTriggerInput(input.cppPointer)
         } else if (input.isNumber) {
-            return StateMachineNumberInput(input.nativePointer)
+            return StateMachineNumberInput(input.cppPointer)
         }
         throw RiveException("Unknown State Machine Input for ${input.name}.")
     }
@@ -54,7 +54,7 @@ class StateMachine(val nativePointer: Long) {
      */
     @Throws(RiveException::class)
     fun input(index: Int): StateMachineInput {
-        val stateMachineInputPointer = nativeStateMachineInputByIndex(nativePointer, index)
+        val stateMachineInputPointer = cppStateMachineInputByIndex(cppPointer, index)
         if (stateMachineInputPointer == 0L) {
             throw RiveException("No StateMachineInput found at index $index.")
         }
@@ -68,7 +68,7 @@ class StateMachine(val nativePointer: Long) {
      */
     @Throws(RiveException::class)
     fun input(name: String): StateMachineInput {
-        val stateMachineInputPointer = nativeStateMachineInputByName(nativePointer, name)
+        val stateMachineInputPointer = cppStateMachineInputByName(cppPointer, name)
         if (stateMachineInputPointer == 0L) {
             throw RiveException("No StateMachineInput found with name $name.")
         }

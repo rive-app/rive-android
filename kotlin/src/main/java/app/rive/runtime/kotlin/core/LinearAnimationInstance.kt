@@ -4,20 +4,20 @@ package app.rive.runtime.kotlin.core
  * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [nativePointer] keeps track of this relationship.
+ * The [cppPointer] keeps track of this relationship.
  *
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
 class LinearAnimationInstance(val animation: Animation) {
-    private var nativePointer: Long = constructor(animation.nativePointer)
+    private var cppPointer: Long = constructor(animation.cppPointer)
     private external fun constructor(animationPointer: Long): Long
-    private external fun nativeAdvance(pointer: Long, elapsedTime: Float): Loop?
-    private external fun nativeApply(pointer: Long, artboardPointer: Long, mix: Float)
-    private external fun nativeGetTime(pointer: Long): Float
-    private external fun nativeSetTime(pointer: Long, time: Float)
-    private external fun nativeGetDirection(pointer: Long): Int
-    private external fun nativeSetDirection(pointer: Long, int: Int)
+    private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
+    private external fun cppApply(pointer: Long, artboardPointer: Long, mix: Float)
+    private external fun cppGetTime(pointer: Long): Float
+    private external fun cppSetTime(pointer: Long, time: Float)
+    private external fun cppGetDirection(pointer: Long): Int
+    private external fun cppSetDirection(pointer: Long, int: Int)
 
 
     /**
@@ -26,7 +26,7 @@ class LinearAnimationInstance(val animation: Animation) {
      * Returns true if the animation will continue to animate after this advance.
      */
     fun advance(elapsedTime: Float): Loop? {
-        return nativeAdvance(nativePointer, elapsedTime)
+        return cppAdvance(cppPointer, elapsedTime)
     }
 
 
@@ -37,7 +37,7 @@ class LinearAnimationInstance(val animation: Animation) {
      * other animations applied to the [artboard].
      */
     fun apply(artboard: Artboard, mix: Float = 1.0f) {
-        nativeApply(nativePointer, artboard.nativePointer, mix)
+        cppApply(cppPointer, artboard.cppPointer, mix)
     }
 
     /**
@@ -46,14 +46,14 @@ class LinearAnimationInstance(val animation: Animation) {
      */
     val time: Float
         get() {
-            return nativeGetTime(nativePointer)
+            return cppGetTime(cppPointer)
         }
 
     /**
      * Sets the animation's point in time to [time]
      */
     fun time(time: Float) {
-        nativeSetTime(nativePointer, time)
+        cppSetTime(cppPointer, time)
     }
 
     /**
@@ -62,11 +62,11 @@ class LinearAnimationInstance(val animation: Animation) {
      */
     var direction: Direction
         get() {
-            val intDirection = nativeGetDirection(nativePointer)
+            val intDirection = cppGetDirection(cppPointer)
             val direction = Direction.fromInt(intDirection) ?: throw IndexOutOfBoundsException()
             return direction
         }
-        set(direction) = nativeSetDirection(nativePointer, direction.value)
+        set(direction) = cppSetDirection(cppPointer, direction.value)
 }
 
 

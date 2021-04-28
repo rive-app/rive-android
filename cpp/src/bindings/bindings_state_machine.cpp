@@ -11,7 +11,7 @@ extern "C"
 #endif
 
     // ANIMATION
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeName(
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_cppName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -21,7 +21,7 @@ extern "C"
         return env->NewStringUTF(stateMachine->name().c_str());
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeInputCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_cppInputCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -30,7 +30,7 @@ extern "C"
         return (jint)stateMachine->inputCount();
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeLayerCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_cppLayerCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -39,7 +39,7 @@ extern "C"
         return (jint)stateMachine->layerCount();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeStateMachineInputByIndex(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_cppStateMachineInputByIndex(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -49,7 +49,7 @@ extern "C"
         return (jlong)stateMachine->input(index);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeStateMachineInputByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_cppStateMachineInputByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
