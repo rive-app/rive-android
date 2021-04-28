@@ -38,6 +38,16 @@ extern "C"
         return (jlong)artboard->firstAnimation();
     }
 
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeFirstStateMachine(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+
+        return (jlong)artboard->firstStateMachine();
+    }
+
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationByIndex(
         JNIEnv *env,
         jobject thisObj,
@@ -68,6 +78,38 @@ extern "C"
         rive::Artboard *artboard = (rive::Artboard *)ref;
 
         return (jint)artboard->animationCount();
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineByIndex(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint index)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+        return (jlong)artboard->stateMachine(index);
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineByName(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jstring name)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+
+        return (jlong)artboard->stateMachine(
+            jstring2string(env, name));
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineCount(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+
+        return (jint)artboard->stateMachineCount();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAdvance(

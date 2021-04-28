@@ -16,9 +16,16 @@ import android.graphics.Canvas
 class Artboard(val nativePointer: Long) {
     private external fun nativeName(nativePointer: Long): String
     private external fun nativeFirstAnimation(nativePointer: Long): Long
+
     private external fun nativeAnimationByIndex(nativePointer: Long, index: Int): Long
     private external fun nativeAnimationByName(nativePointer: Long, name: String): Long
     private external fun nativeAnimationCount(nativePointer: Long): Int
+
+    private external fun nativeFirstStateMachine(nativePointer: Long): Long
+    private external fun nativeStateMachineByIndex(nativePointer: Long, index: Int): Long
+    private external fun nativeStateMachineByName(nativePointer: Long, name: String): Long
+    private external fun nativeStateMachineCount(nativePointer: Long): Int
+
     private external fun nativeAdvance(nativePointer: Long, elapsedTime: Float)
     private external fun nativeDraw(
         nativePointer: Long,
@@ -84,10 +91,64 @@ class Artboard(val nativePointer: Long) {
     }
 
     /**
+     * Get the first [StateMachine] of the [Artboard].
+     *
+     * If you use more than one animation, it is preferred to use the [stateMachine] functions.
+     */
+    val firstStateMachine: StateMachine
+        @Throws(RiveException::class)
+        get() {
+            var stateMachinePointer = nativeFirstStateMachine(nativePointer);
+            if (stateMachinePointer == 0L) {
+                throw RiveException("No StateMachines found.")
+            }
+            return StateMachine(
+                stateMachinePointer
+            )
+        }
+
+
+    /**
+     * Get the animation at a given [index] in the [Artboard].
+     *
+     * This starts at 0.
+     */
+    @Throws(RiveException::class)
+    fun stateMachine(index: Int): StateMachine {
+        var stateMachinePointer = nativeStateMachineByIndex(nativePointer, index)
+        if (stateMachinePointer == 0L) {
+            throw RiveException("No StateMachine found at index $index.")
+        }
+        return StateMachine(
+            stateMachinePointer
+        )
+    }
+
+    /**
+     * Get the animation with a given [name] in the [Artboard].
+     */
+    @Throws(RiveException::class)
+    fun stateMachine(name: String): StateMachine {
+        var stateMachinePointer = nativeStateMachineByName(nativePointer, name)
+        if (stateMachinePointer == 0L) {
+            throw RiveException("No StateMachine found with name $name.")
+        }
+        return StateMachine(
+            stateMachinePointer
+        )
+    }
+
+    /**
      * Get the number of animations stored inside the [Artboard].
      */
     val animationCount: Int
         get() = nativeAnimationCount(nativePointer)
+
+    /**
+     * Get the number of state machines stored inside the [Artboard].
+     */
+    val stateMachineCount: Int
+        get() = nativeStateMachineCount(nativePointer)
 
     /**
      * Advancing the artboard updates the layout for all dirty components contained in the [Artboard]
@@ -123,4 +184,10 @@ class Artboard(val nativePointer: Long) {
      */
     val animationNames: List<String>
         get() = (0 until animationCount).map { animation(it).name }
+
+    /**
+     * Get the names of the stateMAchines in the artboard.
+     */
+    val stateMachineNames: List<String>
+        get() = (0 until stateMachineCount).map { stateMachine(it).name }
 }
