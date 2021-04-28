@@ -37,7 +37,7 @@ extern "C"
         delete renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_nativeAlign(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cppAlign(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

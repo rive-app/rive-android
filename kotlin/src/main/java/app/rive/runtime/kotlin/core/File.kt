@@ -4,7 +4,7 @@ package app.rive.runtime.kotlin.core
  * [File]s are created in the rive editor.
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [nativePointer] keeps track of this relationship.
+ * The [cppPointer] keeps track of this relationship.
  *
  * You can export these .riv files and load them up. [File]s can contain multiple artboards.
  *
@@ -16,18 +16,18 @@ package app.rive.runtime.kotlin.core
  */
 class File(bytes: ByteArray) {
 
-    private val nativePointer: Long
+    private val cppPointer: Long
 
     init {
-        nativePointer = import(bytes, bytes.size)
+        cppPointer = import(bytes, bytes.size)
     }
 
     private external fun import(bytes: ByteArray, length: Int): Long
-    private external fun nativeArtboard(nativePointer: Long): Long
-    private external fun nativeArtboardByName(nativePointer: Long, name: String): Long
-    private external fun nativeArtboardByIndex(nativePointer: Long, index: Int): Long
-    private external fun nativeArtboardCount(nativePointer: Long): Int
-    private external fun nativeDelete(nativePointer: Long)
+    private external fun cppArtboard(cppPointer: Long): Long
+    private external fun cppArtboardByName(cppPointer: Long, name: String): Long
+    private external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppArtboardCount(cppPointer: Long): Int
+    private external fun cppDelete(cppPointer: Long)
 
     /**
      * Get the first artboard in the file.
@@ -35,7 +35,7 @@ class File(bytes: ByteArray) {
     val firstArtboard: Artboard
         @Throws(RiveException::class)
         get() {
-            var artboardPointer = nativeArtboard(nativePointer)
+            var artboardPointer = cppArtboard(cppPointer)
             if (artboardPointer == 0L) {
                 throw RiveException("No Artboard found.")
             }
@@ -52,7 +52,7 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
-        var artboardPointer = nativeArtboardByName(nativePointer, name)
+        var artboardPointer = cppArtboardByName(cppPointer, name)
         if (artboardPointer == 0L) {
             throw RiveException("Artboard $name not found.")
         }
@@ -69,12 +69,12 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(index: Int): Artboard {
-        var nativePointer = nativeArtboardByIndex(nativePointer, index)
-        if (nativePointer == 0L) {
+        var cppPointer = cppArtboardByIndex(cppPointer, index)
+        if (cppPointer == 0L) {
             throw RiveException("No Artboard found at index $index.")
         }
         return Artboard(
-            nativePointer
+            cppPointer
         )
     }
 
@@ -83,7 +83,7 @@ class File(bytes: ByteArray) {
      * Get the number of artboards in the file.
      */
     val artboardCount: Int
-        get() = nativeArtboardCount(nativePointer)
+        get() = cppArtboardCount(cppPointer)
 
     /**
      * Get the names of the artboards in the file.
@@ -93,8 +93,8 @@ class File(bytes: ByteArray) {
 
 
     protected fun finalize() {
-        if (nativePointer != -1L) {
-            nativeDelete(nativePointer)
+        if (cppPointer != -1L) {
+            cppDelete(cppPointer)
         }
     }
 }
