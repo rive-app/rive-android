@@ -49,6 +49,7 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
         assertEquals(1, artboard1.animationCount);
+        assertEquals(1, artboard1.stateMachineCount);
         assertEquals("artboard1", artboard1.name);
         assertEquals(500f, artboard1.bounds.height);
         assertEquals(500f, artboard1.bounds.width);
@@ -60,6 +61,7 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
         assertEquals(2, artboard2.animationCount);
+        assertEquals(2, artboard2.stateMachineCount);
         assertEquals("artboard2", artboard2.name);
     }
 
