@@ -12,12 +12,21 @@ class RiveFragmentActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_rive_fragment)
 
-        // Instantiate a Rive fragment
-        val bundle = bundleOf(RIVE_FRAGMENT_ARG_RES_ID to R.raw.basketball)
+        // Instantiate the basketball fragment
+        var bundle = bundleOf(RIVE_FRAGMENT_ARG_RES_ID to R.raw.basketball)
         if (savedInstanceState == null) {
             supportFragmentManager.commit {
                 setReorderingAllowed(true)
-                add<RiveFragment>(R.id.rive_fragment, args = bundle)
+                add<RiveFragment>(R.id.basketball_fragment, args = bundle)
+            }
+        }
+
+        // Instantiate the flux fragment
+        bundle = bundleOf(RIVE_FRAGMENT_ARG_RES_ID to R.raw.flux_capacitor)
+        if (savedInstanceState == null) {
+            supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                add<RiveFragment>(R.id.flux_fragment, args = bundle)
             }
         }
     }
