@@ -60,5 +60,11 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, HttpActivity::class.java)
             )
         }
+
+        findViewById<Button>(R.id.go_simple_state_machine).setOnClickListener {
+            startActivity(
+                Intent(this, SimpleStateMachineActivity::class.java)
+            )
+        }
     }
 }
