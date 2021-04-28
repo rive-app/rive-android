@@ -26,6 +26,7 @@
         <activity android:name=".LayoutActivity" />
         <activity android:name=".RiveFragmentActivity" />
         <activity android:name=".LowLevelActivity" />
+        <activity android:name=".SimpleStateMachineActivity" />
         <activity android:name=".HttpActivity"></activity>
     </application>
 
