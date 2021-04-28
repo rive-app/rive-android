@@ -10,21 +10,21 @@ import android.graphics.Path
  * A [Renderer] is used to help draw an [Artboard] to a [Canvas]
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [nativePointer] keeps track of this relationship.
+ * The [cppPointer] keeps track of this relationship.
  *
  * Most of the functions implemented here are called from the c++ layer when artboards are
  * rendered.
  */
 class Renderer(antialias: Boolean = true) {
-    var nativePointer: Long
+    var cppPointer: Long
     lateinit var canvas: Canvas
 
     init {
-        nativePointer = constructor(antialias)
+        cppPointer = constructor(antialias)
     }
 
-    private external fun nativeAlign(
-        nativePointer: Long,
+    private external fun cppAlign(
+        cppPointer: Long,
         fit: Fit,
         alignment: Alignment,
         targetBoundsPointer: Long,
@@ -32,7 +32,7 @@ class Renderer(antialias: Boolean = true) {
     )
 
     private external fun constructor(antialias: Boolean): Long
-    private external fun cleanupJNI(nativePointer: Long)
+    private external fun cleanupJNI(cppPointer: Long)
 
     /**
      * Passthrough to apply [matrix] to the [canvas]
@@ -44,19 +44,19 @@ class Renderer(antialias: Boolean = true) {
     }
 
     /**
-     * Instruct the native renderer how to align the artboard in the available space [targetBounds].
+     * Instruct the cpp renderer how to align the artboard in the available space [targetBounds].
      *
      * Use [fit] and [alignment] to instruct how the [sourceBounds] should be matched into [targetBounds].
      *
      * typically it is expected to use an [Artboard]s bounds as [sourceBounds].
      */
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
-        nativeAlign(
-            nativePointer,
+        cppAlign(
+            cppPointer,
             fit,
             alignment,
-            targetBounds.nativePointer,
-            sourceBounds.nativePointer
+            targetBounds.cppPointer,
+            sourceBounds.cppPointer
         )
     }
 
@@ -64,8 +64,8 @@ class Renderer(antialias: Boolean = true) {
      * Remove the [Renderer] object from memory.
      */
     fun cleanup() {
-        cleanupJNI(nativePointer)
-        nativePointer = 0
+        cleanupJNI(cppPointer)
+        cppPointer = 0
     }
 
     /**
