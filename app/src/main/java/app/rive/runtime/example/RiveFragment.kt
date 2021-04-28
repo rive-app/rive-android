@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.Fit
 import kotlin.properties.Delegates
 
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -41,6 +42,7 @@ class RiveFragment : Fragment() {
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
         super.onViewStateRestored(savedInstanceState)
         riveView.setRiveResource(rId)
+        riveView.fit = Fit.COVER
     }
 
     override fun onDestroy() {
