@@ -12,24 +12,24 @@ import org.junit.runner.RunWith
 
 
 class Observer : RiveDrawable.Listener {
-    var plays = mutableListOf<LinearAnimationInstance>()
-    var pauses = mutableListOf<LinearAnimationInstance>()
-    var stops = mutableListOf<LinearAnimationInstance>()
-    var loops = mutableListOf<LinearAnimationInstance>()
-    override fun notifyPlay(animation: LinearAnimationInstance) {
-        plays.add(animation)
+    var plays = mutableListOf<PlayableInstance>()
+    var pauses = mutableListOf<PlayableInstance>()
+    var stops = mutableListOf<PlayableInstance>()
+    var loops = mutableListOf<PlayableInstance>()
+    override fun notifyPlay(playableInstance: PlayableInstance) {
+        plays.add(playableInstance)
     }
 
-    override fun notifyPause(animation: LinearAnimationInstance) {
-        pauses.add(animation)
+    override fun notifyPause(playableInstance: PlayableInstance) {
+        pauses.add(playableInstance)
     }
 
-    override fun notifyStop(animation: LinearAnimationInstance) {
-        stops.add(animation)
+    override fun notifyStop(playableInstance: PlayableInstance) {
+        stops.add(playableInstance)
     }
 
-    override fun notifyLoop(animation: LinearAnimationInstance) {
-        loops.add(animation)
+    override fun notifyLoop(playableInstance: PlayableInstance) {
+        loops.add(playableInstance)
     }
 }
 
