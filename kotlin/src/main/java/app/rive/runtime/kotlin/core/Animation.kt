@@ -4,28 +4,28 @@ package app.rive.runtime.kotlin.core
  * [Animation]s as designed in the Rive animation editor.
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [nativePointer] keeps track of this relationship.
+ * The [cppPointer] keeps track of this relationship.
  *
  * These can be used with [LinearAnimationInstance]s and [Artboard]s to draw frames
  *
- * The constructor uses a [nativePointer] to point to its c++ counterpart object.
+ * The constructor uses a [cppPointer] to point to its c++ counterpart object.
  */
-class Animation(val nativePointer: Long) {
+class Animation(val cppPointer: Long) {
 
-    private external fun nativeName(nativePointer: Long): String
-    private external fun nativeDuration(nativePointer: Long): Int
-    private external fun nativeFps(nativePointer: Long): Int
-    private external fun nativeWorkStart(nativePointer: Long): Int
-    private external fun nativeWorkEnd(nativePointer: Long): Int
-    private external fun nativeGetLoop(nativePointer: Long): Int
-    private external fun nativeSetLoop(nativePointer: Long, value: Int)
+    private external fun cppName(cppPointer: Long): String
+    private external fun cppDuration(cppPointer: Long): Int
+    private external fun cppFps(cppPointer: Long): Int
+    private external fun cppWorkStart(cppPointer: Long): Int
+    private external fun cppWorkEnd(cppPointer: Long): Int
+    private external fun cppGetLoop(cppPointer: Long): Int
+    private external fun cppSetLoop(cppPointer: Long, value: Int)
 
     /**
      * Get the duration of an animation in frames, this does not take [workStart]
      * and [workEnd] into account
      */
     val duration: Int
-        get() = nativeDuration(nativePointer)
+        get() = cppDuration(cppPointer)
 
     /**
      * Get the duration of an animation in frames, taking [workStart]
@@ -51,27 +51,27 @@ class Animation(val nativePointer: Long) {
      * Return the fps configured for the animation
      */
     val fps: Int
-        get() = nativeFps(nativePointer)
+        get() = cppFps(cppPointer)
 
     /**
      * Return the offset in frames to the beginning of an animations work area.
      * Animations will start playing from here.
      */
     val workStart: Int
-        get() = nativeWorkStart(nativePointer)
+        get() = cppWorkStart(cppPointer)
 
     /**
      * Return the offset in frames to the end of an animations work area.
      * Animations will will loop, pingpong and stop once this is reached.
      */
     val workEnd: Int
-        get() = nativeWorkEnd(nativePointer)
+        get() = cppWorkEnd(cppPointer)
 
     /**
      * Return the name given to an animation
      */
     val name: String
-        get() = nativeName(nativePointer)
+        get() = cppName(cppPointer)
 
     /**
      * Return the offset in frames to the beginning of an animations.
@@ -104,11 +104,11 @@ class Animation(val nativePointer: Long) {
      */
     var loop: Loop
         get() {
-            val intLoop = nativeGetLoop(nativePointer)
+            val intLoop = cppGetLoop(cppPointer)
             val loop = Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
             return loop
         }
-        set(loop) = nativeSetLoop(nativePointer, loop.value)
+        set(loop) = cppSetLoop(cppPointer, loop.value)
 
     override fun toString(): String {
         return "Animation $name\n- Duration$duration\n- fps $fps\n- workStart $workStart\n- workEnd $workEnd"

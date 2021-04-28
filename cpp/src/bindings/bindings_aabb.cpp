@@ -22,7 +22,7 @@ extern "C"
         return (jlong)aabb;
     }
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_AABB_nativeWidth(
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_AABB_cppWidth(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -31,7 +31,7 @@ extern "C"
         return (jfloat)aabb->width();
     }
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_AABB_nativeHeight(
+    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_AABB_cppHeight(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)

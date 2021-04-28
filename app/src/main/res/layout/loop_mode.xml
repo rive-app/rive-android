@@ -7,23 +7,20 @@
     tools:context=".MainActivity">
 
 
-    <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/loop_mode_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:adjustViewBounds="true"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:riveAutoPlay="false"
-        app:riveResource="@raw/loopy" />
-
-
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@+id/loop_mode_view">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <app.rive.runtime.kotlin.RiveAnimationView
+            android:id="@+id/loop_mode_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            app:riveAutoPlay="false"
+            app:riveResource="@raw/loopy" />
 
         <LinearLayout
             android:layout_width="fill_parent"

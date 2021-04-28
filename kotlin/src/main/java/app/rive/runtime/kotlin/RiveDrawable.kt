@@ -14,8 +14,10 @@ class RiveDrawable(
     var fit: Fit = Fit.CONTAIN,
     var alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.NONE,
+    // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
     var animationName: String? = null,
+    var stateMachineName: String? = null,
     var autoplay: Boolean = true
 ) : Drawable(), Animatable, Observable<RiveDrawable.Listener> {
     // PRIVATE
@@ -26,17 +28,24 @@ class RiveDrawable(
     private var artboard: Artboard? = null
     private var boundsCache: Rect? = null
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
+    private var _playingStateMachines = HashSet<StateMachineInstance>()
 
     // PUBLIC
     var animations = mutableListOf<LinearAnimationInstance>()
+    var stateMachines = mutableListOf<StateMachineInstance>()
     var file: File? = null
     var playingAnimations: HashSet<LinearAnimationInstance>
         get() = _playingAnimations
         private set(value) {
             _playingAnimations = value
         }
+    var playingStateMachines: HashSet<StateMachineInstance>
+        get() = _playingStateMachines
+        private set(value) {
+            _playingStateMachines = value
+        }
     val isPlaying: Boolean
-        get() = playingAnimations.isNotEmpty()
+        get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
     init {
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
@@ -64,10 +73,21 @@ class RiveDrawable(
                     }
                 }
             }
+            stateMachines.toList().forEach { stateMachineInstance ->
+
+                if (playingStateMachines.contains(stateMachineInstance)) {
+                    val stillPlaying = stateMachineInstance.advance(elapsed)
+
+                    stateMachineInstance.apply(ab)
+                    if (!stillPlaying) {
+                        _stop(stateMachineInstance)
+                    }
+                }
+            }
             ab.advance(elapsed)
         }
-        // TODO: set continuePlaying to false if all animations have come to an end.
-        if (playingAnimations.isEmpty()) {
+
+        if (!isPlaying) {
             animator.pause()
         }
         invalidateSelf()
@@ -106,11 +126,13 @@ class RiveDrawable(
         return output;
     }
 
-    fun clear(){
+    fun clear() {
         animator.cancel()
         animator.currentPlayTime = 0
         playingAnimations.clear()
         animations.clear()
+        playingStateMachines.clear()
+        stateMachines.clear()
 
     }
 
@@ -131,9 +153,10 @@ class RiveDrawable(
         animationNames: List<String>,
         loop: Loop = Loop.NONE,
         direction: Direction = Direction.AUTO,
+        areStateMachines: Boolean = false,
     ) {
         animationNames.forEach {
-            _playAnimation(it, loop, direction)
+            _playAnimation(it, loop, direction, areStateMachines)
         }
         animator.start()
     }
@@ -142,8 +165,9 @@ class RiveDrawable(
         animationName: String,
         loop: Loop = Loop.NONE,
         direction: Direction = Direction.AUTO,
+        isStateMachine: Boolean = false,
     ) {
-        _playAnimation(animationName, loop, direction)
+        _playAnimation(animationName, loop, direction, isStateMachine)
         animator.start()
     }
 
@@ -154,6 +178,8 @@ class RiveDrawable(
         artboard?.let {
             if (it.animationNames.isNotEmpty()) {
                 _playAnimation(it.animationNames.first(), loop, direction)
+            } else if (it.stateMachineNames.isNotEmpty()) {
+                _playAnimation(it.stateMachineNames.first(), loop, direction, true)
             }
         }
         animator.start()
@@ -164,18 +190,34 @@ class RiveDrawable(
         playingAnimations.toList().forEach { animation ->
             _pause(animation)
         }
-    }
-
-    fun pause(animationNames: List<String>) {
-        _animations(animationNames).forEach { animation ->
-            _pause(animation)
+        playingStateMachines.toList().forEach { stateMachine ->
+            _pause(stateMachine)
         }
     }
 
-    fun pause(animationName: String) {
-        _animations(animationName).forEach { animation ->
-            _pause(animation)
+    fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
+        if (areStateMachines) {
+            _stateMachines(animationNames).forEach { stateMachine ->
+                _pause(stateMachine)
+            }
+        } else {
+            _animations(animationNames).forEach { animation ->
+                _pause(animation)
+            }
         }
+    }
+
+    fun pause(animationName: String, isStateMachine: Boolean = false) {
+        if (isStateMachine) {
+            _stateMachines(animationName).forEach { stateMachine ->
+                _pause(stateMachine)
+            }
+        } else {
+            _animations(animationName).forEach { animation ->
+                _pause(animation)
+            }
+        }
+
     }
 
     /**
@@ -186,17 +228,34 @@ class RiveDrawable(
         animations.toList().forEach { animation ->
             _stop(animation)
         }
-    }
-
-    fun stopAnimations(animationNames: List<String>) {
-        _animations(animationNames).forEach { animation ->
-            _stop(animation)
+        stateMachines.toList().forEach { stateMachine ->
+            _stop(stateMachine)
         }
     }
 
-    fun stopAnimations(animationName: String) {
-        _animations(animationName).forEach { animation ->
-            _stop(animation)
+    fun stopAnimations(animationNames: List<String>, areStateMachines: Boolean = false) {
+        if (areStateMachines) {
+            _stateMachines(animationNames).forEach { stateMachine ->
+                _stop(stateMachine)
+            }
+        } else {
+            _animations(animationNames).forEach { animation ->
+                _stop(animation)
+            }
+        }
+    }
+
+
+    fun stopAnimations(animationName: String, isStateMachine: Boolean = false) {
+        if (isStateMachine) {
+            _stateMachines(animationName).forEach { stateMachine ->
+                _stop(stateMachine)
+            }
+        } else {
+
+            _animations(animationName).forEach { animation ->
+                _stop(animation)
+            }
         }
     }
 
@@ -206,28 +265,64 @@ class RiveDrawable(
         return _animations(listOf(animationName))
     }
 
+    private fun _stateMachines(animationName: String): List<StateMachineInstance> {
+        return _stateMachines(listOf(animationName))
+    }
+
     private fun _animations(animationNames: Collection<String>): List<LinearAnimationInstance> {
         return animations.filter { animationInstance ->
             animationNames.contains(animationInstance.animation.name)
         }
     }
 
+    private fun _stateMachines(animationNames: Collection<String>): List<StateMachineInstance> {
+        return stateMachines.filter { stateMachineInstance ->
+            animationNames.contains(stateMachineInstance.stateMachine.name)
+        }
+    }
+
     private fun _playAnimation(
         animationName: String,
         loop: Loop = Loop.NONE,
-        direction: Direction = Direction.AUTO
+        direction: Direction = Direction.AUTO,
+        isStateMachine: Boolean = false,
     ) {
-        val animationInstances = _animations(animationName)
-        animationInstances.forEach { animationInstance ->
-            _play(animationInstance, loop, direction)
-        }
-        if (animationInstances.isEmpty()) {
-            artboard?.let {
-                val animation = it.animation(animationName)
-                val linearAnimation = LinearAnimationInstance(animation)
-                _play(linearAnimation, loop, direction)
+        if (isStateMachine) {
+            val stateMachineInstances = _stateMachines(animationName)
+            stateMachineInstances.forEach { stateMachineInstance ->
+                _play(stateMachineInstance)
+            }
+            if (stateMachineInstances.isEmpty()) {
+                artboard?.let {
+                    val stateMachine = it.stateMachine(animationName)
+                    val stateMachineInstance = StateMachineInstance(stateMachine)
+                    _play(stateMachineInstance)
+                }
+            }
+        } else {
+            val animationInstances = _animations(animationName)
+            animationInstances.forEach { animationInstance ->
+                _play(animationInstance, loop, direction)
+            }
+            if (animationInstances.isEmpty()) {
+                artboard?.let {
+                    val animation = it.animation(animationName)
+                    val linearAnimation = LinearAnimationInstance(animation)
+                    _play(linearAnimation, loop, direction)
+                }
             }
         }
+
+    }
+
+    private fun _play(
+        stateMachineInstance: StateMachineInstance,
+    ) {
+        if (!stateMachines.contains(stateMachineInstance)) {
+            stateMachines.add(stateMachineInstance)
+        }
+        playingStateMachines.add(stateMachineInstance)
+        notifyPlay(stateMachineInstance)
     }
 
     private fun _play(
@@ -262,12 +357,27 @@ class RiveDrawable(
         }
     }
 
+    private fun _pause(stateMachine: StateMachineInstance) {
+        var removed = playingStateMachines.remove(stateMachine)
+        if (removed) {
+            notifyPause(stateMachine)
+        }
+    }
+
 
     private fun _stop(animation: LinearAnimationInstance) {
         playingAnimations.remove(animation)
         var removed = animations.remove(animation)
         if (removed) {
             notifyStop(animation)
+        }
+    }
+
+    private fun _stop(stateMachine: StateMachineInstance) {
+        playingStateMachines.remove(stateMachine)
+        var removed = stateMachines.remove(stateMachine)
+        if (removed) {
+            notifyStop(stateMachine)
         }
     }
 
@@ -288,7 +398,12 @@ class RiveDrawable(
             animationName?.let {
                 play(animationName = it)
             } ?: run {
-                play()
+                stateMachineName?.let {
+                    play(animationName = it, isStateMachine = true)
+                } ?: run {
+                    play()
+                }
+
             }
 
         } else {
@@ -360,10 +475,10 @@ class RiveDrawable(
    LISTENER INTERFACE
      */
     interface Listener {
-        fun notifyPlay(animation: LinearAnimationInstance)
-        fun notifyPause(animation: LinearAnimationInstance)
-        fun notifyStop(animation: LinearAnimationInstance)
-        fun notifyLoop(animation: LinearAnimationInstance)
+        fun notifyPlay(animation: PlayableInstance)
+        fun notifyPause(animation: PlayableInstance)
+        fun notifyStop(animation: PlayableInstance)
+        fun notifyLoop(animation: PlayableInstance)
     }
 
     /*
@@ -377,27 +492,27 @@ class RiveDrawable(
         listeners.remove(listener)
     }
 
-    private fun notifyPlay(animation: LinearAnimationInstance) {
+    private fun notifyPlay(playableInstance: PlayableInstance) {
         listeners.toList().forEach {
-            it.notifyPlay(animation)
+            it.notifyPlay(playableInstance)
         }
     }
 
-    private fun notifyPause(animation: LinearAnimationInstance) {
+    private fun notifyPause(playableInstance: PlayableInstance) {
         listeners.toList().forEach {
-            it.notifyPause(animation)
+            it.notifyPause(playableInstance)
         }
     }
 
-    private fun notifyStop(animation: LinearAnimationInstance) {
+    private fun notifyStop(playableInstance: PlayableInstance) {
         listeners.toList().forEach {
-            it.notifyStop(animation)
+            it.notifyStop(playableInstance)
         }
     }
 
-    private fun notifyLoop(animation: LinearAnimationInstance) {
+    private fun notifyLoop(playableInstance: PlayableInstance) {
         listeners.toList().forEach {
-            it.notifyLoop(animation)
+            it.notifyLoop(playableInstance)
         }
     }
 }

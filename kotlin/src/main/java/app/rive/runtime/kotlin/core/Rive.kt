@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core
 
 object Rive {
-    private external fun nativeInitialize()
-    private external fun nativeCalculateRequiredBounds(
+    private external fun cppInitialize()
+    private external fun cppCalculateRequiredBounds(
         fit: Fit, alignment: Alignment,
         availableBoundsPointer: Long,
         artboardBoundsPointer: Long,
@@ -19,7 +19,7 @@ object Rive {
      */
     fun init() {
         System.loadLibrary("jnirivebridge")
-        nativeInitialize()
+        cppInitialize()
     }
 
     fun calculateRequiredBounds(
@@ -29,12 +29,12 @@ object Rive {
         artboardBounds: AABB
     ): AABB {
         var requiredBounds = AABB(0f, 0f)
-        nativeCalculateRequiredBounds(
+        cppCalculateRequiredBounds(
             fit,
             alignment,
-            availableBounds.nativePointer,
-            artboardBounds.nativePointer,
-            requiredBounds.nativePointer
+            availableBounds.cppPointer,
+            artboardBounds.cppPointer,
+            requiredBounds.cppPointer
         )
         return requiredBounds;
     }

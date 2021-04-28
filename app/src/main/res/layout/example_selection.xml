@@ -64,6 +64,13 @@
                 android:layout_height="wrap_content"
                 android:text="HTTP" />
 
+
+            <Button
+                android:id="@+id/go_simple_state_machine"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="State Machine" />
+
         </LinearLayout>
 
     </ScrollView>
