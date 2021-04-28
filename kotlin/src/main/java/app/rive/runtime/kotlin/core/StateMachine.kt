@@ -36,6 +36,17 @@ class StateMachine(val nativePointer: Long) {
     val layerCount: Int
         get() = nativeLayerCount(nativePointer)
 
+    fun _convertInput(input: StateMachineInput): StateMachineInput {
+        if (input.isBoolean) {
+            return StateMachineBooleanInput(input.nativePointer)
+        } else if (input.isTrigger) {
+            return StateMachineTriggerInput(input.nativePointer)
+        } else if (input.isNumber) {
+            return StateMachineNumberInput(input.nativePointer)
+        }
+        throw RiveException("Unknown State Machine Input for ${input.name}.")
+    }
+
     /**
      * Get the animation at a given [index] in the [Artboard].
      *
@@ -43,13 +54,13 @@ class StateMachine(val nativePointer: Long) {
      */
     @Throws(RiveException::class)
     fun input(index: Int): StateMachineInput {
-        var stateMachineInputPointer = nativeStateMachineInputByIndex(nativePointer, index)
+        val stateMachineInputPointer = nativeStateMachineInputByIndex(nativePointer, index)
         if (stateMachineInputPointer == 0L) {
             throw RiveException("No StateMachineInput found at index $index.")
         }
-        return StateMachineInput(
+        return _convertInput(StateMachineInput(
             stateMachineInputPointer
-        )
+        ))
     }
 
     /**
@@ -57,13 +68,13 @@ class StateMachine(val nativePointer: Long) {
      */
     @Throws(RiveException::class)
     fun input(name: String): StateMachineInput {
-        var stateMachineInputPointer = nativeStateMachineInputByName(nativePointer, name)
+        val stateMachineInputPointer = nativeStateMachineInputByName(nativePointer, name)
         if (stateMachineInputPointer == 0L) {
             throw RiveException("No StateMachineInput found with name $name.")
         }
-        return StateMachineInput(
+        return _convertInput(StateMachineInput(
             stateMachineInputPointer
-        )
+        ))
     }
 
     /**
