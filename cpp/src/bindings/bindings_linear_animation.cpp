@@ -2,7 +2,7 @@
 #include "helpers/general.hpp"
 
 // From rive-cpp
-#include "animation/linear_animation_instance.hpp"
+#include "animation/linear_animation.hpp"
 //
 
 #ifdef __cplusplus
