@@ -9,7 +9,7 @@ extern "C"
 #endif
     using namespace rive_android;
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_nativeCalculateRequiredBounds(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
         JNIEnv *env,
         jobject thisObj,
         jobject jfit,

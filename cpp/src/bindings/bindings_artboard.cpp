@@ -18,7 +18,7 @@ extern "C"
 
     // ARTBOARD
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeName(
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -28,7 +28,7 @@ extern "C"
         return env->NewStringUTF(artboard->name().c_str());
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeFirstAnimation(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstAnimation(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -38,7 +38,7 @@ extern "C"
         return (jlong)artboard->firstAnimation();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeFirstStateMachine(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstStateMachine(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -48,7 +48,7 @@ extern "C"
         return (jlong)artboard->firstStateMachine();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationByIndex(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -58,7 +58,7 @@ extern "C"
         return (jlong)artboard->animation(index);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -70,7 +70,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAnimationCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -80,7 +80,7 @@ extern "C"
         return (jint)artboard->animationCount();
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineByIndex(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -90,7 +90,7 @@ extern "C"
         return (jlong)artboard->stateMachine(index);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineByName(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -102,7 +102,7 @@ extern "C"
             jstring2string(env, name));
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeStateMachineCount(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -112,7 +112,7 @@ extern "C"
         return (jint)artboard->stateMachineCount();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeAdvance(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -122,7 +122,7 @@ extern "C"
         artboard->advance(elapsedTime);
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeBounds(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -133,7 +133,7 @@ extern "C"
         return (jlong)bounds;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_nativeDraw(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

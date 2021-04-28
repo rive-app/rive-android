@@ -18,7 +18,7 @@ class RiveStateMachineLoadTest {
 
         var stateMachineAlt = artboard.stateMachine(0)
         var stateMachine = artboard.stateMachine("artboard1stateMachine1")
-        assertEquals(stateMachineAlt.nativePointer, stateMachine.nativePointer)
+        assertEquals(stateMachineAlt.cppPointer, stateMachine.cppPointer)
         assertEquals(listOf("artboard1stateMachine1"), artboard.stateMachineNames)
     }
 
@@ -29,11 +29,11 @@ class RiveStateMachineLoadTest {
         var artboard = file.artboard("artboard2")
         var artboard2stateMachine1 = artboard.stateMachine(0)
         var artboard2stateMachine1Alt = artboard.stateMachine("artboard2stateMachine1")
-        assertEquals(artboard2stateMachine1Alt.nativePointer, artboard2stateMachine1.nativePointer)
+        assertEquals(artboard2stateMachine1Alt.cppPointer, artboard2stateMachine1.cppPointer)
 
         var artboard2stateMachine2 = artboard.stateMachine(1)
         var artboard2stateMachine2Alt = artboard.stateMachine("artboard2stateMachine2")
-        assertEquals(artboard2stateMachine2Alt.nativePointer, artboard2stateMachine2.nativePointer)
+        assertEquals(artboard2stateMachine2Alt.cppPointer, artboard2stateMachine2.cppPointer)
         assertEquals(listOf("artboard2stateMachine1", "artboard2stateMachine2"), artboard.stateMachineNames)
     }
 
