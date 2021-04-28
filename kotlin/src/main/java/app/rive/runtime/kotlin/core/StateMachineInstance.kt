@@ -9,7 +9,7 @@ package app.rive.runtime.kotlin.core
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(val stateMachine: StateMachine) {
+class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
     private var cppPointer: Long = constructor(stateMachine.cppPointer)
     private external fun constructor(stateMachinePointer: Long): Long
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
