@@ -10,7 +10,6 @@ import app.rive.runtime.kotlin.core.Rive
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.example_selection)
 
         findViewById<Button>(R.id.go_simple).setOnClickListener {

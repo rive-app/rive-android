@@ -183,7 +183,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.android_player)
         setResourceSpinner()
         loadResource(0)
