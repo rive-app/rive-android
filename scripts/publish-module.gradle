@@ -62,6 +62,11 @@ afterEvaluate {
                             name = 'Maxwell Talbot'
                             email = 'max@rive.app'
                         }
+                        developer {
+                            id = 'mjohnsullivan'
+                            name = 'Matt Sullivan'
+                            email = 'matt@rive.app'
+                        }
                     }
 
                     // Version control info - if you're using GitHub, follow the
