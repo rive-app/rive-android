@@ -67,7 +67,7 @@ task buildJNI(type: Exec) {
 
 ext {
     PUBLISH_GROUP_ID = 'app.rive'
-    PUBLISH_VERSION = '0.0.2'
+    PUBLISH_VERSION = '0.0.3'
     PUBLISH_ARTIFACT_ID = 'rive-android'
 }
 

@@ -8,65 +8,65 @@ import org.junit.runner.RunWith
 
 
 @RunWith(AndroidJUnit4::class)
-class RiveAnimationLoadTest {
+class RiveStateMachineLoadTest {
 
     @Test
-    fun loadAnimationFirstAnimation() {
+    fun loadStateMachineFirstStateMachine() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard1")
 
-        var animationAlt = artboard.animation(0)
-        var animation = artboard.animation("artboard1animation1")
-        assertEquals(animationAlt.cppPointer, animation.cppPointer)
-        assertEquals(listOf("artboard1animation1"), artboard.animationNames)
+        var stateMachineAlt = artboard.stateMachine(0)
+        var stateMachine = artboard.stateMachine("artboard1stateMachine1")
+        assertEquals(stateMachineAlt.cppPointer, stateMachine.cppPointer)
+        assertEquals(listOf("artboard1stateMachine1"), artboard.stateMachineNames)
     }
 
     @Test
-    fun loadAnimationSecondAnimation() {
+    fun loadStateMachineSecondStateMachine() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard2")
-        var artboard2animation1 = artboard.animation(0)
-        var artboard2animation1Alt = artboard.animation("artboard2animation1")
-        assertEquals(artboard2animation1Alt.cppPointer, artboard2animation1.cppPointer)
+        var artboard2stateMachine1 = artboard.stateMachine(0)
+        var artboard2stateMachine1Alt = artboard.stateMachine("artboard2stateMachine1")
+        assertEquals(artboard2stateMachine1Alt.cppPointer, artboard2stateMachine1.cppPointer)
 
-        var artboard2animation2 = artboard.animation(1)
-        var artboard2animation2Alt = artboard.animation("artboard2animation2")
-        assertEquals(artboard2animation2Alt.cppPointer, artboard2animation2.cppPointer)
-        assertEquals(listOf("artboard2animation1", "artboard2animation2"), artboard.animationNames)
+        var artboard2stateMachine2 = artboard.stateMachine(1)
+        var artboard2stateMachine2Alt = artboard.stateMachine("artboard2stateMachine2")
+        assertEquals(artboard2stateMachine2Alt.cppPointer, artboard2stateMachine2.cppPointer)
+        assertEquals(listOf("artboard2stateMachine1", "artboard2stateMachine2"), artboard.stateMachineNames)
     }
 
     @Test
-    fun artboardHasNoAnimations() {
+    fun artboardHasNoStateMachines() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
-        assertEquals(0, artboard.animationCount)
-        assertEquals(listOf<String>(), artboard.animationNames)
+        assertEquals(0, artboard.stateMachineCount)
+        assertEquals(listOf<String>(), artboard.stateMachineNames)
     }
 
     @Test(expected = RiveException::class)
-    fun loadFirstAnimationNoExists() {
+    fun loadFirstStateMachineNoExists() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
-        artboard.firstAnimation
+        artboard.firstStateMachine
     }
 
     @Test(expected = RiveException::class)
-    fun loadAnimationByIndexDoesntExist() {
+    fun loadStateMachineByIndexDoesntExist() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
-        artboard.animation(1)
+        artboard.stateMachine(1)
     }
 
     @Test(expected = RiveException::class)
-    fun loadAnimationByNameDoesntExist() {
+    fun loadStateMachineByNameDoesntExist() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
-        artboard.animation("foo")
+        artboard.stateMachine("foo")
     }
 }

@@ -2,7 +2,7 @@
 #include "helpers/general.hpp"
 
 // From rive-cpp
-#include "animation/linear_animation_instance.hpp"
+#include "animation/linear_animation.hpp"
 //
 
 #ifdef __cplusplus
@@ -11,7 +11,7 @@ extern "C"
 #endif
 
     // ANIMATION
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeName(
+    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppName(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -21,7 +21,7 @@ extern "C"
         return env->NewStringUTF(animation->name().c_str());
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeDuration(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppDuration(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -30,7 +30,7 @@ extern "C"
         return (jint)animation->duration();
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeFps(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppFps(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -39,7 +39,7 @@ extern "C"
         return (jint)animation->fps();
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeWorkStart(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppWorkStart(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -48,7 +48,7 @@ extern "C"
         return (jint)animation->workStart();
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeWorkEnd(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppWorkEnd(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -57,7 +57,7 @@ extern "C"
         return (jint)animation->workEnd();
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeGetLoop(
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppGetLoop(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
@@ -66,7 +66,7 @@ extern "C"
         return (jint)animation->loop();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Animation_nativeSetLoop(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppSetLoop(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,

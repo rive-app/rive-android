@@ -49,7 +49,7 @@ class LowLevelRiveView: View {
     private val artboard: Artboard
     private val instance: LinearAnimationInstance
     private var lastTime: Long = 0
-    private lateinit var bounds: AABB
+    private var bounds: AABB
 
     constructor(renderer: Renderer, artboard: Artboard, context: Context) : super(context) {
         this.renderer = renderer
