@@ -186,7 +186,7 @@ class Artboard(val nativePointer: Long) {
         get() = (0 until animationCount).map { animation(it).name }
 
     /**
-     * Get the names of the stateMAchines in the artboard.
+     * Get the names of the stateMachines in the artboard.
      */
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { stateMachine(it).name }

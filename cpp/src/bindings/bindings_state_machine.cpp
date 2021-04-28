@@ -21,22 +21,44 @@ extern "C"
         return env->NewStringUTF(stateMachine->name().c_str());
     }
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeLayerCount(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        auto *stateMachine = (rive::StateMachine *)ref;
-        return (jint)stateMachine->layerCount();
-    }
-
     JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeInputCount(
         JNIEnv *env,
         jobject thisObj,
         jlong ref)
     {
-        auto *stateMachine = (rive::StateMachine *)ref;
+        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
         return (jint)stateMachine->inputCount();
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeLayerCount(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        return (jint)stateMachine->layerCount();
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeStateMachineInputByIndex(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint index)
+    {
+        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        return (jlong)stateMachine->input(index);
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachine_nativeStateMachineInputByName(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jstring name)
+    {
+        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+
+        return (jlong)stateMachine->input(
+            rive_android::jstring2string(env, name));
     }
 
 #ifdef __cplusplus
