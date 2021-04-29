@@ -6,6 +6,8 @@ import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
+import androidx.appcompat.widget.AppCompatCheckBox
+import androidx.appcompat.widget.AppCompatEditText
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveDrawable.Listener
 import app.rive.runtime.kotlin.core.*
@@ -22,13 +24,16 @@ class AndroidPlayerActivity : AppCompatActivity() {
         R.raw.flux_capacitor,
         R.raw.loopy,
         R.raw.mascot,
+        R.raw.neostream,
         R.raw.off_road_car_blog,
         R.raw.progress,
         R.raw.pull,
         R.raw.rope,
+        R.raw.skills,
         R.raw.trailblaze,
+        R.raw.ui_swipe_left_to_delete,
         R.raw.vader,
-        R.raw.wacky
+        R.raw.wacky,
     )
 
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
@@ -120,12 +125,120 @@ class AndroidPlayerActivity : AppCompatActivity() {
         return layout
     }
 
+
+    fun addStateMachineControl(artboard: Artboard, stateMachineName: String): List<View> {
+        val views = mutableListOf<View>()
+        val layout = LinearLayout(this)
+        layout.orientation = LinearLayout.HORIZONTAL
+        layout.gravity = Gravity.END
+
+        val text = TextView(this)
+        text.setText(stateMachineName)
+
+        val playButton = AppCompatButton(this)
+        playButton.setText(">")
+        playButton.setOnClickListener {
+            animationView.play(stateMachineName, loop, direction, isStateMachine = true)
+        }
+
+        val pauseButton = AppCompatButton(this)
+        pauseButton.setText("||")
+        pauseButton.setOnClickListener {
+            animationView.pause(stateMachineName, isStateMachine = true)
+        }
+
+        val stopButton = AppCompatButton(this)
+        stopButton.setText("[]")
+        stopButton.setOnClickListener {
+            animationView.stop(stateMachineName, isStateMachine = true)
+        }
+
+        val stateMachine = artboard.stateMachine(stateMachineName)
+
+        layout.addView(text)
+        layout.addView(playButton)
+        layout.addView(pauseButton)
+        layout.addView(stopButton)
+        views.add(layout)
+
+
+        stateMachine.inputs.forEach {
+            val layout = LinearLayout(this)
+            layout.orientation = LinearLayout.HORIZONTAL
+            layout.gravity = Gravity.END
+
+            val text = TextView(this)
+            text.setText(it.name)
+            layout.addView(text)
+
+            if (it.isTrigger) {
+                val triggerButton = AppCompatButton(this)
+                triggerButton.setText("x")
+                triggerButton.setOnClickListener { _ ->
+                    animationView.fireState(stateMachineName, it.name)
+                }
+                layout.addView(triggerButton)
+            }
+
+            if (it.isBoolean) {
+                val boolBox = AppCompatCheckBox(this)
+                if ((it as StateMachineBooleanInput).value) {
+                    boolBox.isChecked = true
+                }
+                boolBox.setOnCheckedChangeListener { _, b ->
+                    animationView.setBooleanState(stateMachineName, it.name, b)
+                }
+                layout.addView(boolBox)
+            }
+
+            if (it.isNumber) {
+                val editText = AppCompatEditText(this)
+                editText.setText((it as StateMachineNumberInput).value.toString())
+                val editTriggerButton = AppCompatButton(this)
+                editTriggerButton.setText("x")
+                editTriggerButton.setOnClickListener { _ ->
+                    try {
+                        var value = editText.text.toString().toFloat()
+                        animationView.setNumberState(stateMachineName, it.name, value)
+                    } catch (e: Error){
+
+                    }
+                }
+
+                layout.addView(editText)
+                layout.addView(editTriggerButton)
+            }
+
+            views.add(layout)
+        }
+
+        return views
+    }
+
     fun loadArtboard(artboardName: String) {
         var controls = findViewById<LinearLayout>(R.id.controls)
         controls.removeAllViews()
-        animationView.drawable.file?.artboard(artboardName)?.animationNames?.forEach {
-            controls.addView(addAnimationControl(it))
+        animationView.drawable.file?.artboard(artboardName)?.let { artboard ->
+            if (artboard.stateMachineNames.size > 0) {
+                val stateMachineHeader = TextView(this)
+                stateMachineHeader.setText("State Machines:")
+                controls.addView(stateMachineHeader)
+                artboard.stateMachineNames.forEach {
+                    addStateMachineControl(artboard, it).forEach {
+                        controls.addView(it)
+                    }
+                }
+            }
+            if (artboard.animationNames.size > 0) {
+                val animationsHeader = TextView(this)
+                animationsHeader.setText("Animations:")
+                controls.addView(animationsHeader)
+                artboard.animationNames.forEach {
+                    controls.addView(addAnimationControl(it))
+                }
+            }
         }
+
     }
 
     fun setSpinner() {
@@ -190,27 +303,35 @@ class AndroidPlayerActivity : AppCompatActivity() {
         val events = findViewById<LinearLayout>(R.id.events)
         val listener = object : Listener {
             override fun notifyPlay(animation: PlayableInstance) {
-                val text = TextView(that)
-                text.setText("Play ${(animation as LinearAnimationInstance).animation.name}")
-                events.addView(text, 0)
+                if (animation is LinearAnimationInstance) {
+                    val text = TextView(that)
+                    text.setText("Play ${animation.animation.name}")
+                    events.addView(text, 0)
+                }
             }
 
             override fun notifyPause(animation: PlayableInstance) {
-                val text = TextView(that)
-                text.setText("Pause ${(animation as LinearAnimationInstance).animation.name}")
-                events.addView(text, 0)
+                if (animation is LinearAnimationInstance) {
+                    val text = TextView(that)
+                    text.setText("Pause ${animation.animation.name}")
+                    events.addView(text, 0)
+                }
             }
 
             override fun notifyStop(animation: PlayableInstance) {
-                val text = TextView(that)
-                text.setText("Stop ${(animation as LinearAnimationInstance).animation.name}")
-                events.addView(text, 0)
+                if (animation is LinearAnimationInstance) {
+                    val text = TextView(that)
+                    text.setText("Stop ${animation.animation.name}")
+                    events.addView(text, 0)
+                }
             }
 
             override fun notifyLoop(animation: PlayableInstance) {
-                val text = TextView(that)
-                text.setText("Loop ${(animation as LinearAnimationInstance).animation.name}")
-                events.addView(text, 0)
+                if (animation is LinearAnimationInstance) {
+                    val text = TextView(that)
+                    text.setText("Loop ${animation.animation.name}")
+                    events.addView(text, 0)
+                }
             }
         }
 
