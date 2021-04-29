@@ -288,6 +288,18 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         }
     }
 
+    fun fireState(stateMachineName: String, inputName:String){
+        drawable.fireState(stateMachineName, inputName)
+    }
+
+    fun setBooleanState(stateMachineName: String, inputName:String, value:Boolean){
+        drawable.setBooleanState(stateMachineName, inputName, value)
+    }
+
+    fun setNumberState(stateMachineName: String, inputName:String, value:Float){
+        drawable.setNumberState(stateMachineName, inputName, value)
+    }
+
     /**
      * Check if the animation is currently playing
      */
