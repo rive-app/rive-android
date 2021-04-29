@@ -7,7 +7,7 @@ def details = versionDetails()
 ext {
     PUBLISH_GROUP_ID = 'app.rive'
     PUBLISH_VERSION = details.lastTag
-    PUBLISH_ARTIFACT_ID = 'rive'
+    PUBLISH_ARTIFACT_ID = 'rive-android'
 }
 buildscript {
     ext{
