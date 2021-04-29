@@ -289,6 +289,29 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     }
 
     /**
+     * Fire the [SMITrigger] input called [inputName] on all active matching state machines
+     */
+    fun fireState(stateMachineName: String, inputName:String){
+        drawable.fireState(stateMachineName, inputName)
+    }
+
+    /**
+     * Update the state of the [SMIBoolean] input called [inputName] on all active matching state machines
+     * to [value]
+     */
+    fun setBooleanState(stateMachineName: String, inputName:String, value:Boolean){
+        drawable.setBooleanState(stateMachineName, inputName, value)
+    }
+
+    /**
+     * Update the state of the [SMINumber] input called [inputName] on all active matching state machines
+     * to [value]
+     */
+    fun setNumberState(stateMachineName: String, inputName:String, value:Float){
+        drawable.setNumberState(stateMachineName, inputName, value)
+    }
+
+    /**
      * Check if the animation is currently playing
      */
     val isPlaying: Boolean
@@ -387,6 +410,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         alignment: Alignment,
         loop: Loop,
     ) {
+        drawable.stop()
         drawable.clear()
         drawable.fit = fit
         drawable.alignment = alignment

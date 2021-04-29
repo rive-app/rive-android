@@ -7,6 +7,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 
@@ -80,7 +81,9 @@ class RiveDrawable(
 
                     stateMachineInstance.apply(ab)
                     if (!stillPlaying) {
-                        _stop(stateMachineInstance)
+                        // State Machines need to pause not stop
+                        // as they have lots of stop and go possibilities
+                        _pause(stateMachineInstance)
                     }
                 }
             }
@@ -137,6 +140,8 @@ class RiveDrawable(
     }
 
     fun reset() {
+        Log.d("WAT", "${animations.size} ${stateMachines.size} ")
+        stop()
         clear()
         file?.let {
             setRiveFile(it)
@@ -259,6 +264,33 @@ class RiveDrawable(
         }
     }
 
+    fun fireState(stateMachineName: String, inputName:String){
+        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+        stateMachineInstances.forEach {
+            (it.input(inputName) as SMITrigger).fire()
+            _play(it)
+        }
+        animator.start()
+    }
+
+    fun setBooleanState(stateMachineName: String, inputName:String, value:Boolean){
+        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+        stateMachineInstances.forEach {
+            (it.input(inputName) as SMIBoolean).value=value
+            _play(it)
+        }
+        animator.start()
+    }
+
+    fun setNumberState(stateMachineName: String, inputName:String, value:Float){
+        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+        stateMachineInstances.forEach {
+            (it.input(inputName) as SMINumber).value=value
+            _play(it)
+        }
+        animator.start()
+    }
+
     // PRIVATE FUNCTIONS
 
     private fun _animations(animationName: String): List<LinearAnimationInstance> {
@@ -281,6 +313,19 @@ class RiveDrawable(
         }
     }
 
+    private fun _getOrCreateStateMachines(animationName: String): List<StateMachineInstance> {
+        val stateMachineInstances = _stateMachines(animationName)
+        if (stateMachineInstances.isEmpty()) {
+            artboard?.let {
+                val stateMachine = it.stateMachine(animationName)
+                val stateMachineInstance = StateMachineInstance(stateMachine)
+                stateMachines.add(stateMachineInstance)
+                return listOf(stateMachineInstance)
+            }
+        }
+        return stateMachineInstances
+    }
+
     private fun _playAnimation(
         animationName: String,
         loop: Loop = Loop.NONE,
@@ -288,16 +333,9 @@ class RiveDrawable(
         isStateMachine: Boolean = false,
     ) {
         if (isStateMachine) {
-            val stateMachineInstances = _stateMachines(animationName)
+            val stateMachineInstances = _getOrCreateStateMachines(animationName)
             stateMachineInstances.forEach { stateMachineInstance ->
                 _play(stateMachineInstance)
-            }
-            if (stateMachineInstances.isEmpty()) {
-                artboard?.let {
-                    val stateMachine = it.stateMachine(animationName)
-                    val stateMachineInstance = StateMachineInstance(stateMachine)
-                    _play(stateMachineInstance)
-                }
             }
         } else {
             val animationInstances = _animations(animationName)
