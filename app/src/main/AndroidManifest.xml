@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="app.rive.runtime.example">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -12,14 +16,19 @@
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SimpleActivity"></activity>
-        <activity android:name=".MultipleArtboardsActivity"></activity>
-        <activity android:name=".AndroidPlayerActivity"></activity>
-        <activity android:name=".LoopModeActivity"></activity>
-        <activity android:name=".LayoutActivity"></activity>
+        <activity android:name=".SimpleActivity" />
+        <activity android:name=".MultipleArtboardsActivity" />
+        <activity android:name=".AndroidPlayerActivity" />
+        <activity android:name=".LoopModeActivity" />
+        <activity android:name=".LayoutActivity" />
+        <activity android:name=".RiveFragmentActivity" />
+        <activity android:name=".LowLevelActivity" />
+        <activity android:name=".SimpleStateMachineActivity" />
+        <activity android:name=".HttpActivity"></activity>
     </application>
 
 </manifest>

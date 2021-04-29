@@ -4,17 +4,16 @@ apply plugin: 'signing'
 task androidSourcesJar(type: Jar) {
     archiveClassifier.set('sources')
     if (project.plugins.findPlugin("com.android.library")) {
+        // For Android libraries
         from android.sourceSets.main.java.srcDirs
         from android.sourceSets.main.kotlin.srcDirs
     } else {
+        // For pure Kotlin libraries, in case you have them
         from sourceSets.main.java.srcDirs
         from sourceSets.main.kotlin.srcDirs
     }
 }
 
-artifacts {
-    archives androidSourcesJar
-}
 
 group = PUBLISH_GROUP_ID
 version = PUBLISH_VERSION
@@ -23,25 +22,28 @@ afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
+                // The coordinates of the library, being set from variables that
+                // we'll set up later
                 groupId PUBLISH_GROUP_ID
                 artifactId PUBLISH_ARTIFACT_ID
                 version PUBLISH_VERSION
+
+                // Two artifacts, the `aar` (or `jar`) and the sources
                 if (project.plugins.findPlugin("com.android.library")) {
                     from components.release
                 } else {
                     artifact("$buildDir/libs/${project.getName()}-${version}.jar")
                 }
 
-                artifact androidSourcesJar
-
+                // Mostly self-explanatory metadata
                 pom {
                     name = PUBLISH_ARTIFACT_ID
-                    description = 'Stream Chat official Android SDK'
+                    description = 'Rive is a real-time interactive design and animation tool. Use our collaborative editor to create motion graphics that respond to different states and user inputs. Then load your animations into apps, games, and websites with our lightweight open-source runtimes.'
                     url = 'https://rive.app'
                     licenses {
                         license {
-                            name = 'Wasm License'
-                            url = 'https://github.com/rive-app/rive-wasm/blob/master/LICENSE'
+                            name = 'MIT License'
+                            url = 'https://github.com/rive-app/rive-android/blob/master/LICENSE'
                         }
                     }
                     developers {
@@ -60,9 +62,17 @@ afterEvaluate {
                             name = 'Maxwell Talbot'
                             email = 'max@rive.app'
                         }
+                        developer {
+                            id = 'mjohnsullivan'
+                            name = 'Matt Sullivan'
+                            email = 'matt@rive.app'
+                        }
                     }
+
+                    // Version control info - if you're using GitHub, follow the
+                    // format as seen here
                     scm {
-                        connection = 'scm:git:git@github.com:rive-app/rive-android.git'     
+                        connection = 'scm:git:git@github.com:rive-app/rive-android.git'
                         developerConnection = 'scm:git:ssh://git@github.com:rive-app/rive-android.git'
                         url = 'https://github.com/rive-app/rive-android/tree/master'
                     }

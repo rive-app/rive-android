@@ -317,7 +317,7 @@ class RiveViewTest {
         }
     }
 
-    @Test(expected = RiveException::class)
+    @Test
     fun viewSetResourceLoadArtboardArtboardGotcha() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()

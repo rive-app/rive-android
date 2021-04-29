@@ -10,7 +10,6 @@ import app.rive.runtime.kotlin.core.Rive
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.example_selection)
 
         findViewById<Button>(R.id.go_simple).setOnClickListener {
@@ -40,6 +39,30 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.go_layout).setOnClickListener {
             startActivity(
                 Intent(this, LayoutActivity::class.java)
+            )
+        }
+
+        findViewById<Button>(R.id.go_fragment).setOnClickListener {
+            startActivity(
+                Intent(this, RiveFragmentActivity::class.java)
+            )
+        }
+
+        findViewById<Button>(R.id.go_low_level).setOnClickListener {
+            startActivity(
+                    Intent(this, LowLevelActivity::class.java)
+            )
+        }
+
+        findViewById<Button>(R.id.go_http).setOnClickListener {
+            startActivity(
+                Intent(this, HttpActivity::class.java)
+            )
+        }
+
+        findViewById<Button>(R.id.go_simple_state_machine).setOnClickListener {
+            startActivity(
+                Intent(this, SimpleStateMachineActivity::class.java)
             )
         }
     }

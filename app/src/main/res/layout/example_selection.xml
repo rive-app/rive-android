@@ -5,41 +5,74 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <LinearLayout
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        >
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-        <Button
-            android:id="@+id/go_android_player"
+        <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:text="Android Player" />
+            android:orientation="vertical"
+            >
 
-        <Button
-            android:id="@+id/go_simple"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="Simple" />
+            <Button
+                android:id="@+id/go_android_player"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Android Player" />
 
-        <Button
-            android:id="@+id/go_multiple_artboards"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="Multiple Artboards" />
+            <Button
+                android:id="@+id/go_simple"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Simple" />
+
+            <Button
+                android:id="@+id/go_multiple_artboards"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Multiple Artboards" />
 
 
-        <Button
-            android:id="@+id/go_loop_mode"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="Loop mode" />
+            <Button
+                android:id="@+id/go_loop_mode"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Loop mode" />
 
-        <Button
-            android:id="@+id/go_layout"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="Layout" />
-    </LinearLayout>
+            <Button
+                android:id="@+id/go_layout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Layout" />
+
+            <Button
+                android:id="@+id/go_fragment"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Fragment" />
+
+            <Button
+                android:id="@+id/go_low_level"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Low Level Renderer" />
+
+            <Button
+                android:id="@+id/go_http"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="HTTP" />
+
+
+            <Button
+                android:id="@+id/go_simple_state_machine"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="State Machine" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

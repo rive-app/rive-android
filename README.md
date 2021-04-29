@@ -8,17 +8,13 @@
 
 This is the Android runtime for [Rive](https://rive.app), currently in beta. The api is subject to change as we continue to improve it. Please file issues and PRs for anything busted, missing, or just wrong.
 
-We are not currently available on Maven, so to use your own `.aar`
-
 ## Installing
 
-1. Clone the repo `git clone --recurse-submodules git@github.com:rive-app/rive-android.git`
-2. Open the directory as an Android Studio project
-3. Build the `.aar`, with the Android Studio project open, in the menu select **`Build` > `Make Module 'kotlin'`**.
+To add Rive in your project, include the following in your `dependencies`:
 
-    Android Studio will put the `.aar` library file in `kotlin/build/outputs/aar` .
-
-4. [The documentation](https://developer.android.com/studio/projects/android-library#AddDependency) lists all the steps to add the library to your own projects.
+```
+implementation 'app.rive:rive-android:0.0.2'
+```
 
 ## RiveAnimationView
 
@@ -182,4 +178,38 @@ cd cpp
 ./build.rive.for.sh -c -a x86_64
 ./build.rive.for.sh -c -a arm64-v8a
 ./build.rive.for.sh -c -a armeabi-v7a
+```
+
+## Manually Initializing Rive
+
+Rive needs to initialize its runtime when your app starts. It includes an [initializer](https://developer.android.com/topic/libraries/app-startup) that does this for you automatically. The initialization provider is set up in the Rive module's manifest.
+
+Gradle will typically merge up the module's manifest with your app's so you don't have to do anything. If you're using another build system, this might not happen.
+
+If that's the case, you can activate this by either including a provider in your manifest file:
+
+```xml
+<provider
+  android:name="androidx.startup.InitializationProvider"
+  android:authorities="${applicationId}.androidx-startup"
+  android:exported="false"
+  tools:node="merge">
+    <meta-data android:name="app.rive.runtime.kotlin.RiveInitializer"
+      android:value="androidx.startup" />
+</provider>
+```
+
+or calling the initializer in your code:
+
+```kotlin
+AppInitializer.getInstance(applicationContext)
+  .initializeComponent(RiveInitializer::class.java)
+```
+
+You'll need the add a dependency for Jetpack Startup:
+
+```groovy
+dependencies {
+    implementation "androidx.startup:startup-runtime:1.0.0"
+}
 ```

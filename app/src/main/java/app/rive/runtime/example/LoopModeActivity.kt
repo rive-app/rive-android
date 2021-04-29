@@ -16,7 +16,6 @@ class LoopModeActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.loop_mode)
 
         findViewById<AppCompatButton>(R.id.reset).setOnClickListener { _ ->
