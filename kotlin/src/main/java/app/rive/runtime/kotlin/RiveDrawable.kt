@@ -7,6 +7,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 
@@ -139,6 +140,8 @@ class RiveDrawable(
     }
 
     fun reset() {
+        Log.d("WAT", "${animations.size} ${stateMachines.size} ")
+        stop()
         clear()
         file?.let {
             setRiveFile(it)
