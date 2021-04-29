@@ -64,10 +64,4 @@ task buildJNI(type: Exec) {
     commandLine './build.rive.for.sh', '-a', getDeviceAbi()
 }
 
-ext {
-    PUBLISH_GROUP_ID = 'app.rive'
-    PUBLISH_VERSION = '0.0.3'
-    PUBLISH_ARTIFACT_ID = 'rive-android'
-}
-
 apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
