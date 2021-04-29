@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -15,6 +16,9 @@ import app.rive.runtime.kotlin.core.*
 class AndroidPlayerActivity : AppCompatActivity() {
     var loop: Loop = Loop.NONE
     var direction: Direction = Direction.AUTO
+    var playButtonMap: HashMap<String, View> = HashMap()
+    var pauseButtonMap: HashMap<String, View> = HashMap()
+    var stopButtonMap: HashMap<String, View> = HashMap()
 
     val animationResources = listOf(
         R.raw.artboard_animations,
@@ -49,6 +53,11 @@ class AndroidPlayerActivity : AppCompatActivity() {
         animationView.artboardName
         animationView.setRiveResource(animationResources[index], artboardName = null)
         setSpinner()
+
+        playButtonMap.clear()
+        pauseButtonMap.clear()
+        stopButtonMap.clear()
+
         animationView.drawable.file?.firstArtboard?.name?.let {
             loadArtboard(it)
         }
@@ -97,25 +106,31 @@ class AndroidPlayerActivity : AppCompatActivity() {
         layout.gravity = Gravity.END
 
         var text = TextView(this)
-        text.setText(animationName)
+        text.text = animationName
 
         var playButton = AppCompatButton(this)
-        playButton.setText(">")
+        playButton.text = ">"
+        playButton.background.setTint(Color.WHITE)
         playButton.setOnClickListener {
             animationView.play(animationName, loop, direction)
         }
+        playButtonMap[animationName] = playButton
 
         var pauseButton = AppCompatButton(this)
-        pauseButton.setText("||")
+        pauseButton.text = "||"
+        pauseButton.background.setTint(Color.WHITE)
         pauseButton.setOnClickListener {
             animationView.pause(animationName)
         }
+        pauseButtonMap[animationName] = pauseButton
 
         var stopButton = AppCompatButton(this)
-        stopButton.setText("[]")
+        stopButton.text = "[]"
+        stopButton.background.setTint(Color.RED)
         stopButton.setOnClickListener {
             animationView.stop(animationName)
         }
+        stopButtonMap[animationName] = stopButton
 
 
         layout.addView(text)
@@ -133,25 +148,31 @@ class AndroidPlayerActivity : AppCompatActivity() {
         layout.gravity = Gravity.END
 
         val text = TextView(this)
-        text.setText(stateMachineName)
+        text.text = stateMachineName
 
         val playButton = AppCompatButton(this)
-        playButton.setText(">")
+        playButton.text = ">"
+        playButton.background.setTint(Color.WHITE)
         playButton.setOnClickListener {
             animationView.play(stateMachineName, loop, direction, isStateMachine = true)
         }
+        playButtonMap[stateMachineName] = playButton
 
         val pauseButton = AppCompatButton(this)
-        pauseButton.setText("||")
+        pauseButton.text = "||"
+        pauseButton.background.setTint(Color.WHITE)
         pauseButton.setOnClickListener {
             animationView.pause(stateMachineName, isStateMachine = true)
         }
+        pauseButtonMap[stateMachineName] = pauseButton
 
         val stopButton = AppCompatButton(this)
-        stopButton.setText("[]")
+        stopButton.text = "[]"
+        stopButton.background.setTint(Color.RED)
         stopButton.setOnClickListener {
             animationView.stop(stateMachineName, isStateMachine = true)
         }
+        stopButtonMap[stateMachineName] = stopButton
 
         val stateMachine = artboard.stateMachine(stateMachineName)
 
@@ -168,12 +189,13 @@ class AndroidPlayerActivity : AppCompatActivity() {
             layout.gravity = Gravity.END
 
             val text = TextView(this)
-            text.setText(it.name)
+            text.text = it.name
             layout.addView(text)
 
             if (it.isTrigger) {
                 val triggerButton = AppCompatButton(this)
-                triggerButton.setText("x")
+                triggerButton.text = "Fire"
+                triggerButton.background.setTint(Color.WHITE)
                 triggerButton.setOnClickListener { _ ->
                     animationView.fireState(stateMachineName, it.name)
                 }
@@ -195,12 +217,13 @@ class AndroidPlayerActivity : AppCompatActivity() {
                 val editText = AppCompatEditText(this)
                 editText.setText((it as StateMachineNumberInput).value.toString())
                 val editTriggerButton = AppCompatButton(this)
-                editTriggerButton.setText("x")
+                editTriggerButton.text = "Apply"
+                editTriggerButton.background.setTint(Color.WHITE)
                 editTriggerButton.setOnClickListener { _ ->
                     try {
                         var value = editText.text.toString().toFloat()
                         animationView.setNumberState(stateMachineName, it.name, value)
-                    } catch (e: Error){
+                    } catch (e: Error) {
 
                     }
                 }
@@ -221,7 +244,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         animationView.drawable.file?.artboard(artboardName)?.let { artboard ->
             if (artboard.stateMachineNames.size > 0) {
                 val stateMachineHeader = TextView(this)
-                stateMachineHeader.setText("State Machines:")
+                stateMachineHeader.text = "State Machines:"
                 controls.addView(stateMachineHeader)
                 artboard.stateMachineNames.forEach {
                     addStateMachineControl(artboard, it).forEach {
@@ -231,7 +254,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
             }
             if (artboard.animationNames.size > 0) {
                 val animationsHeader = TextView(this)
-                animationsHeader.setText("Animations:")
+                animationsHeader.text = "Animations:"
                 controls.addView(animationsHeader)
                 artboard.animationNames.forEach {
                     controls.addView(addAnimationControl(it))
@@ -248,7 +271,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
                 this,
                 android.R.layout.simple_spinner_dropdown_item,
                 artboardNames
-            );
+            )
             dropdown.adapter = adapter
             dropdown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
@@ -276,7 +299,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
                 this,
                 android.R.layout.simple_spinner_dropdown_item,
                 resourceNames
-            );
+            )
             dropdown.adapter = adapter
             dropdown.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
@@ -303,44 +326,92 @@ class AndroidPlayerActivity : AppCompatActivity() {
         val events = findViewById<LinearLayout>(R.id.events)
         val listener = object : Listener {
             override fun notifyPlay(animation: PlayableInstance) {
+                var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    val text = TextView(that)
-                    text.setText("Play ${animation.animation.name}")
-                    events.addView(text, 0)
+                    text = animation.animation.name
+                } else if (animation is StateMachineInstance) {
+                    text = animation.stateMachine.name
+                }
+                text?.let {
+                    val textView = TextView(that)
+                    textView.text = "Play $text"
+                    events.addView(textView, 0)
+                    playButtonMap.get(text)?.let {
+                        it.background.setTint(Color.GREEN)
+                    }
+                    pauseButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
+                    stopButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
                 }
             }
 
             override fun notifyPause(animation: PlayableInstance) {
+                var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    val text = TextView(that)
-                    text.setText("Pause ${animation.animation.name}")
-                    events.addView(text, 0)
+                    text = animation.animation.name
+                } else if (animation is StateMachineInstance) {
+                    text = animation.stateMachine.name
+                }
+                text?.let {
+                    val textView = TextView(that)
+                    textView.text = "Pause $text"
+                    events.addView(textView, 0)
+                    playButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
+                    pauseButtonMap.get(text)?.let {
+                        it.background.setTint(Color.BLUE)
+                    }
+                    stopButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
                 }
             }
 
             override fun notifyStop(animation: PlayableInstance) {
+                var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    val text = TextView(that)
-                    text.setText("Stop ${animation.animation.name}")
-                    events.addView(text, 0)
+                    text = animation.animation.name
+                } else if (animation is StateMachineInstance) {
+                    text = animation.stateMachine.name
+                }
+                text?.let {
+                    val textView = TextView(that)
+                    textView.text = "Stop $text"
+                    events.addView(textView, 0)
+                    playButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
+                    pauseButtonMap.get(text)?.let {
+                        it.background.setTint(Color.WHITE)
+                    }
+                    stopButtonMap.get(text)?.let {
+                        it.background.setTint(Color.RED)
+                    }
                 }
             }
 
             override fun notifyLoop(animation: PlayableInstance) {
                 if (animation is LinearAnimationInstance) {
                     val text = TextView(that)
-                    text.setText("Loop ${animation.animation.name}")
+                    text.text = "Loop ${animation.animation.name}"
                     events.addView(text, 0)
                 }
             }
         }
 
         animationView.registerListener(listener)
-
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
         animationView.destroy()
     }
+
+
 }
+

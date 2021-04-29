@@ -399,6 +399,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         alignment: Alignment,
         loop: Loop,
     ) {
+        drawable.stop()
         drawable.clear()
         drawable.fit = fit
         drawable.alignment = alignment
