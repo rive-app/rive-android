@@ -18,7 +18,7 @@ jobs:
       - name: Build Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 29
           script: ./gradlew kotlin:assembleRelease
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -55,7 +55,7 @@ jobs:
       - name: Publish to MavenCentral
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 29
           script: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
