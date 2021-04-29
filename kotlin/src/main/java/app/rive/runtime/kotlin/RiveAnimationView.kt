@@ -30,15 +30,10 @@ import java.util.*
  */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs),
     Observable<RiveDrawable.Listener> {
-    // TODO: stop creating an empty drawable to begin with.
-    private var _drawable: RiveDrawable = RiveDrawable();
-    private var resourceId: Int? = null;
+    // There's always just one drawable associated with an animation view
+    val drawable = RiveDrawable()
 
-    var drawable: RiveDrawable
-        get() = _drawable
-        private set(value) {
-            _drawable = value
-        }
+    private var resourceId: Int? = null
 
     var fit: Fit
         get() = drawable.fit
@@ -86,10 +81,22 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         get() = drawable.animations
 
     /**
+     * Get the currently loaded [state machine instances][StateMachineInstance].
+     */
+    val stateMachines: List<StateMachineInstance>
+        get() = drawable.stateMachines
+
+    /**
      * Get the currently playing [animation instances][LinearAnimationInstance].
      */
     val playingAnimations: HashSet<LinearAnimationInstance>
         get() = drawable.playingAnimations
+
+    /**
+     * Get the currently playing [state machine instances][StateMachineInstance].
+     */
+    val playingStateMachines: HashSet<StateMachineInstance>
+        get() = drawable.playingStateMachines
 
     init {
         context.theme.obtainStyledAttributes(
@@ -104,6 +111,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, autoplay)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
+                val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
 
                 if (resourceId != -1) {
@@ -114,15 +122,17 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                         loop = Loop.values()[loopIndex],
                         autoplay = autoplay,
                         artboardName = artboardName,
+                        stateMachineName = stateMachineName,
                         animationName = animationName,
                     )
                 } else {
-                    drawable.alignment = Alignment.values()[alignmentIndex];
-                    drawable.fit = Fit.values()[fitIndex];
-                    drawable.loop = Loop.values()[loopIndex];
-                    drawable.autoplay = autoplay;
-                    drawable.artboardName = artboardName;
-                    drawable.animationName = animationName;
+                    drawable.alignment = Alignment.values()[alignmentIndex]
+                    drawable.fit = Fit.values()[fitIndex]
+                    drawable.loop = Loop.values()[loopIndex]
+                    drawable.autoplay = autoplay
+                    drawable.artboardName = artboardName
+                    drawable.animationName = animationName
+                    drawable.stateMachineName = stateMachineName
                 }
 
             } finally {
@@ -145,9 +155,10 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
      * [animation][Animation]
      */
-    fun pause(animationNames: List<String>) {
-        drawable.pause(animationNames)
+    fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
+        drawable.pause(animationNames, areStateMachines)
     }
+
 
     /**
      * Pauses any [animation instances][LinearAnimationInstance] for an [animation][Animation]
@@ -156,8 +167,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
      * [animation][Animation]
      */
-    fun pause(animationName: String) {
-        drawable.pause(animationName)
+    fun pause(animationName: String, isStateMachine: Boolean = false) {
+        drawable.pause(animationName, isStateMachine)
     }
 
     /**
@@ -182,8 +193,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
      * [animation][Animation]
      */
-    fun stop(animationNames: List<String>) {
-        drawable.stopAnimations(animationNames)
+    fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
+        drawable.stopAnimations(animationNames, areStateMachines)
     }
 
     /**
@@ -197,8 +208,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
      * [animation][Animation]
      */
-    fun stop(animationName: String) {
-        drawable.stopAnimations(animationName)
+    fun stop(animationName: String, isStateMachine: Boolean = false) {
+        drawable.stopAnimations(animationName, isStateMachine)
     }
 
     /**
@@ -229,9 +240,10 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     fun play(
         animationNames: List<String>,
         loop: Loop = Loop.NONE,
-        direction: Direction = Direction.AUTO
+        direction: Direction = Direction.AUTO,
+        areStateMachines: Boolean = false
     ) {
-        drawable.play(animationNames, loop, direction)
+        drawable.play(animationNames, loop, direction, areStateMachines)
     }
 
     /**
@@ -243,9 +255,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     fun play(
         animationName: String,
         loop: Loop = Loop.NONE,
-        direction: Direction = Direction.AUTO
+        direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
     ) {
-        drawable.play(animationName, loop, direction)
+        drawable.play(animationName, loop, direction, isStateMachine)
     }
 
     /**
@@ -268,6 +280,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 loop = drawable.loop,
                 artboardName = drawable.artboardName,
                 animationName = drawable.animationName,
+                stateMachineName = drawable.stateMachineName,
                 autoplay = drawable.autoplay
             )
         } ?: run {
@@ -295,15 +308,51 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun setRiveResource(
         @RawRes resId: Int,
-        artboardName: String? = drawable.artboardName,
-        animationName: String? = drawable.animationName,
+        artboardName: String? = null,
+        animationName: String? = null,
+        stateMachineName: String? = null,
         autoplay: Boolean = drawable.autoplay,
-        fit: Fit = drawable.fit,
-        alignment: Alignment = drawable.alignment,
-        loop: Loop = drawable.loop,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
     ) {
         resourceId = resId
-        val file = File(resources.openRawResource(resId).readBytes())
+        val bytes = resources.openRawResource(resId).readBytes()
+        setRiveBytes(
+            bytes,
+            fit = fit,
+            alignment = alignment,
+            loop = loop,
+            artboardName = artboardName,
+            animationName = animationName,
+            stateMachineName = stateMachineName,
+            autoplay = autoplay
+        )
+    }
+
+    /**
+     * Create a view file from a byte array and load it into the view
+     *
+     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Enable [autoplay] to start the animation without further prompts.
+     * - Configure [alignment] to specify how the animation should be aligned to its container.
+     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
+     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     */
+    fun setRiveBytes(
+        bytes: ByteArray,
+        artboardName: String? = null,
+        animationName: String? = null,
+        stateMachineName: String? = null,
+        autoplay: Boolean = drawable.autoplay,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.NONE,
+    ) {
+        val file = File(bytes)
         setRiveFile(
             file,
             fit = fit,
@@ -311,6 +360,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
             loop = loop,
             artboardName = artboardName,
             animationName = animationName,
+            stateMachineName = stateMachineName,
             autoplay = autoplay
         )
     }
@@ -327,27 +377,24 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      *
      * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
-    fun setRiveFile(
+    private fun setRiveFile(
         file: File,
-        artboardName: String? = drawable.artboardName,
-        animationName: String? = drawable.animationName,
-        autoplay: Boolean = drawable.autoplay,
-        fit: Fit = drawable.fit,
-        alignment: Alignment = drawable.alignment,
-        loop: Loop = drawable.loop,
+        artboardName: String?,
+        animationName: String?,
+        stateMachineName: String?,
+        autoplay: Boolean,
+        fit: Fit,
+        alignment: Alignment,
+        loop: Loop,
     ) {
-        drawable.destroy()
-
-        // TODO: we maybe not be cleaning something up here,
-        //       as we shouldnt have create a new drawable
-        drawable = RiveDrawable(
-            fit = fit,
-            alignment = alignment,
-            loop = loop,
-            autoplay = autoplay,
-            animationName = animationName,
-            artboardName = artboardName,
-        )
+        drawable.clear()
+        drawable.fit = fit
+        drawable.alignment = alignment
+        drawable.loop = loop
+        drawable.autoplay = autoplay
+        drawable.animationName = animationName
+        drawable.stateMachineName = stateMachineName
+        drawable.artboardName = artboardName
 
         drawable.setRiveFile(file)
         background = drawable

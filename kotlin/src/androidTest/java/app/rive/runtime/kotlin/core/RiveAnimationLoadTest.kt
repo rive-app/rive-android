@@ -18,7 +18,7 @@ class RiveAnimationLoadTest {
 
         var animationAlt = artboard.animation(0)
         var animation = artboard.animation("artboard1animation1")
-        assertEquals(animationAlt.nativePointer, animation.nativePointer)
+        assertEquals(animationAlt.cppPointer, animation.cppPointer)
         assertEquals(listOf("artboard1animation1"), artboard.animationNames)
     }
 
@@ -29,11 +29,11 @@ class RiveAnimationLoadTest {
         var artboard = file.artboard("artboard2")
         var artboard2animation1 = artboard.animation(0)
         var artboard2animation1Alt = artboard.animation("artboard2animation1")
-        assertEquals(artboard2animation1Alt.nativePointer, artboard2animation1.nativePointer)
+        assertEquals(artboard2animation1Alt.cppPointer, artboard2animation1.cppPointer)
 
         var artboard2animation2 = artboard.animation(1)
         var artboard2animation2Alt = artboard.animation("artboard2animation2")
-        assertEquals(artboard2animation2Alt.nativePointer, artboard2animation2.nativePointer)
+        assertEquals(artboard2animation2Alt.cppPointer, artboard2animation2.cppPointer)
         assertEquals(listOf("artboard2animation1", "artboard2animation2"), artboard.animationNames)
     }
 

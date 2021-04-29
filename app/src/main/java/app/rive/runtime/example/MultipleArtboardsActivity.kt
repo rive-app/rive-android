@@ -8,7 +8,6 @@ import app.rive.runtime.kotlin.core.Rive
 class MultipleArtboardsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.multiple_artboards)
     }
 }

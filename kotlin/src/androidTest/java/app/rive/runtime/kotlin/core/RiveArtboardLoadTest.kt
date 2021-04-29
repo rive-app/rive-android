@@ -18,12 +18,12 @@ class RiveArtboardLoadTest {
         assertEquals(2, file.artboardCount);
         // Note index order seems to be reversed.
         assertEquals(
-            file.artboard(name = "artboard1").nativePointer,
-            file.artboard(1).nativePointer
+            file.artboard(name = "artboard1").cppPointer,
+            file.artboard(1).cppPointer
         )
         assertEquals(
-            file.artboard(name = "artboard2").nativePointer,
-            file.artboard(0).nativePointer
+            file.artboard(name = "artboard2").cppPointer,
+            file.artboard(0).cppPointer
         )
         assertEquals(listOf<String>("artboard2", "artboard1"), file.artboardNames)
     }
@@ -49,6 +49,7 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
         assertEquals(1, artboard1.animationCount);
+        assertEquals(1, artboard1.stateMachineCount);
         assertEquals("artboard1", artboard1.name);
         assertEquals(500f, artboard1.bounds.height);
         assertEquals(500f, artboard1.bounds.width);
@@ -60,6 +61,7 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
         assertEquals(2, artboard2.animationCount);
+        assertEquals(2, artboard2.stateMachineCount);
         assertEquals("artboard2", artboard2.name);
     }
 

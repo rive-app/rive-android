@@ -8,10 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveDrawable.Listener
-import app.rive.runtime.kotlin.core.Direction
-import app.rive.runtime.kotlin.core.LinearAnimationInstance
-import app.rive.runtime.kotlin.core.Loop
-import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.core.*
 
 class AndroidPlayerActivity : AppCompatActivity() {
     var loop: Loop = Loop.NONE
@@ -46,34 +43,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun loadResource(index: Int) {
         animationView.artboardName
         animationView.setRiveResource(animationResources[index], artboardName = null)
-        val that = this
-        val events = findViewById<LinearLayout>(R.id.events)
-        val listener = object : Listener {
-            override fun notifyPlay(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Play ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyPause(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Pause ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyStop(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Stop ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-
-            override fun notifyLoop(animation: LinearAnimationInstance) {
-                val text = TextView(that)
-                text.setText("Loop ${animation.animation.name}")
-                events.addView(text, 0)
-            }
-        }
-        animationView.registerListener(listener)
         setSpinner()
         animationView.drawable.file?.firstArtboard?.name?.let {
             loadArtboard(it)
@@ -188,7 +157,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
 
     fun setResourceSpinner() {
-        animationResources.let { resourceId ->
+        animationResources.let { _ ->
             var dropdown = findViewById<Spinner>(R.id.resources)
             var adapter = ArrayAdapter<String>(
                 this,
@@ -214,11 +183,38 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init()
         setContentView(R.layout.android_player)
         setResourceSpinner()
         loadResource(0)
+        val that = this
+        val events = findViewById<LinearLayout>(R.id.events)
+        val listener = object : Listener {
+            override fun notifyPlay(animation: PlayableInstance) {
+                val text = TextView(that)
+                text.setText("Play ${(animation as LinearAnimationInstance).animation.name}")
+                events.addView(text, 0)
+            }
 
+            override fun notifyPause(animation: PlayableInstance) {
+                val text = TextView(that)
+                text.setText("Pause ${(animation as LinearAnimationInstance).animation.name}")
+                events.addView(text, 0)
+            }
+
+            override fun notifyStop(animation: PlayableInstance) {
+                val text = TextView(that)
+                text.setText("Stop ${(animation as LinearAnimationInstance).animation.name}")
+                events.addView(text, 0)
+            }
+
+            override fun notifyLoop(animation: PlayableInstance) {
+                val text = TextView(that)
+                text.setText("Loop ${(animation as LinearAnimationInstance).animation.name}")
+                events.addView(text, 0)
+            }
+        }
+
+        animationView.registerListener(listener)
 
     }
 
