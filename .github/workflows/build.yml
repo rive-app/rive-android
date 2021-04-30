@@ -29,7 +29,6 @@ jobs:
   
   publish:
     name: Release build and publish
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
