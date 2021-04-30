@@ -9,13 +9,15 @@ package app.rive.runtime.kotlin.core
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
+class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() {
     private var cppPointer: Long = constructor(stateMachine.cppPointer)
     private external fun constructor(stateMachinePointer: Long): Long
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
     private external fun cppApply(pointer: Long, artboardPointer: Long)
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppStateChangedCount(cppPointer: Long): Int
+    private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
 
 
     /**
@@ -32,6 +34,12 @@ class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
      */
     val inputCount: Int
         get() = cppInputCount(cppPointer)
+
+    /**
+     * Return the number of states changed in the last advance.
+     */
+    val stateChangedCount: Int
+        get() = cppStateChangedCount(cppPointer)
 
     fun _convertInput(input: SMIInput): SMIInput {
         if (input.isBoolean) {
@@ -55,9 +63,11 @@ class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
         if (stateMachineInputPointer == 0L) {
             throw RiveException("No StateMachineInput found at index $index.")
         }
-        return _convertInput(SMIInput(
-            stateMachineInputPointer
-        ))
+        return _convertInput(
+            SMIInput(
+                stateMachineInputPointer
+            )
+        )
     }
 
     /**
@@ -65,9 +75,9 @@ class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
      */
     @Throws(RiveException::class)
     fun input(name: String): SMIInput {
-        for (i in 0 until inputCount){
+        for (i in 0 until inputCount) {
             val output = input(i)
-            if (output.name == name){
+            if (output.name == name) {
                 return output
             }
         }
@@ -92,6 +102,42 @@ class StateMachineInstance(val stateMachine: StateMachine): PlayableInstance() {
     fun apply(artboard: Artboard) {
         cppApply(cppPointer, artboard.cppPointer)
     }
+
+    fun _convertLayerState(state: LayerState): LayerState {
+        if (state.isAnimationState) {
+            return AnimationState(state.cppPointer)
+        } else if (state.isAnyState) {
+            return AnyState(state.cppPointer)
+        } else if (state.isEntryState) {
+            return EntryState(state.cppPointer)
+        } else if (state.isExitState) {
+            return ExitState(state.cppPointer)
+        }
+        throw RiveException("Unknown Layer State for ${state}.")
+    }
+
+    /**
+     * Get a specific state changed in the last advance.
+     */
+    @Throws(RiveException::class)
+    fun stateChanged(index: Int): LayerState {
+        val stateChanged = cppStateChangedByIndex(cppPointer, index)
+        if (stateChanged == 0L) {
+            throw RiveException("No StateMachineInput found at index $index.")
+        }
+        return _convertLayerState(
+            LayerState(
+                stateChanged
+            )
+        )
+
+    }
+
+    /**
+     * Get the layer states changed in the last advance.
+     */
+    val statesChanged: List<LayerState>
+        get() = (0 until stateChangedCount).map { stateChanged(it) }
 
 }
 

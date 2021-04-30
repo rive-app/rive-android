@@ -16,6 +16,7 @@ class Observer : RiveDrawable.Listener {
     var pauses = mutableListOf<PlayableInstance>()
     var stops = mutableListOf<PlayableInstance>()
     var loops = mutableListOf<PlayableInstance>()
+    var states = mutableListOf<LayerState>()
     override fun notifyPlay(playableInstance: PlayableInstance) {
         plays.add(playableInstance)
     }
@@ -31,15 +32,16 @@ class Observer : RiveDrawable.Listener {
     override fun notifyLoop(playableInstance: PlayableInstance) {
         loops.add(playableInstance)
     }
+    override fun notifyStateChanged(state: LayerState) {
+        states.add(state)
+    }
 }
 
 @RunWith(AndroidJUnit4::class)
 class RiveEventTest {
 
     @Test
-    @Ignore
     fun testRegisterOrder() {
-        // doesn't work right now, because we trash the drawable
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
             val view = RiveAnimationView(appContext)
@@ -226,6 +228,107 @@ class RiveEventTest {
             assertEquals(0, observer.pauses.size)
             assertEquals(0, observer.stops.size)
             assertEquals(1, observer.loops.size)
+        }
+    }
+
+    @Test
+    fun testStateMachineLayerStates() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isAnimationState)
+            view.drawable.advance(2000f)
+            assertEquals(2, observer.states.size)
+            assertEquals(true, observer.states[1].isExitState)
+        }
+    }
+
+    @Test
+    fun testStateMachineLayerStatesAnimations() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 1")
+            assertEquals(0, observer.states.size)
+
+            view.fireState("State Machine 1", "right")
+
+            // lets just start, expect 1 change.
+            view.drawable.advance(400f)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isAnimationState)
+            assertEquals("go right", (observer.states[0] as AnimationState).animation.name)
+            observer.states.clear()
+
+            // should be in same animation still. no state change
+            view.drawable.advance(400f)
+            assertEquals(0, observer.states.size)
+            assertEquals(true, view.isPlaying)
+
+            // animation came to an end inside this time period, this still means no state change
+            view.drawable.advance(400f)
+            assertEquals(false, view.isPlaying)
+            assertEquals(0, observer.states.size)
+
+            // animation is just kinda stuck there. no change no happening.
+            view.drawable.advance(400f)
+            assertEquals(false, view.isPlaying)
+            assertEquals(0, observer.states.size)
+
+            // ok lets change thigns up again.
+            view.fireState("State Machine 1", "change")
+            view.drawable.advance(400f)
+            assertEquals(true, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isAnimationState)
+            assertEquals("change!", (observer.states[0] as AnimationState).animation.name)
+            observer.states.clear()
+
+            // as before lets advance inside the animation -> no change
+            view.drawable.advance(400f)
+            assertEquals(true, view.isPlaying)
+            assertEquals(0, observer.states.size)
+
+            // as before lets advance beyond the end of the animaiton, in this case change to exit!
+            view.drawable.advance(400f)
+            assertEquals(false, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isExitState)
+            observer.states.clear()
+
+            // chill on exit. no change.
+            view.drawable.advance(400f)
+            assertEquals(false, view.isPlaying)
+            assertEquals(0, observer.states.size)
+        }
+    }
+
+    @Test
+    fun testStateMachineLayerStatesAnimationsDoubleChange() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 1")
+            assertEquals(0, observer.states.size)
+
+            view.fireState("State Machine 1", "change")
+            // lets just start, expect 1 change.
+            view.drawable.advance(1200f)
+            assertEquals(2, observer.states.size)
+            assertEquals(true, observer.states[0].isAnimationState)
+            assertEquals("change!", (observer.states[0] as AnimationState).animation.name)
+            assertEquals(true, observer.states[1].isExitState)
         }
     }
 
