@@ -24,7 +24,7 @@ extern "C"
         rive::LinearAnimation *animation = (rive::LinearAnimation *)animationRef;
 
         // TODO: delete this object?
-        auto animationInstance = new rive::LinearAnimationInstance(animation);
+        rive::LinearAnimationInstance *animationInstance = new rive::LinearAnimationInstance(animation);
 
         return (jlong)animationInstance;
     }
@@ -44,7 +44,7 @@ extern "C"
 
         if (didLoop)
         {
-            auto loopType = animationInstance->animation()->loop();
+            rive::Loop loopType = animationInstance->animation()->loop();
             switch (loopType)
             {
             case rive::Loop::oneShot:

@@ -7,7 +7,6 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 
@@ -79,6 +78,9 @@ class RiveDrawable(
                 if (playingStateMachines.contains(stateMachineInstance)) {
                     val stillPlaying = stateMachineInstance.advance(elapsed)
 
+                    stateMachineInstance.statesChanged.forEach {
+                        notifyStateChanged(it)
+                    }
                     stateMachineInstance.apply(ab)
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
@@ -140,7 +142,6 @@ class RiveDrawable(
     }
 
     fun reset() {
-        Log.d("WAT", "${animations.size} ${stateMachines.size} ")
         stop()
         clear()
         file?.let {
@@ -264,7 +265,7 @@ class RiveDrawable(
         }
     }
 
-    fun fireState(stateMachineName: String, inputName:String){
+    fun fireState(stateMachineName: String, inputName: String) {
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
             (it.input(inputName) as SMITrigger).fire()
@@ -273,19 +274,19 @@ class RiveDrawable(
         animator.start()
     }
 
-    fun setBooleanState(stateMachineName: String, inputName:String, value:Boolean){
+    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
-            (it.input(inputName) as SMIBoolean).value=value
+            (it.input(inputName) as SMIBoolean).value = value
             _play(it)
         }
         animator.start()
     }
 
-    fun setNumberState(stateMachineName: String, inputName:String, value:Float){
+    fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
-            (it.input(inputName) as SMINumber).value=value
+            (it.input(inputName) as SMINumber).value = value
             _play(it)
         }
         animator.start()
@@ -517,6 +518,7 @@ class RiveDrawable(
         fun notifyPause(animation: PlayableInstance)
         fun notifyStop(animation: PlayableInstance)
         fun notifyLoop(animation: PlayableInstance)
+        fun notifyStateChanged(state: LayerState)
     }
 
     /*
@@ -551,6 +553,12 @@ class RiveDrawable(
     private fun notifyLoop(playableInstance: PlayableInstance) {
         listeners.toList().forEach {
             it.notifyLoop(playableInstance)
+        }
+    }
+
+    private fun notifyStateChanged(state: LayerState) {
+        listeners.toList().forEach {
+            it.notifyStateChanged(state)
         }
     }
 }

@@ -66,4 +66,32 @@ class RiveViewStateMachineTest {
         }
     }
 
+    @Test
+    fun viewStateMachinesPause() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
+            assertEquals(true, view.isPlaying)
+            view.drawable.advance(2000f)
+            assertEquals(false, view.isPlaying)
+        }
+    }
+
+    @Test
+    @Ignore("We're not stopping state machines when all layers are stopped atm.")
+    fun viewStateMachinesInstancesRemoveOnStop() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
+
+            assertEquals(1, view.drawable.stateMachines.size)
+            view.drawable.advance(2000f)
+            assertEquals(false, view.isPlaying)
+            assertEquals(0, view.drawable.stateMachines.size)
+        }
+    }
 }

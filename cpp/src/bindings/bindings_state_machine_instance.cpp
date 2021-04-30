@@ -22,7 +22,7 @@ extern "C"
         rive::StateMachine *animation = (rive::StateMachine *)stateMachineRef;
 
         // TODO: delete this object?
-        auto stateMachineInstance = new rive::StateMachineInstance(animation);
+        rive::StateMachineInstance *stateMachineInstance = new rive::StateMachineInstance(animation);
 
         return (jlong)stateMachineInstance;
     }
@@ -35,6 +35,25 @@ extern "C"
     {
         rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
         return stateMachineInstance->advance(elapsedTime);
+    }
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedCount(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        return stateMachineInstance->stateChangedCount();
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedByIndex(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint index)
+    {
+        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        return (jlong)stateMachineInstance->stateChangedByIndex(index);
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppApply(
