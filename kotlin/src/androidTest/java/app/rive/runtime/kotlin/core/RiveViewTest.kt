@@ -442,7 +442,7 @@ class RiveViewTest {
     }
 
     @Test
-    @Ignore
+    @Ignore("Doesn't work because we splat over the original animations loop mode!!")
     fun viewStopAnimationDetailsTime() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
@@ -458,7 +458,6 @@ class RiveViewTest {
             view.play("one")
             assertEquals(0f, view.animations.first().time)
             assertEquals(Loop.ONESHOT, view.animations.first().animation.loop)
-
         }
     }
 
