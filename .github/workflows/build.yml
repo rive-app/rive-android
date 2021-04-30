@@ -5,31 +5,30 @@ on:
     types: [released]
 
 jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.RIVE_REPO_PAT }}
-          submodules: recursive
-      - name: Init submodule
-        run: git submodule update --init
-      - name: Build Android
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: google_apis
-          script: ./gradlew kotlin:assembleRelease
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: rive
-          path: kotlin/build/outputs/aar/kotlin-release.aar
+  # build:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #       with:
+  #         token: ${{ secrets.RIVE_REPO_PAT }}
+  #         submodules: recursive
+  #     - name: Init submodule
+  #       run: git submodule update --init
+  #     - name: Build Android
+  #       uses: reactivecircus/android-emulator-runner@v2
+  #       with:
+  #         api-level: 30
+  #         target: google_apis
+  #         script: ./gradlew kotlin:assembleRelease
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: rive
+  #         path: kotlin/build/outputs/aar/kotlin-release.aar
   
   publish:
     name: Release build and publish
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -38,6 +37,7 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+
       # Base64 decodes and pipes the GPG key content into the secret file
       - name: Prepare environment
         env:
@@ -46,19 +46,14 @@ jobs:
         run: |
           git fetch --unshallow
           sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"
+
       # Builds the release artifacts of the library
-      - name: Download framework artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: rive
-          path: kotlin/build/outputs/aar/kotlin-release.aar
+      - name: Build Android
+        run: ./gradlew kotlin:assembleRelease
+
       # Runs upload, and then closes & releases the repository
       - name: Publish to MavenCentral
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: google_apis
-          script: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
+        run: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

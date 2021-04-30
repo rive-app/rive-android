@@ -54,14 +54,14 @@ dependencies {
 
 }
 
+// Commenting this out, this only really helps when you're doing local dev, but it means our git actions need abd!
+// static def getDeviceAbi() {
+//     return "adb shell getprop ro.product.cpu.abi".execute().text.trim()
+// }
 
-static def getDeviceAbi() {
-    return "adb shell getprop ro.product.cpu.abi".execute().text.trim()
-}
-
-task buildJNI(type: Exec) {
-    workingDir '../cpp'
-    commandLine './build.rive.for.sh', '-a', getDeviceAbi()
-}
+// task buildJNI(type: Exec) {
+//     workingDir '../cpp'
+//     commandLine './build.rive.for.sh', '-a', getDeviceAbi()
+// }
 
 apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
