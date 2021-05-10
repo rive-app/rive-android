@@ -6,9 +6,9 @@
         <attr name="riveAnimation" format="string"/>
         <attr name="riveStateMachine" format="string"/>
         <attr name="riveFit" format="enum">
-            <enum name="COVER" value="0"/>
+            <enum name="FILL" value="0"/>
             <enum name="CONTAIN" value="1"/>
-            <enum name="FILL" value="2"/>
+            <enum name="COVER" value="2"/>
             <enum name="FIT_WIDTH" value="3"/>
             <enum name="FIT_HEIGHT" value="4"/>
             <enum name="NONE" value="5"/>
