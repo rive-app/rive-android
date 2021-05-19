@@ -44,7 +44,7 @@ extern "C"
 
         if (didLoop)
         {
-            rive::Loop loopType = animationInstance->animation()->loop();
+            rive::Loop loopType = animationInstance->loop();
             switch (loopType)
             {
             case rive::Loop::oneShot:
@@ -116,6 +116,27 @@ extern "C"
     {
         rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
         return animationInstance->direction();
+    }
+
+
+    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetLoop(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        auto *animationInstance = (rive::LinearAnimationInstance *)ref;
+        return (jint)animationInstance->loop();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetLoop(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref,
+        jint loopType)
+    {
+        auto *animationInstance = (rive::LinearAnimationInstance *)ref;
+
+        animationInstance->loopValue(loopType);
     }
 
 #ifdef __cplusplus

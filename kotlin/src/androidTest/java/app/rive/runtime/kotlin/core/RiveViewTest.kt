@@ -249,23 +249,23 @@ class RiveViewTest {
 
             // Mode dictated by animation.
             view.play("one")
-            assertEquals(Loop.ONESHOT, view.playingAnimations.first().animation.loop)
+            assertEquals(Loop.ONESHOT, view.playingAnimations.first().loop)
 
             // forced loop
             view.play("one", Loop.LOOP)
-            assertEquals(Loop.LOOP, view.playingAnimations.first().animation.loop)
+            assertEquals(Loop.LOOP, view.playingAnimations.first().loop)
 
             // mode unchanged.
             view.play("one")
-            assertEquals(Loop.LOOP, view.playingAnimations.first().animation.loop)
+            assertEquals(Loop.LOOP, view.playingAnimations.first().loop)
 
             // mode unchanged.
             view.play("one", Loop.PINGPONG)
-            assertEquals(Loop.PINGPONG, view.playingAnimations.first().animation.loop)
+            assertEquals(Loop.PINGPONG, view.playingAnimations.first().loop)
 
             // mode unchanged.
             view.play("one", Loop.ONESHOT)
-            assertEquals(Loop.ONESHOT, view.playingAnimations.first().animation.loop)
+            assertEquals(Loop.ONESHOT, view.playingAnimations.first().loop)
         }
     }
 
@@ -457,7 +457,7 @@ class RiveViewTest {
             view.stop("one")
             view.play("one")
             assertEquals(0f, view.animations.first().time)
-            assertEquals(Loop.ONESHOT, view.animations.first().animation.loop)
+            assertEquals(Loop.ONESHOT, view.animations.first().loop)
         }
     }
 
@@ -476,7 +476,7 @@ class RiveViewTest {
             view.pause("one")
             view.play("one")
             assertEquals(0.1f, view.animations.first().time)
-            assertEquals(Loop.PINGPONG, view.animations.first().animation.loop)
+            assertEquals(Loop.PINGPONG, view.animations.first().loop)
 
         }
     }

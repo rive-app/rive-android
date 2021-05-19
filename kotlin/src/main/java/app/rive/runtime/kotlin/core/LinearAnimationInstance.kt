@@ -18,6 +18,8 @@ class LinearAnimationInstance(val animation: Animation): PlayableInstance() {
     private external fun cppSetTime(pointer: Long, time: Float)
     private external fun cppGetDirection(pointer: Long): Int
     private external fun cppSetDirection(pointer: Long, int: Int)
+    private external fun cppGetLoop(cppPointer: Long): Int
+    private external fun cppSetLoop(cppPointer: Long, value: Int)
 
 
     /**
@@ -67,6 +69,18 @@ class LinearAnimationInstance(val animation: Animation): PlayableInstance() {
             return direction
         }
         set(direction) = cppSetDirection(cppPointer, direction.value)
+
+    /**
+     * Configure the [Loop] mode configured against an animation. can be either
+     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.NONE]
+     */
+    var loop: Loop
+        get() {
+            val intLoop = cppGetLoop(cppPointer)
+            val loop = Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
+            return loop
+        }
+        set(loop) = cppSetLoop(cppPointer, loop.value)
 }
 
 
