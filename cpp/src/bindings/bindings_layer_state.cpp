@@ -7,6 +7,7 @@
 #include "animation/entry_state.hpp"
 #include "animation/any_state.hpp"
 #include "animation/animation_state.hpp"
+#include "animation/blend_state.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -52,6 +53,16 @@ extern "C"
 
         rive::LayerState *layerState = (rive::LayerState *)ref;
         return layerState->is<rive::AnimationState>();
+    }
+
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendState(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+
+        rive::LayerState *layerState = (rive::LayerState *)ref;
+        return layerState->is<rive::BlendState>();
     }
 
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_AnimationState_cppAnimation(
