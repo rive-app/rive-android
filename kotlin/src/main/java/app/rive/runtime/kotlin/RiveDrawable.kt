@@ -76,12 +76,11 @@ class RiveDrawable(
             stateMachines.toList().forEach { stateMachineInstance ->
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying = stateMachineInstance.advance(elapsed)
+                    val stillPlaying = stateMachineInstance.advance(ab, elapsed)
 
                     stateMachineInstance.statesChanged.forEach {
                         notifyStateChanged(it)
                     }
-                    stateMachineInstance.apply(ab)
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
                         // as they have lots of stop and go possibilities
@@ -374,7 +373,7 @@ class RiveDrawable(
         // not really sure if sticking loop into the xml thing makes much sense...
         val appliedLoop = if (loop == Loop.NONE) this.loop else loop
         if (appliedLoop != Loop.NONE) {
-            animationInstance.animation.loop = appliedLoop
+            animationInstance.loop = appliedLoop
         }
         if (!animations.contains(animationInstance)) {
             if (direction == Direction.BACKWARDS) {
