@@ -12,8 +12,7 @@ package app.rive.runtime.kotlin.core
 class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() {
     private var cppPointer: Long = constructor(stateMachine.cppPointer)
     private external fun constructor(stateMachinePointer: Long): Long
-    private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
-    private external fun cppApply(pointer: Long, artboardPointer: Long)
+    private external fun cppAdvance(pointer: Long, artboardPointer: Long, elapsedTime: Float): Boolean
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateChangedCount(cppPointer: Long): Int
@@ -22,11 +21,13 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
 
     /**
      * Advance the state machine by the [elapsedTime] in seconds.
+     * &
+     * Applies the state machine instance's current set of transformations to an [artboard].
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
-    fun advance(elapsedTime: Float): Boolean {
-        return cppAdvance(cppPointer, elapsedTime)
+    fun advance(artboard: Artboard, elapsedTime: Float): Boolean {
+        return cppAdvance(cppPointer, artboard.cppPointer, elapsedTime)
     }
 
     /**
@@ -96,13 +97,6 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     val inputNames: List<String>
         get() = (0 until inputCount).map { input(it).name }
 
-    /**
-     * Applies the state machine instance's current set of transformations to an [artboard].
-     */
-    fun apply(artboard: Artboard) {
-        cppApply(cppPointer, artboard.cppPointer)
-    }
-
     fun _convertLayerState(state: LayerState): LayerState {
         if (state.isAnimationState) {
             return AnimationState(state.cppPointer)
@@ -112,6 +106,8 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
             return EntryState(state.cppPointer)
         } else if (state.isExitState) {
             return ExitState(state.cppPointer)
+        } else if (state.isBlendState) {
+            return BlendState(state.cppPointer)
         }
         throw RiveException("Unknown Layer State for ${state}.")
     }
