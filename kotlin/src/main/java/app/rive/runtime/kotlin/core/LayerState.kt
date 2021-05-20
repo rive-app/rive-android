@@ -12,6 +12,8 @@ open class LayerState(val cppPointer: Long) {
     private external fun cppIsEntryState(cppPointer: Long): Boolean
     private external fun cppIsAnimationState(cppPointer: Long): Boolean
     private external fun cppIsBlendState(cppPointer: Long): Boolean
+    private external fun cppIsBlendStateDirect(cppPointer: Long): Boolean
+    private external fun cppIsBlendState1D(cppPointer: Long): Boolean
 
 
     /**
@@ -44,6 +46,19 @@ open class LayerState(val cppPointer: Long) {
      */
     val isBlendState: Boolean
         get() = cppIsBlendState(cppPointer)
+
+    /**
+     * Is this state a 1D blend state
+     */
+    val isBlendState1D: Boolean
+        get() = cppIsBlendState1D(cppPointer)
+
+
+    /**
+     * Is this state an Additive blend state
+     */
+    val isBlendStateDirect: Boolean
+        get() = cppIsBlendStateDirect(cppPointer)
 
 
     override fun toString(): String {
