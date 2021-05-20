@@ -11,6 +11,7 @@ open class LayerState(val cppPointer: Long) {
     private external fun cppIsAnyState(cppPointer: Long): Boolean
     private external fun cppIsEntryState(cppPointer: Long): Boolean
     private external fun cppIsAnimationState(cppPointer: Long): Boolean
+    private external fun cppIsBlendState(cppPointer: Long): Boolean
 
 
     /**
@@ -37,6 +38,12 @@ open class LayerState(val cppPointer: Long) {
      */
     val isAnimationState: Boolean
         get() = cppIsAnimationState(cppPointer)
+
+    /**
+     * Is this state an animation state
+     */
+    val isBlendState: Boolean
+        get() = cppIsBlendState(cppPointer)
 
 
     override fun toString(): String {
