@@ -31,10 +31,12 @@ extern "C"
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
+        jlong artboardRef,
         jfloat elapsedTime)
     {
         rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
-        return stateMachineInstance->advance(elapsedTime);
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        return stateMachineInstance->advance(artboard, elapsedTime);
     }
 
     JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedCount(
@@ -54,17 +56,6 @@ extern "C"
     {
         rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
         return (jlong)stateMachineInstance->stateChangedByIndex(index);
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppApply(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jlong artboardRef)
-    {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        stateMachineInstance->apply(artboard);
     }
 
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSMIInputByIndex(
