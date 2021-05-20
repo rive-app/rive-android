@@ -269,6 +269,7 @@ class RiveEventTest {
             observer.states.clear()
 
             // should be in same animation still. no state change
+            assertEquals(true, view.isPlaying)
             view.drawable.advance(400f)
             assertEquals(0, observer.states.size)
             assertEquals(true, view.isPlaying)
