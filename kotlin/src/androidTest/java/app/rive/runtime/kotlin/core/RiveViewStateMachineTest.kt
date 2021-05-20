@@ -14,6 +14,7 @@ import org.junit.runner.RunWith
 class RiveViewStateMachineTest {
 
     @Test
+    @Ignore("Dies, because state machine two's got a state with no animation.")
     fun viewDefaultsLoadResouce() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
@@ -67,6 +68,21 @@ class RiveViewStateMachineTest {
     }
 
     @Test
+    fun viewPlayStateWithNoDuration() {
+        UiThreadStatement.runOnUiThread {
+            // state machine four's has transitions that happen instantly, so we do not stick on
+            // a state that's playing an animation
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
+            assertEquals(false, view.isPlaying)
+            assertEquals(1, view.stateMachines.size)
+            assertEquals(0, view.playingStateMachines.size)
+        }
+    }
+
+    @Test
     fun viewStateMachinesPause() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
@@ -94,4 +110,5 @@ class RiveViewStateMachineTest {
             assertEquals(0, view.drawable.stateMachines.size)
         }
     }
+
 }

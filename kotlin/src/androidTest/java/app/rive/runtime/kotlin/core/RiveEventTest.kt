@@ -269,6 +269,7 @@ class RiveEventTest {
             observer.states.clear()
 
             // should be in same animation still. no state change
+            assertEquals(true, view.isPlaying)
             view.drawable.advance(400f)
             assertEquals(0, observer.states.size)
             assertEquals(true, view.isPlaying)
@@ -329,6 +330,73 @@ class RiveEventTest {
             assertEquals(true, observer.states[0].isAnimationState)
             assertEquals("change!", (observer.states[0] as AnimationState).animation.name)
             assertEquals(true, observer.states[1].isExitState)
+        }
+    }
+
+
+    @Test
+    @Ignore("We're not stopping state machines when all layers are stopped atm.")
+    fun viewBlendState1DBroken() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
+            view.fireState("one", "blend mix")
+            assertEquals(true, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isBlendState1D)
+        }
+    }
+
+    @Test
+    @Ignore("There is something up here, its not playing right.")
+    fun viewBlendStateDirectBroken() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
+            view.fireState("one", "blend other")
+            assertEquals(true, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isBlendStateDirect)
+        }
+    }
+
+    @Test
+    fun viewBlendState1D() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
+            view.fireState("two", "left")
+            assertEquals(true, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isBlendState1D)
+        }
+    }
+
+    @Test
+    fun viewBlendStateDirect() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+            val observer = Observer()
+
+            val view = RiveAnimationView(appContext)
+            view.registerListener(observer)
+            view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
+            view.fireState("two", "right")
+            assertEquals(true, view.isPlaying)
+            assertEquals(1, observer.states.size)
+            assertEquals(true, observer.states[0].isBlendStateDirect)
         }
     }
 

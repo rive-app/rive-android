@@ -17,7 +17,7 @@ extern "C"
         jlong ref)
     {
 
-        rive::LinearAnimation *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return env->NewStringUTF(animation->name().c_str());
     }
 
@@ -26,7 +26,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        auto *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return (jint)animation->duration();
     }
 
@@ -35,7 +35,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        auto *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return (jint)animation->fps();
     }
 
@@ -44,7 +44,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        auto *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return (jint)animation->workStart();
     }
 
@@ -53,7 +53,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        auto *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return (jint)animation->workEnd();
     }
 
@@ -62,19 +62,8 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        auto *animation = (rive::LinearAnimation *)ref;
+        auto *animation = (const rive::LinearAnimation *)ref;
         return (jint)animation->loop();
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Animation_cppSetLoop(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jint loopType)
-    {
-        auto *animation = (rive::LinearAnimation *)ref;
-
-        animation->loopValue(loopType);
     }
 
 #ifdef __cplusplus

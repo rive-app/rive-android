@@ -18,7 +18,6 @@ class Animation(val cppPointer: Long) {
     private external fun cppWorkStart(cppPointer: Long): Int
     private external fun cppWorkEnd(cppPointer: Long): Int
     private external fun cppGetLoop(cppPointer: Long): Int
-    private external fun cppSetLoop(cppPointer: Long, value: Int)
 
     /**
      * Get the duration of an animation in frames, this does not take [workStart]
@@ -102,13 +101,12 @@ class Animation(val cppPointer: Long) {
      * Configure the [Loop] mode configured against an animation. can be either
      * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.NONE]
      */
-    var loop: Loop
+    val loop: Loop
         get() {
             val intLoop = cppGetLoop(cppPointer)
             val loop = Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
             return loop
         }
-        set(loop) = cppSetLoop(cppPointer, loop.value)
 
     override fun toString(): String {
         return "Animation $name\n- Duration$duration\n- fps $fps\n- workStart $workStart\n- workEnd $workEnd"
