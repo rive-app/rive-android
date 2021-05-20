@@ -39,6 +39,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         R.raw.ui_swipe_left_to_delete,
         R.raw.vader,
         R.raw.wacky,
+        R.raw.what_a_state,
     )
 
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
