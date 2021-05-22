@@ -335,7 +335,6 @@ class RiveEventTest {
 
 
     @Test
-    @Ignore("We're not stopping state machines when all layers are stopped atm.")
     fun viewBlendState1DBroken() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
@@ -352,7 +351,6 @@ class RiveEventTest {
     }
 
     @Test
-    @Ignore("There is something up here, its not playing right.")
     fun viewBlendStateDirectBroken() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
