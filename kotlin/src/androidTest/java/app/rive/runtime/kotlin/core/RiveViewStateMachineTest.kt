@@ -14,7 +14,6 @@ import org.junit.runner.RunWith
 class RiveViewStateMachineTest {
 
     @Test
-    @Ignore("Dies, because state machine two's got a state with no animation.")
     fun viewDefaultsLoadResouce() {
         UiThreadStatement.runOnUiThread {
             val appContext = initTests()
