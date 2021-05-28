@@ -223,7 +223,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * For [animations][Animation] without an [animation instance][LinearAnimationInstance] one will be created and played.
      */
     fun play(
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO
     ) {
         drawable.play(loop, direction)
@@ -237,7 +237,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun play(
         animationNames: List<String>,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         areStateMachines: Boolean = false
     ) {
@@ -252,7 +252,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun play(
         animationName: String,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
     ) {
         drawable.play(animationName, loop, direction, isStateMachine)
@@ -335,7 +335,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         autoplay: Boolean = drawable.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
     ) {
         resourceId = resId
         val bytes = resources.openRawResource(resId).readBytes()
@@ -371,7 +371,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         autoplay: Boolean = drawable.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
     ) {
         val file = File(bytes)
         setRiveFile(

@@ -99,7 +99,7 @@ class Animation(val cppPointer: Long) {
 
     /**
      * Configure the [Loop] mode configured against an animation. can be either
-     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.NONE]
+     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.AUTO]
      */
     val loop: Loop
         get() {

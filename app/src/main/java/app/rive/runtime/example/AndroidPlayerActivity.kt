@@ -14,7 +14,7 @@ import app.rive.runtime.kotlin.RiveDrawable.Listener
 import app.rive.runtime.kotlin.core.*
 
 class AndroidPlayerActivity : AppCompatActivity() {
-    var loop: Loop = Loop.NONE
+    var loop: Loop = Loop.AUTO
     var direction: Direction = Direction.AUTO
     var playButtonMap: HashMap<String, View> = HashMap()
     var pauseButtonMap: HashMap<String, View> = HashMap()
@@ -71,7 +71,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
             // Check which radio button was clicked
             when (view.getId()) {
                 R.id.loop_auto ->
-                    loop = Loop.NONE
+                    loop = Loop.AUTO
                 R.id.loop_loop ->
                     loop = Loop.LOOP
                 R.id.loop_oneshot ->

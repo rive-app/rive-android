@@ -72,7 +72,7 @@ class LinearAnimationInstance(val animation: Animation): PlayableInstance() {
 
     /**
      * Configure the [Loop] mode configured against an animation. can be either
-     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.NONE]
+     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.AUTO]
      */
     var loop: Loop
         get() {
