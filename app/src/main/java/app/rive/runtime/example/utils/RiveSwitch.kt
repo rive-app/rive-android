@@ -56,8 +56,8 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
                 riveDrawable = RiveDrawable(autoplay = false)
                 riveDrawable.setRiveFile(riveFile)
                 stateMachineName?.let{
-                    riveDrawable.play(it, isStateMachine = true)
                     riveDrawable.setBooleanState(it, booleanStateInput, isChecked)
+                    riveDrawable.play(it, isStateMachine = true)
                 }
                 background = riveDrawable
             } finally {
