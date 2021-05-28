@@ -93,7 +93,7 @@
             android:layout_height="wrap_content"
             android:textOn=""
             android:textOff=""
-            android:checked="true"
+            android:checked="false"
             app:riveBooleanStateInput="Toggle"
             app:riveResource="@raw/switch_animation"
             app:riveStateMachine="Remember Start SM"
