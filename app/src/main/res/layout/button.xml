@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Simple button." />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" Clicks Counter: " />
+
+            <TextView
+                android:id="@+id/myButtonCounter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0" />
+        </LinearLayout>
+
+        <app.rive.runtime.example.utils.RiveButton
+            android:id="@+id/myButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Fill"
+            app:riveResource="@raw/button" />
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Simple Switch." />
+
+            <TextView
+                android:id="@+id/mySwitchLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="false" />
+        </LinearLayout>
+
+        <app.rive.runtime.example.utils.RiveSwitch
+            android:id="@+id/mySwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Fill"
+            android:textOn=""
+            android:textOff=""
+            app:riveOffAnimation="Off"
+            app:riveOnAnimation="On"
+            app:riveResource="@raw/switch_animation" />
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Simple Switch (state machine)." />
+
+            <TextView
+                android:id="@+id/myStateSwitchLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="true" />
+        </LinearLayout>
+
+        <app.rive.runtime.example.utils.RiveSwitch
+            android:id="@+id/myStateSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textOn=""
+            android:textOff=""
+            android:checked="true"
+            app:riveBooleanStateInput="Toggle"
+            app:riveResource="@raw/switch_animation"
+            app:riveStateMachine="Remember Start SM"
+            />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

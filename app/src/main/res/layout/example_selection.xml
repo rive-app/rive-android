@@ -71,6 +71,12 @@
                 android:layout_height="wrap_content"
                 android:text="State Machine" />
 
+            <Button
+                android:id="@+id/go_button"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Buttons / Switches" />
+
         </LinearLayout>
 
     </ScrollView>
