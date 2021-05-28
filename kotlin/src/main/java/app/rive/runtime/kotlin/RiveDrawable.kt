@@ -13,7 +13,7 @@ import app.rive.runtime.kotlin.core.*
 class RiveDrawable(
     fit: Fit = Fit.CONTAIN,
     alignment: Alignment = Alignment.CENTER,
-    var loop: Loop = Loop.NONE,
+    var loop: Loop = Loop.AUTO,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
     var animationName: String? = null,
@@ -173,7 +173,7 @@ class RiveDrawable(
 
     fun play(
         animationNames: List<String>,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         areStateMachines: Boolean = false,
     ) {
@@ -185,7 +185,7 @@ class RiveDrawable(
 
     fun play(
         animationName: String,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         isStateMachine: Boolean = false,
     ) {
@@ -194,7 +194,7 @@ class RiveDrawable(
     }
 
     fun play(
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
     ) {
         artboard?.let {
@@ -345,7 +345,7 @@ class RiveDrawable(
 
     private fun _playAnimation(
         animationName: String,
-        loop: Loop = Loop.NONE,
+        loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         isStateMachine: Boolean = false,
     ) {
@@ -388,8 +388,8 @@ class RiveDrawable(
         // If a loop mode was specified, use it, otherwise fall back to a predefined default loop,
         // otherwise just use what the animation is configured to be.
         // not really sure if sticking loop into the xml thing makes much sense...
-        val appliedLoop = if (loop == Loop.NONE) this.loop else loop
-        if (appliedLoop != Loop.NONE) {
+        val appliedLoop = if (loop == Loop.AUTO) this.loop else loop
+        if (appliedLoop != Loop.AUTO) {
             animationInstance.loop = appliedLoop
         }
         if (!animations.contains(animationInstance)) {
