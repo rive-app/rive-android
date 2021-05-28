@@ -10,7 +10,7 @@ This is the Android runtime for [Rive](https://rive.app), currently in beta. The
 
 ## Installing
 
-To add Rive in your project, include the following in your `dependencies`:
+To add Rive in your project, include the following in your `dependencies` :
 
 ```
 implementation 'app.rive:rive-android:0.0.9'
@@ -20,7 +20,7 @@ implementation 'app.rive:rive-android:0.0.9'
 
 The simplest way to get a rive animation into your application is to include it as part of a layout. The following will include the rive file loaded from the raw resources location, and auto play its first animation.
 
-``` xml
+```xml
 
 <app.rive.runtime.kotlin.RiveAnimationView
         android:layout_width="match_parent"
@@ -36,7 +36,7 @@ The animation view can be further customized as part of specifying [layout attri
 
 `alignment` informs how it should be aligned within the container. The available choices are `TOP_LEFT` , `TOP_CENTER` , `TOP_RIGHT` , `CENTER_LEFT` , `CENTER` , `CENTER_RIGHT` , `BOTTOM_LEFT` , `BOTTOM_CENTER` , `BOTTOM_RIGHT` .
 
-``` xml
+```xml
 
 <app.rive.runtime.kotlin.RiveAnimationView
         android:layout_width="match_parent"
@@ -49,7 +49,7 @@ The animation view can be further customized as part of specifying [layout attri
 
 Or
 
-``` kotlin
+```kotlin
 animationView.fit = Fit.FILL
 animationView.alignment = Alignment.CENTER
 ```
@@ -58,7 +58,7 @@ animationView.alignment = Alignment.CENTER
 
 Animations can be controlled in many ways, by default loading a RiveAnimationView with a resource file will autoplay the first animation on the first artboard. The artboard and animation can be specified.
 
-``` xml
+```xml
 
 <app.rive.runtime.kotlin.RiveAnimationView
                 android:layout_width="match_parent"
@@ -72,7 +72,7 @@ Animations can be controlled in many ways, by default loading a RiveAnimationVie
 
 Or
 
-``` kotlin
+```kotlin
 
 animationView.setRiveResource(
     R.raw.artboard_animations,
@@ -86,35 +86,35 @@ furthermore animations can be controlled later too:
 
 To play an animation named rollaround.
 
-``` kotlin
+```kotlin
 
 animationView.play("rollaround")
 ```
 
 multiple animations can play at the same time, and additional animations can be added at any time
 
-``` kotlin
+```kotlin
 
 animationView.play(listOf("bouncing", "windshield_wipers"))
 ```
 
 When playing animations, the Loop Mode and direction of the animations can also be set per animation.
 
-``` kotlin
+```kotlin
 
 animationView.play(listOf("bouncing", "windshield_wipers"), Loop.ONE_SHOT, Direction.Backwards)
 ```
 
 Similarly animations can be paused, or stopped, either all at the same time, or one by one.
 
-``` kotlin
+```kotlin
 
 animationView.stop()
 animationView.stop("bouncing")
 animationView.stop(listOf("bouncing", "windshield_wipers"))
 ```
 
-``` kotlin
+```kotlin
 
 animationView.pause()
 animationView.pause("bouncing")
@@ -129,7 +129,7 @@ Mixing goes further than just playing multiple animations at the same time, anim
 
 The rive android runtimes allow listener registration, take a look at the events section in the [rive player](https://github.com/rive-app/rive-android/blob/master/app/src/main/java/app/rive/runtime/example/AndroidPlayerActivity.kt) for an example of how this works.
 
-``` kotlin
+```kotlin
 
 findViewById<RiveAnimationView>(R.id.android_player_view)
 val listener = object : Listener {
@@ -152,6 +152,15 @@ val listener = object : Listener {
 animationView.registerListener(listener)
 ```
 
+### F. A. Q. 
+
+#### Does animation play order matter?
+
+Yes, animations are applied in order. Animations animate a property of a shape from one position to another. 
+If multiple animations are playing that are setting the same property on the same shape, only the last applied change will be visible. 
+
+The way past this and into some pretty cool effects will take you to mixing, where multiple animations are applied partially. The  RiveView & RiveDrawable do not provide options to set mixing values though, so to take advantage of this, you will need to run your own render loop. you can still use the core parts of this library to interact with rive files though! 
+
 ## Project Layout
 
 ### /kotlin
@@ -171,7 +180,7 @@ The runtimes are built on top of our [c++ runtimes](https://github.com/rive-app/
 
 If you have changed the cpp submodule, or if you have made changes to the cpp bindings, you will need to rebuild the cpp runtimes to generate the new .so files.
 
-``` bash
+```bash
 cd cpp 
 
 ./build.rive.for.sh -c -a x86
