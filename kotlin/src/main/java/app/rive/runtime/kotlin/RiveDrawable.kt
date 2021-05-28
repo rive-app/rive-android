@@ -11,8 +11,8 @@ import app.rive.runtime.kotlin.core.*
 
 
 class RiveDrawable(
-    var fit: Fit = Fit.CONTAIN,
-    var alignment: Alignment = Alignment.CENTER,
+    fit: Fit = Fit.CONTAIN,
+    alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.NONE,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
@@ -30,7 +30,22 @@ class RiveDrawable(
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
     private var _playingStateMachines = HashSet<StateMachineInstance>()
 
+    private var _fit: Fit;
+    private var _alignment: Alignment;
+
     // PUBLIC
+    var fit: Fit
+        get() = _fit
+        set(value) {
+            _fit = value
+            invalidateSelf()
+        }
+    var alignment: Alignment
+        get() = _alignment
+        set(value) {
+            _alignment = value
+            invalidateSelf()
+        }
     var animations = mutableListOf<LinearAnimationInstance>()
     var stateMachines = mutableListOf<StateMachineInstance>()
     var file: File? = null
@@ -48,6 +63,8 @@ class RiveDrawable(
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
     init {
+        _fit = fit;
+        _alignment = alignment;
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
         animator.setTimeListener { _, _, delta ->
             advance(delta.toFloat())
