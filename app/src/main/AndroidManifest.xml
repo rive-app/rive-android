@@ -29,6 +29,7 @@
         <activity android:name=".LowLevelActivity" />
         <activity android:name=".SimpleStateMachineActivity" />
         <activity android:name=".HttpActivity"></activity>
+        <activity android:name=".ButtonActivity" />
     </application>
 
 </manifest>
