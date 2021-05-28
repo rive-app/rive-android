@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="riveResource" format="reference"/>
+    <attr name="riveArtboard" format="string"/>
+    <attr name="riveAnimation" format="string"/>
+    <attr name="riveStateMachine" format="string"/>
+    <declare-styleable name="RiveButton">
+        <attr name="riveResource" />
+        <attr name="riveArtboard"/>
+        <attr name="riveAnimation"/>
+        <attr name="riveStateMachine"/>
+        <attr name="rivePressAnimation" format="string"/>
+    </declare-styleable>
+    <declare-styleable name="RiveSwitch">
+        <attr name="riveResource" />
+        <attr name="riveArtboard"/>
+        <attr name="riveAnimation"/>
+        <attr name="riveStateMachine"/>
+        <attr name="riveOnAnimation" format="string"/>
+        <attr name="riveOffAnimation" format="string"/>
+        <attr name="riveBooleanStateInput" format="string"/>
+    </declare-styleable>
+</resources>
