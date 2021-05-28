@@ -39,14 +39,12 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         get() = drawable.fit
         set(value) {
             drawable.fit = value
-            requestLayout()
         }
 
     var alignment: Alignment
         get() = drawable.alignment
         set(value) {
             drawable.alignment = value
-            requestLayout()
         }
 
     /**
