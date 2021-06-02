@@ -5,7 +5,16 @@ import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
+import com.android.volley.NetworkResponse
+import com.android.volley.ParseError
+import com.android.volley.Request
+import com.android.volley.Response
+import com.android.volley.toolbox.HttpHeaderParser
+import com.android.volley.toolbox.Volley
+import java.io.IOException
+import java.io.UnsupportedEncodingException
 import java.util.*
+
 
 /**
  * This view aims to provide the most straightforward way to get rive animations into your application.
@@ -22,6 +31,7 @@ import java.util.*
  *
  * Xml [attrs] can be used to set initial values for many
  * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource] or [setRiveFile].
+ * - Alternatively, provide the [url][R.styleable.RiveAnimationView_riveUrl] to load as a rive file over HTTP.
  * - Determine the [artboard][R.styleable.RiveAnimationView_riveArtboard] to use, this defaults to the first artboard in the file.
  * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
  * - Configure [alignment][R.styleable.RiveAnimationView_riveAlignment] to specify how the animation should be aligned to its container.
@@ -111,6 +121,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
+                val url = getString(R.styleable.RiveAnimationView_riveUrl)
 
                 if (resourceId != -1) {
                     setRiveResource(
@@ -131,12 +142,34 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                     drawable.artboardName = artboardName
                     drawable.animationName = animationName
                     drawable.stateMachineName = stateMachineName
-                }
 
+                    // If a url's been provided, initiate downloading
+                    url?.let {
+                        loadHttp(it)
+                    }
+                }
             } finally {
                 recycle()
             }
         }
+    }
+
+    private fun loadHttp(url: String) {
+        val queue = Volley.newRequestQueue(context)
+        val stringRequest = RiveFileRequest(url,
+                Response.Listener<File> { file ->
+                    setRiveFile(file,
+                        drawable.artboardName,
+                        drawable.animationName,
+                        drawable.stateMachineName,
+                        drawable.autoplay,
+                        drawable.fit,
+                        drawable.alignment,
+                        drawable.loop
+                    )
+                },
+                Response.ErrorListener { throw IOException("Unable to download Rive file $url") })
+        queue.add(stringRequest)
     }
 
     /**
@@ -489,4 +522,24 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         drawable.destroy()
     }
 
+}
+
+// Custom Volley request to download and create rive files over http
+class RiveFileRequest(
+        url: String,
+        private val listener: Response.Listener<File>,
+        errorListener: Response.ErrorListener
+) : Request<File>(Method.GET, url, errorListener) {
+
+    override fun deliverResponse(response: File) = listener.onResponse(response)
+
+    override fun parseNetworkResponse(response: NetworkResponse?): Response<File> {
+        return try {
+            val bytes = response?.data ?: ByteArray(0)
+            val file = File(bytes)
+            Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
+        } catch (e: UnsupportedEncodingException) {
+            Response.error(ParseError(e))
+        }
+    }
 }

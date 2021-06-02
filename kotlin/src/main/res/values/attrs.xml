@@ -32,5 +32,6 @@
             <enum name="NONE" value="3"/>
         </attr>
         <attr name="riveResource" format="reference"/>
+        <attr name="riveUrl" format="string"/>
     </declare-styleable>
 </resources>
