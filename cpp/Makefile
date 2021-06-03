@@ -24,7 +24,7 @@ LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid
 
 jni_bridge: $(OBJ_FILES)
-	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(RIVE_CPP_ROOT)/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl
+	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(RIVE_CPP_ROOT)/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
 
 # BUILD all .o files - i.e. the files specified in OBJ_FILES.
 # Output all the .o files in ODIR
