@@ -7,8 +7,12 @@ import app.rive.runtime.kotlin.core.Rive
 
 class SimpleActivity : AppCompatActivity() {
 
-    private val animationView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveAnimationView>(R.id.simple_view)
+    private val animationViewAsset by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<RiveAnimationView>(R.id.simple_view_asset)
+    }
+
+    private val animationViewNetwork by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<RiveAnimationView>(R.id.simple_view_network)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,6 +22,7 @@ class SimpleActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        animationView.destroy()
+        animationViewAsset.destroy()
+        animationViewNetwork.destroy()
     }
 }
