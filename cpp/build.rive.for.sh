@@ -85,7 +85,7 @@ function buildFor()
     cp  $BUILD_DIR/libjnirivebridge.so $JNI_DEST
 }
 
-API=23
+API=21
 
 if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "Strings are equal."
