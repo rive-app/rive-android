@@ -12,11 +12,14 @@ using namespace rive_android;
 JNIRenderPaint::JNIRenderPaint()
 {
     auto env = getJNIEnv();
-    jObject = env->NewGlobalRef(
-        env->NewObject(getPaintClass(), getPaintInitMethod()));
+    jclass paintClass = getPaintClass();
+    jobject jLocalRef = env->NewObject(paintClass, getPaintInitMethod());
+    jObject = env->NewGlobalRef(jLocalRef);
 
-    auto aaSetter = env->GetMethodID(getPaintClass(), "setAntiAlias", "(Z)V");
+    auto aaSetter = env->GetMethodID(paintClass, "setAntiAlias", "(Z)V");
     env->CallVoidMethod(jObject, aaSetter, ::JNIRenderer::antialias);
+    env->DeleteLocalRef(paintClass);
+    env->DeleteLocalRef(jLocalRef);
 }
 
 JNIRenderPaint::~JNIRenderPaint()
@@ -32,23 +35,23 @@ void JNIRenderPaint::color(unsigned int value)
 
 void JNIRenderPaint::style(rive::RenderPaintStyle value)
 {
-
+    JNIEnv * env  = getJNIEnv();
+    jclass styleClass = getStyleClass();
+    jobject staticObject;
     if (value == rive::RenderPaintStyle::stroke)
     {
-        getJNIEnv()->CallVoidMethod(
-            jObject,
-            getSetStyleMethodId(),
-            getJNIEnv()->GetStaticObjectField(
-                getStyleClass(), getStrokeId()));
+        staticObject = env->GetStaticObjectField(styleClass, getStrokeId());
     }
     else
     {
-        getJNIEnv()->CallVoidMethod(
+        staticObject = env->GetStaticObjectField(styleClass, getFillId());
+    }
+    env->CallVoidMethod(
             jObject,
             getSetStyleMethodId(),
-            getJNIEnv()->GetStaticObjectField(
-                getStyleClass(), getFillId()));
-    }
+            staticObject);
+    env->DeleteLocalRef(styleClass);
+    env->DeleteLocalRef(staticObject);
 }
 
 void JNIRenderPaint::thickness(float value)
@@ -75,10 +78,16 @@ void JNIRenderPaint::join(rive::StrokeJoin value)
         joinId = getMiterId();
         break;
     }
-    getJNIEnv()->CallVoidMethod(
+    JNIEnv * env  = getJNIEnv();
+    jclass joinClass = getJoinClass();
+    jobject staticObject = env->GetStaticObjectField(joinClass, joinId);
+    env->CallVoidMethod(
         jObject,
         getSetStrokeJoinMethodId(),
-        getJNIEnv()->GetStaticObjectField(getJoinClass(), joinId));
+        staticObject);
+
+    env->DeleteLocalRef(joinClass);
+    env->DeleteLocalRef(staticObject);
 }
 
 void JNIRenderPaint::cap(rive::StrokeCap value)
@@ -99,10 +108,15 @@ void JNIRenderPaint::cap(rive::StrokeCap value)
         capId = getCapButtID();
         break;
     }
-    getJNIEnv()->CallVoidMethod(
+    JNIEnv * env  = getJNIEnv();
+    jclass capClass = getCapClass();
+    jobject staticObject = env->GetStaticObjectField(capClass, capId);
+    env->CallVoidMethod(
         jObject,
         getSetStrokeCapMethodId(),
-        getJNIEnv()->GetStaticObjectField(getCapClass(), capId));
+        staticObject);
+    env->DeleteLocalRef(capClass);
+    env->DeleteLocalRef(staticObject);
 }
 
 void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
@@ -162,16 +176,29 @@ void JNIRenderPaint::porterDuffBlendMode(rive::BlendMode value)
         modeId = ::getPdClear();
         break;
     }
+    JNIEnv * env  = getJNIEnv();
+    
+    
+    jclass porterDuffClass = getPorterDuffClass();
+    jobject porterDuffMode = env->GetStaticObjectField(porterDuffClass, modeId);
+    jclass porterDuffXferModeClass = getPorterDuffXferModeClass();
 
-    jobject xferModeClass = getJNIEnv()->NewObject(
-        getPorterDuffXferModeClass(),
+    jobject xferModeObject = env->NewObject(
+        porterDuffXferModeClass,
         getPorterDuffXferModeInitMethodId(),
-        getJNIEnv()->GetStaticObjectField(getPorterDuffClass(), modeId));
+        porterDuffMode);
 
-    getJNIEnv()->CallObjectMethod(
+    jobject extraXferModeObject = env->CallObjectMethod(
         jObject,
         getSetXfermodeMethodId(),
-        xferModeClass);
+        xferModeObject);
+
+    env->DeleteLocalRef(extraXferModeObject);
+    env->DeleteLocalRef(xferModeObject);
+    env->DeleteLocalRef(porterDuffXferModeClass);
+    env->DeleteLocalRef(porterDuffMode);
+    env->DeleteLocalRef(porterDuffClass);
+    
 }
 
 void JNIRenderPaint::blendMode(rive::BlendMode value)
@@ -236,11 +263,17 @@ void JNIRenderPaint::blendMode(rive::BlendMode value)
         modeId = ::getClear();
         break;
     }
-
-    getJNIEnv()->CallVoidMethod(
+    JNIEnv * env = getJNIEnv();
+    jclass blendModeClass = getBlendModeClass();
+    jobject blendModeStaticObject = env->GetStaticObjectField(blendModeClass, modeId);
+    
+    env->CallVoidMethod(
         jObject,
         getSetBlendModeMethodId(),
-        getJNIEnv()->GetStaticObjectField(getBlendModeClass(), modeId));
+        blendModeStaticObject);
+        
+    env->DeleteLocalRef(blendModeClass);
+    env->DeleteLocalRef(blendModeStaticObject);
 }
 
 void JNIRenderPaint::linearGradient(float sx, float sy, float ex, float ey)

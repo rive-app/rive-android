@@ -6,8 +6,11 @@ using namespace rive_android;
 
 JNIRenderPath::JNIRenderPath()
 {
-    jObject = getJNIEnv()->NewGlobalRef(
-        getJNIEnv()->NewObject(getPathClass(), getPathInitMethodId()));
+    jclass pathClass = getPathClass();
+    jobject jLocalRef = getJNIEnv()->NewObject(pathClass, getPathInitMethodId());
+    jObject = getJNIEnv()->NewGlobalRef(jLocalRef);
+    getJNIEnv()->DeleteLocalRef(pathClass);
+    getJNIEnv()->DeleteLocalRef(jLocalRef);
 }
 
 JNIRenderPath::~JNIRenderPath()
@@ -33,18 +36,24 @@ void JNIRenderPath::fillRule(rive::FillRule value)
         break;
     }
 
-    auto fillId = getJNIEnv()->GetStaticObjectField(getFillTypeClass(), fillTypeId);
-    getJNIEnv()->CallVoidMethod(
+    JNIEnv * env = getJNIEnv();
+    jclass fillTypeClass = getFillTypeClass();
+    jobject fillId = env->GetStaticObjectField(fillTypeClass, fillTypeId);
+
+    env->CallVoidMethod(
         jObject,
         getSetFillTypeMethodId(),
         fillId);
+    env->DeleteLocalRef(fillTypeClass);
+    env->DeleteLocalRef(fillId);
 }
 
 void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &transform)
 {
-
-    jobject matrix = getJNIEnv()->NewObject(
-        getMatrixClass(),
+    JNIEnv * env = getJNIEnv();
+    jclass matrixClass  =getMatrixClass();
+    jobject matrix = env->NewObject(
+        matrixClass,
         getMatrixInitMethodId());
 
     float threeDMatrix[9] = {
@@ -52,19 +61,23 @@ void JNIRenderPath::addRenderPath(rive::RenderPath *path, const rive::Mat2D &tra
         transform.xy(), transform.yy(), transform.ty(),
         0, 0, 1};
 
-    jfloatArray matrixArray = getJNIEnv()->NewFloatArray(9);
-    getJNIEnv()->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
+    jfloatArray matrixArray = env->NewFloatArray(9);
+    env->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
-    getJNIEnv()->CallVoidMethod(
+    env->CallVoidMethod(
         matrix,
         getMatrixSetValuesMethodId(),
         matrixArray);
 
-    getJNIEnv()->CallVoidMethod(
+    env->CallVoidMethod(
         jObject,
         getAddPathMethodId(),
         reinterpret_cast<JNIRenderPath *>(path)->jObject,
         matrix);
+
+    env->DeleteLocalRef(matrixClass);
+    env->DeleteLocalRef(matrix);
+    env->DeleteLocalRef(matrixArray);
 }
 
 void JNIRenderPath::moveTo(float x, float y)
