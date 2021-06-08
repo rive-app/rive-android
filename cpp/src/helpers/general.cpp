@@ -55,6 +55,7 @@ namespace rive_android
 	{
 		jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::getFitNameMethodId());
 		const char *fitValueNative = env->GetStringUTFChars(fitValue, 0);
+		env->DeleteLocalRef(fitValue);
 
 		rive::Fit fit = rive::Fit::none;
 		if (strcmp(fitValueNative, "FILL") == 0)
@@ -92,6 +93,7 @@ namespace rive_android
 	{
 		jstring alignmentValue = (jstring)env->CallObjectMethod(jalignment, rive_android::getAlignmentNameMethodId());
 		const char *alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
+		env->DeleteLocalRef(alignmentValue);
 
 		rive::Alignment alignment = rive::Alignment::center;
 		if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)

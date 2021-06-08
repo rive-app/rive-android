@@ -60,8 +60,9 @@ extern "C"
                 enumField = ::getNoneLoopField();
                 break;
             }
-
-            loopValue = env->GetStaticObjectField(::getLoopClass(), enumField);
+            jclass jClass = ::getLoopClass();
+            loopValue = env->GetStaticObjectField(jClass, enumField);
+            env->DeleteLocalRef(jClass);
         }
 
         return loopValue;
