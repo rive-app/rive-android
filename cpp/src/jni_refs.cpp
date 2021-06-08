@@ -10,15 +10,21 @@ namespace rive_android
 {
 	jclass getClass(const char *name)
 	{
-		return static_cast<jclass>(getJNIEnv()->FindClass(name));
+		return getJNIEnv()->FindClass(name);
 	}
 	jmethodID getMethodId(jclass clazz, const char *name, const char *sig)
 	{
-		return getJNIEnv()->GetMethodID(clazz, name, sig);
+		JNIEnv * env = getJNIEnv();
+		jmethodID output = env->GetMethodID(clazz, name, sig);
+		env->DeleteLocalRef(clazz);
+		return output;
 	}
 	jfieldID getStaticFieldId(jclass clazz, const char *name, const char *sig)
 	{
-		return getJNIEnv()->GetStaticFieldID(clazz, name, sig);
+		JNIEnv * env = getJNIEnv();
+		jfieldID output = env->GetStaticFieldID(clazz, name, sig);
+		env->DeleteLocalRef(clazz);
+		return output;
 	}
 
 	jint throwRiveError(const char *message)
@@ -271,6 +277,7 @@ namespace rive_android
 	jfieldID getColor() { return getStaticFieldId(getBlendModeClass(), "COLOR", "Landroid/graphics/BlendMode;"); };
 	jfieldID getLuminosity() { return getStaticFieldId(getBlendModeClass(), "LUMINOSITY", "Landroid/graphics/BlendMode;"); };
 	jfieldID getClear() { return getStaticFieldId(getBlendModeClass(), "CLEAR", "Landroid/graphics/BlendMode;"); };
+	
 	jfieldID getPdClear() { return getStaticFieldId(getPorterDuffClass(), "CLEAR", "Landroid/graphics/PorterDuff$Mode;"); };
 	jfieldID getPdSrc() { return getStaticFieldId(getPorterDuffClass(), "SRC", "Landroid/graphics/PorterDuff$Mode;"); };
 	jfieldID getPdDst() { return getStaticFieldId(getPorterDuffClass(), "DST", "Landroid/graphics/PorterDuff$Mode;"); };

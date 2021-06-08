@@ -28,27 +28,31 @@ void JNIRenderer::restore()
 
 void JNIRenderer::transform(const rive::Mat2D &transform)
 {
-
-	jobject matrix = getJNIEnv()->NewObject(getMatrixClass(), getMatrixInitMethodId());
+	JNIEnv * env = getJNIEnv();
+	jclass matrixClass = getMatrixClass();
+	jobject matrix = env->NewObject(matrixClass, getMatrixInitMethodId());
 
 	float threeDMatrix[9] = {
 		transform.xx(), transform.yx(), transform.tx(),
 		transform.xy(), transform.yy(), transform.ty(),
 		0, 0, 1};
 
-	jfloatArray matrixArray = getJNIEnv()->NewFloatArray(9);
-	getJNIEnv()->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
+	jfloatArray matrixArray = env->NewFloatArray(9);
+	env->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
-	getJNIEnv()->CallVoidMethod(
+	env->CallVoidMethod(
 		matrix,
 		getMatrixSetValuesMethodId(),
 		matrixArray);
 
-	getJNIEnv()->CallVoidMethod(
+	env->CallVoidMethod(
 		jRendererObject,
 		getSetMatrixMethodId(),
 		matrix);
-	getJNIEnv()->DeleteLocalRef(matrix);
+		
+	env->DeleteLocalRef(matrixClass);	
+	env->DeleteLocalRef(matrixArray);	
+	env->DeleteLocalRef(matrix);
 }
 
 void JNIRenderer::translate(float x, float y)

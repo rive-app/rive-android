@@ -6,14 +6,22 @@ using namespace rive_android;
 void JNILinearGradientBuilder::apply(jobject paint)
 {
     int numStops = stops.size();
+    JNIEnv * env = getJNIEnv();
 
-    jintArray jcolors = getJNIEnv()->NewIntArray(numStops);
-    jfloatArray jstops = getJNIEnv()->NewFloatArray(numStops);
-    getJNIEnv()->SetIntArrayRegion(jcolors, 0, numStops, colors.data());
-    getJNIEnv()->SetFloatArrayRegion(jstops, 0, numStops, stops.data());
+    jintArray jcolors = env->NewIntArray(numStops);
+    jfloatArray jstops = env->NewFloatArray(numStops);
+    env->SetIntArrayRegion(jcolors, 0, numStops, colors.data());
+    env->SetFloatArrayRegion(jstops, 0, numStops, stops.data());
 
-    jobject shaderObject = getJNIEnv()->NewObject(
-        getLinearGradientClass(),
+
+    jclass tileModeClass = getTileModeClass();
+    jobject clampObject = env->GetStaticObjectField(
+            tileModeClass,
+            getClampId());
+    jclass linearGradientClass = getLinearGradientClass();
+
+    jobject shaderObject = env->NewObject(
+        linearGradientClass,
         getLinearGradientInitMethodId(),
         sx,
         sy,
@@ -21,12 +29,19 @@ void JNILinearGradientBuilder::apply(jobject paint)
         ey,
         jcolors,
         jstops,
-        getJNIEnv()->GetStaticObjectField(
-            getTileModeClass(),
-            getClampId()));
+        clampObject);
 
-    getJNIEnv()->CallObjectMethod(
+    jobject newShaderObject = env->CallObjectMethod(
         paint,
         getShaderMethodId(),
         shaderObject);
+
+
+    env->DeleteLocalRef(jcolors);
+    env->DeleteLocalRef(jstops);
+    env->DeleteLocalRef(linearGradientClass);
+    env->DeleteLocalRef(tileModeClass);
+    env->DeleteLocalRef(clampObject);    
+    env->DeleteLocalRef(shaderObject);
+    env->DeleteLocalRef(newShaderObject);
 }
