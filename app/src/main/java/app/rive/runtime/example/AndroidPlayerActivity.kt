@@ -386,10 +386,10 @@ class AndroidPlayerActivity : AppCompatActivity() {
                 }
             }
 
-            override fun notifyStateChanged(layerState: LayerState) {
+            override fun notifyStateChanged(stateMachineName: String, stateName: String) {
 
                 val text = TextView(that)
-                text.text = "State Changed $layerState"
+                text.text = "$stateMachineName: State Changed: $stateName"
                 events.addView(text, 0)
             }
         }

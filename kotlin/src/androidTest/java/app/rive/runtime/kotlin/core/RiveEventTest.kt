@@ -10,13 +10,14 @@ import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
+class StateChanged(var stateMachineName: String, var stateName: String)
 
 class Observer : RiveDrawable.Listener {
     var plays = mutableListOf<PlayableInstance>()
     var pauses = mutableListOf<PlayableInstance>()
     var stops = mutableListOf<PlayableInstance>()
     var loops = mutableListOf<PlayableInstance>()
-    var states = mutableListOf<LayerState>()
+    var states = mutableListOf<StateChanged>()
     override fun notifyPlay(playableInstance: PlayableInstance) {
         plays.add(playableInstance)
     }
@@ -32,8 +33,8 @@ class Observer : RiveDrawable.Listener {
     override fun notifyLoop(playableInstance: PlayableInstance) {
         loops.add(playableInstance)
     }
-    override fun notifyStateChanged(state: LayerState) {
-        states.add(state)
+    override fun notifyStateChanged(stateMachineName:String, stateName:String) {
+        states.add(StateChanged(stateMachineName, stateName))
     }
 }
 
@@ -241,10 +242,11 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isAnimationState)
+            assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
+            assertEquals(true, observer.states[0].stateName == "AnimationState: go right")
             view.drawable.advance(2000f)
             assertEquals(2, observer.states.size)
-            assertEquals(true, observer.states[1].isExitState)
+            assertEquals(true, observer.states[1].stateName == "ExitState")
         }
     }
 
@@ -264,8 +266,7 @@ class RiveEventTest {
             // lets just start, expect 1 change.
             view.drawable.advance(400f)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isAnimationState)
-            assertEquals("go right", (observer.states[0] as AnimationState).animation.name)
+            assertEquals(true, observer.states[0].stateName =="AnimationState: go right")
             observer.states.clear()
 
             // should be in same animation still. no state change
@@ -289,8 +290,7 @@ class RiveEventTest {
             view.drawable.advance(400f)
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isAnimationState)
-            assertEquals("change!", (observer.states[0] as AnimationState).animation.name)
+            assertEquals(true, observer.states[0].stateName == "AnimationState: change!")
             observer.states.clear()
 
             // as before lets advance inside the animation -> no change
@@ -302,7 +302,7 @@ class RiveEventTest {
             view.drawable.advance(400f)
             assertEquals(false, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isExitState)
+            assertEquals(true, observer.states[0].stateName == "ExitState")
             observer.states.clear()
 
             // chill on exit. no change.
@@ -327,9 +327,8 @@ class RiveEventTest {
             // lets just start, expect 1 change.
             view.drawable.advance(1200f)
             assertEquals(2, observer.states.size)
-            assertEquals(true, observer.states[0].isAnimationState)
-            assertEquals("change!", (observer.states[0] as AnimationState).animation.name)
-            assertEquals(true, observer.states[1].isExitState)
+            assertEquals(true, observer.states[0].stateName == "AnimationState: change!")
+            assertEquals(true, observer.states[1].stateName == "ExitState")
         }
     }
 
@@ -346,7 +345,7 @@ class RiveEventTest {
             view.fireState("one", "blend mix")
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isBlendState1D)
+            assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
 
@@ -362,7 +361,7 @@ class RiveEventTest {
             view.fireState("one", "blend other")
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isBlendStateDirect)
+            assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
 
@@ -378,7 +377,7 @@ class RiveEventTest {
             view.fireState("two", "left")
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isBlendState1D)
+            assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
 
@@ -394,7 +393,7 @@ class RiveEventTest {
             view.fireState("two", "right")
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].isBlendStateDirect)
+            assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
 
