@@ -46,7 +46,7 @@ fi
 
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
-    echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/21.0.6113669"
+    echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/22.1.7171670"
     exit 1
 fi
 
