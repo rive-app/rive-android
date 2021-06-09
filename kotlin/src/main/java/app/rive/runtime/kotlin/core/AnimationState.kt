@@ -13,6 +13,6 @@ class AnimationState(cppPointer: Long) : LayerState(cppPointer) {
         get() = Animation(cppAnimation(cppPointer))
 
     override fun toString(): String {
-        return "AnimationState: ${animation.name}"
+        return "${animation.name}"
     }
 }
