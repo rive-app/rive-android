@@ -96,7 +96,7 @@ class RiveDrawable(
                     val stillPlaying = stateMachineInstance.advance(ab, elapsed)
 
                     stateMachineInstance.statesChanged.forEach {
-                        notifyStateChanged(it)
+                        notifyStateChanged(stateMachineInstance, it)
                     }
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
@@ -534,7 +534,7 @@ class RiveDrawable(
         fun notifyPause(animation: PlayableInstance)
         fun notifyStop(animation: PlayableInstance)
         fun notifyLoop(animation: PlayableInstance)
-        fun notifyStateChanged(state: LayerState)
+        fun notifyStateChanged(stateMachineName:String, stateName: String)
     }
 
     /*
@@ -572,9 +572,9 @@ class RiveDrawable(
         }
     }
 
-    private fun notifyStateChanged(state: LayerState) {
+    private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
         listeners.toList().forEach {
-            it.notifyStateChanged(state)
+            it.notifyStateChanged(stateMachine.stateMachine.name, state.toString())
         }
     }
 }
