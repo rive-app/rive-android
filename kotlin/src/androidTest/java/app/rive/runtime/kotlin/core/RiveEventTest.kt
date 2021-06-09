@@ -243,7 +243,7 @@ class RiveEventTest {
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
-            assertEquals(true, observer.states[0].stateName == "AnimationState: go right")
+            assertEquals(true, observer.states[0].stateName == "go right")
             view.drawable.advance(2000f)
             assertEquals(2, observer.states.size)
             assertEquals(true, observer.states[1].stateName == "ExitState")
@@ -266,7 +266,7 @@ class RiveEventTest {
             // lets just start, expect 1 change.
             view.drawable.advance(400f)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].stateName =="AnimationState: go right")
+            assertEquals(true, observer.states[0].stateName =="go right")
             observer.states.clear()
 
             // should be in same animation still. no state change
@@ -290,7 +290,7 @@ class RiveEventTest {
             view.drawable.advance(400f)
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].stateName == "AnimationState: change!")
+            assertEquals(true, observer.states[0].stateName == "change!")
             observer.states.clear()
 
             // as before lets advance inside the animation -> no change
@@ -327,7 +327,7 @@ class RiveEventTest {
             // lets just start, expect 1 change.
             view.drawable.advance(1200f)
             assertEquals(2, observer.states.size)
-            assertEquals(true, observer.states[0].stateName == "AnimationState: change!")
+            assertEquals(true, observer.states[0].stateName == "change!")
             assertEquals(true, observer.states[1].stateName == "ExitState")
         }
     }
