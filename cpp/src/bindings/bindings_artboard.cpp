@@ -146,6 +146,35 @@ extern "C"
         artboard->draw(renderer);
     }
 
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+
+        return artboard->isInstance();
+    }
+
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppInstance(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+
+        return (jlong)artboard->instance();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDelete(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong ref)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)ref;
+        delete artboard;
+    }
+
 #ifdef __cplusplus
 }
 #endif
