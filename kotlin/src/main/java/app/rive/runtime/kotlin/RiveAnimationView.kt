@@ -1,9 +1,12 @@
 package app.rive.runtime.kotlin
 
 import android.content.Context
+import android.graphics.*
+import android.os.Build
 import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.RawRes
+import androidx.core.view.ViewCompat
 import app.rive.runtime.kotlin.core.*
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
@@ -107,6 +110,10 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         get() = drawable.playingStateMachines
 
     init {
+        if (Build.VERSION.SDK_INT < 29) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+
         context.theme.obtainStyledAttributes(
             attrs,
             R.styleable.RiveAnimationView,
@@ -157,18 +164,19 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
-                Response.Listener<File> { file ->
-                    setRiveFile(file,
-                        drawable.artboardName,
-                        drawable.animationName,
-                        drawable.stateMachineName,
-                        drawable.autoplay,
-                        drawable.fit,
-                        drawable.alignment,
-                        drawable.loop
-                    )
-                },
-                Response.ErrorListener { throw IOException("Unable to download Rive file $url") })
+            Response.Listener<File> { file ->
+                setRiveFile(
+                    file,
+                    drawable.artboardName,
+                    drawable.animationName,
+                    drawable.stateMachineName,
+                    drawable.autoplay,
+                    drawable.fit,
+                    drawable.alignment,
+                    drawable.loop
+                )
+            },
+            Response.ErrorListener { throw IOException("Unable to download Rive file $url") })
         queue.add(stringRequest)
     }
 
@@ -303,7 +311,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     /**
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
-    fun fireState(stateMachineName: String, inputName:String){
+    fun fireState(stateMachineName: String, inputName: String){
         drawable.fireState(stateMachineName, inputName)
     }
 
@@ -311,7 +319,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Update the state of the [SMIBoolean] input called [inputName] on all active matching state machines
      * to [value]
      */
-    fun setBooleanState(stateMachineName: String, inputName:String, value:Boolean){
+    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean){
         drawable.setBooleanState(stateMachineName, inputName, value)
     }
 
@@ -319,7 +327,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Update the state of the [SMINumber] input called [inputName] on all active matching state machines
      * to [value]
      */
-    fun setNumberState(stateMachineName: String, inputName:String, value:Float){
+    fun setNumberState(stateMachineName: String, inputName: String, value: Float){
         drawable.setNumberState(stateMachineName, inputName, value)
     }
 
@@ -507,9 +515,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
 
 // Custom Volley request to download and create rive files over http
 class RiveFileRequest(
-        url: String,
-        private val listener: Response.Listener<File>,
-        errorListener: Response.ErrorListener
+    url: String,
+    private val listener: Response.Listener<File>,
+    errorListener: Response.ErrorListener
 ) : Request<File>(Method.GET, url, errorListener) {
 
     override fun deliverResponse(response: File) = listener.onResponse(response)
