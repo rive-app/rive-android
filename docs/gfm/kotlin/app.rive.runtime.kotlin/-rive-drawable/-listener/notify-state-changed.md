@@ -5,7 +5,7 @@
 # notifyStateChanged  
 [androidJvm]  
 Content  
-abstract fun [notifyStateChanged](notify-state-changed.md)(state: [LayerState](../../../app.rive.runtime.kotlin.core/-layer-state/index.md))  
+abstract fun [notifyStateChanged](notify-state-changed.md)(stateMachineName: [String](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html), stateName: [String](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html))  
 
 
 
