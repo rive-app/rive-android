@@ -71,5 +71,10 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, ButtonActivity::class.java)
             )
         }
+        findViewById<Button>(R.id.go_blend).setOnClickListener {
+            startActivity(
+                Intent(this, BlendActivity::class.java)
+            )
+        }
     }
 }
