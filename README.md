@@ -152,6 +152,18 @@ val listener = object : Listener {
 animationView.registerListener(listener)
 ```
 
+## Blend modes 
+
+Rive allows the artist to set blend modes on shapes to determine how they are to be merged with the rest of the animation.
+
+Each runtime is supporting the various blend modes natively, this means that there are some discrepencies in how blend modes end up being applied, we have a test file that is shipped inside the application that highlights the differences.
+
+For android, devices running sdk < 29 do not support a number of blend modes, further more there are some issues when blend modes are combined with transparency.
+
+Original | SDK <29             |  SDK 29+
+:-------------------------:|:-------------------------:|:-------------------------:
+![Source](docs/images/editor.png ) | ![Android >= 29](docs/images/android.gte.29.png)  |  ![Android < 29](docs/images/android.lt.29.png)
+
 ### F. A. Q. 
 
 #### Does animation play order matter?
