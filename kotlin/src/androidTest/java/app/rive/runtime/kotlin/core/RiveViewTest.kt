@@ -5,6 +5,7 @@ import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -477,6 +478,39 @@ class RiveViewTest {
             assertEquals(0.1f, view.animations.first().time)
             assertEquals(Loop.PINGPONG, view.animations.first().loop)
 
+        }
+    }
+
+    @Test
+    fun viewReset() {
+        // pretty basic test. we could start seeing if the artboards properties are reset properly
+        // but we actually would need to expose a lot more of that to do this.
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = false)
+
+            view.play("one", Loop.PINGPONG)
+            val originalPointer = view.drawable.activeArtboard?.cppPointer
+            view.reset()
+            assertNotEquals(view.drawable.activeArtboard?.cppPointer, originalPointer)
+            assertEquals(false, view.isPlaying)
+
+        }
+    }
+    @Test
+    fun viewResetAutoplay() {
+        UiThreadStatement.runOnUiThread {
+            val appContext = initTests()
+
+            val view = RiveAnimationView(appContext)
+            view.setRiveResource(R.raw.multiple_animations, autoplay = true)
+            assertEquals(true, view.isPlaying)
+            val originalPointer = view.drawable.activeArtboard?.cppPointer
+            view.reset()
+            assertNotEquals(view.drawable.activeArtboard?.cppPointer, originalPointer)
+            assertEquals(true, view.isPlaying)
         }
     }
 }

@@ -7,6 +7,7 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 
 
@@ -25,7 +26,8 @@ class RiveDrawable(
     private val animator = TimeAnimator()
     private var listeners = HashSet<RiveDrawable.Listener>()
     private var targetBounds: AABB
-    private var artboard: Artboard? = null
+    private var selectedArtboard: Artboard? = null
+    private var _activeArtboard: Artboard? = null
     private var boundsCache: Rect? = null
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
     private var _playingStateMachines = HashSet<StateMachineInstance>()
@@ -62,6 +64,9 @@ class RiveDrawable(
     val isPlaying: Boolean
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
+    val activeArtboard: Artboard?
+        get() = _activeArtboard
+
     init {
         _fit = fit;
         _alignment = alignment;
@@ -72,7 +77,7 @@ class RiveDrawable(
     }
 
     fun advance(delta: Float) {
-        artboard?.let { ab ->
+        _activeArtboard?.let { ab ->
             val elapsed = delta / 1000
 
             // animations could change, lets cut a list.
@@ -131,16 +136,13 @@ class RiveDrawable(
                 }
             }
             this.artboardName = artboardName
-
-            this.file?.let {
-                setRiveFile(it)
-            }
+            selectArtboard()
         }
 
     }
 
     fun arboardBounds(): AABB {
-        var output = artboard?.bounds;
+        var output = _activeArtboard?.bounds;
         if (output == null) {
             output = AABB(0f, 0f);
         }
@@ -160,8 +162,8 @@ class RiveDrawable(
     fun reset() {
         stop()
         clear()
-        file?.let {
-            setRiveFile(it)
+        selectedArtboard?.let {
+            setArtboard(it)
         }
         invalidateSelf()
     }
@@ -197,7 +199,7 @@ class RiveDrawable(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
     ) {
-        artboard?.let {
+        _activeArtboard?.let {
             if (it.animationNames.isNotEmpty()) {
                 _playAnimation(it.animationNames.first(), loop, direction)
             } else if (it.stateMachineNames.isNotEmpty()) {
@@ -333,7 +335,7 @@ class RiveDrawable(
     private fun _getOrCreateStateMachines(animationName: String): List<StateMachineInstance> {
         val stateMachineInstances = _stateMachines(animationName)
         if (stateMachineInstances.isEmpty()) {
-            artboard?.let {
+            _activeArtboard?.let {
                 val stateMachine = it.stateMachine(animationName)
                 val stateMachineInstance = StateMachineInstance(stateMachine)
                 stateMachines.add(stateMachineInstance)
@@ -360,7 +362,7 @@ class RiveDrawable(
                 _play(animationInstance, loop, direction)
             }
             if (animationInstances.isEmpty()) {
-                artboard?.let {
+                _activeArtboard?.let {
                     val animation = it.animation(animationName)
                     val linearAnimation = LinearAnimationInstance(animation)
                     _play(linearAnimation, loop, direction)
@@ -439,15 +441,22 @@ class RiveDrawable(
     private fun selectArtboard() {
         file?.let { file ->
             artboardName?.let {
-                setArtboard(file.artboard(it))
+                selectedArtboard = file.artboard(it)
+                selectedArtboard?.let{
+                    setArtboard(it)
+                }
+
             } ?: run {
-                setArtboard(file.firstArtboard)
+                selectedArtboard = file.firstArtboard
+                selectedArtboard?.let{
+                    setArtboard(it)
+                }
             }
         }
     }
 
     private fun setArtboard(artboard: Artboard) {
-        this.artboard = artboard
+        this._activeArtboard = artboard.getInstance()
 
         if (autoplay) {
             animationName?.let {
@@ -462,7 +471,9 @@ class RiveDrawable(
             }
 
         } else {
-            artboard.advance(0f)
+            this._activeArtboard?.let{
+                it.advance(0f)
+            }
         }
     }
 
@@ -479,8 +490,8 @@ class RiveDrawable(
     }
 
     override fun draw(canvas: Canvas) {
-        artboard?.let { ab ->
-
+        _activeArtboard?.let { ab ->
+            Log.d("Draw", "$ab ${ab.cppPointer}")
             if (boundsCache != bounds) {
                 boundsCache = bounds
                 targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
@@ -502,11 +513,11 @@ class RiveDrawable(
     }
 
     override fun getIntrinsicWidth(): Int {
-        return artboard?.bounds?.width?.toInt() ?: -1
+        return _activeArtboard?.bounds?.width?.toInt() ?: -1
     }
 
     override fun getIntrinsicHeight(): Int {
-        return artboard?.bounds?.height?.toInt() ?: -1
+        return _activeArtboard?.bounds?.height?.toInt() ?: -1
     }
 
     /*

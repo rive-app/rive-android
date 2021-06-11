@@ -17,6 +17,7 @@ class Artboard(val cppPointer: Long) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppFirstAnimation(cppPointer: Long): Long
 
+
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
     private external fun cppAnimationByName(cppPointer: Long, name: String): Long
     private external fun cppAnimationCount(cppPointer: Long): Int
@@ -35,6 +36,10 @@ class Artboard(val cppPointer: Long) {
     )
 
     private external fun cppBounds(cppPointer: Long): Long
+
+    private external fun cppInstance(cppPointer: Long): Long
+    private external fun cppIsInstance(cppPointer: Long): Boolean
+    private external fun cppDelete(cppPointer: Long)
 
     /**
      * Get the [name] of the Artboard.
@@ -190,4 +195,19 @@ class Artboard(val cppPointer: Long) {
      */
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { stateMachine(it).name }
+
+    /**
+     * Get a cloned Artboard of the current artboard as it stands.
+     */
+    fun getInstance(): Artboard {
+        return Artboard(cppInstance(cppPointer))
+    }
+
+    protected fun finalize() {
+        // If we are done with the artboard, and the artboard is an artboard instance, lets get rid of it.
+        // Otherwise we are letting the cpp manage the artboard lifecycle
+        if (cppPointer != -1L && cppIsInstance(cppPointer)) {
+            cppDelete(cppPointer)
+        }
+    }
 }
