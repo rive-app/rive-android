@@ -68,6 +68,7 @@ $dokka.location:app.rive.runtime.kotlin.core/Artboard/cppPointer/#/PointingToDec
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/draw/#app.rive.runtime.kotlin.core.Renderer/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/draw.md
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/firstAnimation/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/first-animation.md
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/firstStateMachine/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/first-state-machine.md
+$dokka.location:app.rive.runtime.kotlin.core/Artboard/getInstance/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/get-instance.md
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/name/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/name.md
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/stateMachine/#kotlin.Int/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/state-machine.md
 $dokka.location:app.rive.runtime.kotlin.core/Artboard/stateMachine/#kotlin.String/PointingToDeclaration/kotlin/app.rive.runtime.kotlin.core/-artboard/state-machine.md
@@ -290,10 +291,11 @@ $dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener///PointingToDeclar
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyLoop/#app.rive.runtime.kotlin.core.PlayableInstance/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-loop.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyPause/#app.rive.runtime.kotlin.core.PlayableInstance/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-pause.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyPlay/#app.rive.runtime.kotlin.core.PlayableInstance/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-play.md
-$dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyStateChanged/#app.rive.runtime.kotlin.core.LayerState/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-state-changed.md
+$dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyStateChanged/#kotlin.String#kotlin.String/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-state-changed.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable.Listener/notifyStop/#app.rive.runtime.kotlin.core.PlayableInstance/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-listener/notify-stop.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable///PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/index.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable/RiveDrawable/#app.rive.runtime.kotlin.core.Fit#app.rive.runtime.kotlin.core.Alignment#app.rive.runtime.kotlin.core.Loop#kotlin.String?#kotlin.String?#kotlin.String?#kotlin.Boolean/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/-rive-drawable.md
+$dokka.location:app.rive.runtime.kotlin/RiveDrawable/activeArtboard/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/active-artboard.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable/advance/#kotlin.Float/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/advance.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable/alignment/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/alignment.md
 $dokka.location:app.rive.runtime.kotlin/RiveDrawable/animationName/#/PointingToDeclaration/kotlin/app.rive.runtime.kotlin/-rive-drawable/animation-name.md
