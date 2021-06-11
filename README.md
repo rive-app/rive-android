@@ -156,9 +156,9 @@ animationView.registerListener(listener)
 
 Rive allows the artist to set blend modes on shapes to determine how they are to be merged with the rest of the animation.
 
-Each runtime is supporting the various blend modes natively, this means that there are some discrepencies in how blend modes end up being applied, we have a test file that is shipped inside the application that highlights the differences.
+Each runtime is supporting the various blend modes natively, this means that there are some discrepancies in how blend modes end up being applied, we have a test file that is shipped inside the application that highlights the differences.
 
-For android, devices running sdk < 29 do not support a number of blend modes, further more there are some issues when blend modes are combined with transparency.
+For android, devices running sdk < 29 do not support a number of blend modes, there are also issues modes are combined with transparency as the examples highlight.
 
 Original | SDK <29             |  SDK 29+
 :-------------------------:|:-------------------------:|:-------------------------:
