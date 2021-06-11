@@ -491,7 +491,6 @@ class RiveDrawable(
 
     override fun draw(canvas: Canvas) {
         _activeArtboard?.let { ab ->
-            Log.d("Draw", "$ab ${ab.cppPointer}")
             if (boundsCache != bounds) {
                 boundsCache = bounds
                 targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
