@@ -77,6 +77,13 @@
                 android:layout_height="wrap_content"
                 android:text="Buttons / Switches" />
 
+
+            <Button
+                android:id="@+id/go_blend"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Blend Modes" />
+
         </LinearLayout>
 
     </ScrollView>

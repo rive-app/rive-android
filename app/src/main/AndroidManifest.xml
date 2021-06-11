@@ -30,6 +30,7 @@
         <activity android:name=".SimpleStateMachineActivity" />
         <activity android:name=".HttpActivity"></activity>
         <activity android:name=".ButtonActivity" />
+        <activity android:name=".BlendActivity" />
     </application>
 
 </manifest>
