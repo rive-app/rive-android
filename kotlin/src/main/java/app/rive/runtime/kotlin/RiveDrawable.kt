@@ -9,6 +9,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.util.Log
 import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.core.errors.*
 
 
 class RiveDrawable(
@@ -132,7 +133,7 @@ class RiveDrawable(
         } else {
             file?.let {
                 if (!it.artboardNames.contains(artboardName)) {
-                    throw RiveException("Artboard $artboardName not found")
+                    throw ArtboardException("Artboard $artboardName not found")
                 }
             }
             this.artboardName = artboardName
