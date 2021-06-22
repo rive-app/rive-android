@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.errors.*
+
 /**
  * [StateMachine]s as designed in the Rive animation editor.
  *
@@ -44,7 +46,7 @@ class StateMachine(val cppPointer: Long) {
         } else if (input.isNumber) {
             return StateMachineNumberInput(input.cppPointer)
         }
-        throw RiveException("Unknown State Machine Input for ${input.name}.")
+        throw StateMachineInputException("Unknown State Machine Input for ${input.name}.")
     }
 
     /**
@@ -56,7 +58,7 @@ class StateMachine(val cppPointer: Long) {
     fun input(index: Int): StateMachineInput {
         val stateMachineInputPointer = cppStateMachineInputByIndex(cppPointer, index)
         if (stateMachineInputPointer == 0L) {
-            throw RiveException("No StateMachineInput found at index $index.")
+            throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
         return _convertInput(StateMachineInput(
             stateMachineInputPointer
@@ -70,7 +72,7 @@ class StateMachine(val cppPointer: Long) {
     fun input(name: String): StateMachineInput {
         val stateMachineInputPointer = cppStateMachineInputByName(cppPointer, name)
         if (stateMachineInputPointer == 0L) {
-            throw RiveException("No StateMachineInput found with name $name.")
+            throw StateMachineInputException("No StateMachineInput found with name $name.")
         }
         return _convertInput(StateMachineInput(
             stateMachineInputPointer

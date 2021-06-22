@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.core.errors.*
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -46,7 +47,7 @@ class RiveAnimationLoadTest {
         assertEquals(listOf<String>(), artboard.animationNames)
     }
 
-    @Test(expected = RiveException::class)
+    @Test(expected = AnimationException::class)
     fun loadFirstAnimationNoExists() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
@@ -54,7 +55,7 @@ class RiveAnimationLoadTest {
         artboard.firstAnimation
     }
 
-    @Test(expected = RiveException::class)
+    @Test(expected = AnimationException::class)
     fun loadAnimationByIndexDoesntExist() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
@@ -62,7 +63,7 @@ class RiveAnimationLoadTest {
         artboard.animation(1)
     }
 
-    @Test(expected = RiveException::class)
+    @Test(expected = AnimationException::class)
     fun loadAnimationByNameDoesntExist() {
         val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
