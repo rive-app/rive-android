@@ -11,14 +11,14 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RiveFileLoadTest {
 
-    @Test(expected = RiveException::class)
+    @Test(expected = UnsupportedRuntimeVersionException::class)
     fun loadFormat6() {
         val appContext = initTests()
         File(appContext.resources.openRawResource(R.raw.sample6).readBytes())
         assert(false);
     }
 
-    @Test(expected = RiveException::class)
+    @Test(expected = MalformedFileException::class)
     fun loadJunk() {
         val appContext = initTests()
         File(appContext.resources.openRawResource(R.raw.junk).readBytes())

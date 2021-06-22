@@ -27,9 +27,19 @@ namespace rive_android
 		return output;
 	}
 
-	jint throwRiveError(const char *message)
+	jint throwRiveException(const char *message)
 	{
-		jclass exClass = getClass("app/rive/runtime/kotlin/core/RiveException");
+		jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/RiveException");
+		return getJNIEnv()->ThrowNew(exClass, message);
+	}
+	jint throwMalformedFileException(const char *message)
+	{
+		jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/MalformedFileException");
+		return getJNIEnv()->ThrowNew(exClass, message);
+	}
+	jint throwUnsupportedRuntimeVersionException(const char *message)
+	{
+		jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/UnsupportedRuntimeVersionException");
 		return getJNIEnv()->ThrowNew(exClass, message);
 	}
 
