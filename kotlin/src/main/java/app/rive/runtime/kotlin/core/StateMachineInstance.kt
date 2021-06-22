@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.errors.*
+
 /**
  * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
  *
@@ -50,7 +52,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
         } else if (input.isNumber) {
             return SMINumber(input.cppPointer)
         }
-        throw RiveException("Unknown State Machine Input Instance for ${input.name}.")
+        throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
     }
 
     /**
@@ -62,7 +64,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     fun input(index: Int): SMIInput {
         val stateMachineInputPointer = cppSMIInputByIndex(cppPointer, index)
         if (stateMachineInputPointer == 0L) {
-            throw RiveException("No StateMachineInput found at index $index.")
+            throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
         return _convertInput(
             SMIInput(
@@ -82,7 +84,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
                 return output
             }
         }
-        throw RiveException("No StateMachineInput found with name $name.")
+        throw StateMachineInputException("No StateMachineInput found with name $name.")
     }
 
     /**
@@ -109,7 +111,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
         } else if (state.isBlendState) {
             return BlendState(state.cppPointer)
         }
-        throw RiveException("Unknown Layer State for ${state}.")
+        throw StateMachineInputException("Unknown Layer State for ${state}.")
     }
 
     /**
@@ -119,7 +121,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     fun stateChanged(index: Int): LayerState {
         val stateChanged = cppStateChangedByIndex(cppPointer, index)
         if (stateChanged == 0L) {
-            throw RiveException("No StateMachineInput found at index $index.")
+            throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
         return _convertLayerState(
             LayerState(

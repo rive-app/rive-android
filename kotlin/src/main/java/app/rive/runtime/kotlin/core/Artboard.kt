@@ -1,6 +1,8 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.Canvas
+import app.rive.runtime.kotlin.core.errors.*
+
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
@@ -57,7 +59,7 @@ class Artboard(val cppPointer: Long) {
         get() {
             var animationPointer = cppFirstAnimation(cppPointer);
             if (animationPointer == 0L) {
-                throw RiveException("No Animations found.")
+                throw AnimationException("No Animations found.")
             }
             return Animation(
                 animationPointer
@@ -74,7 +76,7 @@ class Artboard(val cppPointer: Long) {
     fun animation(index: Int): Animation {
         var animationPointer = cppAnimationByIndex(cppPointer, index)
         if (animationPointer == 0L) {
-            throw RiveException("No Animation found at index $index.")
+            throw AnimationException("No Animation found at index $index.")
         }
         return Animation(
             animationPointer
@@ -88,7 +90,7 @@ class Artboard(val cppPointer: Long) {
     fun animation(name: String): Animation {
         var animationPointer = cppAnimationByName(cppPointer, name)
         if (animationPointer == 0L) {
-            throw RiveException("No Animation found with name $name.")
+            throw AnimationException("No Animation found with name $name.")
         }
         return Animation(
             animationPointer
@@ -105,7 +107,7 @@ class Artboard(val cppPointer: Long) {
         get() {
             var stateMachinePointer = cppFirstStateMachine(cppPointer);
             if (stateMachinePointer == 0L) {
-                throw RiveException("No StateMachines found.")
+                throw StateMachineException("No StateMachines found.")
             }
             return StateMachine(
                 stateMachinePointer
@@ -122,7 +124,7 @@ class Artboard(val cppPointer: Long) {
     fun stateMachine(index: Int): StateMachine {
         var stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
         if (stateMachinePointer == 0L) {
-            throw RiveException("No StateMachine found at index $index.")
+            throw StateMachineException("No StateMachine found at index $index.")
         }
         return StateMachine(
             stateMachinePointer
@@ -136,7 +138,7 @@ class Artboard(val cppPointer: Long) {
     fun stateMachine(name: String): StateMachine {
         var stateMachinePointer = cppStateMachineByName(cppPointer, name)
         if (stateMachinePointer == 0L) {
-            throw RiveException("No StateMachine found with name $name.")
+            throw StateMachineException("No StateMachine found with name $name.")
         }
         return StateMachine(
             stateMachinePointer

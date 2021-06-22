@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.errors.*
+
 /**
  * [File]s are created in the rive editor.
  *
@@ -37,7 +39,7 @@ class File(bytes: ByteArray) {
         get() {
             var artboardPointer = cppArtboard(cppPointer)
             if (artboardPointer == 0L) {
-                throw RiveException("No Artboard found.")
+                throw ArtboardException("No Artboard found.")
             }
 
             return Artboard(
@@ -54,7 +56,7 @@ class File(bytes: ByteArray) {
     fun artboard(name: String): Artboard {
         var artboardPointer = cppArtboardByName(cppPointer, name)
         if (artboardPointer == 0L) {
-            throw RiveException("Artboard $name not found.")
+            throw ArtboardException("Artboard $name not found.")
         }
 
         return Artboard(
@@ -71,7 +73,7 @@ class File(bytes: ByteArray) {
     fun artboard(index: Int): Artboard {
         var cppPointer = cppArtboardByIndex(cppPointer, index)
         if (cppPointer == 0L) {
-            throw RiveException("No Artboard found at index $index.")
+            throw ArtboardException("No Artboard found at index $index.")
         }
         return Artboard(
             cppPointer
