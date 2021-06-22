@@ -146,15 +146,15 @@ namespace rive_android
 		}
 		else if (result == rive::ImportResult::unsupportedVersion)
 		{
-			return throwRiveError("Unsupported Rive File Version.");
+			return throwUnsupportedRuntimeVersionException("Unsupported Rive File Version.");
 		}
 		else if (result == rive::ImportResult::malformed)
 		{
-			return throwRiveError("Malformed Rive File.");
+			return throwMalformedFileException("Malformed Rive File.");
 		}
 		else
 		{
-			return throwRiveError("Unknown error loading file.");
+			return throwRiveException("Unknown error loading file.");
 		}
 	}
 
