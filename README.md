@@ -1,3 +1,6 @@
+![Build Status](https://github.com/rive-app/rive-android/actions/workflows/build.yml/badge.svg) 
+![Discord badge](https://img.shields.io/discord/532365473602600965)
+![Twitter handle](https://img.shields.io/twitter/follow/rive_app.svg?style=social&label=Follow)
 # Rive-Android -- Rive's Android runtime
 
 Further runtime documentation can be found in [Rive's help center](https://help.rive.app/runtimes).
