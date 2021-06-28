@@ -1,16 +1,11 @@
 package app.rive.runtime.example
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatButton
-import androidx.appcompat.widget.AppCompatToggleButton
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
-import app.rive.runtime.kotlin.core.Rive
-import kotlinx.android.synthetic.main.layout.*
 
 class LayoutActivity : AppCompatActivity() {
 
