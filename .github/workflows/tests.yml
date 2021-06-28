@@ -1,7 +1,6 @@
 name: Test Rive-Android
 
 on:
-  pull_request:
   push:
 
 jobs:
