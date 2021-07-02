@@ -25,12 +25,10 @@ in our docs, fill out the template below.
 ### Description
 <-- A clear and concise description of what the problem is. -->
 
-### Steps To Reproduce
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error ⚠️
+### Provide a Repro
+Please provide the most **minimal repro** you can:
+- If the problem is small enough, paste a code snippet
+- Otherwise, you can attach a ZIP archive or a link to a GitHub repository with the app bundle that is causing the issue
 
 #### Source `.riv`/`.rev` file
 <-- 
