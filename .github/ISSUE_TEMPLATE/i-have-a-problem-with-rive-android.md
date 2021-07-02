@@ -26,9 +26,12 @@ in our docs, fill out the template below.
 <-- A clear and concise description of what the problem is. -->
 
 ### Provide a Repro
+<-- 
 Please provide the most **minimal repro** you can:
 - If the problem is small enough, paste a code snippet
-- Otherwise, you can attach a ZIP archive or a link to a GitHub repository with the app bundle that is causing the issue
+- Otherwise, you can attach a ZIP archive or paste a link to a GitHub repository with the app bundle that is reproducing the issue
+
+-->
 
 #### Source `.riv`/`.rev` file
 <-- 
