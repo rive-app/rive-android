@@ -67,7 +67,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun setCheckedAnimation(checked: Boolean){
-        riveDrawable.let{
+        riveDrawable?.let{
             it.stop()
             if (checked) {
                 it.play(onAnimation)
@@ -78,7 +78,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun setStateMachine(checked: Boolean){
-        riveDrawable.let{ drawable ->
+        riveDrawable?.let{ drawable ->
             stateMachineName?.let { stateMachine ->
                 drawable.setBooleanState(stateMachine, booleanStateInput, checked)
             }
