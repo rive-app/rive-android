@@ -27,7 +27,6 @@ jobs:
           git fetch --unshallow
           sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"
 
-
       # Run release it
       - name: Install dependencies
         run: npm ci
@@ -43,8 +42,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
 
-
-      # Builds the release artifacts of the library
+      # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
         run: ./gradlew kotlin:assembleRelease
       
