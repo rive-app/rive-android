@@ -5,7 +5,7 @@
     "changelog": "npx auto-changelog --stdout --commit-limit false --unreleased --template https://raw.githubusercontent.com/release-it/release-it/master/templates/changelog-compact.hbs"
   },
   "github": {
-    "release": false,
+    "release": true,
     "releaseName": "${version}"
   },
   "npm": {
@@ -26,7 +26,7 @@
   },
   "hooks": {
     "after:bump": [
-      "npx auto-changelog -p -o ../../../CHANGELOG.md",
+      "npx auto-changelog -p -o ../../../CHANGELOG.md --hide-empty-releases",
       "git add ../../../CHANGELOG.md",
       "git add ../../../VERSION"
     ]
