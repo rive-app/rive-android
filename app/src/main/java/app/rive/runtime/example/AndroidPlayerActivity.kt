@@ -41,6 +41,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         R.raw.wacky,
         R.raw.what_a_state,
         R.raw.two_bone_ik,
+        R.raw.constrained,
     )
 
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
