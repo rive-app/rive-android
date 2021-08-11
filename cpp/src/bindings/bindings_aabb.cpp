@@ -1,8 +1,6 @@
-// From rive-cpp
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "math/aabb.hpp"
-//
+#include "rive/math/aabb.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus

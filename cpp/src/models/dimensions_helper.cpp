@@ -1,7 +1,5 @@
 #include "models/dimensions_helper.hpp"
-
-// From rive-cpp
-#include "math/mat2d.hpp"
+#include "rive/math/mat2d.hpp"
 
 using namespace rive_android;
 

@@ -1,12 +1,8 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
-
-// From rive-cpp
-#include "artboard.hpp"
-#include "animation/linear_animation_instance.hpp"
-//
-
+#include "rive/artboard.hpp"
+#include "rive/animation/linear_animation_instance.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus

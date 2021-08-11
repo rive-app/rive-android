@@ -2,7 +2,7 @@
 #define _RIVE_ANDROID_RENDER_PATH_HPP_
 
 #include "helpers/general.hpp"
-#include "renderer.hpp" // for rive::RenderPath
+#include "rive/renderer.hpp" 
 
 namespace rive_android
 {

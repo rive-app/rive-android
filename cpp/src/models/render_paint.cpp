@@ -4,7 +4,6 @@
 #include "models/render_paint.hpp"
 #include "models/linear_gradient_builder.hpp"
 #include "models/radial_gradient_builder.hpp"
-
 #include <vector>
 
 using namespace rive_android;

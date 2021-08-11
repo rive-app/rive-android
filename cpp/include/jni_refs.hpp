@@ -1,5 +1,6 @@
 #ifndef _RIVE_ANDROID_JNI_REFS_HPP_
 #define _RIVE_ANDROID_JNI_REFS_HPP_
+
 #include <jni.h>
 
 namespace rive_android

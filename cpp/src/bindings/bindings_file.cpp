@@ -1,9 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-
-// From rive-cpp
-#include "file.hpp"
-//
+#include "rive/file.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus
