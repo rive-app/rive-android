@@ -2,10 +2,8 @@
 #include "helpers/general.hpp"
 #include "models/render_paint.hpp"
 #include "models/render_path.hpp"
-
-// From 'rive-cpp'
-#include "file.hpp"
-#include "layout.hpp"
+#include "rive/file.hpp"
+#include "rive/layout.hpp"
 
 // lets make sure we stich our rive android renderers into the rive namespace
 namespace rive

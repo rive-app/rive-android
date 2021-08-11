@@ -1,10 +1,9 @@
 #ifndef _RIVE_ANDROID_GENERAL_HPP_
 #define _RIVE_ANDROID_GENERAL_HPP_
 
-#include "layout.hpp"
+#include "rive/layout.hpp"
 #include <jni.h>
 #include <string>
-
 #include <android/log.h>
 
 #define LOG_TAG __FILE__

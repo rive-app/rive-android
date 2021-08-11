@@ -2,10 +2,7 @@
 #include "models/jni_renderer.hpp"
 #include "models/render_path.hpp"
 #include "models/render_paint.hpp"
-
-// From rive-cpp
-#include "math/mat2d.hpp"
-//
+#include "rive/math/mat2d.hpp"
 
 using namespace rive_android;
 

@@ -1,11 +1,9 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-
-// From rive-cpp
-#include "animation/state_machine_input.hpp"
-#include "animation/state_machine_bool.hpp"
-#include "animation/state_machine_number.hpp"
-#include "animation/state_machine_trigger.hpp"
+#include "rive/animation/state_machine_trigger.hpp"
+#include "rive/animation/state_machine_number.hpp"
+#include "rive/animation/state_machine_input.hpp"
+#include "rive/animation/state_machine_bool.hpp"
 
 #ifdef __cplusplus
 extern "C"

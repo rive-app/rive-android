@@ -1,7 +1,7 @@
 #ifndef _RIVE_ANDROID_JAVA_RENDERER_HPP_
 #define _RIVE_ANDROID_JAVA_RENDERER_HPP_
 
-#include "renderer.hpp"
+#include "rive/renderer.hpp"
 #include <jni.h>
 
 namespace rive_android

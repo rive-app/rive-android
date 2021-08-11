@@ -1,11 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
-
-// From rive-cpp
-#include "layout.hpp"
-//
-
+#include "rive/layout.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus

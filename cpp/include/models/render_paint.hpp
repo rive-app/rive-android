@@ -2,10 +2,7 @@
 #define _RIVE_ANDROID_RENDER_PAINT_HPP_
 
 #include "models/gradient_builder.hpp"
-
-// From rive-cpp
-#include "renderer.hpp"
-//
+#include "rive/renderer.hpp"
 
 namespace rive_android
 {

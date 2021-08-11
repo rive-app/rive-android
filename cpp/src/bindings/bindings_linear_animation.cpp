@@ -1,9 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-
-// From rive-cpp
-#include "animation/linear_animation.hpp"
-//
+#include "rive/animation/linear_animation.hpp"
 
 #ifdef __cplusplus
 extern "C"
