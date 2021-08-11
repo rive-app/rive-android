@@ -1,11 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-
-// From rive-cpp
-#include "animation/linear_animation_instance.hpp"
-#include "animation/loop.hpp"
-//
-
+#include "rive/animation/loop.hpp"
+#include "rive/animation/linear_animation_instance.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus

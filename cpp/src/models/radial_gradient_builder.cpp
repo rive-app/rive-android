@@ -1,9 +1,6 @@
 #include "helpers/general.hpp"
 #include "models/radial_gradient_builder.hpp"
-
-// From rive-cpp
-#include "math/vec2d.hpp"
-//
+#include "rive/math/vec2d.hpp"
 
 using namespace rive_android;
 

@@ -1,5 +1,4 @@
 #include <jni.h>
-
 #include <android/log.h>
 #include <sys/system_properties.h>
 #include <stdlib.h>
