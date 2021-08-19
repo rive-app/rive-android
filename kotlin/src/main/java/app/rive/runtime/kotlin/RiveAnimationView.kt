@@ -48,6 +48,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
 
     private var resourceId: Int? = null
 
+    private var _detachedState: DetachedRiveState? = null;
+
     var fit: Fit
         get() = drawable.fit
         set(value) {
@@ -446,11 +448,28 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         requestLayout()
     }
 
-
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        // Track the playing animations and state machines so we can resume them if the window is
+        // attached.
+        _detachedState = DetachedRiveState(
+            playingAnimationsNames = playingAnimations.map { it.animation.name },
+            playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
+        )
         pause()
     }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+
+        val detachedState = _detachedState;
+        if (detachedState != null) {
+            play(detachedState.playingAnimationsNames, areStateMachines = false)
+            play(detachedState.playingStateMachineNames, areStateMachines = true)
+            _detachedState = null
+        }
+    }
+
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -532,3 +551,5 @@ class RiveFileRequest(
         }
     }
 }
+
+data class DetachedRiveState(val playingAnimationsNames: List<String>, val playingStateMachineNames: List<String>)
