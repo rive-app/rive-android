@@ -85,6 +85,7 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null) :
         //  for different platforms in general
         setEGLContextClientVersion(3)
         renderer = RiveGLRenderer(rendererGL, context)
+        setEGLConfigChooser(8, 8, 8, 8, 0, 8)
         setRenderer(renderer)
     }
 
