@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        print("Im creating MainActivity!")
         super.onCreate(savedInstanceState)
         setContentView(R.layout.example_selection)
 
