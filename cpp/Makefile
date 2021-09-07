@@ -35,5 +35,6 @@ clean:
 	rm -f $(ODIR)/*.o
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
+	rm -f $(BUILD_DIR)/librive_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a
 	
