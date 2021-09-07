@@ -7,7 +7,8 @@ class RendererOpenGL {
     private external fun initializeGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
-    var cppPointer: Long = 0
+    var cppPointer: Long = constructor()
+        private set
 
     private var file: File? = null
     private var artboard: Artboard? = null
@@ -32,10 +33,7 @@ class RendererOpenGL {
         ai.advance(0.0f)
         ai.apply(artboard!!)
         this.animationInstance = ai
-    }
-
-    init {
-        cppPointer = constructor()
+        startFrame(cppPointer)
     }
 
     fun cleanup() {
