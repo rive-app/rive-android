@@ -11,7 +11,9 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.RendererOpenGL
+import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.egl.EGLDisplay
 import javax.microedition.khronos.opengles.GL10
 
 class OpenGLActivity : AppCompatActivity() {
@@ -55,7 +57,7 @@ class OpenGLActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         )
-        val adapter = ArrayAdapter<String>(
+        val adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
             animationResources.map { resources.getResourceName(it).split('/').last() }
@@ -90,7 +92,7 @@ class OpenGLActivity : AppCompatActivity() {
     }
 
     private fun initGLSurfaceView(fileBytes: ByteArray) {
-        glSurfaceView = RiveGLSurfaceView(this, fileBytes)
+        glSurfaceView = RiveGLSurfaceView(this, null, fileBytes)
         val density = resources.displayMetrics.density
         glSurfaceView!!.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -102,10 +104,10 @@ class OpenGLActivity : AppCompatActivity() {
     }
 }
 
-class RiveGLSurfaceView(context: Context, fileBytes: ByteArray, attrs: AttributeSet? = null) :
+class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes: ByteArray) :
     GLSurfaceView(context, attrs) {
-    val renderer: RiveGLRenderer
-    var rendererGL = RendererOpenGL()
+    private val renderer: RiveGLRenderer
+    private var rendererGL = RendererOpenGL()
 
     init {
         // Init GL context.
@@ -115,7 +117,8 @@ class RiveGLSurfaceView(context: Context, fileBytes: ByteArray, attrs: Attribute
         setEGLContextClientVersion(3)
         renderer = RiveGLRenderer(rendererGL, fileBytes)
         // Set up the stencil buffer.
-        setEGLConfigChooser(8, 8, 8, 8, 0, 8)
+        setEGLConfigChooser(RiveConfigChooser())
+//        setEGLConfigChooser(8, 8, 8, 8, 0, 8)
         setRenderer(renderer)
     }
 
@@ -123,12 +126,42 @@ class RiveGLSurfaceView(context: Context, fileBytes: ByteArray, attrs: Attribute
         super.onDetachedFromWindow()
         rendererGL.cleanup()
     }
+
+    private class RiveConfigChooser : EGLConfigChooser {
+        override fun chooseConfig(egl: EGL10?, display: EGLDisplay?): EGLConfig? {
+            val attributes = intArrayOf(
+                EGL10.EGL_COLOR_BUFFER_TYPE, EGL10.EGL_RGB_BUFFER,
+                EGL10.EGL_RED_SIZE, 8,
+                EGL10.EGL_GREEN_SIZE, 8,
+                EGL10.EGL_BLUE_SIZE, 8,
+                EGL10.EGL_ALPHA_SIZE, 8,
+                EGL10.EGL_DEPTH_SIZE, 0,
+                EGL10.EGL_STENCIL_SIZE, 8, // Enables Stencil testing
+                //
+                EGL10.EGL_RENDERABLE_TYPE, 4, /* EGL_OPENGL_ES2_BIT */
+                // Enable MSAA:
+                EGL10.EGL_SAMPLE_BUFFERS, 1,
+                EGL10.EGL_SAMPLES, 4,
+                // Closing flag.
+                EGL10.EGL_NONE
+            )
+            val configs = arrayOfNulls<EGLConfig>(1)
+            val configCount = IntArray(1)
+            egl?.eglChooseConfig(display, attributes, configs, 1, configCount)
+
+            return if (configCount.first() == 0) {
+                null
+            } else {
+                configs[0]
+            }
+        }
+    }
 }
 
-class RiveGLRenderer(val rendererGL: RendererOpenGL, val fileBytes: ByteArray) :
+class RiveGLRenderer(private val rendererGL: RendererOpenGL, private val fileBytes: ByteArray) :
     GLSurfaceView.Renderer {
     private var lastTime: Long = 0
-    var isPlaying = true
+    private var isPlaying = true
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         // Init file after GL init.
