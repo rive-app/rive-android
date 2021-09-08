@@ -7,9 +7,11 @@ import app.rive.runtime.kotlin.R
 import app.rive.runtime.kotlin.RiveDrawable
 import app.rive.runtime.kotlin.core.File
 
-class RiveButton(context: Context, attrs: AttributeSet? = null) : AppCompatImageButton(context, attrs) {
-    var riveDrawable:RiveDrawable;
+class RiveButton(context: Context, attrs: AttributeSet? = null) :
+    AppCompatImageButton(context, attrs) {
+    var riveDrawable: RiveDrawable;
     var pressAnimation: String?;
+
     init {
         context.theme.obtainStyledAttributes(
             attrs,
@@ -17,8 +19,10 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) : AppCompatImage
             0, 0
         ).apply {
             try {
-                val resourceId = getResourceId(app.rive.runtime.example.R.styleable.RiveButton_riveResource, -1)
-                pressAnimation = getString(app.rive.runtime.example.R.styleable.RiveButton_rivePressAnimation)
+                val resourceId =
+                    getResourceId(app.rive.runtime.example.R.styleable.RiveButton_riveResource, -1)
+                pressAnimation =
+                    getString(app.rive.runtime.example.R.styleable.RiveButton_rivePressAnimation)
 
                 var resourceBytes = resources.openRawResource(resourceId).readBytes()
                 var riveFile = File(resourceBytes)
@@ -34,11 +38,11 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) : AppCompatImage
     }
 
     override fun performClick(): Boolean {
-        pressAnimation?.let{
+        pressAnimation?.let {
             riveDrawable.stop()
             riveDrawable.play(it)
             return true
-        } ?:run {
+        } ?: run {
             riveDrawable.stop()
             riveDrawable.play()
         }
