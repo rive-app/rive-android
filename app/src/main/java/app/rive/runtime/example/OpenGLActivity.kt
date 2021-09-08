@@ -7,6 +7,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.LinearLayout
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.RendererOpenGL
@@ -14,10 +15,14 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class OpenGLActivity : AppCompatActivity() {
+    private var glSurfaceView: RiveGLSurfaceView? = null
+
+    // Values for the Dropdown
     private val animationResources = listOf(
         R.raw.artboard_animations,
         R.raw.basketball,
         R.raw.clipping,
+        R.raw.constrained,
         R.raw.explorer,
         R.raw.f22,
         R.raw.flux_capacitor,
@@ -27,21 +32,29 @@ class OpenGLActivity : AppCompatActivity() {
         R.raw.off_road_car_blog,
         R.raw.progress,
         R.raw.pull,
-        R.raw.rope,
         R.raw.skills,
         R.raw.trailblaze,
-        R.raw.ui_swipe_left_to_delete,
-        R.raw.vader,
-        R.raw.wacky,
-        R.raw.what_a_state,
         R.raw.two_bone_ik,
-        R.raw.constrained,
+        R.raw.ui_swipe_left_to_delete,
     )
+
+    private val containerView by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<LinearLayout>(R.id.container)
+    }
+    private val glViewId by lazy(LazyThreadSafetyMode.NONE) { R.id.rive_gl_surface_view }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.opengl)
-        /*val spinner = findViewById<Spinner>(R.id.animations_spinner)
+        addSpinner()
+    }
+
+    private fun addSpinner() {
+        val spinner = Spinner(this)
+        spinner.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        )
         val adapter = ArrayAdapter<String>(
             this,
             android.R.layout.simple_spinner_dropdown_item,
@@ -55,25 +68,41 @@ class OpenGLActivity : AppCompatActivity() {
                 index: Int,
                 arg3: Long
             ) {
-                loadResource(index)
+                loadResourceFromSpinner(index)
             }
 
             override fun onNothingSelected(arg0: AdapterView<*>?) {}
-        }*/
+        }
+
+        containerView.addView(spinner)
     }
 
-    private val animationView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveGLSurfaceView>(R.id.riveGLSurfaceView)
-    }
 
-    private fun loadResource(index: Int) {
+    private fun loadResourceFromSpinner(index: Int) {
+
+        val currentGlSurfaceView = findViewById<RiveGLSurfaceView?>(glViewId)
+        if (currentGlSurfaceView != null) {
+            containerView.removeView(currentGlSurfaceView)
+        }
         val res = animationResources[index]
-
         val fileBytes = resources.openRawResource(res).readBytes()
+        initGLSurfaceView(fileBytes)
+    }
+
+    private fun initGLSurfaceView(fileBytes: ByteArray) {
+        glSurfaceView = RiveGLSurfaceView(this, fileBytes)
+        val density = resources.displayMetrics.density
+        glSurfaceView!!.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            (366 * density).toInt(),
+        )
+
+        containerView.addView(glSurfaceView, 0)
+        glSurfaceView!!.id = glViewId
     }
 }
 
-class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null) :
+class RiveGLSurfaceView(context: Context, fileBytes: ByteArray, attrs: AttributeSet? = null) :
     GLSurfaceView(context, attrs) {
     val renderer: RiveGLRenderer
     var rendererGL = RendererOpenGL()
@@ -84,7 +113,8 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null) :
         //  we could totally tweak those for es2. we actually need a better abstraction there
         //  for different platforms in general
         setEGLContextClientVersion(3)
-        renderer = RiveGLRenderer(rendererGL, context)
+        renderer = RiveGLRenderer(rendererGL, fileBytes)
+        // Set up the stencil buffer.
         setEGLConfigChooser(8, 8, 8, 8, 0, 8)
         setRenderer(renderer)
     }
@@ -95,7 +125,7 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null) :
     }
 }
 
-class RiveGLRenderer(var rendererGL: RendererOpenGL, private val context: Context) :
+class RiveGLRenderer(val rendererGL: RendererOpenGL, val fileBytes: ByteArray) :
     GLSurfaceView.Renderer {
     private var lastTime: Long = 0
     var isPlaying = true
@@ -103,10 +133,8 @@ class RiveGLRenderer(var rendererGL: RendererOpenGL, private val context: Contex
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         // Init file after GL init.
         rendererGL.initializeGL()
-        val fileBytes = context.resources.openRawResource(R.raw.artboard_animations).readBytes()
         rendererGL.initFile(fileBytes)
         lastTime = System.currentTimeMillis()
-//        GLES20.glClearColor(1.0f, 0.7f, 0.2f, 1.0f)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
