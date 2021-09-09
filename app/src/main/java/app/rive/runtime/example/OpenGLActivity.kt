@@ -68,7 +68,7 @@ class OpenGLActivity : AppCompatActivity() {
                 arg0: AdapterView<*>?,
                 view: View?,
                 index: Int,
-                arg3: Long
+                arg3: Long,
             ) {
                 loadResourceFromSpinner(index)
             }
@@ -116,9 +116,9 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes
         //  for different platforms in general
         setEGLContextClientVersion(3)
         renderer = RiveGLRenderer(rendererGL, fileBytes)
-        // Set up the stencil buffer.
         setEGLConfigChooser(RiveConfigChooser())
-//        setEGLConfigChooser(8, 8, 8, 8, 0, 8)
+        // Set up the stencil buffer.
+        // setEGLConfigChooser(8, 8, 8, 8, 0, 8)
         setRenderer(renderer)
     }
 
@@ -128,32 +128,69 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes
     }
 
     private class RiveConfigChooser : EGLConfigChooser {
-        override fun chooseConfig(egl: EGL10?, display: EGLDisplay?): EGLConfig? {
-            val attributes = intArrayOf(
-                EGL10.EGL_COLOR_BUFFER_TYPE, EGL10.EGL_RGB_BUFFER,
-                EGL10.EGL_RED_SIZE, 8,
-                EGL10.EGL_GREEN_SIZE, 8,
-                EGL10.EGL_BLUE_SIZE, 8,
-                EGL10.EGL_ALPHA_SIZE, 8,
-                EGL10.EGL_DEPTH_SIZE, 0,
-                EGL10.EGL_STENCIL_SIZE, 8, // Enables Stencil testing
-                //
-                EGL10.EGL_RENDERABLE_TYPE, 4, /* EGL_OPENGL_ES2_BIT */
-                // Enable MSAA:
-                EGL10.EGL_SAMPLE_BUFFERS, 1,
-                EGL10.EGL_SAMPLES, 4,
-                // Closing flag.
-                EGL10.EGL_NONE
-            )
-            val configs = arrayOfNulls<EGLConfig>(1)
-            val configCount = IntArray(1)
-            egl?.eglChooseConfig(display, attributes, configs, 1, configCount)
+        companion object ChooserDefaults {
+            private const val MAX_CONFIGS = 128
+            private const val RED_MIN_SIZE = 8
+            private const val GREEN_MIN_SIZE = 8
+            private const val BLUE_MIN_SIZE = 8
+            // We need a configuration with the stencil buffer.
+            private const val STENCIL_MIN_SIZE = 8
+            private val refValue = IntArray(1)
+        }
 
-            return if (configCount.first() == 0) {
-                null
+        override fun chooseConfig(egl: EGL10?, display: EGLDisplay?): EGLConfig? {
+            val configArray = arrayOfNulls<EGLConfig>(MAX_CONFIGS)
+            val configCount = IntArray(1)
+            egl?.eglGetConfigs(display, configArray, MAX_CONFIGS, configCount)
+            return if (configCount.first() <= 0) {
+                throw IllegalArgumentException("No Config match our defaults?")
             } else {
-                configs[0]
+                findConfig(egl!!, display!!, configArray.copyOfRange(0, configCount.first()))
             }
+
+        }
+
+        private fun findConfig(
+            egl: EGL10,
+            display: EGLDisplay,
+            configArray: Array<EGLConfig?>,
+        ): EGLConfig? {
+
+            var candidate: EGLConfig? = null
+            // MSAA is optional as it might not be supported by the device.
+            var lastSamples = 0
+
+            for (config in configArray) {
+                val stencil = findConfigAttrib(egl, display, config, EGL10.EGL_STENCIL_SIZE)
+                val red = findConfigAttrib(egl, display, config, EGL10.EGL_RED_SIZE)
+                val green = findConfigAttrib(egl, display, config, EGL10.EGL_GREEN_SIZE)
+                val blue = findConfigAttrib(egl, display, config, EGL10.EGL_BLUE_SIZE)
+                val samples = findConfigAttrib(egl, display, config, EGL10.EGL_SAMPLES)
+                if (
+                    red == RED_MIN_SIZE &&
+                    green == GREEN_MIN_SIZE &&
+                    blue == BLUE_MIN_SIZE &&
+                    stencil == STENCIL_MIN_SIZE &&
+                    samples >= lastSamples
+                ) {
+                    lastSamples = samples
+                    candidate = config
+                }
+            }
+
+            return candidate
+        }
+
+        private fun findConfigAttrib(
+            egl: EGL10,
+            display: EGLDisplay,
+            config: EGLConfig?,
+            attribute: Int,
+        ): Int {
+            if (egl.eglGetConfigAttrib(display, config, attribute, refValue)) {
+                return refValue.first()
+            }
+            return 0
         }
     }
 }
