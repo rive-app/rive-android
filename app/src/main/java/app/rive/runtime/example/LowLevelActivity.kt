@@ -35,12 +35,6 @@ class LowLevelActivity : AppCompatActivity() {
         )
         layout.addView(riveView)
     }
-
-    // Clean up the Rive renderer
-    override fun onDestroy() {
-        super.onDestroy()
-        renderer.cleanup()
-    }
 }
 
 // Low level Rive view

@@ -36,9 +36,4 @@ class SimpleStateMachineActivity : AppCompatActivity() {
         Rive.init()
         setContentView(R.layout.simple_state_machine)
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.destroy()
-    }
 }

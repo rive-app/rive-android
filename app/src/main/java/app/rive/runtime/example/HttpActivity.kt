@@ -47,12 +47,6 @@ class HttpActivity : AppCompatActivity() {
         )
         httpViewModel.fetchUrl(riveUrl)
     }
-
-    // Clean up the animation view
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.destroy()
-    }
 }
 
 // ViewModel for asynchronously fetching Rive file data

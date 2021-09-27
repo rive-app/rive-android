@@ -88,8 +88,4 @@ class LoopModeActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.destroy()
-    }
 }
