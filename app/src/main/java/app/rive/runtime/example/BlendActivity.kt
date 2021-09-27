@@ -17,8 +17,4 @@ class BlendActivity : AppCompatActivity() {
         setContentView(R.layout.blend)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        animationViewAsset.destroy()
-    }
 }

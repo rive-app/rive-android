@@ -45,11 +45,6 @@ class RiveFragment : Fragment() {
         riveView.fit = Fit.COVER
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        riveView.destroy()
-    }
-
     companion object {
         /**
          * Use this factory method to create a new instance of

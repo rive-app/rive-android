@@ -398,13 +398,5 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
         animationView.registerListener(listener)
     }
-
-
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.destroy()
-    }
-
-
 }
 
