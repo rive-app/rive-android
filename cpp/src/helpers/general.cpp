@@ -42,6 +42,12 @@ namespace rive_android
 		return g_env;
 	}
 
+	void logReferenceTables() {
+		jclass vm_class = getJNIEnv()->FindClass("dalvik/system/VMDebug");
+		jmethodID dump_mid = getJNIEnv()->GetStaticMethodID( vm_class, "dumpReferenceTables", "()V" );
+		getJNIEnv()->CallStaticVoidMethod( vm_class, dump_mid );
+	}
+
 	void setSDKVersion()
 	{
 		char sdk_ver_str[255];
