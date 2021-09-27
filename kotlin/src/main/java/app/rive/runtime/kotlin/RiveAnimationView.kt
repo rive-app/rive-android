@@ -525,10 +525,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     override fun unregisterListener(listener: RiveDrawable.Listener) {
         drawable.unregisterListener(listener)
     }
-
-    protected fun finalize() {
-        drawable.destroy()
-    }
 }
 
 // Custom Volley request to download and create rive files over http
