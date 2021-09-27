@@ -69,14 +69,5 @@ class LayoutActivity : AppCompatActivity() {
         findViewById<Button>(R.id.alignment_bottom_right).setOnClickListener {
             animationView.alignment = Alignment.BOTTOM_RIGHT
         }
-
-
-
-    }
-
-
-    override fun onDestroy() {
-        super.onDestroy()
-        animationView.destroy()
     }
 }
