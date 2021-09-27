@@ -169,8 +169,7 @@ class RiveDrawable(
         invalidateSelf()
     }
 
-    fun destroy() {
-        stop()
+    fun finalize() {
         renderer.cleanup()
     }
 
