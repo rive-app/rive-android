@@ -19,6 +19,7 @@ namespace rive_android
 	extern jobject androidCanvas;
 	extern int sdkVersion;
 	void setSDKVersion();
+	void logReferenceTables();
 	long import(uint8_t *bytes, jint length);
 
 	rive::Alignment getAlignment(JNIEnv *env, jobject jalignment);
