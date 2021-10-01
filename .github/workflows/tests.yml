@@ -9,6 +9,11 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
+      - name: Update Java
+        uses: actions/setup-java@v2
+        with: 
+          distribution: 'zulu' 
+          java-version: '16'
 
       - name: Test Android v30
         uses: reactivecircus/android-emulator-runner@v2
