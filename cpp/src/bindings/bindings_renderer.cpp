@@ -34,7 +34,7 @@ extern "C"
     IJNIRenderer *g_JNIRenderer = nullptr;
 
     // RENDERER
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Renderer_constructor(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_Renderer_constructor(
         JNIEnv *env,
         jobject thisObj,
         jboolean antialias)
@@ -47,7 +47,7 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cleanupJNI(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_Renderer_cleanupJNI(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -56,7 +56,7 @@ extern "C"
         delete renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cppAlign(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_Renderer_cppAlign(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
@@ -74,12 +74,11 @@ extern "C"
         renderer->align(fit, alignment, *targetBounds, *sourceBounds);
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cppDraw(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_Renderer_cppDraw(
         JNIEnv *env,
         jobject thisObj,
         jlong artboardRef,
-        jlong rendererRef,
-        jobject rendererObj)
+        jlong rendererRef)
     {
         auto artboard = (rive::Artboard *)artboardRef;
         auto renderer = (::JNIRenderer *)rendererRef;
@@ -101,7 +100,7 @@ extern "C"
         }
     }
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_constructor(JNIEnv *env, jobject thisObj)
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_constructor(JNIEnv *env, jobject thisObj)
     {
         // luigi: again ifdef this out for release (or murder completely, but
         // it's nice to catch all fprintf to stderr). Bad place to put this but
@@ -118,7 +117,7 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_initializeGL(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_initializeGL(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -126,7 +125,7 @@ extern "C"
         ((::JNIRendererGL *)rendererRef)->initialize();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_startFrame(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_startFrame(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -134,7 +133,7 @@ extern "C"
         ((::JNIRendererGL *)rendererRef)->startFrame();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_setViewport(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_setViewport(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef,
@@ -152,7 +151,7 @@ extern "C"
         renderer->modelViewProjection(projection);
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_cppDraw(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cppDraw(
         JNIEnv *env,
         jobject thisObj,
         jlong artboardRef,
@@ -172,7 +171,7 @@ extern "C"
         renderer->restore();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_cleanupJNI(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cleanupJNI(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -182,7 +181,7 @@ extern "C"
     }
 
     // Skia Renderer
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_constructor(JNIEnv *env, jobject thisObj)
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(JNIEnv *env, jobject thisObj)
     {
         // luigi: again ifdef this out for release (or murder completely, but
         // it's nice to catch all fprintf to stderr). Bad place to put this but
@@ -199,7 +198,7 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_initializeSkiaGL(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_initializeSkiaGL(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -207,7 +206,7 @@ extern "C"
         ((::JNIRendererSkia *)rendererRef)->initialize();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_startFrame(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_startFrame(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
@@ -215,7 +214,7 @@ extern "C"
         ((::JNIRendererSkia *)rendererRef)->startFrame();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_setViewport(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_setViewport(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef,
@@ -225,7 +224,7 @@ extern "C"
         ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_cppDraw(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDraw(
         JNIEnv *env,
         jobject thisObj,
         jlong artboardRef,
@@ -248,7 +247,7 @@ extern "C"
         jniWrapper->flush();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_cleanupJNI(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
