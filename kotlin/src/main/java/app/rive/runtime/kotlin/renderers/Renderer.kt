@@ -1,45 +1,13 @@
-package app.rive.runtime.kotlin.core
+package app.rive.runtime.kotlin.renderers
 
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-
-enum class RendererType {
-    CANVAS {
-        override fun make(antialias: Boolean): Renderer {
-            return Renderer(antialias)
-        }
-    },
-    OPENGL {
-        override fun make(antialias: Boolean): Renderer {
-            return Renderer(antialias)
-        }
-    },
-    SKIA {
-        override fun make(antialias: Boolean): Renderer {
-            return Renderer(antialias)
-        }
-    };
-
-    abstract fun make(antialias: Boolean = true): BaseRenderer
-}
-
-abstract class BaseRenderer {
-    abstract internal var cppPointer: Long
-
-    abstract fun draw(artboard: Artboard, canvas: Canvas)
-    abstract protected fun cleanupJNI(cppPointer: Long)
-    abstract fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB)
-
-    /**
-     * Remove the [Renderer] object from memory.
-     */
-    fun cleanup() {
-        cleanupJNI(cppPointer)
-        cppPointer = 0
-    }
-}
+import app.rive.runtime.kotlin.core.AABB
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.Fit
 
 /**
  * A [Renderer] is used to help draw an [Artboard] to a [Canvas]
@@ -51,9 +19,14 @@ abstract class BaseRenderer {
  * rendered.
  */
 class Renderer(antialias: Boolean = true) : BaseRenderer() {
-    override var cppPointer: Long = constructor(antialias)
     private lateinit var canvas: Canvas
 
+    override var cppPointer: Long = constructor(antialias)
+
+    external override fun cleanupJNI(cppPointer: Long)
+    external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
+
+    private external fun constructor(antialias: Boolean): Long
     private external fun cppAlign(
         cppPointer: Long,
         fit: Fit,
@@ -62,21 +35,15 @@ class Renderer(antialias: Boolean = true) : BaseRenderer() {
         srcBoundsPointer: Long
     )
 
-    override external fun cleanupJNI(cppPointer: Long)
-    private external fun constructor(antialias: Boolean): Long
-    private external fun cppDraw(
-        artboardPointer: Long,
-        rendererPointer: Long,
-        renderer: Renderer,
-        canvas: Canvas,
-    )
-
-    override fun draw(artboard: Artboard, canvas: Canvas) {
+    fun draw(artboard: Artboard, canvas: Canvas) {
         this.canvas = canvas
         val saved = canvas.save()
-        // TODO: checks on these params?
-        cppDraw(artboard.cppPointer, this.cppPointer, this, this.canvas)
+        draw(artboard)
         canvas.restoreToCount(saved)
+    }
+
+    override fun draw(artboard: Artboard) {
+        cppDraw(artboard.cppPointer, this.cppPointer)
     }
 
     /**
