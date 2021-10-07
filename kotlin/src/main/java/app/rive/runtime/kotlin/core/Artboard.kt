@@ -4,6 +4,9 @@ import app.rive.runtime.kotlin.controllers.RiveController
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
+import app.rive.runtime.kotlin.renderers.Renderer
+import app.rive.runtime.kotlin.renderers.RendererOpenGL
+import app.rive.runtime.kotlin.renderers.RendererSkia
 
 
 /**

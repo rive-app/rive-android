@@ -9,6 +9,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
+import app.rive.runtime.kotlin.renderers.Renderer
 
 
 class RiveDrawable(
