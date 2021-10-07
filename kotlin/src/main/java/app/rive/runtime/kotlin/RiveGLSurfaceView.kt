@@ -6,10 +6,8 @@ import android.util.AttributeSet
 import app.rive.runtime.kotlin.controllers.LinearAnimationController
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
-import app.rive.runtime.kotlin.core.RendererSkia
-import javax.microedition.khronos.egl.EGL10
+import app.rive.runtime.kotlin.renderers.RendererSkia
 import javax.microedition.khronos.egl.EGLConfig
-import javax.microedition.khronos.egl.EGLDisplay
 import javax.microedition.khronos.opengles.GL10
 
 class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes: ByteArray) :

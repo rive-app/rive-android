@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.renderers.Renderer
 
 
 class LowLevelActivity : AppCompatActivity() {
