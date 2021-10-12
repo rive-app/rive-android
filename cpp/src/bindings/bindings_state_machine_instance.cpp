@@ -16,10 +16,10 @@ extern "C"
         jlong stateMachineRef)
     {
 
-        rive::StateMachine *animation = (rive::StateMachine *)stateMachineRef;
+        auto animation = (rive::StateMachine *)stateMachineRef;
 
         // TODO: delete this object?
-        rive::StateMachineInstance *stateMachineInstance = new rive::StateMachineInstance(animation);
+        auto stateMachineInstance = new rive::StateMachineInstance(animation);
 
         return (jlong)stateMachineInstance;
     }
@@ -31,8 +31,8 @@ extern "C"
         jlong artboardRef,
         jfloat elapsedTime)
     {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        auto stateMachineInstance = (rive::StateMachineInstance *)ref;
+        auto artboard = (rive::Artboard *)artboardRef;
         return stateMachineInstance->advance(artboard, elapsedTime);
     }
 
@@ -41,7 +41,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        auto stateMachineInstance = (rive::StateMachineInstance *)ref;
         return stateMachineInstance->stateChangedCount();
     }
 
@@ -51,7 +51,7 @@ extern "C"
         jlong ref,
         jint index)
     {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        auto stateMachineInstance = (rive::StateMachineInstance *)ref;
         return (jlong)stateMachineInstance->stateChangedByIndex(index);
     }
 
@@ -61,7 +61,7 @@ extern "C"
         jlong ref,
         jint index)
     {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        auto stateMachineInstance = (rive::StateMachineInstance *)ref;
 
         return (jlong)stateMachineInstance->input(index);
     }
@@ -71,7 +71,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        rive::StateMachineInstance *stateMachineInstance = (rive::StateMachineInstance *)ref;
+        auto stateMachineInstance = (rive::StateMachineInstance *)ref;
 
         return (jlong)stateMachineInstance->inputCount();
     }

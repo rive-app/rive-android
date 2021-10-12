@@ -11,7 +11,6 @@ extern "C"
 {
 #endif
 
-    // ANIMATION
     JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_SMIInput_cppName(
         JNIEnv *env,
         jobject thisObj,
