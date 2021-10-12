@@ -1,4 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-open class PlayableInstance {
+abstract class PlayableInstance {
+   abstract fun apply(artboard: Artboard, elapsed: Float): Boolean
 }
