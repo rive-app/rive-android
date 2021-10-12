@@ -20,7 +20,7 @@ extern "C"
         rive::LinearAnimation *animation = (rive::LinearAnimation *)animationRef;
 
         // TODO: delete this object?
-        rive::LinearAnimationInstance *animationInstance = new rive::LinearAnimationInstance(animation);
+        auto animationInstance = new rive::LinearAnimationInstance(animation);
 
         return (jlong)animationInstance;
     }
@@ -31,7 +31,7 @@ extern "C"
         jlong ref,
         jfloat elapsedTime)
     {
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->advance(elapsedTime);
         bool didLoop = animationInstance->didLoop();
 
@@ -71,8 +71,8 @@ extern "C"
         jlong artboardRef,
         jfloat mix)
     {
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto artboard = (rive::Artboard *)artboardRef;
         animationInstance->apply(artboard, mix);
     }
 
@@ -82,7 +82,7 @@ extern "C"
         jlong ref)
     {
 
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
         return animationInstance->time();
     }
 
@@ -92,7 +92,7 @@ extern "C"
         jlong ref,
         jfloat time)
     {
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->time(time);
     }
 
@@ -102,7 +102,7 @@ extern "C"
         jlong ref,
         jint direction)
     {
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
         animationInstance->direction(direction);
     }
 
@@ -111,10 +111,9 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        rive::LinearAnimationInstance *animationInstance = (rive::LinearAnimationInstance *)ref;
+        auto animationInstance = (rive::LinearAnimationInstance *)ref;
         return animationInstance->direction();
     }
-
 
     JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetLoop(
         JNIEnv *env,
