@@ -68,7 +68,7 @@ class Artboard(val cppPointer: Long) {
             )
         }
 
-    private val animationControllers = HashSet<RiveController<Artboard>>()
+    val playableInstances = HashSet<PlayableInstance>()
 
     /**
      * Get the animation at a given [index] in the [Artboard].
@@ -148,25 +148,6 @@ class Artboard(val cppPointer: Long) {
         )
     }
 
-    fun addController(controller: RiveController<Artboard>): Boolean {
-        if (animationControllers.contains(controller) ||
-            !controller.initialize(this)
-        ) {
-            return false
-        }
-        println("Just added controller: ${controller.hashCode()}")
-        animationControllers.add(controller)
-        return true
-    }
-
-    fun removeController(controller: RiveController<Artboard>): Boolean {
-        if (animationControllers.remove(controller)) {
-            controller.dispose()
-            return true
-        }
-        return false
-    }
-
     /**
      * Get the number of animations stored inside the [Artboard].
      */
@@ -193,10 +174,8 @@ class Artboard(val cppPointer: Long) {
      */
     fun advance(elapsedTime: Float): Boolean {
         var didUpdate = false
-        animationControllers.forEach { ctrl ->
-            if (ctrl.isActive) {
-                ctrl.apply(this, elapsedTime)
-            }
+        playableInstances.forEach { instance ->
+            instance.apply(this, elapsedTime)
         }
 
         return cppAdvance(cppPointer, elapsedTime) || didUpdate
