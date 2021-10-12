@@ -70,9 +70,8 @@ class RiveGLSurfaceViewRenderer(
             val time = System.currentTimeMillis()
             val elapsed = (time - lastTime) / 1000f
             lastTime = time
-            if (artboard.advance(elapsed)) {
-                riveRenderer.draw(artboard)
-            }
+            artboard.advance(elapsed)
+            riveRenderer.draw(artboard)
         }
     }
 
