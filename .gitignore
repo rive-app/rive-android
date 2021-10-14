@@ -10,6 +10,7 @@ Thumbs.db
 cpp/*.o
 cpp/*.so
 cpp/build
+cpp/deps
 cpp/Toolchains
 *.iml
 .gradle
