@@ -24,6 +24,7 @@ DEPS=$(O_FILES) \
 	$(BUILD_DIR)/libc++_static.a \
 	$(BUILD_DIR)/libskia.a \
 	$(BUILD_DIR)/librive_skia_renderer.a \
+	$(BUILD_DIR)/libswappy_static.a \
 
 LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid -lEGL -lGLESv3
@@ -45,6 +46,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-I${LIBRIVE}/skia/dependencies/skia/include/gpu \
 		-I${LIBRIVE}/skia/dependencies/skia/include/config \
 		-I${LIBRIVE}/skia/renderer/include \
+		-I./deps/${AGDK_LIBS}/include \
 		$(CXXFLAGS)
 
 clean:
