@@ -13,8 +13,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-
-        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        auto stateMachine = (rive::StateMachine *)ref;
         return env->NewStringUTF(stateMachine->name().c_str());
     }
 
@@ -23,7 +22,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        auto stateMachine = (rive::StateMachine *)ref;
         return (jint)stateMachine->inputCount();
     }
 
@@ -32,7 +31,7 @@ extern "C"
         jobject thisObj,
         jlong ref)
     {
-        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        auto stateMachine = (rive::StateMachine *)ref;
         return (jint)stateMachine->layerCount();
     }
 
@@ -42,7 +41,7 @@ extern "C"
         jlong ref,
         jint index)
     {
-        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        auto stateMachine = (rive::StateMachine *)ref;
         return (jlong)stateMachine->input(index);
     }
 
@@ -52,7 +51,7 @@ extern "C"
         jlong ref,
         jstring name)
     {
-        rive::StateMachine *stateMachine = (rive::StateMachine *)ref;
+        auto stateMachine = (rive::StateMachine *)ref;
 
         return (jlong)stateMachine->input(
             rive_android::jstring2string(env, name));
