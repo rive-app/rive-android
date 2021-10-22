@@ -126,10 +126,11 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nStop(JNIEnv *, jobject)
+  Java_app_rive_runtime_example_SwappyView_nStop(
+      JNIEnv *, jobject,
+      jlong rendererAddr)
   {
-    // TODO:
-    // Renderer::getInstance()->stop();
+    ((JNIRendererSkia *)rendererAddr)->stop();
   }
 
   JNIEXPORT void JNICALL
