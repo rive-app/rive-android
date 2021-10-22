@@ -184,7 +184,7 @@ extern "C"
                            jniWrapper->width(),
                            jniWrapper->height()),
                        artboard->bounds());
-        artboard->draw(&renderer);   
+        artboard->draw(&renderer);
         renderer.restore();
         jniWrapper->flush();
     }

@@ -16,6 +16,17 @@ class RendererSkia : BaseRenderer() {
     private external fun startFrame(cppPointer: Long)
     private external fun initializeSkiaGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
+    private external fun nSetArtboard(cppPointer: Long, artboardPointer: Long)
+
+    val address: Long = cppPointer
+
+    var artboard: Artboard? = null
+        get() = field
+        set(value) {
+            if (value == field) return
+            field = value
+            nSetArtboard(cppPointer, field?.cppPointer ?: 0)
+        }
 
     fun initializeSkia() {
         initializeSkiaGL(cppPointer)
@@ -28,6 +39,10 @@ class RendererSkia : BaseRenderer() {
     override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
         // NOP
         // TODO: reconsider this in place of setViewport?
+    }
+
+    fun startFrame() {
+        startFrame(cppPointer)
     }
 
     override fun draw(artboard: Artboard) {
