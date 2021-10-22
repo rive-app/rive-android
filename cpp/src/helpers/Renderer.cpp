@@ -293,19 +293,6 @@ namespace samples
         }
         threadState->lastUpdate = std::chrono::steady_clock::now();
 
-        threadState->x += threadState->velocity * deltaSeconds;
-
-        if (threadState->x > 0.8f)
-        {
-            threadState->velocity *= -1.0f;
-            threadState->x = 1.6f - threadState->x;
-        }
-        else if (threadState->x < -0.8f)
-        {
-            threadState->velocity *= -1.0f;
-            threadState->x = -1.6f - threadState->x;
-        }
-
         // Just fill the screen with a color.
         glClearColor(1.0f, 0.3f, 0.3f, 1.0f);
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
