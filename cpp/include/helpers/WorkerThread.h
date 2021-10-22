@@ -39,7 +39,7 @@
 #include "Settings.h"
 #include "Thread.h"
 
-namespace samples
+namespace rive_android
 {
 
     class HotPocketState
@@ -54,10 +54,10 @@ namespace samples
         bool isStarted = false;
     };
 
-    class ThreadState
+    class EGLThreadState
     {
     public:
-        ThreadState()
+        EGLThreadState()
         {
             display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
             eglInitialize(display, 0, 0);
@@ -109,7 +109,7 @@ namespace samples
             // glDisable(GL_DEPTH_TEST);
         }
 
-        ~ThreadState()
+        ~EGLThreadState()
         {
             clearSurface();
             if (context != EGL_NO_CONTEXT)
@@ -176,7 +176,7 @@ namespace samples
             auto get_proc = [](void *context, const char name[]) -> GrGLFuncPtr
             {
                 return reinterpret_cast<GrGLFuncPtr>(
-                    reinterpret_cast<ThreadState *>(context)->getProcAddress(name));
+                    reinterpret_cast<EGLThreadState *>(context)->getProcAddress(name));
             };
             std::string version(c_version);
             auto interface = version.find("OpenGL ES") == std::string::npos
@@ -385,4 +385,4 @@ namespace samples
         std::condition_variable_any mWorkCondition;
     };
 
-} // namespace samples
+} // namespace rive_android
