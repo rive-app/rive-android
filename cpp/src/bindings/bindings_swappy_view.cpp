@@ -13,7 +13,6 @@
 #include "swappy/swappyGL_extra.h"
 
 using std::chrono::nanoseconds;
-using namespace samples;
 using namespace rive_android;
 
 namespace
@@ -119,8 +118,8 @@ extern "C"
   {
     auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
     skiaRenderer->startFrame();
-    // Clear stats when we come back from the settings activity.
-    SwappyGL_enableStats(false);
+    // Do we need to clear stats when coming back to the Activity?
+    // SwappyGL_enableStats(false);
     // SwappyGL_enableStats(true);
   }
 

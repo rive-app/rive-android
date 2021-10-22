@@ -24,44 +24,48 @@
 #include <vector>
 #include <chrono>
 
-namespace samples {
+namespace rive_android
+{
 
-class Settings {
-private:
-    // Allows construction with std::unique_ptr from a static method, but disallows construction
-    // outside of the class since no one else can construct a ConstructorTag
-    struct ConstructorTag {
+    class Settings
+    {
+    private:
+        // Allows construction with std::unique_ptr from a static method, but disallows construction
+        // outside of the class since no one else can construct a ConstructorTag
+        struct ConstructorTag
+        {
+        };
+
+    public:
+        explicit Settings(ConstructorTag) : mHotPocket(false) {}
+
+        static Settings *getInstance();
+
+        using Listener = std::function<void()>;
+
+        void addListener(Listener listener);
+
+        void setPreference(std::string key, std::string value);
+
+        std::chrono::nanoseconds getRefreshPeriod() const;
+
+        int32_t getSwapIntervalNS() const;
+
+        bool getUseAffinity() const;
+
+        bool getHotPocket() const;
+
+        bool getEnableSwappy() const;
+
+    private:
+        void notifyListeners();
+
+        mutable std::mutex mMutex;
+        std::vector<Listener> mListeners GUARDED_BY(mMutex);
+
+        std::atomic<bool> mHotPocket;
+
+        std::atomic<bool> mEnableSwappy;
     };
-public:
-    explicit Settings(ConstructorTag) :  mHotPocket(false) {}
 
-    static Settings *getInstance();
-
-    using Listener = std::function<void()>;
-
-    void addListener(Listener listener);
-
-    void setPreference(std::string key, std::string value);
-
-    std::chrono::nanoseconds getRefreshPeriod() const;
-
-    int32_t getSwapIntervalNS() const;
-
-    bool getUseAffinity() const;
-
-    bool getHotPocket() const;
-
-    bool getEnableSwappy() const;
-
-private:
-    void notifyListeners();
-
-    mutable std::mutex mMutex;
-    std::vector<Listener> mListeners GUARDED_BY(mMutex);
-
-    std::atomic<bool> mHotPocket;
-
-    std::atomic<bool> mEnableSwappy;
-};
-
-} // namespace samples
+} // namespace rive_android
