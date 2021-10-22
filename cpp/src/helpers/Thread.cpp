@@ -19,7 +19,7 @@
 #include <sched.h>
 #include <unistd.h>
 
-namespace samples
+namespace rive_android
 {
 
   int32_t getNumCpus()
@@ -120,4 +120,4 @@ namespace samples
 
   std::atomic<SwappyThreadId> ThreadManager::nextId(0);
 
-} // namespace samples {
+} // namespace rive_android
