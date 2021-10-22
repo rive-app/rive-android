@@ -124,7 +124,7 @@ namespace rive_android
                  int width = ANativeWindow_getWidth(window);
                  int height = ANativeWindow_getHeight(window);
 
-                //  LOGI("Set up window surface %dx%d", width, height);
+                 //  LOGI("Set up window surface %dx%d", width, height);
                  SwappyGL_setWindow(window);
 
                  threadState->width = width;
@@ -172,7 +172,7 @@ namespace rive_android
       mSwappyEnabled = SwappyGL_isEnabled();
 
       mWorkerThread
-          .run([this](samples::ThreadState *threadState)
+          .run([=](samples::ThreadState *threadState)
                {
                  threadState->isStarted = true;
                  // Reset time to avoid super-large update of position
@@ -180,12 +180,10 @@ namespace rive_android
                  requestDraw();
                });
       mHotPocketThread
-          .run([this](samples::HotPocketState *hotPocketState)
+          .run([=](samples::HotPocketState *hotPocketState)
                { hotPocketState->isStarted = true; });
       spin();
     }
-
-    // TODO: stop() threads.
 
     SkCanvas *canvas() const
     {
@@ -203,6 +201,9 @@ namespace rive_android
       mWorkerThread
           .run([=](samples::ThreadState *threadState)
                { threadState->isStarted = false; });
+      mHotPocketThread
+          .run([](samples::HotPocketState *hotPocketState)
+               { hotPocketState->isStarted = false; });
     }
 
     void requestDraw()

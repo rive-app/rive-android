@@ -88,18 +88,17 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     override fun surfaceCreated(holder: SurfaceHolder) {
         println("surfaceCreated!")
 //        riveRenderer.initializeSkia()
-        nStart(holder.surface, riveRenderer.address)
+        nSetSurface(holder.surface, riveRenderer.address)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         println("surfaceChanged!")
-//        nSetSurface(holder.surface, width, height)
         nSetViewport(riveRenderer.address, width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         println("surfaceDestroyed!")
-//        nStop()
+        nStop(riveRenderer.address)
 //        nClearSurface()
     }
 
@@ -108,9 +107,8 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     }
 
     private external fun nInit(activity: Activity, initialSwapIntervalNS: Long)
-    private external fun nSetSurface(surface: Surface, width: Int, height: Int)
     private external fun nSetViewport(rendererAddress: Long, width: Int, height: Int)
+    private external fun nSetSurface(surface: Surface, rendererAddress: Long)
     private external fun nClearSurface()
-    private external fun nStart(surface: Surface, rendererAddress: Long)
-    private external fun nStop()
+    private external fun nStop(rendererAddress: Long)
 }
