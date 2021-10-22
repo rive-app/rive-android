@@ -3,8 +3,10 @@
 
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
+#include <android/native_window.h>
 
 #include "Settings.h"
+#include "swappy/swappyGL_extra.h"
 
 #include "GrDirectContext.h"
 #include "SkSurface.h"
@@ -17,13 +19,24 @@ namespace rive_android
     EGLThreadState();
     ~EGLThreadState();
 
-    void *getProcAddress(const char *name) const;
-    void onSettingsChanged(const Settings *settings);
+    void *getProcAddress(const char *) const;
+    void onSettingsChanged(const Settings *);
     void clearSurface();
-    bool configHasAttribute(EGLConfig config, EGLint attribute, EGLint value);
+    bool configHasAttribute(EGLConfig, EGLint, EGLint);
 
     sk_sp<GrDirectContext> createGrContext();
     sk_sp<SkSurface> createSkSurface();
+
+    void swapBuffers();
+    bool setWindow(ANativeWindow *);
+
+    void recordFrameStart()
+    {
+      if (mIsSwappyEnabled)
+      {
+        SwappyGL_recordFrameStart(mDisplay, mSurface);
+      }
+    }
 
     EGLBoolean makeCurrent(EGLSurface surface)
     {
@@ -63,6 +76,7 @@ namespace rive_android
     sk_sp<GrDirectContext> mSkContext = nullptr;
     sk_sp<SkSurface> mSkSurface = nullptr;
 
+    bool mIsSwappyEnabled = true;
     bool mIsStarted = false;
 
     std::chrono::time_point<std::chrono::steady_clock> mLastUpdate =
