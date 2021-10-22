@@ -162,11 +162,6 @@ namespace rive_android
       // TODO:
     }
 
-    void setViewport(int width, int height)
-    {
-      // TODO:
-    }
-
     void startFrame()
     {
       mSwappyEnabled = SwappyGL_isEnabled();
@@ -239,12 +234,19 @@ namespace rive_android
     void draw(samples::ThreadState *threadState)
     {
       // Don't render if we have no surface
-
-      auto gpuSurface = threadState->getSkSurface();
-      if (threadState->surface == EGL_NO_SURFACE || !gpuSurface)
+      if (threadState->hasNoSurface())
       {
         // Sleep a bit so we don't churn too fast
         std::this_thread::sleep_for(50ms);
+        requestDraw();
+        return;
+      }
+
+      auto gpuSurface = threadState->getSkSurface();
+      if (!gpuSurface)
+      {
+        LOGE("No GPU Surface?!");
+        std::this_thread::sleep_for(500ms);
         requestDraw();
         return;
       }

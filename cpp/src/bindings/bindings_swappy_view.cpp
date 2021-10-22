@@ -96,29 +96,28 @@ extern "C"
   JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nSetViewport(
       JNIEnv *env, jobject,
-      jlong rendererAddr, jint width, jint height)
-  {
-    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
-    skiaRenderer->setViewport(width, height);
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nClearSurface(JNIEnv *, jobject)
-  {
-    // TODO:
-    // Renderer::getInstance()->setWindow(nullptr, 0, 0);
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nSetSurface(
-      JNIEnv *env, jobject,
-      jobject surface, jlong rendererRef)
+      jobject surface, jlong rendererAddr)
   {
     ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
-    auto skiaRenderer = (JNIRendererSkia *)rendererRef;
+    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
     skiaRenderer->setWindow(surfaceWindow);
-    // Now we can initialize the Skia GL Context
-    skiaRenderer->initialize();
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_example_SwappyView_nClearSurface(
+      JNIEnv *, jobject,
+      jlong rendererAddr)
+  {
+    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
+    skiaRenderer->setWindow(nullptr);
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_example_SwappyView_nStart(
+      JNIEnv *env, jobject,
+      jlong rendererAddr)
+  {
+    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
     skiaRenderer->startFrame();
     // Clear stats when we come back from the settings activity.
     SwappyGL_enableStats(false);

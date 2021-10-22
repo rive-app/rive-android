@@ -258,6 +258,10 @@ namespace samples
             return reinterpret_cast<void *>(symbol);
         }
 
+        bool hasNoSurface() const {
+            return surface == EGL_NO_SURFACE || mSkSurface == nullptr;
+        }
+
         EGLDisplay display = EGL_NO_DISPLAY;
         EGLConfig config = static_cast<EGLConfig>(0);
         EGLSurface surface = EGL_NO_SURFACE;
