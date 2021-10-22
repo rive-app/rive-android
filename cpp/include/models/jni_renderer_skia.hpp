@@ -19,8 +19,6 @@
 #include "SkImageInfo.h"
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"
-#include "swappy/swappyGL.h"
-#include "swappy/swappyGL_extra.h"
 
 #include "helpers/EGLThreadState.h"
 #include "helpers/WorkerThread.h"
@@ -32,7 +30,6 @@ namespace rive_android
   class JNIRendererSkia : virtual public IJNIRenderer
   {
   private:
-    bool mSwappyEnabled = true;
     float mAverageFps = -1.0f;
 
     ANativeWindow *nWindow = nullptr;
@@ -72,42 +69,14 @@ namespace rive_android
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
-                 threadState->clearSurface();
                  nWindow = window;
-
-                 if (!window)
+                 if (!threadState->setWindow(window))
                  {
-                   SwappyGL_setWindow(nullptr);
+                   LOGE("Failed to set window");
                    return;
                  }
 
-                 threadState->mSurface =
-                     eglCreateWindowSurface(threadState->mDisplay, threadState->mConfig, window, NULL);
-                 ANativeWindow_release(window);
-
-                 if (!threadState->createGrContext())
-                 {
-                   LOGE("Unable to eglMakeCurrent");
-                   threadState->mSurface = EGL_NO_SURFACE;
-                   return;
-                 }
-
-                 int width = ANativeWindow_getWidth(window);
-                 int height = ANativeWindow_getHeight(window);
-
-                 //  LOGI("Set up window surface %dx%d", width, height);
-                 SwappyGL_setWindow(window);
-
-                 threadState->mWidth = width;
-                 threadState->mHeight = height;
-                 auto gpuSurface = threadState->createSkSurface();
-                 if (!gpuSurface)
-                 {
-                   LOGE("Unable to create a SkSurface??");
-                   threadState->mSurface = EGL_NO_SURFACE;
-                   return;
-                 }
-
+                 auto gpuSurface = threadState->getSkSurface();
                  mSkRenderer = new rive::SkiaRenderer(gpuSurface->getCanvas());
                });
     }
@@ -135,8 +104,6 @@ namespace rive_android
 
     void startFrame()
     {
-      mSwappyEnabled = SwappyGL_isEnabled();
-
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
@@ -199,11 +166,14 @@ namespace rive_android
     void calculateFps()
     {
       static constexpr int FPS_SAMPLES = 10;
-      static std::chrono::steady_clock::time_point prev = std::chrono::steady_clock::now();
+      static std::chrono::steady_clock::time_point prev =
+          std::chrono::steady_clock::now();
       static float fpsSum = 0;
       static int fpsCount = 0;
 
-      std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+      std::chrono::steady_clock::time_point now =
+          std::chrono::steady_clock::now();
+
       fpsSum += 1.0f / ((now - prev).count() / 1e9f);
       fpsCount++;
       if (fpsCount == FPS_SAMPLES)
@@ -235,8 +205,7 @@ namespace rive_android
         return;
       }
 
-      if (mSwappyEnabled)
-        SwappyGL_recordFrameStart(threadState->mDisplay, threadState->mSurface);
+      threadState->recordFrameStart();
 
       calculateFps();
 
@@ -274,14 +243,7 @@ namespace rive_android
       threadState->getGrContext()->flush();
       // const float aspectRatio = static_cast<float>(threadState->mWidth) / threadState->mHeight;
 
-      if (mSwappyEnabled)
-      {
-        SwappyGL_swap(threadState->mDisplay, threadState->mSurface);
-      }
-      else
-      {
-        eglSwapBuffers(threadState->mDisplay, threadState->mSurface);
-      }
+      threadState->swapBuffers();
 
       // If we're still started, request another frame
       requestDraw();
