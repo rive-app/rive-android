@@ -1,7 +1,6 @@
 #include "helpers/general.hpp"
 #include "helpers/EGLThreadState.h"
 #include "swappy/swappyGL.h"
-#include "swappy/swappyGL_extra.h"
 
 #include "SkImageInfo.h"
 #include "GrBackendSurface.h"
@@ -184,5 +183,56 @@ namespace rive_android
     }
 
     return reinterpret_cast<void *>(symbol);
+  }
+
+  void EGLThreadState::swapBuffers()
+  {
+    if (mIsSwappyEnabled)
+    {
+      SwappyGL_swap(mDisplay, mSurface);
+    }
+    else
+    {
+      eglSwapBuffers(mDisplay, mSurface);
+    }
+  }
+
+  bool EGLThreadState::setWindow(ANativeWindow *window)
+  {
+    clearSurface();
+    if (!window)
+    {
+      SwappyGL_setWindow(nullptr);
+      return false;
+    }
+
+    mSurface =
+        eglCreateWindowSurface(mDisplay, mConfig, window, NULL);
+    ANativeWindow_release(window);
+
+    if (!createGrContext())
+    {
+      LOGE("Unable to eglMakeCurrent");
+      mSurface = EGL_NO_SURFACE;
+      return false;
+    }
+
+    int width = ANativeWindow_getWidth(window);
+    int height = ANativeWindow_getHeight(window);
+
+    //  LOGI("Set up window surface %dx%d", width, height);
+    SwappyGL_setWindow(window);
+
+    mWidth = width;
+    mHeight = height;
+    auto gpuSurface = createSkSurface();
+    if (!gpuSurface)
+    {
+      LOGE("Unable to create a SkSurface??");
+      mSurface = EGL_NO_SURFACE;
+      return false;
+    }
+
+    return true;
   }
 }
