@@ -26,6 +26,14 @@
 #include "swappy/swappyGL.h"
 #include "swappy/swappyGL_extra.h"
 
+#include "gl/GrGLInterface.h"
+#include "gl/GrGLAssembleInterface.h"
+#include "src/gpu/gl/GrGLDefines.h"
+#include "GrDirectContext.h"
+#include "SkCanvas.h"
+#include "SkPaint.h"
+#include "SkSurface.h"
+
 using namespace std::chrono_literals;
 
 namespace samples
@@ -43,7 +51,7 @@ namespace samples
                           {
                               threadState->clearSurface();
 
-                              LOGE("Creating window surface %dx%d", width, height);
+                              LOGI("Creating window surface %dx%d", width, height);
 
                               if (!window)
                               {
@@ -62,6 +70,7 @@ namespace samples
                               }
                               SwappyGL_setWindow(window);
 
+                              triangle.init();
                               threadState->width = width;
                               threadState->height = height;
                           });
@@ -69,7 +78,6 @@ namespace samples
 
     void Renderer::start()
     {
-
         mSwappyEnabled = SwappyGL_isEnabled();
         LOGI("=== Swappy is enabled? %d\n", mSwappyEnabled);
 
@@ -109,87 +117,90 @@ namespace samples
             });
     }
 
-    Renderer::ThreadState::ThreadState()
-    {
-        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        eglInitialize(display, 0, 0);
+    // Renderer::ThreadState::ThreadState()
+    // {
+    //     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    //     eglInitialize(display, 0, 0);
 
-        const EGLint configAttributes[] = {
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_BLUE_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_RED_SIZE, 8,
-            EGL_NONE};
+    //     const EGLint configAttributes[] = {
+    //         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+    //         EGL_BLUE_SIZE, 8,
+    //         EGL_GREEN_SIZE, 8,
+    //         EGL_RED_SIZE, 8,
+    //         EGL_NONE};
 
-        EGLint numConfigs = 0;
-        eglChooseConfig(display, configAttributes, nullptr, 0, &numConfigs);
-        std::vector<EGLConfig> supportedConfigs(static_cast<size_t>(numConfigs));
-        eglChooseConfig(display, configAttributes, supportedConfigs.data(), numConfigs, &numConfigs);
+    //     EGLint numConfigs = 0;
+    //     eglChooseConfig(display, configAttributes, nullptr, 0, &numConfigs);
+    //     std::vector<EGLConfig> supportedConfigs(static_cast<size_t>(numConfigs));
+    //     eglChooseConfig(display, configAttributes, supportedConfigs.data(), numConfigs, &numConfigs);
 
-        // Choose a config, either a match if possible or the first config otherwise
+    //     // Choose a config, either a match if possible or the first config otherwise
 
-        const auto configMatches = [&](EGLConfig config)
-        {
-            if (!configHasAttribute(config, EGL_RED_SIZE, 8))
-                return false;
-            if (!configHasAttribute(config, EGL_GREEN_SIZE, 8))
-                return false;
-            if (!configHasAttribute(config, EGL_BLUE_SIZE, 8))
-                return false;
-            return configHasAttribute(config, EGL_DEPTH_SIZE, 0);
-        };
+    //     const auto configMatches = [&](EGLConfig config)
+    //     {
+    //         if (!configHasAttribute(config, EGL_RED_SIZE, 8))
+    //             return false;
+    //         if (!configHasAttribute(config, EGL_GREEN_SIZE, 8))
+    //             return false;
+    //         if (!configHasAttribute(config, EGL_BLUE_SIZE, 8))
+    //             return false;
+    //         return configHasAttribute(config, EGL_DEPTH_SIZE, 0);
+    //     };
 
-        const auto configIter = std::find_if(supportedConfigs.cbegin(), supportedConfigs.cend(),
-                                             configMatches);
+    //     const auto configIter = std::find_if(
+    //         supportedConfigs.cbegin(), supportedConfigs.cend(),
+    //         configMatches);
 
-        config = (configIter != supportedConfigs.cend()) ? *configIter : supportedConfigs[0];
+    //     config = (configIter != supportedConfigs.cend()) ? *configIter : supportedConfigs[0];
 
-        const EGLint contextAttributes[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL_NONE};
+    //     const EGLint contextAttributes[] = {
+    //         EGL_CONTEXT_CLIENT_VERSION, 2,
+    //         EGL_NONE};
 
-        context = eglCreateContext(display, config, nullptr, contextAttributes);
+    //     context = eglCreateContext(display, config, nullptr, contextAttributes);
 
-        glEnable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-    }
+    //     glEnable(GL_CULL_FACE);
+    //     glDisable(GL_DEPTH_TEST);
+    // }
 
-    Renderer::ThreadState::~ThreadState()
-    {
-        clearSurface();
-        if (context != EGL_NO_CONTEXT)
-            eglDestroyContext(display, context);
-        if (display != EGL_NO_DISPLAY)
-            eglTerminate(display);
-    }
+    // Renderer::ThreadState::~ThreadState()
+    // {
+    //     clearSurface();
+    //     if (context != EGL_NO_CONTEXT)
+    //         eglDestroyContext(display, context);
+    //     if (display != EGL_NO_DISPLAY)
+    //         eglTerminate(display);
+    // }
 
-    void Renderer::ThreadState::onSettingsChanged(const Settings *settings)
-    {
-        refreshPeriod = settings->getRefreshPeriod();
-        swapIntervalNS = settings->getSwapIntervalNS();
-    }
+    // void Renderer::ThreadState::onSettingsChanged(const Settings *settings)
+    // {
+    //     refreshPeriod = settings->getRefreshPeriod();
+    //     swapIntervalNS = settings->getSwapIntervalNS();
+    // }
 
-    void Renderer::ThreadState::clearSurface()
-    {
-        if (surface == EGL_NO_SURFACE)
-            return;
+    // void Renderer::ThreadState::clearSurface()
+    // {
+    //     if (surface == EGL_NO_SURFACE){
+    //         LOGD("NO surface, outtahere!");
+    //         return;
+    //     }
 
-        makeCurrent(EGL_NO_SURFACE);
-        eglDestroySurface(display, surface);
-        surface = EGL_NO_SURFACE;
-    }
+    //     makeCurrent(EGL_NO_SURFACE);
+    //     eglDestroySurface(display, surface);
+    //     surface = EGL_NO_SURFACE;
+    // }
 
-    bool Renderer::ThreadState::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value)
-    {
-        EGLint outValue = 0;
-        EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
-        return result && (outValue == value);
-    }
+    // bool Renderer::ThreadState::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value)
+    // {
+    //     EGLint outValue = 0;
+    //     EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
+    //     return result && (outValue == value);
+    // }
 
-    EGLBoolean Renderer::ThreadState::makeCurrent(EGLSurface surface)
-    {
-        return eglMakeCurrent(display, surface, surface, context);
-    }
+    // EGLBoolean Renderer::ThreadState::makeCurrent(EGLSurface surface)
+    // {
+    //     return eglMakeCurrent(display, surface, surface, context);
+    // }
 
     void Renderer::HotPocketState::onSettingsChanged(const Settings *settings)
     {
@@ -298,8 +309,90 @@ namespace samples
         // Just fill the screen with a color.
         glClearColor(1.0f, 0.3f, 0.3f, 1.0f);
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        triangle.draw(deltaSeconds);
 
-        const float aspectRatio = static_cast<float>(threadState->width) / threadState->height;
+        {
+            int w = threadState->width;
+            int h = threadState->height;
+
+            GrGLFramebufferInfo fbInfo = {};
+            fbInfo.fFBOID = 0u;
+            fbInfo.fFormat = GR_GL_RGBA8;
+
+            GrBackendRenderTarget brt(
+                w, h,
+                1, 8,
+                fbInfo);
+
+            auto get_proc = [](void *context, const char name[]) -> GrGLFuncPtr
+            {
+                return reinterpret_cast<GrGLFuncPtr>(
+                    reinterpret_cast<Renderer *>(context)->getProcAddress(name));
+            };
+            auto get_string =
+                reinterpret_cast<PFNGLGETSTRINGPROC>(getProcAddress("glGetString"));
+            auto c_version = reinterpret_cast<const char *>(get_string(GL_VERSION));
+            std::string version(c_version);
+            auto interface = version.find("OpenGL ES") == std::string::npos
+                                 ? GrGLMakeAssembledGLInterface(this, get_proc)
+                                 : GrGLMakeAssembledGLESInterface(this, get_proc);
+            if (!interface)
+            {
+                LOGE("Failed to find the interface version!?");
+            }
+            auto grContext = GrDirectContext::MakeGL(interface);
+            if (!grContext)
+            {
+                LOGE("Failed to make context!?");
+            }
+
+            SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
+
+            sk_sp<SkSurface> gpuSurface = SkSurface::MakeFromBackendRenderTarget(
+                grContext.get(),
+                brt,
+                kBottomLeft_GrSurfaceOrigin,
+                kN32_SkColorType,
+                SkColorSpace::MakeSRGB(),
+                &surfaceProps,
+                nullptr,
+                nullptr);
+
+            if (!gpuSurface)
+            {
+                LOGE("Failed to get GPU Surface?!");
+            }
+            else
+            {
+                SkCanvas *gpuCanvas = gpuSurface->getCanvas();
+                // SkPaint paint;
+                // paint.setColor(SK_ColorMAGENTA);
+                // gpuCanvas->drawPaint(paint);
+                const SkScalar scale = 256.0f;
+                const SkScalar R = 0.45f * scale;
+                const SkScalar TAU = 6.2831853f;
+                SkPath path;
+                for (int i = 0; i < 5; ++i)
+                {
+                    SkScalar theta = 2 * i * TAU / 5;
+                    if (i == 0)
+                    {
+                        path.moveTo(R * cos(theta), R * sin(theta));
+                    }
+                    else
+                    {
+                        path.lineTo(R * cos(theta), R * sin(theta));
+                    }
+                }
+                path.close();
+                SkPaint p;
+                p.setAntiAlias(true);
+                gpuCanvas->clear(SK_ColorWHITE);
+                gpuCanvas->translate(0.5f * scale, 0.5f * scale);
+                gpuCanvas->drawPath(path, p);
+            }
+        }
+        // const float aspectRatio = static_cast<float>(threadState->width) / threadState->height;
 
         if (mSwappyEnabled)
         {
@@ -312,6 +405,22 @@ namespace samples
 
         // If we're still started, request another frame
         requestDraw();
+    }
+
+    void *Renderer::getProcAddress(const char *name) const
+    {
+        if (name == nullptr)
+        {
+            return nullptr;
+        }
+
+        auto symbol = eglGetProcAddress(name);
+        if (symbol == NULL)
+        {
+            LOGE("Couldn't fetch symbol name for: %s", name);
+        }
+
+        return reinterpret_cast<void *>(symbol);
     }
 
 } // namespace samples

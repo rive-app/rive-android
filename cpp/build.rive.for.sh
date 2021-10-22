@@ -74,8 +74,24 @@ getSwappy() {
     popd
 }
 
+getGLM() {
+    mkdir -p deps
+    pushd deps
+
+    GLM_LIBS=glm-0.9.9.8
+    if [ ! -d "glm" ]; then
+        echo "Downloading GLM..."
+        curl -LO https://github.com/g-truc/glm/releases/download/0.9.9.8/$GLM_LIBS.zip
+        echo "Unzipping into $GLM_LIBS"
+        unzip -q $GLM_LIBS.zip "glm/glm/*" -d .
+    fi
+
+    popd
+}
+
 buildFor() {
     getSwappy
+    getGLM
     # Let's build Skia for Android.
     # Do we want to make this a parameter?
     pushd "$LIBRIVE"/skia/dependencies

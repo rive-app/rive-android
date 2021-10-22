@@ -214,12 +214,19 @@ extern "C"
         ((::JNIRendererSkia *)rendererRef)->startFrame();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_setViewport(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_nSetArtboard(
         JNIEnv *env,
         jobject thisObj,
-        jlong rendererRef,
-        jint width,
-        jint height)
+        jlong rendererAddr, jlong abref)
+    {
+        auto skRenderer = (::JNIRendererSkia *)rendererAddr;
+        auto artboard = (rive::Artboard *)abref;
+        skRenderer->setArtboard(artboard);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_setViewport(
+        JNIEnv *env, jobject thisObj,
+        jlong rendererRef, jint width, jint height)
     {
         ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
     }

@@ -25,6 +25,7 @@
 #include <EGL/egl.h>
 
 #include "helpers/Thread.h"
+#include "helpers/Triangle.h"
 #include "helpers/WorkerThread.h"
 
 namespace samples
@@ -102,37 +103,37 @@ namespace samples
         Stats &frameTimeStats() { return mFrameTimeStats; }
 
     private:
-        class ThreadState
-        {
-        public:
-            ThreadState();
+        // class ThreadState
+        // {
+        // public:
+        //     ThreadState();
 
-            ~ThreadState();
+        //     ~ThreadState();
 
-            void onSettingsChanged(const Settings *);
+        //     void onSettingsChanged(const Settings *);
 
-            void clearSurface();
+        //     void clearSurface();
 
-            bool configHasAttribute(EGLConfig config, EGLint attribute, EGLint value);
+        //     bool configHasAttribute(EGLConfig config, EGLint attribute, EGLint value);
 
-            EGLBoolean makeCurrent(EGLSurface surface);
+        //     EGLBoolean makeCurrent(EGLSurface surface);
 
-            EGLDisplay display = EGL_NO_DISPLAY;
-            EGLConfig config = static_cast<EGLConfig>(0);
-            EGLSurface surface = EGL_NO_SURFACE;
-            EGLContext context = EGL_NO_CONTEXT;
+        //     EGLDisplay display = EGL_NO_DISPLAY;
+        //     EGLConfig config = static_cast<EGLConfig>(0);
+        //     EGLSurface surface = EGL_NO_SURFACE;
+        //     EGLContext context = EGL_NO_CONTEXT;
 
-            bool isStarted = false;
+        //     bool isStarted = false;
 
-            std::chrono::time_point<std::chrono::steady_clock> lastUpdate = std::chrono::steady_clock::now();
-            float x = 0.0f;
-            float velocity = 1.6f;
+        //     std::chrono::time_point<std::chrono::steady_clock> lastUpdate = std::chrono::steady_clock::now();
+        //     float x = 0.0f;
+        //     float velocity = 1.6f;
 
-            std::chrono::nanoseconds refreshPeriod = std::chrono::nanoseconds{0};
-            int64_t swapIntervalNS = 0;
-            int32_t width = 0;
-            int32_t height = 0;
-        };
+        //     std::chrono::nanoseconds refreshPeriod = std::chrono::nanoseconds{0};
+        //     int64_t swapIntervalNS = 0;
+        //     int32_t width = 0;
+        //     int32_t height = 0;
+        // };
 
         void draw(ThreadState *threadState);
         void calculateFps();
@@ -160,6 +161,8 @@ namespace samples
         Stats mFrameTimeStats = Stats(20 /* number of samples to average over */);
 
         bool mSwappyEnabled = true;
+        Triangle triangle;
+        void *getProcAddress(const char *name) const;
     };
 
 } // namespace samples
