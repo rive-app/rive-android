@@ -228,7 +228,7 @@ extern "C"
         JNIEnv *env, jobject thisObj,
         jlong rendererRef, jint width, jint height)
     {
-        ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
+        // ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDraw(
