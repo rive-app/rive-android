@@ -269,8 +269,6 @@ namespace samples
         bool isStarted = false;
 
         std::chrono::time_point<std::chrono::steady_clock> lastUpdate = std::chrono::steady_clock::now();
-        float x = 0.0f;
-        float velocity = 1.6f;
 
         std::chrono::nanoseconds refreshPeriod = std::chrono::nanoseconds{0};
         int64_t swapIntervalNS = 0;
