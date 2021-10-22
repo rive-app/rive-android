@@ -22,6 +22,7 @@
 #include "swappy/swappyGL.h"
 #include "swappy/swappyGL_extra.h"
 
+#include "helpers/EGLThreadState.h"
 #include "helpers/WorkerThread.h"
 
 using namespace std::chrono_literals;
@@ -80,14 +81,14 @@ namespace rive_android
                    return;
                  }
 
-                 threadState->surface =
-                     eglCreateWindowSurface(threadState->display, threadState->config, window, NULL);
+                 threadState->mSurface =
+                     eglCreateWindowSurface(threadState->mDisplay, threadState->mConfig, window, NULL);
                  ANativeWindow_release(window);
 
                  if (!threadState->createGrContext())
                  {
                    LOGE("Unable to eglMakeCurrent");
-                   threadState->surface = EGL_NO_SURFACE;
+                   threadState->mSurface = EGL_NO_SURFACE;
                    return;
                  }
 
@@ -97,13 +98,13 @@ namespace rive_android
                  //  LOGI("Set up window surface %dx%d", width, height);
                  SwappyGL_setWindow(window);
 
-                 threadState->width = width;
-                 threadState->height = height;
+                 threadState->mWidth = width;
+                 threadState->mHeight = height;
                  auto gpuSurface = threadState->createSkSurface();
                  if (!gpuSurface)
                  {
                    LOGE("Unable to create a SkSurface??");
-                   threadState->surface = EGL_NO_SURFACE;
+                   threadState->mSurface = EGL_NO_SURFACE;
                    return;
                  }
 
@@ -139,9 +140,9 @@ namespace rive_android
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
-                 threadState->isStarted = true;
+                 threadState->mIsStarted = true;
                  // Reset time to avoid super-large update of position
-                 threadState->lastUpdate = std::chrono::steady_clock::now();
+                 threadState->mLastUpdate = std::chrono::steady_clock::now();
                  requestDraw();
                });
       mHotPocketThread
@@ -165,7 +166,7 @@ namespace rive_android
     {
       mWorkerThread
           .run([=](EGLThreadState *threadState)
-               { threadState->isStarted = false; });
+               { threadState->mIsStarted = false; });
       mHotPocketThread
           .run([](HotPocketState *hotPocketState)
                { hotPocketState->isStarted = false; });
@@ -189,7 +190,7 @@ namespace rive_android
       mWorkerThread.run(
           [=](EGLThreadState *threadState)
           {
-            if (threadState->isStarted)
+            if (threadState->mIsStarted)
               draw(threadState);
           });
     }
@@ -235,19 +236,19 @@ namespace rive_android
       }
 
       if (mSwappyEnabled)
-        SwappyGL_recordFrameStart(threadState->display, threadState->surface);
+        SwappyGL_recordFrameStart(threadState->mDisplay, threadState->mSurface);
 
       calculateFps();
 
-      float deltaSeconds = threadState->swapIntervalNS / 1e9f;
-      if (threadState->lastUpdate - std::chrono::steady_clock::now() <= 100ms)
+      float deltaSeconds = threadState->mSwapIntervalNS / 1e9f;
+      if (threadState->mLastUpdate - std::chrono::steady_clock::now() <= 100ms)
       {
-        deltaSeconds = (threadState->lastUpdate - std::chrono::steady_clock::now()).count() / 1e9f;
+        deltaSeconds = (threadState->mLastUpdate - std::chrono::steady_clock::now()).count() / 1e9f;
       }
-      threadState->lastUpdate = std::chrono::steady_clock::now();
+      threadState->mLastUpdate = std::chrono::steady_clock::now();
 
-      int w = threadState->width;
-      int h = threadState->height;
+      int w = threadState->mWidth;
+      int h = threadState->mHeight;
 
       SkCanvas *gpuCanvas = gpuSurface->getCanvas();
       float elapsed = -1.0f * deltaSeconds;
@@ -271,15 +272,15 @@ namespace rive_android
       }
 
       threadState->getGrContext()->flush();
-      // const float aspectRatio = static_cast<float>(threadState->width) / threadState->height;
+      // const float aspectRatio = static_cast<float>(threadState->mWidth) / threadState->mHeight;
 
       if (mSwappyEnabled)
       {
-        SwappyGL_swap(threadState->display, threadState->surface);
+        SwappyGL_swap(threadState->mDisplay, threadState->mSurface);
       }
       else
       {
-        eglSwapBuffers(threadState->display, threadState->surface);
+        eglSwapBuffers(threadState->mDisplay, threadState->mSurface);
       }
 
       // If we're still started, request another frame
