@@ -12,7 +12,10 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.renderers.RendererSkia
 
 class Empty : AppCompatActivity() {
     private val containerView by lazy(LazyThreadSafetyMode.NONE) {
@@ -38,6 +41,10 @@ class Empty : AppCompatActivity() {
 
 class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(context, attrs),
     SurfaceHolder.Callback, Choreographer.FrameCallback {
+    private val riveRenderer = RendererSkia()
+    private lateinit var file: File
+    private var artboard: Artboard? = null
+
     private val activity: Activity?
         get() {
             var ctx = context
@@ -70,22 +77,30 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
 
         holder.addCallback(this)
         nInit(activity, refreshPeriodNanos)
+        val fileBytes = activity.resources.openRawResource(R.raw.duowalk).readBytes()
+        file = File(fileBytes)
+        file.firstArtboard.getInstance().let {
+            artboard = it
+            riveRenderer.artboard = artboard
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         println("surfaceCreated!")
-        nStart()
+//        riveRenderer.initializeSkia()
+        nStart(holder.surface, riveRenderer.address)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         println("surfaceChanged!")
-        nSetSurface(holder.surface, width, height)
+//        nSetSurface(holder.surface, width, height)
+        nSetViewport(riveRenderer.address, width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         println("surfaceDestroyed!")
-        nStop()
-        nClearSurface()
+//        nStop()
+//        nClearSurface()
     }
 
     override fun doFrame(frameTimeNanos: Long) {
@@ -94,7 +109,8 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
 
     private external fun nInit(activity: Activity, initialSwapIntervalNS: Long)
     private external fun nSetSurface(surface: Surface, width: Int, height: Int)
+    private external fun nSetViewport(rendererAddress: Long, width: Int, height: Int)
     private external fun nClearSurface()
-    private external fun nStart()
+    private external fun nStart(surface: Surface, rendererAddress: Long)
     private external fun nStop()
 }
