@@ -4,6 +4,8 @@
 #include <jni.h>
 #include <android/native_window_jni.h>
 
+#include "models/jni_renderer_skia.hpp"
+
 #include "helpers/general.hpp"
 #include "helpers/Settings.h"
 #include "helpers/Renderer.h"
@@ -13,6 +15,7 @@
 
 using std::chrono::nanoseconds;
 using namespace samples;
+using namespace rive_android;
 
 namespace
 {
@@ -31,8 +34,8 @@ extern "C"
 {
 #endif
   /**
-     * Swappy tests *
-     */
+   * Swappy tests *
+   */
 
   void startFrameCallback(void *, int, int64_t)
   {
@@ -40,9 +43,9 @@ extern "C"
 
   void postWaitCallback(void *, int64_t cpu, int64_t gpu)
   {
-    auto renderer = Renderer::getInstance();
-    double frameTime = std::max(cpu, gpu);
-    renderer->frameTimeStats().add(frameTime);
+    // auto renderer = Renderer::getInstance();
+    // double frameTime = std::max(cpu, gpu);
+    // renderer->frameTimeStats().add(frameTime);
   }
 
   void swapIntervalChangedCallback(void *)
@@ -74,7 +77,7 @@ extern "C"
   {
     LOGD("I AM ALIVE!");
     // Get the Renderer instance to create it
-    Renderer::getInstance();
+    // Renderer::getInstance();
 
     // Should never happen
     if (Swappy_version() != SWAPPY_PACKED_VERSION)
@@ -110,19 +113,37 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
+  Java_app_rive_runtime_example_SwappyView_nSetViewport(
+      JNIEnv *env, jobject,
+      jlong rendererAddr, jint width, jint height)
+  {
+    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
+    skiaRenderer->setViewport(width, height);
+  }
+
+  JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nClearSurface(JNIEnv *, jobject)
   {
     Renderer::getInstance()->setWindow(nullptr, 0, 0);
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nStart(JNIEnv *, jobject)
+  Java_app_rive_runtime_example_SwappyView_nStart(
+      JNIEnv *env, jobject,
+      jobject surface, jlong rendererRef)
   {
     LOGI("start");
-    Renderer::getInstance()->start();
+    // Renderer::getInstance()->start();
+
+    ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
+    auto skiaRenderer = (JNIRendererSkia *)rendererRef;
+    skiaRenderer->setWindow(surfaceWindow);
+    // Now we can initialize the Skia GL Context
+    skiaRenderer->initialize();
+    skiaRenderer->startFrame();
     // Clear stats when we come back from the settings activity.
     SwappyGL_enableStats(false);
-    SwappyGL_enableStats(true);
+    // SwappyGL_enableStats(true);
   }
 
   JNIEXPORT void JNICALL
