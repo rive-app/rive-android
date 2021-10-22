@@ -8,7 +8,6 @@
 
 #include "helpers/general.hpp"
 #include "helpers/Settings.h"
-#include "helpers/Renderer.h"
 
 #include "swappy/swappyGL.h"
 #include "swappy/swappyGL_extra.h"
@@ -33,16 +32,13 @@ namespace
 extern "C"
 {
 #endif
-  /**
-   * Swappy tests *
-   */
-
   void startFrameCallback(void *, int, int64_t)
   {
   }
 
   void postWaitCallback(void *, int64_t cpu, int64_t gpu)
   {
+    // TODO:
     // auto renderer = Renderer::getInstance();
     // double frameTime = std::max(cpu, gpu);
     // renderer->frameTimeStats().add(frameTime);
@@ -75,10 +71,6 @@ extern "C"
       JNIEnv *env, jobject swappyView,
       jobject activity, jlong initialSwapIntervalNS)
   {
-    LOGD("I AM ALIVE!");
-    // Get the Renderer instance to create it
-    // Renderer::getInstance();
-
     // Should never happen
     if (Swappy_version() != SWAPPY_PACKED_VERSION)
     {
@@ -102,17 +94,6 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nSetSurface(
-      JNIEnv *env, jobject,
-      jobject surface, jint width, jint height)
-  {
-    ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
-    Renderer::getInstance()->setWindow(window,
-                                       static_cast<int32_t>(width),
-                                       static_cast<int32_t>(height));
-  }
-
-  JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nSetViewport(
       JNIEnv *env, jobject,
       jlong rendererAddr, jint width, jint height)
@@ -124,17 +105,15 @@ extern "C"
   JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nClearSurface(JNIEnv *, jobject)
   {
-    Renderer::getInstance()->setWindow(nullptr, 0, 0);
+    // TODO:
+    // Renderer::getInstance()->setWindow(nullptr, 0, 0);
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nStart(
+  Java_app_rive_runtime_example_SwappyView_nSetSurface(
       JNIEnv *env, jobject,
       jobject surface, jlong rendererRef)
   {
-    LOGI("start");
-    // Renderer::getInstance()->start();
-
     ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
     auto skiaRenderer = (JNIRendererSkia *)rendererRef;
     skiaRenderer->setWindow(surfaceWindow);
@@ -149,8 +128,8 @@ extern "C"
   JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nStop(JNIEnv *, jobject)
   {
-    LOGI("stop");
-    Renderer::getInstance()->stop();
+    // TODO:
+    // Renderer::getInstance()->stop();
   }
 
   JNIEXPORT void JNICALL
@@ -180,7 +159,9 @@ extern "C"
   JNIEXPORT float JNICALL
   Java_app_rive_runtime_example_SwappyView_nGetAverageFps(JNIEnv *, jobject)
   {
-    return Renderer::getInstance()->getAverageFps();
+    // TODO:
+    // return Renderer::getInstance()->getAverageFps();
+    return 0.0f;
   }
 
   JNIEXPORT float JNICALL
@@ -198,12 +179,17 @@ extern "C"
   JNIEXPORT float JNICALL
   Java_app_rive_runtime_example_SwappyView_nGetPipelineFrameTimeNS(JNIEnv *, jobject)
   {
-    return Renderer::getInstance()->frameTimeStats().mean();
+    // TODO:
+    // return Renderer::getInstance()->frameTimeStats().mean();
+    return 0.0f;
   }
+
   JNIEXPORT float JNICALL
   Java_app_rive_runtime_example_SwappyView_nGetPipelineFrameTimeStdDevNS(JNIEnv *, jobject)
   {
-    return sqrt(Renderer::getInstance()->frameTimeStats().var());
+    // TODO:
+    // return sqrt(Renderer::getInstance()->frameTimeStats().var());
+    return 0.0f;
   }
 
   JNIEXPORT void JNICALL
@@ -211,7 +197,9 @@ extern "C"
       JNIEnv *, jobject,
       jint load)
   {
-    Renderer::getInstance()->setWorkload(load);
+    // TODO: explore this
+    // It's an interesting heuristic for segmenting based on workload
+    // Renderer::getInstance()->setWorkload(load);
   }
 
   JNIEXPORT void JNICALL
@@ -227,7 +215,8 @@ extern "C"
       JNIEnv *, jobject,
       jboolean enabled)
   {
-    Renderer::getInstance()->setSwappyEnabled(enabled);
+    // TODO:
+    // Renderer::getInstance()->setSwappyEnabled(enabled);
   }
 
   JNIEXPORT int JNICALL
@@ -239,7 +228,7 @@ extern "C"
     static bool enabled = false;
     if (!enabled)
     {
-      SwappyGL_enableStats(true);
+      // SwappyGL_enableStats(true);
       enabled = true;
     }
 
