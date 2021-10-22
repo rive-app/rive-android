@@ -32,48 +32,18 @@ namespace rive_android
   {
   private:
     bool mSwappyEnabled = true;
-
-    float averageFps = -1.0f;
-    samples::WorkerThread<samples::ThreadState> mWorkerThread =
-        {"Renderer", samples::Affinity::Odd};
-
-    samples::WorkerThread<samples::HotPocketState> mHotPocketThread =
-        {"HotPocket", samples::Affinity::Even};
+    float mAverageFps = -1.0f;
 
     ANativeWindow *nWindow = nullptr;
     rive::Artboard *mArtboard = nullptr;
     rive::LinearAnimationInstance *mInstance = nullptr;
     rive::SkiaRenderer *mSkRenderer;
 
-    void spin()
-    {
-      mHotPocketThread
-          .run([this](samples::HotPocketState *hotPocketState)
-               {
-                 if (!hotPocketState->isEnabled || !hotPocketState->isStarted)
-                   return;
-                 for (int i = 1; i < 1000; ++i)
-                 {
-                   int value = i;
-                   while (value != 1)
-                   {
-                     if (value == 0)
-                     {
-                       LOGI("This will never run, but hopefully the compiler doesn't notice");
-                     }
-                     if (value % 2 == 0)
-                     {
-                       value /= 2;
-                     }
-                     else
-                     {
-                       value = 3 * value + 1;
-                     }
-                   }
-                 }
-                 spin();
-               });
-    }
+    WorkerThread<EGLThreadState> mWorkerThread =
+        {"Renderer", Affinity::Odd};
+
+    WorkerThread<HotPocketState> mHotPocketThread =
+        {"HotPocket", Affinity::Even};
 
   public:
     jobject jRendererObject;
@@ -99,7 +69,7 @@ namespace rive_android
     void setWindow(ANativeWindow *window)
     {
       mWorkerThread
-          .run([=](samples::ThreadState *threadState)
+          .run([=](EGLThreadState *threadState)
                {
                  threadState->clearSurface();
                  nWindow = window;
@@ -141,33 +111,33 @@ namespace rive_android
                });
     }
 
-    void *getProcAddress(const char *name) const
+    void setArtboard(rive::Artboard *ab)
     {
-      if (name == nullptr)
+      if (ab == mArtboard)
       {
-        return nullptr;
+        return;
       }
-
-      auto symbol = eglGetProcAddress(name);
-      if (symbol == NULL)
+      if (mArtboard)
       {
-        LOGE("Couldn't fetch symbol name for: %s", name);
+        delete mArtboard;
       }
-
-      return reinterpret_cast<void *>(symbol);
+      mArtboard = ab;
+      mArtboard->advance(0.0f);
+      if (mArtboard->animationCount() > 0)
+      {
+        mInstance = new rive::LinearAnimationInstance(mArtboard->firstAnimation());
+        mInstance->advance(0.0f);
+      }
     }
 
-    void initialize() override
-    {
-      // TODO:
-    }
+    void initialize() override {}
 
     void startFrame()
     {
       mSwappyEnabled = SwappyGL_isEnabled();
 
       mWorkerThread
-          .run([=](samples::ThreadState *threadState)
+          .run([=](EGLThreadState *threadState)
                {
                  threadState->isStarted = true;
                  // Reset time to avoid super-large update of position
@@ -175,36 +145,49 @@ namespace rive_android
                  requestDraw();
                });
       mHotPocketThread
-          .run([=](samples::HotPocketState *hotPocketState)
+          .run([=](HotPocketState *hotPocketState)
                { hotPocketState->isStarted = true; });
       spin();
     }
 
     SkCanvas *canvas() const
     {
-      return nullptr; // TODO: figure this out too.
+      // TODO: this can probably be removed.
+      return nullptr;
     }
 
     void flush() const
     {
-      // TODO: figure this out?
-      // mContext->flush();
+      // TODO: this can probably be removed too..      // mContext->flush();
     }
 
     void stop()
     {
       mWorkerThread
-          .run([=](samples::ThreadState *threadState)
+          .run([=](EGLThreadState *threadState)
                { threadState->isStarted = false; });
       mHotPocketThread
-          .run([](samples::HotPocketState *hotPocketState)
+          .run([](HotPocketState *hotPocketState)
                { hotPocketState->isStarted = false; });
     }
 
+    int width() const
+    {
+      return nWindow ? ANativeWindow_getWidth(nWindow) : -1;
+    }
+
+    int height() const
+    {
+      return nWindow ? ANativeWindow_getHeight(nWindow) : -1;
+    }
+
+    float averageFps() const { return mAverageFps; }
+
+  private:
     void requestDraw()
     {
       mWorkerThread.run(
-          [=](samples::ThreadState *threadState)
+          [=](EGLThreadState *threadState)
           {
             if (threadState->isStarted)
               draw(threadState);
@@ -224,14 +207,14 @@ namespace rive_android
       fpsCount++;
       if (fpsCount == FPS_SAMPLES)
       {
-        averageFps = fpsSum / fpsCount;
+        mAverageFps = fpsSum / fpsCount;
         fpsSum = 0;
         fpsCount = 0;
       }
       prev = now;
     }
 
-    void draw(samples::ThreadState *threadState)
+    void draw(EGLThreadState *threadState)
     {
       // Don't render if we have no surface
       if (threadState->hasNoSurface())
@@ -303,29 +286,34 @@ namespace rive_android
       requestDraw();
     }
 
-    int width() const
+    void spin()
     {
-      return nWindow ? ANativeWindow_getWidth(nWindow) : -1;
-    }
-    int height() const { return nWindow ? ANativeWindow_getHeight(nWindow) : -1; }
-
-    void setArtboard(rive::Artboard *ab)
-    {
-      if (ab == mArtboard)
-      {
-        return;
-      }
-      if (mArtboard)
-      {
-        delete mArtboard;
-      }
-      mArtboard = ab;
-      mArtboard->advance(0.0f);
-      if (mArtboard->animationCount() > 0)
-      {
-        mInstance = new rive::LinearAnimationInstance(mArtboard->firstAnimation());
-        mInstance->advance(0.0f);
-      }
+      mHotPocketThread
+          .run([this](HotPocketState *hotPocketState)
+               {
+                 if (!hotPocketState->isEnabled || !hotPocketState->isStarted)
+                   return;
+                 for (int i = 1; i < 1000; ++i)
+                 {
+                   int value = i;
+                   while (value != 1)
+                   {
+                     if (value == 0)
+                     {
+                       LOGI("This will never run, but hopefully the compiler doesn't notice");
+                     }
+                     if (value % 2 == 0)
+                     {
+                       value /= 2;
+                     }
+                     else
+                     {
+                       value = 3 * value + 1;
+                     }
+                   }
+                 }
+                 spin();
+               });
     }
   };
 } // namespace rive_android

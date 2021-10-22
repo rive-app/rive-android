@@ -36,7 +36,7 @@
 #define REQUIRES(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
-namespace samples
+namespace rive_android
 {
 
   enum class Affinity
