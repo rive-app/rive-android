@@ -69,6 +69,7 @@ getSwappy() {
         unzip -q $AGDK_LIBS.zip -d $AGDK_LIBS
     fi
 
+    mkdir -p "$BUILD_DIR"
     cp "$AGDK_LIBS"/libs/"$ARCH_NAME"_API29_NDK21_cpp_static_Release/libswappy_static.a "$BUILD_DIR"
 
     popd
