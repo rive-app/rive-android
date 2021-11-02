@@ -86,7 +86,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
 
         holder.addCallback(this)
         nInit(activity, refreshPeriodNanos)
-        val fileBytes = activity.resources.openRawResource(R.raw.duowalk).readBytes()
+        val fileBytes = activity.resources.openRawResource(R.raw.off_road_car_blog).readBytes()
         file = File(fileBytes)
         file.firstArtboard.getInstance().let {
             artboard = it
