@@ -4,7 +4,6 @@ import android.annotation.TargetApi
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.Trace
@@ -34,26 +33,46 @@ class MetricsActivity : AppCompatActivity() {
         Rive.init()
         setContentView(R.layout.activity_metrics)
 
-        swappyView = SwappyView(this, null)
-        val density = resources.displayMetrics.density
-        swappyView.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            (366 * density).toInt(),
-        )
-        swappyView.setZOrderOnTop(true)
-        swappyView.holder.setFormat(PixelFormat.TRANSLUCENT)
-        containerView.addView(swappyView, 0)
         // TODO: add a second view here to check that it still works.
     }
 }
 
-class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(context, attrs),
+class SwappyView(context: Context, attrs: AttributeSet? = null) :
+    SurfaceView(context, attrs),
     SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val TAG = "SwappyView"
     private val riveRenderer = RendererSkia()
-    private lateinit var file: File
+    private var file: File?
     private var artboard: Artboard? = null
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
+
+    init {
+        context.theme.obtainStyledAttributes(
+            attrs,
+            app.rive.runtime.kotlin.R.styleable.SwappyView,
+            0, 0
+        ).apply {
+            val resourceId = getResourceId(
+                app.rive.runtime.kotlin.R.styleable.SwappyView_riveResource,
+                -1
+            )
+
+            val fileBytes: ByteArray
+            if (resourceId == -1) {
+                fileBytes = resources.openRawResource(R.raw.off_road_car_blog).readBytes()
+            } else {
+                fileBytes = resources.openRawResource(resourceId).readBytes()
+            }
+            file = File(fileBytes)
+        }
+    }
+
+    private fun artboardSetup() {
+        file?.firstArtboard?.getInstance().let {
+            artboard = it
+            riveRenderer.artboard = artboard
+        }
+    }
 
     private fun getMaybeActivity(): Activity? {
         var ctx = context
@@ -74,12 +93,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         this.activity.let { activity ->
-            val fileBytes = activity.resources.openRawResource(R.raw.off_road_car_blog).readBytes()
-            file = File(fileBytes)
-            file.firstArtboard.getInstance().let {
-                artboard = it
-                riveRenderer.artboard = artboard
-            }
+            artboardSetup()
             // Attach callbacks
             holder.addCallback(this)
             Choreographer.getInstance().postFrameCallback(this)
@@ -96,7 +110,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
             Log.w(
                 this.TAG,
                 "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
-            );
+            )
         }
     }
 
@@ -132,17 +146,16 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     }
 
     override fun doFrame(frameTimeNanos: Long) {
-        Trace.beginSection("doFrame");
+        Trace.beginSection("doFrame")
         val fpsView = activity.findViewById<TextView>(R.id.fps)
         val fps = nGetAverageFps(riveRenderer.address)
-        fpsView?.setText(
+        fpsView?.text =
             java.lang.String.format(
                 Locale.US,
                 "Frame rate: %.1f Hz (%.2f ms)",
                 fps,
                 1e3f / fps
             )
-        )
         Choreographer.getInstance().postFrameCallback(this)
         Trace.endSection()
     }
