@@ -26,7 +26,7 @@ import app.rive.runtime.kotlin.core.Rive
 //
 //   implementation "androidx.startup:startup-runtime:1.0.0"
 //
-// Alternatively, you can call Rive.init() once when your app starts up and before Rive is used
+// Alternatively, you can call Rive.init(context) once when your app starts up and before Rive is used
 //
 class RiveInitializer : Initializer<Unit> {
     override fun create(context: Context) {
