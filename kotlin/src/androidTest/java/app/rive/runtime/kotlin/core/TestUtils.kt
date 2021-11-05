@@ -10,6 +10,6 @@ fun initTests(): Context {
     val appContext = InstrumentationRegistry.getInstrumentation().targetContext
     assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
 
-    Rive.init()
+    Rive.init(appContext)
     return appContext
 }
