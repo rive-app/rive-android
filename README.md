@@ -18,7 +18,7 @@ This is the Android runtime for [Rive](https://rive.app), currently in beta. The
 To add Rive in your project, include the following in your `dependencies` :
 
 ```
-implementation 'app.rive:rive-android:0.2.7'
+implementation 'app.rive:rive-android:x.x.x'
 ```
 
 ## Initializing Rive
