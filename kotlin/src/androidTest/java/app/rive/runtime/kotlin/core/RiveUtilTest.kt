@@ -1,7 +1,10 @@
 package app.rive.runtime.kotlin.core
 
+import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -9,11 +12,18 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RiveUtilTest {
 
+    lateinit var instrumentationContext: Context
+
+    @Before
+    fun setup() {
+        instrumentationContext = InstrumentationRegistry.getInstrumentation().context
+    }
+
     @Test
     fun testContainSquareInSquareContainCenter() {
-        Rive.init()
+        Rive.init(instrumentationContext)
 
-        var usedBounds = Rive.calculateRequiredBounds(
+        val usedBounds = Rive.calculateRequiredBounds(
             Fit.CONTAIN,
             Alignment.CENTER,
             AABB(100f, 100f),
@@ -25,9 +35,9 @@ class RiveUtilTest {
 
     @Test
     fun testContainSquareInRectCoverCenter() {
-        Rive.init()
+        Rive.init(instrumentationContext)
 
-        var usedBounds = Rive.calculateRequiredBounds(
+        val usedBounds = Rive.calculateRequiredBounds(
             Fit.COVER,
             Alignment.CENTER,
             AABB(100f, 150f),
@@ -39,9 +49,9 @@ class RiveUtilTest {
 
     @Test
     fun testContainSquareInRectContainCenter() {
-        Rive.init()
+        Rive.init(instrumentationContext)
 
-        var usedBounds = Rive.calculateRequiredBounds(
+        val usedBounds = Rive.calculateRequiredBounds(
             Fit.CONTAIN,
             Alignment.CENTER,
             AABB(100f, 150f),
