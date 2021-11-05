@@ -21,6 +21,44 @@ To add Rive in your project, include the following in your `dependencies` :
 implementation 'app.rive:rive-android:0.2.7'
 ```
 
+## Initializing Rive
+
+Rive needs to initialize its runtime when your app starts. 
+
+It can be done via an [initializer](https://developer.android.com/topic/libraries/app-startup) that does this for you automatically. The initialization provider can be set up directly in your app's manifest file:
+
+```xml
+<provider
+  android:name="androidx.startup.InitializationProvider"
+  android:authorities="${applicationId}.androidx-startup"
+  android:exported="false"
+  tools:node="merge">
+    <meta-data android:name="app.rive.runtime.kotlin.RiveInitializer"
+      android:value="androidx.startup" />
+</provider>
+```
+
+Otherwise this can be achieved by calling the initializer in your code:
+
+```kotlin
+AppInitializer.getInstance(applicationContext)
+  .initializeComponent(RiveInitializer::class.java)
+```
+
+You'll need the add a dependency for Jetpack Startup:
+
+```groovy
+dependencies {
+    implementation "androidx.startup:startup-runtime:1.1.0"
+}
+```
+
+If you want to initialize Rive yourself, this can also be done in code:
+
+```kotlin
+Rive.init(context)
+```
+
 ## RiveAnimationView
 
 The simplest way to get a rive animation into your application is to include it as part of a layout. The following will include the rive file loaded from the raw resources location, and auto play its first animation.
@@ -180,18 +218,18 @@ The way past this and into some pretty cool effects will take you to mixing, whe
 
 ## Project Layout
 
-### /kotlin
+### `/kotlin`
 
 This is the main module of the android library, you can find a useful `RiveAnimationView` or `RiveDrawable` in the `app.rive.runtime.kotlin` namespace.
 The underlying [c++ runtimes](https://github.com/rive-app/rive-cpp) is mapped to objects in the `app.rive.runtime.kotlin.core` namespace. This can be used to allow for more fine grained control for more complex animation loops. Our high level views are simply built on top of this.
 
-### /app
+### `/app`
 
 Multiple sample activities can be found here, this can be a useful reference for getting started with using the runtimes.
 
-### /cpp && /submodules
+### `/cpp` && `/submodules`
 
-The runtimes are built on top of our [c++ runtimes](https://github.com/rive-app/rive-cpp). these are included as a submodule in /submodules. The `/cpp` folder contains the c++ side of our bindings into android.
+The runtimes are built on top of our [c++ runtimes](https://github.com/rive-app/rive-cpp). these are included as a submodule in `/submodules`. The `/cpp` folder contains the c++ side of our bindings into android.
 
 #### Build the cpp runtimes
 
@@ -204,40 +242,6 @@ cd cpp
 ./build.rive.for.sh -c -a x86_64
 ./build.rive.for.sh -c -a arm64-v8a
 ./build.rive.for.sh -c -a armeabi-v7a
-```
-
-## Manually Initializing Rive
-
-Rive needs to initialize its runtime when your app starts. It includes an [initializer](https://developer.android.com/topic/libraries/app-startup) that does this for you automatically. The initialization provider is set up in the Rive module's manifest.
-
-Gradle will typically merge up the module's manifest with your app's so you don't have to do anything. If you're using another build system, this might not happen.
-
-If that's the case, you can activate this by either including a provider in your manifest file:
-
-```xml
-<provider
-  android:name="androidx.startup.InitializationProvider"
-  android:authorities="${applicationId}.androidx-startup"
-  android:exported="false"
-  tools:node="merge">
-    <meta-data android:name="app.rive.runtime.kotlin.RiveInitializer"
-      android:value="androidx.startup" />
-</provider>
-```
-
-or calling the initializer in your code:
-
-```kotlin
-AppInitializer.getInstance(applicationContext)
-  .initializeComponent(RiveInitializer::class.java)
-```
-
-You'll need the add a dependency for Jetpack Startup:
-
-```groovy
-dependencies {
-    implementation "androidx.startup:startup-runtime:1.0.0"
-}
 ```
 
 
