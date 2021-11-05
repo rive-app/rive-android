@@ -33,7 +33,6 @@ class SimpleStateMachineActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Rive.init(this)
         setContentView(R.layout.simple_state_machine)
     }
 }
