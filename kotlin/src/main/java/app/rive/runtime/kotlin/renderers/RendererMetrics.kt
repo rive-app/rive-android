@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
+import android.app.Activity
 import android.os.Build
 import android.util.Log
 import android.view.FrameMetrics
@@ -9,13 +10,27 @@ import java.math.BigDecimal
 import java.util.*
 
 @RequiresApi(Build.VERSION_CODES.N)
-class RendererMetrics() : Window.OnFrameMetricsAvailableListener {
+class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListener {
+    private val TAG = "RendererMetrics"
     private val ONE_MS_IN_NS: Long = 1000000
-//    private val ONE_S_IN_NS = 1000 * ONE_MS_IN_NS
+    private val ONE_S_IN_NS = 1000 * ONE_MS_IN_NS
 
     private var allFrames = 0
     private var jankyFrames = 0
     private var totalTime = BigDecimal(0.0)
+
+    init {
+        // Get display metrics
+        val wm = activity.windowManager
+        // Deprecated in API 30: keep this instead of having two separate paths.
+        @Suppress("DEPRECATION")
+        val display = wm.defaultDisplay
+        val refreshRateHz = display.refreshRate
+        val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
+        Log.i(this.TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
+
+        nInit(activity, refreshPeriodNanos)
+    }
 
     override fun onFrameMetricsAvailable(
         window: Window?,
@@ -23,11 +38,11 @@ class RendererMetrics() : Window.OnFrameMetricsAvailableListener {
         dropCountSinceLastInvocation: Int
     ) {
         if (window == null) {
-            Log.w("RendererMetrics", "Invalid Window reference")
+            Log.w(this.TAG, "Invalid Window reference")
             return
         }
         if (frameMetrics == null) {
-            Log.w("RendererMetrics", "Invalid FrameMetrics reference")
+            Log.w(this.TAG, "Invalid FrameMetrics reference")
             return
         }
         val frameMetricsCopy = FrameMetrics(frameMetrics)
@@ -40,7 +55,7 @@ class RendererMetrics() : Window.OnFrameMetricsAvailableListener {
                 refreshRateHz = it.refreshRate
             } ?: run {
                 // Failed to get my display?
-                Log.w("RendererMetrics", "Failed to get the display, defaulting to 60hz")
+                Log.w(this.TAG, "Failed to get the display, defaulting to 60hz")
             }
         } else {
             @Suppress("DEPRECATION")
@@ -81,6 +96,8 @@ class RendererMetrics() : Window.OnFrameMetricsAvailableListener {
             totalTime.divide(BigDecimal(allFrames))
         )
 
-        Log.i("FrameMetrics", frameValues)
+        Log.i(this.TAG, frameValues)
     }
+
+    private external fun nInit(activity: Activity, initialSwapIntervalNS: Long)
 }
