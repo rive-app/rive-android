@@ -60,12 +60,13 @@ export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz"
 
 function buildFor()
 {
-    pushd $LIBRIVE
+    # Building the renderer builds both librive.a and librive_renderer.a
+    pushd $LIBRIVE/renderer/library
     if ${NEEDS_CLEAN}; then
         # echo 'cleaning!'
         ./build.sh clean
     fi
-    ./build.sh release
+    ./build.sh android
     popd
 
     mkdir -p $BUILD_DIR
@@ -75,6 +76,7 @@ function buildFor()
     fi
 
     cp $LIBRIVE/build/bin/release/librive.a $BUILD_DIR
+    cp $LIBRIVE/renderer/library/build/bin/release/librive_renderer.a $BUILD_DIR
     cp $LIBCXX/libc++_static.a $BUILD_DIR
 
     mkdir -p $BUILD_DIR/obj

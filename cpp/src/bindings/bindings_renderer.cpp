@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <thread>
+#include <cassert>
 
 #ifdef __cplusplus
 extern "C"
