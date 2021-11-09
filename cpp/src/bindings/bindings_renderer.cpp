@@ -2,6 +2,7 @@
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
 #include "models/jni_renderer_gl.hpp"
+#include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
 #include <jni.h>
 #include <errno.h>
@@ -9,9 +10,6 @@
 #include <unistd.h>
 #include <thread>
 #include <cassert>
-
-#include "GrDirectContext.h"
-#include "gl/GrGLInterface.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -111,16 +109,6 @@ extern "C"
         jobject thisObj,
         jlong rendererRef)
     {
-        GrContextOptions options;
-        sk_sp<GrDirectContext> context = GrDirectContext::MakeGL(nullptr, options);
-        GrGLFramebufferInfo framebufferInfo;
-        framebufferInfo.fFBOID = 0;
-        framebufferInfo.fFormat = GL_RGBA8;
-
-
-        SkSurface *surface = nullptr;
-        SkCanvas *canvas = nullptr;
-
         ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
         renderer->initialize(nullptr);
     }
@@ -159,6 +147,39 @@ extern "C"
     {
         ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
         delete renderer;
+    }
+
+    // Skia Renderer
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_constructor(JNIEnv *env, jobject thisObj)
+    {
+        // luigi: again ifdef this out for release (or murder completely, but
+        // it's nice to catch all fprintf to stderr). Bad place to put this but
+        // for now we instance the renderer once and I just wanted to throw this
+        // in somewhere. Basically needs to be called once at boot to spawn a
+        // thread that listens to stderr and redirects to android log.
+        std::thread t(logThread);
+        // detach so it outlives the ref
+        t.detach();
+
+        auto renderer = new ::JNIRendererSkia();
+        renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
+        return (jlong)renderer;
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_initializeSkiaGL(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong rendererRef)
+    {
+        ((::JNIRendererSkia *)rendererRef)->initialize();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenSkia_startFrame(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong rendererRef)
+    {
+        ((::JNIRendererSkia *)rendererRef)->startFrame();
     }
 
 #ifdef __cplusplus
