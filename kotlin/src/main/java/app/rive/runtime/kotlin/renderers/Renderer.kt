@@ -19,7 +19,7 @@ import app.rive.runtime.kotlin.core.Fit
  * rendered.
  */
 class Renderer(antialias: Boolean = true) : BaseRenderer() {
-    private lateinit var canvas: Canvas
+    lateinit var canvas: Canvas
 
     override var cppPointer: Long = constructor(antialias)
 
@@ -36,7 +36,6 @@ class Renderer(antialias: Boolean = true) : BaseRenderer() {
     )
 
     fun draw(artboard: Artboard, canvas: Canvas) {
-        this.canvas = canvas
         val saved = canvas.save()
         draw(artboard)
         canvas.restoreToCount(saved)

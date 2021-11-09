@@ -7,11 +7,11 @@ import app.rive.runtime.kotlin.core.Fit
 
 
 abstract class BaseRenderer {
-    abstract internal var cppPointer: Long
+    internal abstract var cppPointer: Long
 
     abstract fun draw(artboard: Artboard)
-    abstract protected fun cppDraw(artboardPointer: Long, rendererPointer: Long)
-    abstract protected fun cleanupJNI(cppPointer: Long)
+    protected abstract fun cppDraw(artboardPointer: Long, rendererPointer: Long)
+    protected abstract fun cleanupJNI(cppPointer: Long)
     abstract fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB)
 
     /**

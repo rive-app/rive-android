@@ -83,7 +83,7 @@ class RiveDrawable(
                 if (playingAnimations.contains(animationInstance)) {
                     val looped = animationInstance.advance(elapsed)
 
-                    animationInstance.apply(ab, 1f)
+                    animationInstance.apply(ab)
                     if (looped == Loop.ONESHOT) {
                         _stop(animationInstance)
                     } else if (looped != null) {
@@ -488,6 +488,7 @@ class RiveDrawable(
                 boundsCache = bounds
                 targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
             }
+            renderer.canvas = canvas
             renderer.align(fit, alignment, targetBounds, ab.bounds)
             renderer.draw(ab, canvas)
         }
