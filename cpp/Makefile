@@ -18,7 +18,7 @@ OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(ODIR)/%.o,$(SRC_FILES))
 O_FILES = $(patsubst %.cpp,$(ODIR)/%.o,$(notdir $(SRC_FILES)))
 # $(info $(O_FILES))
 
-DEPS=$(O_FILES) $(BUILD_DIR)/librive.a $(BUILD_DIR)/libc++_static.a
+DEPS=$(O_FILES) $(BUILD_DIR)/librive.a $(BUILD_DIR)/libc++_static.a $(BUILD_DIR)/librive_renderer.a
 
 LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid
@@ -35,5 +35,6 @@ clean:
 	rm -f $(ODIR)/*.o
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
+	rm -f $(BUILD_DIR)/librive_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a
 	
