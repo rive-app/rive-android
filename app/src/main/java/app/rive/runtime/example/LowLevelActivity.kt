@@ -72,7 +72,7 @@ class LowLevelRiveView: View {
         lastTime = currentTime
 
         // Set the Rive renderer's canvas and alignment
-        renderer.canvas = canvas
+//        renderer.canvas = canvas
         renderer.align(Fit.COVER, Alignment.CENTER, bounds, artboard.bounds)
 
         // Advance the animation(s) with a given mix value
@@ -84,7 +84,8 @@ class LowLevelRiveView: View {
 
         // Draw the artboard
         canvas.save()
-        artboard.draw(renderer)
+//        artboard.draw(renderer)
+        renderer.draw(artboard, canvas)
         canvas.restore()
 
         // Draw again on the next frame

@@ -36,7 +36,7 @@ namespace rive_android
       getJNIEnv()->DeleteGlobalRef(jRendererObject);
     }
 
-    void initialize()
+    void initialize() override
     {
       GrContextOptions options;
       mContext = GrDirectContext::MakeGL(nullptr, options);

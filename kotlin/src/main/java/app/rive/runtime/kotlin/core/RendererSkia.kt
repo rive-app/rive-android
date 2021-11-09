@@ -1,38 +1,21 @@
 package app.rive.runtime.kotlin.core
 
+import android.os.SystemClock
+import android.util.Log
+
 class RendererSkia {
     private external fun cleanupJNI(cppPointer: Long)
     private external fun constructor(): Long
     private external fun startFrame(cppPointer: Long)
     private external fun initializeSkiaGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
+    private external fun cppDraw(artboardPointer: Long, rendererPointer: Long)
 
     var cppPointer: Long = constructor()
         private set
 
-    private var file: File? = null
-    private var artboard: Artboard? = null
-    private var animationInstance: LinearAnimationInstance? = null
-
     fun initializeSkia() {
         initializeSkiaGL(cppPointer)
-    }
-
-    fun initFile(bytes: ByteArray) {
-        this.file?.let {
-            // Cleanup the old file.
-        }
-        val f = File(bytes)
-        this.file = f
-
-        val ab = f.firstArtboard.getInstance()
-        ab.advance(0.0f)
-        this.artboard = ab
-
-        val ai = LinearAnimationInstance(ab.firstAnimation)
-        ai.advance(0.0f)
-        ai.apply(artboard!!)
-        this.animationInstance = ai
     }
 
     fun cleanup() {
@@ -44,13 +27,14 @@ class RendererSkia {
         setViewport(cppPointer, width, height)
     }
 
-    fun draw(elapsed: Float) {
-        artboard ?: return; animationInstance ?: return
-
+    // TODO: this should be an abstract call.
+    fun draw(artboard: Artboard) {
+        // TODO: not sure we need to clear the background every frame?
         startFrame(cppPointer)
-        animationInstance!!.advance(elapsed)
-        animationInstance!!.apply(artboard!!)
-        artboard!!.advance(elapsed)
-        artboard!!.drawSkia(this)
+        cppDraw(artboard.cppPointer, cppPointer)
+//        var start = SystemClock.elapsedRealtimeNanos()
+//        artboard.drawSkia(this)
+//        val now = SystemClock.elapsedRealtimeNanos()
+//        Log.d("SKIA DRAW", "Frame: ${(now - start) / 1000000} ms")
     }
 }
