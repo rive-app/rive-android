@@ -1,10 +1,10 @@
 package app.rive.runtime.kotlin.core
 
-class RendererOpenGL {
+class RendererSkia {
     private external fun cleanupJNI(cppPointer: Long)
     private external fun constructor(): Long
     private external fun startFrame(cppPointer: Long)
-    private external fun initializeGL(cppPointer: Long)
+    private external fun initializeSkiaGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
     var cppPointer: Long = constructor()
@@ -14,8 +14,8 @@ class RendererOpenGL {
     private var artboard: Artboard? = null
     private var animationInstance: LinearAnimationInstance? = null
 
-    fun initializeGL() {
-        initializeGL(cppPointer)
+    fun initializeSkia() {
+        initializeSkiaGL(cppPointer)
     }
 
     fun initFile(bytes: ByteArray) {
@@ -52,11 +52,7 @@ class RendererOpenGL {
         animationInstance!!.advance(elapsed)
         animationInstance!!.apply(artboard!!)
         artboard!!.advance(elapsed)
-        artboard!!.drawGL(this)
-    }
-
-
-    private fun fileCleanup() {
         // TODO:
+//        artboard!!.drawSkia(this)
     }
 }
