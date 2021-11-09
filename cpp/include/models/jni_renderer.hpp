@@ -2,11 +2,23 @@
 #define _RIVE_ANDROID_JAVA_RENDERER_HPP_
 
 #include "rive/renderer.hpp"
+#include "models/render_path.hpp"
+#include "models/render_paint.hpp"
 #include <jni.h>
 
 namespace rive_android
 {
-	class JNIRenderer : public rive::Renderer
+	/**
+	 * Interface for a generic JNI Renderer.
+	 */
+	class IJNIRenderer
+	{
+	public:
+		virtual rive::RenderPaint *makeRenderPaint() = 0;
+		virtual rive::RenderPath *makeRenderPath() = 0;
+	};
+
+	class JNIRenderer : public rive::Renderer, virtual public IJNIRenderer
 	{
 	public:
 		jobject jRendererObject;
@@ -19,6 +31,15 @@ namespace rive_android
 		void translate(float x, float y);
 		void drawPath(rive::RenderPath *path, rive::RenderPaint *paint) override;
 		void clipPath(rive::RenderPath *path) override;
+		
+		rive::RenderPaint *makeRenderPaint() override
+		{
+			return new JNIRenderPaint();
+		}
+		rive::RenderPath *makeRenderPath() override
+		{
+			return new JNIRenderPath();
+		}
 	};
 
 } // namespace rive_android

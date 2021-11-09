@@ -10,7 +10,7 @@ import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.core.RendererOpenGL
+import app.rive.runtime.kotlin.core.RendererSkia
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLDisplay
@@ -106,8 +106,9 @@ class OpenGLActivity : AppCompatActivity() {
 
 class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes: ByteArray) :
     GLSurfaceView(context, attrs) {
-    private val renderer: RiveGLRenderer
-    private var rendererGL = RendererOpenGL()
+    private val glRenderer: RiveGLRenderer
+//    private var renderer = RendererOpenGL()
+    private var riveRenderer = RendererSkia()
 
     init {
         // Init GL context.
@@ -115,16 +116,16 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes
         //  we could totally tweak those for es2. we actually need a better abstraction there
         //  for different platforms in general
         setEGLContextClientVersion(3)
-        renderer = RiveGLRenderer(rendererGL, fileBytes)
-        setEGLConfigChooser(RiveConfigChooser())
+        glRenderer = RiveGLRenderer(riveRenderer, fileBytes)
+        // setEGLConfigChooser(RiveConfigChooser())
         // Set up the stencil buffer.
         // setEGLConfigChooser(8, 8, 8, 8, 0, 8)
-        setRenderer(renderer)
+        setRenderer(glRenderer)
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        rendererGL.cleanup()
+        riveRenderer.cleanup()
     }
 
     private class RiveConfigChooser : EGLConfigChooser {
@@ -133,6 +134,7 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes
             private const val RED_MIN_SIZE = 8
             private const val GREEN_MIN_SIZE = 8
             private const val BLUE_MIN_SIZE = 8
+
             // We need a configuration with the stencil buffer.
             private const val STENCIL_MIN_SIZE = 8
             private val refValue = IntArray(1)
@@ -195,20 +197,20 @@ class RiveGLSurfaceView(context: Context, attrs: AttributeSet? = null, fileBytes
     }
 }
 
-class RiveGLRenderer(private val rendererGL: RendererOpenGL, private val fileBytes: ByteArray) :
+class RiveGLRenderer(private val riveRenderer: RendererSkia, private val fileBytes: ByteArray) :
     GLSurfaceView.Renderer {
     private var lastTime: Long = 0
     private var isPlaying = true
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        riveRenderer.initializeSkia()
         // Init file after GL init.
-        rendererGL.initializeGL()
-        rendererGL.initFile(fileBytes)
+        riveRenderer.initFile(fileBytes)
         lastTime = System.currentTimeMillis()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        rendererGL.setViewport(width, height)
+        riveRenderer.setViewport(width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -216,6 +218,6 @@ class RiveGLRenderer(private val rendererGL: RendererOpenGL, private val fileByt
         val time = System.currentTimeMillis()
         val elapsed = time - lastTime
         lastTime = time
-        rendererGL.draw(elapsed / 1000.0f)
+        riveRenderer.draw(elapsed / 1000.0f)
     }
 }
