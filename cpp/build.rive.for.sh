@@ -11,8 +11,8 @@ NEEDS_CLEAN='false'
 
 usage() {
     printf "Usage: %s -a arch [-c]" "$0"
-    printf "\t-a Specify an architecture (i.e. '%s', '%s', '%s', '%s')", ARCH_X86 ARCH_X64 ARCH_ARM ARCH_ARM64
-    printf "\t-c Clean previous builds"
+    printf "\t-a Specify an architecture (i.e. '%s', '%s', '%s', '%s')", $ARCH_X86 $ARCH_X64 $ARCH_ARM $ARCH_ARM64
+    printf "\t-c Clean previous builds\n"
     exit 1 # Exit script after printing help
 }
 
