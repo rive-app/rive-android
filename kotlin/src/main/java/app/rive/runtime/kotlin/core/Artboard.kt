@@ -34,7 +34,13 @@ class Artboard(val cppPointer: Long) {
         cppPointer: Long,
         rendererPointer: Long,
         renderer: Renderer,
-        canvas: Canvas
+        canvas: Canvas,
+    )
+
+    private external fun cppDrawGL(
+        cppPointer: Long,
+        rendererPointer: Long,
+        renderer: RendererOpenGL,
     )
 
     private external fun cppBounds(cppPointer: Long): Long
@@ -178,6 +184,10 @@ class Artboard(val cppPointer: Long) {
      */
     fun draw(renderer: Renderer) {
         cppDraw(cppPointer, renderer.cppPointer, renderer, renderer.canvas)
+    }
+
+    fun drawGL(renderer: RendererOpenGL) {
+        cppDrawGL(cppPointer, renderer.cppPointer, renderer)
     }
 
     /**
