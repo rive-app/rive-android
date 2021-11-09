@@ -5,8 +5,7 @@
 
 using namespace rive;
 
-const char *vertexShaderSource = R"""(
-#version 330 core
+const char *vertexShaderSource = R"""(#version 300 es
 
 		layout(location = 0) in vec2 position;
 
@@ -23,8 +22,7 @@ void main()
 }
 )""";
 
-const char* fragmentShaderSource = R"""(
-#version 330 core
+const char* fragmentShaderSource = R"""(#version 300 es
 
 #ifdef GL_ES
 precision highp float;
@@ -113,6 +111,7 @@ OpenGLRenderer::~OpenGLRenderer()
 
 bool OpenGLRenderer::initialize(void *data)
 {
+	fprintf(stderr, "------INITIALIZING OPENGL------\n");
 	assert(m_VertexShader == 0 && m_FragmentShader == 0 && m_Program == 0);
 
 	m_VertexShader =
@@ -338,7 +337,6 @@ void OpenGLRenderer::drawPath(RenderPath *path, RenderPaint *paint)
 			m_IsClipping = false;
 		}
 	}
-
 	auto glPath = static_cast<OpenGLRenderPath *>(path);
 
 	if (needsStencil)
@@ -407,6 +405,7 @@ RenderPaint *OpenGLRenderer::makeRenderPaint()
 {
 	return new OpenGLRenderPaint();
 }
+
 RenderPath *OpenGLRenderer::makeRenderPath() { return new OpenGLRenderPath(); }
 
 void OpenGLRenderer::updateIndexBuffer(std::size_t contourLength)

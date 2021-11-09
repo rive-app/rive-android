@@ -4,11 +4,16 @@ class RendererOpenGL {
     private external fun constructor(): Long
     private external fun cleanupJNI(cppPointer: Long)
     private external fun startFrame(cppPointer: Long)
+    private external fun initializeGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
     private lateinit var file: File
     private var artboard: Artboard? = null
     private var animationInstance: LinearAnimationInstance? = null
+
+    fun initializeGL() {
+        initializeGL(cppPointer)
+    }
 
     fun initFile(bytes: ByteArray) {
         this.file = File(bytes)
