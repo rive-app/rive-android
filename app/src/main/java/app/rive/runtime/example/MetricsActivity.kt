@@ -42,7 +42,7 @@ class MetricsActivity : AppCompatActivity() {
         )
         swappyView.setZOrderOnTop(true)
         swappyView.holder.setFormat(PixelFormat.TRANSLUCENT)
-        containerView.addView(swappyView)
+        containerView.addView(swappyView, 0)
         // TODO: add a second view here to check that it still works.
     }
 }
@@ -55,54 +55,43 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     private var artboard: Artboard? = null
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
 
-    private val activity: Activity?
-        get() {
-            var ctx = context
-            while (ctx is ContextWrapper) {
-                if (ctx is Activity) {
-                    return ctx
-                }
-                ctx = ctx.baseContext
+    private fun getMaybeActivity(): Activity? {
+        var ctx = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) {
+                return ctx
             }
-            return null
+            ctx = ctx.baseContext
         }
+        return null
+    }
 
-
-    private val ONE_MS_IN_NS: Long = 1000000
-    private val ONE_S_IN_NS = 1000 * ONE_MS_IN_NS
+    private val activity by lazy(LazyThreadSafetyMode.NONE) {
+        // If this fails we have a problem.
+        this.getMaybeActivity()!!
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        this.activity.let { activity ->
+            val fileBytes = activity.resources.openRawResource(R.raw.off_road_car_blog).readBytes()
+            file = File(fileBytes)
+            file.firstArtboard.getInstance().let {
+                artboard = it
+                riveRenderer.artboard = artboard
+            }
+            // Attach callbacks
+            holder.addCallback(this)
+            Choreographer.getInstance().postFrameCallback(this)
 
-        // If this fails we have a problem.
-        val activity = this.activity!!
-        // Get display metrics
-        val wm = activity.windowManager
-        // Deprecated in API 30: keep this instead of having two separate paths.
-        @Suppress("DEPRECATION")
-        val display = wm.defaultDisplay
-        val refreshRateHz = display.refreshRate
-        val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
-        Log.i(this.TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
-
-        holder.addCallback(this)
-        nInit(activity, refreshPeriodNanos)
-        val fileBytes = activity.resources.openRawResource(R.raw.off_road_car_blog).readBytes()
-        file = File(fileBytes)
-        file.firstArtboard.getInstance().let {
-            artboard = it
-            riveRenderer.artboard = artboard
+            startFrameMetrics(activity)
         }
-        // Attaches doFrame()?
-        Choreographer.getInstance().postFrameCallback(this)
-        // Let's do some calculations here.
-        startFrameMetrics(activity.window, 1000 / refreshRateHz)
     }
 
     @TargetApi(Build.VERSION_CODES.N)
-    private fun startFrameMetrics(window: Window, maxFrameTime: Float) {
+    private fun startFrameMetrics(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            frameMetricsListener = RendererMetrics()
+            frameMetricsListener = RendererMetrics(activity)
         } else {
             Log.w(
                 this.TAG,
@@ -123,7 +112,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     override fun onDetachedFromWindow() {
         Log.d(this.TAG, "onDetachedFromWindow()")
         super.onDetachedFromWindow()
-        stopFrameMetrics(this.activity!!)
+        stopFrameMetrics(activity)
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
@@ -144,7 +133,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
 
     override fun doFrame(frameTimeNanos: Long) {
         Trace.beginSection("doFrame");
-        val fpsView = activity?.findViewById<TextView>(R.id.fps)
+        val fpsView = activity.findViewById<TextView>(R.id.fps)
         val fps = nGetAverageFps(riveRenderer.address)
         fpsView?.setText(
             java.lang.String.format(
@@ -158,7 +147,6 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
         Trace.endSection()
     }
 
-    private external fun nInit(activity: Activity, initialSwapIntervalNS: Long)
     private external fun nSetViewport(surface: Surface, rendererAddress: Long)
     private external fun nStart(rendererAddress: Long)
     private external fun nClearSurface()

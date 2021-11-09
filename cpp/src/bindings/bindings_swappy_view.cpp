@@ -66,7 +66,7 @@ extern "C"
       threadStart, threadJoin, threadJoinable};
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nInit(
+  Java_app_rive_runtime_kotlin_renderers_RendererMetrics_nInit(
       JNIEnv *env, jobject swappyView,
       jobject activity, jlong initialSwapIntervalNS)
   {

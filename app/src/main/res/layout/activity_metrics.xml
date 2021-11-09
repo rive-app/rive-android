@@ -11,11 +11,12 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:padding="24dp">
+
         <TextView
             android:id="@+id/fps"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
+            android:layout_marginTop="6dp"
             android:text="@string/fps"
             android:textAppearance="@style/InfoTextMedium" />
         <!-- Rest gets filled programmatically -->
