@@ -43,6 +43,12 @@ class Artboard(val cppPointer: Long) {
         renderer: RendererOpenGL,
     )
 
+    external fun cppDrawSkia(
+        cppPointer: Long,
+        rendererPointer: Long,
+        renderer: RendererSkia,
+    )
+
     private external fun cppBounds(cppPointer: Long): Long
 
     private external fun cppInstance(cppPointer: Long): Long
@@ -188,6 +194,10 @@ class Artboard(val cppPointer: Long) {
 
     fun drawGL(renderer: RendererOpenGL) {
         cppDrawGL(cppPointer, renderer.cppPointer, renderer)
+    }
+
+    fun drawSkia(renderer: RendererSkia) {
+        cppDrawSkia(cppPointer, renderer.cppPointer, renderer)
     }
 
     /**

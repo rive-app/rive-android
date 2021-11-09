@@ -58,20 +58,28 @@ export AR=$TOOLCHAIN/bin/llvm-ar
 SKIA_ARCH=
 
 buildFor() {
+    # Let's build Skia for Android.
+    # Do we want to make this a parameter?
+    pushd "$LIBRIVE"/skia/dependencies
+    ./make_skia_android.sh "$SKIA_ARCH"
+    # Prints the lib size:
+    # ls -lh ./skia/out/arm64/libskia.a
+    popd
+
     # Building the renderer builds both librive.a and librive_renderer.a
     pushd "$LIBRIVE"/renderer/library
     if ${NEEDS_CLEAN}; then
         # echo 'cleaning!'
         ./build.sh clean
+        pushd ../../skia/renderer
+        ./build.sh clean
+        popd
     fi
     ./build.sh android
     popd
-
-    # Do we want to make this a parameter?
-    pushd "$LIBRIVE"/skia/dependencies
-    ./make_skia_android.sh "$SKIA_ARCH"
-    ls -lh ./skia/out/arm64/libskia.a
-
+    
+    pushd "$LIBRIVE"/skia/renderer
+    ./build.sh android
     popd
 
     mkdir -p "$BUILD_DIR"
@@ -83,6 +91,7 @@ buildFor() {
     cp "$LIBRIVE"/build/bin/release/librive.a "$BUILD_DIR"
     cp "$LIBRIVE"/renderer/library/build/bin/release/librive_renderer.a "$BUILD_DIR"
     cp "$LIBRIVE"/skia/dependencies/skia/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/renderer/build/bin/release/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
     mkdir -p "$BUILD_DIR"/obj
