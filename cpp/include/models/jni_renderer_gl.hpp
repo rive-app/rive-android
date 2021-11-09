@@ -25,5 +25,6 @@ namespace rive_android
 			glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			OpenGLRenderer::startFrame();
 		}
+	};
 } // namespace rive_android
 #endif
