@@ -19,7 +19,7 @@ class RendererOpenGL {
     }
 
     fun initFile(bytes: ByteArray) {
-        this.file?.run {
+        this.file?.let {
             // Cleanup the old file.
         }
         val f = File(bytes)
@@ -57,6 +57,6 @@ class RendererOpenGL {
 
 
     private fun fileCleanup() {
-
+        // TODO:
     }
 }
