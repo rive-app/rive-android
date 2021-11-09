@@ -9,7 +9,7 @@ package app.rive.runtime.kotlin.core
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
-class LinearAnimationInstance(val animation: Animation): PlayableInstance() {
+class LinearAnimationInstance(val animation: Animation) : PlayableInstance() {
     private var cppPointer: Long = constructor(animation.cppPointer)
     private external fun constructor(animationPointer: Long): Long
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?

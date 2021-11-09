@@ -4,6 +4,7 @@
 #include "models/jni_renderer_gl.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
+#include "rive/artboard.hpp"
 #include <jni.h>
 #include <errno.h>
 #include <stdio.h>
@@ -39,6 +40,7 @@ extern "C"
         jboolean antialias)
     {
         auto renderer = new ::JNIRenderer();
+        g_JNIRenderer = renderer;
         ::JNIRenderer::antialias = (bool)antialias;
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
 
@@ -70,6 +72,18 @@ extern "C"
         rive::AABB *targetBounds = (rive::AABB *)targetBoundsRef;
         rive::AABB *sourceBounds = (rive::AABB *)sourceBoundsRef;
         renderer->align(fit, alignment, *targetBounds, *sourceBounds);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Renderer_cppDraw(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong artboardRef,
+        jlong rendererRef,
+        jobject rendererObj)
+    {
+        auto artboard = (rive::Artboard *)artboardRef;
+        auto renderer = (::JNIRenderer *)rendererRef;
+        artboard->draw(renderer);
     }
 
     // luigi: this redirects stderr to android log (probably want to ifdef this out for release)
@@ -109,8 +123,7 @@ extern "C"
         jobject thisObj,
         jlong rendererRef)
     {
-        ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
-        renderer->initialize(nullptr);
+        ((::JNIRendererGL *)rendererRef)->initialize();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_startFrame(
@@ -118,8 +131,7 @@ extern "C"
         jobject thisObj,
         jlong rendererRef)
     {
-        ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
-        renderer->startFrame();
+        ((::JNIRendererGL *)rendererRef)->startFrame();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_setViewport(
@@ -138,6 +150,26 @@ extern "C"
         renderer->orthographicProjection(
             projection, 0.0f, width, height, 0.0f, 0.0f, 1.0f);
         renderer->modelViewProjection(projection);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_cppDraw(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong artboardRef,
+        jlong rendererRef)
+    {
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        auto renderer = (::JNIRendererGL *)rendererRef;
+        renderer->save();
+        renderer->align(rive::Fit::contain,
+                        rive::Alignment::center,
+                        rive::AABB(
+                            0, 0,
+                            renderer->width,
+                            renderer->height),
+                        artboard->bounds());
+        artboard->draw(renderer);
+        renderer->restore();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_cleanupJNI(
@@ -191,6 +223,29 @@ extern "C"
         jint height)
     {
         ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_cppDraw(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong artboardRef,
+        jlong rendererRef)
+    {
+        // TODO: consolidate this to work with an abstracted JNI Renderer.
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        auto jniWrapper = (::JNIRendererSkia *)rendererRef;
+        rive::SkiaRenderer renderer(jniWrapper->canvas());
+        renderer.save();
+        renderer.align(rive::Fit::contain,
+                       rive::Alignment::center,
+                       rive::AABB(
+                           0, 0,
+                           jniWrapper->width(),
+                           jniWrapper->height()),
+                       artboard->bounds());
+        artboard->draw(&renderer);
+        renderer.restore();
+        jniWrapper->flush();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererSkia_cleanupJNI(

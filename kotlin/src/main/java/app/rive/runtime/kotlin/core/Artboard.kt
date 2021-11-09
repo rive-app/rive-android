@@ -1,7 +1,9 @@
 package app.rive.runtime.kotlin.core
 
-import android.graphics.Canvas
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.controllers.RiveController
+import app.rive.runtime.kotlin.core.errors.AnimationException
+import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.core.errors.StateMachineException
 
 
 /**
@@ -29,25 +31,10 @@ class Artboard(val cppPointer: Long) {
     private external fun cppStateMachineByName(cppPointer: Long, name: String): Long
     private external fun cppStateMachineCount(cppPointer: Long): Int
 
-    private external fun cppAdvance(cppPointer: Long, elapsedTime: Float)
-    private external fun cppDraw(
-        cppPointer: Long,
-        rendererPointer: Long,
-        renderer: Renderer,
-        canvas: Canvas,
-    )
-
-    private external fun cppDrawGL(
-        cppPointer: Long,
-        rendererPointer: Long,
-        renderer: RendererOpenGL,
-    )
-
-    external fun cppDrawSkia(
-        cppPointer: Long,
-        rendererPointer: Long,
-        renderer: RendererSkia,
-    )
+    private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
+    private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
+    private external fun cppDrawGL(cppPointer: Long, rendererPointer: Long)
+    private external fun cppDrawSkia(cppPointer: Long, rendererPointer: Long)
 
     private external fun cppBounds(cppPointer: Long): Long
 
@@ -69,7 +56,7 @@ class Artboard(val cppPointer: Long) {
     val firstAnimation: Animation
         @Throws(RiveException::class)
         get() {
-            var animationPointer = cppFirstAnimation(cppPointer);
+            val animationPointer = cppFirstAnimation(cppPointer)
             if (animationPointer == 0L) {
                 throw AnimationException("No Animations found.")
             }
@@ -78,6 +65,7 @@ class Artboard(val cppPointer: Long) {
             )
         }
 
+    private val animationControllers = HashSet<RiveController<Artboard>>()
 
     /**
      * Get the animation at a given [index] in the [Artboard].
@@ -86,7 +74,7 @@ class Artboard(val cppPointer: Long) {
      */
     @Throws(RiveException::class)
     fun animation(index: Int): Animation {
-        var animationPointer = cppAnimationByIndex(cppPointer, index)
+        val animationPointer = cppAnimationByIndex(cppPointer, index)
         if (animationPointer == 0L) {
             throw AnimationException("No Animation found at index $index.")
         }
@@ -100,7 +88,7 @@ class Artboard(val cppPointer: Long) {
      */
     @Throws(RiveException::class)
     fun animation(name: String): Animation {
-        var animationPointer = cppAnimationByName(cppPointer, name)
+        val animationPointer = cppAnimationByName(cppPointer, name)
         if (animationPointer == 0L) {
             throw AnimationException("No Animation found with name $name.")
         }
@@ -117,7 +105,7 @@ class Artboard(val cppPointer: Long) {
     val firstStateMachine: StateMachine
         @Throws(RiveException::class)
         get() {
-            var stateMachinePointer = cppFirstStateMachine(cppPointer);
+            val stateMachinePointer = cppFirstStateMachine(cppPointer)
             if (stateMachinePointer == 0L) {
                 throw StateMachineException("No StateMachines found.")
             }
@@ -134,7 +122,7 @@ class Artboard(val cppPointer: Long) {
      */
     @Throws(RiveException::class)
     fun stateMachine(index: Int): StateMachine {
-        var stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
+        val stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
         if (stateMachinePointer == 0L) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
@@ -148,13 +136,32 @@ class Artboard(val cppPointer: Long) {
      */
     @Throws(RiveException::class)
     fun stateMachine(name: String): StateMachine {
-        var stateMachinePointer = cppStateMachineByName(cppPointer, name)
+        val stateMachinePointer = cppStateMachineByName(cppPointer, name)
         if (stateMachinePointer == 0L) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
         return StateMachine(
             stateMachinePointer
         )
+    }
+
+    fun addController(controller: RiveController<Artboard>): Boolean {
+        if (animationControllers.contains(controller) ||
+            !controller.initialize(this)
+        ) {
+            return false
+        }
+        println("Just added controller: ${controller.hashCode()}")
+        animationControllers.add(controller)
+        return true
+    }
+
+    fun removeController(controller: RiveController<Artboard>): Boolean {
+        if (animationControllers.remove(controller)) {
+            controller.dispose()
+            return true
+        }
+        return false
     }
 
     /**
@@ -181,23 +188,30 @@ class Artboard(val cppPointer: Long) {
      *
      * [elapsedTime] is currently not taken into account.
      */
-    fun advance(elapsedTime: Float) {
-        cppAdvance(cppPointer, elapsedTime)
+    fun advance(elapsedTime: Float): Boolean {
+        var didUpdate = false
+        animationControllers.forEach { ctrl ->
+            if (ctrl.isActive) {
+                ctrl.apply(this, elapsedTime)
+            }
+        }
+
+        return cppAdvance(cppPointer, elapsedTime) || didUpdate
     }
 
     /**
      * Draw the the artboard to the [renderer].
      */
     fun draw(renderer: Renderer) {
-        cppDraw(cppPointer, renderer.cppPointer, renderer, renderer.canvas)
+        cppDraw(cppPointer, renderer.cppPointer)
     }
 
     fun drawGL(renderer: RendererOpenGL) {
-        cppDrawGL(cppPointer, renderer.cppPointer, renderer)
+        cppDrawGL(cppPointer, renderer.cppPointer)
     }
 
     fun drawSkia(renderer: RendererSkia) {
-        cppDrawSkia(cppPointer, renderer.cppPointer, renderer)
+        cppDrawSkia(cppPointer, renderer.cppPointer)
     }
 
     /**

@@ -1,58 +1,40 @@
 package app.rive.runtime.kotlin.core
 
-class RendererOpenGL {
-    private external fun cleanupJNI(cppPointer: Long)
+import android.graphics.Canvas
+
+class RendererOpenGL : BaseRenderer() {
+    override external fun cleanupJNI(cppPointer: Long)
     private external fun constructor(): Long
     private external fun startFrame(cppPointer: Long)
     private external fun initializeGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
-    var cppPointer: Long = constructor()
-        private set
+    override var cppPointer: Long = constructor()
 
-    private var file: File? = null
-    private var artboard: Artboard? = null
-    private var animationInstance: LinearAnimationInstance? = null
+    private external fun cppDraw(artboardPointer: Long, rendererPointer: Long)
 
+    /**
+     * Initialize OpenGL Renderer in C++
+     */
     fun initializeGL() {
         initializeGL(cppPointer)
-    }
-
-    fun initFile(bytes: ByteArray) {
-        this.file?.let {
-            // Cleanup the old file.
-        }
-        val f = File(bytes)
-        this.file = f
-
-        val ab = f.firstArtboard.getInstance()
-        ab.advance(0.0f)
-        this.artboard = ab
-
-        val ai = LinearAnimationInstance(ab.firstAnimation)
-        ai.advance(0.0f)
-        ai.apply(artboard!!)
-        this.animationInstance = ai
-        startFrame(cppPointer)
-    }
-
-    fun cleanup() {
-        cleanupJNI(cppPointer)
-        cppPointer = 0
     }
 
     fun setViewport(width: Int, height: Int) {
         setViewport(cppPointer, width, height)
     }
 
-    fun draw(elapsed: Float) {
-        artboard ?: return; animationInstance ?: return
-
+    fun draw(artboard: Artboard) {
         startFrame(cppPointer)
-        animationInstance!!.advance(elapsed)
-        animationInstance!!.apply(artboard!!)
-        artboard!!.advance(elapsed)
-        artboard!!.drawGL(this)
+        cppDraw(artboard.cppPointer, this.cppPointer)
+    }
+
+
+    override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {}
+
+    override fun draw(artboard: Artboard, canvas: Canvas) {
+        startFrame(cppPointer)
+        cppDraw(artboard.cppPointer, this.cppPointer)
     }
 
 

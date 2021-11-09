@@ -112,14 +112,14 @@ extern "C"
         return (jint)artboard->stateMachineCount();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(
+    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
         jfloat elapsedTime)
     {
         rive::Artboard *artboard = (rive::Artboard *)ref;
-        artboard->advance(elapsedTime);
+        return artboard->advance(elapsedTime);
     }
 
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(
@@ -137,12 +137,11 @@ extern "C"
         JNIEnv *env,
         jobject thisObj,
         jlong ref,
-        jlong rendererRef,
-        jobject rendererObj)
+        jlong rendererRef)
     {
 
         rive::Artboard *artboard = (rive::Artboard *)ref;
-        ::JNIRenderer *renderer = (::JNIRenderer *)rendererRef;
+        auto *renderer = (::JNIRenderer *)rendererRef;
         artboard->draw(renderer);
     }
 
@@ -150,8 +149,7 @@ extern "C"
         JNIEnv *env,
         jobject thisObj,
         jlong artboardRef,
-        jlong rendererRef,
-        jobject rendererObj)
+        jlong rendererRef)
     {
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         rive::Artboard *artboard = (rive::Artboard *)artboardRef;
@@ -172,8 +170,7 @@ extern "C"
         JNIEnv *env,
         jobject thisObj,
         jlong artboardRef,
-        jlong rendererRef,
-        jobject rendererObj)
+        jlong rendererRef)
     {
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         rive::Artboard *artboard = (rive::Artboard *)artboardRef;
