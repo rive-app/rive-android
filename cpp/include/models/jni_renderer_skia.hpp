@@ -84,6 +84,8 @@ namespace rive_android
       SkPaint paint;
       paint.setColor(SK_ColorDKGRAY);
       mCanvas->drawPaint(paint);
+      // TODO: move flush into the draw call.
+      mContext->flush();
     }
   };
 } // namespace rive_android
