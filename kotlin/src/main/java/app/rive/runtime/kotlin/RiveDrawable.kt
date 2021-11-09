@@ -7,9 +7,8 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.ArtboardException
 
 
 class RiveDrawable(
@@ -33,20 +32,17 @@ class RiveDrawable(
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
     private var _playingStateMachines = HashSet<StateMachineInstance>()
 
-    private var _fit: Fit;
-    private var _alignment: Alignment;
-
     // PUBLIC
-    var fit: Fit
-        get() = _fit
+    var fit: Fit = fit
+        get() = field
         set(value) {
-            _fit = value
+            field = value
             invalidateSelf()
         }
-    var alignment: Alignment
-        get() = _alignment
+    var alignment: Alignment = alignment
+        get() = field
         set(value) {
-            _alignment = value
+            field = value
             invalidateSelf()
         }
     var animations = mutableListOf<LinearAnimationInstance>()
@@ -69,8 +65,6 @@ class RiveDrawable(
         get() = _activeArtboard
 
     init {
-        _fit = fit;
-        _alignment = alignment;
         targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
         animator.setTimeListener { _, _, delta ->
             advance(delta.toFloat())
@@ -143,11 +137,11 @@ class RiveDrawable(
     }
 
     fun arboardBounds(): AABB {
-        var output = _activeArtboard?.bounds;
+        var output = _activeArtboard?.bounds
         if (output == null) {
-            output = AABB(0f, 0f);
+            output = AABB(0f, 0f)
         }
-        return output;
+        return output
     }
 
     fun clear() {
@@ -408,14 +402,14 @@ class RiveDrawable(
     }
 
     private fun _pause(animation: LinearAnimationInstance) {
-        var removed = playingAnimations.remove(animation)
+        val removed = playingAnimations.remove(animation)
         if (removed) {
             notifyPause(animation)
         }
     }
 
     private fun _pause(stateMachine: StateMachineInstance) {
-        var removed = playingStateMachines.remove(stateMachine)
+        val removed = playingStateMachines.remove(stateMachine)
         if (removed) {
             notifyPause(stateMachine)
         }
@@ -424,7 +418,7 @@ class RiveDrawable(
 
     private fun _stop(animation: LinearAnimationInstance) {
         playingAnimations.remove(animation)
-        var removed = animations.remove(animation)
+        val removed = animations.remove(animation)
         if (removed) {
             notifyStop(animation)
         }
@@ -432,7 +426,7 @@ class RiveDrawable(
 
     private fun _stop(stateMachine: StateMachineInstance) {
         playingStateMachines.remove(stateMachine)
-        var removed = stateMachines.remove(stateMachine)
+        val removed = stateMachines.remove(stateMachine)
         if (removed) {
             notifyStop(stateMachine)
         }
@@ -442,13 +436,13 @@ class RiveDrawable(
         file?.let { file ->
             artboardName?.let {
                 selectedArtboard = file.artboard(it)
-                selectedArtboard?.let{
+                selectedArtboard?.let {
                     setArtboard(it)
                 }
 
             } ?: run {
                 selectedArtboard = file.firstArtboard
-                selectedArtboard?.let{
+                selectedArtboard?.let {
                     setArtboard(it)
                 }
             }
@@ -471,9 +465,7 @@ class RiveDrawable(
             }
 
         } else {
-            this._activeArtboard?.let{
-                it.advance(0f)
-            }
+            this._activeArtboard?.advance(0f)
         }
     }
 
@@ -495,11 +487,8 @@ class RiveDrawable(
                 boundsCache = bounds
                 targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
             }
-            renderer.canvas = canvas
             renderer.align(fit, alignment, targetBounds, ab.bounds)
-            val saved = canvas.save()
-            ab.draw(renderer)
-            canvas.restoreToCount(saved)
+            renderer.draw(ab, canvas)
         }
     }
 
@@ -544,7 +533,7 @@ class RiveDrawable(
         fun notifyPause(animation: PlayableInstance)
         fun notifyStop(animation: PlayableInstance)
         fun notifyLoop(animation: PlayableInstance)
-        fun notifyStateChanged(stateMachineName:String, stateName: String)
+        fun notifyStateChanged(stateMachineName: String, stateName: String)
     }
 
     /*

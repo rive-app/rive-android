@@ -5,6 +5,41 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 
+enum class RendererType {
+    CANVAS {
+        override fun make(antialias: Boolean): Renderer {
+            return Renderer(antialias)
+        }
+    },
+    OPENGL {
+        override fun make(antialias: Boolean): Renderer {
+            return Renderer(antialias)
+        }
+    },
+    SKIA {
+        override fun make(antialias: Boolean): Renderer {
+            return Renderer(antialias)
+        }
+    };
+
+    abstract fun make(antialias: Boolean = true): BaseRenderer
+}
+
+abstract class BaseRenderer {
+    abstract internal var cppPointer: Long
+
+    abstract fun draw(artboard: Artboard, canvas: Canvas)
+    abstract protected fun cleanupJNI(cppPointer: Long)
+    abstract fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB)
+
+    /**
+     * Remove the [Renderer] object from memory.
+     */
+    fun cleanup() {
+        cleanupJNI(cppPointer)
+        cppPointer = 0
+    }
+}
 
 /**
  * A [Renderer] is used to help draw an [Artboard] to a [Canvas]
@@ -15,13 +50,9 @@ import android.graphics.Path
  * Most of the functions implemented here are called from the c++ layer when artboards are
  * rendered.
  */
-class Renderer(antialias: Boolean = true) {
-    var cppPointer: Long
-    lateinit var canvas: Canvas
-
-    init {
-        cppPointer = constructor(antialias)
-    }
+class Renderer(antialias: Boolean = true) : BaseRenderer() {
+    override var cppPointer: Long = constructor(antialias)
+    private lateinit var canvas: Canvas
 
     private external fun cppAlign(
         cppPointer: Long,
@@ -31,8 +62,22 @@ class Renderer(antialias: Boolean = true) {
         srcBoundsPointer: Long
     )
 
+    override external fun cleanupJNI(cppPointer: Long)
     private external fun constructor(antialias: Boolean): Long
-    private external fun cleanupJNI(cppPointer: Long)
+    private external fun cppDraw(
+        artboardPointer: Long,
+        rendererPointer: Long,
+        renderer: Renderer,
+        canvas: Canvas,
+    )
+
+    override fun draw(artboard: Artboard, canvas: Canvas) {
+        this.canvas = canvas
+        val saved = canvas.save()
+        // TODO: checks on these params?
+        cppDraw(artboard.cppPointer, this.cppPointer, this, this.canvas)
+        canvas.restoreToCount(saved)
+    }
 
     /**
      * Passthrough to apply [matrix] to the [canvas]
@@ -50,7 +95,7 @@ class Renderer(antialias: Boolean = true) {
      *
      * typically it is expected to use an [Artboard]s bounds as [sourceBounds].
      */
-    fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
+    override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
         cppAlign(
             cppPointer,
             fit,
@@ -60,13 +105,6 @@ class Renderer(antialias: Boolean = true) {
         )
     }
 
-    /**
-     * Remove the [Renderer] object from memory.
-     */
-    fun cleanup() {
-        cleanupJNI(cppPointer)
-        cppPointer = 0
-    }
 
     /**
      * Passthrough to apply [save] to the [canvas]
