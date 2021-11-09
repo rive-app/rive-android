@@ -22,10 +22,6 @@
                 android:name="app.rive.runtime.kotlin.RiveInitializer"
                 android:value="androidx.startup" />
         </provider>
-
-        <activity android:name=".OpenGLActivity" />
-        <activity android:name=".MainActivity">
-        <activity android:name=".OpenGLActivity">
         <activity android:name=".MetricsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -33,7 +29,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".OpenGLActivity"></activity>
+        <activity android:name=".OpenGLActivity" />
         <activity android:name=".MainActivity" />
         <activity android:name=".SimpleActivity" />
         <activity android:name=".MultipleArtboardsActivity" />
