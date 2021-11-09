@@ -16,7 +16,7 @@
         <app.rive.runtime.example.SwappyView
             android:layout_width="match_parent"
             android:layout_height="366dp"
-            app:riveResource="@raw/duowalk" />
+            app:riveResource="@raw/off_road_car_blog" />
 
         <TextView
             android:id="@+id/fps"

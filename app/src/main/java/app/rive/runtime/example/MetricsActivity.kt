@@ -30,7 +30,7 @@ class MetricsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Make sure Rive C++ is loaded.
-        Rive.init()
+        Rive.init(this)
         setContentView(R.layout.activity_metrics)
 
         // TODO: add a second view here to check that it still works.
