@@ -313,7 +313,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     /**
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
-    fun fireState(stateMachineName: String, inputName: String){
+    fun fireState(stateMachineName: String, inputName: String) {
         drawable.fireState(stateMachineName, inputName)
     }
 
@@ -321,7 +321,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Update the state of the [SMIBoolean] input called [inputName] on all active matching state machines
      * to [value]
      */
-    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean){
+    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
         drawable.setBooleanState(stateMachineName, inputName, value)
     }
 
@@ -329,7 +329,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      * Update the state of the [SMINumber] input called [inputName] on all active matching state machines
      * to [value]
      */
-    fun setNumberState(stateMachineName: String, inputName: String, value: Float){
+    fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
         drawable.setNumberState(stateMachineName, inputName, value)
     }
 
@@ -547,4 +547,7 @@ class RiveFileRequest(
     }
 }
 
-data class DetachedRiveState(val playingAnimationsNames: List<String>, val playingStateMachineNames: List<String>)
+data class DetachedRiveState(
+    val playingAnimationsNames: List<String>,
+    val playingStateMachineNames: List<String>
+)
