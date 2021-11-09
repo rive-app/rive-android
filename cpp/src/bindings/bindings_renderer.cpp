@@ -10,6 +10,9 @@
 #include <thread>
 #include <cassert>
 
+#include "GrDirectContext.h"
+#include "gl/GrGLInterface.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -29,7 +32,7 @@ extern "C"
     // avoid things like this. It does mean that files cannot be loaded without
     // a renderer, or at least will require initialization with a no-op renderer
     // (probably ok?).
-    JNIRendererGL* g_GLRenderer = nullptr;
+    JNIRendererGL *g_GLRenderer = nullptr;
 
     // RENDERER
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Renderer_constructor(
@@ -72,14 +75,15 @@ extern "C"
     }
 
     // luigi: this redirects stderr to android log (probably want to ifdef this out for release)
-    void logThread() 
+    void logThread()
     {
         int pipes[2];
         pipe(pipes);
         dup2(pipes[1], STDERR_FILENO);
         FILE *inputFile = fdopen(pipes[0], "r");
         char readBuffer[256];
-        while (1) {
+        while (1)
+        {
             fgets(readBuffer, sizeof(readBuffer), inputFile);
             __android_log_write(2, "stderr", readBuffer);
         }
@@ -101,12 +105,22 @@ extern "C"
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
         return (jlong)renderer;
     }
-    
+
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RendererOpenGL_initializeGL(
         JNIEnv *env,
         jobject thisObj,
         jlong rendererRef)
     {
+        GrContextOptions options;
+        sk_sp<GrDirectContext> context = GrDirectContext::MakeGL(nullptr, options);
+        GrGLFramebufferInfo framebufferInfo;
+        framebufferInfo.fFBOID = 0;
+        framebufferInfo.fFormat = GL_RGBA8;
+
+
+        SkSurface *surface = nullptr;
+        SkCanvas *canvas = nullptr;
+
         ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
         renderer->initialize(nullptr);
     }
@@ -146,13 +160,22 @@ extern "C"
         ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
         delete renderer;
     }
-    
+
 #ifdef __cplusplus
 }
 
 namespace rive
 {
-	RenderPaint *makeRenderPaint() { assert(g_GLRenderer != nullptr); return g_GLRenderer->makeRenderPaint(); }
-	RenderPath *makeRenderPath() { assert(g_GLRenderer != nullptr); return g_GLRenderer->makeRenderPath(); }
+    RenderPaint *makeRenderPaint()
+    {
+        assert(g_GLRenderer != nullptr);
+        return g_GLRenderer->makeRenderPaint();
+    }
+
+    RenderPath *makeRenderPath()
+    {
+        assert(g_GLRenderer != nullptr);
+        return g_GLRenderer->makeRenderPath();
+    }
 } // namespace rive
 #endif
