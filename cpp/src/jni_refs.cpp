@@ -201,7 +201,7 @@ namespace rive_android
 
 	jclass getRiveRendererClass()
 	{
-		return getClass("app/rive/runtime/kotlin/core/Renderer");
+		return getClass("app/rive/runtime/kotlin/renderers/Renderer");
 	};
 
 	jclass getAndroidCanvasClass()
