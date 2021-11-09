@@ -1,6 +1,7 @@
 #ifndef _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
 #define _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
 
+#include "skia_renderer.hpp"
 #include "GrBackendSurface.h"
 #include "GrDirectContext.h"
 #include "SkCanvas.h"
@@ -11,7 +12,7 @@
 
 namespace rive_android
 {
-  class JNIRendererSkia // : public rive::SkiaRenderer
+  class JNIRendererSkia : virtual public IJNIRenderer
   {
   private:
     int mWidth, mHeight;
@@ -78,14 +79,27 @@ namespace rive_android
       }
     }
 
-    void startFrame()
+    void startFrame() const
     {
       // Clear screen.
       SkPaint paint;
       paint.setColor(SK_ColorDKGRAY);
       mCanvas->drawPaint(paint);
-      // TODO: move flush into the draw call.
-      mContext->flush();
+    }
+
+    int width() const { return mWidth; }
+    int height() const { return mHeight; }
+
+    SkCanvas* canvas() const { return mCanvas; }
+    void flush() const { mContext->flush(); }
+
+    rive::RenderPaint *makeRenderPaint() override
+    {
+      return new rive::SkiaRenderPaint();
+    }
+    rive::RenderPath *makeRenderPath() override
+    {
+      return new rive::SkiaRenderPath();
     }
   };
 } // namespace rive_android

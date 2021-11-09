@@ -30,7 +30,7 @@ extern "C"
     // avoid things like this. It does mean that files cannot be loaded without
     // a renderer, or at least will require initialization with a no-op renderer
     // (probably ok?).
-    JNIRendererGL *g_GLRenderer = nullptr;
+    IJNIRenderer *g_JNIRenderer = nullptr;
 
     // RENDERER
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Renderer_constructor(
@@ -99,7 +99,7 @@ extern "C"
         t.detach();
 
         auto renderer = new ::JNIRendererGL();
-        g_GLRenderer = renderer;
+        g_JNIRenderer = renderer;
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
         return (jlong)renderer;
     }
@@ -162,6 +162,7 @@ extern "C"
         t.detach();
 
         auto renderer = new ::JNIRendererSkia();
+        g_JNIRenderer = renderer;
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
         return (jlong)renderer;
     }
@@ -208,14 +209,14 @@ namespace rive
 {
     RenderPaint *makeRenderPaint()
     {
-        assert(g_GLRenderer != nullptr);
-        return g_GLRenderer->makeRenderPaint();
+        assert(g_JNIRenderer != nullptr);
+        return g_JNIRenderer->makeRenderPaint();
     }
 
     RenderPath *makeRenderPath()
     {
-        assert(g_GLRenderer != nullptr);
-        return g_GLRenderer->makeRenderPath();
+        assert(g_JNIRenderer != nullptr);
+        return g_JNIRenderer->makeRenderPath();
     }
 } // namespace rive
 #endif
