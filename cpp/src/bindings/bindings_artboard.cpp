@@ -1,9 +1,11 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
+#include "models/jni_renderer_gl.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include <jni.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -140,6 +142,28 @@ extern "C"
         rive::Artboard *artboard = (rive::Artboard *)ref;
         ::JNIRenderer *renderer = (::JNIRenderer *)rendererRef;
         artboard->draw(renderer);
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawGL(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong artboardRef,
+        jlong rendererRef,
+        jobject rendererObj)
+    {
+        // TODO: consolidate this to work with an abstracted JNI Renderer.
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
+        renderer->save();
+        renderer->align(rive::Fit::contain,
+                        rive::Alignment::center,
+                        rive::AABB(
+                            0, 0,
+                            renderer->width,
+                            renderer->height),
+                        artboard->bounds());
+        artboard->draw(renderer);
+        renderer->restore();
     }
 
     JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(

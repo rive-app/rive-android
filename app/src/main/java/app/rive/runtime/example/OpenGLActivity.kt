@@ -6,46 +6,56 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.opengl.GLSurfaceView
 import android.util.Log
+import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.core.RendererOpenGL
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class OpenGLActivity : AppCompatActivity() {
-    private lateinit var glView: GLSurfaceView
+    private var rendererGL = RendererOpenGL()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        print("onCreate() GL Activity!")
-        glView = RiveGLSurfaceView(this)
+        val bytes = resources.openRawResource(R.raw.artboard_animations).readBytes()
+        val glView = RiveGLSurfaceView(this, rendererGL, bytes)
         setContentView(glView)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        rendererGL.cleanup()
     }
 }
 
-class RiveGLSurfaceView(context: Context) : GLSurfaceView(context) {
+class RiveGLSurfaceView(
+    context: Context,
+    private val rendererGL: RendererOpenGL,
+    fileBytes: ByteArray
+) : GLSurfaceView(context) {
     private val renderer: RiveGLRenderer
 
     init {
+        // Init GL context.
         setEGLContextClientVersion(2)
-        renderer = RiveGLRenderer()
-
+        renderer = RiveGLRenderer(rendererGL, fileBytes)
         setRenderer(renderer)
 //        renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
     }
 }
 
-class RiveGLRenderer : GLSurfaceView.Renderer {
+class RiveGLRenderer(private val rendererGL: RendererOpenGL, private val fileBytes: ByteArray) :
+    GLSurfaceView.Renderer {
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        println("surface created!")
-        Log.d(javaClass.simpleName,"Surface created?")
+        // Init file after GL init.
+        rendererGL.initFile(fileBytes)
         GLES20.glClearColor(1.0f, 0.7f, 0.2f, 1.0f)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        GLES20.glViewport(0, 0, width, height)
+        rendererGL.setViewport(width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        println("Rendering something?")
-//        Log.d(javaClass.simpleName,"Rendering something?")
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        rendererGL.draw()
     }
 }

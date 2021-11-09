@@ -75,7 +75,6 @@ function buildFor()
     fi
 
     cp $LIBRIVE/build/bin/release/librive.a $BUILD_DIR
-    cp $LIBRIVE/renderer/library/build/bin/release/librive_renderer.a $BUILD_DIR
     cp $LIBCXX/libc++_static.a $BUILD_DIR
 
     mkdir -p $BUILD_DIR/obj
