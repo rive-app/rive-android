@@ -1,9 +1,13 @@
 #ifndef _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
 #define _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
 
+#include <dlfcn.h>
+
 #include <thread>
+#include <pthread.h>
 #include <EGL/egl.h>
 #include <android/native_window.h>
+#include <android/trace.h>
 #include <GLES3/gl3.h>
 #include <jni.h>
 
@@ -21,6 +25,7 @@
 #include "gl/GrGLAssembleInterface.h"
 
 #include "helpers/EGLThreadState.h"
+#include "helpers/Stats.hpp"
 #include "helpers/WorkerThread.h"
 
 using namespace std::chrono_literals;
@@ -38,15 +43,48 @@ namespace rive_android
     rive::SkiaRenderer *mSkRenderer;
 
     WorkerThread<EGLThreadState> mWorkerThread =
-        {"Renderer", Affinity::Odd};
+        {"SwappyRenderer", Affinity::Odd};
 
     WorkerThread<HotPocketState> mHotPocketThread =
-        {"HotPocket", Affinity::Even};
+        {"SwappyHotPocket", Affinity::Even};
+    // Mean and variance for the pipeline frame time.
+    RenderingStats mFrameTimeStats = RenderingStats(
+        20 /* number of samples to average over */
+    );
+
+    typedef void *(*fp_ATrace_beginSection)(const char *sectionName);
+    typedef void *(*fp_ATrace_endSection)(void);
+    typedef void *(*fp_ATrace_isEnabled)(void);
+
+    void *(*ATrace_beginSection)(const char *sectionName);
+    void *(*ATrace_endSection)(void);
+    void *(*ATrace_isEnabled)(void);
 
   public:
     jobject jRendererObject;
 
-    JNIRendererSkia() {}
+    JNIRendererSkia()
+    {
+      // Native Trace API is supported in API level 23
+      void *lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
+      if (lib != NULL)
+      {
+        //  Retrieve function pointers from shared object.
+        ATrace_beginSection =
+            reinterpret_cast<fp_ATrace_beginSection>(
+                dlsym(lib, "ATrace_beginSection"));
+        ATrace_endSection =
+            reinterpret_cast<fp_ATrace_endSection>(
+                dlsym(lib, "ATrace_endSection"));
+        ATrace_isEnabled =
+            reinterpret_cast<fp_ATrace_isEnabled>(
+                dlsym(lib, "ATrace_isEnabled"));
+      }
+      auto result = (bool)ATrace_isEnabled();
+      // LOGI("Is tracing enabled? %d", result);
+      pthread_setname_np(pthread_self(), "JNIRendererSkia");
+    }
+
     ~JNIRendererSkia()
     {
       getJNIEnv()->DeleteGlobalRef(jRendererObject);
@@ -150,6 +188,7 @@ namespace rive_android
     }
 
     float averageFps() const { return mAverageFps; }
+    RenderingStats &frameTimeStats() { return mFrameTimeStats; }
 
   private:
     void requestDraw()
@@ -165,6 +204,7 @@ namespace rive_android
     // should be called once per draw as this function maintains the time delta between calls
     void calculateFps()
     {
+      ATrace_beginSection("calculateFps()");
       static constexpr int FPS_SAMPLES = 10;
       static std::chrono::steady_clock::time_point prev =
           std::chrono::steady_clock::now();
@@ -183,10 +223,14 @@ namespace rive_android
         fpsCount = 0;
       }
       prev = now;
+
+      ATrace_endSection();
     }
 
     void draw(EGLThreadState *threadState)
     {
+      ATrace_beginSection("swappyDraw()");
+
       // Don't render if we have no surface
       if (threadState->hasNoSurface())
       {
@@ -247,6 +291,7 @@ namespace rive_android
 
       // If we're still started, request another frame
       requestDraw();
+      ATrace_endSection();
     }
 
     void spin()
