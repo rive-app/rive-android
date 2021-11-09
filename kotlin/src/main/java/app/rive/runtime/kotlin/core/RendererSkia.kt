@@ -45,6 +45,10 @@ class RendererSkia {
         setViewport(cppPointer, width, height)
     }
 
+    fun start() {
+        startFrame(cppPointer)
+    }
+
     fun draw(elapsed: Float) {
         artboard ?: return; animationInstance ?: return
 
