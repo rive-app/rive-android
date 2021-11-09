@@ -26,6 +26,11 @@ namespace rive_android
 			OpenGLRenderer::startFrame();
 		}
 
+		// Interface passthrough.
+		void initialize() override {
+			OpenGLRenderer::initialize(nullptr);
+		}
+
 		rive::RenderPaint *makeRenderPaint() override
 		{
 			return OpenGLRenderer::makeRenderPaint();
