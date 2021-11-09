@@ -8,7 +8,7 @@
 
 namespace rive_android
 {
-	class JNIRendererGL : public rive::OpenGLRenderer
+	class JNIRendererGL : public rive::OpenGLRenderer, virtual public IJNIRenderer
 	{
 	public:
 		jobject jRendererObject;
@@ -24,6 +24,15 @@ namespace rive_android
 			glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			OpenGLRenderer::startFrame();
+		}
+
+		rive::RenderPaint *makeRenderPaint() override
+		{
+			return OpenGLRenderer::makeRenderPaint();
+		}
+		rive::RenderPath *makeRenderPath() override
+		{
+			return OpenGLRenderer::makeRenderPath();
 		}
 	};
 } // namespace rive_android

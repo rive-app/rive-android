@@ -22,7 +22,8 @@ DEPS=$(O_FILES) \
 	$(BUILD_DIR)/librive.a \
 	$(BUILD_DIR)/librive_renderer.a \
 	$(BUILD_DIR)/libc++_static.a \
-	$(BUILD_DIR)/libskia.a
+	$(BUILD_DIR)/libskia.a \
+	$(BUILD_DIR)/librive_skia_renderer.a \
 
 LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid -lEGL -lGLESv3
@@ -43,6 +44,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-I${LIBRIVE}/skia/dependencies/skia/include/effects \
 		-I${LIBRIVE}/skia/dependencies/skia/include/gpu \
 		-I${LIBRIVE}/skia/dependencies/skia/include/config \
+		-I${LIBRIVE}/skia/renderer/include \
 		$(CXXFLAGS)
 
 clean:
@@ -50,5 +52,7 @@ clean:
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
 	rm -f $(BUILD_DIR)/librive_renderer.a
+	rm -f $(BUILD_DIR)/libskia.a
+	rm -f $(BUILD_DIR)/librive_skia_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a
 	

@@ -33,7 +33,6 @@ class RendererSkia {
         ai.advance(0.0f)
         ai.apply(artboard!!)
         this.animationInstance = ai
-        startFrame(cppPointer)
     }
 
     fun cleanup() {
@@ -45,10 +44,6 @@ class RendererSkia {
         setViewport(cppPointer, width, height)
     }
 
-    fun start() {
-        startFrame(cppPointer)
-    }
-
     fun draw(elapsed: Float) {
         artboard ?: return; animationInstance ?: return
 
@@ -56,7 +51,6 @@ class RendererSkia {
         animationInstance!!.advance(elapsed)
         animationInstance!!.apply(artboard!!)
         artboard!!.advance(elapsed)
-        // TODO:
-//        artboard!!.drawSkia(this)
+        artboard!!.drawSkia(this)
     }
 }

@@ -1,7 +1,9 @@
 #include "jni_refs.hpp"
+#include "skia_renderer.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
 #include "models/jni_renderer_gl.hpp"
+#include "models/jni_renderer_skia.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include <jni.h>
@@ -153,7 +155,7 @@ extern "C"
     {
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
+        auto renderer = (::JNIRendererGL *)rendererRef;
         renderer->save();
         renderer->align(rive::Fit::contain,
                         rive::Alignment::center,
@@ -164,6 +166,30 @@ extern "C"
                         artboard->bounds());
         artboard->draw(renderer);
         renderer->restore();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong artboardRef,
+        jlong rendererRef,
+        jobject rendererObj)
+    {
+        // TODO: consolidate this to work with an abstracted JNI Renderer.
+        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
+        auto jniWrapper = (::JNIRendererSkia *)rendererRef;
+        rive::SkiaRenderer renderer(jniWrapper->canvas());
+        renderer.save();
+        renderer.align(rive::Fit::contain,
+                       rive::Alignment::center,
+                       rive::AABB(
+                           0, 0,
+                           jniWrapper->width(),
+                           jniWrapper->height()),
+                       artboard->bounds());
+        artboard->draw(&renderer);   
+        renderer.restore();
+        jniWrapper->flush();
     }
 
     JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(

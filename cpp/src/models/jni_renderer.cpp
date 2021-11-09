@@ -1,7 +1,5 @@
 #include "jni_refs.hpp"
 #include "models/jni_renderer.hpp"
-#include "models/render_path.hpp"
-#include "models/render_paint.hpp"
 #include "rive/math/mat2d.hpp"
 
 using namespace rive_android;
@@ -25,52 +23,52 @@ void JNIRenderer::restore()
 
 void JNIRenderer::transform(const rive::Mat2D &transform)
 {
-	JNIEnv * env = getJNIEnv();
+	JNIEnv *env = getJNIEnv();
 	jclass matrixClass = getMatrixClass();
 	jobject matrix = env->NewObject(matrixClass, getMatrixInitMethodId());
 
 	float threeDMatrix[9] = {
-		transform.xx(), transform.yx(), transform.tx(),
-		transform.xy(), transform.yy(), transform.ty(),
-		0, 0, 1};
+			transform.xx(), transform.yx(), transform.tx(),
+			transform.xy(), transform.yy(), transform.ty(),
+			0, 0, 1};
 
 	jfloatArray matrixArray = env->NewFloatArray(9);
 	env->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
 	env->CallVoidMethod(
-		matrix,
-		getMatrixSetValuesMethodId(),
-		matrixArray);
+			matrix,
+			getMatrixSetValuesMethodId(),
+			matrixArray);
 
 	env->CallVoidMethod(
-		jRendererObject,
-		getSetMatrixMethodId(),
-		matrix);
-		
-	env->DeleteLocalRef(matrixClass);	
-	env->DeleteLocalRef(matrixArray);	
+			jRendererObject,
+			getSetMatrixMethodId(),
+			matrix);
+
+	env->DeleteLocalRef(matrixClass);
+	env->DeleteLocalRef(matrixArray);
 	env->DeleteLocalRef(matrix);
 }
 
 void JNIRenderer::translate(float x, float y)
 {
 	getJNIEnv()->CallVoidMethod(
-		jRendererObject, getTranslateMethodId(), x, y);
+			jRendererObject, getTranslateMethodId(), x, y);
 }
 
 void JNIRenderer::drawPath(rive::RenderPath *path, rive::RenderPaint *paint)
 {
 	getJNIEnv()->CallVoidMethod(
-		jRendererObject,
-		getDrawPathMethodId(),
-		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
-		reinterpret_cast<JNIRenderPaint *>(paint)->jObject);
+			jRendererObject,
+			getDrawPathMethodId(),
+			reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
+			reinterpret_cast<JNIRenderPaint *>(paint)->jObject);
 }
 
 void JNIRenderer::clipPath(rive::RenderPath *path)
 {
 	getJNIEnv()->CallBooleanMethod(
-		jRendererObject,
-		getClipPathMethodId(),
-		reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject);
+			jRendererObject,
+			getClipPathMethodId(),
+			reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject);
 }
