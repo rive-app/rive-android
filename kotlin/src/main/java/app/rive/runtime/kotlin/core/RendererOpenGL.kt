@@ -7,7 +7,9 @@ class RendererOpenGL {
     private external fun initializeGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
-    private lateinit var file: File
+    var cppPointer: Long = 0
+
+    private var file: File? = null
     private var artboard: Artboard? = null
     private var animationInstance: LinearAnimationInstance? = null
 
@@ -16,16 +18,21 @@ class RendererOpenGL {
     }
 
     fun initFile(bytes: ByteArray) {
-        this.file = File(bytes)
-        artboard = file.firstArtboard.getInstance()
-        artboard!!.advance(0.0f)
-        animationInstance = LinearAnimationInstance(artboard!!.firstAnimation)
-        animationInstance!!.advance(0.0f)
-        animationInstance!!.apply(artboard!!)
+        this.file?.run {
+            // Cleanup the old file.
+        }
+        val f = File(bytes)
+        this.file = f
 
+        val ab = f.firstArtboard.getInstance()
+        ab.advance(0.0f)
+        this.artboard = ab
+
+        val ai = LinearAnimationInstance(ab.firstAnimation)
+        ai.advance(0.0f)
+        ai.apply(artboard!!)
+        this.animationInstance = ai
     }
-
-    var cppPointer: Long = 0
 
     init {
         cppPointer = constructor()
@@ -40,14 +47,18 @@ class RendererOpenGL {
         setViewport(cppPointer, width, height)
     }
 
-    fun draw() {
+    fun draw(elapsed: Float) {
         artboard ?: return; animationInstance ?: return;
 
         startFrame(cppPointer)
-        // TODO: elapsedTime
-        animationInstance!!.advance(0.16f)
+        animationInstance!!.advance(elapsed)
         animationInstance!!.apply(artboard!!)
-        artboard!!.advance(0.16f)
+        artboard!!.advance(elapsed)
         artboard!!.drawGL(this)
+    }
+
+
+    private fun fileCleanup() {
+
     }
 }
