@@ -55,6 +55,8 @@ export INCLUDE_CXX=$INCLUDE/c++/v1
 export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz"
 export AR=$TOOLCHAIN/bin/llvm-ar
 
+SKIA_ARCH=
+
 buildFor() {
     # Building the renderer builds both librive.a and librive_renderer.a
     pushd "$LIBRIVE"/renderer/library
@@ -65,6 +67,13 @@ buildFor() {
     ./build.sh android
     popd
 
+    # Do we want to make this a parameter?
+    pushd "$LIBRIVE"/skia/dependencies
+    ./make_skia_android.sh "$SKIA_ARCH"
+    ls -lh ./skia/out/arm64/libskia.a
+
+    popd
+
     mkdir -p "$BUILD_DIR"
     if ${NEEDS_CLEAN}; then
         # echo 'cleaning!'
@@ -73,7 +82,7 @@ buildFor() {
 
     cp "$LIBRIVE"/build/bin/release/librive.a "$BUILD_DIR"
     cp "$LIBRIVE"/renderer/library/build/bin/release/librive_renderer.a "$BUILD_DIR"
-    # cp "$LIBRIVE"/renderer/library/build/bin/release/libskia.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/dependencies/skia/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
     mkdir -p "$BUILD_DIR"/obj
@@ -88,6 +97,7 @@ API=21
 
 if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="
+    SKIA_ARCH=x86
     ARCH=i686
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
@@ -96,6 +106,7 @@ if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
 elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     echo "==== x86_64 ===="
     ARCH=x86_64
+    SKIA_ARCH=x64
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
@@ -104,6 +115,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     echo "==== ARMv7 ===="
     ARCH=arm
     ARCH_PREFIX=armv7a
+    SKIA_ARCH=arm
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang
@@ -111,6 +123,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
 elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     ARCH=aarch64
+    SKIA_ARCH=arm64
     export BUILD_DIR=$PWD/build/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
