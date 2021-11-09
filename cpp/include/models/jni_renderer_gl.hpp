@@ -1,9 +1,9 @@
 #ifndef _RIVE_ANDROID_JAVA_RENDERER_GL_HPP_
 #define _RIVE_ANDROID_JAVA_RENDERER_GL_HPP_
 
-#include "renderer/opengl_renderer.hpp"
-#include "renderer/opengl_render_paint.hpp"
-#include "renderer/opengl_render_path.hpp"
+#include "opengl/opengl_renderer.hpp"
+#include "opengl/opengl_render_paint.hpp"
+#include "opengl/opengl_render_path.hpp"
 #include <jni.h>
 
 namespace rive_android

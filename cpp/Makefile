@@ -18,7 +18,7 @@ OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(ODIR)/%.o,$(SRC_FILES))
 O_FILES = $(patsubst %.cpp,$(ODIR)/%.o,$(notdir $(SRC_FILES)))
 # $(info $(O_FILES))
 
-DEPS=$(O_FILES) $(BUILD_DIR)/librive.a $(BUILD_DIR)/libc++_static.a
+DEPS=$(O_FILES) $(BUILD_DIR)/librive.a $(BUILD_DIR)/librive_renderer.a $(BUILD_DIR)/libc++_static.a
 
 LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid -lGLESv3
