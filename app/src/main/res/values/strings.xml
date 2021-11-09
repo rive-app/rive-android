@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Rive samples</string>
+    <string name="fps">Rendering FPS:</string>
 </resources>
