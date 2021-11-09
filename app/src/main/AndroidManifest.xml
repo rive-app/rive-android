@@ -23,6 +23,7 @@
                 android:value="androidx.startup" />
         </provider>
 
+        <activity android:name=".OpenGLActivity" />
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -38,7 +39,7 @@
         <activity android:name=".RiveFragmentActivity" />
         <activity android:name=".LowLevelActivity" />
         <activity android:name=".SimpleStateMachineActivity" />
-        <activity android:name=".HttpActivity"></activity>
+        <activity android:name=".HttpActivity" />
         <activity android:name=".ButtonActivity" />
         <activity android:name=".BlendActivity" />
     </application>
