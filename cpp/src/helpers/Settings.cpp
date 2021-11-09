@@ -85,6 +85,11 @@ namespace rive_android
         return mEnableSwappy;
     }
 
+    bool Settings::isTraceEnabled() const
+    {
+        return mIsTraceEnabled;
+    }
+
     void Settings::notifyListeners()
     {
         // Grab a local copy of the listeners

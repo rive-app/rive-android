@@ -4,6 +4,7 @@ import android.annotation.TargetApi
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.Trace
@@ -14,25 +15,43 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.Artboard
-import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.*
+import app.rive.runtime.kotlin.core.File as RiveFile
 
 
 class MetricsActivity : AppCompatActivity() {
     private val containerView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<LinearLayout>(R.id.container)
     }
-    private lateinit var swappyView: SwappyView
+
+    private val swappyView by lazy(LazyThreadSafetyMode.NONE) {
+        findViewById<SwappyView>(R.id.swappy_view)
+            ?: SwappyView(this, null).also {
+                val density = resources.displayMetrics.density
+                it.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    (366 * density).toInt(),
+                )
+                containerView.addView(it, 0)
+            }
+    }
+
+    private fun initSubView() {
+        swappyView.setZOrderOnTop(true)
+        swappyView.holder.setFormat(PixelFormat.TRANSLUCENT)
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Make sure Rive C++ is loaded.
         Rive.init(this)
         setContentView(R.layout.activity_metrics)
-
+        // Make sure this is initialized.
+        initSubView()
         // TODO: add a second view here to check that it still works.
     }
 }
@@ -42,7 +61,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
     SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val TAG = "SwappyView"
     private val riveRenderer = RendererSkia()
-    private var file: File?
+    private var file: RiveFile?
     private var artboard: Artboard? = null
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
 
@@ -63,7 +82,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
             } else {
                 fileBytes = resources.openRawResource(resourceId).readBytes()
             }
-            file = File(fileBytes)
+            file = RiveFile(fileBytes)
         }
     }
 
@@ -90,16 +109,15 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
         this.getMaybeActivity()!!
     }
 
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        this.activity.let { activity ->
-            artboardSetup()
-            // Attach callbacks
-            holder.addCallback(this)
-            Choreographer.getInstance().postFrameCallback(this)
+        artboardSetup()
+        // Attach callbacks
+        holder.addCallback(this)
+        Choreographer.getInstance().postFrameCallback(this)
 
-            startFrameMetrics(activity)
-        }
+        startFrameMetrics(activity)
     }
 
     @TargetApi(Build.VERSION_CODES.N)
