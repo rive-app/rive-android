@@ -49,6 +49,7 @@ class MetricsActivity : AppCompatActivity() {
 
 class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(context, attrs),
     SurfaceHolder.Callback, Choreographer.FrameCallback {
+    private val TAG = "SwappyView"
     private val riveRenderer = RendererSkia()
     private lateinit var file: File
     private var artboard: Artboard? = null
@@ -82,7 +83,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
         val display = wm.defaultDisplay
         val refreshRateHz = display.refreshRate
         val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
-        Log.i("SwappyView.kt", String.format("Refresh rate: %.1f Hz", refreshRateHz))
+        Log.i(this.TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
 
         holder.addCallback(this)
         nInit(activity, refreshPeriodNanos)
@@ -104,7 +105,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
             frameMetricsListener = RendererMetrics()
         } else {
             Log.w(
-                "Swappy@FrameMetrics",
+                this.TAG,
                 "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
             );
         }
@@ -120,22 +121,23 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) : SurfaceView(co
     }
 
     override fun onDetachedFromWindow() {
+        Log.d(this.TAG, "onDetachedFromWindow()")
         super.onDetachedFromWindow()
-
+        stopFrameMetrics(this.activity!!)
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        println("surfaceCreated!")
+        Log.d(this.TAG, "surfaceCreated()")
         nStart(riveRenderer.address)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        println("surfaceChanged!")
+        Log.d(this.TAG, "surfaceChanged(format: $format, width: $width, height: $height)")
         nSetViewport(holder.surface, riveRenderer.address)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        println("surfaceDestroyed!")
+        Log.d(this.TAG, "surfaceDestroyed()")
         nStop(riveRenderer.address)
         nClearSurface()
     }
