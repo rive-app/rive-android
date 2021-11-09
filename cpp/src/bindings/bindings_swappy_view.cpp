@@ -156,11 +156,12 @@ extern "C"
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_example_SwappyView_nGetAverageFps(JNIEnv *, jobject)
+  Java_app_rive_runtime_example_SwappyView_nGetAverageFps(
+      JNIEnv *, jobject,
+      jlong rendererAddr)
   {
-    // TODO:
-    // return Renderer::getInstance()->getAverageFps();
-    return 0.0f;
+    JNIRendererSkia *renderer = (JNIRendererSkia *)rendererAddr;
+    return renderer->averageFps();
   }
 
   JNIEXPORT float JNICALL
