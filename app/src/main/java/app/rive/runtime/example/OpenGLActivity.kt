@@ -36,7 +36,9 @@ class RiveGLSurfaceView(
 
     init {
         // Init GL context.
-        setEGLContextClientVersion(2)
+        // luigi: specifically requesting v3 here as our shaders are written for GL 3, we could totally tweak those for es2. we actually need a better abstraction there for different platforms in general
+        setEGLContextClientVersion(3) 
+
         renderer = RiveGLRenderer(rendererGL, fileBytes)
         setRenderer(renderer)
 //        renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
@@ -47,6 +49,7 @@ class RiveGLRenderer(private val rendererGL: RendererOpenGL, private val fileByt
     GLSurfaceView.Renderer {
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         // Init file after GL init.
+        rendererGL.initializeGL()
         rendererGL.initFile(fileBytes)
         GLES20.glClearColor(1.0f, 0.7f, 0.2f, 1.0f)
     }

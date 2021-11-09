@@ -5,12 +5,13 @@
 #include "rive/file.hpp"
 #include "rive/layout.hpp"
 
+// luigi: murdered this due to our single renderer model right now...all canvas rendering won't work in this branch
 // lets make sure we stich our rive android renderers into the rive namespace
-namespace rive
-{
-	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint(); }
-	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath(); }
-} // namespace rive
+// namespace rive
+// {
+// 	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint(); }
+// 	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath(); }
+// } // namespace rive
 
 namespace rive_android
 {
