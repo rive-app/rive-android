@@ -45,8 +45,6 @@ namespace rive_android
     WorkerThread<EGLThreadState> mWorkerThread =
         {"SwappyRenderer", Affinity::Odd};
 
-    WorkerThread<HotPocketState> mHotPocketThread =
-        {"SwappyHotPocket", Affinity::Even};
     // Mean and variance for the pipeline frame time.
     RenderingStats mFrameTimeStats = RenderingStats(
         20 /* number of samples to average over */
@@ -150,10 +148,6 @@ namespace rive_android
                  threadState->mLastUpdate = std::chrono::steady_clock::now();
                  requestDraw();
                });
-      mHotPocketThread
-          .run([=](HotPocketState *hotPocketState)
-               { hotPocketState->isStarted = true; });
-      spin();
     }
 
     SkCanvas *canvas() const
@@ -164,7 +158,8 @@ namespace rive_android
 
     void flush() const
     {
-      // TODO: this can probably be removed too..      // mContext->flush();
+      // TODO: this can probably be removed too..
+      // mContext->flush();
     }
 
     void stop()
@@ -172,9 +167,6 @@ namespace rive_android
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                { threadState->mIsStarted = false; });
-      mHotPocketThread
-          .run([](HotPocketState *hotPocketState)
-               { hotPocketState->isStarted = false; });
     }
 
     int width() const
@@ -292,36 +284,6 @@ namespace rive_android
       // If we're still started, request another frame
       requestDraw();
       ATrace_endSection();
-    }
-
-    void spin()
-    {
-      mHotPocketThread
-          .run([this](HotPocketState *hotPocketState)
-               {
-                 if (!hotPocketState->isEnabled || !hotPocketState->isStarted)
-                   return;
-                 for (int i = 1; i < 1000; ++i)
-                 {
-                   int value = i;
-                   while (value != 1)
-                   {
-                     if (value == 0)
-                     {
-                       LOGI("This will never run, but hopefully the compiler doesn't notice");
-                     }
-                     if (value % 2 == 0)
-                     {
-                       value /= 2;
-                     }
-                     else
-                     {
-                       value = 3 * value + 1;
-                     }
-                   }
-                 }
-                 spin();
-               });
     }
   };
 } // namespace rive_android
