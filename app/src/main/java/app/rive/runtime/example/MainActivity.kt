@@ -76,11 +76,5 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, BlendActivity::class.java)
             )
         }
-
-        findViewById<Button>(R.id.go_opengl).setOnClickListener {
-            startActivity(
-                Intent(this, OpenGLActivity::class.java)
-            )
-        }
     }
 }

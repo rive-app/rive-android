@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.controllers.RiveController
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
@@ -67,8 +66,6 @@ class Artboard(val cppPointer: Long) {
                 animationPointer
             )
         }
-
-    val playableInstances = HashSet<PlayableInstance>()
 
     /**
      * Get the animation at a given [index] in the [Artboard].
@@ -173,12 +170,7 @@ class Artboard(val cppPointer: Long) {
      * [elapsedTime] is currently not taken into account.
      */
     fun advance(elapsedTime: Float): Boolean {
-        var didUpdate = false
-        playableInstances.forEach { instance ->
-            instance.apply(this, elapsedTime)
-        }
-
-        return cppAdvance(cppPointer, elapsedTime) || didUpdate
+        return cppAdvance(cppPointer, elapsedTime)
     }
 
     /**
