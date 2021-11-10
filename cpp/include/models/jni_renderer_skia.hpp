@@ -38,7 +38,6 @@ namespace rive_android
     float mAverageFps = -1.0f;
 
     ANativeWindow *nWindow = nullptr;
-    rive::Artboard *mArtboard = nullptr;
     rive::SkiaRenderer *mSkRenderer;
 
     WorkerThread<EGLThreadState> mWorkerThread =
@@ -62,7 +61,7 @@ namespace rive_android
     SkCanvas *mGpuCanvas;
 
   public:
-    JNIRendererSkia(jobject ktObject) : mKtRenderer(getJNIEnv()->NewGlobalRef(ktObject))
+    JNIRendererSkia(jobject ktObject) : mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
     {
       // Native Trace API is supported in API level 23
       void *lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
@@ -86,9 +85,7 @@ namespace rive_android
 
     ~JNIRendererSkia()
     {
-      getJNIEnv()->DeleteGlobalRef(mKtRenderer);
-      if (mArtboard)
-        delete mArtboard;
+      getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
     }
 
     rive::RenderPaint *makeRenderPaint() override
