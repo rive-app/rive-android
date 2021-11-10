@@ -87,9 +87,9 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun artboardSetup() {
-        file?.firstArtboard?.getInstance().let {
-            artboard = it
-            riveRenderer.artboard = artboard
+        file?.firstArtboard?.let {
+            riveRenderer.addArtboard(it)
+            riveRenderer.play(it.firstAnimation.name)
         }
     }
 
