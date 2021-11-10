@@ -20,6 +20,7 @@ namespace rive_android
         EGL_GREEN_SIZE, 8,
         EGL_RED_SIZE, 8,
         EGL_DEPTH_SIZE, 16,
+        EGL_ALPHA_SIZE, 8, 
         EGL_NONE};
 
     EGLint numConfigs = 0;
