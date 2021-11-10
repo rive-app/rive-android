@@ -124,6 +124,8 @@ namespace rive_android
                  threadState->mIsStarted = true;
                  // Reset time to avoid super-large update of position
                  threadState->mLastUpdate = std::chrono::steady_clock::now();
+                 jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
+                 threadState->setKtRendererClass(ktClass);
                  requestDraw(); });
     }
 
@@ -189,20 +191,11 @@ namespace rive_android
       ATrace_endSection();
     }
 
-    void drawCallback(float elapsed)
+    void drawCallback(float elapsed, EGLThreadState *threadState)
     {
       auto env = getJNIEnv();
-      jclass ktRendererClass = env->GetObjectClass(mKtRenderer);
-      jmethodID drawCallback = env->GetMethodID(
-          ktRendererClass,
-          "draw",
-          "()V");
-      jmethodID advanceCallback = env->GetMethodID(
-          ktRendererClass,
-          "advance",
-          "(F)V");
-      env->CallVoidMethod(mKtRenderer, advanceCallback, elapsed);
-      env->CallVoidMethod(mKtRenderer, drawCallback);
+      env->CallVoidMethod(mKtRenderer, threadState->mKtAdvanceCallback, elapsed);
+      env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
     }
 
     void draw(EGLThreadState *threadState)
@@ -249,7 +242,7 @@ namespace rive_android
       mGpuCanvas = gpuSurface->getCanvas();
       float elapsed = -1.0f * deltaSeconds;
       mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
-      drawCallback(elapsed);
+      drawCallback(elapsed, threadState);
       threadState->getGrContext()->flush();
       threadState->swapBuffers();
 

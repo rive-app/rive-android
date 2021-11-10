@@ -1,10 +1,12 @@
 #ifndef _RIVE_ANDROID_EGL_THREAD_STATE_H_
 #define _RIVE_ANDROID_EGL_THREAD_STATE_H_
 
+#include <jni.h>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 #include <android/native_window.h>
 
+#include "helpers/general.hpp"
 #include "Settings.h"
 #include "swappy/swappyGL_extra.h"
 
@@ -68,6 +70,20 @@ namespace rive_android
       return mSurface == EGL_NO_SURFACE || mSkSurface == nullptr;
     }
 
+    void setKtRendererClass(jclass localReference)
+    {
+      auto env = getJNIEnv();
+      mKtRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(localReference));
+      mKtDrawCallback = env->GetMethodID(
+          mKtRendererClass,
+          "draw",
+          "()V");
+      mKtAdvanceCallback = env->GetMethodID(
+          mKtRendererClass,
+          "advance",
+          "(F)V");
+    }
+
     EGLDisplay mDisplay = EGL_NO_DISPLAY;
     EGLConfig mConfig = static_cast<EGLConfig>(0);
     EGLSurface mSurface = EGL_NO_SURFACE;
@@ -86,6 +102,10 @@ namespace rive_android
     int64_t mSwapIntervalNS = 0;
     int32_t mWidth = 0;
     int32_t mHeight = 0;
+
+    jclass mKtRendererClass = nullptr;
+    jmethodID mKtDrawCallback;
+    jmethodID mKtAdvanceCallback;
   };
 }
 
