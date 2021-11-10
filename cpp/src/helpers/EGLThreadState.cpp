@@ -69,6 +69,8 @@ namespace rive_android
       eglDestroyContext(mDisplay, mContext);
     if (mDisplay != EGL_NO_DISPLAY)
       eglTerminate(mDisplay);
+    if (mKtRendererClass != nullptr)
+      getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
   }
 
   void EGLThreadState::onSettingsChanged(const Settings *settings)
