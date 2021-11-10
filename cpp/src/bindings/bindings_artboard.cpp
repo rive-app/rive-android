@@ -177,16 +177,16 @@ extern "C"
         auto jniWrapper = (::JNIRendererSkia *)rendererRef;
         rive::SkiaRenderer renderer(jniWrapper->canvas());
         renderer.save();
-        renderer.align(rive::Fit::contain,
-                       rive::Alignment::center,
-                       rive::AABB(
-                           0, 0,
-                           jniWrapper->width(),
-                           jniWrapper->height()),
-                       artboard->bounds());
+        renderer.align(
+            rive::Fit::contain,
+            rive::Alignment::center,
+            rive::AABB(
+                0, 0,
+                jniWrapper->width(),
+                jniWrapper->height()),
+            artboard->bounds());
         artboard->draw(&renderer);
         renderer.restore();
-        jniWrapper->flush();
     }
 
     JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(

@@ -26,7 +26,6 @@
 
 namespace rive_android
 {
-
     class HotPocketState
     {
     public:
@@ -39,7 +38,6 @@ namespace rive_android
         bool isStarted = false;
     };
 
-   
     template <class ThreadState>
     class WorkerThread
     {
@@ -141,7 +139,7 @@ namespace rive_android
 
         std::mutex mWorkMutex;
         bool mIsActive GUARDED_BY(mWorkMutex) = true;
-        std::queue<std::function<void(ThreadState *)> > mWorkQueue GUARDED_BY(mWorkMutex);
+        std::queue<std::function<void(ThreadState *)>> mWorkQueue GUARDED_BY(mWorkMutex);
         std::condition_variable_any mWorkCondition;
     };
 
