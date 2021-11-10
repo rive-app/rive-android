@@ -60,12 +60,4 @@
         <attr name="riveResource" />
         <attr name="riveUrl" />
     </declare-styleable>
-
-    <declare-styleable name="RiveGLSurfaceView">
-        <attr name="rendererType" format="enum">
-            <enum name="canvas" value="0" />
-            <enum name="opengl" value="1" />
-            <enum name="skia" value="2" />
-        </attr>
-    </declare-styleable>
 </resources>

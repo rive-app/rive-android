@@ -1,32 +1,28 @@
 package app.rive.runtime.kotlin.renderers
 
-import app.rive.runtime.kotlin.core.AABB
-import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.core.Artboard
-import app.rive.runtime.kotlin.core.Fit
+import android.util.Log
+import app.rive.runtime.kotlin.core.*
 
 class RendererSkia : BaseRenderer() {
     override var cppPointer: Long = constructor()
 
-    override external fun cleanupJNI(cppPointer: Long)
-
-    override external fun cppDraw(artboardPointer: Long, rendererPointer: Long)
+    external override fun cleanupJNI(cppPointer: Long)
+    external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
 
     private external fun constructor(): Long
     private external fun startFrame(cppPointer: Long)
     private external fun initializeSkiaGL(cppPointer: Long)
     private external fun setViewport(cppPointer: Long, width: Int, height: Int)
-    private external fun nSetArtboard(cppPointer: Long, artboardPointer: Long)
+
+    private var activeArtboard: Artboard? = null
+    private var activeAnimations = mutableListOf<LinearAnimationInstance>()
 
     val address: Long = cppPointer
 
-    var artboard: Artboard? = null
-        get() = field
-        set(value) {
-            if (value == field) return
-            field = value
-            nSetArtboard(cppPointer, field?.cppPointer ?: 0)
-        }
+    companion object {
+        // Static Tag for Logging
+        const val TAG = "RendererSkia"
+    }
 
     fun initializeSkia() {
         initializeSkiaGL(cppPointer)
@@ -45,8 +41,37 @@ class RendererSkia : BaseRenderer() {
         startFrame(cppPointer)
     }
 
+    fun play(animationName: String) {
+        activeArtboard?.let {
+            val animation = it.animation(animationName)
+            val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
+            activeAnimations.add(instance)
+        } ?: run {
+            Log.w(TAG, "Can't play animation $animationName without an active Artboard")
+        }
+    }
+
+    fun addArtboard(artboard: Artboard) {
+        val instance = artboard.getInstance()
+        instance.advance(0.0f)
+        activeArtboard = artboard.getInstance().also { it.advance(0.0f) }
+    }
+
+    fun draw() {
+        activeArtboard?.drawSkia(this)
+    }
+
+    fun advance(elapsed: Float) {
+        activeArtboard?.let { artboard ->
+            activeAnimations.forEach { aInstance ->
+                aInstance.advance(elapsed)
+                aInstance.apply(artboard)
+            }
+            artboard.advance(elapsed)
+        }
+    }
+
     override fun draw(artboard: Artboard) {
-        // TODO: not sure we need to clear the background every frame?
         startFrame(cppPointer)
         cppDraw(artboard.cppPointer, cppPointer)
 //        var start = SystemClock.elapsedRealtimeNanos()

@@ -39,7 +39,6 @@ namespace rive_android
 
     ANativeWindow *nWindow = nullptr;
     rive::Artboard *mArtboard = nullptr;
-    rive::LinearAnimationInstance *mInstance = nullptr;
     rive::SkiaRenderer *mSkRenderer;
 
     WorkerThread<EGLThreadState> mWorkerThread =
@@ -58,10 +57,12 @@ namespace rive_android
     void *(*ATrace_endSection)(void);
     void *(*ATrace_isEnabled)(void);
 
-  public:
-    jobject jRendererObject;
+    jobject mKtRenderer;
 
-    JNIRendererSkia()
+    SkCanvas *mGpuCanvas;
+
+  public:
+    JNIRendererSkia(jobject ktObject) : mKtRenderer(getJNIEnv()->NewGlobalRef(ktObject))
     {
       // Native Trace API is supported in API level 23
       void *lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
@@ -78,14 +79,14 @@ namespace rive_android
             reinterpret_cast<fp_ATrace_isEnabled>(
                 dlsym(lib, "ATrace_isEnabled"));
       }
-      auto result = (bool)ATrace_isEnabled();
+      // auto result = (bool)ATrace_isEnabled();
       // LOGI("Is tracing enabled? %d", result);
       pthread_setname_np(pthread_self(), "JNIRendererSkia");
     }
 
     ~JNIRendererSkia()
     {
-      getJNIEnv()->DeleteGlobalRef(jRendererObject);
+      getJNIEnv()->DeleteGlobalRef(mKtRenderer);
       if (mArtboard)
         delete mArtboard;
     }
@@ -113,27 +114,7 @@ namespace rive_android
                  }
 
                  auto gpuSurface = threadState->getSkSurface();
-                 mSkRenderer = new rive::SkiaRenderer(gpuSurface->getCanvas());
-               });
-    }
-
-    void setArtboard(rive::Artboard *ab)
-    {
-      if (ab == mArtboard)
-      {
-        return;
-      }
-      if (mArtboard)
-      {
-        delete mArtboard;
-      }
-      mArtboard = ab;
-      mArtboard->advance(0.0f);
-      if (mArtboard->animationCount() > 0)
-      {
-        mInstance = new rive::LinearAnimationInstance(mArtboard->firstAnimation());
-        mInstance->advance(0.0f);
-      }
+                 mSkRenderer = new rive::SkiaRenderer(gpuSurface->getCanvas()); });
     }
 
     void initialize() override {}
@@ -146,20 +127,12 @@ namespace rive_android
                  threadState->mIsStarted = true;
                  // Reset time to avoid super-large update of position
                  threadState->mLastUpdate = std::chrono::steady_clock::now();
-                 requestDraw();
-               });
+                 requestDraw(); });
     }
 
     SkCanvas *canvas() const
     {
-      // TODO: this can probably be removed.
-      return nullptr;
-    }
-
-    void flush() const
-    {
-      // TODO: this can probably be removed too..
-      // mContext->flush();
+      return mGpuCanvas;
     }
 
     void stop()
@@ -219,6 +192,22 @@ namespace rive_android
       ATrace_endSection();
     }
 
+    void drawCallback(float elapsed)
+    {
+      auto env = getJNIEnv();
+      jclass ktRendererClass = env->GetObjectClass(mKtRenderer);
+      jmethodID drawCallback = env->GetMethodID(
+          ktRendererClass,
+          "draw",
+          "()V");
+      jmethodID advanceCallback = env->GetMethodID(
+          ktRendererClass,
+          "advance",
+          "(F)V");
+      env->CallVoidMethod(mKtRenderer, advanceCallback, elapsed);
+      env->CallVoidMethod(mKtRenderer, drawCallback);
+    }
+
     void draw(EGLThreadState *threadState)
     {
       ATrace_beginSection("swappyDraw()");
@@ -228,6 +217,7 @@ namespace rive_android
       {
         // Sleep a bit so we don't churn too fast
         std::this_thread::sleep_for(50ms);
+        mGpuCanvas = nullptr;
         requestDraw();
         return;
       }
@@ -237,6 +227,7 @@ namespace rive_android
       {
         LOGE("No GPU Surface?!");
         std::this_thread::sleep_for(500ms);
+        mGpuCanvas = nullptr;
         requestDraw();
         return;
       }
@@ -252,36 +243,20 @@ namespace rive_android
       }
       threadState->mLastUpdate = std::chrono::steady_clock::now();
 
-      int w = threadState->mWidth;
-      int h = threadState->mHeight;
+      // int w = threadState->mWidth;
+      // int h = threadState->mHeight;
+      // const float aspectRatio = static_cast<float>(w) / static_cast<fluat>(h);
 
-      SkCanvas *gpuCanvas = gpuSurface->getCanvas();
+      // We can probably pass the EGLThreadState address around here too,
+      //  or bind it to a local field.
+      mGpuCanvas = gpuSurface->getCanvas();
       float elapsed = -1.0f * deltaSeconds;
-      gpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
-      if (mArtboard != nullptr)
-      {
-        if (mInstance)
-        {
-          mInstance->advance(elapsed);
-          mInstance->apply(mArtboard);
-        }
-        mArtboard->advance(elapsed);
-        mSkRenderer->save();
-        mSkRenderer->align(
-            rive::Fit::contain,
-            rive::Alignment::center,
-            rive::AABB(0, 0, w, h),
-            mArtboard->bounds());
-        mArtboard->draw(mSkRenderer);
-        mSkRenderer->restore();
-      }
-
+      mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
+      drawCallback(elapsed);
       threadState->getGrContext()->flush();
-      // const float aspectRatio = static_cast<float>(threadState->mWidth) / threadState->mHeight;
-
       threadState->swapBuffers();
 
-      // If we're still started, request another frame
+      // Request another frame
       requestDraw();
       ATrace_endSection();
     }

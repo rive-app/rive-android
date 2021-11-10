@@ -83,13 +83,6 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:text="Blend Modes" />
-
-            <Button
-                android:id="@+id/go_opengl"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="OpenGL" />
-
         </LinearLayout>
 
     </ScrollView>
