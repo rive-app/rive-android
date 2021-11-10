@@ -181,7 +181,9 @@ extern "C"
     }
 
     // Skia Renderer
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(JNIEnv *env, jobject thisObj)
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(
+        JNIEnv *env,
+        jobject ktRendererSkia)
     {
         // luigi: again ifdef this out for release (or murder completely, but
         // it's nice to catch all fprintf to stderr). Bad place to put this but
@@ -192,9 +194,8 @@ extern "C"
         // detach so it outlives the ref
         t.detach();
 
-        auto renderer = new ::JNIRendererSkia();
+        auto renderer = new ::JNIRendererSkia(ktRendererSkia);
         g_JNIRenderer = renderer;
-        renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
         return (jlong)renderer;
     }
 
@@ -212,16 +213,6 @@ extern "C"
         jlong rendererRef)
     {
         ((::JNIRendererSkia *)rendererRef)->startFrame();
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_nSetArtboard(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong rendererAddr, jlong abref)
-    {
-        auto skRenderer = (::JNIRendererSkia *)rendererAddr;
-        auto artboard = (rive::Artboard *)abref;
-        skRenderer->setArtboard(artboard);
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_setViewport(
@@ -251,7 +242,6 @@ extern "C"
                        artboard->bounds());
         artboard->draw(&renderer);
         renderer.restore();
-        jniWrapper->flush();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
