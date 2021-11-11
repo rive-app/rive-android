@@ -12,7 +12,7 @@ import app.rive.runtime.kotlin.core.errors.*
  *
  * The constructor uses a [cppPointer] to point to its c++ counterpart object.
  */
-class StateMachine(val cppPointer: Long) {
+class StateMachine(val cppPointer: Long) : Playable() {
 
     private external fun cppName(cppPointer: Long): String
     private external fun cppInputCount(cppPointer: Long): Int
@@ -23,7 +23,7 @@ class StateMachine(val cppPointer: Long) {
     /**
      * Return the name given to an animation
      */
-    val name: String
+    override val name: String
         get() = cppName(cppPointer)
 
     /**
@@ -38,7 +38,7 @@ class StateMachine(val cppPointer: Long) {
     val layerCount: Int
         get() = cppLayerCount(cppPointer)
 
-    fun _convertInput(input: StateMachineInput): StateMachineInput {
+    private fun _convertInput(input: StateMachineInput): StateMachineInput {
         if (input.isBoolean) {
             return StateMachineBooleanInput(input.cppPointer)
         } else if (input.isTrigger) {
@@ -60,9 +60,11 @@ class StateMachine(val cppPointer: Long) {
         if (stateMachineInputPointer == 0L) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        return _convertInput(StateMachineInput(
-            stateMachineInputPointer
-        ))
+        return _convertInput(
+            StateMachineInput(
+                stateMachineInputPointer
+            )
+        )
     }
 
     /**
@@ -74,9 +76,11 @@ class StateMachine(val cppPointer: Long) {
         if (stateMachineInputPointer == 0L) {
             throw StateMachineInputException("No StateMachineInput found with name $name.")
         }
-        return _convertInput(StateMachineInput(
-            stateMachineInputPointer
-        ))
+        return _convertInput(
+            StateMachineInput(
+                stateMachineInputPointer
+            )
+        )
     }
 
     /**
