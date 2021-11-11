@@ -26,6 +26,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     private external fun cppStateChangedCount(cppPointer: Long): Int
     private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
 
+    override val playable = stateMachine
 
     /**
      * Advance the state machine by the [elapsedTime] in seconds.

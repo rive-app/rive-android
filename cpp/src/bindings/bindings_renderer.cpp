@@ -172,11 +172,10 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cleanupJNI(
-        JNIEnv *env,
-        jobject thisObj,
+        JNIEnv *, jobject,
         jlong rendererRef)
     {
-        ::JNIRendererGL *renderer = (::JNIRendererGL *)rendererRef;
+        auto *renderer = (JNIRendererGL *)rendererRef;
         delete renderer;
     }
 
@@ -194,40 +193,25 @@ extern "C"
         // detach so it outlives the ref
         t.detach();
 
-        auto renderer = new ::JNIRendererSkia(ktRendererSkia);
+        auto renderer = new JNIRendererSkia(ktRendererSkia);
         g_JNIRenderer = renderer;
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDraw(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong artboardRef,
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
+        JNIEnv *, jobject,
         jlong rendererRef)
     {
-        // TODO: consolidate this to work with an abstracted JNI Renderer.
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        auto jniWrapper = (::JNIRendererSkia *)rendererRef;
-        rive::SkiaRenderer renderer(jniWrapper->canvas());
-        renderer.save();
-        renderer.align(rive::Fit::contain,
-                       rive::Alignment::center,
-                       rive::AABB(
-                           0, 0,
-                           jniWrapper->width(),
-                           jniWrapper->height()),
-                       artboard->bounds());
-        artboard->draw(&renderer);
-        renderer.restore();
+        auto renderer = reinterpret_cast<JNIRendererSkia *>(rendererRef);
+        delete renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
-        JNIEnv *env,
-        jobject thisObj,
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(
+        JNIEnv *, jobject,
         jlong rendererRef)
     {
-        auto renderer = (::JNIRendererGL *)rendererRef;
-        delete renderer;
+        auto renderer = reinterpret_cast<JNIRendererSkia *>(rendererRef);
+        renderer->stop();
     }
 
 #ifdef __cplusplus
