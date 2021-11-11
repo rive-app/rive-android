@@ -11,22 +11,7 @@ class RendererSkia : BaseRenderer() {
 
     private external fun constructor(): Long
 
-    private var activeArtboard: Artboard? = null
-    private var activeAnimations = mutableListOf<LinearAnimationInstance>()
-
-    private var mTargetBounds = AABB(0f, 0f)
-    private var mFit = Fit.CONTAIN
-        set(value) {
-            if (value != field) {
-                field = value
-            }
-        }
-    private var mAlignment = Alignment.CENTER
-        set(value) {
-            if (value != field) {
-                field = value
-            }
-        }
+    private val rivePlayer = RivePlayer()
 
     val address: Long = cppPointer
 
@@ -36,43 +21,41 @@ class RendererSkia : BaseRenderer() {
     }
 
     override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
-        mFit = fit
-        mAlignment = alignment
-        mTargetBounds = targetBounds
+        rivePlayer.fit = fit
+        rivePlayer.alignment = alignment
+        rivePlayer.targetBounds = targetBounds
     }
 
     fun setSize(width: Float, height: Float) {
-        mTargetBounds = AABB(width, height)
+        rivePlayer.targetBounds = AABB(width, height)
+    }
+
+    fun setFit(fit: Fit) {
+        rivePlayer.fit = fit
+    }
+
+    fun setAlignment(alignment: Alignment) {
+        rivePlayer.alignment = alignment
     }
 
     fun play(animationName: String) {
-        activeArtboard?.let { artboard ->
-            val animation = artboard.animation(animationName)
-            val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
-            activeAnimations.add(instance)
-        } ?: run {
-            Log.w(TAG, "Can't play animation $animationName without an active Artboard")
-        }
+        rivePlayer.play(animationName)
     }
 
     fun addArtboard(artboard: Artboard) {
-        val instance = artboard.getInstance()
-        instance.advance(0.0f)
-        activeArtboard = artboard.getInstance().also { it.advance(0.0f) }
+        rivePlayer.addArtboard(artboard)
     }
 
     fun draw() {
-        activeArtboard?.drawSkia(this, mFit, mAlignment)
+        rivePlayer.activeArtboard?.drawSkia(
+            this,
+            rivePlayer.fit,
+            rivePlayer.alignment
+        )
     }
 
     fun advance(elapsed: Float) {
-        activeArtboard?.let { artboard ->
-            activeAnimations.forEach { aInstance ->
-                aInstance.advance(elapsed)
-                aInstance.apply(artboard)
-            }
-            artboard.advance(elapsed)
-        }
+        rivePlayer.advance(elapsed)
     }
 
     override fun draw(artboard: Artboard) {
@@ -82,5 +65,60 @@ class RendererSkia : BaseRenderer() {
 //        artboard.drawSkia(this)
 //        val now = SystemClock.elapsedRealtimeNanos()
 //        Log.d("SKIA DRAW", "Frame: ${(now - start) / 1000000} ms")
+    }
+
+
+    private class RivePlayer {
+        companion object {
+            const val TAG = "RivePlayer"
+        }
+
+        var activeArtboard: Artboard? = null
+        var activeAnimations = mutableListOf<LinearAnimationInstance>()
+
+        var targetBounds = AABB(0f, 0f)
+            set(value) {
+                if (value != field) {
+                    field = value
+                }
+            }
+        var fit = Fit.CONTAIN
+            set(value) {
+                if (value != field) {
+                    field = value
+                }
+            }
+        var alignment = Alignment.CENTER
+            set(value) {
+                if (value != field) {
+                    field = value
+                }
+            }
+
+        fun play(animationName: String) {
+            activeArtboard?.let { artboard ->
+                val animation = artboard.animation(animationName)
+                val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
+                activeAnimations.add(instance)
+            } ?: run {
+                Log.w(TAG, "Can't play animation $animationName without an active Artboard")
+            }
+        }
+
+        fun addArtboard(artboard: Artboard) {
+            val instance = artboard.getInstance()
+            instance.advance(0.0f)
+            activeArtboard = artboard.getInstance().also { it.advance(0.0f) }
+        }
+
+        fun advance(elapsed: Float) {
+            activeArtboard?.let { artboard ->
+                activeAnimations.forEach { aInstance ->
+                    aInstance.advance(elapsed)
+                    aInstance.apply(artboard)
+                }
+                artboard.advance(elapsed)
+            }
+        }
     }
 }
