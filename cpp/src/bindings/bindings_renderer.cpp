@@ -199,29 +199,6 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_initializeSkiaGL(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong rendererRef)
-    {
-        ((::JNIRendererSkia *)rendererRef)->initialize();
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_startFrame(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong rendererRef)
-    {
-        ((::JNIRendererSkia *)rendererRef)->startFrame();
-    }
-
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_setViewport(
-        JNIEnv *env, jobject thisObj,
-        jlong rendererRef, jint width, jint height)
-    {
-        // ((::JNIRendererSkia *)rendererRef)->setViewport(width, height);
-    }
-
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDraw(
         JNIEnv *env,
         jobject thisObj,
