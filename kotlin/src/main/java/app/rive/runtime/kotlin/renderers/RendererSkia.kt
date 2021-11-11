@@ -10,12 +10,23 @@ class RendererSkia : BaseRenderer() {
     external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
 
     private external fun constructor(): Long
-    private external fun startFrame(cppPointer: Long)
-    private external fun initializeSkiaGL(cppPointer: Long)
-    private external fun setViewport(cppPointer: Long, width: Int, height: Int)
 
     private var activeArtboard: Artboard? = null
     private var activeAnimations = mutableListOf<LinearAnimationInstance>()
+
+    private var mTargetBounds = AABB(0f, 0f)
+    private var mFit = Fit.CONTAIN
+        set(value) {
+            if (value != field) {
+                field = value
+            }
+        }
+    private var mAlignment = Alignment.CENTER
+        set(value) {
+            if (value != field) {
+                field = value
+            }
+        }
 
     val address: Long = cppPointer
 
@@ -24,26 +35,19 @@ class RendererSkia : BaseRenderer() {
         const val TAG = "RendererSkia"
     }
 
-    fun initializeSkia() {
-        initializeSkiaGL(cppPointer)
-    }
-
-    fun setViewport(width: Int, height: Int) {
-        setViewport(cppPointer, width, height)
-    }
-
     override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
-        // NOP
-        // TODO: reconsider this in place of setViewport?
+        mFit = fit
+        mAlignment = alignment
+        mTargetBounds = targetBounds
     }
 
-    fun startFrame() {
-        startFrame(cppPointer)
+    fun setSize(width: Float, height: Float) {
+        mTargetBounds = AABB(width, height)
     }
 
     fun play(animationName: String) {
-        activeArtboard?.let {
-            val animation = it.animation(animationName)
+        activeArtboard?.let { artboard ->
+            val animation = artboard.animation(animationName)
             val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
             activeAnimations.add(instance)
         } ?: run {
@@ -58,7 +62,7 @@ class RendererSkia : BaseRenderer() {
     }
 
     fun draw() {
-        activeArtboard?.drawSkia(this)
+        activeArtboard?.drawSkia(this, mFit, mAlignment)
     }
 
     fun advance(elapsed: Float) {
@@ -72,7 +76,7 @@ class RendererSkia : BaseRenderer() {
     }
 
     override fun draw(artboard: Artboard) {
-        startFrame(cppPointer)
+//        startFrame(cppPointer)
         cppDraw(artboard.cppPointer, cppPointer)
 //        var start = SystemClock.elapsedRealtimeNanos()
 //        artboard.drawSkia(this)

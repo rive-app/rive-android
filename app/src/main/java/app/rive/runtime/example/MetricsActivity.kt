@@ -14,7 +14,6 @@ import android.view.*
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -28,7 +27,7 @@ class MetricsActivity : AppCompatActivity() {
     }
 
     private val swappyView by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<SwappyView>(R.id.swappy_view)
+        findViewById(R.id.swappy_view)
             ?: SwappyView(this, null).also {
                 val density = resources.displayMetrics.density
                 it.layoutParams = LinearLayout.LayoutParams(
@@ -59,10 +58,14 @@ class MetricsActivity : AppCompatActivity() {
 class SwappyView(context: Context, attrs: AttributeSet? = null) :
     SurfaceView(context, attrs),
     SurfaceHolder.Callback, Choreographer.FrameCallback {
-    private val TAG = "SwappyView"
+
+    companion object {
+        // Static Tag for Logging.
+        const val TAG = "SwappyView"
+    }
+
     private val riveRenderer = RendererSkia()
     private var file: RiveFile?
-    private var artboard: Artboard? = null
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
 
     init {
@@ -76,11 +79,10 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
                 -1
             )
 
-            val fileBytes: ByteArray
-            if (resourceId == -1) {
-                fileBytes = resources.openRawResource(R.raw.off_road_car_blog).readBytes()
+            val fileBytes: ByteArray = if (resourceId == -1) {
+                resources.openRawResource(R.raw.off_road_car_blog).readBytes()
             } else {
-                fileBytes = resources.openRawResource(resourceId).readBytes()
+                resources.openRawResource(resourceId).readBytes()
             }
             file = RiveFile(fileBytes)
         }
@@ -126,7 +128,7 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
             frameMetricsListener = RendererMetrics(activity)
         } else {
             Log.w(
-                this.TAG,
+                TAG,
                 "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
             )
         }
@@ -142,23 +144,24 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onDetachedFromWindow() {
-        Log.d(this.TAG, "onDetachedFromWindow()")
+        Log.d(TAG, "onDetachedFromWindow()")
         super.onDetachedFromWindow()
         stopFrameMetrics(activity)
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        Log.d(this.TAG, "surfaceCreated()")
+        Log.d(TAG, "surfaceCreated()")
         nStart(riveRenderer.address)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        Log.d(this.TAG, "surfaceChanged(format: $format, width: $width, height: $height)")
+        Log.d(TAG, "surfaceChanged(format: $format, width: $width, height: $height)")
         nSetViewport(holder.surface, riveRenderer.address)
+        riveRenderer.setSize(width.toFloat(), height.toFloat())
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        Log.d(this.TAG, "surfaceDestroyed()")
+        Log.d(TAG, "surfaceDestroyed()")
         nStop(riveRenderer.address)
         nClearSurface()
     }
