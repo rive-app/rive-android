@@ -14,6 +14,7 @@ namespace rive_android
 	class IJNIRenderer
 	{
 	public:
+		virtual ~IJNIRenderer() {}
 		virtual rive::RenderPaint *makeRenderPaint() = 0;
 		virtual rive::RenderPath *makeRenderPath() = 0;
 		virtual void initialize() = 0;
