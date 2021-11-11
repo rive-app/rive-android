@@ -112,26 +112,6 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nStart(
-      JNIEnv *env, jobject,
-      jlong rendererAddr)
-  {
-    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
-    skiaRenderer->startFrame();
-    // Do we need to clear stats when coming back to the Activity?
-    // SwappyGL_enableStats(false);
-    // SwappyGL_enableStats(true);
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_example_SwappyView_nStop(
-      JNIEnv *, jobject,
-      jlong rendererAddr)
-  {
-    ((JNIRendererSkia *)rendererAddr)->stop();
-  }
-
-  JNIEXPORT void JNICALL
   Java_app_rive_runtime_example_SwappyView_nSetPreference(
       JNIEnv *env, jobject,
       jstring key, jstring value)

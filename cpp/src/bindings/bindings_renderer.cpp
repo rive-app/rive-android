@@ -202,16 +202,21 @@ extern "C"
         JNIEnv *, jobject,
         jlong rendererRef)
     {
-        auto renderer = reinterpret_cast<JNIRendererSkia *>(rendererRef);
-        delete renderer;
+        delete reinterpret_cast<JNIRendererSkia *>(rendererRef);
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(
         JNIEnv *, jobject,
         jlong rendererRef)
     {
-        auto renderer = reinterpret_cast<JNIRendererSkia *>(rendererRef);
-        renderer->stop();
+        reinterpret_cast<JNIRendererSkia *>(rendererRef)->stop();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(
+        JNIEnv *, jobject,
+        jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia *>(rendererRef)->startFrame();
     }
 
 #ifdef __cplusplus

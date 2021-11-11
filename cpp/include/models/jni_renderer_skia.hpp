@@ -78,9 +78,7 @@ namespace rive_android
             reinterpret_cast<fp_ATrace_isEnabled>(
                 dlsym(lib, "ATrace_isEnabled"));
       }
-      // auto result = (bool)ATrace_isEnabled();
-      // LOGI("Is tracing enabled? %d", result);
-      pthread_setname_np(pthread_self(), "JNIRendererSkia");
+      initialize();
     }
 
     ~JNIRendererSkia()
@@ -115,18 +113,28 @@ namespace rive_android
                  mSkRenderer = new rive::SkiaRenderer(mGpuCanvas); });
     }
 
-    void initialize() override {}
+    void initialize() override
+    {
+      // auto result = (bool)ATrace_isEnabled();
+      // LOGI("Is tracing enabled? %d", result);
+      pthread_setname_np(pthread_self(), "JNIRendererSkia");
+      mWorkerThread
+          .run([=](EGLThreadState *threadState)
+               {
+                 jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
+                 threadState->setKtRendererClass(ktClass); });
+    }
 
     void startFrame()
     {
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
+                 if (threadState->mIsStarted) return;
                  threadState->mIsStarted = true;
                  // Reset time to avoid super-large update of position
                  threadState->mLastUpdate = std::chrono::steady_clock::now();
-                 jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
-                 threadState->setKtRendererClass(ktClass);
+                 
                  requestDraw(); });
     }
 
