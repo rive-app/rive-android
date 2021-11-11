@@ -8,12 +8,15 @@ class RendererSkia : BaseRenderer() {
 
     external override fun cleanupJNI(cppPointer: Long)
     external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
+    external fun cppStop(rendererPointer: Long)
 
     private external fun constructor(): Long
 
     private val rivePlayer = RivePlayer()
 
     val address: Long = cppPointer
+    val isPlaying: Boolean
+        get() = rivePlayer.activeAnimations.isNotEmpty()
 
     companion object {
         // Static Tag for Logging
@@ -42,6 +45,13 @@ class RendererSkia : BaseRenderer() {
         rivePlayer.play(animationName)
     }
 
+    fun pause(animationName: String) {
+        rivePlayer.pause(animationName)
+        if (rivePlayer.activeAnimations.isEmpty()) {
+            cppStop(cppPointer)
+        }
+    }
+
     fun addArtboard(artboard: Artboard) {
         rivePlayer.addArtboard(artboard)
     }
@@ -59,14 +69,12 @@ class RendererSkia : BaseRenderer() {
     }
 
     override fun draw(artboard: Artboard) {
-//        startFrame(cppPointer)
-        cppDraw(artboard.cppPointer, cppPointer)
-//        var start = SystemClock.elapsedRealtimeNanos()
-//        artboard.drawSkia(this)
-//        val now = SystemClock.elapsedRealtimeNanos()
-//        Log.d("SKIA DRAW", "Frame: ${(now - start) / 1000000} ms")
+        // TODO: revisit this abstraction.
     }
 
+    protected fun finalize() {
+        cleanupJNI(cppPointer)
+    }
 
     private class RivePlayer {
         companion object {
@@ -74,7 +82,7 @@ class RendererSkia : BaseRenderer() {
         }
 
         var activeArtboard: Artboard? = null
-        var activeAnimations = mutableListOf<LinearAnimationInstance>()
+        var activeAnimations = mutableListOf<PlayableInstance>()
 
         var targetBounds = AABB(0f, 0f)
             set(value) {
@@ -105,6 +113,16 @@ class RendererSkia : BaseRenderer() {
             }
         }
 
+        fun pause(animationName: String): Boolean {
+            val index = activeAnimations.indexOfFirst {
+                it.playable.name == animationName
+            }
+            if (index >= 0) {
+                activeAnimations.removeAt(index)
+            }
+            return index >= 0
+        }
+
         fun addArtboard(artboard: Artboard) {
             val instance = artboard.getInstance()
             instance.advance(0.0f)
@@ -113,9 +131,8 @@ class RendererSkia : BaseRenderer() {
 
         fun advance(elapsed: Float) {
             activeArtboard?.let { artboard ->
-                activeAnimations.forEach { aInstance ->
-                    aInstance.advance(elapsed)
-                    aInstance.apply(artboard)
+                activeAnimations.forEach { instance ->
+                    instance.apply(artboard, elapsed)
                 }
                 artboard.advance(elapsed)
             }

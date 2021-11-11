@@ -22,6 +22,7 @@ class LinearAnimationInstance(val animation: Animation, var mix: Float = 1.0f) :
     private external fun cppGetLoop(cppPointer: Long): Int
     private external fun cppSetLoop(cppPointer: Long, value: Int)
 
+    override val playable = animation
 
     /**
      * Advance the animation by the [elapsedTime] in seconds.
