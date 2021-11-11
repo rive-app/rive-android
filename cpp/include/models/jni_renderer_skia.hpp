@@ -111,7 +111,8 @@ namespace rive_android
                  }
 
                  auto gpuSurface = threadState->getSkSurface();
-                 mSkRenderer = new rive::SkiaRenderer(gpuSurface->getCanvas()); });
+                 mGpuCanvas = gpuSurface->getCanvas();
+                 mSkRenderer = new rive::SkiaRenderer(mGpuCanvas); });
     }
 
     void initialize() override {}
@@ -129,11 +130,6 @@ namespace rive_android
                  requestDraw(); });
     }
 
-    SkCanvas *canvas() const
-    {
-      return mGpuCanvas;
-    }
-
     void stop()
     {
       mWorkerThread
@@ -141,6 +137,11 @@ namespace rive_android
                { threadState->mIsStarted = false; });
     }
 
+    SkCanvas *canvas() const { return mGpuCanvas; }
+    rive::SkiaRenderer *skRenderer() const { return mSkRenderer; }
+    float averageFps() const { return mAverageFps; }
+
+    RenderingStats &frameTimeStats() { return mFrameTimeStats; }
     int width() const
     {
       return nWindow ? ANativeWindow_getWidth(nWindow) : -1;
@@ -150,9 +151,6 @@ namespace rive_android
     {
       return nWindow ? ANativeWindow_getHeight(nWindow) : -1;
     }
-
-    float averageFps() const { return mAverageFps; }
-    RenderingStats &frameTimeStats() { return mFrameTimeStats; }
 
   private:
     void requestDraw()
@@ -239,7 +237,6 @@ namespace rive_android
 
       // We can probably pass the EGLThreadState address around here too,
       //  or bind it to a local field.
-      mGpuCanvas = gpuSurface->getCanvas();
       float elapsed = -1.0f * deltaSeconds;
       mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
       drawCallback(elapsed, threadState);
