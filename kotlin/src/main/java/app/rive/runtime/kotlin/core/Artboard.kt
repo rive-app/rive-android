@@ -35,8 +35,10 @@ class Artboard(val cppPointer: Long) {
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
-    private external fun cppDrawGL(cppPointer: Long, rendererPointer: Long)
-    private external fun cppDrawSkia(cppPointer: Long, rendererPointer: Long)
+    private external fun cppDrawSkia(
+        cppPointer: Long, rendererPointer: Long,
+        fit: Fit, alignment: Alignment,
+    )
 
     private external fun cppBounds(cppPointer: Long): Long
 
@@ -180,12 +182,8 @@ class Artboard(val cppPointer: Long) {
         cppDraw(cppPointer, renderer.cppPointer)
     }
 
-    fun drawGL(renderer: RendererOpenGL) {
-        cppDrawGL(cppPointer, renderer.cppPointer)
-    }
-
-    fun drawSkia(renderer: RendererSkia) {
-        cppDrawSkia(cppPointer, renderer.cppPointer)
+    fun drawSkia(renderer: RendererSkia, fit: Fit, alignment: Alignment) {
+        cppDrawSkia(cppPointer, renderer.cppPointer, fit, alignment)
     }
 
     /**

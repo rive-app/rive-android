@@ -168,25 +168,27 @@ extern "C"
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(
         JNIEnv *env,
-        jobject thisObj,
-        jlong artboardRef,
-        jlong rendererRef)
+        jobject,
+        jlong artboardRef, jlong rendererRef,
+        jobject ktFit, jobject ktAlignment)
     {
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        auto jniWrapper = (::JNIRendererSkia *)rendererRef;
-        rive::SkiaRenderer renderer(jniWrapper->canvas());
-        renderer.save();
-        renderer.align(
-            rive::Fit::contain,
-            rive::Alignment::center,
+        auto jniWrapper = (JNIRendererSkia *)rendererRef;
+        rive::Fit fit = getFit(env, ktFit);
+        rive::Alignment alignment = getAlignment(env, ktAlignment);
+        auto renderer = jniWrapper->skRenderer();
+        renderer->save();
+        renderer->align(
+            fit,
+            alignment,
             rive::AABB(
                 0, 0,
                 jniWrapper->width(),
                 jniWrapper->height()),
             artboard->bounds());
-        artboard->draw(&renderer);
-        renderer.restore();
+        artboard->draw(renderer);
+        renderer->restore();
     }
 
     JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(
