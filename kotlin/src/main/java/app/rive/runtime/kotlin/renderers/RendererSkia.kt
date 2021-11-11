@@ -8,7 +8,8 @@ class RendererSkia : BaseRenderer() {
 
     external override fun cleanupJNI(cppPointer: Long)
     external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
-    external fun cppStop(rendererPointer: Long)
+    private external fun cppStop(rendererPointer: Long)
+    private external fun cppStart(rendererPointer: Long)
 
     private external fun constructor(): Long
 
@@ -41,15 +42,31 @@ class RendererSkia : BaseRenderer() {
         rivePlayer.alignment = alignment
     }
 
+    // Starts rendering frames.
+    fun start() {
+        cppStart(cppPointer)
+    }
+
     fun play(animationName: String) {
         rivePlayer.play(animationName)
+        cppStart(cppPointer)
     }
 
     fun pause(animationName: String) {
         rivePlayer.pause(animationName)
-        if (rivePlayer.activeAnimations.isEmpty()) {
+    }
+
+    fun stop(animationName: String) {
+        rivePlayer.stop(animationName)
+        if (rivePlayer.isPlaying) {
             cppStop(cppPointer)
         }
+    }
+
+    // Stop all animations.
+    fun stop() {
+        rivePlayer.activeAnimations.clear()
+        cppStop(cppPointer)
     }
 
     fun addArtboard(artboard: Artboard) {
@@ -84,6 +101,9 @@ class RendererSkia : BaseRenderer() {
         var activeArtboard: Artboard? = null
         var activeAnimations = mutableListOf<PlayableInstance>()
 
+        val isPlaying: Boolean
+            get() = activeAnimations.filter { it.isPlaying }.isNotEmpty()
+
         var targetBounds = AABB(0f, 0f)
             set(value) {
                 if (value != field) {
@@ -104,16 +124,31 @@ class RendererSkia : BaseRenderer() {
             }
 
         fun play(animationName: String) {
-            activeArtboard?.let { artboard ->
-                val animation = artboard.animation(animationName)
-                val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
-                activeAnimations.add(instance)
+            // Try to restart animations first.
+            activeAnimations.firstOrNull {
+                it.playable.name == animationName
+            }?.let {
+                it.isPlaying = true
             } ?: run {
-                Log.w(TAG, "Can't play animation $animationName without an active Artboard")
+                activeArtboard?.let { artboard ->
+                    val animation = artboard.animation(animationName)
+                    val instance = LinearAnimationInstance(animation).also { it.advance(0.0f) }
+                    activeAnimations.add(instance)
+                } ?: run {
+                    Log.w(TAG, "Can't play animation $animationName without an active Artboard")
+                }
             }
         }
 
-        fun pause(animationName: String): Boolean {
+        fun pause(animationName: String) {
+            activeAnimations.firstOrNull {
+                it.playable.name == animationName
+            }?.let {
+                it.isPlaying = false
+            }
+        }
+
+        fun stop(animationName: String): Boolean {
             val index = activeAnimations.indexOfFirst {
                 it.playable.name == animationName
             }
@@ -131,7 +166,7 @@ class RendererSkia : BaseRenderer() {
 
         fun advance(elapsed: Float) {
             activeArtboard?.let { artboard ->
-                activeAnimations.forEach { instance ->
+                activeAnimations.filter { it.isPlaying }.forEach { instance ->
                     instance.apply(artboard, elapsed)
                 }
                 artboard.advance(elapsed)
