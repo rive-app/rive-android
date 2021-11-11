@@ -14,10 +14,12 @@ import android.view.*
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.*
+import app.rive.runtime.kotlin.core.Alignment as RiveAlignment
 import app.rive.runtime.kotlin.core.File as RiveFile
 
 
@@ -78,6 +80,10 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
                 app.rive.runtime.kotlin.R.styleable.SwappyView_riveResource,
                 -1
             )
+            val alignmentIndex =
+                getInteger(app.rive.runtime.kotlin.R.styleable.SwappyView_riveAlignment, 4)
+            val fitIndex =
+                getInteger(app.rive.runtime.kotlin.R.styleable.SwappyView_riveFit, 1)
 
             val fileBytes: ByteArray = if (resourceId == -1) {
                 resources.openRawResource(R.raw.off_road_car_blog).readBytes()
@@ -85,6 +91,8 @@ class SwappyView(context: Context, attrs: AttributeSet? = null) :
                 resources.openRawResource(resourceId).readBytes()
             }
             file = RiveFile(fileBytes)
+            riveRenderer.setFit(Fit.values()[fitIndex])
+            riveRenderer.setAlignment(RiveAlignment.values()[alignmentIndex])
         }
     }
 
