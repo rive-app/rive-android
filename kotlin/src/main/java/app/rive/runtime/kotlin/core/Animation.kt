@@ -10,7 +10,7 @@ package app.rive.runtime.kotlin.core
  *
  * The constructor uses a [cppPointer] to point to its c++ counterpart object.
  */
-class Animation(val cppPointer: Long) {
+class Animation(val cppPointer: Long) : Playable() {
 
     private external fun cppName(cppPointer: Long): String
     private external fun cppDuration(cppPointer: Long): Int
@@ -43,7 +43,7 @@ class Animation(val cppPointer: Long) {
      * and [workEnd] into account
      */
     val effectiveDurationInSeconds: Float
-        get() = effectiveDuration.toFloat()/fps
+        get() = effectiveDuration.toFloat() / fps
 
 
     /**
@@ -69,7 +69,7 @@ class Animation(val cppPointer: Long) {
     /**
      * Return the name given to an animation
      */
-    val name: String
+    override val name: String
         get() = cppName(cppPointer)
 
     /**
