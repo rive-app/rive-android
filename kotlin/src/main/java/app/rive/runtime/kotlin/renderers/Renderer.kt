@@ -24,8 +24,8 @@ class Renderer(antialias: Boolean = true) : BaseRenderer() {
     override var cppPointer: Long = constructor(antialias)
 
     external override fun cleanupJNI(cppPointer: Long)
-    external override fun cppDraw(artboardPointer: Long, rendererPointer: Long)
 
+    private external fun cppDraw(artboardPointer: Long, rendererPointer: Long)
     private external fun constructor(antialias: Boolean): Long
     private external fun cppAlign(
         cppPointer: Long,
@@ -41,7 +41,7 @@ class Renderer(antialias: Boolean = true) : BaseRenderer() {
         canvas.restoreToCount(saved)
     }
 
-    override fun draw(artboard: Artboard) {
+    fun draw(artboard: Artboard) {
         cppDraw(artboard.cppPointer, this.cppPointer)
     }
 
@@ -61,7 +61,7 @@ class Renderer(antialias: Boolean = true) : BaseRenderer() {
      *
      * typically it is expected to use an [Artboard]s bounds as [sourceBounds].
      */
-    override fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
+    fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
         cppAlign(
             cppPointer,
             fit,

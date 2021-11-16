@@ -4,8 +4,6 @@ import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 import app.rive.runtime.kotlin.renderers.Renderer
-import app.rive.runtime.kotlin.renderers.RendererOpenGL
-import app.rive.runtime.kotlin.renderers.RendererSkia
 
 
 /**
@@ -182,8 +180,8 @@ class Artboard(val cppPointer: Long) {
         cppDraw(cppPointer, renderer.cppPointer)
     }
 
-    fun drawSkia(renderer: RendererSkia, fit: Fit, alignment: Alignment) {
-        cppDrawSkia(cppPointer, renderer.cppPointer, fit, alignment)
+    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
+        cppDrawSkia(cppPointer, rendererAddress, fit, alignment)
     }
 
     /**

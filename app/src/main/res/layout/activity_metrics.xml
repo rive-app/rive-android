@@ -13,11 +13,16 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <app.rive.runtime.example.SwappyView
+        <app.rive.runtime.kotlin.RiveAnimationView
             android:id="@id/swappy_view"
             android:layout_width="match_parent"
-            android:layout_height="366dp"
-            app:riveResource="@raw/off_road_car_blog" />
+            android:layout_height="450dp"
+            android:background="@android:color/black"
+            app:riveAlignment="TOP_CENTER"
+            app:riveResource="@raw/off_road_car_blog"
+            app:riveArtboard="New Artboard"
+            app:riveAnimation="idle"
+            />
 
         <TextView
             android:id="@+id/fps"
