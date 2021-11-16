@@ -30,6 +30,13 @@
 
 using namespace std::chrono_literals;
 
+// TODO:
+// - Split into draw()/advance()
+// - Segfault on destructor?!
+// - Move tracing function
+//    - in initializer?
+//    - in custom tracer object?
+
 namespace rive_android
 {
   class JNIRendererSkia : virtual public IJNIRenderer
@@ -110,7 +117,8 @@ namespace rive_android
 
                  auto gpuSurface = threadState->getSkSurface();
                  mGpuCanvas = gpuSurface->getCanvas();
-                 mSkRenderer = new rive::SkiaRenderer(mGpuCanvas); });
+                 mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
+               });
     }
 
     void initialize() override
@@ -122,7 +130,8 @@ namespace rive_android
           .run([=](EGLThreadState *threadState)
                {
                  jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
-                 threadState->setKtRendererClass(ktClass); });
+                 threadState->setKtRendererClass(ktClass);
+               });
     }
 
     void startFrame()
@@ -130,12 +139,14 @@ namespace rive_android
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
-                 if (threadState->mIsStarted) return;
+                 if (threadState->mIsStarted)
+                   return;
                  threadState->mIsStarted = true;
                  // Reset time to avoid super-large update of position
                  threadState->mLastUpdate = std::chrono::steady_clock::now();
-                 
-                 requestDraw(); });
+
+                 requestDraw();
+               });
     }
 
     void stop()
