@@ -1,16 +1,8 @@
 package app.rive.runtime.kotlin
 
-import android.animation.TimeAnimator
-import android.graphics.Canvas
-import android.graphics.ColorFilter
-import android.graphics.PixelFormat
 import android.graphics.Rect
-import android.graphics.drawable.Animatable
-import android.graphics.drawable.Drawable
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
-import app.rive.runtime.kotlin.renderers.Renderer
-
 
 class RiveDrawable(
     fit: Fit = Fit.CONTAIN,
@@ -21,30 +13,28 @@ class RiveDrawable(
     var animationName: String? = null,
     var stateMachineName: String? = null,
     var autoplay: Boolean = true
-) : Drawable(), Animatable, Observable<RiveDrawable.Listener> {
+) : Observable<RiveDrawable.Listener> {
     // PRIVATE
-    private val renderer = Renderer()
-    private val animator = TimeAnimator()
     private var listeners = HashSet<RiveDrawable.Listener>()
-    private var targetBounds: AABB
+    var targetBounds: AABB = AABB(0f, 0f)
     private var selectedArtboard: Artboard? = null
-    private var _activeArtboard: Artboard? = null
+    var activeArtboard: Artboard? = null
+        private set
     private var boundsCache: Rect? = null
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
     private var _playingStateMachines = HashSet<StateMachineInstance>()
 
     // PUBLIC
     var fit: Fit = fit
-        get() = field
         set(value) {
             field = value
-            invalidateSelf()
+//            invalidateSelf()
         }
     var alignment: Alignment = alignment
         get() = field
         set(value) {
             field = value
-            invalidateSelf()
+//            invalidateSelf()
         }
     var animations = mutableListOf<LinearAnimationInstance>()
     var stateMachines = mutableListOf<StateMachineInstance>()
@@ -62,20 +52,8 @@ class RiveDrawable(
     val isPlaying: Boolean
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
-    val activeArtboard: Artboard?
-        get() = _activeArtboard
-
-    init {
-        targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
-        animator.setTimeListener { _, _, delta ->
-            advance(delta.toFloat())
-        }
-    }
-
-    fun advance(delta: Float) {
-        _activeArtboard?.let { ab ->
-            val elapsed = delta / 1000
-
+    fun advance(elapsed: Float): Boolean {
+        activeArtboard?.let { ab ->
             // animations could change, lets cut a list.
             // order of animations is important.....
             animations.toList().forEach { animationInstance ->
@@ -110,9 +88,11 @@ class RiveDrawable(
         }
 
         if (!isPlaying) {
-            animator.pause()
+            println("Not playing anymore!!")
+//            animator.pause()
+            return false
         }
-        invalidateSelf()
+        return true
     }
 
     // PUBLIC FUNCTIONS
@@ -122,7 +102,7 @@ class RiveDrawable(
     }
 
     fun setArtboardByName(artboardName: String?) {
-        stop()
+        stopAnimations()
         if (file == null) {
             this.artboardName = artboardName
         } else {
@@ -137,8 +117,8 @@ class RiveDrawable(
 
     }
 
-    fun arboardBounds(): AABB {
-        var output = _activeArtboard?.bounds
+    fun artboardBounds(): AABB {
+        var output = activeArtboard?.bounds
         if (output == null) {
             output = AABB(0f, 0f)
         }
@@ -146,8 +126,8 @@ class RiveDrawable(
     }
 
     fun clear() {
-        animator.cancel()
-        animator.currentPlayTime = 0
+//        animator.cancel()
+//        animator.currentPlayTime = 0
         playingAnimations.clear()
         animations.clear()
         playingStateMachines.clear()
@@ -156,16 +136,11 @@ class RiveDrawable(
     }
 
     fun reset() {
-        stop()
+        stopAnimations()
         clear()
         selectedArtboard?.let {
             setArtboard(it)
         }
-        invalidateSelf()
-    }
-
-    fun finalize() {
-        renderer.cleanup()
     }
 
     fun play(
@@ -177,7 +152,7 @@ class RiveDrawable(
         animationNames.forEach {
             _playAnimation(it, loop, direction, areStateMachines)
         }
-        animator.start()
+//        animator.start()
     }
 
     fun play(
@@ -187,21 +162,21 @@ class RiveDrawable(
         isStateMachine: Boolean = false,
     ) {
         _playAnimation(animationName, loop, direction, isStateMachine)
-        animator.start()
+//        animator.start()
     }
 
     fun play(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
     ) {
-        _activeArtboard?.let {
+        activeArtboard?.let {
             if (it.animationNames.isNotEmpty()) {
                 _playAnimation(it.animationNames.first(), loop, direction)
             } else if (it.stateMachineNames.isNotEmpty()) {
                 _playAnimation(it.stateMachineNames.first(), loop, direction, true)
             }
         }
-        animator.start()
+//        animator.start()
     }
 
     fun pause() {
@@ -284,7 +259,7 @@ class RiveDrawable(
             (it.input(inputName) as SMITrigger).fire()
             _play(it)
         }
-        animator.start()
+//        animator.start()
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
@@ -293,7 +268,7 @@ class RiveDrawable(
             (it.input(inputName) as SMIBoolean).value = value
             _play(it)
         }
-        animator.start()
+//        animator.start()
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
@@ -302,7 +277,7 @@ class RiveDrawable(
             (it.input(inputName) as SMINumber).value = value
             _play(it)
         }
-        animator.start()
+//        animator.start()
     }
 
     // PRIVATE FUNCTIONS
@@ -330,7 +305,7 @@ class RiveDrawable(
     private fun _getOrCreateStateMachines(animationName: String): List<StateMachineInstance> {
         val stateMachineInstances = _stateMachines(animationName)
         if (stateMachineInstances.isEmpty()) {
-            _activeArtboard?.let {
+            activeArtboard?.let {
                 val stateMachine = it.stateMachine(animationName)
                 val stateMachineInstance = StateMachineInstance(stateMachine)
                 stateMachines.add(stateMachineInstance)
@@ -357,7 +332,7 @@ class RiveDrawable(
                 _play(animationInstance, loop, direction)
             }
             if (animationInstances.isEmpty()) {
-                _activeArtboard?.let {
+                activeArtboard?.let {
                     val animation = it.animation(animationName)
                     val linearAnimation = LinearAnimationInstance(animation)
                     _play(linearAnimation, loop, direction)
@@ -451,7 +426,7 @@ class RiveDrawable(
     }
 
     private fun setArtboard(artboard: Artboard) {
-        this._activeArtboard = artboard.getInstance()
+        this.activeArtboard = artboard.getInstance()
 
         if (autoplay) {
             animationName?.let {
@@ -466,70 +441,11 @@ class RiveDrawable(
             }
 
         } else {
-            this._activeArtboard?.advance(0f)
+            this.activeArtboard?.advance(0f)
         }
     }
 
-    /*
-    DRAWABLE OVERRIDES
-     */
-
-    override fun onBoundsChange(bounds: Rect?) {
-        super.onBoundsChange(bounds)
-
-        bounds?.let {
-            targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
-        }
-    }
-
-    override fun draw(canvas: Canvas) {
-        _activeArtboard?.let { ab ->
-            if (boundsCache != bounds) {
-                boundsCache = bounds
-                targetBounds = AABB(bounds.width().toFloat(), bounds.height().toFloat())
-            }
-            renderer.canvas = canvas
-            renderer.align(fit, alignment, targetBounds, ab.bounds)
-            renderer.draw(ab, canvas)
-        }
-    }
-
-    override fun setAlpha(alpha: Int) {}
-
-    override fun setColorFilter(colorFilter: ColorFilter?) {}
-
-    override fun getOpacity(): Int {
-        return PixelFormat.TRANSLUCENT
-    }
-
-    override fun getIntrinsicWidth(): Int {
-        return _activeArtboard?.bounds?.width?.toInt() ?: -1
-    }
-
-    override fun getIntrinsicHeight(): Int {
-        return _activeArtboard?.bounds?.height?.toInt() ?: -1
-    }
-
-    /*
-    ANIMATOR OVERRIDES
-     */
-
-    override fun start() {
-        animator.start()
-    }
-
-    override fun stop() {
-        stopAnimations()
-        animator.cancel()
-    }
-
-    override fun isRunning(): Boolean {
-        return isPlaying
-    }
-
-    /*
-   LISTENER INTERFACE
-     */
+    /* LISTENER INTERFACE */
     interface Listener {
         fun notifyPlay(animation: PlayableInstance)
         fun notifyPause(animation: PlayableInstance)
@@ -538,9 +454,7 @@ class RiveDrawable(
         fun notifyStateChanged(stateMachineName: String, stateName: String)
     }
 
-    /*
-    LISTENER OVERRIDES
-     */
+    /* LISTENER OVERRIDES */
     override fun registerListener(listener: RiveDrawable.Listener) {
         listeners.add(listener)
     }
