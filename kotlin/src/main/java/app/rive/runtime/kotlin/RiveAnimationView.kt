@@ -1,13 +1,18 @@
 package app.rive.runtime.kotlin
 
+import android.annotation.TargetApi
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.*
 import android.os.Build
 import android.util.AttributeSet
-import android.view.View
+import android.util.Log
+import android.view.*
 import androidx.annotation.RawRes
-import androidx.core.view.ViewCompat
 import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.renderers.ArtboardRenderer
+import app.rive.runtime.kotlin.renderers.RendererMetrics
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
 import com.android.volley.Request
@@ -41,14 +46,27 @@ import java.util.*
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
-class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(context, attrs),
+class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
+    SurfaceView(context, attrs),
+    SurfaceHolder.Callback,
+    Choreographer.FrameCallback,
     Observable<RiveDrawable.Listener> {
-    // There's always just one drawable associated with an animation view
+
+    private external fun cppSetViewport(surface: Surface, rendererAddress: Long)
+    private external fun cppClearSurface()
+    private external fun cppStop(rendererAddress: Long)
+    private external fun cppGetAverageFps(rendererAddress: Long): Float
+
+    companion object {
+        // Static Tag for Logging.
+        const val TAG = "RiveAnimationView"
+    }
+
     val drawable = RiveDrawable()
+    private val artboardRenderer = ArtboardRenderer(drawable)
 
     private var resourceId: Int? = null
-
-    private var _detachedState: DetachedRiveState? = null;
+    private var _detachedState: DetachedRiveState? = null
 
     var fit: Fit
         get() = drawable.fit
@@ -67,6 +85,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     val file: File?
         get() = drawable.file
+
+    /**
+     * Helper for determining performance metrics.
+     */
+    private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
 
     /**
      * Getter/Setter for the currently loaded artboard Name
@@ -111,9 +134,14 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = drawable.playingStateMachines
 
+    private val activity by lazy(LazyThreadSafetyMode.NONE) {
+        // If this fails we have a problem.
+        this.getMaybeActivity()!!
+    }
+
     init {
         if (Build.VERSION.SDK_INT < 29) {
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
 
         context.theme.obtainStyledAttributes(
@@ -152,7 +180,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                     drawable.animationName = animationName
                     drawable.stateMachineName = stateMachineName
 
-                    // If a url's been provided, initiate downloading
+                    // If a URL has been provided, initiate downloading
                     url?.let {
                         loadHttp(it)
                     }
@@ -163,10 +191,51 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         }
     }
 
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        artboardRenderer.start()
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        cppSetViewport(holder.surface, artboardRenderer.address)
+        drawable.targetBounds = AABB(width.toFloat(), height.toFloat())
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        artboardRenderer.stop()
+        cppClearSurface()
+    }
+
+    override fun doFrame(frameTimeNanos: Long) {
+//        Trace.beginSection("doFrame")
+//        val fpsView = activity.findViewById<TextView>(R.id.fps)
+//        val fps = nGetAverageFps(riveRenderer.address)
+//        fpsView?.text =
+//            java.lang.String.format(
+//                Locale.US,
+//                "Frame rate: %.1f Hz (%.2f ms)",
+//                fps,
+//                1e3f / fps
+//            )
+//        Trace.endSection()
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+
+    private fun getMaybeActivity(): Activity? {
+        var ctx = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) {
+                return ctx
+            }
+            ctx = ctx.baseContext
+        }
+        return null
+    }
+
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
-            Response.Listener<File> { file ->
+            { file ->
                 setRiveFile(
                     file,
                     drawable.artboardName,
@@ -178,7 +247,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
                     drawable.loop
                 )
             },
-            Response.ErrorListener { throw IOException("Unable to download Rive file $url") })
+            { throw IOException("Unable to download Rive file $url") })
         queue.add(stringRequest)
     }
 
@@ -187,6 +256,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun pause() {
         drawable.pause()
+        stopFrameMetrics()
     }
 
     /**
@@ -221,6 +291,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
      */
     fun stop() {
         drawable.stopAnimations()
+        stopFrameMetrics()
     }
 
     /**
@@ -443,9 +514,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
         drawable.artboardName = artboardName
 
         drawable.setRiveFile(file)
-        background = drawable
+//        background = drawable
 
-        requestLayout()
+//        requestLayout()
     }
 
     override fun onDetachedFromWindow() {
@@ -462,60 +533,82 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) : View(co
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
-        val detachedState = _detachedState;
+        val detachedState = _detachedState
         if (detachedState != null) {
             play(detachedState.playingAnimationsNames, areStateMachines = false)
             play(detachedState.playingStateMachineNames, areStateMachines = true)
             _detachedState = null
         }
+
+        holder.addCallback(this)
+        Choreographer.getInstance().postFrameCallback(this)
+        startFrameMetrics()
     }
 
+    @TargetApi(Build.VERSION_CODES.N)
+    private fun startFrameMetrics() {
+        println("Starting frame metrics?!")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            frameMetricsListener = RendererMetrics(activity)
+        } else {
+            Log.w(
+                "RiveAnimationView",
+                "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
+            )
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.N)
+    private fun stopFrameMetrics() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            frameMetricsListener?.let {
+                activity.window.removeOnFrameMetricsAvailableListener(it)
+            }
+        }
+    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
-        val widthMode = MeasureSpec.getMode(widthMeasureSpec);
-        val heightMode = MeasureSpec.getMode(heightMeasureSpec);
+        val widthMode = MeasureSpec.getMode(widthMeasureSpec)
+        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-        var providedWidth = MeasureSpec.getSize(widthMeasureSpec);
-        var providedHeight = MeasureSpec.getSize(heightMeasureSpec);
+        val providedWidth = MeasureSpec.getSize(widthMeasureSpec)
+        val providedHeight = MeasureSpec.getSize(heightMeasureSpec)
 
-        if (widthMode == MeasureSpec.UNSPECIFIED) {
-            // Width is set to "whatever" we should ask our artboard?
-            providedWidth = drawable.intrinsicWidth
-        }
-        if (heightMode == MeasureSpec.UNSPECIFIED) {
-            // Height is set to "whatever" we should ask our artboard?
-            providedHeight = drawable.intrinsicHeight
-        }
+//        if (widthMode == MeasureSpec.UNSPECIFIED) {
+//            // Width is set to "whatever" we should ask our artboard?
+//            providedWidth = drawable.intrinsicWidth
+//        }
+//        if (heightMode == MeasureSpec.UNSPECIFIED) {
+//            // Height is set to "whatever" we should ask our artboard?
+//            providedHeight = drawable.intrinsicHeight
+//        }
 
         // Lets work out how much space our artboard is going to actually use.
-        var usedBounds = Rive.calculateRequiredBounds(
+        val usedBounds = Rive.calculateRequiredBounds(
             drawable.fit,
             drawable.alignment,
             AABB(providedWidth.toFloat(), providedHeight.toFloat()),
-            drawable.arboardBounds()
+            drawable.artboardBounds()
         )
 
-        var width: Int
-        var height: Int
-
         //Measure Width
-        when (widthMode) {
-            MeasureSpec.EXACTLY -> width = providedWidth
-            MeasureSpec.AT_MOST -> width = Math.min(usedBounds.width.toInt(), providedWidth)
+        val width: Int = when (widthMode) {
+            MeasureSpec.EXACTLY -> providedWidth
+            MeasureSpec.AT_MOST -> Math.min(usedBounds.width.toInt(), providedWidth)
             else ->
-                width = usedBounds.width.toInt()
+                usedBounds.width.toInt()
         }
         MeasureSpec.UNSPECIFIED
 
-        when (heightMode) {
-            MeasureSpec.EXACTLY -> height = providedHeight
-            MeasureSpec.AT_MOST -> height = Math.min(usedBounds.height.toInt(), providedHeight)
+        val height: Int = when (heightMode) {
+            MeasureSpec.EXACTLY -> providedHeight
+            MeasureSpec.AT_MOST -> Math.min(usedBounds.height.toInt(), providedHeight)
             else ->
-                height = usedBounds.height.toInt()
+                usedBounds.height.toInt()
         }
-        setMeasuredDimension(width, height);
+        setMeasuredDimension(width, height)
     }
 
     override fun registerListener(listener: RiveDrawable.Listener) {

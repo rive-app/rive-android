@@ -180,7 +180,7 @@ extern "C"
     }
 
     // Skia Renderer
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(
+    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSwappy_constructor(
         JNIEnv *env,
         jobject ktRendererSkia)
     {
@@ -198,21 +198,21 @@ extern "C"
         return (jlong)renderer;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSwappy_cleanupJNI(
         JNIEnv *, jobject,
         jlong rendererRef)
     {
         delete reinterpret_cast<JNIRendererSkia *>(rendererRef);
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSwappy_cppStop(
         JNIEnv *, jobject,
         jlong rendererRef)
     {
         reinterpret_cast<JNIRendererSkia *>(rendererRef)->stop();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSwappy_cppStart(
         JNIEnv *, jobject,
         jlong rendererRef)
     {
