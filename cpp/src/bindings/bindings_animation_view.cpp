@@ -67,19 +67,9 @@ extern "C"
 
   JNIEXPORT void JNICALL
   Java_app_rive_runtime_kotlin_renderers_RendererMetrics_nInit(
-      JNIEnv *env, jobject swappyView,
+      JNIEnv *env, jobject view,
       jobject activity, jlong initialSwapIntervalNS)
   {
-    // Should never happen
-    if (Swappy_version() != SWAPPY_PACKED_VERSION)
-    {
-      LOGE("Inconsistent Swappy versions");
-    }
-
-    Swappy_setThreadFunctions(&sThreadFunctions);
-    SwappyGL_init(env, activity);
-    SwappyGL_setSwapIntervalNS(initialSwapIntervalNS);
-
     SwappyTracer tracers;
     tracers.preWait = nullptr;
     tracers.postWait = postWaitCallback;
@@ -93,6 +83,22 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_RiveAnimationView_cppInit(
+      JNIEnv *env, jobject view,
+      jobject activity, jlong initialSwapIntervalNS)
+  {
+    // Should never happen
+    if (Swappy_version() != SWAPPY_PACKED_VERSION)
+    {
+      LOGE("Inconsistent Swappy versions");
+    }
+
+    Swappy_setThreadFunctions(&sThreadFunctions);
+    SwappyGL_init(env, activity);
+    SwappyGL_setSwapIntervalNS(initialSwapIntervalNS);
+  }
+
+  JNIEXPORT void JNICALL
   Java_app_rive_runtime_kotlin_RiveAnimationView_cppSetViewport(
       JNIEnv *env, jobject,
       jobject surface, jlong rendererAddr)
@@ -100,15 +106,6 @@ extern "C"
     ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
     auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
     skiaRenderer->setWindow(surfaceWindow);
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveAnimationView_cppClearSurface(
-      JNIEnv *, jobject,
-      jlong rendererAddr)
-  {
-    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
-    skiaRenderer->setWindow(nullptr);
   }
 
   JNIEXPORT void JNICALL

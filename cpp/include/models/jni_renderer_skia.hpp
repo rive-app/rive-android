@@ -262,8 +262,11 @@ namespace rive_android
       threadState->getGrContext()->flush();
       threadState->swapBuffers();
 
-      // Request another frame
-      requestDraw();
+      if (threadState->mIsStarted)
+      {
+        // Request another frame
+        requestDraw();
+      }
       ATrace_endSection();
     }
   };
