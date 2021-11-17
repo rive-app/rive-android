@@ -219,6 +219,15 @@ extern "C"
         reinterpret_cast<JNIRendererSkia *>(rendererRef)->startFrame();
     }
 
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSwappy_cppClearSurface(
+        JNIEnv *, jobject,
+        jlong rendererRef)
+    {
+        LOGI("I'm clearing the surface here for this renderer...");
+        reinterpret_cast<JNIRendererSkia *>(rendererRef)->setWindow(nullptr);
+    }
+
 #ifdef __cplusplus
 }
 

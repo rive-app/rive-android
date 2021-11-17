@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.*
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
 import android.view.*
@@ -51,10 +53,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     Choreographer.FrameCallback,
     Observable<RiveDrawable.Listener> {
 
+    private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
     private external fun cppSetViewport(surface: Surface, rendererAddress: Long)
-    private external fun cppClearSurface()
-    private external fun cppStop(rendererAddress: Long)
-    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
     companion object {
         // Static Tag for Logging.
@@ -65,6 +65,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
+    private var isRunning = true
 
     var fit: Fit
         get() = drawable.fit
@@ -137,6 +138,15 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         this.getMaybeActivity()!!
     }
 
+    private val refreshPeriodNanos: Long by lazy {
+        val msInNS: Long = 1000000
+        val sInNS = 1000 * msInNS
+        // Deprecated in API 30: keep this instead of having two separate paths.
+        @Suppress("DEPRECATION")
+        val refreshRateHz = activity.windowManager.defaultDisplay.refreshRate
+        (sInNS / refreshRateHz).toLong()
+    }
+
     init {
         if (Build.VERSION.SDK_INT < 29) {
             setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -190,7 +200,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        cppInit(activity, refreshPeriodNanos)
         drawable.start()
+        isRunning = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -199,8 +211,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        isRunning = false
+
         drawable.stop()
-        cppClearSurface()
+        drawable.clearSurface()
+        drawable.cleanup()
     }
 
     override fun doFrame(frameTimeNanos: Long) {
@@ -215,7 +230,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 //                1e3f / fps
 //            )
 //        Trace.endSection()
-        Choreographer.getInstance().postFrameCallback(this)
+        if (isRunning) {
+            Choreographer.getInstance().postFrameCallback(this)
+        }
     }
 
 
@@ -519,6 +536,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+
+        isRunning = false
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
@@ -531,6 +550,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
+        isRunning = true
+
         val detachedState = _detachedState
         if (detachedState != null) {
             play(detachedState.playingAnimationsNames, areStateMachines = false)
@@ -540,14 +561,18 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         holder.addCallback(this)
         Choreographer.getInstance().postFrameCallback(this)
-        startFrameMetrics()
+//        startFrameMetrics()
     }
 
     @TargetApi(Build.VERSION_CODES.N)
     private fun startFrameMetrics() {
-        println("Starting frame metrics?!")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            frameMetricsListener = RendererMetrics(activity)
+            frameMetricsListener = RendererMetrics(activity).also {
+                activity.window.addOnFrameMetricsAvailableListener(
+                    it,
+                    Handler(Looper.getMainLooper())
+                )
+            }
         } else {
             Log.w(
                 "RiveAnimationView",
