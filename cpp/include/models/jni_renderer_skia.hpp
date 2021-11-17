@@ -31,8 +31,6 @@
 using namespace std::chrono_literals;
 
 // TODO:
-// - Split into draw()/advance()
-// - Segfault on destructor?!
 // - Move tracing function
 //    - in initializer?
 //    - in custom tracer object?
@@ -111,7 +109,6 @@ namespace rive_android
                  nWindow = window;
                  if (!threadState->setWindow(window))
                  {
-                   LOGE("Failed to set window");
                    return;
                  }
 
