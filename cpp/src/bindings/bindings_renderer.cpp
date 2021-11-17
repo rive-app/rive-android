@@ -1,3 +1,11 @@
+#include <jni.h>
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <thread>
+#include <cassert>
+#include <android/native_window_jni.h>
+
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
@@ -5,12 +13,6 @@
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
 #include "rive/artboard.hpp"
-#include <jni.h>
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <thread>
-#include <cassert>
 
 #ifdef __cplusplus
 extern "C"
@@ -217,6 +219,15 @@ extern "C"
         jlong rendererRef)
     {
         reinterpret_cast<JNIRendererSkia *>(rendererRef)->startFrame();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSwappy_cppSetSurface(
+        JNIEnv *env, jobject,
+        jobject surface, jlong rendererRef)
+    {
+        ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
+        reinterpret_cast<JNIRendererSkia *>(rendererRef)->setWindow(surfaceWindow);
     }
 
     JNIEXPORT void JNICALL
