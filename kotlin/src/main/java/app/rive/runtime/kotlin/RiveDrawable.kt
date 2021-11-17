@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin
 import android.graphics.Rect
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
+import app.rive.runtime.kotlin.renderers.RendererSwappy
 
 class RiveDrawable(
     fit: Fit = Fit.CONTAIN,
@@ -13,7 +14,8 @@ class RiveDrawable(
     var animationName: String? = null,
     var stateMachineName: String? = null,
     var autoplay: Boolean = true
-) : Observable<RiveDrawable.Listener> {
+) : Observable<RiveDrawable.Listener>,
+    RendererSwappy() {
     // PRIVATE
     private var listeners = HashSet<RiveDrawable.Listener>()
     var targetBounds: AABB = AABB(0f, 0f)
@@ -52,7 +54,15 @@ class RiveDrawable(
     val isPlaying: Boolean
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
-    fun advance(elapsed: Float): Boolean {
+    override fun draw() {
+        activeArtboard?.drawSkia(
+            address,
+            fit,
+            alignment
+        )
+    }
+
+    override fun advance(elapsed: Float) {
         activeArtboard?.let { ab ->
             // animations could change, lets cut a list.
             // order of animations is important.....
@@ -88,11 +98,8 @@ class RiveDrawable(
         }
 
         if (!isPlaying) {
-            println("Not playing anymore!!")
-//            animator.pause()
-            return false
+            stop()
         }
-        return true
     }
 
     // PUBLIC FUNCTIONS
