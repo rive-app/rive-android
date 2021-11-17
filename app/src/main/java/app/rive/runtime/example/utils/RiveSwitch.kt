@@ -59,7 +59,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
                     riveDrawable.setBooleanState(it, booleanStateInput, isChecked)
                     riveDrawable.play(it, isStateMachine = true)
                 }
-                background = riveDrawable
+//                background = riveDrawable
             } finally {
                 recycle()
             }
@@ -68,7 +68,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
     private fun setCheckedAnimation(checked: Boolean){
         riveDrawable?.let{
-            it.stop()
+            it.stopAnimations()
             if (checked) {
                 it.play(onAnimation)
             } else {

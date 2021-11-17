@@ -28,7 +28,7 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
                 var riveFile = File(resourceBytes)
                 riveDrawable = RiveDrawable(autoplay = false)
                 riveDrawable.setRiveFile(riveFile)
-                background = riveDrawable
+//                background = riveDrawable
 
             } finally {
                 recycle()
@@ -39,11 +39,11 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     override fun performClick(): Boolean {
         pressAnimation?.let {
-            riveDrawable.stop()
+            riveDrawable.stopAnimations()
             riveDrawable.play(it)
             return true
         } ?: run {
-            riveDrawable.stop()
+            riveDrawable.stopAnimations()
             riveDrawable.play()
         }
         return super.performClick()
