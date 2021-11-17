@@ -138,7 +138,6 @@ class RiveDrawable(
         animations.clear()
         playingStateMachines.clear()
         stateMachines.clear()
-
     }
 
     fun reset() {
