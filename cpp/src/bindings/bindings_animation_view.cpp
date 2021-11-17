@@ -2,7 +2,6 @@
 #include <string>
 
 #include <jni.h>
-#include <android/native_window_jni.h>
 
 #include "models/jni_renderer_skia.hpp"
 
@@ -96,16 +95,6 @@ extern "C"
     Swappy_setThreadFunctions(&sThreadFunctions);
     SwappyGL_init(env, activity);
     SwappyGL_setSwapIntervalNS(initialSwapIntervalNS);
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveAnimationView_cppSetViewport(
-      JNIEnv *env, jobject,
-      jobject surface, jlong rendererAddr)
-  {
-    ANativeWindow *surfaceWindow = ANativeWindow_fromSurface(env, surface);
-    auto skiaRenderer = (JNIRendererSkia *)rendererAddr;
-    skiaRenderer->setWindow(surfaceWindow);
   }
 
   JNIEXPORT void JNICALL
