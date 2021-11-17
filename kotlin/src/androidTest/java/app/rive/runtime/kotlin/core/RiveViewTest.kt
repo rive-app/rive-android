@@ -452,7 +452,7 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             view.play("one", Loop.PINGPONG)
-            view.drawable.advance(100f)
+            view.drawable.advance(0.1f)
 
             assertEquals(0.1f, view.animations.first().time)
             view.stop("one")
@@ -471,7 +471,7 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             view.play("one", Loop.PINGPONG)
-            view.drawable.advance(100f)
+            view.drawable.advance(0.1f)
 
             assertEquals(0.1f, view.animations.first().time)
             view.pause("one")
