@@ -337,12 +337,14 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let { theText ->
-                    val textView = TextView(that)
-                    textView.text = "Play $theText"
-                    events.addView(textView, 0)
-                    playButtonMap[theText]?.background?.setTint(Color.GREEN)
-                    pauseButtonMap[theText]?.background?.setTint(Color.WHITE)
-                    stopButtonMap[theText]?.background?.setTint(Color.WHITE)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Play $theText"
+                        events.addView(textView, 0)
+                        playButtonMap[theText]?.background?.setTint(Color.GREEN)
+                        pauseButtonMap[theText]?.background?.setTint(Color.WHITE)
+                        stopButtonMap[theText]?.background?.setTint(Color.WHITE)
+                    }
                 }
             }
 
@@ -354,12 +356,14 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let {
-                    val textView = TextView(that)
-                    textView.text = "Pause $text"
-                    events.addView(textView, 0)
-                    playButtonMap[text]?.background?.setTint(Color.WHITE)
-                    pauseButtonMap[text]?.background?.setTint(Color.BLUE)
-                    stopButtonMap[text]?.background?.setTint(Color.WHITE)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Pause $text"
+                        events.addView(textView, 0)
+                        playButtonMap[text]?.background?.setTint(Color.WHITE)
+                        pauseButtonMap[text]?.background?.setTint(Color.BLUE)
+                        stopButtonMap[text]?.background?.setTint(Color.WHITE)
+                    }
                 }
             }
 
@@ -371,28 +375,33 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let {
-                    val textView = TextView(that)
-                    textView.text = "Stop $text"
-                    events.addView(textView, 0)
-                    playButtonMap[text]?.background?.setTint(Color.WHITE)
-                    pauseButtonMap[text]?.background?.setTint(Color.WHITE)
-                    stopButtonMap[text]?.background?.setTint(Color.RED)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Stop $text"
+                        events.addView(textView, 0)
+                        playButtonMap[text]?.background?.setTint(Color.WHITE)
+                        pauseButtonMap[text]?.background?.setTint(Color.WHITE)
+                        stopButtonMap[text]?.background?.setTint(Color.RED)
+                    }
                 }
             }
 
             override fun notifyLoop(animation: PlayableInstance) {
                 if (animation is LinearAnimationInstance) {
-                    val text = TextView(that)
-                    text.text = "Loop ${animation.animation.name}"
-                    events.addView(text, 0)
+                    runOnUiThread {
+                        val text = TextView(that)
+                        text.text = "Loop ${animation.animation.name}"
+                        events.addView(text, 0)
+                    }
                 }
             }
 
             override fun notifyStateChanged(stateMachineName: String, stateName: String) {
-
-                val text = TextView(that)
-                text.text = "$stateMachineName: State Changed: $stateName"
-                events.addView(text, 0)
+                runOnUiThread {
+                    val text = TextView(that)
+                    text.text = "$stateMachineName: State Changed: $stateName"
+                    events.addView(text, 0)
+                }
             }
         }
 
