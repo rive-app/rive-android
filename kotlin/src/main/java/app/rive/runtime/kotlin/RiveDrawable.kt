@@ -133,8 +133,7 @@ class RiveDrawable(
     }
 
     fun clear() {
-//        animator.cancel()
-//        animator.currentPlayTime = 0
+        stop()
         playingAnimations.clear()
         animations.clear()
         playingStateMachines.clear()
@@ -159,7 +158,7 @@ class RiveDrawable(
         animationNames.forEach {
             _playAnimation(it, loop, direction, areStateMachines)
         }
-//        animator.start()
+        start()
     }
 
     fun play(
@@ -169,7 +168,7 @@ class RiveDrawable(
         isStateMachine: Boolean = false,
     ) {
         _playAnimation(animationName, loop, direction, isStateMachine)
-//        animator.start()
+        start()
     }
 
     fun play(
@@ -183,7 +182,7 @@ class RiveDrawable(
                 _playAnimation(it.stateMachineNames.first(), loop, direction, true)
             }
         }
-//        animator.start()
+        start()
     }
 
     fun pause() {
@@ -266,7 +265,7 @@ class RiveDrawable(
             (it.input(inputName) as SMITrigger).fire()
             _play(it)
         }
-//        animator.start()
+        start()
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
@@ -275,7 +274,7 @@ class RiveDrawable(
             (it.input(inputName) as SMIBoolean).value = value
             _play(it)
         }
-//        animator.start()
+        start()
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
@@ -284,7 +283,7 @@ class RiveDrawable(
             (it.input(inputName) as SMINumber).value = value
             _play(it)
         }
-//        animator.start()
+        start()
     }
 
     // PRIVATE FUNCTIONS
