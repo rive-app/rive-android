@@ -4,22 +4,6 @@ import android.util.Log
 import app.rive.runtime.kotlin.RiveDrawable
 import app.rive.runtime.kotlin.core.*
 
-class ArtboardRenderer(private val artboardProvider: RiveDrawable) : RendererSwappy() {
-    override fun draw() {
-        artboardProvider.activeArtboard?.drawSkia(
-            address,
-            artboardProvider.fit,
-            artboardProvider.alignment
-        )
-    }
-
-    override fun advance(elapsed: Float) {
-        if (!artboardProvider.advance(elapsed)) {
-            stop()
-        }
-    }
-}
-
 abstract class RendererSwappy : BaseRenderer() {
     final override var cppPointer: Long = constructor()
 

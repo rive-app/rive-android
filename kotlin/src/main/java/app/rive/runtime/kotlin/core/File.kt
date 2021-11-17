@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.ArtboardException
+import app.rive.runtime.kotlin.core.errors.RiveException
 
 /**
  * [File]s are created in the rive editor.
@@ -37,7 +38,7 @@ class File(bytes: ByteArray) {
     val firstArtboard: Artboard
         @Throws(RiveException::class)
         get() {
-            var artboardPointer = cppArtboard(cppPointer)
+            val artboardPointer = cppArtboard(cppPointer)
             if (artboardPointer == 0L) {
                 throw ArtboardException("No Artboard found.")
             }
@@ -54,9 +55,17 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
-        var artboardPointer = cppArtboardByName(cppPointer, name)
+        val artboardPointer = cppArtboardByName(cppPointer, name)
         if (artboardPointer == 0L) {
-            throw ArtboardException("Artboard $name not found.")
+            throw ArtboardException(
+                "Artboard \"$name\" not found.\nAvailable Artboards:\n${
+                    artboardNames.forEach {
+                        println(
+                            "- \"$it\""
+                        )
+                    }
+                }"
+            )
         }
 
         return Artboard(
@@ -71,7 +80,7 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(index: Int): Artboard {
-        var cppPointer = cppArtboardByIndex(cppPointer, index)
+        val cppPointer = cppArtboardByIndex(cppPointer, index)
         if (cppPointer == 0L) {
             throw ArtboardException("No Artboard found at index $index.")
         }
