@@ -38,6 +38,5 @@ class MetricsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_metrics)
         // Make sure this is initialized.
         initSubView()
-        // TODO: add a second view here to check that it still works.
     }
 }

@@ -1,8 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
 import android.util.Log
-import app.rive.runtime.kotlin.RiveDrawable
-import app.rive.runtime.kotlin.core.*
 
 abstract class RendererSwappy : BaseRenderer() {
     final override var cppPointer: Long = constructor()
@@ -10,6 +8,7 @@ abstract class RendererSwappy : BaseRenderer() {
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStop(rendererPointer: Long)
     private external fun cppStart(rendererPointer: Long)
+    private external fun cppClearSurface(rendererPointer: Long)
 
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(): Long
@@ -26,5 +25,17 @@ abstract class RendererSwappy : BaseRenderer() {
     // Stop rendering thread.
     fun stop() {
         cppStop(cppPointer)
+    }
+
+    fun clearSurface() {
+        cppClearSurface(cppPointer)
+    }
+
+    /**
+     * Remove the [Renderer] object from memory.
+     */
+    fun cleanup() {
+        cleanupJNI(cppPointer)
+        cppPointer = 0
     }
 }
