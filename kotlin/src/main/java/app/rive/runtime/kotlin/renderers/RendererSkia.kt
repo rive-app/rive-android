@@ -27,5 +27,4 @@ abstract class RendererSwappy : BaseRenderer() {
     fun stop() {
         cppStop(cppPointer)
     }
-
 }
