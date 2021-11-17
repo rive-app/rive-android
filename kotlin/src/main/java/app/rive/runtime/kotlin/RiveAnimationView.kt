@@ -206,7 +206,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        cppSetViewport(holder.surface, drawable.address)
+        Log.d(TAG, "surfaceChanged(format: $format, width: $width, height: $height)")
+        drawable.setSurface(holder.surface)
         drawable.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 

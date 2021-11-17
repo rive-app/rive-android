@@ -56,7 +56,7 @@ class RiveDrawable(
 
     override fun draw() {
         activeArtboard?.drawSkia(
-            address,
+            cppPointer,
             fit,
             alignment
         )
