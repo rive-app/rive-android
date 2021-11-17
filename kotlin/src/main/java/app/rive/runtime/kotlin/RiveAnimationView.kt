@@ -11,7 +11,6 @@ import android.util.Log
 import android.view.*
 import androidx.annotation.RawRes
 import app.rive.runtime.kotlin.core.*
-import app.rive.runtime.kotlin.renderers.ArtboardRenderer
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
@@ -63,7 +62,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     val drawable = RiveDrawable()
-    private val artboardRenderer = ArtboardRenderer(drawable)
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
@@ -192,16 +190,16 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        artboardRenderer.start()
+        drawable.start()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        cppSetViewport(holder.surface, artboardRenderer.address)
+        cppSetViewport(holder.surface, drawable.address)
         drawable.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        artboardRenderer.stop()
+        drawable.stop()
         cppClearSurface()
     }
 
