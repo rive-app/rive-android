@@ -1,6 +1,10 @@
 #include "helpers/general.hpp"
 #include <jni.h>
 
+#ifdef DEBUG
+#include <thread>
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -11,8 +15,15 @@ extern "C"
         JNIEnv *env,
         jobject thisObj)
     {
-        // pretty much considered the entrypoint.
-        env->GetJavaVM(&::globalJavaVM);
+#ifdef DEBUG
+        // luigi: again ifdef this out for release (or murder completely, but
+        // it's nice to catch all fprintf to stderr).
+        std::thread t(logThread);
+        // detach so it outlives the ref
+        t.detach();
+#endif
+            // pretty much considered the entrypoint.
+            env->GetJavaVM(&::globalJavaVM);
     }
 
 #ifdef __cplusplus
