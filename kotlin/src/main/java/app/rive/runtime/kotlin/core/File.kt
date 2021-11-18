@@ -58,13 +58,9 @@ class File(bytes: ByteArray) {
         val artboardPointer = cppArtboardByName(cppPointer, name)
         if (artboardPointer == 0L) {
             throw ArtboardException(
-                "Artboard \"$name\" not found.\nAvailable Artboards:\n${
-                    artboardNames.forEach {
-                        println(
-                            "- \"$it\""
-                        )
-                    }
-                }"
+                "Artboard \"$name\" not found. Available Artboards: ${artboardNames.map { 
+                    "\"$it\""
+                }}"
             )
         }
 
