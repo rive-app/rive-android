@@ -82,7 +82,7 @@ class RiveDrawable(
             stateMachines.toList().forEach { stateMachineInstance ->
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying = stateMachineInstance.advance(ab, elapsed)
+                    val stillPlaying = stateMachineInstance.apply(ab, elapsed)
 
                     stateMachineInstance.statesChanged.forEach {
                         notifyStateChanged(stateMachineInstance, it)

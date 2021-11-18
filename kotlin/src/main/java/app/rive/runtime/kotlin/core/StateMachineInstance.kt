@@ -35,12 +35,8 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
-    fun advance(artboard: Artboard, elapsedTime: Float): Boolean {
-        return cppAdvance(cppPointer, artboard.cppPointer, elapsedTime)
-    }
-
-    override fun apply(artboard: Artboard, elapsedTime: Float): Boolean {
-        return cppAdvance(cppPointer, artboard.cppPointer, elapsedTime)
+    override fun apply(artboard: Artboard, elapsed: Float): Boolean {
+        return cppAdvance(cppPointer, artboard.cppPointer, elapsed)
     }
 
     /**
