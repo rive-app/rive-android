@@ -1,7 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -10,10 +10,11 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineLoadTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun loadStateMachineFirstStateMachine() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard1")
 
@@ -25,7 +26,6 @@ class RiveStateMachineLoadTest {
 
     @Test
     fun loadStateMachineSecondStateMachine() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard2")
         var artboard2stateMachine1 = artboard.stateMachine(0)
@@ -35,13 +35,16 @@ class RiveStateMachineLoadTest {
         var artboard2stateMachine2 = artboard.stateMachine(1)
         var artboard2stateMachine2Alt = artboard.stateMachine("artboard2stateMachine2")
         assertEquals(artboard2stateMachine2Alt.cppPointer, artboard2stateMachine2.cppPointer)
-        assertEquals(listOf("artboard2stateMachine1", "artboard2stateMachine2"), artboard.stateMachineNames)
+        assertEquals(
+            listOf("artboard2stateMachine1", "artboard2stateMachine2"),
+            artboard.stateMachineNames
+        )
     }
 
     @Test
     fun artboardHasNoStateMachines() {
-        val appContext = initTests()
-        var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
+        val bytes = appContext.resources.openRawResource(R.raw.noanimation).readBytes()
+        val file = File(bytes)
         var artboard = file.firstArtboard
         assertEquals(0, artboard.stateMachineCount)
         assertEquals(listOf<String>(), artboard.stateMachineNames)
@@ -49,7 +52,6 @@ class RiveStateMachineLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadFirstStateMachineNoExists() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.firstStateMachine
@@ -57,7 +59,6 @@ class RiveStateMachineLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadStateMachineByIndexDoesntExist() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.stateMachine(1)
@@ -65,7 +66,6 @@ class RiveStateMachineLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadStateMachineByNameDoesntExist() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.stateMachine("foo")
