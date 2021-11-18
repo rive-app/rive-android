@@ -26,7 +26,7 @@ class RiveViewTest {
     }
 
     @Test
-    fun viewDefaultsLoadResouce() {
+    fun viewDefaultsLoadResource() {
         UiThreadStatement.runOnUiThread {
 
             val view = RiveAnimationView(appContext)
