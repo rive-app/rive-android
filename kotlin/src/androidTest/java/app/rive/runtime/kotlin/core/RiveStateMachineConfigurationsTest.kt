@@ -9,10 +9,11 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineConfigurationsTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun nothing() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -24,7 +25,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun one_layer() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -37,7 +37,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun two_layers() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -49,7 +48,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun number_input() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -67,7 +65,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun boolean_input() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -85,7 +82,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun trigger_input() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
@@ -103,7 +99,6 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun mixed() {
-        val appContext = initTests()
         var file =
             File(
                 appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()

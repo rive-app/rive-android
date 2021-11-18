@@ -10,9 +10,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardLoadTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
     @Test
     fun loadArtboard() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         // Access an artboard can bail when we don't have one.
         file.firstArtboard
@@ -31,14 +32,12 @@ class RiveArtboardLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadArtboardNoArtboard() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
         file.firstArtboard
     }
 
     @Test
     fun loadArtboardNoArtboardCheck() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
         assertEquals(0, file.artboardCount);
         assertEquals(listOf<String>(), file.artboardNames)
@@ -46,7 +45,6 @@ class RiveArtboardLoadTest {
 
     @Test
     fun loadArtboardOne() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
         assertEquals(1, artboard1.animationCount);
@@ -58,7 +56,6 @@ class RiveArtboardLoadTest {
 
     @Test
     fun loadArtboardTwo() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
         assertEquals(2, artboard2.animationCount);
@@ -68,14 +65,12 @@ class RiveArtboardLoadTest {
 
     @Test(expected = RiveException::class)
     fun loadArtboardThree() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         file.artboard(name = "artboard3")
     }
 
     @Test(expected = RiveException::class)
     fun loadArtboardThreeAlt() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         file.artboard(2)
     }
@@ -83,7 +78,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesRect() {
         // TODO: access properties once exposed & attempt drawing?
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "rect")
         // can we do a draw check?
@@ -92,7 +86,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesEllipse() {
         // TODO: access properties once exposed & attempt drawing?
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "ellipse")
     }
@@ -100,7 +93,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesTriangle() {
         // TODO: access properties once exposed & attempt drawing?
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "triangle")
     }
@@ -108,7 +100,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesPolygon() {
         // TODO: access properties once exposed & attempt drawing?
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "polygon")
     }
@@ -116,7 +107,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesStar() {
         // TODO: access properties once exposed & attempt drawing?
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "star")
     }
@@ -124,7 +114,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesPen() {
         // TODO: access properties once exposed & attempt drawing?¬
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "pen")
     }
@@ -132,7 +121,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesGroups() {
         // TODO: access properties once exposed & attempt drawing?¬
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "groups")
     }
@@ -140,7 +128,6 @@ class RiveArtboardLoadTest {
     @Test
     fun loadShapesBone() {
         // TODO: access properties once exposed & attempt drawing?¬
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.shapes).readBytes())
         file.artboard(name = "bone")
     }
