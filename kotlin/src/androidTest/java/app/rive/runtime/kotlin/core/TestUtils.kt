@@ -2,14 +2,31 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
-import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.renderers.RendererSwappy
 import org.junit.Assert.assertEquals
 
 
-fun initTests(): Context {
-    val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-    assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
+class TestUtils {
+    private lateinit var testRenderer: MockRenderer
 
-    Rive.init(appContext)
-    return appContext
+    val context: Context by lazy {
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
+
+        Rive.init(appContext)
+        testRenderer = MockRenderer()
+
+        appContext
+    }
+
+
+    private class MockRenderer : RendererSwappy() {
+        init {
+            println("Got this mock initialized!")
+        }
+
+        override fun draw() {}
+        override fun advance(elapsed: Float) {}
+    }
 }
+
