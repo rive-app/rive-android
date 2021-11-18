@@ -1,8 +1,4 @@
 #include <jni.h>
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <thread>
 #include <cassert>
 #include <android/native_window_jni.h>
 
@@ -87,32 +83,8 @@ extern "C"
         artboard->draw(renderer);
     }
 
-    // luigi: this redirects stderr to android log (probably want to ifdef this out for release)
-    void logThread()
-    {
-        int pipes[2];
-        pipe(pipes);
-        dup2(pipes[1], STDERR_FILENO);
-        FILE *inputFile = fdopen(pipes[0], "r");
-        char readBuffer[256];
-        while (1)
-        {
-            fgets(readBuffer, sizeof(readBuffer), inputFile);
-            __android_log_write(2, "stderr", readBuffer);
-        }
-    }
-
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_constructor(JNIEnv *env, jobject thisObj)
     {
-        // luigi: again ifdef this out for release (or murder completely, but
-        // it's nice to catch all fprintf to stderr). Bad place to put this but
-        // for now we instance the renderer once and I just wanted to throw this
-        // in somewhere. Basically needs to be called once at boot to spawn a
-        // thread that listens to stderr and redirects to android log.
-        std::thread t(logThread);
-        // detach so it outlives the ref
-        t.detach();
-
         auto renderer = new ::JNIRendererGL();
         g_JNIRenderer = renderer;
         renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
@@ -186,15 +158,6 @@ extern "C"
         JNIEnv *env,
         jobject ktRendererSkia)
     {
-        // luigi: again ifdef this out for release (or murder completely, but
-        // it's nice to catch all fprintf to stderr). Bad place to put this but
-        // for now we instance the renderer once and I just wanted to throw this
-        // in somewhere. Basically needs to be called once at boot to spawn a
-        // thread that listens to stderr and redirects to android log.
-        std::thread t(logThread);
-        // detach so it outlives the ref
-        t.detach();
-
         auto renderer = new JNIRendererSkia(ktRendererSkia);
         g_JNIRenderer = renderer;
         return (jlong)renderer;

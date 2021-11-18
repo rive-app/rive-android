@@ -8,6 +8,7 @@ ARCH_ARM=armeabi-v7a
 ARCH_ARM64=arm64-v8a
 
 NEEDS_CLEAN='false'
+FLAGS=
 
 usage() {
     printf "Usage: %s -a arch [-c]" "$0"
@@ -27,11 +28,12 @@ if [ -z "$HOST_TAG" ]; then
     exit 1
 fi
 
-while getopts "a:c" opt; do
+while getopts "a:cd" opt; do
     case "$opt" in
     a) ARCH_NAME="$OPTARG" ;;
     c) NEEDS_CLEAN="true" ;;
-    ?) usage ;; # Print usage in case parameter is non-existent
+    d) FLAGS+="${FLAGS} -DDEBUG" ;;
+    \?) usage ;; # Print usage in case parameter is non-existent
     esac
 done
 
@@ -52,7 +54,7 @@ export LIBRIVE=$PWD/../submodules/rive-cpp
 export SYSROOT=$TOOLCHAIN/sysroot
 export INCLUDE=$SYSROOT/usr/include
 export INCLUDE_CXX=$INCLUDE/c++/v1
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
 export AR=$TOOLCHAIN/bin/llvm-ar
 
 SKIA_ARCH=
