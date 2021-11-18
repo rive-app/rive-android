@@ -90,7 +90,10 @@ class Artboard(val cppPointer: Long) {
     fun animation(name: String): Animation {
         val animationPointer = cppAnimationByName(cppPointer, name)
         if (animationPointer == 0L) {
-            throw AnimationException("No Animation found with name $name.")
+            throw AnimationException(
+                "Animation \"$name\" not found. " +
+                        "Available Animations: ${animationNames.map { "\"$it\"" }}\""
+            )
         }
         return Animation(
             animationPointer

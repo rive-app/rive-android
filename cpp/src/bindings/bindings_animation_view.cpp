@@ -86,6 +86,7 @@ extern "C"
       JNIEnv *env, jobject view,
       jobject activity, jlong initialSwapIntervalNS)
   {
+    // Source: https://android.googlesource.com/platform/frameworks/opt/gamesdk/+/refs/heads/master/samples/bouncyball/app/src/main/cpp/Orbit.cpp#85
     // Should never happen
     if (Swappy_version() != SWAPPY_PACKED_VERSION)
     {

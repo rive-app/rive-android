@@ -30,13 +30,11 @@ class RiveDrawable(
     var fit: Fit = fit
         set(value) {
             field = value
-//            invalidateSelf()
         }
     var alignment: Alignment = alignment
         get() = field
         set(value) {
             field = value
-//            invalidateSelf()
         }
     var animations = mutableListOf<LinearAnimationInstance>()
     var stateMachines = mutableListOf<StateMachineInstance>()
