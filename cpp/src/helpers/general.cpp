@@ -5,6 +5,12 @@
 #include "rive/file.hpp"
 #include "rive/layout.hpp"
 
+#ifdef DEBUG
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
+#endif
+
 // luigi: murdered this due to our single renderer model right now...all canvas rendering won't work in this branch
 // lets make sure we stich our rive android renderers into the rive namespace
 // namespace rive
@@ -43,10 +49,11 @@ namespace rive_android
 		return g_env;
 	}
 
-	void logReferenceTables() {
+	void logReferenceTables()
+	{
 		jclass vm_class = getJNIEnv()->FindClass("dalvik/system/VMDebug");
-		jmethodID dump_mid = getJNIEnv()->GetStaticMethodID( vm_class, "dumpReferenceTables", "()V" );
-		getJNIEnv()->CallStaticVoidMethod( vm_class, dump_mid );
+		jmethodID dump_mid = getJNIEnv()->GetStaticMethodID(vm_class, "dumpReferenceTables", "()V");
+		getJNIEnv()->CallStaticVoidMethod(vm_class, dump_mid);
 	}
 
 	void setSDKVersion()
@@ -169,5 +176,19 @@ namespace rive_android
 		std::string str = std::string(cstr);
 		return str;
 	}
-
+#ifdef DEBUG
+	void logThread()
+	{
+		int pipes[2];
+		pipe(pipes);
+		dup2(pipes[1], STDERR_FILENO);
+		FILE *inputFile = fdopen(pipes[0], "r");
+		char readBuffer[256];
+		while (1)
+		{
+			fgets(readBuffer, sizeof(readBuffer), inputFile);
+			__android_log_write(2, "stderr", readBuffer);
+		}
+	}
+#endif
 } // namespace rive_android

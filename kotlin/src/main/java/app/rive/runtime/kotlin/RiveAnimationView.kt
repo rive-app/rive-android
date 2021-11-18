@@ -594,19 +594,16 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
+        val providedWidth = when (widthMode) {
+            MeasureSpec.UNSPECIFIED -> suggestedMinimumWidth
+            else -> MeasureSpec.getSize(widthMeasureSpec)
+        }
+
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
-
-        val providedWidth = MeasureSpec.getSize(widthMeasureSpec)
-        val providedHeight = MeasureSpec.getSize(heightMeasureSpec)
-
-//        if (widthMode == MeasureSpec.UNSPECIFIED) {
-//            // Width is set to "whatever" we should ask our artboard?
-//            providedWidth = drawable.intrinsicWidth
-//        }
-//        if (heightMode == MeasureSpec.UNSPECIFIED) {
-//            // Height is set to "whatever" we should ask our artboard?
-//            providedHeight = drawable.intrinsicHeight
-//        }
+        val providedHeight = when (heightMode) {
+            MeasureSpec.UNSPECIFIED -> suggestedMinimumHeight
+            else -> MeasureSpec.getSize(heightMeasureSpec)
+        }
 
         // Lets work out how much space our artboard is going to actually use.
         val usedBounds = Rive.calculateRequiredBounds(
@@ -623,7 +620,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             else ->
                 usedBounds.width.toInt()
         }
-        MeasureSpec.UNSPECIFIED
 
         val height: Int = when (heightMode) {
             MeasureSpec.EXACTLY -> providedHeight
