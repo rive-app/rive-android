@@ -235,7 +235,6 @@ extern "C"
         JNIEnv *, jobject,
         jlong rendererRef)
     {
-        LOGI("I'm clearing the surface here for this renderer...");
         reinterpret_cast<JNIRendererSkia *>(rendererRef)->setWindow(nullptr);
     }
 
