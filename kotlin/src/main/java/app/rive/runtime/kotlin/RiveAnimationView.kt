@@ -187,6 +187,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     drawable.artboardName = artboardName
                     drawable.animationName = animationName
                     drawable.stateMachineName = stateMachineName
+                    drawable.advance(0.0f)
 
                     // If a URL has been provided, initiate downloading
                     url?.let {
@@ -529,9 +530,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         drawable.artboardName = artboardName
 
         drawable.setRiveFile(file)
-//        background = drawable
-
-//        requestLayout()
+        drawable.advance(0.0f)
     }
 
     override fun onDetachedFromWindow() {

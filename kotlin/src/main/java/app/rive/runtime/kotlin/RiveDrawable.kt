@@ -345,9 +345,7 @@ class RiveDrawable(
 
     }
 
-    private fun _play(
-        stateMachineInstance: StateMachineInstance,
-    ) {
+    private fun _play(stateMachineInstance: StateMachineInstance) {
         if (!stateMachines.contains(stateMachineInstance)) {
             stateMachines.add(stateMachineInstance)
         }
