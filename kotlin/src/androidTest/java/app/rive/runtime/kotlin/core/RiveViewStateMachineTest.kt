@@ -70,7 +70,6 @@ class RiveViewStateMachineTest {
         UiThreadStatement.runOnUiThread {
             // state machine four's has transitions that happen instantly, so we do not stick on
             // a state that's playing an animation
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
             assertEquals(false, view.isPlaying)
@@ -82,7 +81,6 @@ class RiveViewStateMachineTest {
     @Test
     fun viewStateMachinesPause() {
         UiThreadStatement.runOnUiThread {
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(true, view.isPlaying)
