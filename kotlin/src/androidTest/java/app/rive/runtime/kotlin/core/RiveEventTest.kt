@@ -6,7 +6,6 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveDrawable
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -40,11 +39,12 @@ class Observer : RiveDrawable.Listener {
 
 @RunWith(AndroidJUnit4::class)
 class RiveEventTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun testRegisterOrder() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -59,7 +59,6 @@ class RiveEventTest {
     @Test
     fun testPlayEvent() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -75,7 +74,6 @@ class RiveEventTest {
     @Test
     fun testPlayEventAlreadyPlaying() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -94,7 +92,6 @@ class RiveEventTest {
     @Test
     fun testPauseEvent() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -112,7 +109,6 @@ class RiveEventTest {
     @Test
     fun testPauseEventNotPlaying() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -129,7 +125,6 @@ class RiveEventTest {
     @Test
     fun testStopEvent() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -147,7 +142,6 @@ class RiveEventTest {
     @Test
     fun testStopEventNotPlaying() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -163,7 +157,6 @@ class RiveEventTest {
     @Test
     fun testLoopOneshot() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -187,7 +180,6 @@ class RiveEventTest {
     @Test
     fun testLoopLoop() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -211,7 +203,6 @@ class RiveEventTest {
     @Test
     fun testLoopPingPong() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
@@ -235,7 +226,6 @@ class RiveEventTest {
     @Test
     fun testStateMachineLayerStates() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -253,7 +243,6 @@ class RiveEventTest {
     @Test
     fun testStateMachineLayerStatesAnimations() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -315,7 +304,6 @@ class RiveEventTest {
     @Test
     fun testStateMachineLayerStatesAnimationsDoubleChange() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -336,7 +324,6 @@ class RiveEventTest {
     @Test
     fun viewBlendState1DBroken() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -352,7 +339,6 @@ class RiveEventTest {
     @Test
     fun viewBlendStateDirectBroken() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -368,7 +354,6 @@ class RiveEventTest {
     @Test
     fun viewBlendState1D() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
@@ -384,7 +369,6 @@ class RiveEventTest {
     @Test
     fun viewBlendStateDirect() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val observer = Observer()
 
             val view = RiveAnimationView(appContext)
