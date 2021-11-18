@@ -17,22 +17,24 @@ class Observer : RiveDrawable.Listener {
     var stops = mutableListOf<PlayableInstance>()
     var loops = mutableListOf<PlayableInstance>()
     var states = mutableListOf<StateChanged>()
-    override fun notifyPlay(playableInstance: PlayableInstance) {
-        plays.add(playableInstance)
+
+    override fun notifyPlay(animation: PlayableInstance) {
+        plays.add(animation)
     }
 
-    override fun notifyPause(playableInstance: PlayableInstance) {
-        pauses.add(playableInstance)
+    override fun notifyPause(animation: PlayableInstance) {
+        pauses.add(animation)
     }
 
-    override fun notifyStop(playableInstance: PlayableInstance) {
-        stops.add(playableInstance)
+    override fun notifyStop(animation: PlayableInstance) {
+        stops.add(animation)
     }
 
-    override fun notifyLoop(playableInstance: PlayableInstance) {
-        loops.add(playableInstance)
+    override fun notifyLoop(animation: PlayableInstance) {
+        loops.add(animation)
     }
-    override fun notifyStateChanged(stateMachineName:String, stateName:String) {
+
+    override fun notifyStateChanged(stateMachineName: String, stateName: String) {
         states.add(StateChanged(stateMachineName, stateName))
     }
 }
@@ -167,7 +169,7 @@ class RiveEventTest {
             view.play("one", Loop.ONESHOT)
 
             view.drawable.advance(
-                view.drawable.animations.first().animation.effectiveDurationInSeconds * 1000 + 1
+                view.drawable.animations.first().animation.effectiveDurationInSeconds + 1
             )
 
             assertEquals(1, observer.plays.size)
@@ -190,7 +192,7 @@ class RiveEventTest {
             view.play("one", Loop.LOOP)
 
             view.drawable.advance(
-                view.drawable.animations.first().animation.effectiveDurationInSeconds * 1000
+                view.drawable.animations.first().animation.effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)
@@ -213,7 +215,7 @@ class RiveEventTest {
             view.play("one", Loop.PINGPONG)
 
             view.drawable.advance(
-                view.drawable.animations.first().animation.effectiveDurationInSeconds * 1000
+                view.drawable.animations.first().animation.effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)
@@ -231,10 +233,11 @@ class RiveEventTest {
             val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
+
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
             assertEquals(true, observer.states[0].stateName == "go right")
-            view.drawable.advance(2000f)
+            view.drawable.advance(2f)
             assertEquals(2, observer.states.size)
             assertEquals(true, observer.states[1].stateName == "ExitState")
         }
@@ -253,49 +256,49 @@ class RiveEventTest {
             view.fireState("State Machine 1", "right")
 
             // lets just start, expect 1 change.
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(1, observer.states.size)
-            assertEquals(true, observer.states[0].stateName =="go right")
+            assertEquals(true, observer.states[0].stateName == "go right")
             observer.states.clear()
 
             // should be in same animation still. no state change
             assertEquals(true, view.isPlaying)
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(0, observer.states.size)
             assertEquals(true, view.isPlaying)
 
             // animation came to an end inside this time period, this still means no state change
-            view.drawable.advance(400f)
+            view.drawable.advance(1.0f)
             assertEquals(false, view.isPlaying)
             assertEquals(0, observer.states.size)
 
             // animation is just kinda stuck there. no change no happening.
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(false, view.isPlaying)
             assertEquals(0, observer.states.size)
 
-            // ok lets change thigns up again.
+            // ok lets change things up again.
             view.fireState("State Machine 1", "change")
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
             observer.states.clear()
 
             // as before lets advance inside the animation -> no change
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(true, view.isPlaying)
             assertEquals(0, observer.states.size)
 
-            // as before lets advance beyond the end of the animaiton, in this case change to exit!
-            view.drawable.advance(400f)
+            // as before lets advance beyond the end of the animation, in this case change to exit!
+            view.drawable.advance(1.0f)
             assertEquals(false, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "ExitState")
             observer.states.clear()
 
             // chill on exit. no change.
-            view.drawable.advance(400f)
+            view.drawable.advance(0.4f)
             assertEquals(false, view.isPlaying)
             assertEquals(0, observer.states.size)
         }
@@ -313,9 +316,11 @@ class RiveEventTest {
 
             view.fireState("State Machine 1", "change")
             // lets just start, expect 1 change.
-            view.drawable.advance(1200f)
-            assertEquals(2, observer.states.size)
+            view.drawable.advance(1f)
+            assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
+            view.drawable.advance(1f)
+            assertEquals(2, observer.states.size)
             assertEquals(true, observer.states[1].stateName == "ExitState")
         }
     }
@@ -330,6 +335,8 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend mix")
+            view.drawable.advance(0.0f)
+
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
@@ -345,6 +352,8 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend other")
+            view.drawable.advance(0.0f)
+
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
@@ -360,6 +369,8 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
             view.fireState("two", "left")
+            view.drawable.advance(0.0f)
+
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
@@ -375,6 +386,8 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
             view.fireState("two", "right")
+            view.drawable.advance(0.0f)
+
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
