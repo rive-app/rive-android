@@ -3,22 +3,22 @@ package app.rive.runtime.kotlin.core
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
 
 @RunWith(AndroidJUnit4::class)
 class RiveViewTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun viewNoDefaults() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
 
             assertEquals(false, view.isPlaying)
@@ -28,7 +28,6 @@ class RiveViewTest {
     @Test
     fun viewDefaultsLoadResouce() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards, autoplay = false)
@@ -46,7 +45,6 @@ class RiveViewTest {
     @Test
     fun viewDefaultsChangeArtboard() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards)
             assertEquals(true, view.isPlaying)
@@ -62,7 +60,6 @@ class RiveViewTest {
     @Test
     fun viewDefaultsNoAutoplay() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.autoplay = false
@@ -84,7 +81,6 @@ class RiveViewTest {
     @Test
     fun viewPause() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards)
@@ -102,7 +98,6 @@ class RiveViewTest {
     @Test
     fun viewPauseOneByOne() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             view.play(listOf("one", "two", "three", "four"))
@@ -144,7 +139,6 @@ class RiveViewTest {
     @Test
     fun viewPauseMultiple() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             view.play(listOf("one", "two", "three", "four"))
@@ -173,7 +167,6 @@ class RiveViewTest {
     @Test
     fun viewPlay() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards, autoplay = false)
@@ -190,7 +183,6 @@ class RiveViewTest {
     @Test
     fun viewPlayOneByOne() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assertEquals(false, view.isPlaying)
@@ -210,7 +202,6 @@ class RiveViewTest {
     @Test(expected = RiveException::class)
     fun viewPlayJunk() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assertEquals(false, view.isPlaying)
@@ -225,7 +216,6 @@ class RiveViewTest {
     @Test
     fun viewPlayMultiple() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assertEquals(false, view.isPlaying)
@@ -245,7 +235,6 @@ class RiveViewTest {
     @Test
     fun viewPlayLoopMode() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
@@ -274,7 +263,6 @@ class RiveViewTest {
     @Test
     fun viewPlayDirection() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
@@ -302,7 +290,6 @@ class RiveViewTest {
     @Test
     fun viewSetResourceLoadArtboard() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
 
             view.setRiveResource(R.raw.multiple_animations)
@@ -322,7 +309,6 @@ class RiveViewTest {
     @Test
     fun viewSetResourceLoadArtboardArtboardGotcha() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
 
             view.setRiveResource(R.raw.multiple_animations, artboardName = "New Artboard")
@@ -333,7 +319,6 @@ class RiveViewTest {
     @Test
     fun viewSetResourceLoadArtboardArtboardGotchaOK() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
 
             view.setRiveResource(R.raw.multiple_animations, artboardName = "New Artboard")
@@ -345,7 +330,6 @@ class RiveViewTest {
     @Test
     fun viewStop() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards)
@@ -363,7 +347,6 @@ class RiveViewTest {
     @Test
     fun viewStopMultiple() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             view.play(listOf("one", "two", "three", "four"))
@@ -404,7 +387,6 @@ class RiveViewTest {
     @Test
     fun viewStopOneByOne() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
             view.play(listOf("one", "two", "three", "four"))
@@ -446,7 +428,6 @@ class RiveViewTest {
     @Test
     fun viewStopAnimationDetailsTime() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
@@ -465,7 +446,6 @@ class RiveViewTest {
     @Test
     fun viewPauseAnimationDetailsTime() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
@@ -487,7 +467,6 @@ class RiveViewTest {
         // pretty basic test. we could start seeing if the artboards properties are reset properly
         // but we actually would need to expose a lot more of that to do this.
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
@@ -503,7 +482,6 @@ class RiveViewTest {
     @Test
     fun viewResetAutoplay() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = true)
