@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin
 
-import android.graphics.Rect
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSwappy
@@ -22,7 +21,6 @@ class RiveDrawable(
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
         private set
-    private var boundsCache: Rect? = null
     private var _playingAnimations = HashSet<LinearAnimationInstance>()
     private var _playingStateMachines = HashSet<StateMachineInstance>()
 
