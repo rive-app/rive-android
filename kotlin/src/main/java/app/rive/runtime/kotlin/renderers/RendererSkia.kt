@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.renderers
 
-import android.util.Log
 import android.view.Surface
 
 abstract class RendererSwappy : BaseRenderer() {
@@ -32,7 +31,7 @@ abstract class RendererSwappy : BaseRenderer() {
         cppStop(cppPointer)
     }
 
-    fun clearSurface() {
+    private fun clearSurface() {
         cppClearSurface(cppPointer)
     }
 
@@ -40,6 +39,8 @@ abstract class RendererSwappy : BaseRenderer() {
      * Remove the [Renderer] object from memory.
      */
     fun cleanup() {
+        stop()
+        clearSurface()
         cleanupJNI(cppPointer)
         cppPointer = 0
     }

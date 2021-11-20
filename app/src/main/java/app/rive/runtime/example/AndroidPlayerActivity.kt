@@ -54,7 +54,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
         }
 
     fun loadResource(index: Int) {
-        animationView.artboardName
         animationView.setRiveResource(animationResources[index], artboardName = null)
         setSpinner()
 
@@ -62,7 +61,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         pauseButtonMap.clear()
         stopButtonMap.clear()
 
-        animationView.drawable.file?.firstArtboard?.name?.let {
+        animationView.renderer.file?.firstArtboard?.name?.let {
             loadArtboard(it)
         }
     }
@@ -245,7 +244,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun loadArtboard(artboardName: String) {
         val controls = findViewById<LinearLayout>(R.id.controls)
         controls.removeAllViews()
-        animationView.drawable.file?.artboard(artboardName)?.let { artboard ->
+        animationView.renderer.file?.artboard(artboardName)?.let { artboard ->
             if (artboard.stateMachineNames.size > 0) {
                 val stateMachineHeader = TextView(this)
                 stateMachineHeader.text = "State Machines:"
@@ -269,7 +268,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     }
 
     fun setSpinner() {
-        animationView.drawable.file?.artboardNames?.let { artboardNames ->
+        animationView.renderer.file?.artboardNames?.let { artboardNames ->
             val dropdown = findViewById<Spinner>(R.id.artboards)
             val adapter = ArrayAdapter<String>(
                 this,
