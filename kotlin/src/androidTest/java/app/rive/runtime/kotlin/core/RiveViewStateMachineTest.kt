@@ -84,7 +84,7 @@ class RiveViewStateMachineTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(true, view.isPlaying)
-            view.drawable.advance(2f)
+            view.renderer.advance(2f)
             assertEquals(false, view.isPlaying)
         }
     }
@@ -97,10 +97,10 @@ class RiveViewStateMachineTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
 
-            assertEquals(1, view.drawable.stateMachines.size)
-            view.drawable.advance(2f)
+            assertEquals(1, view.renderer.stateMachines.size)
+            view.renderer.advance(2f)
             assertEquals(false, view.isPlaying)
-            assertEquals(0, view.drawable.stateMachines.size)
+            assertEquals(0, view.renderer.stateMachines.size)
         }
     }
 

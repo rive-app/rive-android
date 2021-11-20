@@ -1,9 +1,7 @@
 package app.rive.runtime.kotlin
 
 import android.annotation.TargetApi
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import android.graphics.*
 import android.os.Build
 import android.os.Handler
@@ -48,42 +46,38 @@ import java.util.*
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
-    SurfaceView(context, attrs),
-    SurfaceHolder.Callback,
+    RiveSurfaceHolder(context, attrs),
     Choreographer.FrameCallback,
     Observable<RiveDrawable.Listener> {
-
-    private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
-    private external fun cppSetViewport(surface: Surface, rendererAddress: Long)
 
     companion object {
         // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
     }
 
-    val drawable = RiveDrawable()
+    public override val renderer = RiveDrawable()
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
     private var isRunning = true
 
     var fit: Fit
-        get() = drawable.fit
+        get() = renderer.fit
         set(value) {
-            drawable.fit = value
+            renderer.fit = value
         }
 
     var alignment: Alignment
-        get() = drawable.alignment
+        get() = renderer.alignment
         set(value) {
-            drawable.alignment = value
+            renderer.alignment = value
         }
 
     /**
      * Getter for the loaded [Rive file][File].
      */
     val file: File?
-        get() = drawable.file
+        get() = renderer.file
 
     /**
      * Helper for determining performance metrics.
@@ -95,57 +89,43 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Setting a new name, will load the new artboard & depending on [autoplay] play them
      */
     var artboardName: String?
-        get() = drawable.artboardName
+        get() = renderer.artboardName
         set(name) {
-            drawable.setArtboardByName(name)
+            renderer.setArtboardByName(name)
         }
 
     /**
      * Getter/Setter for [autoplay].
      */
     var autoplay: Boolean
-        get() = drawable.autoplay
+        get() = renderer.autoplay
         set(value) {
-            drawable.autoplay = value
+            renderer.autoplay = value
         }
 
     /**
      * Get the currently loaded [animation instances][LinearAnimationInstance].
      */
     val animations: List<LinearAnimationInstance>
-        get() = drawable.animations
+        get() = renderer.animations
 
     /**
      * Get the currently loaded [state machine instances][StateMachineInstance].
      */
     val stateMachines: List<StateMachineInstance>
-        get() = drawable.stateMachines
+        get() = renderer.stateMachines
 
     /**
      * Get the currently playing [animation instances][LinearAnimationInstance].
      */
     val playingAnimations: HashSet<LinearAnimationInstance>
-        get() = drawable.playingAnimations
+        get() = renderer.playingAnimations
 
     /**
      * Get the currently playing [state machine instances][StateMachineInstance].
      */
     val playingStateMachines: HashSet<StateMachineInstance>
-        get() = drawable.playingStateMachines
-
-    private val activity by lazy(LazyThreadSafetyMode.NONE) {
-        // If this fails we have a problem.
-        this.getMaybeActivity()!!
-    }
-
-    private val refreshPeriodNanos: Long by lazy {
-        val msInNS: Long = 1000000
-        val sInNS = 1000 * msInNS
-        // Deprecated in API 30: keep this instead of having two separate paths.
-        @Suppress("DEPRECATION")
-        val refreshRateHz = activity.windowManager.defaultDisplay.refreshRate
-        (sInNS / refreshRateHz).toLong()
-    }
+        get() = renderer.playingStateMachines
 
     init {
         if (Build.VERSION.SDK_INT < 29) {
@@ -180,14 +160,14 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         animationName = animationName,
                     )
                 } else {
-                    drawable.alignment = Alignment.values()[alignmentIndex]
-                    drawable.fit = Fit.values()[fitIndex]
-                    drawable.loop = Loop.values()[loopIndex]
-                    drawable.autoplay = autoplay
-                    drawable.artboardName = artboardName
-                    drawable.animationName = animationName
-                    drawable.stateMachineName = stateMachineName
-                    drawable.advance(0.0f)
+                    renderer.alignment = Alignment.values()[alignmentIndex]
+                    renderer.fit = Fit.values()[fitIndex]
+                    renderer.loop = Loop.values()[loopIndex]
+                    renderer.autoplay = autoplay
+                    renderer.artboardName = artboardName
+                    renderer.animationName = animationName
+                    renderer.stateMachineName = stateMachineName
+                    renderer.advance(0.0f)
 
                     // If a URL has been provided, initiate downloading
                     url?.let {
@@ -200,23 +180,17 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        cppInit(activity, refreshPeriodNanos)
-        drawable.start()
+    override fun onCreate(holder: SurfaceHolder) {
         isRunning = true
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        drawable.setSurface(holder.surface)
-        drawable.targetBounds = AABB(width.toFloat(), height.toFloat())
+        renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         isRunning = false
-
-        drawable.stop()
-        drawable.clearSurface()
-        drawable.cleanup()
+        super.surfaceDestroyed(holder)
     }
 
     override fun doFrame(frameTimeNanos: Long) {
@@ -236,31 +210,19 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-
-    private fun getMaybeActivity(): Activity? {
-        var ctx = context
-        while (ctx is ContextWrapper) {
-            if (ctx is Activity) {
-                return ctx
-            }
-            ctx = ctx.baseContext
-        }
-        return null
-    }
-
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
             { file ->
                 setRiveFile(
                     file,
-                    drawable.artboardName,
-                    drawable.animationName,
-                    drawable.stateMachineName,
-                    drawable.autoplay,
-                    drawable.fit,
-                    drawable.alignment,
-                    drawable.loop
+                    renderer.artboardName,
+                    renderer.animationName,
+                    renderer.stateMachineName,
+                    renderer.autoplay,
+                    renderer.fit,
+                    renderer.alignment,
+                    renderer.loop
                 )
             },
             { throw IOException("Unable to download Rive file $url") })
@@ -271,7 +233,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Pauses all playing [animation instance][LinearAnimationInstance].
      */
     fun pause() {
-        drawable.pause()
+        renderer.pause()
         stopFrameMetrics()
     }
 
@@ -283,7 +245,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        drawable.pause(animationNames, areStateMachines)
+        renderer.pause(animationNames, areStateMachines)
     }
 
 
@@ -295,7 +257,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        drawable.pause(animationName, isStateMachine)
+        renderer.pause(animationName, isStateMachine)
     }
 
     /**
@@ -306,7 +268,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * for the [animations][Animation] in the file.
      */
     fun stop() {
-        drawable.stopAnimations()
+        renderer.stopAnimations()
         stopFrameMetrics()
     }
 
@@ -322,7 +284,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
-        drawable.stopAnimations(animationNames, areStateMachines)
+        renderer.stopAnimations(animationNames, areStateMachines)
     }
 
     /**
@@ -337,7 +299,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
-        drawable.stopAnimations(animationName, isStateMachine)
+        renderer.stopAnimations(animationName, isStateMachine)
     }
 
     /**
@@ -356,7 +318,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO
     ) {
-        drawable.play(loop, direction)
+        renderer.play(loop, direction)
     }
 
     /**
@@ -371,7 +333,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO,
         areStateMachines: Boolean = false
     ) {
-        drawable.play(animationNames, loop, direction, areStateMachines)
+        renderer.play(animationNames, loop, direction, areStateMachines)
     }
 
     /**
@@ -385,7 +347,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
     ) {
-        drawable.play(animationName, loop, direction, isStateMachine)
+        renderer.play(animationName, loop, direction, isStateMachine)
     }
 
     /**
@@ -394,14 +356,14 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Note: this will respect [autoplay]
      */
     fun reset() {
-        drawable.reset()
+        renderer.reset()
     }
 
     /**
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
     fun fireState(stateMachineName: String, inputName: String) {
-        drawable.fireState(stateMachineName, inputName)
+        renderer.fireState(stateMachineName, inputName)
     }
 
     /**
@@ -409,7 +371,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        drawable.setBooleanState(stateMachineName, inputName, value)
+        renderer.setBooleanState(stateMachineName, inputName, value)
     }
 
     /**
@@ -417,14 +379,14 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        drawable.setNumberState(stateMachineName, inputName, value)
+        renderer.setNumberState(stateMachineName, inputName, value)
     }
 
     /**
      * Check if the animation is currently playing
      */
     val isPlaying: Boolean
-        get() = drawable.isPlaying
+        get() = renderer.isPlaying
 
     /**
      * Load the [resource Id][resId] as a rive file and load it into the view.
@@ -443,7 +405,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardName: String? = null,
         animationName: String? = null,
         stateMachineName: String? = null,
-        autoplay: Boolean = drawable.autoplay,
+        autoplay: Boolean = renderer.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
@@ -479,7 +441,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardName: String? = null,
         animationName: String? = null,
         stateMachineName: String? = null,
-        autoplay: Boolean = drawable.autoplay,
+        autoplay: Boolean = renderer.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
@@ -519,18 +481,18 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment,
         loop: Loop,
     ) {
-        drawable.stopAnimations()
-        drawable.clear()
-        drawable.fit = fit
-        drawable.alignment = alignment
-        drawable.loop = loop
-        drawable.autoplay = autoplay
-        drawable.animationName = animationName
-        drawable.stateMachineName = stateMachineName
-        drawable.artboardName = artboardName
+        renderer.stopAnimations()
+        renderer.clear()
+        renderer.fit = fit
+        renderer.alignment = alignment
+        renderer.loop = loop
+        renderer.autoplay = autoplay
+        renderer.animationName = animationName
+        renderer.stateMachineName = stateMachineName
+        renderer.artboardName = artboardName
 
-        drawable.setRiveFile(file)
-        drawable.advance(0.0f)
+        renderer.setRiveFile(file)
+        renderer.advance(0.0f)
     }
 
     override fun onDetachedFromWindow() {
@@ -558,7 +520,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             _detachedState = null
         }
 
-        holder.addCallback(this)
         Choreographer.getInstance().postFrameCallback(this)
 //        startFrameMetrics()
     }
@@ -574,7 +535,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             }
         } else {
             Log.w(
-                "RiveAnimationView",
+                TAG,
                 "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
             )
         }
@@ -606,10 +567,10 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         // Lets work out how much space our artboard is going to actually use.
         val usedBounds = Rive.calculateRequiredBounds(
-            drawable.fit,
-            drawable.alignment,
+            renderer.fit,
+            renderer.alignment,
             AABB(providedWidth.toFloat(), providedHeight.toFloat()),
-            drawable.artboardBounds()
+            renderer.artboardBounds()
         )
 
         //Measure Width
@@ -630,11 +591,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun registerListener(listener: RiveDrawable.Listener) {
-        drawable.registerListener(listener)
+        renderer.registerListener(listener)
     }
 
     override fun unregisterListener(listener: RiveDrawable.Listener) {
-        drawable.unregisterListener(listener)
+        renderer.unregisterListener(listener)
     }
 }
 
