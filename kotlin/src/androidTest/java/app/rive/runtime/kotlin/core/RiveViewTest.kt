@@ -280,7 +280,7 @@ class RiveViewTest {
             // PingPong cycles between forwards and backwards
             view.play("two", loop = Loop.PINGPONG)
             assertEquals(Direction.FORWARDS, view.playingAnimations.first().direction)
-            view.drawable.advance(1001f)
+            view.renderer.advance(1001f)
             assertEquals(Direction.BACKWARDS, view.playingAnimations.first().direction)
 
         }
@@ -295,13 +295,13 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations)
             assertEquals(
                 listOf("four", "three", "two", "one"),
-                view.drawable.file?.firstArtboard?.animationNames
+                view.renderer.file?.firstArtboard?.animationNames
             )
 
             view.setRiveResource(R.raw.multipleartboards)
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
-                view.drawable.file?.firstArtboard?.animationNames
+                view.renderer.file?.firstArtboard?.animationNames
             )
         }
     }
@@ -433,7 +433,7 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             view.play("one", Loop.PINGPONG)
-            view.drawable.advance(0.1f)
+            view.renderer.advance(0.1f)
 
             assertEquals(0.1f, view.animations.first().time)
             view.stop("one")
@@ -451,7 +451,7 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             view.play("one", Loop.PINGPONG)
-            view.drawable.advance(0.1f)
+            view.renderer.advance(0.1f)
 
             assertEquals(0.1f, view.animations.first().time)
             view.pause("one")
@@ -472,9 +472,9 @@ class RiveViewTest {
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
             view.play("one", Loop.PINGPONG)
-            val originalPointer = view.drawable.activeArtboard?.cppPointer
+            val originalPointer = view.renderer.activeArtboard?.cppPointer
             view.reset()
-            assertNotEquals(view.drawable.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(view.renderer.activeArtboard?.cppPointer, originalPointer)
             assertEquals(false, view.isPlaying)
 
         }
@@ -486,9 +486,9 @@ class RiveViewTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = true)
             assertEquals(true, view.isPlaying)
-            val originalPointer = view.drawable.activeArtboard?.cppPointer
+            val originalPointer = view.renderer.activeArtboard?.cppPointer
             view.reset()
-            assertNotEquals(view.drawable.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(view.renderer.activeArtboard?.cppPointer, originalPointer)
             assertEquals(true, view.isPlaying)
         }
     }
