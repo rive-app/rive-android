@@ -20,8 +20,7 @@ import app.rive.runtime.kotlin.renderers.Renderer
 class Artboard(val cppPointer: Long) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppFirstAnimation(cppPointer: Long): Long
-
-
+    
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
     private external fun cppAnimationByName(cppPointer: Long, name: String): Long
     private external fun cppAnimationCount(cppPointer: Long): Int

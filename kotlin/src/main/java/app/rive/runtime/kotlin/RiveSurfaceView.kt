@@ -58,17 +58,8 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         renderer.start()
     }
 
-    abstract fun onCreate(holder: SurfaceHolder)
-
-    abstract override fun surfaceChanged(
-        holder: SurfaceHolder,
-        format: Int,
-        width: Int,
-        height: Int
-    )
-
-    @CallSuper
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
         renderer.cleanup()
     }
 }

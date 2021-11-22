@@ -64,6 +64,7 @@ extern "C"
   static SwappyThreadFunctions sThreadFunctions = {
       threadStart, threadJoin, threadJoinable};
 
+  // TODO: move this RendererMetrics stuff into its own view?
   JNIEXPORT void JNICALL
   Java_app_rive_runtime_kotlin_renderers_RendererMetrics_nInit(
       JNIEnv *env, jobject view,
