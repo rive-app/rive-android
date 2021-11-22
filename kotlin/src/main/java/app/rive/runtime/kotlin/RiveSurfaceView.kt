@@ -11,7 +11,7 @@ import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
 
-abstract class RiveSurfaceHolder(context: Context, attrs: AttributeSet? = null) :
+abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
     SurfaceView(context, attrs),
     SurfaceHolder.Callback {
     private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
