@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.RiveSurfaceHolder
+import app.rive.runtime.kotlin.RiveSurfaceView
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
@@ -29,7 +29,7 @@ class LowLevelActivity : AppCompatActivity() {
     }
 }
 
-class LowLevelRiveView(context: Context) : RiveSurfaceHolder(context) {
+class LowLevelRiveView(context: Context) : RiveSurfaceView(context) {
     // Initialize renderer first: we can't create Files without one.
     override val renderer = object : RendererSwappy() {
         override fun draw() {

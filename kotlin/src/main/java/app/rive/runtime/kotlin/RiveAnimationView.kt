@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin
 
 import android.annotation.TargetApi
 import android.content.Context
-import android.graphics.*
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -46,7 +45,7 @@ import java.util.*
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
-    RiveSurfaceHolder(context, attrs),
+    RiveSurfaceView(context, attrs),
     Choreographer.FrameCallback,
     Observable<RiveDrawable.Listener> {
 
