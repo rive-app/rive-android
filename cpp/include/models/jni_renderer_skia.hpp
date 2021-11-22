@@ -43,7 +43,6 @@ namespace rive_android
     float mAverageFps = -1.0f;
 
     ANativeWindow *nWindow = nullptr;
-    rive::SkiaRenderer *mSkRenderer;
 
     WorkerThread<EGLThreadState> mWorkerThread =
         {"SwappyRenderer", Affinity::Odd};
@@ -64,6 +63,7 @@ namespace rive_android
     jobject mKtRenderer;
 
     SkCanvas *mGpuCanvas;
+    rive::SkiaRenderer *mSkRenderer;
 
   public:
     JNIRendererSkia(jobject ktObject) : mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
@@ -89,6 +89,10 @@ namespace rive_android
     ~JNIRendererSkia()
     {
       getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
+      if (mSkRenderer) 
+      {
+        delete mSkRenderer;
+      }
     }
 
     rive::RenderPaint *makeRenderPaint() override
@@ -106,11 +110,17 @@ namespace rive_android
       mWorkerThread
           .run([=](EGLThreadState *threadState)
                {
-                 nWindow = window;
                  if (!threadState->setWindow(window))
                  {
+                   if (nWindow)
+                   {
+                     ANativeWindow_release(nWindow);
+                   }
                    return;
                  }
+
+                 ANativeWindow_acquire(window);
+                 nWindow = window;
 
                  auto gpuSurface = threadState->getSkSurface();
                  mGpuCanvas = gpuSurface->getCanvas();
@@ -175,7 +185,9 @@ namespace rive_android
           [=](EGLThreadState *threadState)
           {
             if (threadState->mIsStarted)
+            {
               draw(threadState);
+            }
           });
     }
 

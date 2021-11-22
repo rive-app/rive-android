@@ -53,11 +53,14 @@ class LowLevelRiveView(context: Context) : RiveSurfaceView(context) {
 
     private var bounds: AABB = AABB(100f, 100f)
 
-    override fun onCreate(holder: SurfaceHolder) {
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        super.surfaceCreated(holder)
         renderer.start()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         bounds = AABB(width.toFloat(), height.toFloat())
     }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {}
 }

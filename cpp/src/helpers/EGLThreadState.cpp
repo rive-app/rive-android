@@ -20,7 +20,7 @@ namespace rive_android
         EGL_GREEN_SIZE, 8,
         EGL_RED_SIZE, 8,
         EGL_DEPTH_SIZE, 16,
-        EGL_ALPHA_SIZE, 8, 
+        EGL_ALPHA_SIZE, 8,
         EGL_NONE};
 
     EGLint numConfigs = 0;
@@ -147,7 +147,7 @@ namespace rive_android
     fbInfo.fFBOID = 0u;
     fbInfo.fFormat = GL_RGBA8;
 
-    static GrBackendRenderTarget backendRenderTarget(
+    GrBackendRenderTarget backendRenderTarget(
         mWidth, mHeight,
         1, 8,
         fbInfo);
