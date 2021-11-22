@@ -3,7 +3,7 @@ package app.rive.runtime.kotlin.core
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.RiveDrawable
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 
 class StateChanged(var stateMachineName: String, var stateName: String)
 
-class Observer : RiveDrawable.Listener {
+class Observer : RiveArtboardRenderer.Listener {
     var plays = mutableListOf<PlayableInstance>()
     var pauses = mutableListOf<PlayableInstance>()
     var stops = mutableListOf<PlayableInstance>()

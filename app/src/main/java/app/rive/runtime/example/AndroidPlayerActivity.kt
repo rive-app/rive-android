@@ -10,7 +10,7 @@ import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.appcompat.widget.AppCompatEditText
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.RiveDrawable.Listener
+import app.rive.runtime.kotlin.RiveArtboardRenderer.Listener
 import app.rive.runtime.kotlin.core.*
 
 class AndroidPlayerActivity : AppCompatActivity() {
