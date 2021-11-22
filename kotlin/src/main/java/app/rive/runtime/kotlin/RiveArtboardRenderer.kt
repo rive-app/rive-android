@@ -4,7 +4,7 @@ import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
-class RiveDrawable(
+class RiveArtboardRenderer(
     fit: Fit = Fit.CONTAIN,
     alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.AUTO,
@@ -13,10 +13,10 @@ class RiveDrawable(
     var animationName: String? = null,
     var stateMachineName: String? = null,
     var autoplay: Boolean = true
-) : Observable<RiveDrawable.Listener>,
+) : Observable<RiveArtboardRenderer.Listener>,
     RendererSwappy() {
     // PRIVATE
-    private var listeners = HashSet<RiveDrawable.Listener>()
+    private var listeners = HashSet<RiveArtboardRenderer.Listener>()
     var targetBounds: AABB = AABB(0f, 0f)
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
@@ -454,11 +454,11 @@ class RiveDrawable(
     }
 
     /* LISTENER OVERRIDES */
-    override fun registerListener(listener: RiveDrawable.Listener) {
+    override fun registerListener(listener: RiveArtboardRenderer.Listener) {
         listeners.add(listener)
     }
 
-    override fun unregisterListener(listener: RiveDrawable.Listener) {
+    override fun unregisterListener(listener: RiveArtboardRenderer.Listener) {
         listeners.remove(listener)
     }
 

@@ -3,14 +3,14 @@ package app.rive.runtime.example.utils
 import android.content.Context
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatToggleButton
-import app.rive.runtime.kotlin.RiveDrawable
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.core.File
 
 class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
     AppCompatToggleButton(context, attrs) {
 
-    var riveDrawable: RiveDrawable;
+    var riveArtboardRenderer: RiveArtboardRenderer;
     var onAnimation: String;
     var offAnimation: String;
     var stateMachineName: String?;
@@ -53,11 +53,11 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
                 var resourceBytes = resources.openRawResource(resourceId).readBytes()
                 var riveFile = File(resourceBytes)
-                riveDrawable = RiveDrawable(autoplay = false)
-                riveDrawable.setRiveFile(riveFile)
+                riveArtboardRenderer = RiveArtboardRenderer(autoplay = false)
+                riveArtboardRenderer.setRiveFile(riveFile)
                 stateMachineName?.let{
-                    riveDrawable.setBooleanState(it, booleanStateInput, isChecked)
-                    riveDrawable.play(it, isStateMachine = true)
+                    riveArtboardRenderer.setBooleanState(it, booleanStateInput, isChecked)
+                    riveArtboardRenderer.play(it, isStateMachine = true)
                 }
 //                background = riveDrawable
             } finally {
@@ -67,7 +67,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun setCheckedAnimation(checked: Boolean){
-        riveDrawable?.let{
+        riveArtboardRenderer?.let{
             it.stopAnimations()
             if (checked) {
                 it.play(onAnimation)
@@ -78,7 +78,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun setStateMachine(checked: Boolean){
-        riveDrawable?.let{ drawable ->
+        riveArtboardRenderer?.let{ drawable ->
             stateMachineName?.let { stateMachine ->
                 drawable.setBooleanState(stateMachine, booleanStateInput, checked)
             }
