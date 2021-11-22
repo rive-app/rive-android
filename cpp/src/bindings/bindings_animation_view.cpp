@@ -82,7 +82,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppInit(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppInit(
       JNIEnv *env, jobject view,
       jobject activity, jlong initialSwapIntervalNS)
   {
@@ -94,12 +94,13 @@ extern "C"
     }
 
     Swappy_setThreadFunctions(&sThreadFunctions);
+    // TODO: how do we make sure we don't initialize Swappy twice?!
     SwappyGL_init(env, activity);
     SwappyGL_setSwapIntervalNS(initialSwapIntervalNS);
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppSetPreference(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetPreference(
       JNIEnv *env, jobject,
       jstring key, jstring value)
   {
@@ -107,7 +108,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppSetAutoSwapInterval(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetAutoSwapInterval(
       JNIEnv *env, jobject,
       jboolean enabled)
   {
@@ -115,7 +116,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppSetAutoPipeline(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetAutoPipeline(
       JNIEnv *env, jobject,
       jboolean enabled)
   {
@@ -123,7 +124,7 @@ extern "C"
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetAverageFps(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetAverageFps(
       JNIEnv *, jobject,
       jlong rendererAddr)
   {
@@ -132,19 +133,19 @@ extern "C"
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetRefreshPeriodNS(JNIEnv *, jobject)
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetRefreshPeriodNS(JNIEnv *, jobject)
   {
     return SwappyGL_getRefreshPeriodNanos();
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetSwapIntervalNS(JNIEnv *, jobject)
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetSwapIntervalNS(JNIEnv *, jobject)
   {
     return SwappyGL_getSwapIntervalNS();
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetPipelineFrameTimeNS(JNIEnv *, jobject)
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetPipelineFrameTimeNS(JNIEnv *, jobject)
   {
     // TODO:
     // return Renderer::getInstance()->frameTimeStats().mean();
@@ -152,7 +153,7 @@ extern "C"
   }
 
   JNIEXPORT float JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetPipelineFrameTimeStdDevNS(JNIEnv *, jobject)
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetPipelineFrameTimeStdDevNS(JNIEnv *, jobject)
   {
     // TODO:
     // return sqrt(Renderer::getInstance()->frameTimeStats().var());
@@ -160,7 +161,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppSetWorkload(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetWorkload(
       JNIEnv *, jobject,
       jint load)
   {
@@ -170,7 +171,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppSetBufferStuffingFixWait(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetBufferStuffingFixWait(
       JNIEnv *, jobject,
       jint n_frames)
   {
@@ -178,7 +179,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppEnableSwappy(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppEnableSwappy(
       JNIEnv *, jobject,
       jboolean enabled)
   {
@@ -187,7 +188,7 @@ extern "C"
   }
 
   JNIEXPORT int JNICALL
-  Java_app_rive_runtime_kotlin_RiveSurfaceHolder_cppGetSwappyStats(
+  Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetSwappyStats(
       JNIEnv *, jobject,
       jint stat,
       jint bin)
