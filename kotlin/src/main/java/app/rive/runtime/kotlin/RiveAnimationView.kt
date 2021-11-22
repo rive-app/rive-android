@@ -179,7 +179,8 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    override fun onCreate(holder: SurfaceHolder) {
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        super.surfaceCreated(holder)
         isRunning = true
     }
 
@@ -189,7 +190,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         isRunning = false
-        super.surfaceDestroyed(holder)
     }
 
     override fun doFrame(frameTimeNanos: Long) {
