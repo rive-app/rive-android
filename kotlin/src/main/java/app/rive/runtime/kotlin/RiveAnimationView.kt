@@ -47,14 +47,14 @@ import java.util.*
 class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveSurfaceView(context, attrs),
     Choreographer.FrameCallback,
-    Observable<RiveDrawable.Listener> {
+    Observable<RiveArtboardRenderer.Listener> {
 
     companion object {
         // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
     }
 
-    public override val renderer = RiveDrawable()
+    public override val renderer = RiveArtboardRenderer()
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
@@ -589,11 +589,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         setMeasuredDimension(width, height)
     }
 
-    override fun registerListener(listener: RiveDrawable.Listener) {
+    override fun registerListener(listener: RiveArtboardRenderer.Listener) {
         renderer.registerListener(listener)
     }
 
-    override fun unregisterListener(listener: RiveDrawable.Listener) {
+    override fun unregisterListener(listener: RiveArtboardRenderer.Listener) {
         renderer.unregisterListener(listener)
     }
 }
