@@ -3,13 +3,12 @@ package app.rive.runtime.example.utils
 import android.content.Context
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatImageButton
-import app.rive.runtime.kotlin.R
-import app.rive.runtime.kotlin.RiveDrawable
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.core.File
 
 class RiveButton(context: Context, attrs: AttributeSet? = null) :
     AppCompatImageButton(context, attrs) {
-    var riveDrawable: RiveDrawable;
+    var riveArtboardRenderer: RiveArtboardRenderer;
     var pressAnimation: String?;
 
     init {
@@ -26,8 +25,8 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
                 var resourceBytes = resources.openRawResource(resourceId).readBytes()
                 var riveFile = File(resourceBytes)
-                riveDrawable = RiveDrawable(autoplay = false)
-                riveDrawable.setRiveFile(riveFile)
+                riveArtboardRenderer = RiveArtboardRenderer(autoplay = false)
+                riveArtboardRenderer.setRiveFile(riveFile)
 //                background = riveDrawable
 
             } finally {
@@ -39,12 +38,12 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     override fun performClick(): Boolean {
         pressAnimation?.let {
-            riveDrawable.stopAnimations()
-            riveDrawable.play(it)
+            riveArtboardRenderer.stopAnimations()
+            riveArtboardRenderer.play(it)
             return true
         } ?: run {
-            riveDrawable.stopAnimations()
-            riveDrawable.play()
+            riveArtboardRenderer.stopAnimations()
+            riveArtboardRenderer.play()
         }
         return super.performClick()
     }
