@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.util.AttributeSet
 import android.util.Log
@@ -22,24 +23,20 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
 //        TODO: figure out transparency
 //        setZOrderMediaOverlay(true)
 //        setZOrderOnTop(true)
+
         holder.setFormat(PixelFormat.TRANSLUCENT)
 
         if (Build.VERSION.SDK_INT < 29) {
             setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
-
     }
 
     private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
-    private var _isRunning = true
 
-    var isRunning: Boolean
-        get() = _isRunning
-        private set(value) {
-            _isRunning= value
-        }
+    var isRunning: Boolean = true
+        private set
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -69,6 +66,7 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         return null
     }
 
+    @CallSuper
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         // Register this SurfaceView for the SurfaceHolder callbacks below
@@ -84,12 +82,16 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         isRunning = true
     }
 
+    @CallSuper
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         renderer.cleanup()
         isRunning = false
     }
+
+    @CallSuper
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        // TODO: does this introduce a race condition wiht onDetachedFromWindow?
         isRunning = false
     }
 
