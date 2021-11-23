@@ -554,13 +554,13 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val providedWidth = when (widthMode) {
-            MeasureSpec.UNSPECIFIED -> suggestedMinimumWidth
+            MeasureSpec.UNSPECIFIED -> renderer?.artboardBounds()?.width?.toInt()
             else -> MeasureSpec.getSize(widthMeasureSpec)
         }
 
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val providedHeight = when (heightMode) {
-            MeasureSpec.UNSPECIFIED -> suggestedMinimumHeight
+            MeasureSpec.UNSPECIFIED -> renderer?.artboardBounds()?.height?.toInt()
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
