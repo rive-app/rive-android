@@ -44,7 +44,7 @@ import java.util.*
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
-class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
+open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveSurfaceView(context, attrs),
     Choreographer.FrameCallback,
     Observable<RiveArtboardRenderer.Listener> {
@@ -54,7 +54,9 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         const val TAG = "RiveAnimationView"
     }
 
-    public override val renderer = RiveArtboardRenderer()
+    open val defaultAutoplay = true
+
+    public override val renderer = RiveArtboardRenderer(autoplay = defaultAutoplay)
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
@@ -137,7 +139,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
                 val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
                 val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3)
-                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, autoplay)
+                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
