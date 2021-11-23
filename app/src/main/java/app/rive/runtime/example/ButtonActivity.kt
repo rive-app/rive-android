@@ -18,20 +18,20 @@ class ButtonActivity : AppCompatActivity() {
             textView.text = (textView.text.toString().toInt()+1).toString()
         }
 
-        var switch = findViewById<RiveSwitch>(R.id.mySwitch)
-        switch.setOnCheckedChangeListener { _, checked ->
+//        var switch = findViewById<RiveSwitch>(R.id.mySwitch)
+//        switch.setOnCheckedChangeListener { _, checked ->
+//
+//            var textView = findViewById<TextView>(R.id.mySwitchLabel)
+//            textView.text = checked.toString()
+//        }
 
-            var textView = findViewById<TextView>(R.id.mySwitchLabel)
-            textView.text = checked.toString()
-        }
 
-
-        var stateSwitch = findViewById<RiveSwitch>(R.id.myStateSwitch)
-        stateSwitch.setOnCheckedChangeListener { _, checked ->
-
-            var textView = findViewById<TextView>(R.id.myStateSwitchLabel)
-            textView.text = checked.toString()
-        }
+//        var stateSwitch = findViewById<RiveSwitch>(R.id.myStateSwitch)
+//        stateSwitch.setOnCheckedChangeListener { _, checked ->
+//
+//            var textView = findViewById<TextView>(R.id.myStateSwitchLabel)
+//            textView.text = checked.toString()
+//        }
 
     }
 }
