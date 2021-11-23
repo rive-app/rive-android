@@ -6,10 +6,7 @@ using namespace rive_android;
 
 bool JNIRenderer::antialias = true;
 
-JNIRenderer::~JNIRenderer()
-{
-	getJNIEnv()->DeleteGlobalRef(jRendererObject);
-}
+JNIRenderer::~JNIRenderer() { getJNIEnv()->DeleteGlobalRef(jRendererObject); }
 
 void JNIRenderer::save()
 {
@@ -21,29 +18,28 @@ void JNIRenderer::restore()
 	getJNIEnv()->CallVoidMethod(jRendererObject, getRestoreMethodId());
 }
 
-void JNIRenderer::transform(const rive::Mat2D &transform)
+void JNIRenderer::transform(const rive::Mat2D& transform)
 {
-	JNIEnv *env = getJNIEnv();
+	JNIEnv* env = getJNIEnv();
 	jclass matrixClass = getMatrixClass();
 	jobject matrix = env->NewObject(matrixClass, getMatrixInitMethodId());
 
-	float threeDMatrix[9] = {
-			transform.xx(), transform.yx(), transform.tx(),
-			transform.xy(), transform.yy(), transform.ty(),
-			0, 0, 1};
+	float threeDMatrix[9] = {transform.xx(),
+	                         transform.yx(),
+	                         transform.tx(),
+	                         transform.xy(),
+	                         transform.yy(),
+	                         transform.ty(),
+	                         0,
+	                         0,
+	                         1};
 
 	jfloatArray matrixArray = env->NewFloatArray(9);
 	env->SetFloatArrayRegion(matrixArray, 0, 9, threeDMatrix);
 
-	env->CallVoidMethod(
-			matrix,
-			getMatrixSetValuesMethodId(),
-			matrixArray);
+	env->CallVoidMethod(matrix, getMatrixSetValuesMethodId(), matrixArray);
 
-	env->CallVoidMethod(
-			jRendererObject,
-			getSetMatrixMethodId(),
-			matrix);
+	env->CallVoidMethod(jRendererObject, getSetMatrixMethodId(), matrix);
 
 	env->DeleteLocalRef(matrixClass);
 	env->DeleteLocalRef(matrixArray);
@@ -52,23 +48,22 @@ void JNIRenderer::transform(const rive::Mat2D &transform)
 
 void JNIRenderer::translate(float x, float y)
 {
-	getJNIEnv()->CallVoidMethod(
-			jRendererObject, getTranslateMethodId(), x, y);
+	getJNIEnv()->CallVoidMethod(jRendererObject, getTranslateMethodId(), x, y);
 }
 
-void JNIRenderer::drawPath(rive::RenderPath *path, rive::RenderPaint *paint)
+void JNIRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* paint)
 {
 	getJNIEnv()->CallVoidMethod(
-			jRendererObject,
-			getDrawPathMethodId(),
-			reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject,
-			reinterpret_cast<JNIRenderPaint *>(paint)->jObject);
+	    jRendererObject,
+	    getDrawPathMethodId(),
+	    reinterpret_cast<JNIRenderPath*>(path->renderPath())->jObject,
+	    reinterpret_cast<JNIRenderPaint*>(paint)->jObject);
 }
 
-void JNIRenderer::clipPath(rive::RenderPath *path)
+void JNIRenderer::clipPath(rive::RenderPath* path)
 {
 	getJNIEnv()->CallBooleanMethod(
-			jRendererObject,
-			getClipPathMethodId(),
-			reinterpret_cast<JNIRenderPath *>(path->renderPath())->jObject);
+	    jRendererObject,
+	    getClipPathMethodId(),
+	    reinterpret_cast<JNIRenderPath*>(path->renderPath())->jObject);
 }

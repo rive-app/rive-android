@@ -10,66 +10,66 @@ extern "C"
 {
 #endif
 
-    // ANIMATION
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppName(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	// ANIMATION
+	JNIEXPORT jstring JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInput_cppName(JNIEnv* env,
+	                                                            jobject thisObj,
+	                                                            jlong ref)
+	{
 
-        rive::StateMachineInput *stateMachineInput = (rive::StateMachineInput *)ref;
-        return env->NewStringUTF(stateMachineInput->name().c_str());
-    }
+		rive::StateMachineInput* stateMachineInput =
+		    (rive::StateMachineInput*)ref;
+		return env->NewStringUTF(stateMachineInput->name().c_str());
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsBoolean(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsBoolean(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
 
-        rive::StateMachineInput *stateMachineInput = (rive::StateMachineInput *)ref;
-        return stateMachineInput->is<rive::StateMachineBool>();
-    }
+		rive::StateMachineInput* stateMachineInput =
+		    (rive::StateMachineInput*)ref;
+		return stateMachineInput->is<rive::StateMachineBool>();
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsNumber(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsNumber(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
 
-        rive::StateMachineInput *stateMachineInput = (rive::StateMachineInput *)ref;
-        return stateMachineInput->is<rive::StateMachineNumber>();
-    }
+		rive::StateMachineInput* stateMachineInput =
+		    (rive::StateMachineInput*)ref;
+		return stateMachineInput->is<rive::StateMachineNumber>();
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsTrigger(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInput_cppIsTrigger(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
 
-        rive::StateMachineInput *stateMachineInput = (rive::StateMachineInput *)ref;
-        return stateMachineInput->is<rive::StateMachineTrigger>();
-    }
+		rive::StateMachineInput* stateMachineInput =
+		    (rive::StateMachineInput*)ref;
+		return stateMachineInput->is<rive::StateMachineTrigger>();
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_StateMachineBooleanInput_cppValue(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineBooleanInput_cppValue(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
 
-        rive::StateMachineBool *stateMachineBool = (rive::StateMachineBool *)ref;
-        return stateMachineBool->value();
-    }
+		rive::StateMachineBool* stateMachineBool = (rive::StateMachineBool*)ref;
+		return stateMachineBool->value();
+	}
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_StateMachineNumberInput_cppValue(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
+	JNIEXPORT jfloat JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineNumberInput_cppValue(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
 
-        rive::StateMachineNumber *stateMachineNumber = (rive::StateMachineNumber *)ref;
-        return stateMachineNumber->value();
-    }
+		rive::StateMachineNumber* stateMachineNumber =
+		    (rive::StateMachineNumber*)ref;
+		return stateMachineNumber->value();
+	}
 
 #ifdef __cplusplus
 }

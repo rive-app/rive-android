@@ -14,211 +14,185 @@ extern "C"
 {
 #endif
 
-    using namespace rive_android;
+	using namespace rive_android;
 
-    // ARTBOARD
+	// ARTBOARD
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppName(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jstring JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppName(JNIEnv* env,
+	                                                   jobject thisObj,
+	                                                   jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return env->NewStringUTF(artboard->name().c_str());
-    }
+		return env->NewStringUTF(artboard->name().c_str());
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstAnimation(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppFirstAnimation(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jlong)artboard->firstAnimation();
-    }
+		return (jlong)artboard->firstAnimation();
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstStateMachine(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppFirstStateMachine(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jlong)artboard->firstStateMachine();
-    }
+		return (jlong)artboard->firstStateMachine();
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jint index)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        return (jlong)artboard->animation(index);
-    }
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(
+	    JNIEnv* env, jobject thisObj, jlong ref, jint index)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		return (jlong)artboard->animation(index);
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jstring name)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(
+	    JNIEnv* env, jobject thisObj, jlong ref, jstring name)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jlong)artboard->animation(
-            jstring2string(env, name));
-    }
+		return (jlong)artboard->animation(jstring2string(env, name));
+	}
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCount(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCount(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jint)artboard->animationCount();
-    }
+		return (jint)artboard->animationCount();
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jint index)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        return (jlong)artboard->stateMachine(index);
-    }
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(
+	    JNIEnv* env, jobject thisObj, jlong ref, jint index)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		return (jlong)artboard->stateMachine(index);
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jstring name)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(
+	    JNIEnv* env, jobject thisObj, jlong ref, jstring name)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jlong)artboard->stateMachine(
-            jstring2string(env, name));
-    }
+		return (jlong)artboard->stateMachine(jstring2string(env, name));
+	}
 
-    JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jint)artboard->stateMachineCount();
-    }
+		return (jint)artboard->stateMachineCount();
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jfloat elapsedTime)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        return artboard->advance(elapsedTime);
-    }
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(JNIEnv* env,
+	                                                      jobject thisObj,
+	                                                      jlong ref,
+	                                                      jfloat elapsedTime)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		return artboard->advance(elapsedTime);
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        // TODO: garbage collection?
-        auto bounds = new rive::AABB(artboard->bounds());
-        return (jlong)bounds;
-    }
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(JNIEnv* env,
+	                                                     jobject thisObj,
+	                                                     jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		// TODO: garbage collection?
+		auto bounds = new rive::AABB(artboard->bounds());
+		return (jlong)bounds;
+	}
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref,
-        jlong rendererRef)
-    {
+	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(
+	    JNIEnv* env, jobject thisObj, jlong ref, jlong rendererRef)
+	{
 
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        auto *renderer = (::JNIRenderer *)rendererRef;
-        artboard->draw(renderer);
-    }
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		auto* renderer = (::JNIRenderer*)rendererRef;
+		artboard->draw(renderer);
+	}
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawGL(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong artboardRef,
-        jlong rendererRef)
-    {
-        // TODO: consolidate this to work with an abstracted JNI Renderer.
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        auto renderer = (::JNIRendererGL *)rendererRef;
-        renderer->save();
-        renderer->align(rive::Fit::contain,
-                        rive::Alignment::center,
-                        rive::AABB(
-                            0, 0,
-                            renderer->width,
-                            renderer->height),
-                        artboard->bounds());
-        artboard->draw(renderer);
-        renderer->restore();
-    }
+	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawGL(
+	    JNIEnv* env, jobject thisObj, jlong artboardRef, jlong rendererRef)
+	{
+		// TODO: consolidate this to work with an abstracted JNI Renderer.
+		rive::Artboard* artboard = (rive::Artboard*)artboardRef;
+		auto renderer = (::JNIRendererGL*)rendererRef;
+		renderer->save();
+		renderer->align(rive::Fit::contain,
+		                rive::Alignment::center,
+		                rive::AABB(0, 0, renderer->width, renderer->height),
+		                artboard->bounds());
+		artboard->draw(renderer);
+		renderer->restore();
+	}
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(
-        JNIEnv *env,
-        jobject,
-        jlong artboardRef, jlong rendererRef,
-        jobject ktFit, jobject ktAlignment)
-    {
-        // TODO: consolidate this to work with an abstracted JNI Renderer.
-        rive::Artboard *artboard = (rive::Artboard *)artboardRef;
-        auto jniWrapper = (JNIRendererSkia *)rendererRef;
-        rive::Fit fit = getFit(env, ktFit);
-        rive::Alignment alignment = getAlignment(env, ktAlignment);
-        auto renderer = jniWrapper->skRenderer();
-        renderer->save();
-        renderer->align(
-            fit,
-            alignment,
-            rive::AABB(
-                0, 0,
-                jniWrapper->width(),
-                jniWrapper->height()),
-            artboard->bounds());
-        artboard->draw(renderer);
-        renderer->restore();
-    }
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(JNIEnv* env,
+	                                                       jobject,
+	                                                       jlong artboardRef,
+	                                                       jlong rendererRef,
+	                                                       jobject ktFit,
+	                                                       jobject ktAlignment)
+	{
+		// TODO: consolidate this to work with an abstracted JNI Renderer.
+		rive::Artboard* artboard = (rive::Artboard*)artboardRef;
+		auto jniWrapper = (JNIRendererSkia*)rendererRef;
+		rive::Fit fit = getFit(env, ktFit);
+		rive::Alignment alignment = getAlignment(env, ktAlignment);
+		auto renderer = jniWrapper->skRenderer();
+		renderer->save();
+		renderer->align(
+		    fit,
+		    alignment,
+		    rive::AABB(0, 0, jniWrapper->width(), jniWrapper->height()),
+		    artboard->bounds());
+		artboard->draw(renderer);
+		renderer->restore();
+	}
 
-    JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jboolean JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppIsInstance(JNIEnv* env,
+	                                                         jobject thisObj,
+	                                                         jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return artboard->isInstance();
-    }
+		return artboard->isInstance();
+	}
 
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppInstance(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
+	JNIEXPORT jlong JNICALL
+	Java_app_rive_runtime_kotlin_core_Artboard_cppInstance(JNIEnv* env,
+	                                                       jobject thisObj,
+	                                                       jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
 
-        return (jlong)artboard->instance();
-    }
+		return (jlong)artboard->instance();
+	}
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDelete(
-        JNIEnv *env,
-        jobject thisObj,
-        jlong ref)
-    {
-        rive::Artboard *artboard = (rive::Artboard *)ref;
-        delete artboard;
-    }
+	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDelete(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		rive::Artboard* artboard = (rive::Artboard*)ref;
+		delete artboard;
+	}
 
 #ifdef __cplusplus
 }
