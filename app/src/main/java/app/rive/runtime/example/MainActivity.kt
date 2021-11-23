@@ -76,5 +76,10 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, BlendActivity::class.java)
             )
         }
+        findViewById<Button>(R.id.go_metrics).setOnClickListener {
+            startActivity(
+                Intent(this, MetricsActivity::class.java)
+            )
+        }
     }
 }
