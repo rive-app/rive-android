@@ -15,8 +15,8 @@ namespace rive_android
 	{
 	public:
 		virtual ~IJNIRenderer() {}
-		virtual rive::RenderPaint *makeRenderPaint() = 0;
-		virtual rive::RenderPath *makeRenderPath() = 0;
+		virtual rive::RenderPaint* makeRenderPaint() = 0;
+		virtual rive::RenderPath* makeRenderPath() = 0;
 		virtual void initialize() = 0;
 	};
 
@@ -29,18 +29,19 @@ namespace rive_android
 
 		void save() override;
 		void restore() override;
-		void transform(const rive::Mat2D &transform) override;
+		void transform(const rive::Mat2D& transform) override;
 		void translate(float x, float y);
-		void drawPath(rive::RenderPath *path, rive::RenderPaint *paint) override;
-		void clipPath(rive::RenderPath *path) override;
+		void drawPath(rive::RenderPath* path,
+		              rive::RenderPaint* paint) override;
+		void clipPath(rive::RenderPath* path) override;
 
 		void initialize() override {}
 
-		rive::RenderPaint *makeRenderPaint() override
+		rive::RenderPaint* makeRenderPaint() override
 		{
 			return new JNIRenderPaint();
 		}
-		rive::RenderPath *makeRenderPath() override
+		rive::RenderPath* makeRenderPath() override
 		{
 			return new JNIRenderPath();
 		}

@@ -26,121 +26,118 @@
 
 namespace rive_android
 {
-    class HotPocketState
-    {
-    public:
-        void onSettingsChanged(const Settings *settings)
-        {
-            isEnabled = settings->getHotPocket();
-        }
+	class HotPocketState
+	{
+	public:
+		void onSettingsChanged(const Settings* settings)
+		{
+			isEnabled = settings->getHotPocket();
+		}
 
-        bool isEnabled = false;
-        bool isStarted = false;
-    };
+		bool isEnabled = false;
+		bool isStarted = false;
+	};
 
-    template <class ThreadState>
-    class WorkerThread
-    {
-    public:
-        using Work = std::function<void(ThreadState *)>;
+	template <class ThreadState> class WorkerThread
+	{
+	public:
+		using Work = std::function<void(ThreadState*)>;
 
-        WorkerThread(const char *name, Affinity affinity)
-            : mName(name),
-              mAffinity(affinity)
-        {
-            launchThread();
-            auto settingsChanged = [this](ThreadState *threadState)
-            { onSettingsChanged(threadState); };
-            Settings::getInstance()->addListener(
-                [this, work = std::move(settingsChanged)]()
-                { run(work); });
-        }
+		WorkerThread(const char* name, Affinity affinity) :
+		    mName(name), mAffinity(affinity)
+		{
+			launchThread();
+			auto settingsChanged = [this](ThreadState* threadState)
+			{ onSettingsChanged(threadState); };
+			Settings::getInstance()->addListener(
+			    [this, work = std::move(settingsChanged)]() { run(work); });
+		}
 
-        ~WorkerThread()
-        {
-            std::lock_guard<std::mutex> threadLock(mThreadMutex);
-            terminateThread();
-        }
+		~WorkerThread()
+		{
+			std::lock_guard<std::mutex> threadLock(mThreadMutex);
+			terminateThread();
+		}
 
-        void run(Work work)
-        {
-            std::lock_guard<std::mutex> workLock(mWorkMutex);
-            mWorkQueue.emplace(std::move(work));
-            mWorkCondition.notify_all();
-        }
+		void run(Work work)
+		{
+			std::lock_guard<std::mutex> workLock(mWorkMutex);
+			mWorkQueue.emplace(std::move(work));
+			mWorkCondition.notify_all();
+		}
 
-        void reset()
-        {
-            launchThread();
-        }
+		void reset() { launchThread(); }
 
-    private:
-        void launchThread()
-        {
-            std::lock_guard<std::mutex> threadLock(mThreadMutex);
-            if (mThread.joinable())
-            {
-                terminateThread();
-            }
-            mThread = std::thread([this]()
-                                  { threadMain(); });
-        }
+	private:
+		void launchThread()
+		{
+			std::lock_guard<std::mutex> threadLock(mThreadMutex);
+			if (mThread.joinable())
+			{
+				terminateThread();
+			}
+			mThread = std::thread([this]() { threadMain(); });
+		}
 
-        void terminateThread() REQUIRES(mThreadMutex)
-        {
-            {
-                std::lock_guard<std::mutex> workLock(mWorkMutex);
-                mIsActive = false;
-                mWorkCondition.notify_all();
-            }
-            mThread.join();
-        }
+		void terminateThread() REQUIRES(mThreadMutex)
+		{
+			{
+				std::lock_guard<std::mutex> workLock(mWorkMutex);
+				mIsActive = false;
+				mWorkCondition.notify_all();
+			}
+			mThread.join();
+		}
 
-        void onSettingsChanged(ThreadState *threadState)
-        {
-            const Settings *settings = Settings::getInstance();
-            threadState->onSettingsChanged(settings);
-            setAffinity(settings->getUseAffinity() ? mAffinity : Affinity::None);
-        }
+		void onSettingsChanged(ThreadState* threadState)
+		{
+			const Settings* settings = Settings::getInstance();
+			threadState->onSettingsChanged(settings);
+			setAffinity(settings->getUseAffinity() ? mAffinity
+			                                       : Affinity::None);
+		}
 
-        void threadMain()
-        {
-            setAffinity(Settings::getInstance()->getUseAffinity() ? mAffinity : Affinity::None);
-            pthread_setname_np(pthread_self(), mName.c_str());
+		void threadMain()
+		{
+			setAffinity(Settings::getInstance()->getUseAffinity()
+			                ? mAffinity
+			                : Affinity::None);
+			pthread_setname_np(pthread_self(), mName.c_str());
 
-            ThreadState threadState;
+			ThreadState threadState;
 
-            std::lock_guard<std::mutex> lock(mWorkMutex);
-            while (mIsActive)
-            {
-                mWorkCondition.wait(mWorkMutex,
-                                    [this]() REQUIRES(mWorkMutex)
-                                    {
-                                        return !mWorkQueue.empty() || !mIsActive;
-                                    });
-                if (!mWorkQueue.empty())
-                {
-                    auto head = mWorkQueue.front();
-                    mWorkQueue.pop();
+			std::lock_guard<std::mutex> lock(mWorkMutex);
+			while (mIsActive)
+			{
+				mWorkCondition.wait(mWorkMutex,
+				                    [this]() REQUIRES(mWorkMutex) {
+					                    return !mWorkQueue.empty() ||
+					                           !mIsActive;
+				                    });
+				if (!mWorkQueue.empty())
+				{
+					auto head = mWorkQueue.front();
+					mWorkQueue.pop();
 
-                    // Drop the mutex while we execute
-                    mWorkMutex.unlock();
-                    head(&threadState);
-                    mWorkMutex.lock();
-                }
-            }
-        }
+					// Drop the mutex while we execute
+					mWorkMutex.unlock();
+					head(&threadState);
+					mWorkMutex.lock();
+				}
+			}
+		}
 
-        const std::string mName;
-        const Affinity mAffinity;
+		const std::string mName;
+		const Affinity mAffinity;
 
-        std::mutex mThreadMutex;
-        std::thread mThread GUARDED_BY(mThreadMutex);
+		std::mutex mThreadMutex;
+		std::thread mThread GUARDED_BY(mThreadMutex);
 
-        std::mutex mWorkMutex;
-        bool mIsActive GUARDED_BY(mWorkMutex) = true;
-        std::queue<std::function<void(ThreadState *)>> mWorkQueue GUARDED_BY(mWorkMutex);
-        std::condition_variable_any mWorkCondition;
-    };
+		std::mutex mWorkMutex;
+		bool mIsActive GUARDED_BY(mWorkMutex) = true;
+		std::queue<std::function<void(ThreadState*)>>
+		    mWorkQueue GUARDED_BY(mWorkMutex);
+		std::condition_variable_any mWorkCondition;
+	};
 
 } // namespace rive_android

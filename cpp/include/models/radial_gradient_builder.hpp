@@ -9,7 +9,8 @@ namespace rive_android
 	class JNIRadialGradientBuilder : public JNIGradientBuilder
 	{
 	public:
-		JNIRadialGradientBuilder(float sx, float sy, float ex, float ey) : JNIGradientBuilder(sx, sy, ex, ey)
+		JNIRadialGradientBuilder(float sx, float sy, float ex, float ey) :
+		    JNIGradientBuilder(sx, sy, ex, ey)
 		{
 		}
 		void apply(jobject paint) override;

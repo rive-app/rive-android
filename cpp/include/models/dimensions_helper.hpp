@@ -16,16 +16,19 @@ namespace rive_android
 		float m_ScaleY;
 		void save() override {}
 		void restore() override {}
-		void transform(const rive::Mat2D &transform) override
+		void transform(const rive::Mat2D& transform) override
 		{
 			m_ScaleX = transform[0];
 			m_ScaleY = transform[3];
 		}
-		void drawPath(rive::RenderPath *path, rive::RenderPaint *paint) override {}
-		void clipPath(rive::RenderPath *path) override {}
+		void drawPath(rive::RenderPath* path, rive::RenderPaint* paint) override
+		{
+		}
+		void clipPath(rive::RenderPath* path) override {}
 
 	public:
-		DimensionsHelper() : m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f)
+		DimensionsHelper() :
+		    m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f)
 		{
 		}
 		~DimensionsHelper(){};
@@ -35,7 +38,11 @@ namespace rive_android
 		float scaleX() const { return m_ScaleX; }
 		float scaleY() const { return m_ScaleY; }
 
-		void computeDimensions(rive::Fit fit, rive::Alignment alignment, const rive::AABB &frame, const rive::AABB &content, rive::AABB &output);
+		void computeDimensions(rive::Fit fit,
+		                       rive::Alignment alignment,
+		                       const rive::AABB& frame,
+		                       const rive::AABB& content,
+		                       rive::AABB& output);
 	};
 } // namespace rive_android
 #endif
