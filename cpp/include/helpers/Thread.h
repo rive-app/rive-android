@@ -30,43 +30,44 @@
 #define THREAD_ANNOTATION_ATTRIBUTE__(x) // no-op
 #endif
 
-#define GUARDED_BY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+#define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
 
-#define REQUIRES(...) \
-  THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
+#define REQUIRES(...)                                                          \
+	THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
 namespace rive_android
 {
 
-  enum class Affinity
-  {
-    None,
-    Even,
-    Odd
-  };
+	enum class Affinity
+	{
+		None,
+		Even,
+		Odd
+	};
 
-  int32_t getNumCpus();
+	int32_t getNumCpus();
 
-  void setAffinity(int32_t cpu);
+	void setAffinity(int32_t cpu);
 
-  void setAffinity(Affinity affinity);
+	void setAffinity(Affinity affinity);
 
-  // This is a minimal demonstration of a thread manager that uses pthreads.
-  // It is not intended for production use!
-  struct ThreadManager
-  {
-    std::mutex threadMapMutex;
-    std::unordered_map<SwappyThreadId, pthread_t> threads;
-    ThreadManager() {}
-    ThreadManager(const ThreadManager &) = delete;
-    static std::atomic<SwappyThreadId> nextId;
+	// This is a minimal demonstration of a thread manager that uses pthreads.
+	// It is not intended for production use!
+	struct ThreadManager
+	{
+		std::mutex threadMapMutex;
+		std::unordered_map<SwappyThreadId, pthread_t> threads;
+		ThreadManager() {}
+		ThreadManager(const ThreadManager&) = delete;
+		static std::atomic<SwappyThreadId> nextId;
 
-  public:
-    static ThreadManager &Instance();
-    int Start(SwappyThreadId *thread_id, void *(*thread_func)(void *), void *user_data);
-    void Join(SwappyThreadId thread_id);
-    bool Joinable(SwappyThreadId thread_id);
-  };
+	public:
+		static ThreadManager& Instance();
+		int Start(SwappyThreadId* thread_id,
+		          void* (*thread_func)(void*),
+		          void* user_data);
+		void Join(SwappyThreadId thread_id);
+		bool Joinable(SwappyThreadId thread_id);
+	};
 
-}
+} // namespace rive_android

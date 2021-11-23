@@ -9,7 +9,7 @@ namespace rive_android
 	class JNIRenderPaint : public rive::RenderPaint
 	{
 	private:
-		JNIGradientBuilder *gradientBuilder;
+		JNIGradientBuilder* gradientBuilder;
 		void porterDuffBlendMode(rive::BlendMode value);
 
 	public:

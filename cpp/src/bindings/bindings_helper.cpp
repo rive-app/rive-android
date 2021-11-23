@@ -7,28 +7,29 @@
 extern "C"
 {
 #endif
-    using namespace rive_android;
+	using namespace rive_android;
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
-        JNIEnv *env,
-        jobject thisObj,
-        jobject jfit,
-        jobject jalignment,
-        jlong availableBoundsRef,
-        jlong artboardBoundsRef,
-        jlong requiredBoundsRef)
-    {
-        auto fit = ::getFit(env, jfit);
-        auto alignment = ::getAlignment(env, jalignment);
-        rive::AABB *availableBounds = (rive::AABB *)availableBoundsRef;
-        rive::AABB *artboardBounds = (rive::AABB *)artboardBoundsRef;
-        rive::AABB *requiredBounds = (rive::AABB *)requiredBoundsRef;
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
+	    JNIEnv* env,
+	    jobject thisObj,
+	    jobject jfit,
+	    jobject jalignment,
+	    jlong availableBoundsRef,
+	    jlong artboardBoundsRef,
+	    jlong requiredBoundsRef)
+	{
+		auto fit = ::getFit(env, jfit);
+		auto alignment = ::getAlignment(env, jalignment);
+		rive::AABB* availableBounds = (rive::AABB*)availableBoundsRef;
+		rive::AABB* artboardBounds = (rive::AABB*)artboardBoundsRef;
+		rive::AABB* requiredBounds = (rive::AABB*)requiredBoundsRef;
 
-        ::DimensionsHelper helper;
+		::DimensionsHelper helper;
 
-        helper.computeDimensions(
-            fit, alignment, *availableBounds, *artboardBounds, *requiredBounds);
-    }
+		helper.computeDimensions(
+		    fit, alignment, *availableBounds, *artboardBounds, *requiredBounds);
+	}
 
 #ifdef __cplusplus
 }

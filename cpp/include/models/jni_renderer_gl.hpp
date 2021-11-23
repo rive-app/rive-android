@@ -8,16 +8,14 @@
 
 namespace rive_android
 {
-	class JNIRendererGL : public rive::OpenGLRenderer, virtual public IJNIRenderer
+	class JNIRendererGL : public rive::OpenGLRenderer,
+	                      virtual public IJNIRenderer
 	{
 	public:
 		jobject jRendererObject;
 		int width, height;
 
-		~JNIRendererGL()
-		{
-			getJNIEnv()->DeleteGlobalRef(jRendererObject);
-		}
+		~JNIRendererGL() { getJNIEnv()->DeleteGlobalRef(jRendererObject); }
 
 		void startFrame() override
 		{
@@ -27,15 +25,13 @@ namespace rive_android
 		}
 
 		// Interface passthrough.
-		void initialize() override {
-			OpenGLRenderer::initialize(nullptr);
-		}
+		void initialize() override { OpenGLRenderer::initialize(nullptr); }
 
-		rive::RenderPaint *makeRenderPaint() override
+		rive::RenderPaint* makeRenderPaint() override
 		{
 			return OpenGLRenderer::makeRenderPaint();
 		}
-		rive::RenderPath *makeRenderPath() override
+		rive::RenderPath* makeRenderPath() override
 		{
 			return OpenGLRenderer::makeRenderPath();
 		}
