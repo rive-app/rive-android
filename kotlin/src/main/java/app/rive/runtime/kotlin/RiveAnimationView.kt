@@ -58,7 +58,7 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
-    private var isRunning = true
+
 
     var fit: Fit
         get() = renderer.fit
@@ -127,9 +127,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         get() = renderer.playingStateMachines
 
     init {
-        if (Build.VERSION.SDK_INT < 29) {
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        }
 
         context.theme.obtainStyledAttributes(
             attrs,
@@ -179,18 +176,11 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        super.surfaceCreated(holder)
-        isRunning = true
-    }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        isRunning = false
-    }
 
     override fun doFrame(frameTimeNanos: Long) {
 //        Trace.beginSection("doFrame")
@@ -497,7 +487,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
 
-        isRunning = false
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
@@ -509,8 +498,6 @@ class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-
-        isRunning = true
 
         val detachedState = _detachedState
         if (detachedState != null) {
