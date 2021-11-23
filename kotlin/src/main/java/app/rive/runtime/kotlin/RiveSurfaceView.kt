@@ -9,10 +9,8 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
-import app.rive.runtime.kotlin.core.AABB
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
 
