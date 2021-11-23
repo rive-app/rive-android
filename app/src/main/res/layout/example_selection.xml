@@ -83,6 +83,12 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:text="Blend Modes" />
+
+            <Button
+                android:id="@+id/go_metrics"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Metrics" />
         </LinearLayout>
 
     </ScrollView>
