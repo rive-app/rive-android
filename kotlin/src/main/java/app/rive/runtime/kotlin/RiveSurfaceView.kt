@@ -3,19 +3,45 @@ package app.rive.runtime.kotlin
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.PixelFormat
+import android.os.Build
 import android.util.AttributeSet
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.TextureView
+import android.view.View
 import androidx.annotation.CallSuper
+import app.rive.runtime.kotlin.core.AABB
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
 
 abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
     SurfaceView(context, attrs),
     SurfaceHolder.Callback {
+
+    init {
+//        TODO: figure out transparency
+//        setZOrderMediaOverlay(true)
+//        setZOrderOnTop(true)
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+
+        if (Build.VERSION.SDK_INT < 29) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+
+    }
+
     private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
+
+    private var _isRunning = true
+
+    var isRunning: Boolean
+        get() = _isRunning
+        private set(value) {
+            _isRunning= value
+        }
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -49,6 +75,7 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         super.onAttachedToWindow()
         // Register this SurfaceView for the SurfaceHolder callbacks below
         holder.addCallback(this)
+        isRunning = true
     }
 
     @CallSuper
@@ -56,10 +83,18 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         cppInit(activity, refreshPeriodNanos)
         renderer.setSurface(holder.surface)
         renderer.start()
+        isRunning = true
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         renderer.cleanup()
+        isRunning = false
     }
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        isRunning = false
+    }
+
+
+
 }
