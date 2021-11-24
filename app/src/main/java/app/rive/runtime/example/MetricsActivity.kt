@@ -1,6 +1,5 @@
 package app.rive.runtime.example
 
-import android.graphics.PixelFormat
 import android.os.Bundle
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
@@ -13,7 +12,7 @@ class MetricsActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.container)
     }
 
-    private val swappyView by lazy(LazyThreadSafetyMode.NONE) {
+    private fun addSwappyView() {
         findViewById(R.id.swappy_view)
             ?: RiveAnimationView(this, null).also {
                 val density = resources.displayMetrics.density
@@ -25,11 +24,6 @@ class MetricsActivity : AppCompatActivity() {
             }
     }
 
-    private fun initSubView() {
-        swappyView.setZOrderOnTop(true)
-        swappyView.holder.setFormat(PixelFormat.TRANSLUCENT)
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +31,6 @@ class MetricsActivity : AppCompatActivity() {
         Rive.init(this)
         setContentView(R.layout.activity_metrics)
         // Make sure this is initialized.
-        initSubView()
+        addSwappyView()
     }
 }
