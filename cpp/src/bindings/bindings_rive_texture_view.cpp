@@ -30,59 +30,20 @@ namespace
 extern "C"
 {
 #endif
-	void startFrameCallback(void*, int, int64_t) {}
-
-	void postWaitCallback(void*, int64_t cpu, int64_t gpu)
-	{
-		// TODO:
-		// auto renderer = Renderer::getInstance();
-		// double frameTime = std::max(cpu, gpu);
-		// renderer->frameTimeStats().add(frameTime);
-	}
-
-	void swapIntervalChangedCallback(void*)
-	{
-		uint64_t swap_ns = SwappyGL_getSwapIntervalNS();
-		LOGI("Swappy changed swap interval to %.2fms", swap_ns / 1e6f);
-	}
 
 	/** Test using an external thread provider */
 	static int threadStart(SwappyThreadId* thread_id,
 	                       void* (*thread_func)(void*),
 	                       void* user_data)
 	{
-		return ThreadManager::Instance().Start(
-		    thread_id, thread_func, user_data);
 	}
-	static void threadJoin(SwappyThreadId thread_id)
-	{
-		ThreadManager::Instance().Join(thread_id);
-	}
-	static bool threadJoinable(SwappyThreadId thread_id)
-	{
-		return ThreadManager::Instance().Joinable(thread_id);
-	}
+
+	static void threadJoin(SwappyThreadId thread_id) {}
+
+	static bool threadJoinable(SwappyThreadId thread_id) {}
+
 	static SwappyThreadFunctions sThreadFunctions = {
 	    threadStart, threadJoin, threadJoinable};
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererMetrics_cppInitTracer(
-	    JNIEnv* env,
-	    jobject view,
-	    jobject activity,
-	    jlong initialSwapIntervalNS)
-	{
-		SwappyTracer tracers;
-		tracers.preWait = nullptr;
-		tracers.postWait = postWaitCallback;
-		tracers.preSwapBuffers = nullptr;
-		tracers.postSwapBuffers = nullptr;
-		tracers.startFrame = startFrameCallback;
-		tracers.userData = nullptr;
-		tracers.swapIntervalChanged = swapIntervalChangedCallback;
-
-		SwappyGL_injectTracer(&tracers);
-	}
 
 	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_RiveTextureView_cppInit(
 	    JNIEnv* env,

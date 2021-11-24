@@ -77,49 +77,4 @@ namespace rive_android
 
 		sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
 	}
-
-	ThreadManager& ThreadManager::Instance()
-	{
-		static ThreadManager t;
-		return t;
-	}
-
-	int ThreadManager::Start(SwappyThreadId* thread_id,
-	                         void* (*thread_func)(void*),
-	                         void* user_data)
-	{
-		std::lock_guard<std::mutex> lock(threadMapMutex);
-		pthread_t thread;
-		int result = pthread_create(&thread, NULL, thread_func, user_data);
-		if (result == 0)
-		{
-			auto id = nextId++;
-			threads.insert({id, thread});
-			*thread_id = id;
-			return 0;
-		}
-		return -1;
-	}
-
-	void ThreadManager::Join(SwappyThreadId thread_id)
-	{
-		std::lock_guard<std::mutex> lock(threadMapMutex);
-		auto it = threads.find(thread_id);
-		if (it != threads.end())
-		{
-			void* retval;
-			pthread_join(it->second, &retval);
-			threads.erase(it);
-		}
-	}
-
-	bool ThreadManager::Joinable(SwappyThreadId thread_id)
-	{
-		std::lock_guard<std::mutex> lock(threadMapMutex);
-		auto it = threads.find(thread_id);
-		return it != threads.end();
-	}
-
-	std::atomic<SwappyThreadId> ThreadManager::nextId(0);
-
 } // namespace rive_android
