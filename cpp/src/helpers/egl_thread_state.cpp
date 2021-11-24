@@ -1,6 +1,5 @@
 #include "helpers/general.hpp"
 #include "helpers/egl_thread_state.hpp"
-#include "swappy/swappyGL.h"
 
 #include "SkImageInfo.h"
 #include "GrBackendSurface.h"
@@ -66,7 +65,6 @@ namespace rive_android
 
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
-		mIsSwappyEnabled = SwappyGL_isEnabled();
 	}
 
 	EGLThreadState::~EGLThreadState()
@@ -197,27 +195,13 @@ namespace rive_android
 		return reinterpret_cast<void*>(symbol);
 	}
 
-	void EGLThreadState::swapBuffers()
-	{
-		if (mIsSwappyEnabled)
-		{
-			SwappyGL_swap(mDisplay, mSurface);
-		}
-		else
-		{
-			eglSwapBuffers(mDisplay, mSurface);
-		}
-	}
+	void EGLThreadState::swapBuffers() { eglSwapBuffers(mDisplay, mSurface); }
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
 	{
 		clearSurface();
 		if (!window)
 		{
-			if (mIsSwappyEnabled)
-			{
-				SwappyGL_setWindow(nullptr);
-			}
 			return false;
 		}
 
@@ -235,10 +219,6 @@ namespace rive_android
 		int height = ANativeWindow_getHeight(window);
 
 		LOGI("Set up window surface %dx%d", width, height);
-		if (mIsSwappyEnabled)
-		{
-			SwappyGL_setWindow(window);
-		}
 
 		mWidth = width;
 		mHeight = height;

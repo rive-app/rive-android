@@ -59,42 +59,7 @@ export AR=$TOOLCHAIN/bin/llvm-ar
 
 SKIA_ARCH=
 
-getSwappy() {
-    mkdir -p deps
-    pushd deps
-
-    export AGDK_LIBS=agdk-libraries-2021.1.0
-    if [ ! -d $AGDK_LIBS ]; then
-        echo "Downloading AGDK..."
-        curl -LO https://dl.google.com/developers/android/agdk/$AGDK_LIBS.zip
-        echo "Unzipping into $AGDK_LIBS"
-        unzip -q $AGDK_LIBS.zip -d $AGDK_LIBS
-    fi
-
-    mkdir -p "$BUILD_DIR"
-    cp "$AGDK_LIBS"/libs/"$ARCH_NAME"_API29_NDK21_cpp_static_Release/libswappy_static.a "$BUILD_DIR"
-
-    popd
-}
-
-getGLM() {
-    mkdir -p deps
-    pushd deps
-
-    GLM_LIBS=glm-0.9.9.8
-    if [ ! -d "glm" ]; then
-        echo "Downloading GLM..."
-        curl -LO https://github.com/g-truc/glm/releases/download/0.9.9.8/$GLM_LIBS.zip
-        echo "Unzipping into $GLM_LIBS"
-        unzip -q $GLM_LIBS.zip "glm/glm/*" -d .
-    fi
-
-    popd
-}
-
 buildFor() {
-    getSwappy
-    getGLM
     # Let's build Skia for Android.
     # Do we want to make this a parameter?
     pushd "$LIBRIVE"/skia/dependencies

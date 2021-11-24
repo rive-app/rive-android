@@ -24,7 +24,6 @@ DEPS=$(O_FILES) \
 	$(BUILD_DIR)/libc++_static.a \
 	$(BUILD_DIR)/libskia.a \
 	$(BUILD_DIR)/librive_skia_renderer.a \
-	$(BUILD_DIR)/libswappy_static.a \
 
 LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid -lEGL -lGLESv3

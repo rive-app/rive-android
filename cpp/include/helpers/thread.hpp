@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "swappy/swappy_common.h"
-
 #include <cstdint>
 #include <unordered_map>
 #include <mutex>

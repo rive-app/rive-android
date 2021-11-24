@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "swappy/swappyGL.h"
 #include "helpers/general.hpp"
 #include "helpers/settings.hpp"
 
@@ -37,15 +36,7 @@ namespace rive_android
 
 	void Settings::setPreference(std::string key, std::string value)
 	{
-		if (key == "swap_interval")
-		{
-			SwappyGL_setSwapIntervalNS(std::stod(value) * 1e6);
-		}
-		else if (key == "use_affinity")
-		{
-			SwappyGL_setUseAffinity(value == "true");
-		}
-		else if (key == "hot_pocket")
+		if (key == "hot_pocket")
 		{
 			std::lock_guard<std::mutex> lock(mMutex);
 			mHotPocket = (value == "true");
@@ -60,21 +51,7 @@ namespace rive_android
 		notifyListeners();
 	}
 
-	std::chrono::nanoseconds Settings::getRefreshPeriod() const
-	{
-		return std::chrono::nanoseconds(SwappyGL_getRefreshPeriodNanos());
-	}
-
-	int32_t Settings::getSwapIntervalNS() const
-	{
-		return SwappyGL_getSwapIntervalNS();
-	}
-
-	bool Settings::getUseAffinity() const { return SwappyGL_getUseAffinity(); }
-
 	bool Settings::getHotPocket() const { return mHotPocket; }
-
-	bool Settings::getEnableSwappy() const { return mEnableSwappy; }
 
 	bool Settings::isTraceEnabled() const { return mIsTraceEnabled; }
 
