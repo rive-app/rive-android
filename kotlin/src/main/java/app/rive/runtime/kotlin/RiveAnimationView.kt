@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin
 
 import android.annotation.TargetApi
 import android.content.Context
+import android.graphics.SurfaceTexture
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -45,7 +46,7 @@ import java.util.*
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
-    RiveSurfaceView(context, attrs),
+    RiveTextureView(context, attrs),
     Choreographer.FrameCallback,
     Observable<RiveArtboardRenderer.Listener> {
 
@@ -139,7 +140,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
                 val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
                 val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3)
-                val autoplay = getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay)
+                val autoplay =
+                    getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
@@ -179,7 +181,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
 
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+        super.onSurfaceTextureSizeChanged(surface, width, height)
         renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
