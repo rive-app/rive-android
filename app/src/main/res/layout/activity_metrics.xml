@@ -17,7 +17,6 @@
             android:id="@id/swappy_view"
             android:layout_width="match_parent"
             android:layout_height="450dp"
-            android:background="@android:color/black"
             app:riveAlignment="TOP_CENTER"
             app:riveResource="@raw/off_road_car_blog"
             app:riveArtboard="New Artboard"
