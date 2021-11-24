@@ -58,7 +58,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
         isRunning = true
-        alpha = 1.0f
+        isOpaque = false
     }
 
     @CallSuper
