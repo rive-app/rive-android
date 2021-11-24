@@ -1,11 +1,12 @@
 package app.rive.runtime.example
 
 import android.content.Context
+import android.graphics.SurfaceTexture
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.RiveSurfaceView
+import app.rive.runtime.kotlin.RiveTextureView
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
@@ -29,7 +30,7 @@ class LowLevelActivity : AppCompatActivity() {
     }
 }
 
-class LowLevelRiveView(context: Context) : RiveSurfaceView(context) {
+class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     // Initialize renderer first: we can't create Files without one.
     override val renderer = object : RendererSwappy() {
         override fun draw() {
@@ -53,14 +54,7 @@ class LowLevelRiveView(context: Context) : RiveSurfaceView(context) {
 
     private var bounds: AABB = AABB(100f, 100f)
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        super.surfaceCreated(holder)
-        renderer.start()
-    }
-
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         bounds = AABB(width.toFloat(), height.toFloat())
     }
-
-    override fun surfaceDestroyed(holder: SurfaceHolder) {}
 }
