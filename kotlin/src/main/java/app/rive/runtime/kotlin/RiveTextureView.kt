@@ -3,37 +3,20 @@ package app.rive.runtime.kotlin
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.graphics.PixelFormat
-import android.graphics.Rect
-import android.os.Build
+import android.graphics.SurfaceTexture
 import android.util.AttributeSet
 import android.util.Log
-import android.view.SurfaceHolder
-import android.view.SurfaceView
-import android.view.View
+import android.view.Surface
+import android.view.TextureView
 import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.renderers.RendererSwappy
 
-
-abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
-    SurfaceView(context, attrs),
-    SurfaceHolder.Callback {
-
-    init {
-//        TODO: figure out transparency
-//        setZOrderMediaOverlay(true)
-//        setZOrderOnTop(true)
-
-        holder.setFormat(PixelFormat.TRANSLUCENT)
-
-        if (Build.VERSION.SDK_INT < 29) {
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        }
-    }
+abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
+    TextureView(context, attrs),
+    TextureView.SurfaceTextureListener {
 
     private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
-
 
     var isRunning: Boolean = true
         private set
@@ -66,18 +49,23 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
         return null
     }
 
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {} // called every time when swapBuffers is called
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+
     @CallSuper
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         // Register this SurfaceView for the SurfaceHolder callbacks below
-        holder.addCallback(this)
+        surfaceTextureListener = this
         isRunning = true
+        alpha = 1.0f
     }
 
     @CallSuper
-    override fun surfaceCreated(holder: SurfaceHolder) {
+    override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
         cppInit(activity, refreshPeriodNanos)
-        renderer.setSurface(holder.surface)
+        val surface = Surface(surfaceTexture)
+        renderer.setSurface(surface)
         renderer.start()
         isRunning = true
     }
@@ -90,11 +78,11 @@ abstract class RiveSurfaceView(context: Context, attrs: AttributeSet? = null) :
     }
 
     @CallSuper
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        // TODO: does this introduce a race condition wiht onDetachedFromWindow?
+    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         isRunning = false
+        // TODO: surface.release() manually, after the last render?
+        //      There might be a race condition with the threading model here,
+        //          maybe the reason behind dequeue buffer fails.
+        return false
     }
-
-
-
 }

@@ -84,7 +84,7 @@ extern "C"
 		SwappyGL_injectTracer(&tracers);
 	}
 
-	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_RiveSurfaceView_cppInit(
+	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_RiveTextureView_cppInit(
 	    JNIEnv* env,
 	    jobject view,
 	    jobject activity,
@@ -105,7 +105,7 @@ extern "C"
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetPreference(JNIEnv* env,
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetPreference(JNIEnv* env,
 	                                                              jobject,
 	                                                              jstring key,
 	                                                              jstring value)
@@ -115,21 +115,21 @@ extern "C"
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetAutoSwapInterval(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetAutoSwapInterval(
 	    JNIEnv* env, jobject, jboolean enabled)
 	{
 		SwappyGL_setAutoSwapInterval(enabled);
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetAutoPipeline(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetAutoPipeline(
 	    JNIEnv* env, jobject, jboolean enabled)
 	{
 		SwappyGL_setAutoPipelineMode(enabled);
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetAverageFps(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(
 	    JNIEnv*, jobject, jlong rendererAddr)
 	{
 		JNIRendererSkia* renderer = (JNIRendererSkia*)rendererAddr;
@@ -137,21 +137,21 @@ extern "C"
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetRefreshPeriodNS(JNIEnv*,
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetRefreshPeriodNS(JNIEnv*,
 	                                                                   jobject)
 	{
 		return SwappyGL_getRefreshPeriodNanos();
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetSwapIntervalNS(JNIEnv*,
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetSwapIntervalNS(JNIEnv*,
 	                                                                  jobject)
 	{
 		return SwappyGL_getSwapIntervalNS();
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetPipelineFrameTimeNS(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetPipelineFrameTimeNS(
 	    JNIEnv*, jobject)
 	{
 		// TODO:
@@ -160,7 +160,7 @@ extern "C"
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetPipelineFrameTimeStdDevNS(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetPipelineFrameTimeStdDevNS(
 	    JNIEnv*, jobject)
 	{
 		// TODO:
@@ -169,7 +169,7 @@ extern "C"
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetWorkload(JNIEnv*,
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetWorkload(JNIEnv*,
 	                                                            jobject,
 	                                                            jint load)
 	{
@@ -179,14 +179,14 @@ extern "C"
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppSetBufferStuffingFixWait(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetBufferStuffingFixWait(
 	    JNIEnv*, jobject, jint n_frames)
 	{
 		SwappyGL_setBufferStuffingFixWait(n_frames);
 	}
 
 	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppEnableSwappy(
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppEnableSwappy(
 	    JNIEnv*, jobject, jboolean enabled)
 	{
 		// TODO:
@@ -194,7 +194,7 @@ extern "C"
 	}
 
 	JNIEXPORT int JNICALL
-	Java_app_rive_runtime_kotlin_RiveSurfaceView_cppGetSwappyStats(JNIEnv*,
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetSwappyStats(JNIEnv*,
 	                                                               jobject,
 	                                                               jint stat,
 	                                                               jint bin)
