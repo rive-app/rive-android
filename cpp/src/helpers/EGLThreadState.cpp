@@ -66,6 +66,7 @@ namespace rive_android
 
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
+		mIsSwappyEnabled = SwappyGL_isEnabled();
 	}
 
 	EGLThreadState::~EGLThreadState()
@@ -213,7 +214,10 @@ namespace rive_android
 		clearSurface();
 		if (!window)
 		{
-			SwappyGL_setWindow(nullptr);
+			if (mIsSwappyEnabled)
+			{
+				SwappyGL_setWindow(nullptr);
+			}
 			return false;
 		}
 
@@ -230,8 +234,11 @@ namespace rive_android
 		int width = ANativeWindow_getWidth(window);
 		int height = ANativeWindow_getHeight(window);
 
-		//  LOGI("Set up window surface %dx%d", width, height);
-		SwappyGL_setWindow(window);
+		LOGI("Set up window surface %dx%d", width, height);
+		if (mIsSwappyEnabled)
+		{
+			SwappyGL_setWindow(window);
+		}
 
 		mWidth = width;
 		mHeight = height;

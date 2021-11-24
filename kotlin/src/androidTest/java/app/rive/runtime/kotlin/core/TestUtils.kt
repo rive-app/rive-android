@@ -2,7 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
-import app.rive.runtime.kotlin.renderers.RendererSwappy
+import app.rive.runtime.kotlin.renderers.RendererSkia
 import org.junit.Assert.assertEquals
 
 
@@ -20,7 +20,7 @@ class TestUtils {
     }
 
 
-    private class MockRenderer : RendererSwappy() {
+    private class MockRenderer : RendererSkia() {
         init {
             println("Got this mock initialized!")
         }

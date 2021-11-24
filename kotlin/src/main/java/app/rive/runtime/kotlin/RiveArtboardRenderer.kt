@@ -2,7 +2,7 @@ package app.rive.runtime.kotlin
 
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
-import app.rive.runtime.kotlin.renderers.RendererSwappy
+import app.rive.runtime.kotlin.renderers.RendererSkia
 
 class RiveArtboardRenderer(
     fit: Fit = Fit.CONTAIN,
@@ -14,7 +14,7 @@ class RiveArtboardRenderer(
     var stateMachineName: String? = null,
     var autoplay: Boolean = true
 ) : Observable<RiveArtboardRenderer.Listener>,
-    RendererSwappy() {
+    RendererSkia() {
     // PRIVATE
     private var listeners = HashSet<RiveArtboardRenderer.Listener>()
     var targetBounds: AABB = AABB(0f, 0f)
