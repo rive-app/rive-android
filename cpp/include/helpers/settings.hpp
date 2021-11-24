@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "helpers/Thread.h"
+#include "helpers/thread.hpp"
 
 #include <cstdint>
 #include <mutex>

@@ -7,7 +7,7 @@
 #include <android/native_window.h>
 
 #include "helpers/general.hpp"
-#include "Settings.h"
+#include "settings.hpp"
 #include "swappy/swappyGL_extra.h"
 
 #include "GrDirectContext.h"
