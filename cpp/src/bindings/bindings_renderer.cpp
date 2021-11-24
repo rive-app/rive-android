@@ -1,10 +1,10 @@
 #include <jni.h>
-#include <cassert>
 #include <android/native_window_jni.h>
 
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "models/jni_renderer.hpp"
+
+#include "bindings/bindings_renderer.hpp"
 #include "models/jni_renderer_gl.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
@@ -16,20 +16,6 @@ extern "C"
 #endif
 
 	using namespace rive_android;
-
-	// Our renderer abstractions creates paints and paths for the renderer,
-	// however the abstraction model is implemented with a simple global
-	// function for makeRenderPaint and makeRenderPath. See the rive-cpp
-	// low_level_rendering branch for how the viewer handles this by expecting
-	// one global LowLevelRenderer and then virtualizing the methods to create
-	// those objects.
-	//
-	// A long term cleaner solution is requiring file graphics-init by passing
-	// the renderer reference. Perhaps the time has come to explore that to
-	// avoid things like this. It does mean that files cannot be loaded without
-	// a renderer, or at least will require initialization with a no-op renderer
-	// (probably ok?).
-	IJNIRenderer* g_JNIRenderer = nullptr;
 
 	// RENDERER
 	JNIEXPORT jlong JNICALL
@@ -197,19 +183,4 @@ extern "C"
 
 #ifdef __cplusplus
 }
-
-namespace rive
-{
-	RenderPaint* makeRenderPaint()
-	{
-		assert(g_JNIRenderer != nullptr);
-		return g_JNIRenderer->makeRenderPaint();
-	}
-
-	RenderPath* makeRenderPath()
-	{
-		assert(g_JNIRenderer != nullptr);
-		return g_JNIRenderer->makeRenderPath();
-	}
-} // namespace rive
 #endif
