@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "helpers/Thread.h"
+#include "helpers/thread.hpp"
 
 #include <sched.h>
 #include <unistd.h>
