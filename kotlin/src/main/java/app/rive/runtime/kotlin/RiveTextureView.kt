@@ -9,7 +9,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import androidx.annotation.CallSuper
-import app.rive.runtime.kotlin.renderers.RendererSwappy
+import app.rive.runtime.kotlin.renderers.RendererSkia
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
@@ -26,7 +26,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         this.getMaybeActivity()!!
     }
 
-    protected abstract val renderer: RendererSwappy
+    protected abstract val renderer: RendererSkia
 
     private val refreshPeriodNanos: Long by lazy {
         val msInNS: Long = 1000000
@@ -62,8 +62,16 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     }
 
     @CallSuper
-    override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-        cppInit(activity, refreshPeriodNanos)
+    override fun onSurfaceTextureAvailable(
+        surfaceTexture: SurfaceTexture,
+        width: Int,
+        height: Int
+    ) {
+        // umberto: disabling Swappy initialization for now since this is slowing down
+        //  performance with multiple animations on the screen. This is probably due to
+        //  contention with a single swappy context that tries to deal with mutliple
+        //  surfaces/GL contexts.
+        // cppInit(activity, refreshPeriodNanos)
         val surface = Surface(surfaceTexture)
         renderer.setSurface(surface)
         renderer.start()
