@@ -3,12 +3,11 @@ package app.rive.runtime.example
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.os.Bundle
-import android.view.SurfaceHolder
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveTextureView
 import app.rive.runtime.kotlin.core.*
-import app.rive.runtime.kotlin.renderers.RendererSwappy
+import app.rive.runtime.kotlin.renderers.RendererSkia
 
 
 class LowLevelActivity : AppCompatActivity() {
@@ -32,7 +31,7 @@ class LowLevelActivity : AppCompatActivity() {
 
 class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     // Initialize renderer first: we can't create Files without one.
-    override val renderer = object : RendererSwappy() {
+    override val renderer = object : RendererSkia() {
         override fun draw() {
             artboard.drawSkia(cppPointer, Fit.COVER, Alignment.CENTER)
         }

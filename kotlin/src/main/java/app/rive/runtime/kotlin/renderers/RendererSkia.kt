@@ -3,7 +3,7 @@ package app.rive.runtime.kotlin.renderers
 import android.view.Surface
 import androidx.annotation.CallSuper
 
-abstract class RendererSwappy : BaseRenderer() {
+abstract class RendererSkia : BaseRenderer() {
     final override var cppPointer: Long = constructor()
 
     external override fun cleanupJNI(cppPointer: Long)
