@@ -93,15 +93,12 @@ namespace rive_android
 		{
 			const Settings* settings = Settings::getInstance();
 			threadState->onSettingsChanged(settings);
-			setAffinity(settings->getUseAffinity() ? mAffinity
-			                                       : Affinity::None);
+			setAffinity(mAffinity);
 		}
 
 		void threadMain()
 		{
-			setAffinity(Settings::getInstance()->getUseAffinity()
-			                ? mAffinity
-			                : Affinity::None);
+			setAffinity(mAffinity);
 			pthread_setname_np(pthread_self(), mName.c_str());
 
 			ThreadState threadState;

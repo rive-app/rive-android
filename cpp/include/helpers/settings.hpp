@@ -48,12 +48,6 @@ namespace rive_android
 
 		void setPreference(std::string key, std::string value);
 
-		std::chrono::nanoseconds getRefreshPeriod() const;
-
-		int32_t getSwapIntervalNS() const;
-
-		bool getUseAffinity() const;
-
 		bool getHotPocket() const;
 
 		bool isTraceEnabled() const;
