@@ -21,8 +21,8 @@
 #include <queue>
 #include <thread>
 
-#include "Settings.h"
-#include "Thread.h"
+#include "settings.hpp"
+#include "thread.hpp"
 
 namespace rive_android
 {

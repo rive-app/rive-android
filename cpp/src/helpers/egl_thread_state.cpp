@@ -1,5 +1,5 @@
 #include "helpers/general.hpp"
-#include "helpers/EGLThreadState.h"
+#include "helpers/egl_thread_state.hpp"
 #include "swappy/swappyGL.h"
 
 #include "SkImageInfo.h"

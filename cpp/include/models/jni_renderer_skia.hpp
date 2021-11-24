@@ -24,9 +24,9 @@
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"
 
-#include "helpers/EGLThreadState.h"
-#include "helpers/Stats.hpp"
-#include "helpers/WorkerThread.h"
+#include "helpers/egl_thread_state.hpp"
+#include "helpers/rendering_stats.hpp"
+#include "helpers/worker_thread.hpp"
 
 using namespace std::chrono_literals;
 

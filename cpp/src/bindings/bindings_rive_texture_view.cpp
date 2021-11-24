@@ -6,7 +6,7 @@
 #include "models/jni_renderer_skia.hpp"
 
 #include "helpers/general.hpp"
-#include "helpers/Settings.h"
+#include "helpers/settings.hpp"
 
 #include "swappy/swappyGL.h"
 #include "swappy/swappyGL_extra.h"

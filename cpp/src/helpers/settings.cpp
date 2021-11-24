@@ -18,7 +18,7 @@
 
 #include "swappy/swappyGL.h"
 #include "helpers/general.hpp"
-#include "helpers/Settings.h"
+#include "helpers/settings.hpp"
 
 namespace rive_android
 {
