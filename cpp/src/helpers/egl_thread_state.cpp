@@ -78,11 +78,7 @@ namespace rive_android
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
 	}
 
-	void EGLThreadState::onSettingsChanged(const Settings* settings)
-	{
-		mRefreshPeriod = settings->getRefreshPeriod();
-		mSwapIntervalNS = settings->getSwapIntervalNS();
-	}
+	void EGLThreadState::onSettingsChanged(const Settings* settings) {}
 
 	void EGLThreadState::clearSurface()
 	{
