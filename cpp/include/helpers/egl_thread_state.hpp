@@ -8,7 +8,6 @@
 
 #include "helpers/general.hpp"
 #include "settings.hpp"
-#include "swappy/swappyGL_extra.h"
 
 #include "GrDirectContext.h"
 #include "SkSurface.h"
@@ -31,14 +30,6 @@ namespace rive_android
 
 		void swapBuffers();
 		bool setWindow(ANativeWindow*);
-
-		void recordFrameStart()
-		{
-			if (mIsSwappyEnabled)
-			{
-				SwappyGL_recordFrameStart(mDisplay, mSurface);
-			}
-		}
 
 		EGLBoolean makeCurrent(EGLSurface surface)
 		{
@@ -88,7 +79,6 @@ namespace rive_android
 		sk_sp<GrDirectContext> mSkContext = nullptr;
 		sk_sp<SkSurface> mSkSurface = nullptr;
 
-		bool mIsSwappyEnabled = true;
 		bool mIsStarted = false;
 
 		std::chrono::time_point<std::chrono::steady_clock> mLastUpdate =

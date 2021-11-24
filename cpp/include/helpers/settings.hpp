@@ -56,8 +56,6 @@ namespace rive_android
 
 		bool getHotPocket() const;
 
-		bool getEnableSwappy() const;
-
 		bool isTraceEnabled() const;
 
 	private:
@@ -66,7 +64,6 @@ namespace rive_android
 		mutable std::mutex mMutex;
 		std::vector<Listener> mListeners GUARDED_BY(mMutex);
 		std::atomic<bool> mHotPocket;
-		std::atomic<bool> mEnableSwappy;
 		std::atomic<bool> mIsTraceEnabled;
 	};
 
