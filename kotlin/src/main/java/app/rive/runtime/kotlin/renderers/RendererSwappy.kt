@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.renderers
 
 import android.view.Surface
+import androidx.annotation.CallSuper
 
 abstract class RendererSwappy : BaseRenderer() {
     final override var cppPointer: Long = constructor()
@@ -27,6 +28,7 @@ abstract class RendererSwappy : BaseRenderer() {
     }
 
     // Stop rendering thread.
+    @CallSuper
     fun stop() {
         cppStop(cppPointer)
     }
