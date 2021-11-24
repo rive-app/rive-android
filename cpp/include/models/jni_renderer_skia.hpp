@@ -44,7 +44,7 @@ namespace rive_android
 
 		ANativeWindow* nWindow = nullptr;
 
-		WorkerThread<EGLThreadState> mWorkerThread = {"SwappyRenderer",
+		WorkerThread<EGLThreadState> mWorkerThread = {"EGLRenderer",
 		                                              Affinity::Odd};
 
 		// Mean and variance for the pipeline frame time.
@@ -225,7 +225,7 @@ namespace rive_android
 
 		void draw(EGLThreadState* threadState)
 		{
-			ATrace_beginSection("swappyDraw()");
+			ATrace_beginSection("draw()");
 
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
@@ -246,8 +246,6 @@ namespace rive_android
 				requestDraw();
 				return;
 			}
-
-			threadState->recordFrameStart();
 
 			calculateFps();
 

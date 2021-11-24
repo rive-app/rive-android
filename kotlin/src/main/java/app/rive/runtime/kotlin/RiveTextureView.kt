@@ -15,7 +15,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
     TextureView.SurfaceTextureListener {
 
-    private external fun cppInit(activity: Activity, initialSwapIntervalNS: Long)
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
     var isRunning: Boolean = true
@@ -67,11 +66,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         width: Int,
         height: Int
     ) {
-        // umberto: disabling Swappy initialization for now since this is slowing down
-        //  performance with multiple animations on the screen. This is probably due to
-        //  contention with a single swappy context that tries to deal with mutliple
-        //  surfaces/GL contexts.
-        // cppInit(activity, refreshPeriodNanos)
         val surface = Surface(surfaceTexture)
         renderer.setSurface(surface)
         renderer.start()
