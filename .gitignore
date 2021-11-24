@@ -21,3 +21,6 @@ build
 captures
 build.pixel.sh
 .vscode
+
+.settings
+.classpath
