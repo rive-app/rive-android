@@ -29,7 +29,8 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
         val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
         Log.i(this.TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
 
-        nInit(activity, refreshPeriodNanos)
+        // umberto: disabling Swappy for now: look at comment in [RiveTextureView]
+        // cppInitTracer(activity, refreshPeriodNanos)
     }
 
     override fun onFrameMetricsAvailable(
@@ -99,5 +100,5 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
         Log.i(this.TAG, frameValues)
     }
 
-    private external fun nInit(activity: Activity, initialSwapIntervalNS: Long)
+    private external fun cppInitTracer(activity: Activity, initialSwapIntervalNS: Long)
 }
