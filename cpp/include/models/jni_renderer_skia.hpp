@@ -44,7 +44,8 @@ namespace rive_android
 
 		ANativeWindow* nWindow = nullptr;
 
-		WorkerThread<EGLThreadState>* mWorkerThread = new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
+		WorkerThread<EGLThreadState>* mWorkerThread =
+		    new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
 
 		// Mean and variance for the pipeline frame time.
 		RenderingStats mFrameTimeStats =
@@ -79,12 +80,17 @@ namespace rive_android
 				    dlsym(lib, "ATrace_endSection"));
 				ATrace_isEnabled = reinterpret_cast<fp_ATrace_isEnabled>(
 				    dlsym(lib, "ATrace_isEnabled"));
+
+				assert(ATrace_beginSection);
+				assert(ATrace_endSection);
+				assert(ATrace_isEnabled);
 			}
 			initialize();
 		}
 
 		~JNIRendererSkia()
 		{
+			// Make sure the thread is removed before the Global Ref.
 			delete mWorkerThread;
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
 			if (mSkRenderer)
@@ -123,13 +129,14 @@ namespace rive_android
 				    auto gpuSurface = threadState->getSkSurface();
 				    mGpuCanvas = gpuSurface->getCanvas();
 				    mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
+						// Draw the first frame.
+				    draw(threadState);
 			    });
 		}
 
 		void initialize() override
 		{
 			// auto result = (bool)ATrace_isEnabled();
-			// LOGI("Is tracing enabled? %d", result);
 			pthread_setname_np(pthread_self(), "JNIRendererSkia");
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
@@ -139,25 +146,27 @@ namespace rive_android
 			    });
 		}
 
-		void startFrame()
+		void doFrame()
+		{
+			mWorkerThread->run([=](EGLThreadState* threadState)
+			                   { requestDraw(); });
+		}
+
+		void start()
 		{
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
-				    if (threadState->mIsStarted)
-					    return;
-				    threadState->mIsStarted = true;
 				    // Reset time to avoid super-large update of position
 				    threadState->mLastUpdate = std::chrono::steady_clock::now();
-
-				    requestDraw();
+				    threadState->mIsStarted = true;
 			    });
 		}
 
 		void stop()
 		{
 			mWorkerThread->run([=](EGLThreadState* threadState)
-			                  { threadState->mIsStarted = false; });
+			                   { threadState->mIsStarted = false; });
 		}
 
 		SkCanvas* canvas() const { return mGpuCanvas; }
@@ -192,7 +201,7 @@ namespace rive_android
 		// delta between calls
 		void calculateFps()
 		{
-			// ATrace_beginSection("calculateFps()");
+			traceStart("calculateFps()");
 			static constexpr int FPS_SAMPLES = 10;
 			static std::chrono::steady_clock::time_point prev =
 			    std::chrono::steady_clock::now();
@@ -212,7 +221,7 @@ namespace rive_android
 			}
 			prev = now;
 
-			// ATrace_endSection();
+			traceEnd();
 		}
 
 		void drawCallback(float elapsed, EGLThreadState* threadState)
@@ -223,9 +232,19 @@ namespace rive_android
 			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
 		}
 
+		void traceStart(const char* sectionName)
+		{
+			// ATrace_beginSection(sectionName);
+		}
+
+		void traceEnd()
+		{
+			// ATrace_endSection();
+		}
+
 		void draw(EGLThreadState* threadState)
 		{
-			// ATrace_beginSection("draw()");
+			traceStart("draw()");
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
@@ -259,25 +278,13 @@ namespace rive_android
 			}
 			threadState->mLastUpdate = std::chrono::steady_clock::now();
 
-			// int w = threadState->mWidth;
-			// int h = threadState->mHeight;
-			// const float aspectRatio = static_cast<float>(w) /
-			// static_cast<fluat>(h);
-
-			// We can probably pass the EGLThreadState address around here too,
-			//  or bind it to a local field.
 			float elapsed = -1.0f * deltaSeconds;
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
 			drawCallback(elapsed, threadState);
 			threadState->getGrContext()->flush();
 			threadState->swapBuffers();
 
-			if (threadState->mIsStarted)
-			{
-				// Request another frame
-				requestDraw();
-			}
-			// ATrace_endSection();
+			traceEnd();
 		}
 	};
 } // namespace rive_android

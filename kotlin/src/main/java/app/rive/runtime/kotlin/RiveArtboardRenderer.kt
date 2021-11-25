@@ -5,8 +5,9 @@ import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 class RiveArtboardRenderer(
-    fit: Fit = Fit.CONTAIN,
-    alignment: Alignment = Alignment.CENTER,
+    // PUBLIC
+    var fit: Fit = Fit.CONTAIN,
+    var alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.AUTO,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
@@ -21,33 +22,16 @@ class RiveArtboardRenderer(
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
         private set
-    private var _playingAnimations = HashSet<LinearAnimationInstance>()
-    private var _playingStateMachines = HashSet<StateMachineInstance>()
 
-    // PUBLIC
-    var fit: Fit = fit
-        set(value) {
-            field = value
-        }
-    var alignment: Alignment = alignment
-        get() = field
-        set(value) {
-            field = value
-        }
+    var playingAnimations = HashSet<LinearAnimationInstance>()
+        private set
+    var playingStateMachines = HashSet<StateMachineInstance>()
+        private set
+
     var animations = mutableListOf<LinearAnimationInstance>()
     var stateMachines = mutableListOf<StateMachineInstance>()
     var file: File? = null
-    var playingAnimations: HashSet<LinearAnimationInstance>
-        get() = _playingAnimations
-        private set(value) {
-            _playingAnimations = value
-        }
-    var playingStateMachines: HashSet<StateMachineInstance>
-        get() = _playingStateMachines
-        private set(value) {
-            _playingStateMachines = value
-        }
-    val isPlaying: Boolean
+    override var isPlaying: Boolean = false
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
     override fun draw() {
@@ -463,6 +447,7 @@ class RiveArtboardRenderer(
     }
 
     private fun notifyPlay(playableInstance: PlayableInstance) {
+        doFrame(0)
         listeners.toList().forEach {
             it.notifyPlay(playableInstance)
         }

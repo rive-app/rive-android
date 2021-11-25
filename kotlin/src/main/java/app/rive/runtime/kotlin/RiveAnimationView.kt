@@ -47,7 +47,6 @@ import java.util.*
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
-    Choreographer.FrameCallback,
     Observable<RiveArtboardRenderer.Listener> {
 
     companion object {
@@ -186,24 +185,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
-
-    override fun doFrame(frameTimeNanos: Long) {
-//        Trace.beginSection("doFrame")
-//        val fpsView = activity.findViewById<TextView>(R.id.fps)
-//        val fps = nGetAverageFps(riveRenderer.address)
-//        fpsView?.text =
-//            java.lang.String.format(
-//                Locale.US,
-//                "Frame rate: %.1f Hz (%.2f ms)",
-//                fps,
-//                1e3f / fps
-//            )
-//        Trace.endSection()
-        if (isRunning) {
-            Choreographer.getInstance().postFrameCallback(this)
-        }
-    }
-
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
@@ -229,6 +210,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     fun pause() {
         renderer.pause()
         stopFrameMetrics()
+        renderer.doFrame(0)
     }
 
     /**
@@ -240,6 +222,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
         renderer.pause(animationNames, areStateMachines)
+        renderer.doFrame(0)
     }
 
 
@@ -252,6 +235,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
         renderer.pause(animationName, isStateMachine)
+        renderer.doFrame(0)
     }
 
     /**
@@ -263,6 +247,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop() {
         renderer.stopAnimations()
+        renderer.doFrame(0)
         stopFrameMetrics()
     }
 
@@ -279,6 +264,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
         renderer.stopAnimations(animationNames, areStateMachines)
+        renderer.doFrame(0)
     }
 
     /**
@@ -294,6 +280,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
         renderer.stopAnimations(animationName, isStateMachine)
+        renderer.doFrame(0)
     }
 
     /**
@@ -313,6 +300,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO
     ) {
         renderer.play(loop, direction)
+        renderer.doFrame(0)
     }
 
     /**
@@ -328,6 +316,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         areStateMachines: Boolean = false
     ) {
         renderer.play(animationNames, loop, direction, areStateMachines)
+        renderer.doFrame(0)
     }
 
     /**
@@ -342,6 +331,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
     ) {
         renderer.play(animationName, loop, direction, isStateMachine)
+        renderer.doFrame(0)
     }
 
     /**
@@ -351,6 +341,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun reset() {
         renderer.reset()
+        renderer.doFrame(0)
     }
 
     /**
@@ -486,7 +477,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.artboardName = artboardName
 
         renderer.setRiveFile(file)
-        renderer.advance(0.0f)
     }
 
     override fun onDetachedFromWindow() {
@@ -511,7 +501,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             _detachedState = null
         }
 
-        Choreographer.getInstance().postFrameCallback(this)
 //        startFrameMetrics()
     }
 
