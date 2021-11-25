@@ -48,6 +48,12 @@ namespace rive_android
 		}
 		return g_env;
 	}
+	void detachThread()
+	{
+		if (!(globalJavaVM->DetachCurrentThread() == JNI_OK)){
+			LOGE("Could not detach thread from JVM");
+		}
+	}
 
 	void logReferenceTables()
 	{

@@ -192,7 +192,7 @@ namespace rive_android
 		// delta between calls
 		void calculateFps()
 		{
-			ATrace_beginSection("calculateFps()");
+			// ATrace_beginSection("calculateFps()");
 			static constexpr int FPS_SAMPLES = 10;
 			static std::chrono::steady_clock::time_point prev =
 			    std::chrono::steady_clock::now();
@@ -212,7 +212,7 @@ namespace rive_android
 			}
 			prev = now;
 
-			ATrace_endSection();
+			// ATrace_endSection();
 		}
 
 		void drawCallback(float elapsed, EGLThreadState* threadState)
@@ -225,8 +225,7 @@ namespace rive_android
 
 		void draw(EGLThreadState* threadState)
 		{
-			ATrace_beginSection("draw()");
-
+			// ATrace_beginSection("draw()");
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
@@ -278,7 +277,7 @@ namespace rive_android
 				// Request another frame
 				requestDraw();
 			}
-			ATrace_endSection();
+			// ATrace_endSection();
 		}
 	};
 } // namespace rive_android

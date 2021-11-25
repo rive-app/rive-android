@@ -34,6 +34,8 @@ namespace rive_android
 	rive::Fit getFit(JNIEnv* env, jobject jfit);
 	JNIEnv* getJNIEnv();
 
+	void detachThread();
+
 	std::string jstring2string(JNIEnv* env, jstring jStr);
 
 #ifdef DEBUG
