@@ -162,7 +162,14 @@ extern "C"
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(
 	    JNIEnv*, jobject, jlong rendererRef)
 	{
-		reinterpret_cast<JNIRendererSkia*>(rendererRef)->startFrame();
+		reinterpret_cast<JNIRendererSkia*>(rendererRef)->start();
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDoFrame(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		reinterpret_cast<JNIRendererSkia*>(rendererRef)->doFrame();
 	}
 
 	JNIEXPORT void JNICALL
