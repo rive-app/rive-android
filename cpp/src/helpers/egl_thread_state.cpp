@@ -76,6 +76,7 @@ namespace rive_android
 			eglTerminate(mDisplay);
 		if (mKtRendererClass != nullptr)
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
+		detachThread();
 	}
 
 	void EGLThreadState::onSettingsChanged(const Settings* settings) {}
