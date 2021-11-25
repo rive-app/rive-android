@@ -44,8 +44,7 @@ namespace rive_android
 
 		ANativeWindow* nWindow = nullptr;
 
-		WorkerThread<EGLThreadState> mWorkerThread = {"EGLRenderer",
-		                                              Affinity::Odd};
+		WorkerThread<EGLThreadState>* mWorkerThread = new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
 
 		// Mean and variance for the pipeline frame time.
 		RenderingStats mFrameTimeStats =
@@ -86,6 +85,7 @@ namespace rive_android
 
 		~JNIRendererSkia()
 		{
+			delete mWorkerThread;
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
 			if (mSkRenderer)
 			{
@@ -105,7 +105,7 @@ namespace rive_android
 
 		void setWindow(ANativeWindow* window)
 		{
-			mWorkerThread.run(
+			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
 				    if (!threadState->setWindow(window))
@@ -131,7 +131,7 @@ namespace rive_android
 			// auto result = (bool)ATrace_isEnabled();
 			// LOGI("Is tracing enabled? %d", result);
 			pthread_setname_np(pthread_self(), "JNIRendererSkia");
-			mWorkerThread.run(
+			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
 				    jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
@@ -141,7 +141,7 @@ namespace rive_android
 
 		void startFrame()
 		{
-			mWorkerThread.run(
+			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
 				    if (threadState->mIsStarted)
@@ -156,7 +156,7 @@ namespace rive_android
 
 		void stop()
 		{
-			mWorkerThread.run([=](EGLThreadState* threadState)
+			mWorkerThread->run([=](EGLThreadState* threadState)
 			                  { threadState->mIsStarted = false; });
 		}
 
@@ -178,7 +178,7 @@ namespace rive_android
 	private:
 		void requestDraw()
 		{
-			mWorkerThread.run(
+			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
 				    if (threadState->mIsStarted)
