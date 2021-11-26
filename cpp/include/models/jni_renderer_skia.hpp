@@ -30,8 +30,6 @@
 #include "helpers/rendering_stats.hpp"
 #include "helpers/worker_thread.hpp"
 
-
-
 using namespace std::chrono_literals;
 
 // TODO:
@@ -48,13 +46,13 @@ namespace rive_android
 
 		ANativeWindow* nWindow = nullptr;
 
-		WorkerThread<EGLThreadState>* mWorkerThread = new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
+		WorkerThread<EGLThreadState>* mWorkerThread =
+		    new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
 
 		// Mean and variance for the pipeline frame time.
 		RenderingStats mFrameTimeStats =
 		    RenderingStats(20 /* number of samples to average over */
 		    );
-
 
 		jobject mKtRenderer;
 
@@ -63,18 +61,24 @@ namespace rive_android
 		ITracer* mTracer;
 
 	public:
-		JNIRendererSkia(jobject ktObject, bool trace=false) :
+		JNIRendererSkia(jobject ktObject, bool trace = false) :
 		    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
 		{
-			bool traceAvailable = android_get_device_api_level()>=23;
-			
-			if (trace && traceAvailable){
+			bool traceAvailable = android_get_device_api_level() >= 23;
+
+			if (trace && traceAvailable)
+			{
 				mTracer = new Tracer();
-			} else if (trace && !traceAvailable){
-				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api version is %d", android_get_device_api_level());
+			}
+			else if (trace && !traceAvailable)
+			{
+				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api "
+				     "version is %d",
+				     android_get_device_api_level());
 				mTracer = new NoopTracer();
 			}
-			else {
+			else
+			{
 				mTracer = new NoopTracer();
 			}
 			initialize();
@@ -156,7 +160,7 @@ namespace rive_android
 		void stop()
 		{
 			mWorkerThread->run([=](EGLThreadState* threadState)
-			                  { threadState->mIsStarted = false; });
+			                   { threadState->mIsStarted = false; });
 		}
 
 		SkCanvas* canvas() const { return mGpuCanvas; }
