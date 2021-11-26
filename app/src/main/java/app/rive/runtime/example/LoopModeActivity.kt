@@ -6,7 +6,6 @@ import androidx.appcompat.widget.AppCompatButton
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.Loop
-import app.rive.runtime.kotlin.core.Rive
 
 class LoopModeActivity : AppCompatActivity() {
     var direction: Direction = Direction.AUTO

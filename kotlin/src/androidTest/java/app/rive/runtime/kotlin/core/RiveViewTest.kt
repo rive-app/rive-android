@@ -479,6 +479,7 @@ class RiveViewTest {
 
         }
     }
+
     @Test
     fun viewResetAutoplay() {
         UiThreadStatement.runOnUiThread {
