@@ -16,8 +16,8 @@
 // renderers into the rive namespace namespace rive
 // {
 // 	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint();
-// } 	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath(); }
-// } // namespace rive
+// } 	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath();
+// } } // namespace rive
 
 namespace rive_android
 {
@@ -50,7 +50,8 @@ namespace rive_android
 	}
 	void detachThread()
 	{
-		if (!(globalJavaVM->DetachCurrentThread() == JNI_OK)){
+		if (!(globalJavaVM->DetachCurrentThread() == JNI_OK))
+		{
 			LOGE("Could not detach thread from JVM");
 		}
 	}
