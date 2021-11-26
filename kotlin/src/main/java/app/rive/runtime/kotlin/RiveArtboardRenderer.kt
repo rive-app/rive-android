@@ -142,6 +142,7 @@ class RiveArtboardRenderer(
         selectedArtboard?.let {
             setArtboard(it)
         }
+        start()
     }
 
     fun play(
@@ -442,6 +443,7 @@ class RiveArtboardRenderer(
         } else {
             this.activeArtboard?.advance(0f)
         }
+        start()
     }
 
     /* LISTENER INTERFACE */
