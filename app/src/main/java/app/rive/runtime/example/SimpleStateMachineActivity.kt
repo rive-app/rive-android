@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.RadioButton
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.Rive
 
 class SimpleStateMachineActivity : AppCompatActivity() {
 
@@ -22,10 +21,10 @@ class SimpleStateMachineActivity : AppCompatActivity() {
                     animationView.setNumberState("Designer's Test", "Level", 0f)
 
                 R.id.level_intermediate ->
-                        animationView.setNumberState("Designer's Test", "Level", 1f)
+                    animationView.setNumberState("Designer's Test", "Level", 1f)
 
                 R.id.level_advanced ->
-                        animationView.setNumberState("Designer's Test", "Level", 2f)
+                    animationView.setNumberState("Designer's Test", "Level", 2f)
 
             }
         }

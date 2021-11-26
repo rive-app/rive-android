@@ -7,7 +7,7 @@ class SMIBoolean(cppPointer: Long) : SMIInput(cppPointer) {
     private external fun cppValue(cppPointer: Long): Boolean
     private external fun cppSetValue(cppPointer: Long, newValue: Boolean)
 
-    var value:Boolean
+    var value: Boolean
         get() = cppValue(cppPointer)
         set(value) {
             cppSetValue(cppPointer, value)

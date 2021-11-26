@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.example.utils.RiveButton
-import app.rive.runtime.example.utils.RiveSwitch
 
 
 class ButtonActivity : AppCompatActivity() {
@@ -15,7 +14,7 @@ class ButtonActivity : AppCompatActivity() {
         var button = findViewById<RiveButton>(R.id.myButton)
         button.setOnClickListener {
             var textView = findViewById<TextView>(R.id.myButtonCounter)
-            textView.text = (textView.text.toString().toInt()+1).toString()
+            textView.text = (textView.text.toString().toInt() + 1).toString()
         }
 
 //        var switch = findViewById<RiveSwitch>(R.id.mySwitch)

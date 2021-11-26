@@ -3,7 +3,7 @@ package app.rive.runtime.kotlin.renderers
 import android.view.Surface
 import androidx.annotation.CallSuper
 
-abstract class RendererSkia(trace: Boolean=false) : BaseRenderer() {
+abstract class RendererSkia(trace: Boolean = false) : BaseRenderer() {
     final override var cppPointer: Long = constructor(trace)
 
     external override fun cleanupJNI(cppPointer: Long)

@@ -1,7 +1,7 @@
 package app.rive.runtime.compatibilitytest
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.core.Rive
 
 class MainActivity : AppCompatActivity() {

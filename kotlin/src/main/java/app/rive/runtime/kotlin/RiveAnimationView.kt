@@ -149,7 +149,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
                 val url = getString(R.styleable.RiveAnimationView_riveUrl)
-                renderer = RiveArtboardRenderer(autoplay = autoplay, trace=riveTraceAnimations)
+                renderer = RiveArtboardRenderer(autoplay = autoplay, trace = riveTraceAnimations)
 
                 if (resourceId != -1) {
                     setRiveResource(
