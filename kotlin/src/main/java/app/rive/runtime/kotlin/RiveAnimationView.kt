@@ -57,7 +57,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     open val defaultAutoplay = true
 
-    public override val renderer = RiveArtboardRenderer(autoplay = defaultAutoplay)
+    public override val renderer: RiveArtboardRenderer;
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
@@ -142,11 +142,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3)
                 val autoplay =
                     getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay)
+                val riveTraceAnimations =
+                    getBoolean(R.styleable.RiveAnimationView_riveTraceAnimations, false)
                 val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
                 val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
                 val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
                 val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
                 val url = getString(R.styleable.RiveAnimationView_riveUrl)
+                renderer = RiveArtboardRenderer(autoplay = autoplay, trace=riveTraceAnimations)
 
                 if (resourceId != -1) {
                     setRiveResource(
