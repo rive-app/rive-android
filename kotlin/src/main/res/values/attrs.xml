@@ -2,6 +2,7 @@
 <resources>
     <declare-styleable name="CustomRiveView">
         <attr name="riveAutoPlay" format="boolean" />
+        <attr name="riveTraceAnimations" format="boolean" />
         <attr name="riveArtboard" format="string" />
         <attr name="riveAnimation" format="string" />
         <attr name="riveStateMachine" format="string" />
@@ -35,22 +36,10 @@
         <attr name="riveUrl" format="string" />
     </declare-styleable>
 
-    <declare-styleable name="SwappyView" parent="CustomRiveView">
-        <!-- Inherit attributes from CustomRiveView -->
-        <attr name="riveAutoPlay" />
-        <attr name="riveArtboard" />
-        <attr name="riveAnimation" />
-        <attr name="riveStateMachine" />
-        <attr name="riveFit" />
-        <attr name="riveAlignment" />
-        <attr name="riveLoop" />
-        <attr name="riveResource" />
-        <attr name="riveUrl" />
-    </declare-styleable>
-
     <declare-styleable name="RiveAnimationView">
         <!-- Inherit attributes from CustomRiveView -->
         <attr name="riveAutoPlay" />
+        <attr name="riveTraceAnimations" />
         <attr name="riveArtboard" />
         <attr name="riveAnimation" />
         <attr name="riveStateMachine" />

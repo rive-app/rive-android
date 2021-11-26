@@ -12,9 +12,10 @@ class RiveArtboardRenderer(
     var artboardName: String? = null,
     var animationName: String? = null,
     var stateMachineName: String? = null,
-    var autoplay: Boolean = true
+    var autoplay: Boolean = true,
+    trace: Boolean = false
 ) : Observable<RiveArtboardRenderer.Listener>,
-    RendererSkia() {
+    RendererSkia(trace) {
     // PRIVATE
     private var listeners = HashSet<RiveArtboardRenderer.Listener>()
     var targetBounds: AABB = AABB(0f, 0f)
