@@ -19,7 +19,6 @@ abstract class RendererSkia :
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(): Long
 
-    // TODO: does this need to public?
     var isPlaying: Boolean = false
 
     abstract fun draw()
@@ -68,7 +67,6 @@ abstract class RendererSkia :
     protected fun finalize() {
     }
 
-    // TODO: pass the time from this value instead of computing on the thread
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         // Draw.
