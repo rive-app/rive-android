@@ -1,6 +1,5 @@
 package app.rive.runtime.example
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -55,10 +54,10 @@ class RiveFragment : Fragment() {
          */
         @JvmStatic
         fun newInstance(resId: Int) =
-                RiveFragment().apply {
-                    arguments = Bundle().apply {
-                        putInt(RIVE_FRAGMENT_ARG_RES_ID, resId)
-                    }
+            RiveFragment().apply {
+                arguments = Bundle().apply {
+                    putInt(RIVE_FRAGMENT_ARG_RES_ID, resId)
                 }
+            }
     }
 }

@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
 /**
  * [StateMachine]s as designed in the Rive animation editor.
