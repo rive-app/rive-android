@@ -210,7 +210,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     fun pause() {
         renderer.pause()
         stopFrameMetrics()
-        renderer.doFrame(0)
     }
 
     /**
@@ -222,7 +221,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
         renderer.pause(animationNames, areStateMachines)
-        renderer.doFrame(0)
     }
 
 
@@ -235,7 +233,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
         renderer.pause(animationName, isStateMachine)
-        renderer.doFrame(0)
     }
 
     /**
@@ -247,7 +244,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop() {
         renderer.stopAnimations()
-        renderer.doFrame(0)
         stopFrameMetrics()
     }
 
@@ -264,7 +260,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
         renderer.stopAnimations(animationNames, areStateMachines)
-        renderer.doFrame(0)
     }
 
     /**
@@ -280,7 +275,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
         renderer.stopAnimations(animationName, isStateMachine)
-        renderer.doFrame(0)
     }
 
     /**
@@ -300,7 +294,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO
     ) {
         renderer.play(loop, direction)
-        renderer.doFrame(0)
     }
 
     /**
@@ -316,7 +309,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         areStateMachines: Boolean = false
     ) {
         renderer.play(animationNames, loop, direction, areStateMachines)
-        renderer.doFrame(0)
     }
 
     /**
@@ -331,7 +323,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
     ) {
         renderer.play(animationName, loop, direction, isStateMachine)
-        renderer.doFrame(0)
     }
 
     /**
@@ -341,7 +332,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun reset() {
         renderer.reset()
-        renderer.doFrame(0)
     }
 
     /**
