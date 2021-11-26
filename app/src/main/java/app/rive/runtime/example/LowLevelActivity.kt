@@ -32,7 +32,6 @@ class LowLevelActivity : AppCompatActivity() {
 class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     // Initialize renderer first: we can't create Files without one.
     override val renderer = object : RendererSkia() {
-        override var isPlaying: Boolean = true
         override fun draw() {
             artboard.drawSkia(cppPointer, Fit.COVER, Alignment.CENTER)
         }

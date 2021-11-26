@@ -129,8 +129,6 @@ namespace rive_android
 				    auto gpuSurface = threadState->getSkSurface();
 				    mGpuCanvas = gpuSurface->getCanvas();
 				    mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
-						// Draw the first frame.
-				    draw(threadState);
 			    });
 		}
 
@@ -146,10 +144,20 @@ namespace rive_android
 			    });
 		}
 
-		void doFrame()
+		void doFrame(long frameTimeNs)
 		{
-			mWorkerThread->run([=](EGLThreadState* threadState)
-			                   { requestDraw(); });
+			mWorkerThread->run(
+			    [=](EGLThreadState* threadState)
+			    {
+				    auto env = getJNIEnv();
+				    float elapsedMs =
+				        (frameTimeNs - threadState->mLastUpdate) / 1e9f;
+				    threadState->mLastUpdate = frameTimeNs;
+				    env->CallVoidMethod(mKtRenderer,
+				                        threadState->mKtAdvanceCallback,
+				                        elapsedMs);
+				    draw(threadState);
+			    });
 		}
 
 		void start()
@@ -157,9 +165,8 @@ namespace rive_android
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
-				    // Reset time to avoid super-large update of position
-				    threadState->mLastUpdate = std::chrono::steady_clock::now();
 				    threadState->mIsStarted = true;
+				    threadState->setNow();
 			    });
 		}
 
@@ -224,14 +231,6 @@ namespace rive_android
 			traceEnd();
 		}
 
-		void drawCallback(float elapsed, EGLThreadState* threadState)
-		{
-			auto env = getJNIEnv();
-			env->CallVoidMethod(
-			    mKtRenderer, threadState->mKtAdvanceCallback, elapsed);
-			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
-		}
-
 		void traceStart(const char* sectionName)
 		{
 			// ATrace_beginSection(sectionName);
@@ -265,22 +264,13 @@ namespace rive_android
 				return;
 			}
 
-			calculateFps();
+			// calculateFps();
 
-			float deltaSeconds = threadState->mSwapIntervalNS / 1e9f;
-			if (threadState->mLastUpdate - std::chrono::steady_clock::now() <=
-			    100ms)
-			{
-				deltaSeconds = (threadState->mLastUpdate -
-				                std::chrono::steady_clock::now())
-				                   .count() /
-				               1e9f;
-			}
-			threadState->mLastUpdate = std::chrono::steady_clock::now();
-
-			float elapsed = -1.0f * deltaSeconds;
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
-			drawCallback(elapsed, threadState);
+			auto env = getJNIEnv();
+			// Kotlin callback.
+			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
+
 			threadState->getGrContext()->flush();
 			threadState->swapBuffers();
 

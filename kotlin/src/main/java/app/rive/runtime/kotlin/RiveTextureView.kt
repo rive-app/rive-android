@@ -59,8 +59,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
         isOpaque = false
-        // Start VSync'd loop
-        renderer.doFrame(0)
     }
 
     @CallSuper
