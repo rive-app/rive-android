@@ -6,6 +6,7 @@
 #include <thread>
 #include <pthread.h>
 #include <EGL/egl.h>
+#include <android/api-level.h>
 #include <android/native_window.h>
 #include <android/trace.h>
 #include <GLES3/gl3.h>
@@ -15,6 +16,7 @@
 #include "rive/animation/linear_animation_instance.hpp"
 
 #include "jni_renderer.hpp"
+#include "tracer.hpp"
 #include "skia_renderer.hpp"
 #include "GrBackendSurface.h"
 #include "GrDirectContext.h"
@@ -27,6 +29,8 @@
 #include "helpers/egl_thread_state.hpp"
 #include "helpers/rendering_stats.hpp"
 #include "helpers/worker_thread.hpp"
+
+
 
 using namespace std::chrono_literals;
 
@@ -51,34 +55,27 @@ namespace rive_android
 		    RenderingStats(20 /* number of samples to average over */
 		    );
 
-		typedef void* (*fp_ATrace_beginSection)(const char* sectionName);
-		typedef void* (*fp_ATrace_endSection)(void);
-		typedef void* (*fp_ATrace_isEnabled)(void);
-
-		void* (*ATrace_beginSection)(const char* sectionName);
-		void* (*ATrace_endSection)(void);
-		void* (*ATrace_isEnabled)(void);
 
 		jobject mKtRenderer;
 
 		SkCanvas* mGpuCanvas;
 		rive::SkiaRenderer* mSkRenderer;
+		ITracer* mTracer;
 
 	public:
-		JNIRendererSkia(jobject ktObject) :
+		JNIRendererSkia(jobject ktObject, bool trace=false) :
 		    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
 		{
-			// Native Trace API is supported in API level 23
-			void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-			if (lib != NULL)
-			{
-				//  Retrieve function pointers from shared object.
-				ATrace_beginSection = reinterpret_cast<fp_ATrace_beginSection>(
-				    dlsym(lib, "ATrace_beginSection"));
-				ATrace_endSection = reinterpret_cast<fp_ATrace_endSection>(
-				    dlsym(lib, "ATrace_endSection"));
-				ATrace_isEnabled = reinterpret_cast<fp_ATrace_isEnabled>(
-				    dlsym(lib, "ATrace_isEnabled"));
+			bool traceAvailable = android_get_device_api_level()>=23;
+			
+			if (trace && traceAvailable){
+				mTracer = new Tracer();
+			} else if (trace && !traceAvailable){
+				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api version is %d", android_get_device_api_level());
+				mTracer = new NoopTracer();
+			}
+			else {
+				mTracer = new NoopTracer();
 			}
 			initialize();
 		}
@@ -90,6 +87,10 @@ namespace rive_android
 			if (mSkRenderer)
 			{
 				delete mSkRenderer;
+			}
+			if (mTracer)
+			{
+				delete mTracer;
 			}
 		}
 
@@ -128,8 +129,6 @@ namespace rive_android
 
 		void initialize() override
 		{
-			// auto result = (bool)ATrace_isEnabled();
-			// LOGI("Is tracing enabled? %d", result);
 			pthread_setname_np(pthread_self(), "JNIRendererSkia");
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
@@ -192,7 +191,7 @@ namespace rive_android
 		// delta between calls
 		void calculateFps()
 		{
-			// ATrace_beginSection("calculateFps()");
+			mTracer->beginSection("calculateFps()");
 			static constexpr int FPS_SAMPLES = 10;
 			static std::chrono::steady_clock::time_point prev =
 			    std::chrono::steady_clock::now();
@@ -211,21 +210,22 @@ namespace rive_android
 				fpsCount = 0;
 			}
 			prev = now;
-
-			// ATrace_endSection();
+			mTracer->endSection();
 		}
 
 		void drawCallback(float elapsed, EGLThreadState* threadState)
 		{
+			mTracer->beginSection("drawCallback()");
 			auto env = getJNIEnv();
 			env->CallVoidMethod(
 			    mKtRenderer, threadState->mKtAdvanceCallback, elapsed);
 			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
+			mTracer->endSection();
 		}
 
 		void draw(EGLThreadState* threadState)
 		{
-			// ATrace_beginSection("draw()");
+			mTracer->beginSection("draw()");
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
@@ -233,6 +233,7 @@ namespace rive_android
 				std::this_thread::sleep_for(50ms);
 				mGpuCanvas = nullptr;
 				requestDraw();
+				mTracer->endSection();
 				return;
 			}
 
@@ -243,6 +244,7 @@ namespace rive_android
 				std::this_thread::sleep_for(500ms);
 				mGpuCanvas = nullptr;
 				requestDraw();
+				mTracer->endSection();
 				return;
 			}
 
@@ -259,25 +261,25 @@ namespace rive_android
 			}
 			threadState->mLastUpdate = std::chrono::steady_clock::now();
 
-			// int w = threadState->mWidth;
-			// int h = threadState->mHeight;
-			// const float aspectRatio = static_cast<float>(w) /
-			// static_cast<fluat>(h);
-
 			// We can probably pass the EGLThreadState address around here too,
 			//  or bind it to a local field.
 			float elapsed = -1.0f * deltaSeconds;
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
 			drawCallback(elapsed, threadState);
+			mTracer->beginSection("flush()");
 			threadState->getGrContext()->flush();
+			mTracer->endSection();
+
+			mTracer->beginSection("swapBuffers()");
 			threadState->swapBuffers();
+			mTracer->endSection();
 
 			if (threadState->mIsStarted)
 			{
 				// Request another frame
 				requestDraw();
 			}
-			// ATrace_endSection();
+			mTracer->endSection();
 		}
 	};
 } // namespace rive_android
