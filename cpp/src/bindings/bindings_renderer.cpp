@@ -167,9 +167,9 @@ extern "C"
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDoFrame(
-	    JNIEnv*, jobject, jlong rendererRef)
+	    JNIEnv*, jobject, jlong rendererRef, jlong frameTimeNs)
 	{
-		reinterpret_cast<JNIRendererSkia*>(rendererRef)->doFrame();
+		reinterpret_cast<JNIRendererSkia*>(rendererRef)->doFrame(frameTimeNs);
 	}
 
 	JNIEXPORT void JNICALL

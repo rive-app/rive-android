@@ -480,8 +480,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
@@ -489,6 +487,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
         )
         pause()
+        super.onDetachedFromWindow()
     }
 
     override fun onAttachedToWindow() {
