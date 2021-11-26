@@ -166,7 +166,7 @@ namespace rive_android
 			    [=](EGLThreadState* threadState)
 			    {
 				    threadState->mIsStarted = true;
-				    threadState->setNow();
+				    threadState->mLastUpdate = EGLThreadState::getNowNs();
 			    });
 		}
 
