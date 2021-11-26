@@ -75,13 +75,12 @@ namespace rive_android
 		/*
 		 * Sets the last update time to the current time in nanoseconds.
 		 */
-		void setNow()
+		static long getNowNs()
 		{
 			using namespace std::chrono;
 			// Reset time to avoid super-large update of position
 			auto nowNs = time_point_cast<nanoseconds>(steady_clock::now());
-			mLastUpdate = nowNs.time_since_epoch().count();
-			;
+			return nowNs.time_since_epoch().count();
 		}
 
 		EGLDisplay mDisplay = EGL_NO_DISPLAY;
@@ -94,7 +93,7 @@ namespace rive_android
 
 		bool mIsStarted = false;
 		// Last update time in nanoseconds
-		long mLastUpdate = 0;
+		long mLastUpdate = getNowNs();
 
 		int32_t mWidth = 0;
 		int32_t mHeight = 0;
