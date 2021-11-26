@@ -188,17 +188,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
 
     override fun doFrame(frameTimeNanos: Long) {
-//        Trace.beginSection("doFrame")
-//        val fpsView = activity.findViewById<TextView>(R.id.fps)
-//        val fps = nGetAverageFps(riveRenderer.address)
-//        fpsView?.text =
-//            java.lang.String.format(
-//                Locale.US,
-//                "Frame rate: %.1f Hz (%.2f ms)",
-//                fps,
-//                1e3f / fps
-//            )
-//        Trace.endSection()
         if (isRunning) {
             Choreographer.getInstance().postFrameCallback(this)
         }

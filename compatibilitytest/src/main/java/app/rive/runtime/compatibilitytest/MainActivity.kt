@@ -9,6 +9,5 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Rive.init(applicationContext)
         setContentView(R.layout.activity_main)
-
     }
 }
