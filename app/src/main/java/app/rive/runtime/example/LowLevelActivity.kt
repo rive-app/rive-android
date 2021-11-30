@@ -41,7 +41,6 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
             instance.apply(artboard)
             artboard.advance(elapsed)
         }
-
     }
 
     // Keep a reference to the file to keep resources around.
@@ -52,6 +51,11 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     private var instance: LinearAnimationInstance = LinearAnimationInstance(artboard.firstAnimation)
 
     private var bounds: AABB = AABB(100f, 100f)
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        renderer.start()
+    }
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         bounds = AABB(width.toFloat(), height.toFloat())

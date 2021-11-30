@@ -212,13 +212,11 @@ namespace rive_android
 			return false;
 		}
 
-		int width = ANativeWindow_getWidth(window);
-		int height = ANativeWindow_getHeight(window);
+		mWidth = ANativeWindow_getWidth(window);
+		mHeight = ANativeWindow_getHeight(window);
 
-		LOGI("Set up window surface %dx%d", width, height);
+		LOGI("Set up window surface %dx%d", mWidth, mHeight);
 
-		mWidth = width;
-		mHeight = height;
 		auto gpuSurface = createSkSurface();
 		if (!gpuSurface)
 		{

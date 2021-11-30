@@ -6,7 +6,6 @@
 #include <thread>
 #include <pthread.h>
 #include <EGL/egl.h>
-#include <android/api-level.h>
 #include <android/native_window.h>
 #include <android/trace.h>
 #include <GLES3/gl3.h>
@@ -16,7 +15,6 @@
 #include "rive/animation/linear_animation_instance.hpp"
 
 #include "jni_renderer.hpp"
-#include "tracer.hpp"
 #include "skia_renderer.hpp"
 #include "GrBackendSurface.h"
 #include "GrDirectContext.h"
@@ -26,16 +24,12 @@
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"
 
+#include "helpers/tracer.hpp"
 #include "helpers/egl_thread_state.hpp"
 #include "helpers/rendering_stats.hpp"
 #include "helpers/worker_thread.hpp"
 
 using namespace std::chrono_literals;
-
-// TODO:
-// - Move tracing function
-//    - in initializer?
-//    - in custom tracer object?
 
 namespace rive_android
 {
@@ -86,6 +80,7 @@ namespace rive_android
 
 		~JNIRendererSkia()
 		{
+			// Make sure the thread is removed before the Global Ref.
 			delete mWorkerThread;
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
 			if (mSkRenderer)
@@ -142,18 +137,29 @@ namespace rive_android
 			    });
 		}
 
-		void startFrame()
+		void doFrame(long frameTimeNs)
 		{
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
-				    if (threadState->mIsStarted)
-					    return;
-				    threadState->mIsStarted = true;
-				    // Reset time to avoid super-large update of position
-				    threadState->mLastUpdate = std::chrono::steady_clock::now();
+				    auto env = getJNIEnv();
+				    float elapsedMs =
+				        (frameTimeNs - threadState->mLastUpdate) / 1e9f;
+				    threadState->mLastUpdate = frameTimeNs;
+				    env->CallVoidMethod(mKtRenderer,
+				                        threadState->mKtAdvanceCallback,
+				                        elapsedMs);
+				    draw(threadState);
+			    });
+		}
 
-				    requestDraw();
+		void start()
+		{
+			mWorkerThread->run(
+			    [=](EGLThreadState* threadState)
+			    {
+				    threadState->mIsStarted = true;
+				    threadState->mLastUpdate = EGLThreadState::getNowNs();
 			    });
 		}
 
@@ -179,18 +185,6 @@ namespace rive_android
 		}
 
 	private:
-		void requestDraw()
-		{
-			mWorkerThread->run(
-			    [=](EGLThreadState* threadState)
-			    {
-				    if (threadState->mIsStarted)
-				    {
-					    draw(threadState);
-				    }
-			    });
-		}
-
 		// should be called once per draw as this function maintains the time
 		// delta between calls
 		void calculateFps()
@@ -217,27 +211,16 @@ namespace rive_android
 			mTracer->endSection();
 		}
 
-		void drawCallback(float elapsed, EGLThreadState* threadState)
-		{
-			mTracer->beginSection("drawCallback()");
-			auto env = getJNIEnv();
-			env->CallVoidMethod(
-			    mKtRenderer, threadState->mKtAdvanceCallback, elapsed);
-			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
-			mTracer->endSection();
-		}
-
 		void draw(EGLThreadState* threadState)
 		{
-			mTracer->beginSection("draw()");
+
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
+				LOGE("Has No Surface!");
 				// Sleep a bit so we don't churn too fast
 				std::this_thread::sleep_for(50ms);
 				mGpuCanvas = nullptr;
-				requestDraw();
-				mTracer->endSection();
 				return;
 			}
 
@@ -247,43 +230,26 @@ namespace rive_android
 				LOGE("No GPU Surface?!");
 				std::this_thread::sleep_for(500ms);
 				mGpuCanvas = nullptr;
-				requestDraw();
-				mTracer->endSection();
 				return;
 			}
 
-			calculateFps();
+			mTracer->beginSection("draw()");
+			// calculateFps();
 
-			float deltaSeconds = threadState->mSwapIntervalNS / 1e9f;
-			if (threadState->mLastUpdate - std::chrono::steady_clock::now() <=
-			    100ms)
-			{
-				deltaSeconds = (threadState->mLastUpdate -
-				                std::chrono::steady_clock::now())
-				                   .count() /
-				               1e9f;
-			}
-			threadState->mLastUpdate = std::chrono::steady_clock::now();
-
-			// We can probably pass the EGLThreadState address around here too,
-			//  or bind it to a local field.
-			float elapsed = -1.0f * deltaSeconds;
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
-			drawCallback(elapsed, threadState);
+			auto env = getJNIEnv();
+			// Kotlin callback.
+			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
+
 			mTracer->beginSection("flush()");
 			threadState->getGrContext()->flush();
-			mTracer->endSection();
+			mTracer->endSection(); // flush
 
 			mTracer->beginSection("swapBuffers()");
 			threadState->swapBuffers();
-			mTracer->endSection();
+			mTracer->endSection(); // swapyBuffers
 
-			if (threadState->mIsStarted)
-			{
-				// Request another frame
-				requestDraw();
-			}
-			mTracer->endSection();
+			mTracer->endSection(); // draw()
 		}
 	};
 } // namespace rive_android

@@ -45,8 +45,6 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-I${LIBRIVE}/skia/dependencies/skia/include/gpu \
 		-I${LIBRIVE}/skia/dependencies/skia/include/config \
 		-I${LIBRIVE}/skia/renderer/include \
-		-I./deps/${AGDK_LIBS}/include \
-		-I./deps/glm \
 		$(CXXFLAGS)
 
 clean:

@@ -4,9 +4,10 @@ import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
-class RiveArtboardRenderer(
-    fit: Fit = Fit.CONTAIN,
-    alignment: Alignment = Alignment.CENTER,
+open class RiveArtboardRenderer(
+    // PUBLIC
+    var fit: Fit = Fit.CONTAIN,
+    var alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.AUTO,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
@@ -22,33 +23,19 @@ class RiveArtboardRenderer(
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
         private set
-    private var _playingAnimations = HashSet<LinearAnimationInstance>()
-    private var _playingStateMachines = HashSet<StateMachineInstance>()
 
-    // PUBLIC
-    var fit: Fit = fit
-        set(value) {
-            field = value
-        }
-    var alignment: Alignment = alignment
-        get() = field
-        set(value) {
-            field = value
-        }
+    var playingAnimations = HashSet<LinearAnimationInstance>()
+        private set
+    var playingStateMachines = HashSet<StateMachineInstance>()
+        private set
+
     var animations = mutableListOf<LinearAnimationInstance>()
+        private set
     var stateMachines = mutableListOf<StateMachineInstance>()
+        private set
     var file: File? = null
-    var playingAnimations: HashSet<LinearAnimationInstance>
-        get() = _playingAnimations
-        private set(value) {
-            _playingAnimations = value
-        }
-    var playingStateMachines: HashSet<StateMachineInstance>
-        get() = _playingStateMachines
-        private set(value) {
-            _playingStateMachines = value
-        }
-    val isPlaying: Boolean
+        private set
+    private val hasPlayingAnimations: Boolean
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
     override fun draw() {
@@ -94,6 +81,8 @@ class RiveArtboardRenderer(
             ab.advance(elapsed)
         }
 
+        // Ready for another frame?
+        isPlaying = hasPlayingAnimations
         if (!isPlaying) {
             stop()
         }
@@ -103,9 +92,15 @@ class RiveArtboardRenderer(
     fun setRiveFile(file: File) {
         this.file = file
         selectArtboard()
+        start()
+        advance(0f)
     }
 
     fun setArtboardByName(artboardName: String?) {
+        if (this.artboardName == artboardName) {
+            return
+        }
+
         stopAnimations()
         if (file == null) {
             this.artboardName = artboardName
@@ -130,7 +125,6 @@ class RiveArtboardRenderer(
     }
 
     fun clear() {
-        stop()
         playingAnimations.clear()
         animations.clear()
         playingStateMachines.clear()
@@ -155,7 +149,6 @@ class RiveArtboardRenderer(
         animationNames.forEach {
             _playAnimation(it, loop, direction, areStateMachines)
         }
-        start()
     }
 
     fun play(
@@ -165,7 +158,6 @@ class RiveArtboardRenderer(
         isStateMachine: Boolean = false,
     ) {
         _playAnimation(animationName, loop, direction, isStateMachine)
-        start()
     }
 
     fun play(
@@ -179,7 +171,6 @@ class RiveArtboardRenderer(
                 _playAnimation(it.stateMachineNames.first(), loop, direction, true)
             }
         }
-        start()
     }
 
     fun pause() {
@@ -262,7 +253,6 @@ class RiveArtboardRenderer(
             (it.input(inputName) as SMITrigger).fire()
             _play(it)
         }
-        start()
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
@@ -271,7 +261,6 @@ class RiveArtboardRenderer(
             (it.input(inputName) as SMIBoolean).value = value
             _play(it)
         }
-        start()
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
@@ -280,7 +269,6 @@ class RiveArtboardRenderer(
             (it.input(inputName) as SMINumber).value = value
             _play(it)
         }
-        start()
     }
 
     // PRIVATE FUNCTIONS
@@ -342,7 +330,6 @@ class RiveArtboardRenderer(
                 }
             }
         }
-
     }
 
     private fun _play(stateMachineInstance: StateMachineInstance) {
@@ -350,6 +337,7 @@ class RiveArtboardRenderer(
             stateMachines.add(stateMachineInstance)
         }
         playingStateMachines.add(stateMachineInstance)
+        start()
         notifyPlay(stateMachineInstance)
     }
 
@@ -375,6 +363,7 @@ class RiveArtboardRenderer(
             animationInstance.direction = direction
         }
         playingAnimations.add(animationInstance)
+        start()
         notifyPlay(animationInstance)
     }
 

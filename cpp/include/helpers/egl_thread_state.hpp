@@ -5,6 +5,7 @@
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 #include <android/native_window.h>
+#include <chrono>
 
 #include "helpers/general.hpp"
 #include "settings.hpp"
@@ -71,6 +72,17 @@ namespace rive_android
 			    env->GetMethodID(mKtRendererClass, "advance", "(F)V");
 		}
 
+		/*
+		 * Sets the last update time to the current time in nanoseconds.
+		 */
+		static long getNowNs()
+		{
+			using namespace std::chrono;
+			// Reset time to avoid super-large update of position
+			auto nowNs = time_point_cast<nanoseconds>(steady_clock::now());
+			return nowNs.time_since_epoch().count();
+		}
+
 		EGLDisplay mDisplay = EGL_NO_DISPLAY;
 		EGLConfig mConfig = static_cast<EGLConfig>(0);
 		EGLSurface mSurface = EGL_NO_SURFACE;
@@ -80,12 +92,9 @@ namespace rive_android
 		sk_sp<SkSurface> mSkSurface = nullptr;
 
 		bool mIsStarted = false;
+		// Last update time in nanoseconds
+		long mLastUpdate = getNowNs();
 
-		std::chrono::time_point<std::chrono::steady_clock> mLastUpdate =
-		    std::chrono::steady_clock::now();
-
-		std::chrono::nanoseconds mRefreshPeriod = std::chrono::nanoseconds{0};
-		int64_t mSwapIntervalNS = 0;
 		int32_t mWidth = 0;
 		int32_t mHeight = 0;
 
