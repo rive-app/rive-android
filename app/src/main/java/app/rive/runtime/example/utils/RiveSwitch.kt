@@ -35,7 +35,8 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
                     app.rive.runtime.example.R.styleable.RiveSwitch_riveResource,
                     -1
                 )
-                stateMachineName = getString(app.rive.runtime.example.R.styleable.RiveSwitch_riveStateMachine);
+                stateMachineName =
+                    getString(app.rive.runtime.example.R.styleable.RiveSwitch_riveStateMachine);
 
                 onAnimation = defaultedString(
                     getString(app.rive.runtime.example.R.styleable.RiveSwitch_riveOnAnimation),
@@ -55,7 +56,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
                 var riveFile = File(resourceBytes)
                 riveArtboardRenderer = RiveArtboardRenderer(autoplay = false)
                 riveArtboardRenderer.setRiveFile(riveFile)
-                stateMachineName?.let{
+                stateMachineName?.let {
                     riveArtboardRenderer.setBooleanState(it, booleanStateInput, isChecked)
                     riveArtboardRenderer.play(it, isStateMachine = true)
                 }
@@ -66,8 +67,8 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    private fun setCheckedAnimation(checked: Boolean){
-        riveArtboardRenderer?.let{
+    private fun setCheckedAnimation(checked: Boolean) {
+        riveArtboardRenderer?.let {
             it.stopAnimations()
             if (checked) {
                 it.play(onAnimation)
@@ -77,8 +78,8 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    private fun setStateMachine(checked: Boolean){
-        riveArtboardRenderer?.let{ drawable ->
+    private fun setStateMachine(checked: Boolean) {
+        riveArtboardRenderer?.let { drawable ->
             stateMachineName?.let { stateMachine ->
                 drawable.setBooleanState(stateMachine, booleanStateInput, checked)
             }
@@ -88,10 +89,9 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     override fun setChecked(checked: Boolean) {
         var output = super.setChecked(checked)
 
-        if (stateMachineName == null){
+        if (stateMachineName == null) {
             setCheckedAnimation(checked)
-        }
-        else {
+        } else {
             setStateMachine(checked)
         }
 
@@ -100,18 +100,18 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
 
     override fun getTextOn(): CharSequence {
-        super.getTextOn()?.let{
-            return it
-        }
-        return ""
-    }
-    override fun getTextOff(): CharSequence {
-        super.getTextOn()?.let{
+        super.getTextOn()?.let {
             return it
         }
         return ""
     }
 
+    override fun getTextOff(): CharSequence {
+        super.getTextOn()?.let {
+            return it
+        }
+        return ""
+    }
 
 
 }

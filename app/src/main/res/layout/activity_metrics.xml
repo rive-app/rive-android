@@ -21,6 +21,7 @@
             app:riveResource="@raw/off_road_car_blog"
             app:riveArtboard="New Artboard"
             app:riveAnimation="idle"
+            app:riveTraceAnimations="true"
             />
 
         <TextView

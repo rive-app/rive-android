@@ -137,9 +137,9 @@ extern "C"
 	// Skia Renderer
 	JNIEXPORT jlong JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(
-	    JNIEnv* env, jobject ktRendererSkia)
+	    JNIEnv* env, jobject ktRendererSkia, jboolean trace)
 	{
-		auto renderer = new JNIRendererSkia(ktRendererSkia);
+		auto renderer = new JNIRendererSkia(ktRendererSkia, trace);
 		g_JNIRenderer = renderer;
 		return (jlong)renderer;
 	}

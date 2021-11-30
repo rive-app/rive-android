@@ -4,10 +4,10 @@ import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
 
-abstract class RendererSkia :
+abstract class RendererSkia(trace: Boolean = false) :
     BaseRenderer(),
     Choreographer.FrameCallback {
-    final override var cppPointer: Long = constructor()
+    final override var cppPointer: Long = constructor(trace)
 
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)
@@ -17,7 +17,7 @@ abstract class RendererSkia :
     private external fun cppClearSurface(rendererPointer: Long)
 
     /** Instantiates JNIRendererSkia in C++ */
-    private external fun constructor(): Long
+    private external fun constructor(trace: Boolean): Long
 
     var isPlaying: Boolean = false
 

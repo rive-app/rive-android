@@ -24,16 +24,12 @@
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"
 
+#include "helpers/tracer.hpp"
 #include "helpers/egl_thread_state.hpp"
 #include "helpers/rendering_stats.hpp"
 #include "helpers/worker_thread.hpp"
 
 using namespace std::chrono_literals;
-
-// TODO:
-// - Move tracing function
-//    - in initializer?
-//    - in custom tracer object?
 
 namespace rive_android
 {
@@ -52,38 +48,32 @@ namespace rive_android
 		    RenderingStats(20 /* number of samples to average over */
 		    );
 
-		typedef void* (*fp_ATrace_beginSection)(const char* sectionName);
-		typedef void* (*fp_ATrace_endSection)(void);
-		typedef void* (*fp_ATrace_isEnabled)(void);
-
-		void* (*ATrace_beginSection)(const char* sectionName);
-		void* (*ATrace_endSection)(void);
-		void* (*ATrace_isEnabled)(void);
-
 		jobject mKtRenderer;
 
 		SkCanvas* mGpuCanvas;
 		rive::SkiaRenderer* mSkRenderer;
+		ITracer* mTracer;
 
 	public:
-		JNIRendererSkia(jobject ktObject) :
+		JNIRendererSkia(jobject ktObject, bool trace = false) :
 		    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
 		{
-			// Native Trace API is supported in API level 23
-			void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-			if (lib != NULL)
-			{
-				//  Retrieve function pointers from shared object.
-				ATrace_beginSection = reinterpret_cast<fp_ATrace_beginSection>(
-				    dlsym(lib, "ATrace_beginSection"));
-				ATrace_endSection = reinterpret_cast<fp_ATrace_endSection>(
-				    dlsym(lib, "ATrace_endSection"));
-				ATrace_isEnabled = reinterpret_cast<fp_ATrace_isEnabled>(
-				    dlsym(lib, "ATrace_isEnabled"));
+			bool traceAvailable = android_get_device_api_level() >= 23;
 
-				assert(ATrace_beginSection);
-				assert(ATrace_endSection);
-				assert(ATrace_isEnabled);
+			if (trace && traceAvailable)
+			{
+				mTracer = new Tracer();
+			}
+			else if (trace && !traceAvailable)
+			{
+				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api "
+				     "version is %d",
+				     android_get_device_api_level());
+				mTracer = new NoopTracer();
+			}
+			else
+			{
+				mTracer = new NoopTracer();
 			}
 			initialize();
 		}
@@ -96,6 +86,10 @@ namespace rive_android
 			if (mSkRenderer)
 			{
 				delete mSkRenderer;
+			}
+			if (mTracer)
+			{
+				delete mTracer;
 			}
 		}
 
@@ -134,7 +128,6 @@ namespace rive_android
 
 		void initialize() override
 		{
-			// auto result = (bool)ATrace_isEnabled();
 			pthread_setname_np(pthread_self(), "JNIRendererSkia");
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
@@ -196,7 +189,7 @@ namespace rive_android
 		// delta between calls
 		void calculateFps()
 		{
-			traceStart("calculateFps()");
+			mTracer->beginSection("calculateFps()");
 			static constexpr int FPS_SAMPLES = 10;
 			static std::chrono::steady_clock::time_point prev =
 			    std::chrono::steady_clock::now();
@@ -215,23 +208,12 @@ namespace rive_android
 				fpsCount = 0;
 			}
 			prev = now;
-
-			traceEnd();
-		}
-
-		void traceStart(const char* sectionName)
-		{
-			// ATrace_beginSection(sectionName);
-		}
-
-		void traceEnd()
-		{
-			// ATrace_endSection();
+			mTracer->endSection();
 		}
 
 		void draw(EGLThreadState* threadState)
 		{
-			traceStart("draw()");
+
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
@@ -251,6 +233,7 @@ namespace rive_android
 				return;
 			}
 
+			mTracer->beginSection("draw()");
 			// calculateFps();
 
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
@@ -258,10 +241,15 @@ namespace rive_android
 			// Kotlin callback.
 			env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
 
+			mTracer->beginSection("flush()");
 			threadState->getGrContext()->flush();
-			threadState->swapBuffers();
+			mTracer->endSection(); // flush
 
-			traceEnd();
+			mTracer->beginSection("swapBuffers()");
+			threadState->swapBuffers();
+			mTracer->endSection(); // swapyBuffers
+
+			mTracer->endSection(); // draw()
 		}
 	};
 } // namespace rive_android
