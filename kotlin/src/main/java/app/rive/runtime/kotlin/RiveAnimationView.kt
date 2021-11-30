@@ -47,7 +47,6 @@ import java.util.*
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
-    Choreographer.FrameCallback,
     Observable<RiveArtboardRenderer.Listener> {
 
     companion object {
@@ -57,7 +56,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     open val defaultAutoplay = true
 
-    public override val renderer: RiveArtboardRenderer;
+    public override val renderer: RiveArtboardRenderer
 
     private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
@@ -170,7 +169,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     renderer.artboardName = artboardName
                     renderer.animationName = animationName
                     renderer.stateMachineName = stateMachineName
-                    renderer.advance(0.0f)
 
                     // If a URL has been provided, initiate downloading
                     url?.let {
@@ -187,13 +185,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
         renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
-    }
-
-
-    override fun doFrame(frameTimeNanos: Long) {
-        if (isRunning) {
-            Choreographer.getInstance().postFrameCallback(this)
-        }
     }
 
     private fun loadHttp(url: String) {
@@ -478,12 +469,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.artboardName = artboardName
 
         renderer.setRiveFile(file)
-        renderer.advance(0.0f)
     }
 
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
@@ -491,6 +479,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
         )
         pause()
+        super.onDetachedFromWindow()
     }
 
     override fun onAttachedToWindow() {
@@ -503,7 +492,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             _detachedState = null
         }
 
-        Choreographer.getInstance().postFrameCallback(this)
 //        startFrameMetrics()
     }
 

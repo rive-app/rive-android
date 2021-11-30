@@ -8,6 +8,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
@@ -15,10 +16,11 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
     TextureView.SurfaceTextureListener {
 
+    companion object {
+        const val TAG = "RiveTextureView"
+    }
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
-    var isRunning: Boolean = true
-        private set
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -56,7 +58,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         super.onAttachedToWindow()
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
-        isRunning = true
         isOpaque = false
     }
 
@@ -68,23 +69,26 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     ) {
         val surface = Surface(surfaceTexture)
         renderer.setSurface(surface)
-        renderer.start()
-        isRunning = true
     }
 
     @CallSuper
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         renderer.cleanup()
-        isRunning = false
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        // TODO: this should pause animations.
+        when (visibility) {
+            View.VISIBLE -> renderer.start()
+            else -> renderer.stop()
+        }
     }
 
     @CallSuper
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-        isRunning = false
-        // TODO: surface.release() manually, after the last render?
-        //      There might be a race condition with the threading model here,
-        //          maybe the reason behind dequeue buffer fails.
-        return false
+        // Returning true will `release()` for us
+        return true
     }
 }

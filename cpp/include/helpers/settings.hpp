@@ -22,7 +22,6 @@
 #include <mutex>
 #include <string>
 #include <vector>
-#include <chrono>
 
 namespace rive_android
 {
