@@ -26,10 +26,11 @@ abstract class RendererSkia :
 
     // Starts rendering thread (i.e. starts rendering frames)
     fun start() {
+        if (isPlaying) return
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
-        Choreographer.getInstance().postFrameCallback(this)
+        scheduleFrame()
     }
 
     fun setSurface(surface: Surface) {
@@ -41,15 +42,14 @@ abstract class RendererSkia :
     // Stop rendering thread.
     @CallSuper
     fun stop() {
+        if (!isPlaying) return
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
     }
 
     private fun clearSurface() {
-        if (isPlaying) {
-            stop()
-        }
+        stop()
         cppClearSurface(cppPointer)
     }
 
@@ -64,7 +64,8 @@ abstract class RendererSkia :
         cppPointer = 0
     }
 
-    protected fun finalize() {
+    fun scheduleFrame() {
+        Choreographer.getInstance().postFrameCallback(this)
     }
 
     @CallSuper
@@ -73,7 +74,7 @@ abstract class RendererSkia :
         if (isPlaying) {
             cppDoFrame(cppPointer, frameTimeNanos)
             // Schedule a new frame: loop.
-            Choreographer.getInstance().postFrameCallback(this)
+            scheduleFrame()
         }
     }
 }
