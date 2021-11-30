@@ -35,7 +35,7 @@ class TestUtils {
         fun waitOnFrame(
             rendererSkia: RendererSkia,
             condition: () -> Boolean,
-            timeoutMs: Long = 50
+            timeoutMs: Long = 500
         ) {
             rendererSkia.doFrame(System.nanoTime())
             waitUntil(condition, timeoutMs)
