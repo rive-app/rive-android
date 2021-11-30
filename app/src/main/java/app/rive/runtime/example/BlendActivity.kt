@@ -3,7 +3,6 @@ package app.rive.runtime.example
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.Rive
 
 class BlendActivity : AppCompatActivity() {
 
