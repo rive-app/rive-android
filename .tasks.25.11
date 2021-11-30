@@ -1,0 +1,29 @@
+# TODO:
+
+- √ Threading fix
+  - √ The queue should be empty before destroying the objects
+- Choreographer
+  - https://developer.android.com/ndk/reference/group/choreographer
+    - Native Choreographer is only available on API >= 24
+√ - Pause the thread when we don't need to draw
+√ - Remove tracing functions from the Renderer
+√ - Set up Choreographer in Kotlin
+  √ - Review lifecycle calls for our views.
+  √ - on pause()/play() the animation jumps around
+  √ - on animation dropdown selection we don't draw again the first frame
+  - View visibility changed
+  - Investigate why we're drawing 600 frames when switching to 'Explorer in our player'
+- Fix MetricsActivity counter
+- Renderer abstraction
+  - Remove cppDrawSkia() vs cppDraw() in bindings_artboard.cpp
+- Kotlin warnings on build
+- Move jni_renderer_skia into a cpp file
+- Split out bindings_renderer.cpp into multiple files
+- Fix crash on HttpActivity with no connection
+- Try Skia compiled with shader cache
+  - -DSK_DISABLE_EFFECT_DESERIALIZATION
+- Build skia-optimized libs
+- Rebase on latest rive-cpp
+- Do we need the g_JNIRenderer link?
+- Split all the bindings file into hpp/cpp
+- `EGL_BAD_MATCH` on `makeCurrent(EGL_NO_SURFACE);`
