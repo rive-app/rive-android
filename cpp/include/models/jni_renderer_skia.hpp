@@ -192,18 +192,6 @@ namespace rive_android
 		}
 
 	private:
-		void requestDraw()
-		{
-			mWorkerThread->run(
-			    [=](EGLThreadState* threadState)
-			    {
-				    if (threadState->mIsStarted)
-				    {
-					    draw(threadState);
-				    }
-			    });
-		}
-
 		// should be called once per draw as this function maintains the time
 		// delta between calls
 		void calculateFps()
@@ -247,10 +235,10 @@ namespace rive_android
 			// Don't render if we have no surface
 			if (threadState->hasNoSurface())
 			{
+				LOGE("Has No Surface!");
 				// Sleep a bit so we don't churn too fast
 				std::this_thread::sleep_for(50ms);
 				mGpuCanvas = nullptr;
-				requestDraw();
 				return;
 			}
 
@@ -260,7 +248,6 @@ namespace rive_android
 				LOGE("No GPU Surface?!");
 				std::this_thread::sleep_for(500ms);
 				mGpuCanvas = nullptr;
-				requestDraw();
 				return;
 			}
 

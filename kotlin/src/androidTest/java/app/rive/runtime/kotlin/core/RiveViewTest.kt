@@ -64,7 +64,7 @@ class RiveViewTest {
             val view = RiveAnimationView(appContext)
             view.autoplay = false
             view.setRiveResource(R.raw.multipleartboards)
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             view.artboardName = "artboard2"
             assertEquals(
                 listOf<String>(),
@@ -88,7 +88,7 @@ class RiveViewTest {
             assertEquals(1, view.animations.size)
             assertEquals(1, view.playingAnimations.size)
             view.pause()
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(1, view.animations.size)
             assertEquals(0, view.playingAnimations.size)
         }
@@ -127,7 +127,7 @@ class RiveViewTest {
             assertEquals(true, view.isPlaying)
 
             view.pause("four")
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
 
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -156,7 +156,7 @@ class RiveViewTest {
             )
 
             view.pause(listOf("two", "four"))
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
                 hashSetOf<LinearAnimationInstance>()
@@ -170,7 +170,7 @@ class RiveViewTest {
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multipleartboards, autoplay = false)
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(0, view.animations.size)
             assertEquals(0, view.playingAnimations.size)
             view.play()
@@ -185,7 +185,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
                 view.playingAnimations.map { it.animation.name }.toHashSet()
@@ -204,7 +204,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
                 view.playingAnimations.map { it.animation.name }.toHashSet()
@@ -218,7 +218,7 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = false)
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
                 view.playingAnimations.map { it.animation.name }.toHashSet()
@@ -336,11 +336,11 @@ class RiveViewTest {
             assertEquals(true, view.isPlaying)
             assertEquals(1, view.animations.size)
             assertEquals(1, view.playingAnimations.size)
-            view.stop()
 
+            view.stop()
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(0, view.animations.size)
             assertEquals(0, view.playingAnimations.size)
-            assertEquals(false, view.isPlaying)
         }
     }
 
@@ -372,7 +372,7 @@ class RiveViewTest {
             )
 
             view.stop(listOf("two", "four"))
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(
                 hashSetOf<String>(),
                 view.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -416,7 +416,7 @@ class RiveViewTest {
             assertEquals(true, view.isPlaying)
 
             view.stop("four")
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
 
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
@@ -475,14 +475,13 @@ class RiveViewTest {
             val originalPointer = view.renderer.activeArtboard?.cppPointer
             view.reset()
             assertNotEquals(view.renderer.activeArtboard?.cppPointer, originalPointer)
-            assertEquals(false, view.isPlaying)
-
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
         }
     }
+
     @Test
     fun viewResetAutoplay() {
         UiThreadStatement.runOnUiThread {
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_animations, autoplay = true)
             assertEquals(true, view.isPlaying)

@@ -50,7 +50,6 @@ class RiveViewStateMachineTest {
     @Test
     fun viewPause() {
         UiThreadStatement.runOnUiThread {
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "one")
             assertEquals(true, view.isPlaying)
@@ -59,7 +58,7 @@ class RiveViewStateMachineTest {
             assertEquals(1, view.stateMachines.size)
             assertEquals(1, view.playingStateMachines.size)
             view.pause()
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(1, view.stateMachines.size)
             assertEquals(0, view.playingStateMachines.size)
         }
@@ -74,7 +73,7 @@ class RiveViewStateMachineTest {
             view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
             assertEquals(false, view.isPlaying)
             assertEquals(1, view.stateMachines.size)
-            assertEquals(0, view.playingStateMachines.size)
+            TestUtils.waitOnFrame(view.renderer, { 0 == view.playingStateMachines.size })
         }
     }
 
@@ -84,8 +83,9 @@ class RiveViewStateMachineTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(true, view.isPlaying)
-            view.renderer.advance(2f)
-            assertEquals(false, view.isPlaying)
+            // Let the state machine animation run its course.
+            view.renderer.advance(1.01f)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
         }
     }
 

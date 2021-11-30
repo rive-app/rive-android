@@ -166,7 +166,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     renderer.artboardName = artboardName
                     renderer.animationName = animationName
                     renderer.stateMachineName = stateMachineName
-                    renderer.advance(0.0f)
 
                     // If a URL has been provided, initiate downloading
                     url?.let {

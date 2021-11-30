@@ -233,8 +233,7 @@ class RiveEventTest {
             val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-
-            assertEquals(1, observer.states.size)
+            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
             assertEquals(true, observer.states[0].stateName == "go right")
             view.renderer.advance(2f)
@@ -335,10 +334,9 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend mix")
-            view.renderer.advance(0.0f)
 
             assertEquals(true, view.isPlaying)
-            assertEquals(1, observer.states.size)
+            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
@@ -393,5 +391,4 @@ class RiveEventTest {
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
-
 }

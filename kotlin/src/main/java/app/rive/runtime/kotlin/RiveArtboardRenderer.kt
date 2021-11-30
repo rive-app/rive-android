@@ -4,7 +4,7 @@ import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
-class RiveArtboardRenderer(
+open class RiveArtboardRenderer(
     // PUBLIC
     var fit: Fit = Fit.CONTAIN,
     var alignment: Alignment = Alignment.CENTER,
@@ -77,10 +77,11 @@ class RiveArtboardRenderer(
                     }
                 }
             }
-            // Ready for another frame?
-            isPlaying = ab.advance(elapsed) || hasPlayingAnimations
+            ab.advance(elapsed)
         }
 
+        // Ready for another frame?
+        isPlaying = hasPlayingAnimations
         if (!isPlaying) {
             stop()
         }
@@ -90,6 +91,8 @@ class RiveArtboardRenderer(
     fun setRiveFile(file: File) {
         this.file = file
         selectArtboard()
+        start()
+        advance(0f)
     }
 
     fun setArtboardByName(artboardName: String?) {
