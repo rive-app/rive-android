@@ -6,7 +6,7 @@ package app.rive.runtime.kotlin.core
 class StateMachineBooleanInput(cppPointer: Long) : StateMachineInput(cppPointer) {
     private external fun cppValue(cppPointer: Long): Boolean
 
-    val value:Boolean
+    val value: Boolean
         get() = cppValue(cppPointer)
 
     override fun toString(): String {

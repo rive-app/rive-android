@@ -11,14 +11,14 @@ ext {
 }
 buildscript {
     ext{
-        gradle_version = "7.0.2"
-        kotlin_version = "1.5.30"
+        gradle_version = '7.0.3'
+        kotlin_version = "1.6.0"
         dokkaVersion = "1.4.30"
     }
 
     repositories {
         google()
-        jcenter()
+        mavenCentral()
         maven {
             url = uri("https://plugins.gradle.org/m2/")
         }
@@ -39,7 +39,7 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 }
 

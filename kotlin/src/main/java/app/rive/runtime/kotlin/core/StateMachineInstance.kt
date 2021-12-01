@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
 /**
  * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
@@ -14,12 +15,18 @@ import app.rive.runtime.kotlin.core.errors.*
 class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() {
     private var cppPointer: Long = constructor(stateMachine.cppPointer)
     private external fun constructor(stateMachinePointer: Long): Long
-    private external fun cppAdvance(pointer: Long, artboardPointer: Long, elapsedTime: Float): Boolean
+    private external fun cppAdvance(
+        pointer: Long,
+        artboardPointer: Long,
+        elapsedTime: Float
+    ): Boolean
+
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateChangedCount(cppPointer: Long): Int
     private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
 
+    override val playable = stateMachine
 
     /**
      * Advance the state machine by the [elapsedTime] in seconds.
@@ -28,8 +35,8 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
-    fun advance(artboard: Artboard, elapsedTime: Float): Boolean {
-        return cppAdvance(cppPointer, artboard.cppPointer, elapsedTime)
+    override fun apply(artboard: Artboard, elapsed: Float): Boolean {
+        return cppAdvance(cppPointer, artboard.cppPointer, elapsed)
     }
 
     /**
@@ -41,18 +48,22 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     /**
      * Return the number of states changed in the last advance.
      */
-    val stateChangedCount: Int
+    private val stateChangedCount: Int
         get() = cppStateChangedCount(cppPointer)
 
-    fun _convertInput(input: SMIInput): SMIInput {
-        if (input.isBoolean) {
-            return SMIBoolean(input.cppPointer)
-        } else if (input.isTrigger) {
-            return SMITrigger(input.cppPointer)
-        } else if (input.isNumber) {
-            return SMINumber(input.cppPointer)
+    private fun convertInput(input: SMIInput): SMIInput {
+        return when {
+            input.isBoolean -> {
+                SMIBoolean(input.cppPointer)
+            }
+            input.isTrigger -> {
+                SMITrigger(input.cppPointer)
+            }
+            input.isNumber -> {
+                SMINumber(input.cppPointer)
+            }
+            else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
-        throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
     }
 
     /**
@@ -66,7 +77,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
         if (stateMachineInputPointer == 0L) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        return _convertInput(
+        return convertInput(
             SMIInput(
                 stateMachineInputPointer
             )
@@ -99,19 +110,25 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     val inputNames: List<String>
         get() = (0 until inputCount).map { input(it).name }
 
-    fun _convertLayerState(state: LayerState): LayerState {
-        if (state.isAnimationState) {
-            return AnimationState(state.cppPointer)
-        } else if (state.isAnyState) {
-            return AnyState(state.cppPointer)
-        } else if (state.isEntryState) {
-            return EntryState(state.cppPointer)
-        } else if (state.isExitState) {
-            return ExitState(state.cppPointer)
-        } else if (state.isBlendState) {
-            return BlendState(state.cppPointer)
+    private fun convertLayerState(state: LayerState): LayerState {
+        return when {
+            state.isAnimationState -> {
+                AnimationState(state.cppPointer)
+            }
+            state.isAnyState -> {
+                AnyState(state.cppPointer)
+            }
+            state.isEntryState -> {
+                EntryState(state.cppPointer)
+            }
+            state.isExitState -> {
+                ExitState(state.cppPointer)
+            }
+            state.isBlendState -> {
+                BlendState(state.cppPointer)
+            }
+            else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
         }
-        throw StateMachineInputException("Unknown Layer State for ${state}.")
     }
 
     /**
@@ -123,7 +140,7 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
         if (stateChanged == 0L) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        return _convertLayerState(
+        return convertLayerState(
             LayerState(
                 stateChanged
             )

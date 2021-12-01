@@ -1,10 +1,13 @@
-package app.rive.runtime.kotlin.core
+package app.rive.runtime.kotlin.renderers
 
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-
+import app.rive.runtime.kotlin.core.AABB
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.Fit
 
 /**
  * A [Renderer] is used to help draw an [Artboard] to a [Canvas]
@@ -15,14 +18,15 @@ import android.graphics.Path
  * Most of the functions implemented here are called from the c++ layer when artboards are
  * rendered.
  */
-class Renderer(antialias: Boolean = true) {
-    var cppPointer: Long
+class Renderer(antialias: Boolean = true) : BaseRenderer() {
     lateinit var canvas: Canvas
 
-    init {
-        cppPointer = constructor(antialias)
-    }
+    override var cppPointer: Long = constructor(antialias)
 
+    external override fun cleanupJNI(cppPointer: Long)
+
+    private external fun cppDraw(artboardPointer: Long, rendererPointer: Long)
+    private external fun constructor(antialias: Boolean): Long
     private external fun cppAlign(
         cppPointer: Long,
         fit: Fit,
@@ -31,8 +35,15 @@ class Renderer(antialias: Boolean = true) {
         srcBoundsPointer: Long
     )
 
-    private external fun constructor(antialias: Boolean): Long
-    private external fun cleanupJNI(cppPointer: Long)
+    fun draw(artboard: Artboard, canvas: Canvas) {
+        val saved = canvas.save()
+        draw(artboard)
+        canvas.restoreToCount(saved)
+    }
+
+    fun draw(artboard: Artboard) {
+        cppDraw(artboard.cppPointer, this.cppPointer)
+    }
 
     /**
      * Passthrough to apply [matrix] to the [canvas]
@@ -60,13 +71,6 @@ class Renderer(antialias: Boolean = true) {
         )
     }
 
-    /**
-     * Remove the [Renderer] object from memory.
-     */
-    fun cleanup() {
-        cleanupJNI(cppPointer)
-        cppPointer = 0
-    }
 
     /**
      * Passthrough to apply [save] to the [canvas]

@@ -5,28 +5,35 @@
 #include "rive/file.hpp"
 #include "rive/layout.hpp"
 
-// lets make sure we stich our rive android renderers into the rive namespace
-namespace rive
-{
-	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint(); }
-	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath(); }
-} // namespace rive
+#ifdef DEBUG
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
+#endif
+
+// luigi: murdered this due to our single renderer model right now...all canvas
+// rendering won't work in this branch lets make sure we stich our rive android
+// renderers into the rive namespace namespace rive
+// {
+// 	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint();
+// } 	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath();
+// } } // namespace rive
 
 namespace rive_android
 {
-	JavaVM *globalJavaVM;
+	JavaVM* globalJavaVM;
 	jobject androidCanvas;
 	int sdkVersion;
 
-	JNIEnv *getJNIEnv()
+	JNIEnv* getJNIEnv()
 	{
 		// double check it's all ok
-		JNIEnv *g_env;
-		int getEnvStat = globalJavaVM->GetEnv((void **)&g_env, JNI_VERSION_1_6);
+		JNIEnv* g_env;
+		int getEnvStat = globalJavaVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
 		if (getEnvStat == JNI_EDETACHED)
 		{
 			// std::cout << "GetEnv: not attached" << std::endl;
-			if (globalJavaVM->AttachCurrentThread((JNIEnv **)&g_env, NULL) != 0)
+			if (globalJavaVM->AttachCurrentThread((JNIEnv**)&g_env, NULL) != 0)
 			{
 				// std::cout << "Failed to attach" << std::endl;
 			}
@@ -41,11 +48,20 @@ namespace rive_android
 		}
 		return g_env;
 	}
+	void detachThread()
+	{
+		if (!(globalJavaVM->DetachCurrentThread() == JNI_OK))
+		{
+			LOGE("Could not detach thread from JVM");
+		}
+	}
 
-	void logReferenceTables() {
+	void logReferenceTables()
+	{
 		jclass vm_class = getJNIEnv()->FindClass("dalvik/system/VMDebug");
-		jmethodID dump_mid = getJNIEnv()->GetStaticMethodID( vm_class, "dumpReferenceTables", "()V" );
-		getJNIEnv()->CallStaticVoidMethod( vm_class, dump_mid );
+		jmethodID dump_mid = getJNIEnv()->GetStaticMethodID(
+		    vm_class, "dumpReferenceTables", "()V");
+		getJNIEnv()->CallStaticVoidMethod(vm_class, dump_mid);
 	}
 
 	void setSDKVersion()
@@ -55,10 +71,11 @@ namespace rive_android
 		sdkVersion = atoi(sdk_ver_str);
 	}
 
-	rive::Fit getFit(JNIEnv *env, jobject jfit)
+	rive::Fit getFit(JNIEnv* env, jobject jfit)
 	{
-		jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::getFitNameMethodId());
-		const char *fitValueNative = env->GetStringUTFChars(fitValue, 0);
+		jstring fitValue = (jstring)env->CallObjectMethod(
+		    jfit, rive_android::getFitNameMethodId());
+		const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
 		env->DeleteLocalRef(fitValue);
 
 		rive::Fit fit = rive::Fit::none;
@@ -93,10 +110,12 @@ namespace rive_android
 		return fit;
 	}
 
-	rive::Alignment getAlignment(JNIEnv *env, jobject jalignment)
+	rive::Alignment getAlignment(JNIEnv* env, jobject jalignment)
 	{
-		jstring alignmentValue = (jstring)env->CallObjectMethod(jalignment, rive_android::getAlignmentNameMethodId());
-		const char *alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
+		jstring alignmentValue = (jstring)env->CallObjectMethod(
+		    jalignment, rive_android::getAlignmentNameMethodId());
+		const char* alignmentValueNative =
+		    env->GetStringUTFChars(alignmentValue, 0);
 		env->DeleteLocalRef(alignmentValue);
 
 		rive::Alignment alignment = rive::Alignment::center;
@@ -139,10 +158,10 @@ namespace rive_android
 		return alignment;
 	}
 
-	long import(uint8_t *bytes, jint length)
+	long import(uint8_t* bytes, jint length)
 	{
 		auto reader = rive::BinaryReader(bytes, length);
-		rive::File *file = nullptr;
+		rive::File* file = nullptr;
 		auto result = rive::File::import(reader, &file);
 		if (result == rive::ImportResult::success)
 		{
@@ -150,7 +169,8 @@ namespace rive_android
 		}
 		else if (result == rive::ImportResult::unsupportedVersion)
 		{
-			return throwUnsupportedRuntimeVersionException("Unsupported Rive File Version.");
+			return throwUnsupportedRuntimeVersionException(
+			    "Unsupported Rive File Version.");
 		}
 		else if (result == rive::ImportResult::malformed)
 		{
@@ -162,11 +182,25 @@ namespace rive_android
 		}
 	}
 
-	std::string jstring2string(JNIEnv *env, jstring jStr)
+	std::string jstring2string(JNIEnv* env, jstring jStr)
 	{
-		const char *cstr = env->GetStringUTFChars(jStr, NULL);
+		const char* cstr = env->GetStringUTFChars(jStr, NULL);
 		std::string str = std::string(cstr);
 		return str;
 	}
-
+#ifdef DEBUG
+	void logThread()
+	{
+		int pipes[2];
+		pipe(pipes);
+		dup2(pipes[1], STDERR_FILENO);
+		FILE* inputFile = fdopen(pipes[0], "r");
+		char readBuffer[256];
+		while (1)
+		{
+			fgets(readBuffer, sizeof(readBuffer), inputFile);
+			__android_log_write(2, "stderr", readBuffer);
+		}
+	}
+#endif
 } // namespace rive_android

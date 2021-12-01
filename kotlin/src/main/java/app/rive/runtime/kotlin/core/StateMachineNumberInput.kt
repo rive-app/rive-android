@@ -6,7 +6,7 @@ package app.rive.runtime.kotlin.core
 class StateMachineNumberInput(cppPointer: Long) : StateMachineInput(cppPointer) {
     private external fun cppValue(cppPointer: Long): Float
 
-    val value:Float
+    val value: Float
         get() = cppValue(cppPointer)
 
     override fun toString(): String {

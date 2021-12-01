@@ -18,22 +18,41 @@ OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(ODIR)/%.o,$(SRC_FILES))
 O_FILES = $(patsubst %.cpp,$(ODIR)/%.o,$(notdir $(SRC_FILES)))
 # $(info $(O_FILES))
 
-DEPS=$(O_FILES) $(BUILD_DIR)/librive.a $(BUILD_DIR)/libc++_static.a
+DEPS=$(O_FILES) \
+	$(BUILD_DIR)/librive.a \
+	$(BUILD_DIR)/librive_renderer.a \
+	$(BUILD_DIR)/libc++_static.a \
+	$(BUILD_DIR)/libskia.a \
+	$(BUILD_DIR)/librive_skia_renderer.a \
 
 LDIR=-L$(SYSROOT)/usr/lib
-LIBS=-llog -landroid
+LIBS=-llog -landroid -lEGL -lGLESv3
 
+# Build the .so object.
 jni_bridge: $(OBJ_FILES)
-	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(RIVE_CPP_ROOT)/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
+	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(LIBRIVE)/include -I${LIBRIVE}/renderer/library/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
 
 # BUILD all .o files - i.e. the files specified in OBJ_FILES.
 # Output all the .o files in ODIR
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) -c $< -o $(ODIR)/$(notdir $@) -I$(LIBRIVE)/include $(CXXFLAGS)
+	$(CXX) -c $< -o $(ODIR)/$(notdir $@) \
+		-DSK_GL \
+		-I$(LIBRIVE)/include \
+		-I$(LIBRIVE)/renderer/library/include \
+		-I${LIBRIVE}/skia/dependencies/skia/ \
+		-I${LIBRIVE}/skia/dependencies/skia/include/core \
+		-I${LIBRIVE}/skia/dependencies/skia/include/effects \
+		-I${LIBRIVE}/skia/dependencies/skia/include/gpu \
+		-I${LIBRIVE}/skia/dependencies/skia/include/config \
+		-I${LIBRIVE}/skia/renderer/include \
+		$(CXXFLAGS)
 
 clean:
 	rm -f $(ODIR)/*.o
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
+	rm -f $(BUILD_DIR)/librive_renderer.a
+	rm -f $(BUILD_DIR)/libskia.a
+	rm -f $(BUILD_DIR)/librive_skia_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a
 	

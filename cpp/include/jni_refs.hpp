@@ -5,9 +5,9 @@
 
 namespace rive_android
 {
-	extern jint throwRiveException(const char *message);
-	extern jint throwMalformedFileException(const char *message);
-	extern jint throwUnsupportedRuntimeVersionException(const char *message);
+	extern jint throwRiveException(const char* message);
+	extern jint throwMalformedFileException(const char* message);
+	extern jint throwUnsupportedRuntimeVersionException(const char* message);
 	extern jclass getFitClass();
 	extern jmethodID getFitNameMethodId();
 

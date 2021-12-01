@@ -32,6 +32,7 @@ class RiveInitializer : Initializer<Unit> {
     override fun create(context: Context) {
         return Rive.init(context)
     }
+
     override fun dependencies(): List<Class<out Initializer<*>>> {
         // No dependencies on other libraries.
         return emptyList()

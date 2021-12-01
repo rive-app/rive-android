@@ -10,7 +10,7 @@ import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.appcompat.widget.AppCompatEditText
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.RiveDrawable.Listener
+import app.rive.runtime.kotlin.RiveArtboardRenderer.Listener
 import app.rive.runtime.kotlin.core.*
 
 class AndroidPlayerActivity : AppCompatActivity() {
@@ -20,7 +20,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     var pauseButtonMap: HashMap<String, View> = HashMap()
     var stopButtonMap: HashMap<String, View> = HashMap()
 
-    val animationResources = listOf(
+    private val animationResources = listOf(
         R.raw.artboard_animations,
         R.raw.basketball,
         R.raw.clipping,
@@ -54,7 +54,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
         }
 
     fun loadResource(index: Int) {
-        animationView.artboardName
         animationView.setRiveResource(animationResources[index], artboardName = null)
         setSpinner()
 
@@ -62,7 +61,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         pauseButtonMap.clear()
         stopButtonMap.clear()
 
-        animationView.drawable.file?.firstArtboard?.name?.let {
+        animationView.renderer.file?.firstArtboard?.name?.let {
             loadArtboard(it)
         }
     }
@@ -245,7 +244,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun loadArtboard(artboardName: String) {
         val controls = findViewById<LinearLayout>(R.id.controls)
         controls.removeAllViews()
-        animationView.drawable.file?.artboard(artboardName)?.let { artboard ->
+        animationView.renderer.file?.artboard(artboardName)?.let { artboard ->
             if (artboard.stateMachineNames.size > 0) {
                 val stateMachineHeader = TextView(this)
                 stateMachineHeader.text = "State Machines:"
@@ -269,7 +268,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     }
 
     fun setSpinner() {
-        animationView.drawable.file?.artboardNames?.let { artboardNames ->
+        animationView.renderer.file?.artboardNames?.let { artboardNames ->
             val dropdown = findViewById<Spinner>(R.id.artboards)
             val adapter = ArrayAdapter<String>(
                 this,
@@ -337,12 +336,14 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let { theText ->
-                    val textView = TextView(that)
-                    textView.text = "Play $theText"
-                    events.addView(textView, 0)
-                    playButtonMap[theText]?.background?.setTint(Color.GREEN)
-                    pauseButtonMap[theText]?.background?.setTint(Color.WHITE)
-                    stopButtonMap[theText]?.background?.setTint(Color.WHITE)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Play $theText"
+                        events.addView(textView, 0)
+                        playButtonMap[theText]?.background?.setTint(Color.GREEN)
+                        pauseButtonMap[theText]?.background?.setTint(Color.WHITE)
+                        stopButtonMap[theText]?.background?.setTint(Color.WHITE)
+                    }
                 }
             }
 
@@ -354,12 +355,14 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let {
-                    val textView = TextView(that)
-                    textView.text = "Pause $text"
-                    events.addView(textView, 0)
-                    playButtonMap[text]?.background?.setTint(Color.WHITE)
-                    pauseButtonMap[text]?.background?.setTint(Color.BLUE)
-                    stopButtonMap[text]?.background?.setTint(Color.WHITE)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Pause $text"
+                        events.addView(textView, 0)
+                        playButtonMap[text]?.background?.setTint(Color.WHITE)
+                        pauseButtonMap[text]?.background?.setTint(Color.BLUE)
+                        stopButtonMap[text]?.background?.setTint(Color.WHITE)
+                    }
                 }
             }
 
@@ -371,28 +374,33 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     text = animation.stateMachine.name
                 }
                 text?.let {
-                    val textView = TextView(that)
-                    textView.text = "Stop $text"
-                    events.addView(textView, 0)
-                    playButtonMap[text]?.background?.setTint(Color.WHITE)
-                    pauseButtonMap[text]?.background?.setTint(Color.WHITE)
-                    stopButtonMap[text]?.background?.setTint(Color.RED)
+                    runOnUiThread {
+                        val textView = TextView(that)
+                        textView.text = "Stop $text"
+                        events.addView(textView, 0)
+                        playButtonMap[text]?.background?.setTint(Color.WHITE)
+                        pauseButtonMap[text]?.background?.setTint(Color.WHITE)
+                        stopButtonMap[text]?.background?.setTint(Color.RED)
+                    }
                 }
             }
 
             override fun notifyLoop(animation: PlayableInstance) {
                 if (animation is LinearAnimationInstance) {
-                    val text = TextView(that)
-                    text.text = "Loop ${animation.animation.name}"
-                    events.addView(text, 0)
+                    runOnUiThread {
+                        val text = TextView(that)
+                        text.text = "Loop ${animation.animation.name}"
+                        events.addView(text, 0)
+                    }
                 }
             }
 
             override fun notifyStateChanged(stateMachineName: String, stateName: String) {
-
-                val text = TextView(that)
-                text.text = "$stateMachineName: State Changed: $stateName"
-                events.addView(text, 0)
+                runOnUiThread {
+                    val text = TextView(that)
+                    text.text = "$stateMachineName: State Changed: $stateName"
+                    events.addView(text, 0)
+                }
             }
         }
 
