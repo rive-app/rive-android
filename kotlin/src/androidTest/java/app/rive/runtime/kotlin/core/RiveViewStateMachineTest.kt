@@ -12,18 +12,19 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveViewStateMachineTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun viewDefaultsLoadResouce() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
             view.play(listOf("one", "two"), areStateMachines = true)
 
             assertEquals(true, view.isPlaying)
-            assertEquals(listOf("New Artboard",), view.file?.artboardNames)
+            assertEquals(listOf("New Artboard"), view.file?.artboardNames)
             assertEquals(
                 listOf("one", "two"),
                 view.stateMachines.map { it.stateMachine.name }.toList()
@@ -34,7 +35,6 @@ class RiveViewStateMachineTest {
     @Test
     fun viewDefaultsNoAutoplay() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
@@ -50,8 +50,6 @@ class RiveViewStateMachineTest {
     @Test
     fun viewPause() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "one")
             assertEquals(true, view.isPlaying)
@@ -60,7 +58,7 @@ class RiveViewStateMachineTest {
             assertEquals(1, view.stateMachines.size)
             assertEquals(1, view.playingStateMachines.size)
             view.pause()
-            assertEquals(false, view.isPlaying)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
             assertEquals(1, view.stateMachines.size)
             assertEquals(0, view.playingStateMachines.size)
         }
@@ -71,26 +69,23 @@ class RiveViewStateMachineTest {
         UiThreadStatement.runOnUiThread {
             // state machine four's has transitions that happen instantly, so we do not stick on
             // a state that's playing an animation
-            val appContext = initTests()
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
             assertEquals(false, view.isPlaying)
             assertEquals(1, view.stateMachines.size)
-            assertEquals(0, view.playingStateMachines.size)
+            TestUtils.waitOnFrame(view.renderer, { 0 == view.playingStateMachines.size })
         }
     }
 
     @Test
     fun viewStateMachinesPause() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(true, view.isPlaying)
-            view.drawable.advance(2000f)
-            assertEquals(false, view.isPlaying)
+            // Let the state machine animation run its course.
+            view.renderer.advance(1.01f)
+            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
         }
     }
 
@@ -98,15 +93,14 @@ class RiveViewStateMachineTest {
     @Ignore("We're not stopping state machines when all layers are stopped atm.")
     fun viewStateMachinesInstancesRemoveOnStop() {
         UiThreadStatement.runOnUiThread {
-            val appContext = initTests()
 
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
 
-            assertEquals(1, view.drawable.stateMachines.size)
-            view.drawable.advance(2000f)
+            assertEquals(1, view.renderer.stateMachines.size)
+            view.renderer.advance(2f)
             assertEquals(false, view.isPlaying)
-            assertEquals(0, view.drawable.stateMachines.size)
+            assertEquals(0, view.renderer.stateMachines.size)
         }
     }
 

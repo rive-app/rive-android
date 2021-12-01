@@ -1,3 +1,4 @@
 include ':kotlin'
 include ':app'
 rootProject.name = "rive-android"
+include ':compatibilitytest'

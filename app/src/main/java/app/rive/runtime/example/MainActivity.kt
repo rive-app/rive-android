@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.core.Rive
 
 
 class MainActivity : AppCompatActivity() {
@@ -50,7 +49,7 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.go_low_level).setOnClickListener {
             startActivity(
-                    Intent(this, LowLevelActivity::class.java)
+                Intent(this, LowLevelActivity::class.java)
             )
         }
 
@@ -74,6 +73,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.go_blend).setOnClickListener {
             startActivity(
                 Intent(this, BlendActivity::class.java)
+            )
+        }
+        findViewById<Button>(R.id.go_metrics).setOnClickListener {
+            startActivity(
+                Intent(this, MetricsActivity::class.java)
             )
         }
     }

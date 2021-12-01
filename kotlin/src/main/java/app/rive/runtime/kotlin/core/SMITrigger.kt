@@ -6,7 +6,7 @@ package app.rive.runtime.kotlin.core
 class SMITrigger(cppPointer: Long) : SMIInput(cppPointer) {
     private external fun cppFire(cppPointer: Long)
 
-    fun fire(){
+    fun fire() {
         cppFire(cppPointer)
     }
 

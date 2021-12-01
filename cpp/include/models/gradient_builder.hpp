@@ -12,7 +12,8 @@ namespace rive_android
 		std::vector<float> stops;
 		float sx, sy, ex, ey;
 		virtual ~JNIGradientBuilder() {}
-		JNIGradientBuilder(float sx, float sy, float ex, float ey) : sx(sx), sy(sy), ex(ex), ey(ey)
+		JNIGradientBuilder(float sx, float sy, float ex, float ey) :
+		    sx(sx), sy(sy), ex(ex), ey(ey)
 		{
 		}
 

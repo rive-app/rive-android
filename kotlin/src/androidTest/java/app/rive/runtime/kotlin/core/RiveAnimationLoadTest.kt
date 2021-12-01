@@ -1,7 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.rive.runtime.kotlin.core.errors.*
+import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -10,10 +10,11 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveAnimationLoadTest {
+    private val testUtils = TestUtils()
+    private val appContext = testUtils.context
 
     @Test
     fun loadAnimationFirstAnimation() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard1")
 
@@ -25,7 +26,6 @@ class RiveAnimationLoadTest {
 
     @Test
     fun loadAnimationSecondAnimation() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard = file.artboard("artboard2")
         var artboard2animation1 = artboard.animation(0)
@@ -40,7 +40,6 @@ class RiveAnimationLoadTest {
 
     @Test
     fun artboardHasNoAnimations() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         assertEquals(0, artboard.animationCount)
@@ -49,7 +48,6 @@ class RiveAnimationLoadTest {
 
     @Test(expected = AnimationException::class)
     fun loadFirstAnimationNoExists() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.firstAnimation
@@ -57,7 +55,6 @@ class RiveAnimationLoadTest {
 
     @Test(expected = AnimationException::class)
     fun loadAnimationByIndexDoesntExist() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.animation(1)
@@ -65,7 +62,6 @@ class RiveAnimationLoadTest {
 
     @Test(expected = AnimationException::class)
     fun loadAnimationByNameDoesntExist() {
-        val appContext = initTests()
         var file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         var artboard = file.firstArtboard
         artboard.animation("foo")

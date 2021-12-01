@@ -9,7 +9,7 @@ namespace rive_android
 	class JNIRenderPaint : public rive::RenderPaint
 	{
 	private:
-		JNIGradientBuilder *gradientBuilder;
+		JNIGradientBuilder* gradientBuilder;
 		void porterDuffBlendMode(rive::BlendMode value);
 
 	public:
@@ -28,6 +28,7 @@ namespace rive_android
 		void radialGradient(float sx, float sy, float ex, float ey) override;
 		void addStop(unsigned int color, float stop) override;
 		void completeGradient() override;
+		void invalidateStroke() override {}
 	};
 
 } // namespace rive_android

@@ -1,8 +1,11 @@
-![Build Status](https://github.com/rive-app/rive-android/actions/workflows/release.yml/badge.svg) 
-![Test Status](https://github.com/rive-app/rive-android/actions/workflows/tests.yml/badge.svg) 
+![Build Status](https://github.com/rive-app/rive-android/actions/workflows/release.yml/badge.svg)
+![Test Status](https://github.com/rive-app/rive-android/actions/workflows/tests.yml/badge.svg)
 ![Discord badge](https://img.shields.io/discord/532365473602600965)
 ![Twitter handle](https://img.shields.io/twitter/follow/rive_app.svg?style=social&label=Follow)
-# Rive-Android -- Rive's Android runtime
+
+# rive-android
+
+Android runtime for [Rive](https://rive.app/)
 
 Further runtime documentation can be found in [Rive's help center](https://help.rive.app/runtimes).
 
@@ -14,6 +17,14 @@ Further runtime documentation can be found in [Rive's help center](https://help.
 
 This is the Android runtime for [Rive](https://rive.app), currently in beta. The api is subject to change as we continue to improve it. Please file issues and PRs for anything busted, missing, or just wrong.
 
+### Version 2 Release Notes
+
+This update introduces a new setup for managing your own render loop.
+<br />
+`RiveDrawable` has now been renamed [RiveArtboardRenderer](kotlin/src/main/java/app/rive/runtime/kotlin/RiveArtboardRenderer.kt) and it is no longer an Android `Drawable`. An example on how to drive your own loop is still available in [LowLevelActivity.kt](app/src/main/java/app/rive/runtime/example/LowLevelActivity.kt).
+
+[RiveAnimationView](kotlin/src/main/java/app/rive/runtime/kotlin/RiveAnimationView.kt) has the same API as the previous version and will still work as before.
+
 ## Installing
 
 To add Rive in your project, include the following in your `dependencies` :
@@ -24,7 +35,7 @@ implementation 'app.rive:rive-android:x.x.x'
 
 ## Initializing Rive
 
-Rive needs to initialize its runtime when your app starts. 
+Rive needs to initialize its runtime when your app starts.
 
 It can be done via an [initializer](https://developer.android.com/topic/libraries/app-startup) that does this for you automatically. The initialization provider can be set up directly in your app's manifest file:
 
@@ -85,7 +96,7 @@ The animation view can be further customized as part of specifying [layout attri
 <app.rive.runtime.kotlin.RiveAnimationView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:riveResource="@raw/off_road_car_blog" 
+        app:riveResource="@raw/off_road_car_blog"
         app:riveAlignment="CENTER"
         app:riveFit="CONTAIN"
         />
@@ -120,8 +131,8 @@ Or
 
 animationView.setRiveResource(
     R.raw.artboard_animations,
-    artboardName = "Square", 
-    animationName = "rollaround", 
+    artboardName = "Square",
+    animationName = "rollaround",
     autoplay = true
 )
 ```
@@ -196,33 +207,21 @@ val listener = object : Listener {
 animationView.registerListener(listener)
 ```
 
-## Blend modes 
-
-Rive allows the artist to set blend modes on shapes to determine how they are to be merged with the rest of the animation.
-
-Each runtime is supporting the various blend modes natively, this means that there are some discrepancies in how blend modes end up being applied, we have a test file that is shipped inside the application that highlights the differences.
-
-For android, devices running sdk < 29 do not support a number of blend modes, there are also issues modes are combined with transparency as the examples highlight.
-
-Original | SDK <29             |  SDK 29+
-:-------------------------:|:-------------------------:|:-------------------------:
-![Source](docs/images/editor.png ) | ![Android >= 29](docs/images/android.gte.29.png)  |  ![Android < 29](docs/images/android.lt.29.png)
-
-### F. A. Q. 
+### F. A. Q.
 
 #### Does animation play order matter?
 
-Yes, animations are applied in order. Animations animate a property of a shape from one position to another. 
-If multiple animations are playing that are setting the same property on the same shape, only the last applied change will be visible. 
+Yes, animations are applied in order. Animations animate a property of a shape from one position to another.
+If multiple animations are playing that are setting the same property on the same shape, only the last applied change will be visible.
 
-The way past this and into some pretty cool effects will take you to mixing, where multiple animations are applied partially. The  RiveView & RiveDrawable do not provide options to set mixing values though, so to take advantage of this, you will need to run your own render loop. you can still use the core parts of this library to interact with rive files though! 
+The way past this and into some pretty cool effects will take you to mixing, where multiple animations are applied partially. `RiveAnimationView` does not provide options to set mixing values though, so to take advantage of this, you will need to run your own render loop. You can still use the core parts of this library to interact with Rive files though!
 
 ## Project Layout
 
 ### `/kotlin`
 
-This is the main module of the android library, you can find a useful `RiveAnimationView` or `RiveDrawable` in the `app.rive.runtime.kotlin` namespace.
-The underlying [c++ runtimes](https://github.com/rive-app/rive-cpp) is mapped to objects in the `app.rive.runtime.kotlin.core` namespace. This can be used to allow for more fine grained control for more complex animation loops. Our high level views are simply built on top of this.
+This is the main module of our android library, you can find a useful `RiveAnimationView` or `RiveArtboardRenderer` in the `app.rive.runtime.kotlin` namespace.
+The underlying [C++ runtimes](https://github.com/rive-app/rive-cpp) is mapped to objects in the `app.rive.runtime.kotlin.core` namespace. These allow more fine grained control for more complex animation loops. Our high level views are simply built on top of this.
 
 ### `/app`
 
@@ -230,14 +229,14 @@ Multiple sample activities can be found here, this can be a useful reference for
 
 ### `/cpp` && `/submodules`
 
-The runtimes are built on top of our [c++ runtimes](https://github.com/rive-app/rive-cpp). these are included as a submodule in `/submodules`. The `/cpp` folder contains the c++ side of our bindings into android.
+The runtimes are built on top of our [C++ runtimes](https://github.com/rive-app/rive-cpp). these are included as a submodule in `/submodules`. The `/cpp` folder contains the C++ side of our bindings into android.
 
 #### Build the cpp runtimes
 
 If you have changed the cpp submodule, or if you have made changes to the cpp bindings, you will need to rebuild the cpp runtimes to generate the new .so files.
 
 ```bash
-cd cpp 
+cd cpp
 
 ./build.rive.for.sh -c -a x86
 ./build.rive.for.sh -c -a x86_64
@@ -245,11 +244,10 @@ cd cpp
 ./build.rive.for.sh -c -a armeabi-v7a
 ```
 
+## Updating Dokka docs
 
-## Updating Dokka docs 
-
-To update the documentation, run the `rive-android:kotlin [dokkaGfm]` task. 
-And then replace the contents of docs with the newly generated output 
+To update the documentation, run the `rive-android:kotlin [dokkaGfm]` task.
+And then replace the contents of docs with the newly generated output
 
 ```sh
 rm -rf docs/gfm
@@ -257,4 +255,3 @@ mv kotlin/build/dokka/gfm docs
 ```
 
 (autogenerated) API documentation can be found [here](https://github.com/rive-app/rive-android/blob/documentationAttempt/docs/gfm/index.md)
-
