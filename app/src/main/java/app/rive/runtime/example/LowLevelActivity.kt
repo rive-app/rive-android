@@ -33,7 +33,14 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     // Initialize renderer first: we can't create Files without one.
     override val renderer = object : RendererSkia() {
         override fun draw() {
-            artboard.drawSkia(cppPointer, Fit.COVER, Alignment.CENTER)
+            artboard?.let {
+                save()
+                align(Fit.COVER, Alignment.CENTER,  AABB(width,height), it.bounds)
+                it.drawSkia(
+                    cppPointer
+                )
+                restore()
+            }
         }
 
         override fun advance(elapsed: Float) {

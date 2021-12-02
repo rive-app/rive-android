@@ -3,6 +3,9 @@ package app.rive.runtime.kotlin.renderers
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
+import app.rive.runtime.kotlin.core.AABB
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Fit
 
 abstract class RendererSkia(trace: Boolean = false) :
     BaseRenderer(),
@@ -12,9 +15,20 @@ abstract class RendererSkia(trace: Boolean = false) :
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)
     private external fun cppStop(rendererPointer: Long)
+    private external fun cppSave(rendererPointer: Long)
+    private external fun cppRestore(rendererPointer: Long)
+    private external fun cppWidth(rendererPointer: Long): Int
+    private external fun cppHeight(rendererPointer: Long): Int
     private external fun cppDoFrame(rendererPointer: Long, frameTimeNanos: Long)
     private external fun cppSetSurface(surface: Surface, rendererPointer: Long)
     private external fun cppClearSurface(rendererPointer: Long)
+    private external fun cppAlign(
+        cppPointer: Long,
+        fit: Fit,
+        alignment: Alignment,
+        targetBoundsPointer: Long,
+        srcBoundsPointer: Long
+    )
 
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(trace: Boolean): Long
@@ -67,6 +81,33 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     open fun scheduleFrame() {
         Choreographer.getInstance().postFrameCallback(this)
+    }
+
+
+    fun save() {
+        cppSave(cppPointer)
+    }
+
+    fun restore() {
+        cppRestore(cppPointer)
+    }
+
+
+    val width: Float
+        get() = cppWidth(cppPointer).toFloat()
+
+    val height: Float
+        get() = cppHeight(cppPointer).toFloat()
+
+
+    fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
+        cppAlign(
+            cppPointer,
+            fit,
+            alignment,
+            targetBounds.cppPointer,
+            sourceBounds.cppPointer
+        )
     }
 
     @CallSuper

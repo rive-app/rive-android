@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin
 
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -39,11 +40,14 @@ open class RiveArtboardRenderer(
         get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
 
     override fun draw() {
-        activeArtboard?.drawSkia(
-            cppPointer,
-            fit,
-            alignment
-        )
+        activeArtboard?.let {
+            save()
+            align(fit, alignment,  AABB(width,height), it.bounds)
+            it.drawSkia(
+                cppPointer
+            )
+            restore()
+        }
     }
 
     override fun advance(elapsed: Float) {
