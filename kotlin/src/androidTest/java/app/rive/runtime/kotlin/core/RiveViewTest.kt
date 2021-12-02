@@ -124,6 +124,9 @@ class RiveViewTest {
             assertEquals(true, mockView.isPlaying)
 
             mockView.pause("four")
+            assert(mockView.isPlaying)
+            // Pause happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
 
             assertEquals(
@@ -152,6 +155,9 @@ class RiveViewTest {
             )
 
             mockView.pause(listOf("two", "four"))
+            assert(mockView.isPlaying)
+            // Pause happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(
                 mockView.playingAnimations.map { it.animation.name }.toHashSet(),
@@ -319,6 +325,9 @@ class RiveViewTest {
             assertEquals(1, mockView.playingAnimations.size)
 
             mockView.stop()
+            assert(mockView.isPlaying)
+            // Stop happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(0, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
@@ -352,6 +361,9 @@ class RiveViewTest {
             )
 
             mockView.stop(listOf("two", "four"))
+            assert(mockView.isPlaying)
+            // Stop happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<String>(),
@@ -395,6 +407,9 @@ class RiveViewTest {
             assertEquals(true, mockView.isPlaying)
 
             mockView.stop("four")
+            assert(mockView.isPlaying)
+            // Stop happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
 
             assertEquals(
