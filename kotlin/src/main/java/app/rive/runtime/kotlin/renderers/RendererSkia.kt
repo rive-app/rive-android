@@ -64,7 +64,7 @@ abstract class RendererSkia(trace: Boolean = false) :
         cppPointer = 0
     }
 
-    fun scheduleFrame() {
+    open fun scheduleFrame() {
         Choreographer.getInstance().postFrameCallback(this)
     }
 

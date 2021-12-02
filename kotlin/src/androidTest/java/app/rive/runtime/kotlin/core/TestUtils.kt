@@ -2,33 +2,48 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import org.junit.Assert.assertEquals
 import java.util.concurrent.TimeoutException
 
 
 class TestUtils {
-    private lateinit var testRenderer: MockRenderer
 
     val context: Context by lazy {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("app.rive.runtime.kotlin.test", appContext.packageName)
 
         Rive.init(appContext)
-        testRenderer = MockRenderer()
 
         appContext
     }
 
 
-    private class MockRenderer : RendererSkia() {
-        init {
-            println("Got this mock initialized!")
+    class MockArtboardRenderer : RiveArtboardRenderer() {
+        /**
+         * Instead of scheduling a new frame via the Choreographer (which uses a native C++ thread)
+         * force an advance cycle. (We don't need to draw in tests either).
+         */
+        override fun scheduleFrame() {
+            advance(0f)
         }
 
+        /** NOP */
         override fun draw() {}
-        override fun advance(elapsed: Float) {}
     }
+
+    /**
+     * This RiveAnimationView uses a custom [MockArtboardRenderer] to prevent tests from using the
+     * Choreographer API which would be calling native threading primitives.
+     */
+    class MockRiveAnimationView(context: Context) : RiveAnimationView(context) {
+        override fun makeRenderer(): MockArtboardRenderer {
+            return MockArtboardRenderer()
+        }
+    }
+
 
     companion object {
         @Throws(TimeoutException::class)
@@ -54,3 +69,4 @@ class TestUtils {
 
     }
 }
+
