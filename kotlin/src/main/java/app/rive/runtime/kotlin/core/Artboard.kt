@@ -35,8 +35,7 @@ class Artboard(val cppPointer: Long) {
 
     // TODO: this will be a cppDraw call after we remove our old renderer.
     private external fun cppDrawSkia(
-        cppPointer: Long, rendererPointer: Long,
-        fit: Fit, alignment: Alignment,
+        cppPointer: Long, rendererPointer: Long
     )
 
     private external fun cppBounds(cppPointer: Long): Long
@@ -187,8 +186,8 @@ class Artboard(val cppPointer: Long) {
     /**
      * Draw the the artboard to the [renderer].
      */
-    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
-        cppDrawSkia(cppPointer, rendererAddress, fit, alignment)
+    fun drawSkia(rendererAddress: Long) {
+        cppDrawSkia(cppPointer, rendererAddress)
     }
 
     /**

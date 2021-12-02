@@ -100,6 +100,22 @@ extern "C"
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppClearSurface(
 	    JNIEnv*, jobject, jlong rendererRef);
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(
+	    JNIEnv*, jobject, jlong rendererRef);
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppRestore(
+	    JNIEnv*, jobject, jlong rendererRef);
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(
+	    JNIEnv*, jobject, jlong rendererRef);
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(
+	    JNIEnv*, jobject, jlong rendererRef);
 #ifdef __cplusplus
 }
 #endif

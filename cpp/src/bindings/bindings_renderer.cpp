@@ -188,6 +188,55 @@ extern "C"
 		reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(nullptr);
 	}
 
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->save();
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppRestore(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		reinterpret_cast<JNIRendererSkia*>(rendererRef)
+		    ->skRenderer()
+		    ->restore();
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAlign(
+	    JNIEnv* env,
+	    jobject thisObj,
+	    jlong ref,
+	    jobject ktFit,
+	    jobject ktAlignment,
+	    jlong targetBoundsRef,
+	    jlong sourceBoundsRef)
+	{
+		JNIRendererSkia* jniWrapper = (JNIRendererSkia*)ref;
+		rive::Fit fit = getFit(env, ktFit);
+		rive::Alignment alignment = getAlignment(env, ktAlignment);
+		rive::AABB* targetBounds = (rive::AABB*)targetBoundsRef;
+		rive::AABB* sourceBounds = (rive::AABB*)sourceBoundsRef;
+		jniWrapper->skRenderer()->align(
+		    fit, alignment, *targetBounds, *sourceBounds);
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		return (jint)((JNIRendererSkia*)rendererRef)->width();
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		return (jint)((JNIRendererSkia*)rendererRef)->height();
+	}
+
 #ifdef __cplusplus
 }
 #endif
