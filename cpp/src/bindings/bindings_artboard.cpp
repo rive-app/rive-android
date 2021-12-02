@@ -147,24 +147,14 @@ extern "C"
 	Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(JNIEnv* env,
 	                                                       jobject,
 	                                                       jlong artboardRef,
-	                                                       jlong rendererRef,
-	                                                       jobject ktFit,
-	                                                       jobject ktAlignment)
+	                                                       jlong rendererRef)
 	{
 		// TODO: consolidate this to work with an abstracted JNI Renderer.
 		rive::Artboard* artboard = (rive::Artboard*)artboardRef;
-		auto jniWrapper = (JNIRendererSkia*)rendererRef;
-		rive::Fit fit = getFit(env, ktFit);
-		rive::Alignment alignment = getAlignment(env, ktAlignment);
-		auto renderer = jniWrapper->skRenderer();
-		renderer->save();
-		renderer->align(
-		    fit,
-		    alignment,
-		    rive::AABB(0, 0, jniWrapper->width(), jniWrapper->height()),
-		    artboard->bounds());
+		JNIRendererSkia* jniWrapper = (JNIRendererSkia*)rendererRef;
+		rive::SkiaRenderer* renderer = jniWrapper->skRenderer();
+
 		artboard->draw(renderer);
-		renderer->restore();
 	}
 
 	JNIEXPORT jboolean JNICALL
