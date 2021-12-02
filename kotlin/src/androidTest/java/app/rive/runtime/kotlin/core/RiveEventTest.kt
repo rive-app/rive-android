@@ -9,36 +9,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
-class StateChanged(var stateMachineName: String, var stateName: String)
-
-class Observer : RiveArtboardRenderer.Listener {
-    var plays = mutableListOf<PlayableInstance>()
-    var pauses = mutableListOf<PlayableInstance>()
-    var stops = mutableListOf<PlayableInstance>()
-    var loops = mutableListOf<PlayableInstance>()
-    var states = mutableListOf<StateChanged>()
-
-    override fun notifyPlay(animation: PlayableInstance) {
-        plays.add(animation)
-    }
-
-    override fun notifyPause(animation: PlayableInstance) {
-        pauses.add(animation)
-    }
-
-    override fun notifyStop(animation: PlayableInstance) {
-        stops.add(animation)
-    }
-
-    override fun notifyLoop(animation: PlayableInstance) {
-        loops.add(animation)
-    }
-
-    override fun notifyStateChanged(stateMachineName: String, stateName: String) {
-        states.add(StateChanged(stateMachineName, stateName))
-    }
-}
-
 @RunWith(AndroidJUnit4::class)
 class RiveEventTest {
     private val testUtils = TestUtils()
@@ -389,6 +359,36 @@ class RiveEventTest {
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
+        }
+    }
+
+    private data class StateChanged(var stateMachineName: String, var stateName: String)
+
+    private class Observer : RiveArtboardRenderer.Listener {
+        var plays = mutableListOf<PlayableInstance>()
+        var pauses = mutableListOf<PlayableInstance>()
+        var stops = mutableListOf<PlayableInstance>()
+        var loops = mutableListOf<PlayableInstance>()
+        var states = mutableListOf<StateChanged>()
+
+        override fun notifyPlay(animation: PlayableInstance) {
+            plays.add(animation)
+        }
+
+        override fun notifyPause(animation: PlayableInstance) {
+            pauses.add(animation)
+        }
+
+        override fun notifyStop(animation: PlayableInstance) {
+            stops.add(animation)
+        }
+
+        override fun notifyLoop(animation: PlayableInstance) {
+            loops.add(animation)
+        }
+
+        override fun notifyStateChanged(stateMachineName: String, stateName: String) {
+            states.add(StateChanged(stateMachineName, stateName))
         }
     }
 }
