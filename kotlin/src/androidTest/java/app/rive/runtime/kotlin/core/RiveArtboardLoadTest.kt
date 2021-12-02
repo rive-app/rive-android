@@ -1,9 +1,11 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -12,6 +14,13 @@ import org.junit.runner.RunWith
 class RiveArtboardLoadTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
+
+    private lateinit var mockRenderer: RiveArtboardRenderer
+
+    @Before
+    fun init() {
+        mockRenderer = TestUtils.MockArtboardRenderer()
+    }
 
     @Test
     fun loadArtboard() {

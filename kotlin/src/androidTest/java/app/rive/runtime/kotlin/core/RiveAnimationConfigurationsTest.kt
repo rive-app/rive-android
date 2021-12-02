@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -11,35 +12,35 @@ import org.junit.runner.RunWith
 class RiveAnimationConfigurationsTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
+    private lateinit var mockRenderer: TestUtils.MockArtboardRenderer
+    private lateinit var file: File
+
+    @Before
+    fun setup() {
+        mockRenderer = TestUtils.MockArtboardRenderer()
+        file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
+    }
 
     @Test
     fun loop() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("loop")
         assertEquals(Loop.LOOP, animation.loop)
     }
 
     @Test
     fun pingpong() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("pingpong")
         assertEquals(Loop.PINGPONG, animation.loop)
     }
 
     @Test
     fun oneshot() {
-        val rawResource = appContext.resources.openRawResource(R.raw.animationconfigurations)
-        val file = File(rawResource.readBytes())
         val animation = file.firstArtboard.animation("oneshot")
         assertEquals(Loop.ONESHOT, animation.loop)
     }
 
     @Test
     fun checkdurations1sec60fps() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("1sec60fps")
         assertEquals(60, animation.duration)
         assertEquals(60, animation.effectiveDuration)
@@ -50,8 +51,6 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec120fps() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("1sec120fps")
         assertEquals(120, animation.duration)
         assertEquals(120, animation.effectiveDuration)
@@ -62,8 +61,6 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec60fps_f30f50() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("1sec60fps_f30f50")
         assertEquals(60, animation.duration)
         assertEquals(20, animation.effectiveDuration)
@@ -74,8 +71,6 @@ class RiveAnimationConfigurationsTest {
 
     @Test
     fun checkdurations1sec120fps_f30f50() {
-        val file =
-            File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
         val animation = file.firstArtboard.animation("1sec120fps_f50f80")
         assertEquals(120, animation.duration)
         assertEquals(30, animation.effectiveDuration)
