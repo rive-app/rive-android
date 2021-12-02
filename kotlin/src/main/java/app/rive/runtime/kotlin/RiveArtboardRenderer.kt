@@ -81,9 +81,8 @@ open class RiveArtboardRenderer(
             ab.advance(elapsed)
         }
 
-        // Ready for another frame?
-        isPlaying = hasPlayingAnimations
-        if (!isPlaying) {
+        // Are we done playing?
+        if (!hasPlayingAnimations) {
             stop()
         }
     }
@@ -92,8 +91,6 @@ open class RiveArtboardRenderer(
     fun setRiveFile(file: File) {
         this.file = file
         selectArtboard()
-        start()
-        advance(0f)
     }
 
     fun setArtboardByName(artboardName: String?) {
@@ -133,6 +130,7 @@ open class RiveArtboardRenderer(
 
     fun reset() {
         stopAnimations()
+        stop()
         clear()
         selectedArtboard?.let {
             setArtboard(it)
@@ -429,11 +427,10 @@ open class RiveArtboardRenderer(
                 }
 
             }
-
         } else {
             this.activeArtboard?.advance(0f)
+            start()
         }
-        start()
     }
 
     /* LISTENER INTERFACE */

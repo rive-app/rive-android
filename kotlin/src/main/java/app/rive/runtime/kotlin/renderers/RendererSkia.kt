@@ -20,6 +20,7 @@ abstract class RendererSkia(trace: Boolean = false) :
     private external fun constructor(trace: Boolean): Long
 
     var isPlaying: Boolean = false
+        private set
 
     abstract fun draw()
     abstract fun advance(elapsed: Float)
@@ -64,7 +65,7 @@ abstract class RendererSkia(trace: Boolean = false) :
         cppPointer = 0
     }
 
-    fun scheduleFrame() {
+    open fun scheduleFrame() {
         Choreographer.getInstance().postFrameCallback(this)
     }
 

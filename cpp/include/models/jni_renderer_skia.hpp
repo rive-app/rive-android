@@ -247,7 +247,7 @@ namespace rive_android
 
 			mTracer->beginSection("swapBuffers()");
 			threadState->swapBuffers();
-			mTracer->endSection(); // swapyBuffers
+			mTracer->endSection(); // swapBuffers
 
 			mTracer->endSection(); // draw()
 		}
