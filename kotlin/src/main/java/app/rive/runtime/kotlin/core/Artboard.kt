@@ -37,6 +37,10 @@ class Artboard(val cppPointer: Long) {
     private external fun cppDrawSkia(
         cppPointer: Long, rendererPointer: Long
     )
+    private external fun cppDrawSkiaAligned(
+        cppPointer: Long, rendererPointer: Long,
+        fit: Fit, alignment: Alignment,
+    )
 
     private external fun cppBounds(cppPointer: Long): Long
 
@@ -188,6 +192,14 @@ class Artboard(val cppPointer: Long) {
      */
     fun drawSkia(rendererAddress: Long) {
         cppDrawSkia(cppPointer, rendererAddress)
+    }
+
+    /**
+     * Draw the the artboard to the [renderer].
+     * Also align the artboard to the render surface
+     */
+    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
+        cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment)
     }
 
     /**

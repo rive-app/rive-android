@@ -41,12 +41,9 @@ open class RiveArtboardRenderer(
 
     override fun draw() {
         activeArtboard?.let {
-            save()
-            align(fit, alignment,  AABB(width,height), it.bounds)
             it.drawSkia(
-                cppPointer
+                cppPointer, fit, alignment
             )
-            restore()
         }
     }
 
