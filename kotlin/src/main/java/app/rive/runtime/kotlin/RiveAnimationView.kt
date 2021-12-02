@@ -22,6 +22,7 @@ import org.jetbrains.annotations.TestOnly
 import java.io.IOException
 import java.io.UnsupportedEncodingException
 import java.util.*
+import kotlin.math.min
 
 
 /**
@@ -550,13 +551,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val providedWidth = when (widthMode) {
-            MeasureSpec.UNSPECIFIED -> renderer?.artboardBounds()?.width?.toInt()
+            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().width.toInt()
             else -> MeasureSpec.getSize(widthMeasureSpec)
         }
 
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val providedHeight = when (heightMode) {
-            MeasureSpec.UNSPECIFIED -> renderer?.artboardBounds()?.height?.toInt()
+            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().height.toInt()
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
@@ -571,14 +572,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         //Measure Width
         val width: Int = when (widthMode) {
             MeasureSpec.EXACTLY -> providedWidth
-            MeasureSpec.AT_MOST -> Math.min(usedBounds.width.toInt(), providedWidth)
+            MeasureSpec.AT_MOST -> min(usedBounds.width.toInt(), providedWidth)
             else ->
                 usedBounds.width.toInt()
         }
 
         val height: Int = when (heightMode) {
             MeasureSpec.EXACTLY -> providedHeight
-            MeasureSpec.AT_MOST -> Math.min(usedBounds.height.toInt(), providedHeight)
+            MeasureSpec.AT_MOST -> min(usedBounds.height.toInt(), providedHeight)
             else ->
                 usedBounds.height.toInt()
         }
