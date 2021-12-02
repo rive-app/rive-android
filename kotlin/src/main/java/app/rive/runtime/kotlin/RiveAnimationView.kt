@@ -236,7 +236,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause() {
         renderer.pause()
-        renderer.advance(0f)
         stopFrameMetrics()
     }
 

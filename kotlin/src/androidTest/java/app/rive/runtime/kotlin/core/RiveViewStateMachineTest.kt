@@ -63,6 +63,9 @@ class RiveViewStateMachineTest {
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(1, mockView.playingStateMachines.size)
             mockView.pause()
+            assert(mockView.isPlaying)
+            // Pause happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(0, mockView.playingStateMachines.size)
