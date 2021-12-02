@@ -1,8 +1,10 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -11,25 +13,27 @@ import org.junit.runner.RunWith
 class RiveStateMachineConfigurationsTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
+    private lateinit var mockRenderer: RiveArtboardRenderer
+    private lateinit var file: File
+
+    @Before
+    fun init() {
+        mockRenderer = TestUtils.MockArtboardRenderer()
+        file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+    }
 
     @Test
     fun nothing() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("nothing")
+        val state_machine = file.firstArtboard.stateMachine("nothing")
         assertEquals(0, state_machine.inputCount)
         assertEquals(0, state_machine.layerCount)
     }
 
     @Test
     fun one_layer() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("one_layer")
+        val state_machine = file.firstArtboard.stateMachine("one_layer")
         assertEquals(0, state_machine.inputCount)
         assertEquals(1, state_machine.layerCount)
     }
@@ -37,25 +41,17 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun two_layers() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("two_layers")
+        val state_machine = file.firstArtboard.stateMachine("two_layers")
         assertEquals(0, state_machine.inputCount)
         assertEquals(2, state_machine.layerCount)
     }
 
     @Test
     fun number_input() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("number_input")
+        val state_machine = file.firstArtboard.stateMachine("number_input")
         assertEquals(1, state_machine.inputCount)
         assertEquals(1, state_machine.layerCount)
-        var input = state_machine.input(0)
+        val input = state_machine.input(0)
         assertEquals(false, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(true, input.isNumber)
@@ -65,14 +61,10 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun boolean_input() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("boolean_input")
+        val state_machine = file.firstArtboard.stateMachine("boolean_input")
         assertEquals(1, state_machine.inputCount)
         assertEquals(1, state_machine.layerCount)
-        var input = state_machine.input(0)
+        val input = state_machine.input(0)
         assertEquals(true, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(false, input.isNumber)
@@ -82,14 +74,10 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun trigger_input() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("trigger_input")
+        val state_machine = file.firstArtboard.stateMachine("trigger_input")
         assertEquals(1, state_machine.inputCount)
         assertEquals(1, state_machine.layerCount)
-        var input = state_machine.input(0)
+        val input = state_machine.input(0)
         assertEquals(false, input.isBoolean)
         assertEquals(true, input.isTrigger)
         assertEquals(false, input.isNumber)
@@ -99,11 +87,7 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun mixed() {
-        var file =
-            File(
-                appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
-            )
-        var state_machine = file.firstArtboard.stateMachine("mixed")
+        val state_machine = file.firstArtboard.stateMachine("mixed")
         assertEquals(6, state_machine.inputCount)
         assertEquals(4, state_machine.layerCount)
         assertEquals(

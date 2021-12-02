@@ -6,48 +6,24 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-
-class StateChanged(var stateMachineName: String, var stateName: String)
-
-class Observer : RiveArtboardRenderer.Listener {
-    var plays = mutableListOf<PlayableInstance>()
-    var pauses = mutableListOf<PlayableInstance>()
-    var stops = mutableListOf<PlayableInstance>()
-    var loops = mutableListOf<PlayableInstance>()
-    var states = mutableListOf<StateChanged>()
-
-    override fun notifyPlay(animation: PlayableInstance) {
-        plays.add(animation)
-    }
-
-    override fun notifyPause(animation: PlayableInstance) {
-        pauses.add(animation)
-    }
-
-    override fun notifyStop(animation: PlayableInstance) {
-        stops.add(animation)
-    }
-
-    override fun notifyLoop(animation: PlayableInstance) {
-        loops.add(animation)
-    }
-
-    override fun notifyStateChanged(stateMachineName: String, stateName: String) {
-        states.add(StateChanged(stateMachineName, stateName))
-    }
-}
 
 @RunWith(AndroidJUnit4::class)
 class RiveEventTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
+    private lateinit var view: TestUtils.MockRiveAnimationView
+
+    @Before
+    fun init() {
+        view = TestUtils.MockRiveAnimationView(appContext)
+    }
 
     @Test
     fun testRegisterOrder() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -61,7 +37,6 @@ class RiveEventTest {
     @Test
     fun testPlayEvent() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -76,7 +51,6 @@ class RiveEventTest {
     @Test
     fun testPlayEventAlreadyPlaying() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -94,7 +68,6 @@ class RiveEventTest {
     @Test
     fun testPauseEvent() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -111,7 +84,6 @@ class RiveEventTest {
     @Test
     fun testPauseEventNotPlaying() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -127,7 +99,6 @@ class RiveEventTest {
     @Test
     fun testStopEvent() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -144,7 +115,6 @@ class RiveEventTest {
     @Test
     fun testStopEventNotPlaying() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -159,7 +129,6 @@ class RiveEventTest {
     @Test
     fun testLoopOneshot() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -182,7 +151,6 @@ class RiveEventTest {
     @Test
     fun testLoopLoop() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -205,7 +173,6 @@ class RiveEventTest {
     @Test
     fun testLoopPingPong() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
             val observer = Observer()
             view.autoplay = false
 
@@ -230,10 +197,9 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
+            assertEquals(observer.states.size, 1)
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
             assertEquals(true, observer.states[0].stateName == "go right")
             view.renderer.advance(2f)
@@ -247,7 +213,6 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 1")
             assertEquals(0, observer.states.size)
@@ -308,14 +273,11 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 1")
             assertEquals(0, observer.states.size)
 
             view.fireState("State Machine 1", "change")
-            // lets just start, expect 1 change.
-            view.renderer.advance(1f)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
             view.renderer.advance(1f)
@@ -330,13 +292,12 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend mix")
 
             assertEquals(true, view.isPlaying)
-            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
+            assertEquals(observer.states.size, 1)
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
@@ -346,7 +307,6 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend other")
@@ -363,7 +323,6 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
             view.fireState("two", "left")
@@ -380,7 +339,6 @@ class RiveEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = Observer()
 
-            val view = RiveAnimationView(appContext)
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "two")
             view.fireState("two", "right")
@@ -389,6 +347,36 @@ class RiveEventTest {
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
+        }
+    }
+
+    private data class StateChanged(var stateMachineName: String, var stateName: String)
+
+    private class Observer : RiveArtboardRenderer.Listener {
+        var plays = mutableListOf<PlayableInstance>()
+        var pauses = mutableListOf<PlayableInstance>()
+        var stops = mutableListOf<PlayableInstance>()
+        var loops = mutableListOf<PlayableInstance>()
+        var states = mutableListOf<StateChanged>()
+
+        override fun notifyPlay(animation: PlayableInstance) {
+            plays.add(animation)
+        }
+
+        override fun notifyPause(animation: PlayableInstance) {
+            pauses.add(animation)
+        }
+
+        override fun notifyStop(animation: PlayableInstance) {
+            stops.add(animation)
+        }
+
+        override fun notifyLoop(animation: PlayableInstance) {
+            loops.add(animation)
+        }
+
+        override fun notifyStateChanged(stateMachineName: String, stateName: String) {
+            states.add(StateChanged(stateMachineName, stateName))
         }
     }
 }
