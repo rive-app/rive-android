@@ -18,6 +18,7 @@ import com.android.volley.Request
 import com.android.volley.Response
 import com.android.volley.toolbox.HttpHeaderParser
 import com.android.volley.toolbox.Volley
+import org.jetbrains.annotations.TestOnly
 import java.io.IOException
 import java.io.UnsupportedEncodingException
 import java.util.*
@@ -56,9 +57,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     open val defaultAutoplay = true
 
+    private val rendererAttributes: RendererAttrs
     public override val renderer: RiveArtboardRenderer
 
-    private var resourceId: Int? = null
     private var _detachedState: DetachedRiveState? = null
 
 
@@ -128,52 +129,68 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = renderer.playingStateMachines
 
-    init {
+    protected data class RendererAttrs(
+        val alignmentIndex: Int = 4,
+        val fitIndex: Int = 1,
+        val loopIndex: Int = 3,
+        val autoplay: Boolean,
+        val riveTraceAnimations: Boolean = false,
+        val artboardName: String?,
+        val animationName: String?,
+        val stateMachineName: String?,
+        val resourceId: Int = -1,
+        val url: String?,
+    ) {
+        val alignment: Alignment = Alignment.values()[alignmentIndex]
+        val fit: Fit = Fit.values()[fitIndex]
+        val loop: Loop = Loop.values()[loopIndex]
+    }
 
+    init {
         context.theme.obtainStyledAttributes(
             attrs,
             R.styleable.RiveAnimationView,
             0, 0
         ).apply {
             try {
-                val alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4)
-                val fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1)
-                val loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3)
-                val autoplay =
-                    getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay)
-                val riveTraceAnimations =
-                    getBoolean(R.styleable.RiveAnimationView_riveTraceAnimations, false)
-                val artboardName = getString(R.styleable.RiveAnimationView_riveArtboard)
-                val animationName = getString(R.styleable.RiveAnimationView_riveAnimation)
-                val stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine)
-                val resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
-                val url = getString(R.styleable.RiveAnimationView_riveUrl)
-                renderer = RiveArtboardRenderer(autoplay = autoplay, trace = riveTraceAnimations)
+                rendererAttributes = RendererAttrs(
+                    alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4),
+                    fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1),
+                    loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3),
+                    autoplay =
+                    getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay),
+                    riveTraceAnimations =
+                    getBoolean(R.styleable.RiveAnimationView_riveTraceAnimations, false),
+                    artboardName = getString(R.styleable.RiveAnimationView_riveArtboard),
+                    animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
+                    stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
+                    resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1),
+                    url = getString(R.styleable.RiveAnimationView_riveUrl),
+                )
+                renderer = makeRenderer()
 
-                if (resourceId != -1) {
+                if (rendererAttributes.resourceId != -1) {
                     setRiveResource(
-                        resourceId,
-                        alignment = Alignment.values()[alignmentIndex],
-                        fit = Fit.values()[fitIndex],
-                        loop = Loop.values()[loopIndex],
-                        autoplay = autoplay,
-                        artboardName = artboardName,
-                        stateMachineName = stateMachineName,
-                        animationName = animationName,
+                        rendererAttributes.resourceId,
+                        alignment = rendererAttributes.alignment,
+                        fit = rendererAttributes.fit,
+                        loop = rendererAttributes.loop,
+                        autoplay = rendererAttributes.autoplay,
+                        artboardName = rendererAttributes.artboardName,
+                        stateMachineName = rendererAttributes.stateMachineName,
+                        animationName = rendererAttributes.animationName,
                     )
                 } else {
-                    renderer.alignment = Alignment.values()[alignmentIndex]
-                    renderer.fit = Fit.values()[fitIndex]
-                    renderer.loop = Loop.values()[loopIndex]
-                    renderer.autoplay = autoplay
-                    renderer.artboardName = artboardName
-                    renderer.animationName = animationName
-                    renderer.stateMachineName = stateMachineName
+                    renderer.alignment = rendererAttributes.alignment
+                    renderer.fit = rendererAttributes.fit
+                    renderer.loop = rendererAttributes.loop
+                    renderer.autoplay = rendererAttributes.autoplay
+                    renderer.artboardName = rendererAttributes.artboardName
+                    renderer.animationName = rendererAttributes.animationName
+                    renderer.stateMachineName = rendererAttributes.stateMachineName
 
                     // If a URL has been provided, initiate downloading
-                    url?.let {
-                        loadHttp(it)
-                    }
+                    rendererAttributes.url?.let { loadHttp(it) }
                 }
             } finally {
                 recycle()
@@ -181,6 +198,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
+    // Factory can be overridden for dependency-injection during testing.
+    @TestOnly
+    protected open fun makeRenderer(): RiveArtboardRenderer {
+        return RiveArtboardRenderer(
+            autoplay = rendererAttributes.autoplay,
+            trace = rendererAttributes.riveTraceAnimations
+        )
+    }
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
@@ -211,6 +236,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun pause() {
         renderer.pause()
+        renderer.advance(0f)
         stopFrameMetrics()
     }
 
@@ -387,7 +413,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        resourceId = resId
         val bytes = resources.openRawResource(resId).readBytes()
         setRiveBytes(
             bytes,

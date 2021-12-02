@@ -1,10 +1,14 @@
 package app.rive.runtime.kotlin.core
 
+import android.os.Handler
+import android.os.Looper
+import androidx.annotation.UiThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,20 +18,24 @@ import org.junit.runner.RunWith
 class RiveViewStateMachineTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
+    private lateinit var mockView: RiveAnimationView
+
+    @Before
+    fun initView() {
+        mockView = TestUtils.MockRiveAnimationView(appContext)
+    }
 
     @Test
     fun viewDefaultsLoadResouce() {
         UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
+            mockView.play(listOf("one", "two"), areStateMachines = true)
 
-            val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
-            view.play(listOf("one", "two"), areStateMachines = true)
-
-            assertEquals(true, view.isPlaying)
-            assertEquals(listOf("New Artboard"), view.file?.artboardNames)
+            assertEquals(true, mockView.isPlaying)
+            assertEquals(listOf("New Artboard"), mockView.file?.artboardNames)
             assertEquals(
                 listOf("one", "two"),
-                view.stateMachines.map { it.stateMachine.name }.toList()
+                mockView.stateMachines.map { it.stateMachine.name }.toList()
             )
         }
     }
@@ -35,14 +43,12 @@ class RiveViewStateMachineTest {
     @Test
     fun viewDefaultsNoAutoplay() {
         UiThreadStatement.runOnUiThread {
-
-            val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
-            assertEquals(false, view.isPlaying)
-            view.artboardName = "New Artboard"
+            mockView.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
+            assertEquals(false, mockView.isPlaying)
+            mockView.artboardName = "New Artboard"
             assertEquals(
                 listOf<String>(),
-                view.stateMachines.map { it.stateMachine.name }.toList()
+                mockView.stateMachines.map { it.stateMachine.name }.toList()
             )
         }
     }
@@ -50,17 +56,16 @@ class RiveViewStateMachineTest {
     @Test
     fun viewPause() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "one")
-            assertEquals(true, view.isPlaying)
-            assertEquals(0, view.animations.size)
-            assertEquals(0, view.playingAnimations.size)
-            assertEquals(1, view.stateMachines.size)
-            assertEquals(1, view.playingStateMachines.size)
-            view.pause()
-            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
-            assertEquals(1, view.stateMachines.size)
-            assertEquals(0, view.playingStateMachines.size)
+            mockView.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "one")
+            assertEquals(true, mockView.isPlaying)
+            assertEquals(0, mockView.animations.size)
+            assertEquals(0, mockView.playingAnimations.size)
+            assertEquals(1, mockView.stateMachines.size)
+            assertEquals(1, mockView.playingStateMachines.size)
+            mockView.pause()
+            assert(!mockView.isPlaying)
+            assertEquals(1, mockView.stateMachines.size)
+            assertEquals(0, mockView.playingStateMachines.size)
         }
     }
 
@@ -69,23 +74,21 @@ class RiveViewStateMachineTest {
         UiThreadStatement.runOnUiThread {
             // state machine four's has transitions that happen instantly, so we do not stick on
             // a state that's playing an animation
-            val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
-            assertEquals(false, view.isPlaying)
-            assertEquals(1, view.stateMachines.size)
-            TestUtils.waitOnFrame(view.renderer, { 0 == view.playingStateMachines.size })
+            mockView.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
+            assertEquals(false, mockView.isPlaying)
+            assertEquals(1, mockView.stateMachines.size)
+            assertEquals(0, mockView.playingStateMachines.size)
         }
     }
 
     @Test
     fun viewStateMachinesPause() {
         UiThreadStatement.runOnUiThread {
-            val view = RiveAnimationView(appContext)
-            view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-            assertEquals(true, view.isPlaying)
+            mockView.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
+            assert(mockView.isPlaying)
             // Let the state machine animation run its course.
-            view.renderer.advance(1.01f)
-            TestUtils.waitOnFrame(view.renderer, { !view.isPlaying })
+            mockView.renderer.advance(1.01f)
+            assert(!mockView.isPlaying)
         }
     }
 
