@@ -199,7 +199,7 @@ class RiveEventTest {
 
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
+            assertEquals(observer.states.size, 1)
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
             assertEquals(true, observer.states[0].stateName == "go right")
             view.renderer.advance(2f)
@@ -297,7 +297,7 @@ class RiveEventTest {
             view.fireState("one", "blend mix")
 
             assertEquals(true, view.isPlaying)
-            TestUtils.waitOnFrame(view.renderer, { observer.states.size == 1 })
+            assertEquals(observer.states.size, 1)
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
