@@ -86,6 +86,9 @@ class RiveViewTest {
             assertEquals(1, mockView.animations.size)
             assertEquals(1, mockView.playingAnimations.size)
             mockView.pause()
+            assert(mockView.isPlaying)
+            // Pause happens on the next frame.
+            mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(1, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
