@@ -6,6 +6,7 @@ apply plugin: 'org.jetbrains.dokka'
 android {
     compileSdkVersion 31
     buildToolsVersion "30.0.3"
+    ndkVersion "22.1.7171670"
 
     defaultConfig {
         minSdkVersion 21
@@ -13,10 +14,21 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+            }
+        }
     }
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
+    }
+    externalNativeBuild {
+        cmake {
+            path file('../cpp/CMakeLists.txt')
+            version '3.18.1'
+        }
     }
     testOptions {
         unitTests.includeAndroidResources = true
