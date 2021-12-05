@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.18.1)
 # Declares and names the project.
 project("rive_android")
 
+
+# Compile detail will be in rive-android/kotlin/.cxx/Debug/<hash>/<ABI>/compile_commands.json
+#   e.g: kotlin/.cxx/Debug/4o1b5h48/arm64-v8a/compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -15,13 +18,12 @@ add_library( # Sets the name of the library.
         # Provides a relative path to your source file(s).
         # TODO: use a CMakeLists.txt for each subfolder?
         src/jni_refs.cpp
-        src/models/jni_renderer.cpp
-        src/models/radial_gradient_builder.cpp
-        src/models/jni_renderer_skia.cpp
-        src/models/render_path.cpp
-        src/models/linear_gradient_builder.cpp
-        src/models/render_paint.cpp
         src/models/dimensions_helper.cpp
+        src/models/jni_renderer.cpp
+        src/models/linear_gradient_builder.cpp
+        src/models/radial_gradient_builder.cpp
+        src/models/render_paint.cpp
+        src/models/render_path.cpp
         src/jni_refs.cpp
         src/bindings/bindings_file.cpp
         src/bindings/bindings_artboard.cpp
@@ -64,9 +66,22 @@ include_directories(rive_android
         ${LIBRIVE}/skia/dependencies/skia/include/effects
         ${LIBRIVE}/skia/dependencies/skia/include/gpu
         ${LIBRIVE}/skia/dependencies/skia/include/config
-)
+        )
 
 add_definitions(-DSK_GL)
+
+# TODO: I need to build my static deps below here, maybe with a custom script that does just that?
+#   well, you have that in theory, no?
+# Biggest question is: will this actually work with the toolchain that CMake is using?
+execute_process(
+        COMMAND sh test.sh
+        OUTPUT_FILE ${CMAKE_SOURCE_DIR}/rive_build.log
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+# Prints are visible in:
+#   rive-android/kotlin/.cxx/Debug/<hash>/<abi>/android_gradle_build_stdout_rive_android_<abi>.txt
+#   e.g: kotlin/.cxx/Debug/4o1b5h48/arm64-v8a/android_gradle_build_stdout_rive_android_arm64-v8a.txt
+message(STATUS "I am a message!")
 
 # From: https://stackoverflow.com/questions/41892544/android-cmake-and-static-linking
 add_library(rive-lib STATIC IMPORTED)
