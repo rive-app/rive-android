@@ -67,3 +67,7 @@ void JNIRenderer::clipPath(rive::RenderPath* path)
 	    getClipPathMethodId(),
 	    reinterpret_cast<JNIRenderPath*>(path->renderPath())->jObject);
 }
+
+void JNIRenderer::drawImage(rive::RenderImage* image,
+                            rive::BlendMode value,
+                            float opacity){};
