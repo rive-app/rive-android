@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.example_selection)
+        setContentView(R.layout.main)
 
         findViewById<Button>(R.id.go_simple).setOnClickListener {
             startActivity(
@@ -78,6 +78,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.go_metrics).setOnClickListener {
             startActivity(
                 Intent(this, MetricsActivity::class.java)
+            )
+        }
+        findViewById<Button>(R.id.go_assets).setOnClickListener {
+            startActivity(
+                Intent(this, AssetsActivity::class.java)
             )
         }
     }
