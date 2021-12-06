@@ -42,6 +42,7 @@
         <activity
             android:name=".MetricsActivity"
             android:exported="true" />
+        <activity android:name=".AssetsActivity" />
     </application>
 
 </manifest>
