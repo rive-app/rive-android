@@ -1,9 +1,9 @@
-#ifndef _RIVE_ANDROID_BINDINGS_RENDERER_HPP_
-#define _RIVE_ANDROID_BINDINGS_RENDERER_HPP_
+#ifndef _RIVE_ANDROID_BINDINGS_RENDERER_SKIA_HPP_
+#define _RIVE_ANDROID_BINDINGS_RENDERER_SKIA_HPP_
 
 #include <jni.h>
 #include <cassert>
-#include "models/jni_renderer.hpp"
+#include "models/jni_renderer_skia.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -22,59 +22,6 @@ extern "C"
 	// a renderer, or at least will require initialization with a no-op renderer
 	// (probably ok?).
 	rive_android::IJNIRenderer* g_JNIRenderer = nullptr;
-
-	// RENDERER
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_constructor(
-	    JNIEnv* env, jobject thisObj, jboolean antialias);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cleanupJNI(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cppAlign(
-	    JNIEnv* env,
-	    jobject thisObj,
-	    jlong ref,
-	    jobject jfit,
-	    jobject jalignment,
-	    jlong targetBoundsRef,
-	    jlong sourceBoundsRef);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cppDraw(JNIEnv* env,
-	                                                        jobject thisObj,
-	                                                        jlong artboardRef,
-	                                                        jlong rendererRef);
-
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_constructor(
-	    JNIEnv* env, jobject thisObj);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_initializeGL(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_startFrame(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_setViewport(
-	    JNIEnv* env,
-	    jobject thisObj,
-	    jlong rendererRef,
-	    jint width,
-	    jint height);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cppDraw(
-	    JNIEnv* env, jobject thisObj, jlong artboardRef, jlong rendererRef);
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cleanupJNI(
-	    JNIEnv*, jobject, jlong rendererRef);
 
 	// Skia Renderer
 	JNIEXPORT jlong JNICALL
@@ -120,18 +67,5 @@ extern "C"
 }
 #endif
 
-namespace rive
-{
-	// RenderPaint* makeRenderPaint()
-	// {
-	// 	assert(g_JNIRenderer != nullptr);
-	// 	return g_JNIRenderer->makeRenderPaint();
-	// }
-
-	// RenderPath* makeRenderPath()
-	// {
-	// 	assert(g_JNIRenderer != nullptr);
-	// 	return g_JNIRenderer->makeRenderPath();
-	// }
-} // namespace rive
+// end #ifndef _RIVE_ANDROID_BINDINGS_RENDERER_SKIA_HPP_
 #endif

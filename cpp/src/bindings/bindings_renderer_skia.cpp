@@ -4,7 +4,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 
-#include "bindings/bindings_renderer.hpp"
+#include "bindings/bindings_renderer_skia.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
 #include "rive/artboard.hpp"
@@ -15,57 +15,6 @@ extern "C"
 #endif
 
 	using namespace rive_android;
-
-	// RENDERER
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_constructor(
-	    JNIEnv* env, jobject thisObj, jboolean antialias)
-	{
-		auto renderer = new ::JNIRenderer();
-		g_JNIRenderer = renderer;
-		::JNIRenderer::antialias = (bool)antialias;
-		renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
-
-		return (jlong)renderer;
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cleanupJNI(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef)
-	{
-		::JNIRenderer* renderer = (::JNIRenderer*)rendererRef;
-		delete renderer;
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cppAlign(
-	    JNIEnv* env,
-	    jobject thisObj,
-	    jlong ref,
-	    jobject jfit,
-	    jobject jalignment,
-	    jlong targetBoundsRef,
-	    jlong sourceBoundsRef)
-	{
-		::JNIRenderer* renderer = (::JNIRenderer*)ref;
-
-		auto fit = ::getFit(env, jfit);
-		auto alignment = ::getAlignment(env, jalignment);
-		rive::AABB* targetBounds = (rive::AABB*)targetBoundsRef;
-		rive::AABB* sourceBounds = (rive::AABB*)sourceBoundsRef;
-		renderer->align(fit, alignment, *targetBounds, *sourceBounds);
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_Renderer_cppDraw(JNIEnv* env,
-	                                                        jobject thisObj,
-	                                                        jlong artboardRef,
-	                                                        jlong rendererRef)
-	{
-		auto artboard = (rive::Artboard*)artboardRef;
-		auto renderer = (::JNIRenderer*)rendererRef;
-		artboard->draw(renderer);
-	}
 
 	// Skia Renderer
 	JNIEXPORT jlong JNICALL

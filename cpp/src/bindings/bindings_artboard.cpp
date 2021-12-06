@@ -1,7 +1,7 @@
 #include "jni_refs.hpp"
 #include "skia_renderer.hpp"
 #include "helpers/general.hpp"
-#include "models/jni_renderer.hpp"
+#include "models/i_jni_renderer.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
@@ -116,15 +116,6 @@ extern "C"
 		// TODO: garbage collection?
 		auto bounds = new rive::AABB(artboard->bounds());
 		return (jlong)bounds;
-	}
-
-	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(
-	    JNIEnv* env, jobject thisObj, jlong ref, jlong rendererRef)
-	{
-
-		rive::Artboard* artboard = (rive::Artboard*)ref;
-		auto* renderer = (::JNIRenderer*)rendererRef;
-		artboard->draw(renderer);
 	}
 
 	JNIEXPORT void JNICALL

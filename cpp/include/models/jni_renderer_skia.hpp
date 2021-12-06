@@ -11,10 +11,10 @@
 #include <GLES3/gl3.h>
 #include <jni.h>
 
+#include "i_jni_renderer.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 
-#include "jni_renderer.hpp"
 #include "skia_renderer.hpp"
 #include "GrBackendSurface.h"
 #include "GrDirectContext.h"
