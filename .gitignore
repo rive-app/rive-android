@@ -20,6 +20,7 @@ local.properties
 build
 captures
 build.pixel.sh
+build.nexus.sh
 .vscode
 
 .settings
