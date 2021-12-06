@@ -7,36 +7,62 @@
     android:background="@color/teal_200"
     tools:context=".MainActivity">
 
-    <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/car"
-        app:riveResource="@raw/off_road_car_blog"
-        app:riveFit="CONTAIN"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        app:layout_constraintEnd_toEndOf="parent"
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" >
 
-    <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/flux"
-        app:riveResource="@raw/flux_capacitor"
-        app:riveFit="CONTAIN"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        app:layout_constraintBottom_toTopOf="@id/button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/car"  />
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
 
-    <app.rive.runtime.kotlin.RiveAnimationView
-        android:id="@+id/button"
-        app:riveResource="@raw/button"
-        app:riveFit="CONTAIN"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/flux"  />
+            <app.rive.runtime.kotlin.RiveAnimationView
+                app:riveResource="@raw/off_road_car_blog"
+                app:riveFit="CONTAIN"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_weight="1"
+                android:layout_gravity="left"
+                />
+            <app.rive.runtime.kotlin.RiveAnimationView
+                app:riveResource="@raw/flux_capacitor"
+                app:riveFit="CONTAIN"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_weight="1"
+                android:layout_gravity="left"
+            />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+
+            <app.rive.runtime.kotlin.RiveAnimationView
+                app:riveResource="@raw/button"
+                app:riveFit="CONTAIN"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_weight="1"
+                android:layout_gravity="left"
+                />
+            <app.rive.runtime.kotlin.RiveAnimationView
+                app:riveResource="@raw/falling"
+                app:riveFit="CONTAIN"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_weight="1"
+                android:layout_gravity="left"
+                />
+
+        </LinearLayout>
+    </LinearLayout>
+
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
