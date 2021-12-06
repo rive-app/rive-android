@@ -122,16 +122,16 @@ extern "C"
 
 namespace rive
 {
-	RenderPaint* makeRenderPaint()
-	{
-		assert(g_JNIRenderer != nullptr);
-		return g_JNIRenderer->makeRenderPaint();
-	}
+	// RenderPaint* makeRenderPaint()
+	// {
+	// 	assert(g_JNIRenderer != nullptr);
+	// 	return g_JNIRenderer->makeRenderPaint();
+	// }
 
-	RenderPath* makeRenderPath()
-	{
-		assert(g_JNIRenderer != nullptr);
-		return g_JNIRenderer->makeRenderPath();
-	}
+	// RenderPath* makeRenderPath()
+	// {
+	// 	assert(g_JNIRenderer != nullptr);
+	// 	return g_JNIRenderer->makeRenderPath();
+	// }
 } // namespace rive
 #endif

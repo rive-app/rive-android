@@ -20,7 +20,6 @@ O_FILES = $(patsubst %.cpp,$(ODIR)/%.o,$(notdir $(SRC_FILES)))
 
 DEPS=$(O_FILES) \
 	$(BUILD_DIR)/librive.a \
-	$(BUILD_DIR)/librive_renderer.a \
 	$(BUILD_DIR)/libc++_static.a \
 	$(BUILD_DIR)/libskia.a \
 	$(BUILD_DIR)/librive_skia_renderer.a \
@@ -51,7 +50,6 @@ clean:
 	rm -f $(ODIR)/*.o
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
-	rm -f $(BUILD_DIR)/librive_renderer.a
 	rm -f $(BUILD_DIR)/libskia.a
 	rm -f $(BUILD_DIR)/librive_skia_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a

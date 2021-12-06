@@ -34,6 +34,9 @@ namespace rive_android
 		void drawPath(rive::RenderPath* path,
 		              rive::RenderPaint* paint) override;
 		void clipPath(rive::RenderPath* path) override;
+		void drawImage(rive::RenderImage* image,
+		               rive::BlendMode value,
+		               float opacity) override;
 
 		void initialize() override {}
 
