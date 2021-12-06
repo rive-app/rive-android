@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin
 
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
