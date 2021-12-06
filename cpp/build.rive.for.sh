@@ -60,42 +60,43 @@ export AR=$TOOLCHAIN/bin/llvm-ar
 SKIA_ARCH=
 
 buildFor() {
-    # Let's build Skia for Android.
-    # Do we want to make this a parameter?
+    # Build skia
     pushd "$LIBRIVE"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH"
-    # Prints the lib size:
-    # ls -lh ./skia/out/arm64/libskia.a
+
     popd
 
-    # Building the renderer builds both librive.a and librive_renderer.a
-    pushd "$LIBRIVE"/renderer/library
+    # Build librive
+    pushd "$LIBRIVE"
     if ${NEEDS_CLEAN}; then
-        # echo 'cleaning!'
-        ./build.sh clean
-        pushd ../../skia/renderer
-        ./build.sh clean
-        popd
+        ./build.sh -p android clean 
     fi
-    ./build.sh android
+    ./build.sh -p android release
     popd
 
+    # Build librive_skia_renderer
     pushd "$LIBRIVE"/skia/renderer
-    ./build.sh android
+    if ${NEEDS_CLEAN}; then
+        ./build.sh -p android clean 
+    fi
+    ./build.sh -p android release 
     popd
 
+
+    # Cleanup our android build location.
     mkdir -p "$BUILD_DIR"
     if ${NEEDS_CLEAN}; then
         # echo 'cleaning!'
         make clean
     fi
 
-    cp "$LIBRIVE"/build/bin/release/librive.a "$BUILD_DIR"
-    cp "$LIBRIVE"/renderer/library/build/bin/release/librive_renderer.a "$BUILD_DIR"
+    # copy in newly built rive/skia/skia_renderer files.
+    cp "$LIBRIVE"/build/android/bin/release/librive.a "$BUILD_DIR"
     cp "$LIBRIVE"/skia/dependencies/skia/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/renderer/build/bin/release/librive_skia_renderer.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/renderer/build/android/bin/release/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
+    # build the android .so!
     mkdir -p "$BUILD_DIR"/obj
     make -j7
 
