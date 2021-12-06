@@ -5,7 +5,6 @@
 #include "helpers/general.hpp"
 
 #include "bindings/bindings_renderer.hpp"
-#include "models/jni_renderer_gl.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
 #include "rive/artboard.hpp"
@@ -66,72 +65,6 @@ extern "C"
 		auto artboard = (rive::Artboard*)artboardRef;
 		auto renderer = (::JNIRenderer*)rendererRef;
 		artboard->draw(renderer);
-	}
-
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_constructor(
-	    JNIEnv* env, jobject thisObj)
-	{
-		auto renderer = new ::JNIRendererGL();
-		g_JNIRenderer = renderer;
-		renderer->jRendererObject = getJNIEnv()->NewGlobalRef(thisObj);
-		return (jlong)renderer;
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_initializeGL(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef)
-	{
-		((::JNIRendererGL*)rendererRef)->initialize();
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_startFrame(
-	    JNIEnv* env, jobject thisObj, jlong rendererRef)
-	{
-		((::JNIRendererGL*)rendererRef)->startFrame();
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_setViewport(
-	    JNIEnv* env,
-	    jobject thisObj,
-	    jlong rendererRef,
-	    jint width,
-	    jint height)
-	{
-		::JNIRendererGL* renderer = (::JNIRendererGL*)rendererRef;
-		// We should probably pass width/height directly to drawArtboard so you
-		// can target different areas at draw time.
-		renderer->width = width;
-		renderer->height = height;
-		float projection[16] = {0.0f};
-		renderer->orthographicProjection(
-		    projection, 0.0f, width, height, 0.0f, 0.0f, 1.0f);
-		renderer->modelViewProjection(projection);
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cppDraw(
-	    JNIEnv* env, jobject thisObj, jlong artboardRef, jlong rendererRef)
-	{
-		rive::Artboard* artboard = (rive::Artboard*)artboardRef;
-		auto renderer = (::JNIRendererGL*)rendererRef;
-		renderer->save();
-		renderer->align(rive::Fit::contain,
-		                rive::Alignment::center,
-		                rive::AABB(0, 0, renderer->width, renderer->height),
-		                artboard->bounds());
-		artboard->draw(renderer);
-		renderer->restore();
-	}
-
-	JNIEXPORT void JNICALL
-	Java_app_rive_runtime_kotlin_renderers_RendererOpenGL_cleanupJNI(
-	    JNIEnv*, jobject, jlong rendererRef)
-	{
-		auto* renderer = (JNIRendererGL*)rendererRef;
-		delete renderer;
 	}
 
 	// Skia Renderer
