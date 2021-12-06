@@ -1,4 +1,3 @@
-#include "models/jni_renderer.hpp"
 #include "models/dimensions_helper.hpp"
 #include "helpers/general.hpp"
 #include <jni.h>

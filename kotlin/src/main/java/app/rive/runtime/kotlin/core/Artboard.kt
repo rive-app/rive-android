@@ -3,7 +3,6 @@ package app.rive.runtime.kotlin.core
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
-import app.rive.runtime.kotlin.renderers.Renderer
 
 
 /**
@@ -31,7 +30,6 @@ class Artboard(val cppPointer: Long) {
     private external fun cppStateMachineCount(cppPointer: Long): Int
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
-    private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
     // TODO: this will be a cppDraw call after we remove our old renderer.
     private external fun cppDrawSkia(
@@ -178,13 +176,6 @@ class Artboard(val cppPointer: Long) {
      */
     fun advance(elapsedTime: Float): Boolean {
         return cppAdvance(cppPointer, elapsedTime)
-    }
-
-    /**
-     * Draw the the artboard to the [renderer].
-     */
-    fun draw(rendererAddress: Long) {
-        cppDraw(cppPointer, rendererAddress)
     }
 
     /**

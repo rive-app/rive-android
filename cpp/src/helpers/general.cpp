@@ -1,7 +1,5 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "models/render_paint.hpp"
-#include "models/render_path.hpp"
 #include "rive/file.hpp"
 #include "rive/layout.hpp"
 
