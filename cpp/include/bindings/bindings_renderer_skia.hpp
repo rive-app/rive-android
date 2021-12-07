@@ -9,19 +9,6 @@
 extern "C"
 {
 #endif
-	// Our renderer abstractions creates paints and paths for the renderer,
-	// however the abstraction model is implemented with a simple global
-	// function for makeRenderPaint and makeRenderPath. See the rive-cpp
-	// low_level_rendering branch for how the viewer handles this by expecting
-	// one global LowLevelRenderer and then virtualizing the methods to create
-	// those objects.
-	//
-	// A long term cleaner solution is requiring file graphics-init by passing
-	// the renderer reference. Perhaps the time has come to explore that to
-	// avoid things like this. It does mean that files cannot be loaded without
-	// a renderer, or at least will require initialization with a no-op renderer
-	// (probably ok?).
-	rive_android::IJNIRenderer* g_JNIRenderer = nullptr;
 
 	// Skia Renderer
 	JNIEXPORT jlong JNICALL
