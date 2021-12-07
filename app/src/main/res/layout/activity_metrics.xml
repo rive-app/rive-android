@@ -19,8 +19,6 @@
             android:layout_height="wrap_content"
             app:riveAlignment="TOP_CENTER"
             app:riveResource="@raw/off_road_car_blog"
-            app:riveArtboard="New Artboard"
-            app:riveAnimation="idle"
             app:riveTraceAnimations="true"
             />
 
