@@ -11,7 +11,6 @@
 #include <GLES3/gl3.h>
 #include <jni.h>
 
-#include "i_jni_renderer.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 
@@ -33,7 +32,7 @@ using namespace std::chrono_literals;
 
 namespace rive_android
 {
-	class JNIRendererSkia : virtual public IJNIRenderer
+	class JNIRendererSkia
 	{
 	private:
 		float mAverageFps = -1.0f;
@@ -93,16 +92,6 @@ namespace rive_android
 			}
 		}
 
-		rive::RenderPaint* makeRenderPaint() override
-		{
-			return new rive::SkiaRenderPaint();
-		}
-
-		rive::RenderPath* makeRenderPath() override
-		{
-			return new rive::SkiaRenderPath();
-		}
-
 		void setWindow(ANativeWindow* window)
 		{
 			mWorkerThread->run(
@@ -126,7 +115,7 @@ namespace rive_android
 			    });
 		}
 
-		void initialize() override
+		void initialize()
 		{
 			pthread_setname_np(pthread_self(), "JNIRendererSkia");
 			mWorkerThread->run(

@@ -1,7 +1,6 @@
 #include "jni_refs.hpp"
 #include "skia_renderer.hpp"
 #include "helpers/general.hpp"
-#include "models/i_jni_renderer.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
