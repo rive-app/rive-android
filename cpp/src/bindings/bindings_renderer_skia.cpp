@@ -21,11 +21,10 @@ extern "C"
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(
 	    JNIEnv* env, jobject ktRendererSkia, jboolean trace)
 	{
-		auto renderer = new JNIRendererSkia(ktRendererSkia, trace);
-		g_JNIRenderer = renderer;
+		::JNIRendererSkia* renderer =
+		    new JNIRendererSkia(ktRendererSkia, trace);
 		return (jlong)renderer;
 	}
-
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
 	    JNIEnv*, jobject, jlong rendererRef)
