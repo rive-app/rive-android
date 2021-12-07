@@ -19,6 +19,7 @@ abstract class RendererSkia(trace: Boolean = false) :
     private external fun cppRestore(rendererPointer: Long)
     private external fun cppWidth(rendererPointer: Long): Int
     private external fun cppHeight(rendererPointer: Long): Int
+    private external fun cppAvgFps(rendererPointer: Long): Float
     private external fun cppDoFrame(rendererPointer: Long, frameTimeNanos: Long)
     private external fun cppSetSurface(surface: Surface, rendererPointer: Long)
     private external fun cppClearSurface(rendererPointer: Long)
@@ -98,6 +99,9 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     val height: Float
         get() = cppHeight(cppPointer).toFloat()
+
+    val averageFps: Float
+        get() = cppAvgFps(cppPointer)
 
 
     fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {

@@ -21,21 +21,9 @@ namespace rive_android
 		EGLThreadState();
 		~EGLThreadState();
 
-		void* getProcAddress(const char*) const;
 		void onSettingsChanged(const Settings*);
-		void clearSurface();
-		bool configHasAttribute(EGLConfig, EGLint, EGLint);
-
-		sk_sp<GrDirectContext> createGrContext();
-		sk_sp<SkSurface> createSkSurface();
-
-		void swapBuffers();
 		bool setWindow(ANativeWindow*);
-
-		EGLBoolean makeCurrent(EGLSurface surface)
-		{
-			return eglMakeCurrent(mDisplay, surface, surface, mContext);
-		}
+		void swapBuffers() const;
 
 		sk_sp<GrDirectContext> getGrContext()
 		{
@@ -72,9 +60,6 @@ namespace rive_android
 			    env->GetMethodID(mKtRendererClass, "advance", "(F)V");
 		}
 
-		/*
-		 * Sets the last update time to the current time in nanoseconds.
-		 */
 		static long getNowNs()
 		{
 			using namespace std::chrono;
@@ -83,6 +68,20 @@ namespace rive_android
 			return nowNs.time_since_epoch().count();
 		}
 
+		float getElapsedMs(long frameTimeNs) const
+		{
+			float elapsedMs = (frameTimeNs - mLastUpdate) / 1e9f;
+			return elapsedMs;
+		}
+
+		bool mIsStarted = false;
+		jmethodID mKtDrawCallback = nullptr;
+		jmethodID mKtAdvanceCallback = nullptr;
+
+		// Last update time in nanoseconds
+		long mLastUpdate = 0;
+
+	private:
 		EGLDisplay mDisplay = EGL_NO_DISPLAY;
 		EGLConfig mConfig = static_cast<EGLConfig>(0);
 		EGLSurface mSurface = EGL_NO_SURFACE;
@@ -91,16 +90,21 @@ namespace rive_android
 		sk_sp<GrDirectContext> mSkContext = nullptr;
 		sk_sp<SkSurface> mSkSurface = nullptr;
 
-		bool mIsStarted = false;
-		// Last update time in nanoseconds
-		long mLastUpdate = getNowNs();
-
 		int32_t mWidth = 0;
 		int32_t mHeight = 0;
 
 		jclass mKtRendererClass = nullptr;
-		jmethodID mKtDrawCallback;
-		jmethodID mKtAdvanceCallback;
+
+		sk_sp<GrDirectContext> createGrContext();
+		sk_sp<SkSurface> createSkSurface();
+		static void* getProcAddress(const char*);
+		void clearSurface();
+		bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
+
+		EGLBoolean makeCurrent(EGLSurface surface) const
+		{
+			return eglMakeCurrent(mDisplay, surface, surface, mContext);
+		}
 	};
 } // namespace rive_android
 
