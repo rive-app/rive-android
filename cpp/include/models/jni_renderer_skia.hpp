@@ -36,18 +36,12 @@ namespace rive_android
 	{
 	private:
 		float mAverageFps = -1.0f;
+		jobject mKtRenderer;
 
 		ANativeWindow* nWindow = nullptr;
 
 		WorkerThread<EGLThreadState>* mWorkerThread =
 		    new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
-
-		// Mean and variance for the pipeline frame time.
-		RenderingStats mFrameTimeStats =
-		    RenderingStats(20 /* number of samples to average over */
-		    );
-
-		jobject mKtRenderer;
 
 		SkCanvas* mGpuCanvas;
 		rive::SkiaRenderer* mSkRenderer;
@@ -55,26 +49,10 @@ namespace rive_android
 
 	public:
 		JNIRendererSkia(jobject ktObject, bool trace = false) :
-		    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject))
+		    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
+		    mTracer(getTracer(trace))
 		{
-			bool traceAvailable = android_get_device_api_level() >= 23;
-
-			if (trace && traceAvailable)
-			{
-				mTracer = new Tracer();
-			}
-			else if (trace && !traceAvailable)
-			{
-				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api "
-				     "version is %d",
-				     android_get_device_api_level());
-				mTracer = new NoopTracer();
-			}
-			else
-			{
-				mTracer = new NoopTracer();
-			}
-			initialize();
+			setupThread();
 		}
 
 		~JNIRendererSkia()
@@ -115,26 +93,15 @@ namespace rive_android
 			    });
 		}
 
-		void initialize()
-		{
-			pthread_setname_np(pthread_self(), "JNIRendererSkia");
-			mWorkerThread->run(
-			    [=](EGLThreadState* threadState)
-			    {
-				    jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
-				    threadState->setKtRendererClass(ktClass);
-			    });
-		}
-
 		void doFrame(long frameTimeNs)
 		{
 			mWorkerThread->run(
 			    [=](EGLThreadState* threadState)
 			    {
-				    auto env = getJNIEnv();
-				    float elapsedMs =
-				        (frameTimeNs - threadState->mLastUpdate) / 1e9f;
+				    float elapsedMs = threadState->getElapsedMs(frameTimeNs);
 				    threadState->mLastUpdate = frameTimeNs;
+
+				    auto env = getJNIEnv();
 				    env->CallVoidMethod(mKtRenderer,
 				                        threadState->mKtAdvanceCallback,
 				                        elapsedMs);
@@ -162,7 +129,6 @@ namespace rive_android
 		rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
 		float averageFps() const { return mAverageFps; }
 
-		RenderingStats& frameTimeStats() { return mFrameTimeStats; }
 		int width() const
 		{
 			return nWindow ? ANativeWindow_getWidth(nWindow) : -1;
@@ -174,8 +140,41 @@ namespace rive_android
 		}
 
 	private:
-		// should be called once per draw as this function maintains the time
-		// delta between calls
+		void setupThread() const
+		{
+			pthread_setname_np(pthread_self(), "JNIRendererSkia");
+			mWorkerThread->run(
+			    [=](EGLThreadState* threadState)
+			    {
+				    jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
+				    threadState->setKtRendererClass(ktClass);
+			    });
+		}
+
+		ITracer* getTracer(bool trace) const
+		{
+			if (!trace)
+			{
+				return new NoopTracer();
+			}
+
+			bool traceAvailable = android_get_device_api_level() >= 23;
+			if (traceAvailable)
+			{
+				return new Tracer();
+			}
+			else
+			{
+				LOGE("JNIRendererSkia cannot enable tracing on API <23. Api "
+				     "version is %d",
+				     android_get_device_api_level());
+				return new NoopTracer();
+			}
+		}
+
+		/**
+		 * Calculate FPS over an average of 10 samples
+		 */
 		void calculateFps()
 		{
 			mTracer->beginSection("calculateFps()");
@@ -222,9 +221,9 @@ namespace rive_android
 				return;
 			}
 
-			mTracer->beginSection("draw()");
-			// calculateFps();
+			calculateFps();
 
+			mTracer->beginSection("draw()");
 			mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
 			auto env = getJNIEnv();
 			// Kotlin callback.

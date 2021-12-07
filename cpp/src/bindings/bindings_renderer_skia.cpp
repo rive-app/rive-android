@@ -108,14 +108,21 @@ extern "C"
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(
 	    JNIEnv*, jobject, jlong rendererRef)
 	{
-		return (jint)((JNIRendererSkia*)rendererRef)->width();
+		return reinterpret_cast<JNIRendererSkia*>(rendererRef)->width();
 	}
 
 	JNIEXPORT jint JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(
 	    JNIEnv*, jobject, jlong rendererRef)
 	{
-		return (jint)((JNIRendererSkia*)rendererRef)->height();
+		return reinterpret_cast<JNIRendererSkia*>(rendererRef)->height();
+	}
+
+	JNIEXPORT jfloat JNICALL
+	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAvgFps(
+	    JNIEnv*, jobject, jlong rendererRef)
+	{
+		return reinterpret_cast<JNIRendererSkia*>(rendererRef)->averageFps();
 	}
 
 #ifdef __cplusplus
