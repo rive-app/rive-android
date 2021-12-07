@@ -13,7 +13,7 @@ import java.util.*
 class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListener {
     private val TAG = "RendererMetrics"
     private val ONE_MS_IN_NS: Long = 1000000
-//    private val ONE_S_IN_NS = 1000 * ONE_MS_IN_NS
+    private val ONE_S_IN_NS = 1000 * ONE_MS_IN_NS
 
     private var allFrames = 0
     private var jankyFrames = 0
@@ -26,7 +26,7 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
         @Suppress("DEPRECATION")
         val display = wm.defaultDisplay
         val refreshRateHz = display.refreshRate
-//        val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
+        val refreshPeriodNanos = (ONE_S_IN_NS / refreshRateHz).toLong()
         Log.i(this.TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
     }
 
@@ -96,6 +96,4 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
 
         Log.i(this.TAG, frameValues)
     }
-
-    private external fun cppInitTracer(activity: Activity, initialSwapIntervalNS: Long)
 }

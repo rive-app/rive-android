@@ -517,7 +517,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             _detachedState = null
         }
 
-//        startFrameMetrics()
+        if (rendererAttributes.riveTraceAnimations) {
+            startFrameMetrics()
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -532,7 +534,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         } else {
             Log.w(
                 TAG,
-                "FrameMetrics can work only with Android SDK 24 (Nougat) and higher"
+                "FrameMetrics is available with Android SDK 24 (Nougat) and higher"
             )
         }
     }

@@ -41,8 +41,7 @@ extern "C"
 	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(
 	    JNIEnv*, jobject, jlong rendererAddr)
 	{
-		JNIRendererSkia* renderer = (JNIRendererSkia*)rendererAddr;
-		return renderer->averageFps();
+		return reinterpret_cast<JNIRendererSkia*>(rendererAddr)->averageFps();
 	}
 
 	JNIEXPORT float JNICALL
