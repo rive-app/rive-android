@@ -14,9 +14,9 @@
         android:padding="24dp">
 
         <app.rive.runtime.kotlin.RiveAnimationView
-            android:id="@id/swappy_view"
+            android:id="@+id/rive_view"
             android:layout_width="match_parent"
-            android:layout_height="450dp"
+            android:layout_height="wrap_content"
             app:riveAlignment="TOP_CENTER"
             app:riveResource="@raw/off_road_car_blog"
             app:riveArtboard="New Artboard"

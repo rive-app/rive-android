@@ -95,7 +95,7 @@ namespace rive_android
 
 	bool EGLThreadState::configHasAttribute(EGLConfig config,
 	                                        EGLint attribute,
-	                                        EGLint value)
+	                                        EGLint value) const
 	{
 		EGLint outValue = 0;
 		EGLBoolean result =
@@ -122,7 +122,7 @@ namespace rive_android
 		}
 
 		auto c_version = reinterpret_cast<const char*>(get_string(GL_VERSION));
-		if (c_version == NULL)
+		if (c_version == nullptr)
 		{
 			LOGE("c_version failed");
 			return nullptr;
@@ -176,7 +176,7 @@ namespace rive_android
 		return mSkSurface;
 	}
 
-	void* EGLThreadState::getProcAddress(const char* name) const
+	void* EGLThreadState::getProcAddress(const char* name)
 	{
 		if (name == nullptr)
 		{
@@ -184,7 +184,7 @@ namespace rive_android
 		}
 
 		auto symbol = eglGetProcAddress(name);
-		if (symbol == NULL)
+		if (symbol == nullptr)
 		{
 			LOGE("Couldn't fetch symbol name for: %s", name);
 		}
@@ -192,7 +192,7 @@ namespace rive_android
 		return reinterpret_cast<void*>(symbol);
 	}
 
-	void EGLThreadState::swapBuffers() { eglSwapBuffers(mDisplay, mSurface); }
+	void EGLThreadState::swapBuffers() const { eglSwapBuffers(mDisplay, mSurface); }
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
 	{
@@ -202,7 +202,7 @@ namespace rive_android
 			return false;
 		}
 
-		mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, NULL);
+		mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, nullptr);
 		ANativeWindow_release(window);
 
 		if (!createGrContext())
