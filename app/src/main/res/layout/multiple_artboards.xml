@@ -25,8 +25,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
-                app:riveArtboard="Square"
                 app:riveAnimation="goaround"
+                app:riveArtboard="Square"
                 app:riveResource="@raw/artboard_animations" />
 
             <TextView
@@ -39,8 +39,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
-                app:riveArtboard="Square"
                 app:riveAnimation="rollaround"
+                app:riveArtboard="Square"
                 app:riveResource="@raw/artboard_animations" />
 
             <TextView

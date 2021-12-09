@@ -8,10 +8,10 @@
     tools:context=".MainActivity">
 
     <app.rive.runtime.kotlin.RiveAnimationView
-        app:riveResource="@raw/falling"
-        app:riveFit="COVER"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        app:riveFit="COVER"
+        app:riveResource="@raw/falling" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

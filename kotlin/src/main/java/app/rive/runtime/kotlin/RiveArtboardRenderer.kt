@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin
 
-import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -67,7 +66,8 @@ open class RiveArtboardRenderer(
             stateMachines.toList().forEach { stateMachineInstance ->
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying = _advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
+                    val stillPlaying =
+                        _advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
 
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
@@ -85,7 +85,11 @@ open class RiveArtboardRenderer(
         }
     }
 
-    fun _advanceStateMachineInstance(stateMachineInstance: StateMachineInstance, artboard: Artboard, elapsed: Float ): Boolean {
+    fun _advanceStateMachineInstance(
+        stateMachineInstance: StateMachineInstance,
+        artboard: Artboard,
+        elapsed: Float
+    ): Boolean {
         val stillPlaying = stateMachineInstance.apply(artboard, elapsed)
 
         stateMachineInstance.statesChanged.forEach {
@@ -153,7 +157,7 @@ open class RiveArtboardRenderer(
         settleInitialState: Boolean = true,
     ) {
         animationNames.forEach {
-            _playAnimation(it, loop, direction, areStateMachines ,settleInitialState)
+            _playAnimation(it, loop, direction, areStateMachines, settleInitialState)
         }
     }
 
@@ -169,7 +173,7 @@ open class RiveArtboardRenderer(
 
     fun play(
         loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO,settleInitialState: Boolean = true,
+        direction: Direction = Direction.AUTO, settleInitialState: Boolean = true,
     ) {
         activeArtboard?.let {
             if (it.animationNames.isNotEmpty()) {
@@ -340,7 +344,10 @@ open class RiveArtboardRenderer(
         }
     }
 
-    private fun _play(stateMachineInstance: StateMachineInstance, settleStateMachineState: Boolean = true) {
+    private fun _play(
+        stateMachineInstance: StateMachineInstance,
+        settleStateMachineState: Boolean = true
+    ) {
         if (!stateMachines.contains(stateMachineInstance)) {
             stateMachines.add(stateMachineInstance)
         }

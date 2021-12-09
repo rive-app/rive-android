@@ -35,7 +35,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         override fun draw() {
             artboard.let {
                 save()
-                align(Fit.COVER, Alignment.CENTER,  AABB(width,height), it.bounds)
+                align(Fit.COVER, Alignment.CENTER, AABB(width, height), it.bounds)
                 it.drawSkia(
                     cppPointer
                 )
