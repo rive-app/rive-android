@@ -315,13 +315,17 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Already playing animation instances will be updated to this direction immediately.
      * Backwards animations will start from the end.
      *
+     * @experimental Optionally provide a [settleInitialState][Boolean] to inform the state machine to settle its
+     * state on initialization by determining its starting state based of the initial input values.
+     *
      * For [animations][Animation] without an [animation instance][LinearAnimationInstance] one will be created and played.
      */
     fun play(
         loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO
+        direction: Direction = Direction.AUTO,
+        settleInitialState: Boolean = true
     ) {
-        renderer.play(loop, direction)
+        renderer.play(loop, direction, settleInitialState)
     }
 
     /**
@@ -334,9 +338,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationNames: List<String>,
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
-        areStateMachines: Boolean = false
+        areStateMachines: Boolean = false,
+        settleInitialState: Boolean = true
     ) {
-        renderer.play(animationNames, loop, direction, areStateMachines)
+        renderer.play(animationNames, loop, direction, areStateMachines, settleInitialState)
     }
 
     /**
