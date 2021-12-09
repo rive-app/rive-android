@@ -4,9 +4,7 @@ import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveArtboardRenderer
-import app.rive.runtime.kotlin.renderers.RendererSkia
 import org.junit.Assert.assertEquals
-import java.util.concurrent.TimeoutException
 
 
 class TestUtils {
@@ -43,5 +41,53 @@ class TestUtils {
             return MockArtboardRenderer()
         }
     }
-}
 
+    class MockNoopArtboardRenderer : RiveArtboardRenderer() {
+        /** NOP */
+        override fun scheduleFrame() {
+
+        }
+
+        /** NOP */
+        override fun draw() {}
+    }
+
+    /**
+     * This RiveAnimationView uses a custom [MockNoopArtboardRenderer] to noop any drawing interactions.
+     */
+    class MockNoopRiveAnimationView(context: Context) : RiveAnimationView(context) {
+        override fun makeRenderer(): MockNoopArtboardRenderer {
+            return MockNoopArtboardRenderer()
+        }
+    }
+
+    data class StateChanged(var stateMachineName: String, var stateName: String)
+
+    class Observer : RiveArtboardRenderer.Listener {
+        var plays = mutableListOf<PlayableInstance>()
+        var pauses = mutableListOf<PlayableInstance>()
+        var stops = mutableListOf<PlayableInstance>()
+        var loops = mutableListOf<PlayableInstance>()
+        var states = mutableListOf<StateChanged>()
+
+        override fun notifyPlay(animation: PlayableInstance) {
+            plays.add(animation)
+        }
+
+        override fun notifyPause(animation: PlayableInstance) {
+            pauses.add(animation)
+        }
+
+        override fun notifyStop(animation: PlayableInstance) {
+            stops.add(animation)
+        }
+
+        override fun notifyLoop(animation: PlayableInstance) {
+            loops.add(animation)
+        }
+
+        override fun notifyStateChanged(stateMachineName: String, stateName: String) {
+            states.add(StateChanged(stateMachineName, stateName))
+        }
+    }
+}

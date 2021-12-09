@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin
 
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -66,11 +67,8 @@ open class RiveArtboardRenderer(
             stateMachines.toList().forEach { stateMachineInstance ->
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying = stateMachineInstance.apply(ab, elapsed)
+                    val stillPlaying = _advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
 
-                    stateMachineInstance.statesChanged.forEach {
-                        notifyStateChanged(stateMachineInstance, it)
-                    }
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
                         // as they have lots of stop and go possibilities
@@ -85,6 +83,15 @@ open class RiveArtboardRenderer(
         if (!hasPlayingAnimations) {
             stop()
         }
+    }
+
+    fun _advanceStateMachineInstance(stateMachineInstance: StateMachineInstance, artboard: Artboard, elapsed: Float ): Boolean {
+        val stillPlaying = stateMachineInstance.apply(artboard, elapsed)
+
+        stateMachineInstance.statesChanged.forEach {
+            notifyStateChanged(stateMachineInstance, it)
+        }
+        return stillPlaying
     }
 
     // PUBLIC FUNCTIONS
@@ -143,9 +150,10 @@ open class RiveArtboardRenderer(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         areStateMachines: Boolean = false,
+        settleInitialState: Boolean = true,
     ) {
         animationNames.forEach {
-            _playAnimation(it, loop, direction, areStateMachines)
+            _playAnimation(it, loop, direction, areStateMachines ,settleInitialState)
         }
     }
 
@@ -154,19 +162,20 @@ open class RiveArtboardRenderer(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         isStateMachine: Boolean = false,
+        settleInitialState: Boolean = true,
     ) {
-        _playAnimation(animationName, loop, direction, isStateMachine)
+        _playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
     }
 
     fun play(
         loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO,
+        direction: Direction = Direction.AUTO,settleInitialState: Boolean = true,
     ) {
         activeArtboard?.let {
             if (it.animationNames.isNotEmpty()) {
                 _playAnimation(it.animationNames.first(), loop, direction)
             } else if (it.stateMachineNames.isNotEmpty()) {
-                _playAnimation(it.stateMachineNames.first(), loop, direction, true)
+                _playAnimation(it.stateMachineNames.first(), loop, direction, settleInitialState)
             }
         }
     }
@@ -249,7 +258,7 @@ open class RiveArtboardRenderer(
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
             (it.input(inputName) as SMITrigger).fire()
-            _play(it)
+            _play(it, settleStateMachineState = false)
         }
     }
 
@@ -257,7 +266,7 @@ open class RiveArtboardRenderer(
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
             (it.input(inputName) as SMIBoolean).value = value
-            _play(it)
+            _play(it, settleStateMachineState = false)
         }
     }
 
@@ -265,7 +274,7 @@ open class RiveArtboardRenderer(
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
             (it.input(inputName) as SMINumber).value = value
-            _play(it)
+            _play(it, settleStateMachineState = false)
         }
     }
 
@@ -309,11 +318,12 @@ open class RiveArtboardRenderer(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         isStateMachine: Boolean = false,
+        settleInitialState: Boolean = true,
     ) {
         if (isStateMachine) {
             val stateMachineInstances = _getOrCreateStateMachines(animationName)
             stateMachineInstances.forEach { stateMachineInstance ->
-                _play(stateMachineInstance)
+                _play(stateMachineInstance, settleInitialState)
             }
         } else {
             val animationInstances = _animations(animationName)
@@ -330,10 +340,21 @@ open class RiveArtboardRenderer(
         }
     }
 
-    private fun _play(stateMachineInstance: StateMachineInstance) {
+    private fun _play(stateMachineInstance: StateMachineInstance, settleStateMachineState: Boolean = true) {
         if (!stateMachines.contains(stateMachineInstance)) {
             stateMachines.add(stateMachineInstance)
         }
+
+        // Special case:
+        // When we start to "play" a state machine, we want it to settle on its initial state
+        // otherwise it maybe "stuck" on the Enter state causing issues for fireState triggers.
+        // https://2dimensions.slack.com/archives/CLLCU09T6/p1638984141105200
+        if (settleStateMachineState) {
+            activeArtboard?.let {
+                _advanceStateMachineInstance(stateMachineInstance, it, 0f)
+            }
+        }
+
         playingStateMachines.add(stateMachineInstance)
         start()
         notifyPlay(stateMachineInstance)
@@ -421,9 +442,11 @@ open class RiveArtboardRenderer(
                 play(animationName = it)
             } ?: run {
                 stateMachineName?.let {
-                    play(animationName = it, isStateMachine = true)
+                    // only settle initial state on explicit play call
+                    play(animationName = it, isStateMachine = true, settleInitialState = false)
                 } ?: run {
-                    play()
+                    // only settle initial state on explicit play call
+                    play(settleInitialState = false)
                 }
 
             }
