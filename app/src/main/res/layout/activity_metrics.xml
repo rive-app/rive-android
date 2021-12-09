@@ -19,8 +19,7 @@
             android:layout_height="wrap_content"
             app:riveAlignment="TOP_CENTER"
             app:riveResource="@raw/off_road_car_blog"
-            app:riveTraceAnimations="true"
-            />
+            app:riveTraceAnimations="true" />
 
         <TextView
             android:id="@+id/fps"

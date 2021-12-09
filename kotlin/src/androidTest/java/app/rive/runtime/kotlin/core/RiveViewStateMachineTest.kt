@@ -1,8 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-import android.os.Handler
-import android.os.Looper
-import androidx.annotation.UiThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
