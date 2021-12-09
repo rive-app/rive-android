@@ -35,7 +35,7 @@ class RiveStateMachineStateResolutionTest {
     }
 
     @Test
-    fun autoPlayDoesNotTriggerStateResolution() {
+    fun autoPlayTriggersStateResolution() {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.Observer()
             mockView.registerListener(observer)
@@ -43,6 +43,19 @@ class RiveStateMachineStateResolutionTest {
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
                 autoplay = true
+            )
+            assertEquals(1, observer.states.size)
+        }
+    }
+    @Test
+    fun disablingAutoplaySuppressesStateResolution() {
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            mockView.registerListener(observer)
+            mockView.setRiveResource(
+                R.raw.state_machine_state_resolution,
+                stateMachineName = "StateResolution",
+                autoplay = false
             )
             assertEquals(0, observer.states.size)
         }
@@ -56,7 +69,9 @@ class RiveStateMachineStateResolutionTest {
             mockView.setRiveResource(
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
+                autoplay = false
             )
+
             mockView.play("StateResolution", isStateMachine = true)
             assertEquals(1, observer.states.size)
 
@@ -73,6 +88,7 @@ class RiveStateMachineStateResolutionTest {
             mockView.setRiveResource(
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
+                autoplay = false
             )
             mockView.play(
                 "StateResolution",
@@ -91,6 +107,7 @@ class RiveStateMachineStateResolutionTest {
             mockView.setRiveResource(
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
+                autoplay = false
             )
             mockView.setNumberState("StateResolution", "Choice", 1f)
             mockView.play(
@@ -112,6 +129,7 @@ class RiveStateMachineStateResolutionTest {
             mockView.setRiveResource(
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
+                autoplay = false
             )
             mockView.setNumberState("StateResolution", "Choice", 2f)
             mockView.play(
@@ -136,6 +154,7 @@ class RiveStateMachineStateResolutionTest {
             mockView.setRiveResource(
                 R.raw.state_machine_state_resolution,
                 stateMachineName = "StateResolution",
+                autoplay = false
             )
             mockView.setNumberState("StateResolution", "Choice", 2f)
             mockView.play(

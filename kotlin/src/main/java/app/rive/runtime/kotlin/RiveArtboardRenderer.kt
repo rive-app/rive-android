@@ -449,11 +449,11 @@ open class RiveArtboardRenderer(
                 play(animationName = it)
             } ?: run {
                 stateMachineName?.let {
-                    // only settle initial state on explicit play call
-                    play(animationName = it, isStateMachine = true, settleInitialState = false)
+                    // With autoplay, we default to settling the initial state
+                    play(animationName = it, isStateMachine = true, settleInitialState = true)
                 } ?: run {
-                    // only settle initial state on explicit play call
-                    play(settleInitialState = false)
+                    // With autoplay, we default to settling the initial state
+                    play(settleInitialState = true)
                 }
 
             }
