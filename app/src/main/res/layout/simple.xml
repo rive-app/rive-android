@@ -10,26 +10,24 @@
     <app.rive.runtime.kotlin.RiveAnimationView
         android:id="@+id/simple_view_asset"
 
-        app:riveResource="@raw/off_road_car_blog"
-        app:riveFit="COVER"
-
         android:layout_width="382dp"
         android:layout_height="339dp"
+
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:riveFit="COVER"
+        app:riveResource="@raw/off_road_car_blog" />
 
     <app.rive.runtime.kotlin.RiveAnimationView
         android:id="@+id/simple_view_network"
 
-        app:riveUrl="https://cdn.rive.app/animations/truck.riv"
-        app:riveFit="COVER"
-
         android:layout_width="381dp"
         android:layout_height="345dp"
+
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
@@ -37,6 +35,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/simple_view_asset" />
+        app:layout_constraintTop_toBottomOf="@+id/simple_view_asset"
+        app:riveFit="COVER"
+        app:riveUrl="https://cdn.rive.app/animations/truck.riv" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

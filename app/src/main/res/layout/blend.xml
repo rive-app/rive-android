@@ -9,13 +9,13 @@
 
     <app.rive.runtime.kotlin.RiveAnimationView
         android:id="@+id/blend"
-        app:riveResource="@raw/blendmodes"
-        app:riveFit="CONTAIN"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:riveFit="CONTAIN"
+        app:riveResource="@raw/blendmodes" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

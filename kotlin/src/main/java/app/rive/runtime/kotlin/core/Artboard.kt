@@ -35,6 +35,7 @@ class Artboard(val cppPointer: Long) {
     private external fun cppDrawSkia(
         cppPointer: Long, rendererPointer: Long
     )
+
     private external fun cppDrawSkiaAligned(
         cppPointer: Long, rendererPointer: Long,
         fit: Fit, alignment: Alignment,

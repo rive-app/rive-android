@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.renderers
 
-import android.util.Log
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
@@ -119,7 +118,7 @@ abstract class RendererSkia(trace: Boolean = false) :
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         // Draw.
-        if (frameTimeNanos>lastFrameTimeNanos && isPlaying) {
+        if (frameTimeNanos > lastFrameTimeNanos && isPlaying) {
             cppDoFrame(cppPointer, frameTimeNanos)
             scheduleFrame()
             lastFrameTimeNanos = frameTimeNanos
