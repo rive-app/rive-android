@@ -36,7 +36,7 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     var isPlaying: Boolean = false
         private set
-    var lastFrameTimeNanos: Long = 0L
+    private var lastFrameTimeNanos: Long = 0L
 
     abstract fun draw()
     abstract fun advance(elapsed: Float)
