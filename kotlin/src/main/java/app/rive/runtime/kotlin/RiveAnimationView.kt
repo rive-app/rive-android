@@ -348,9 +348,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     fun play(
         animationName: String,
         loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO, isStateMachine: Boolean = false
+        direction: Direction = Direction.AUTO,
+        isStateMachine: Boolean = false,
+        settleInitialState: Boolean = true
     ) {
-        renderer.play(animationName, loop, direction, isStateMachine)
+        renderer.play(animationName, loop, direction, isStateMachine, settleInitialState)
     }
 
     /**
