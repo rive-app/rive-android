@@ -67,7 +67,7 @@ open class RiveArtboardRenderer(
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
                     val stillPlaying =
-                        _advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
+                        advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
 
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
@@ -85,7 +85,7 @@ open class RiveArtboardRenderer(
         }
     }
 
-    fun _advanceStateMachineInstance(
+    private fun advanceStateMachineInstance(
         stateMachineInstance: StateMachineInstance,
         artboard: Artboard,
         elapsed: Float
@@ -358,7 +358,7 @@ open class RiveArtboardRenderer(
         // https://2dimensions.slack.com/archives/CLLCU09T6/p1638984141105200
         if (settleStateMachineState) {
             activeArtboard?.let {
-                _advanceStateMachineInstance(stateMachineInstance, it, 0f)
+                advanceStateMachineInstance(stateMachineInstance, it, 0f)
             }
         }
 
