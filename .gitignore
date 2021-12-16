@@ -11,12 +11,11 @@ cpp/*.o
 cpp/*.so
 cpp/build
 cpp/deps
-cpp/Toolchains
+cpp/rive_build_*.log
 *.iml
 .gradle
 local.properties
 .idea
-.DS_Store
 build
 captures
 build.pixel.sh

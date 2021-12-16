@@ -66,24 +66,15 @@ buildFor() {
     # Build skia
     pushd "$LIBRIVE"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH"
-
     popd
 
-    # Build librive
-    # We don't need this, do we?
-    # librive_skia_renderer below builds it.
-    # pushd "$LIBRIVE"
-    # if ${NEEDS_CLEAN}; then
-    #     ./build.sh -p android."$SKIA_ARCH" clean
-    # fi
-    # ./build.sh -p android."$SKIA_ARCH" release
-    # popd
-
-    # Build librive_skia_renderer
+    # Build librive_skia_renderer (which also builds librive)
     pushd "$LIBRIVE"/skia/renderer
     if ${NEEDS_CLEAN}; then
         ./build.sh -p android."$SKIA_ARCH" clean
     fi
+    # rive-cpp needs the architecture specified with this format: `android.ABI` 
+    #   e.g. (android.x86)
     ./build.sh -p android."$SKIA_ARCH" release
     popd
 
