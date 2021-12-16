@@ -6,7 +6,8 @@ project("rive_android")
 
 # Compile detail will be in rive-android/kotlin/.cxx/Debug/<hash>/<ABI>/compile_commands.json
 #   e.g: kotlin/.cxx/Debug/4o1b5h48/arm64-v8a/compile_commands.json
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.
@@ -65,11 +66,7 @@ include_directories(rive_android
 
 add_definitions(-DSK_GL)
 
-# TODO: I need to build my static deps below here, maybe with a custom script that does just that?
-#   well, you have that in theory, no?
-# Biggest question is: will this actually work with the toolchain that CMake is using?
 execute_process(
-  COMMAND echo "cmake.build.deps.sh -a ${CMAKE_ANDROID_ARCH_ABI}"
   COMMAND sh cmake.build.deps.sh -a ${CMAKE_ANDROID_ARCH_ABI}
   OUTPUT_FILE ${CMAKE_SOURCE_DIR}/rive_build_${CMAKE_ANDROID_ARCH_ABI}.log
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -85,12 +82,6 @@ set_target_properties(rive-lib
   PROPERTIES
   IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/librive.a
   )
-
-#add_library(rive-renderer-lib STATIC IMPORTED)
-#set_target_properties(rive-renderer-lib
-#        PROPERTIES
-#        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/librive_renderer.a
-#        )
 
 add_library(skia-lib STATIC IMPORTED)
 set_target_properties(skia-lib
@@ -126,7 +117,6 @@ target_link_libraries( # Specifies the target library.
   rive_android
   
   rive-lib
-  #        rive-renderer-lib
   skia-lib
   rive-skia-renderer-lib
   # Links the target library to the log library

@@ -81,7 +81,6 @@ buildFor() {
     # Cleanup our android build location.
     mkdir -p "$DEPS_DIR"
     if ${NEEDS_CLEAN}; then
-        # echo 'cleaning!'
         rm -f "$DEPS_DIR"/librive.a
         rm -f "$DEPS_DIR"/libskia.a
         rm -f "$DEPS_DIR"/librive_skia_renderer.a
@@ -103,7 +102,6 @@ if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     export TARGET=i686-linux-android
     export CC=$TOOLCHAIN/bin/$TARGET$API-clang
     export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
-    # export LIBCXX=$SYSROOT/usr/lib/$TARGET
 elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     echo "==== x86_64 ===="
     SKIA_ARCH=x64
@@ -111,7 +109,6 @@ elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     DEPS_DIR=$PWD/deps/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
     export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-    # export LIBCXX=$SYSROOT/usr/lib/$TARGET
 elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     echo "==== ARMv7 ===="
     SKIA_ARCH=arm
@@ -119,7 +116,6 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     DEPS_DIR=$PWD/deps/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
     export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-    # LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
 elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     SKIA_ARCH=arm64
@@ -127,7 +123,6 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     DEPS_DIR=$PWD/deps/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
     export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-    # LIBCXX=$SYSROOT/usr/lib/$TARGET
 else
     echo "Invalid architecture specified: '$ARCH_NAME'"
     usage
