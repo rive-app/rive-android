@@ -25,3 +25,4 @@ build.nexus.sh
 
 .settings
 .classpath
+/kotlin/.cxx

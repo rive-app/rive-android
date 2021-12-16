@@ -19,11 +19,6 @@ add_library( # Sets the name of the library.
         # TODO: use a CMakeLists.txt for each subfolder?
         src/jni_refs.cpp
         src/models/dimensions_helper.cpp
-        src/models/jni_renderer.cpp
-        src/models/linear_gradient_builder.cpp
-        src/models/radial_gradient_builder.cpp
-        src/models/render_paint.cpp
-        src/models/render_path.cpp
         src/jni_refs.cpp
         src/bindings/bindings_file.cpp
         src/bindings/bindings_artboard.cpp
@@ -33,7 +28,7 @@ add_library( # Sets the name of the library.
         src/bindings/bindings_linear_animation.cpp
         src/bindings/bindings_state_machine_input_instance.cpp
         src/bindings/bindings_linear_animation_instance.cpp
-        src/bindings/bindings_renderer.cpp
+        src/bindings/bindings_renderer_skia.cpp
         src/bindings/bindings_state_machine.cpp
         src/bindings/bindings_rive_texture_view.cpp
         src/bindings/bindings_layer_state.cpp
@@ -87,25 +82,25 @@ message(STATUS "I am a message!")
 add_library(rive-lib STATIC IMPORTED)
 set_target_properties(rive-lib
         PROPERTIES
-        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/build/${CMAKE_ANDROID_ARCH_ABI}/librive.a
+        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/librive.a
         )
 
-add_library(rive-renderer-lib STATIC IMPORTED)
-set_target_properties(rive-renderer-lib
-        PROPERTIES
-        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/build/${CMAKE_ANDROID_ARCH_ABI}/librive_renderer.a
-        )
+#add_library(rive-renderer-lib STATIC IMPORTED)
+#set_target_properties(rive-renderer-lib
+#        PROPERTIES
+#        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/librive_renderer.a
+#        )
 
 add_library(skia-lib STATIC IMPORTED)
 set_target_properties(skia-lib
         PROPERTIES
-        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/build/${CMAKE_ANDROID_ARCH_ABI}/libskia.a
+        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/libskia.a
         )
 
 add_library(rive-skia-renderer-lib STATIC IMPORTED)
 set_target_properties(rive-skia-renderer-lib
         PROPERTIES
-        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/build/${CMAKE_ANDROID_ARCH_ABI}/librive_skia_renderer.a
+        IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/${CMAKE_ANDROID_ARCH_ABI}/librive_skia_renderer.a
         )
 
 # Searches for a specified prebuilt library and stores the path as a
@@ -130,7 +125,7 @@ target_link_libraries( # Specifies the target library.
         rive_android
 
         rive-lib
-        rive-renderer-lib
+#        rive-renderer-lib
         skia-lib
         rive-skia-renderer-lib
         # Links the target library to the log library
