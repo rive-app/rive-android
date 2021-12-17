@@ -1,8 +1,10 @@
 #ifndef _RIVE_ANDROID_TRACER_HPP_
 #define _RIVE_ANDROID_TRACER_HPP_
 
-#include "helpers/general.hpp"
 #include <android/api-level.h>
+#include <dlfcn.h>
+
+#include "helpers/general.hpp"
 
 namespace rive_android
 {
