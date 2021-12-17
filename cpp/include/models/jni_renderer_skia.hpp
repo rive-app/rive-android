@@ -14,19 +14,6 @@ namespace rive_android
 {
 	class JNIRendererSkia
 	{
-	private:
-		float mAverageFps = -1.0f;
-		jobject mKtRenderer;
-
-		ANativeWindow* nWindow = nullptr;
-
-		WorkerThread<EGLThreadState>* mWorkerThread =
-		    new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd);
-
-		SkCanvas* mGpuCanvas;
-		rive::SkiaRenderer* mSkRenderer;
-		ITracer* mTracer;
-
 	public:
 		JNIRendererSkia(jobject ktObject, bool trace = false);
 
@@ -41,28 +28,46 @@ namespace rive_android
 		void stop();
 
 		SkCanvas* canvas() const { return mGpuCanvas; }
+
 		rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
+
 		float averageFps() const { return mAverageFps; }
 
 		int width() const
 		{
-			return nWindow ? ANativeWindow_getWidth(nWindow) : -1;
+			return mWindow ? ANativeWindow_getWidth(mWindow) : -1;
 		}
 
 		int height() const
 		{
-			return nWindow ? ANativeWindow_getHeight(nWindow) : -1;
+			return mWindow ? ANativeWindow_getHeight(mWindow) : -1;
 		}
 
 	private:
+		WorkerThread<EGLThreadState>* mWorkerThread;
+
+		jobject mKtRenderer;
+
+		ITracer* mTracer;
+
+		ANativeWindow* mWindow = nullptr;
+
+		SkCanvas* mGpuCanvas;
+
+		rive::SkiaRenderer* mSkRenderer;
+
+		/* Helpers for FPS calculations.*/
+		std::chrono::steady_clock::time_point mLastFrameTime;
+		float mAverageFps = -1.0f;
+		float mFpsSum = 0;
+		int mFpsCount = 0;
+
 		void setupThread() const;
 
 		ITracer* getTracer(bool trace) const;
 
-		/**
-		 * Calculate FPS over an average of 10 samples
-		 */
 		void calculateFps();
+
 		void draw(EGLThreadState* threadState);
 	};
 } // namespace rive_android

@@ -20,7 +20,9 @@ using namespace std::chrono_literals;
 namespace rive_android
 {
 	JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
-	    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
+	    mWorkerThread(
+	        new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd)),
+	        mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
 	    mTracer(getTracer(trace))
 	{
 		setupThread();
@@ -48,15 +50,15 @@ namespace rive_android
 		    {
 			    if (!threadState->setWindow(window))
 			    {
-				    if (nWindow)
+				    if (mWindow)
 				    {
-					    ANativeWindow_release(nWindow);
+					    ANativeWindow_release(mWindow);
 				    }
 				    return;
 			    }
 
 			    ANativeWindow_acquire(window);
-			    nWindow = window;
+			    mWindow = window;
 
 			    auto gpuSurface = threadState->getSkSurface();
 			    mGpuCanvas = gpuSurface->getCanvas();
@@ -86,6 +88,7 @@ namespace rive_android
 		    {
 			    threadState->mIsStarted = true;
 			    threadState->mLastUpdate = EGLThreadState::getNowNs();
+			    mLastFrameTime = std::chrono::steady_clock::now();
 		    });
 	}
 
@@ -134,23 +137,19 @@ namespace rive_android
 	{
 		mTracer->beginSection("calculateFps()");
 		static constexpr int FPS_SAMPLES = 10;
-		static std::chrono::steady_clock::time_point prev =
-		    std::chrono::steady_clock::now();
-		static float fpsSum = 0;
-		static int fpsCount = 0;
 
 		std::chrono::steady_clock::time_point now =
 		    std::chrono::steady_clock::now();
 
-		fpsSum += 1.0f / ((now - prev).count() / 1e9f);
-		fpsCount++;
-		if (fpsCount == FPS_SAMPLES)
+		mFpsSum += 1.0f / ((now - mLastFrameTime).count() / 1e9f);
+		mFpsCount++;
+		if (mFpsCount == FPS_SAMPLES)
 		{
-			mAverageFps = fpsSum / fpsCount;
-			fpsSum = 0;
-			fpsCount = 0;
+			mAverageFps = mFpsSum / mFpsCount;
+			mFpsSum = 0;
+			mFpsCount = 0;
 		}
-		prev = now;
+		mLastFrameTime = now;
 		mTracer->endSection();
 	}
 
