@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 ARCH_X86=x86
@@ -66,22 +65,13 @@ buildFor() {
 
     popd
 
-    # Build librive
-    pushd "$LIBRIVE"
-    if ${NEEDS_CLEAN}; then
-        ./build.sh -p android clean 
-    fi
-    ./build.sh -p android release
-    popd
-
-    # Build librive_skia_renderer
+    # Build librive_skia_renderer (internally builds librive)
     pushd "$LIBRIVE"/skia/renderer
     if ${NEEDS_CLEAN}; then
-        ./build.sh -p android clean 
+        ./build.sh -p android."$SKIA_ARCH" clean
     fi
-    ./build.sh -p android release 
+    ./build.sh -p android."$SKIA_ARCH" release
     popd
-
 
     # Cleanup our android build location.
     mkdir -p "$BUILD_DIR"
@@ -91,9 +81,9 @@ buildFor() {
     fi
 
     # copy in newly built rive/skia/skia_renderer files.
-    cp "$LIBRIVE"/build/android/bin/release/librive.a "$BUILD_DIR"
+    cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/release/librive.a "$BUILD_DIR"
     cp "$LIBRIVE"/skia/dependencies/skia/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/renderer/build/android/bin/release/librive_skia_renderer.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/release/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
     # build the android .so!
