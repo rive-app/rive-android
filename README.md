@@ -231,20 +231,46 @@ Multiple sample activities can be found here, this can be a useful reference for
 
 The runtimes are built on top of our [C++ runtimes](https://github.com/rive-app/rive-cpp). these are included as a submodule in `/submodules`. The `/cpp` folder contains the C++ side of our bindings into android.
 
-#### Build the cpp runtimes
+## Contributing
 
-If you have changed the cpp submodule, or if you have made changes to the cpp bindings, you will need to rebuild the cpp runtimes to generate the new .so files.
+### Updating rive-cpp
+
+The runtime here should be updated to point to the latest `rive-cpp` submodule when that repo has new commits merged in. This ensures the `rive-android` runtime is up-to-date with its underlying native code layer to pull in latest patches, features, and more. Follow the steps below to update this submodule:
+
+1. Pull in the latest commmits from `rive-cpp`, at the root level:
 
 ```bash
-cd cpp
-
-./build.rive.for.sh -c -a x86
-./build.rive.for.sh -c -a x86_64
-./build.rive.for.sh -c -a arm64-v8a
-./build.rive.for.sh -c -a armeabi-v7a
+git submodule update --recursive
+# Or git submodule update --init --recursive if you just pulled down the project
+cd submodules/rive-cpp
+git checkout origin/master
+cd ../..
 ```
 
-## Updating Dokka docs
+2. At this point you should see a Git diff of the submodule pointing to the latest commit on `master` from `rive-cpp`.
+
+```bash
+git add .
+```
+
+3. The Android NDK builds `.so` files for [different architectures](https://developer.android.com/ndk/guides/abis), and we need to rebuild new `.so` files (located in `/kotlin/src/main/jniLibs/`) when pulling in latest changes from `rive-cpp`:
+
+```bash
+cd cpp/
+# Builds .so files for each architecture
+# Note: You may need to install a few dependencies for this script to run
+# Android NDK - install v22.1.717670 from the SDK manager
+# Ninja - brew install ninja
+# Premake5 - Need to add to your path
+./build.all.sh
+# After the script above completes successfully, you should see 4 new .so files, so let's add them
+git add .
+```
+
+4. Run the test suite
+5. Commit the submodule updates / new `.so` files to a branch, and submit a PR to `master`
+
+### Updating Dokka docs
 
 To update the documentation, run the `rive-android:kotlin [dokkaGfm]` task.
 And then replace the contents of docs with the newly generated output
