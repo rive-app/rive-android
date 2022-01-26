@@ -82,7 +82,7 @@ buildFor() {
 
     # copy in newly built rive/skia/skia_renderer files.
     cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/release/librive.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/dependencies/skia/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/dependencies/skia_rive_optimized/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
     cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/release/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
