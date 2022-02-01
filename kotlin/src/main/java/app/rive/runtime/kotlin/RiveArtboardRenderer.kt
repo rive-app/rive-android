@@ -81,7 +81,7 @@ open class RiveArtboardRenderer(
 
         // Are we done playing?
         if (!hasPlayingAnimations) {
-            stop()
+            stopThread()
         }
     }
 

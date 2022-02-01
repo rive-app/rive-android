@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
+import android.util.Log
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
@@ -36,12 +37,23 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     var isPlaying: Boolean = false
         private set
-    private var lastFrameTimeNanos: Long = 0L
 
     abstract fun draw()
     abstract fun advance(elapsed: Float)
 
-    // Starts rendering thread (i.e. starts rendering frames)
+    /**
+     * Starts the SkiaRenderer & registers for frameCallbacks
+     *
+     * Goal:
+     * When we trigger start, doFrame gets called once per frame
+     *   - until we stop
+     *   - or the animation finishes
+     *
+     * Gotchas:
+     * - scheduleFrame triggers callbacks to "doFrame" which in turn schedule more frames
+     * - if we call scheduleFrame multiple times we enter multiple parallel animations loops
+     * - to avoid this we check isPlaying & deregister frameCallbacks when stop is called by users
+     */
     fun start() {
         if (isPlaying) return
         isPlaying = true
@@ -56,13 +68,36 @@ abstract class RendererSkia(trace: Boolean = false) :
         cppDoFrame(cppPointer, 0)
     }
 
-    // Stop rendering thread.
+    /**
+     * Marks the animation as stopped
+     *
+     * lets the underlying renderer know we are intending to stop animating.
+     * we will also not draw on the next drawCycle & stop scheduling frameCallbacks
+     *
+     * NOTE: safe to call from the animation thread.
+     * e.g inside .draw() / .advance(elapsed: Float) callbacks
+     *
+     * NOTE: if you can, call stop() instead to avoid running multiple callback loops
+     */
     @CallSuper
-    fun stop() {
+    internal fun stopThread() {
         if (!isPlaying) return
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
+    }
+
+
+    /**
+     * Calls stop, and removes any pending frameCallbacks from the Choreographer
+     *
+     * NOTE: this is NOT safe to call from the animation thread.
+     * e.g inside .draw() / .advance(elapsed: Float) callbacks
+     */
+    @CallSuper
+    fun stop() {
+        stopThread()
+        Choreographer.getInstance().removeFrameCallback(this)
     }
 
     private fun clearSurface() {
@@ -76,7 +111,6 @@ abstract class RendererSkia(trace: Boolean = false) :
     @CallSuper
     fun cleanup() {
         clearSurface()
-        Choreographer.getInstance().removeFrameCallback(this)
         cleanupJNI(cppPointer)
         cppPointer = 0
     }
@@ -117,11 +151,9 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
-        // Draw.
-        if (frameTimeNanos > lastFrameTimeNanos && isPlaying) {
+        if (isPlaying) {
             cppDoFrame(cppPointer, frameTimeNanos)
             scheduleFrame()
-            lastFrameTimeNanos = frameTimeNanos
         }
     }
 }
