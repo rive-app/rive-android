@@ -22,8 +22,11 @@ namespace rive_android
 	JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
 	    mWorkerThread(
 	        new WorkerThread<EGLThreadState>("EGLRenderer", Affinity::Odd)),
-	        mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
-	    mTracer(getTracer(trace))
+	    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
+	    mTracer(getTracer(trace)),
+	    mWindow(nullptr),
+	    mGpuCanvas(nullptr),
+	    mSkRenderer(nullptr)
 	{
 		setupThread();
 	}
