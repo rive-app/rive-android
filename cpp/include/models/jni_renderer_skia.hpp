@@ -50,7 +50,7 @@ namespace rive_android
 
 		ITracer* mTracer;
 
-		ANativeWindow* mWindow = nullptr;
+		ANativeWindow* mWindow;
 
 		SkCanvas* mGpuCanvas;
 
