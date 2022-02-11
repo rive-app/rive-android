@@ -17,6 +17,7 @@
             android:id="@+id/layout_view"
             android:layout_width="match_parent"
             android:layout_height="250dp"
+            app:riveAutoPlay="false"
             app:riveResource="@raw/off_road_car_blog" />
 
         <LinearLayout

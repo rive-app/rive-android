@@ -6,12 +6,13 @@ import android.view.Surface
 import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.core.AABB
 import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
 
-abstract class RendererSkia(trace: Boolean = false) :
+abstract class RendererSkia(val trace: Boolean = false) :
     BaseRenderer(),
     Choreographer.FrameCallback {
-    final override var cppPointer: Long = constructor(trace)
+    override var cppPointer: Long = constructor(trace)
 
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)
@@ -34,6 +35,12 @@ abstract class RendererSkia(trace: Boolean = false) :
 
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(trace: Boolean): Long
+    fun reInitializeCpp() {
+        if (cppPointer == 0L) {
+            cppPointer = constructor(trace)
+            Log.e("SkiaRenderer", "Re initialized $cppPointer ${hashCode()}")
+        }
+    }
 
     var isPlaying: Boolean = false
         private set
@@ -56,6 +63,10 @@ abstract class RendererSkia(trace: Boolean = false) :
      */
     fun start() {
         if (isPlaying) return
+        if (cppPointer==0L){
+            Log.e("SkiaRenderer", "Attempting to start $cppPointer ${hashCode()}")
+            return
+        }
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
@@ -112,7 +123,9 @@ abstract class RendererSkia(trace: Boolean = false) :
     fun cleanup() {
         clearSurface()
         cleanupJNI(cppPointer)
+        Log.e("SkiaRenderer", "Cleaning up $cppPointer ${hashCode()}")
         cppPointer = 0
+
     }
 
     open fun scheduleFrame() {

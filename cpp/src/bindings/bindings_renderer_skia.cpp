@@ -25,6 +25,7 @@ extern "C"
 		    new JNIRendererSkia(ktRendererSkia, trace);
 		return (jlong)renderer;
 	}
+
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
 	    JNIEnv*, jobject, jlong rendererRef)

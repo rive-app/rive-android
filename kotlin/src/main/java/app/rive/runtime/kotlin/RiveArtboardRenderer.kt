@@ -61,6 +61,8 @@ open class RiveArtboardRenderer(
         }
     }
 
+    /// Warning, this gets called in our cpp opengl renderer thread.
+    /// we do need to worry about concurrent modifications here.
     override fun advance(elapsed: Float) {
         activeArtboard?.let { ab ->
             // animations could change, lets cut a list.
@@ -207,6 +209,7 @@ open class RiveArtboardRenderer(
         playingStateMachines.toList().forEach { stateMachine ->
             _pause(stateMachine)
         }
+
     }
 
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {

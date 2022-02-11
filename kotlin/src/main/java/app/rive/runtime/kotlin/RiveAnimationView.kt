@@ -201,12 +201,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     // Factory can be overridden for dependency-injection during testing.
     @TestOnly
-    protected open fun makeRenderer(): RiveArtboardRenderer {
+    fun makeRenderer(): RiveArtboardRenderer {
         return RiveArtboardRenderer(
             autoplay = rendererAttributes.autoplay,
             trace = rendererAttributes.riveTraceAnimations
         )
     }
+
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
@@ -511,6 +512,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
         )
         pause()
+        renderer.stop()
         super.onDetachedFromWindow()
     }
 

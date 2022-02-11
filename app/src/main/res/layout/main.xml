@@ -94,6 +94,13 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:text="Assets" />
+
+
+            <Button
+                android:id="@+id/go_recycler"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Recycler" />
         </LinearLayout>
 
     </ScrollView>

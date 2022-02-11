@@ -40,6 +40,7 @@
         <activity android:name=".SimpleStateMachineActivity" />
         <activity android:name=".HttpActivity" />
         <activity android:name=".ButtonActivity" />
+        <activity android:name=".RecyclerActivity" />
         <activity android:name=".BlendActivity" />
         <activity
             android:name=".MetricsActivity"
