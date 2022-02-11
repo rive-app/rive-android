@@ -103,6 +103,14 @@ namespace rive_android
 
 		EGLBoolean makeCurrent(EGLSurface surface) const
 		{
+			if (mDisplay == EGL_NO_DISPLAY)
+			{
+				LOGE("No display!?");
+			}
+			if (mContext == EGL_NO_CONTEXT)
+			{
+				LOGE("No context!?");
+			}
 			return eglMakeCurrent(mDisplay, surface, surface, mContext);
 		}
 	};

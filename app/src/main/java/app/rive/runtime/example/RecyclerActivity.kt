@@ -1,6 +1,7 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -72,6 +73,7 @@ class RiveAdapter() : ListAdapter<FileCheater, RiveAdapter.RiveViewHolder>(RiveF
     }
 
     override fun getItem(position: Int): FileCheater {
+        Log.e("GET_ITEM", "GET_ITEM ${Thread.activeCount()}")
         return FileCheater(position, R.raw.paff)
     }
 }

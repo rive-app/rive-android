@@ -71,11 +71,26 @@ namespace rive_android
 	{
 		clearSurface();
 		if (mContext != EGL_NO_CONTEXT)
-			eglDestroyContext(mDisplay, mContext);
+		{
+			LOGD("Let's clear the context.");
+			if (EGL_TRUE != eglDestroyContext(mDisplay, mContext))
+			{
+				LOGE("I could not destroy the context!!");
+			}
+			mContext = nullptr;
+		}
 		if (mDisplay != EGL_NO_DISPLAY)
-			eglTerminate(mDisplay);
+		{
+			LOGD("Let's terminate the display.");
+			if (EGL_TRUE != eglTerminate(mDisplay))
+			{
+				LOGE("I could not terminate the display!!");
+			}
+		}
 		if (mKtRendererClass != nullptr)
+		{
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
+		}
 		detachThread();
 	}
 
@@ -88,8 +103,11 @@ namespace rive_android
 			return;
 		}
 
-		makeCurrent(EGL_NO_SURFACE);
-		eglDestroySurface(mDisplay, mSurface);
+		makeCurrent(EGL_NO_CONTEXT);
+		if (EGL_TRUE != eglDestroySurface(mDisplay, mSurface))
+		{
+			LOGE("I could not destroy the surface");
+		}
 		mSurface = EGL_NO_SURFACE;
 	}
 
@@ -192,7 +210,10 @@ namespace rive_android
 		return reinterpret_cast<void*>(symbol);
 	}
 
-	void EGLThreadState::swapBuffers() const { eglSwapBuffers(mDisplay, mSurface); }
+	void EGLThreadState::swapBuffers() const
+	{
+		eglSwapBuffers(mDisplay, mSurface);
+	}
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
 	{
