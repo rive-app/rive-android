@@ -6,8 +6,8 @@ import app.rive.runtime.kotlin.renderers.RendererSkia
 
 open class RiveArtboardRenderer(
     // PUBLIC
-    var _fit: Fit = Fit.CONTAIN,
-    var _alignment: Alignment = Alignment.CENTER,
+    fit: Fit = Fit.CONTAIN,
+    alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.AUTO,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
@@ -36,19 +36,16 @@ open class RiveArtboardRenderer(
     var file: File? = null
         private set
 
-    var fit: Fit
-        get() = _fit
+    var fit = fit
         set(value) {
-            _fit = value
+            field = value
             // make sure we draw the next frame even if we are not playing right now
             start()
         }
 
-
-    var alignment: Alignment
-        get() = _alignment
+    var alignment = alignment
         set(value) {
-            _alignment = value
+            field = value
             // make sure we draw the next frame even if we are not playing right now
             start()
         }
