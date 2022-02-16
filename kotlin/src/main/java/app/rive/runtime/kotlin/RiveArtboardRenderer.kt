@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
+import java.util.concurrent.locks.ReentrantLock
 
 open class RiveArtboardRenderer(
     // PUBLIC
@@ -24,17 +25,43 @@ open class RiveArtboardRenderer(
     var activeArtboard: Artboard? = null
         private set
 
-    var playingAnimations = HashSet<LinearAnimationInstance>()
-        private set
-    var playingStateMachines = HashSet<StateMachineInstance>()
-        private set
+    private var playingAnimationList: HashSet<LinearAnimationInstance> = HashSet()
+    val playingAnimations: HashSet<LinearAnimationInstance>
+        public get() {
+            return synchronized(lock) {
+                playingAnimationList.toHashSet()
+            }
+        }
 
-    var animations = mutableListOf<LinearAnimationInstance>()
-        private set
-    var stateMachines = mutableListOf<StateMachineInstance>()
-        private set
+    private var playingStateMachineList: HashSet<StateMachineInstance> = HashSet()
+    val playingStateMachines: HashSet<StateMachineInstance>
+        public get() {
+            return synchronized(lock) {
+                playingStateMachineList.toHashSet()
+            }
+        }
+
+    private var animationList = mutableListOf<LinearAnimationInstance>()
+    val animations: List<LinearAnimationInstance>
+        public get() {
+            return synchronized(lock) {
+                animationList.toList()
+            }
+        }
+
+
+    private var stateMachineList = mutableListOf<StateMachineInstance>()
+    val stateMachines: List<StateMachineInstance>
+        public get() {
+            return synchronized(lock) {
+                stateMachineList.toList()
+            }
+        }
+
     var file: File? = null
         private set
+
+    private val lock: ReentrantLock = ReentrantLock()
 
     var fit = fit
         set(value) {
@@ -51,7 +78,7 @@ open class RiveArtboardRenderer(
         }
 
     private val hasPlayingAnimations: Boolean
-        get() = playingAnimations.isNotEmpty() || playingStateMachines.isNotEmpty()
+        get() = playingAnimationList.isNotEmpty() || playingStateMachineList.isNotEmpty()
 
     override fun draw() {
         activeArtboard?.let {
@@ -62,41 +89,42 @@ open class RiveArtboardRenderer(
     }
 
     override fun advance(elapsed: Float) {
-        activeArtboard?.let { ab ->
-            // animations could change, lets cut a list.
-            // order of animations is important.....
-            animations.toList().forEach { animationInstance ->
+        synchronized(lock) {
+            activeArtboard?.let { ab ->
+                // animations could change, lets cut a list.
+                // order of animations is important.....
+                animationList.toList().forEach { animationInstance ->
+                    if (playingAnimationList.contains(animationInstance)) {
+                        val looped = animationInstance.advance(elapsed)
 
-                if (playingAnimations.contains(animationInstance)) {
-                    val looped = animationInstance.advance(elapsed)
-
-                    animationInstance.apply(ab)
-                    if (looped == Loop.ONESHOT) {
-                        _stop(animationInstance)
-                    } else if (looped != null) {
-                        notifyLoop(animationInstance)
+                        animationInstance.apply(ab)
+                        if (looped == Loop.ONESHOT) {
+                            _stop(animationInstance)
+                        } else if (looped != null) {
+                            notifyLoop(animationInstance)
+                        }
                     }
                 }
-            }
-            stateMachines.toList().forEach { stateMachineInstance ->
 
-                if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying =
-                        advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
+                stateMachineList.toList().forEach { stateMachineInstance ->
 
-                    if (!stillPlaying) {
-                        // State Machines need to pause not stop
-                        // as they have lots of stop and go possibilities
-                        _pause(stateMachineInstance)
+                    if (playingStateMachineList.contains(stateMachineInstance)) {
+                        val stillPlaying =
+                            advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
+
+                        if (!stillPlaying) {
+                            // State Machines need to pause not stop
+                            // as they have lots of stop and go possibilities
+                            _pause(stateMachineInstance)
+                        }
                     }
                 }
+                ab.advance(elapsed)
             }
-            ab.advance(elapsed)
-        }
-
-        // Are we done playing?
-        if (!hasPlayingAnimations) {
-            stopThread()
+            // Are we done playing?
+            if (!hasPlayingAnimations) {
+                stopThread()
+            }
         }
     }
 
@@ -148,20 +176,24 @@ open class RiveArtboardRenderer(
     }
 
     fun clear() {
-        playingAnimations.clear()
-        animations.clear()
-        playingStateMachines.clear()
-        stateMachines.clear()
+        synchronized(lock) {
+            playingAnimationList.clear()
+            animationList.clear()
+            playingStateMachineList.clear()
+            stateMachineList.clear()
+        }
     }
 
     fun reset() {
-        stopAnimations()
-        stop()
-        clear()
-        selectedArtboard?.let {
-            setArtboard(it)
+        synchronized(lock) {
+            stopAnimations()
+            stop()
+            clear()
+            selectedArtboard?.let {
+                setArtboard(it)
+            }
+            start()
         }
-        start()
     }
 
     fun play(
@@ -171,8 +203,10 @@ open class RiveArtboardRenderer(
         areStateMachines: Boolean = false,
         settleInitialState: Boolean = true,
     ) {
-        animationNames.forEach {
-            _playAnimation(it, loop, direction, areStateMachines, settleInitialState)
+        synchronized(lock) {
+            animationNames.forEach {
+                _playAnimation(it, loop, direction, areStateMachines, settleInitialState)
+            }
         }
     }
 
@@ -183,121 +217,147 @@ open class RiveArtboardRenderer(
         isStateMachine: Boolean = false,
         settleInitialState: Boolean = true,
     ) {
-        _playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
+        synchronized(lock) {
+            _playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
+        }
     }
 
     fun play(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO, settleInitialState: Boolean = true,
     ) {
-        activeArtboard?.let {
-            if (it.animationNames.isNotEmpty()) {
-                _playAnimation(it.animationNames.first(), loop, direction)
-            } else if (it.stateMachineNames.isNotEmpty()) {
-                _playAnimation(it.stateMachineNames.first(), loop, direction, settleInitialState)
+        synchronized(lock) {
+            activeArtboard?.let {
+                if (it.animationNames.isNotEmpty()) {
+                    _playAnimation(it.animationNames.first(), loop, direction)
+                } else if (it.stateMachineNames.isNotEmpty()) {
+                    _playAnimation(
+                        it.stateMachineNames.first(),
+                        loop,
+                        direction,
+                        settleInitialState
+                    )
+                }
             }
         }
     }
 
     fun pause() {
-        // pause will modify playing animations, so we cut a list of it first.
-        playingAnimations.toList().forEach { animation ->
-            _pause(animation)
-        }
-        playingStateMachines.toList().forEach { stateMachine ->
-            _pause(stateMachine)
+        synchronized(lock) {
+            // pause will modify playing animations, so we cut a list of it first.
+            playingAnimationList.toList().forEach { animation ->
+                _pause(animation)
+            }
+            playingStateMachineList.toList().forEach { stateMachine ->
+                _pause(stateMachine)
+            }
         }
     }
 
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        if (areStateMachines) {
-            _stateMachines(animationNames).forEach { stateMachine ->
-                _pause(stateMachine)
-            }
-        } else {
-            _animations(animationNames).forEach { animation ->
-                _pause(animation)
+        synchronized(lock) {
+            if (areStateMachines) {
+                _stateMachines(animationNames).forEach { stateMachine ->
+                    _pause(stateMachine)
+                }
+            } else {
+                _animations(animationNames).forEach { animation ->
+                    _pause(animation)
+                }
             }
         }
     }
 
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        if (isStateMachine) {
-            _stateMachines(animationName).forEach { stateMachine ->
-                _pause(stateMachine)
-            }
-        } else {
-            _animations(animationName).forEach { animation ->
-                _pause(animation)
+        synchronized(lock) {
+            if (isStateMachine) {
+                _stateMachines(animationName).forEach { stateMachine ->
+                    _pause(stateMachine)
+                }
+            } else {
+                _animations(animationName).forEach { animation ->
+                    _pause(animation)
+                }
             }
         }
-
     }
 
     /**
      * called [stopAnimations] to avoid conflicting with [stop]
      */
     fun stopAnimations() {
-        // stop will modify animations, so we cut a list of it first.
-        animations.toList().forEach { animation ->
-            _stop(animation)
-        }
-        stateMachines.toList().forEach { stateMachine ->
-            _stop(stateMachine)
+        synchronized(lock) {
+            // stop will modify animations, so we cut a list of it first.
+            animationList.toList().forEach { animation ->
+                _stop(animation)
+            }
+            stateMachineList.toList().forEach { stateMachine ->
+                _stop(stateMachine)
+            }
         }
     }
 
     fun stopAnimations(animationNames: List<String>, areStateMachines: Boolean = false) {
-        if (areStateMachines) {
-            _stateMachines(animationNames).forEach { stateMachine ->
-                _stop(stateMachine)
-            }
-        } else {
-            _animations(animationNames).forEach { animation ->
-                _stop(animation)
+        synchronized(lock) {
+            if (areStateMachines) {
+                _stateMachines(animationNames).forEach { stateMachine ->
+                    _stop(stateMachine)
+                }
+            } else {
+                _animations(animationNames).forEach { animation ->
+                    _stop(animation)
+                }
             }
         }
     }
 
 
     fun stopAnimations(animationName: String, isStateMachine: Boolean = false) {
-        if (isStateMachine) {
-            _stateMachines(animationName).forEach { stateMachine ->
-                _stop(stateMachine)
-            }
-        } else {
+        synchronized(lock) {
+            if (isStateMachine) {
+                _stateMachines(animationName).forEach { stateMachine ->
+                    _stop(stateMachine)
+                }
+            } else {
 
-            _animations(animationName).forEach { animation ->
-                _stop(animation)
+                _animations(animationName).forEach { animation ->
+                    _stop(animation)
+                }
             }
         }
     }
 
     fun fireState(stateMachineName: String, inputName: String) {
-        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMITrigger).fire()
-            _play(it, settleStateMachineState = false)
+        synchronized(lock) {
+            val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+            stateMachineInstances.forEach {
+                (it.input(inputName) as SMITrigger).fire()
+                _play(it, settleStateMachineState = false)
+            }
         }
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMIBoolean).value = value
-            _play(it, settleStateMachineState = false)
+        synchronized(lock) {
+            val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+            stateMachineInstances.forEach {
+                (it.input(inputName) as SMIBoolean).value = value
+                _play(it, settleStateMachineState = false)
+            }
         }
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMINumber).value = value
-            _play(it, settleStateMachineState = false)
+        synchronized(lock) {
+            val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
+            stateMachineInstances.forEach {
+                (it.input(inputName) as SMINumber).value = value
+                _play(it, settleStateMachineState = false)
+            }
         }
     }
 
-    // PRIVATE FUNCTIONS
+// PRIVATE FUNCTIONS
 
     private fun _animations(animationName: String): List<LinearAnimationInstance> {
         return _animations(listOf(animationName))
@@ -308,13 +368,13 @@ open class RiveArtboardRenderer(
     }
 
     private fun _animations(animationNames: Collection<String>): List<LinearAnimationInstance> {
-        return animations.filter { animationInstance ->
+        return animationList.filter { animationInstance ->
             animationNames.contains(animationInstance.animation.name)
         }
     }
 
     private fun _stateMachines(animationNames: Collection<String>): List<StateMachineInstance> {
-        return stateMachines.filter { stateMachineInstance ->
+        return stateMachineList.filter { stateMachineInstance ->
             animationNames.contains(stateMachineInstance.stateMachine.name)
         }
     }
@@ -325,7 +385,7 @@ open class RiveArtboardRenderer(
             activeArtboard?.let {
                 val stateMachine = it.stateMachine(animationName)
                 val stateMachineInstance = StateMachineInstance(stateMachine)
-                stateMachines.add(stateMachineInstance)
+                stateMachineList.add(stateMachineInstance)
                 return listOf(stateMachineInstance)
             }
         }
@@ -363,8 +423,8 @@ open class RiveArtboardRenderer(
         stateMachineInstance: StateMachineInstance,
         settleStateMachineState: Boolean = true
     ) {
-        if (!stateMachines.contains(stateMachineInstance)) {
-            stateMachines.add(stateMachineInstance)
+        if (!stateMachineList.contains(stateMachineInstance)) {
+            stateMachineList.add(stateMachineInstance)
         }
 
         // Special case:
@@ -377,7 +437,7 @@ open class RiveArtboardRenderer(
             }
         }
 
-        playingStateMachines.add(stateMachineInstance)
+        playingStateMachineList.add(stateMachineInstance)
         start()
         notifyPlay(stateMachineInstance)
     }
@@ -394,29 +454,29 @@ open class RiveArtboardRenderer(
         if (appliedLoop != Loop.AUTO) {
             animationInstance.loop = appliedLoop
         }
-        if (!animations.contains(animationInstance)) {
+        if (!animationList.contains(animationInstance)) {
             if (direction == Direction.BACKWARDS) {
                 animationInstance.time(animationInstance.animation.endTime)
             }
-            animations.add(animationInstance)
+            animationList.add(animationInstance)
         }
         if (direction != Direction.AUTO) {
             animationInstance.direction = direction
         }
-        playingAnimations.add(animationInstance)
+        playingAnimationList.add(animationInstance)
         start()
         notifyPlay(animationInstance)
     }
 
     private fun _pause(animation: LinearAnimationInstance) {
-        val removed = playingAnimations.remove(animation)
+        val removed = playingAnimationList.remove(animation)
         if (removed) {
             notifyPause(animation)
         }
     }
 
     private fun _pause(stateMachine: StateMachineInstance) {
-        val removed = playingStateMachines.remove(stateMachine)
+        val removed = playingStateMachineList.remove(stateMachine)
         if (removed) {
             notifyPause(stateMachine)
         }
@@ -424,16 +484,16 @@ open class RiveArtboardRenderer(
 
 
     private fun _stop(animation: LinearAnimationInstance) {
-        playingAnimations.remove(animation)
-        val removed = animations.remove(animation)
+        playingAnimationList.remove(animation)
+        val removed = animationList.remove(animation)
         if (removed) {
             notifyStop(animation)
         }
     }
 
     private fun _stop(stateMachine: StateMachineInstance) {
-        playingStateMachines.remove(stateMachine)
-        val removed = stateMachines.remove(stateMachine)
+        playingStateMachineList.remove(stateMachine)
+        val removed = stateMachineList.remove(stateMachine)
         if (removed) {
             notifyStop(stateMachine)
         }
