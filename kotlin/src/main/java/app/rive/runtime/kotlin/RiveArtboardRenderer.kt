@@ -96,6 +96,8 @@ open class RiveArtboardRenderer(
         }
     }
 
+    /// Note: This is happening in the render thread
+    /// be aware of thread safety!
     override fun advance(elapsed: Float) {
         activeArtboard?.let { ab ->
             // animations could change, lets cut a list.
@@ -346,13 +348,13 @@ open class RiveArtboardRenderer(
     }
 
     private fun _animations(animationNames: Collection<String>): List<LinearAnimationInstance> {
-        return animationList.filter { animationInstance ->
+        return animations.filter { animationInstance ->
             animationNames.contains(animationInstance.animation.name)
         }
     }
 
     private fun _stateMachines(animationNames: Collection<String>): List<StateMachineInstance> {
-        return stateMachineList.filter { stateMachineInstance ->
+        return stateMachines.filter { stateMachineInstance ->
             animationNames.contains(stateMachineInstance.stateMachine.name)
         }
     }
