@@ -1,5 +1,7 @@
-#include "helpers/general.hpp"
+#include <cassert>
+
 #include "helpers/egl_thread_state.hpp"
+#include "helpers/egl_manager.hpp"
 
 #include "SkImageInfo.h"
 #include "GrBackendSurface.h"
@@ -10,73 +12,21 @@ namespace rive_android
 {
 	EGLThreadState::EGLThreadState()
 	{
-		mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-		eglInitialize(mDisplay, 0, 0);
-
-		const EGLint configAttributes[] = {EGL_RENDERABLE_TYPE,
-		                                   EGL_OPENGL_ES2_BIT,
-		                                   EGL_BLUE_SIZE,
-		                                   8,
-		                                   EGL_GREEN_SIZE,
-		                                   8,
-		                                   EGL_RED_SIZE,
-		                                   8,
-		                                   EGL_DEPTH_SIZE,
-		                                   16,
-		                                   EGL_ALPHA_SIZE,
-		                                   8,
-		                                   EGL_NONE};
-
-		EGLint numConfigs = 0;
-		eglChooseConfig(mDisplay, configAttributes, nullptr, 0, &numConfigs);
-		std::vector<EGLConfig> supportedConfigs(
-		    static_cast<size_t>(numConfigs));
-		eglChooseConfig(mDisplay,
-		                configAttributes,
-		                supportedConfigs.data(),
-		                numConfigs,
-		                &numConfigs);
-
-		// Choose a config, either a match if possible or the first config
-		// otherwise
-
-		const auto configMatches = [&](EGLConfig config)
-		{
-			if (!configHasAttribute(mConfig, EGL_RED_SIZE, 8))
-				return false;
-			if (!configHasAttribute(mConfig, EGL_GREEN_SIZE, 8))
-				return false;
-			if (!configHasAttribute(mConfig, EGL_BLUE_SIZE, 8))
-				return false;
-			return configHasAttribute(mConfig, EGL_DEPTH_SIZE, 16);
-		};
-
-		const auto configIter = std::find_if(
-		    supportedConfigs.cbegin(), supportedConfigs.cend(), configMatches);
-
-		mConfig = (configIter != supportedConfigs.cend()) ? *configIter
-		                                                  : supportedConfigs[0];
-
-		const EGLint contextAttributes[] = {
-		    EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-
-		mContext =
-		    eglCreateContext(mDisplay, mConfig, nullptr, contextAttributes);
-
-		glEnable(GL_CULL_FACE);
-		glEnable(GL_DEPTH_TEST);
+		mContext = EGLManager::getInstance()->createContext();
 	}
 
 	EGLThreadState::~EGLThreadState()
 	{
+		LOGI("~EGLThreadState()");
 		clearSurface();
-		if (mContext != EGL_NO_CONTEXT)
-			eglDestroyContext(mDisplay, mContext);
-		if (mDisplay != EGL_NO_DISPLAY)
-			eglTerminate(mDisplay);
+		assert(mContext != EGL_NO_CONTEXT);
+		EGLManager::getInstance()->destroyContext(mContext);
+
 		if (mKtRendererClass != nullptr)
+		{
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
-		detachThread();
+		}
+		LOGI("~EGLThreadState() end");
 	}
 
 	void EGLThreadState::onSettingsChanged(const Settings* settings) {}
@@ -87,27 +37,20 @@ namespace rive_android
 		{
 			return;
 		}
-
-		makeCurrent(EGL_NO_SURFACE);
-		eglDestroySurface(mDisplay, mSurface);
+		EGLManager::getInstance()->destroySurface(mSurface);
 		mSurface = EGL_NO_SURFACE;
-	}
-
-	bool EGLThreadState::configHasAttribute(EGLConfig config,
-	                                        EGLint attribute,
-	                                        EGLint value) const
-	{
-		EGLint outValue = 0;
-		EGLBoolean result =
-		    eglGetConfigAttrib(mDisplay, mConfig, attribute, &outValue);
-		return result && (outValue == value);
 	}
 
 	sk_sp<GrDirectContext> EGLThreadState::createGrContext()
 	{
-		if (!makeCurrent(mSurface))
+		LOGI("createGrContext()");
+		assert(mSurface != EGL_NO_SURFACE);
+
+		bool success =
+		    EGLManager::getInstance()->makeCurrent(mSurface, mContext);
+		if (!success)
 		{
-			LOGE("Unable to eglMakeCurrent");
+			LOGE("Unable to makeCurrent()");
 			mSurface = EGL_NO_SURFACE;
 			return nullptr;
 		}
@@ -149,13 +92,15 @@ namespace rive_android
 
 	sk_sp<SkSurface> EGLThreadState::createSkSurface()
 	{
+		LOGI("createSkSurface()");
 		static GrGLFramebufferInfo fbInfo = {};
 		fbInfo.fFBOID = 0u;
 		fbInfo.fFormat = GL_RGBA8;
 
 		GrBackendRenderTarget backendRenderTarget(
 		    mWidth, mHeight, 1, 8, fbInfo);
-		static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
+		static SkSurfaceProps surfaceProps(SkSurfaceProps::kDynamicMSAA_Flag,
+		                                   kUnknown_SkPixelGeometry);
 
 		mSkSurface =
 		    SkSurface::MakeFromBackendRenderTarget(getGrContext().get(),
@@ -183,7 +128,10 @@ namespace rive_android
 			return nullptr;
 		}
 
+		// TODO: move this and its caller into EGLManager.
 		auto symbol = eglGetProcAddress(name);
+		EGL_ERR_CHECK();
+
 		if (symbol == nullptr)
 		{
 			LOGE("Couldn't fetch symbol name for: %s", name);
@@ -192,30 +140,38 @@ namespace rive_android
 		return reinterpret_cast<void*>(symbol);
 	}
 
-	void EGLThreadState::swapBuffers() const { eglSwapBuffers(mDisplay, mSurface); }
+	void EGLThreadState::swapBuffers() const
+	{
+		LOGI("swapBuffers()");
+		if (mSurface == EGL_NO_SURFACE)
+		{
+			LOGW("Trying to swap without a surface!");
+			return;
+		}
+		EGLManager::getInstance()->swapBuffers(mSurface);
+	}
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
 	{
+		LOGI("setWindow()");
 		clearSurface();
 		if (!window)
 		{
 			return false;
 		}
 
-		mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, nullptr);
-		ANativeWindow_release(window);
-
-		if (!createGrContext())
-		{
-			LOGE("Unable to eglMakeCurrent");
-			mSurface = EGL_NO_SURFACE;
-			return false;
-		}
+		mSurface = EGLManager::getInstance()->createWindowSurface(window);
 
 		mWidth = ANativeWindow_getWidth(window);
 		mHeight = ANativeWindow_getHeight(window);
 
 		LOGI("Set up window surface %dx%d", mWidth, mHeight);
+		if (!createGrContext())
+		{
+			LOGE("Unable to createGrContext");
+			mSurface = EGL_NO_SURFACE;
+			return false;
+		}
 
 		auto gpuSurface = createSkSurface();
 		if (!gpuSurface)

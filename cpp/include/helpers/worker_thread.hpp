@@ -87,6 +87,8 @@ namespace rive_android
 				mWorkCondition.notify_all();
 			}
 			mThread.join();
+			// Detach thread from the JVM.
+			detachThread();
 		}
 
 		void onSettingsChanged(ThreadState* threadState)

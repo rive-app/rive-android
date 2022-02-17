@@ -8,6 +8,8 @@
 #include <chrono>
 
 #include "helpers/general.hpp"
+#include "helpers/egl_manager.hpp"
+
 #include "settings.hpp"
 
 #include "GrDirectContext.h"
@@ -82,8 +84,6 @@ namespace rive_android
 		long mLastUpdate = 0;
 
 	private:
-		EGLDisplay mDisplay = EGL_NO_DISPLAY;
-		EGLConfig mConfig = static_cast<EGLConfig>(0);
 		EGLSurface mSurface = EGL_NO_SURFACE;
 		EGLContext mContext = EGL_NO_CONTEXT;
 
@@ -99,12 +99,6 @@ namespace rive_android
 		sk_sp<SkSurface> createSkSurface();
 		static void* getProcAddress(const char*);
 		void clearSurface();
-		bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
-
-		EGLBoolean makeCurrent(EGLSurface surface) const
-		{
-			return eglMakeCurrent(mDisplay, surface, surface, mContext);
-		}
 	};
 } // namespace rive_android
 

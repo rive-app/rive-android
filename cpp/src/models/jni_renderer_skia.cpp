@@ -1,19 +1,8 @@
 #include <thread>
-#include <pthread.h>
-#include <EGL/egl.h>
 #include <android/native_window.h>
-#include <GLES3/gl3.h>
 #include <jni.h>
 
 #include "models/jni_renderer_skia.hpp"
-
-#include "GrBackendSurface.h"
-#include "GrDirectContext.h"
-#include "SkCanvas.h"
-#include "SkSurface.h"
-#include "SkImageInfo.h"
-#include "gl/GrGLInterface.h"
-#include "gl/GrGLAssembleInterface.h"
 
 using namespace std::chrono_literals;
 
@@ -60,7 +49,6 @@ namespace rive_android
 				    return;
 			    }
 
-			    ANativeWindow_acquire(window);
 			    mWindow = window;
 
 			    auto gpuSurface = threadState->getSkSurface();
