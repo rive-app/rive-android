@@ -4,6 +4,7 @@ import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 open class RiveArtboardRenderer(
     // PUBLIC
@@ -28,7 +29,7 @@ open class RiveArtboardRenderer(
     private var playingAnimationList: HashSet<LinearAnimationInstance> = HashSet()
     val playingAnimations: HashSet<LinearAnimationInstance>
         public get() {
-            return synchronized(lock) {
+            return lock.withLock {
                 playingAnimationList.toHashSet()
             }
         }
@@ -36,7 +37,7 @@ open class RiveArtboardRenderer(
     private var playingStateMachineList: HashSet<StateMachineInstance> = HashSet()
     val playingStateMachines: HashSet<StateMachineInstance>
         public get() {
-            return synchronized(lock) {
+            return lock.withLock {
                 playingStateMachineList.toHashSet()
             }
         }
@@ -44,7 +45,7 @@ open class RiveArtboardRenderer(
     private var animationList = mutableListOf<LinearAnimationInstance>()
     val animations: List<LinearAnimationInstance>
         public get() {
-            return synchronized(lock) {
+            return lock.withLock {
                 animationList.toList()
             }
         }
@@ -53,7 +54,7 @@ open class RiveArtboardRenderer(
     private var stateMachineList = mutableListOf<StateMachineInstance>()
     val stateMachines: List<StateMachineInstance>
         public get() {
-            return synchronized(lock) {
+            return lock.withLock {
                 stateMachineList.toList()
             }
         }
@@ -89,7 +90,7 @@ open class RiveArtboardRenderer(
     }
 
     override fun advance(elapsed: Float) {
-        synchronized(lock) {
+        lock.withLock {
             activeArtboard?.let { ab ->
                 // animations could change, lets cut a list.
                 // order of animations is important.....
@@ -123,7 +124,7 @@ open class RiveArtboardRenderer(
             }
             // Are we done playing?
             if (!hasPlayingAnimations) {
-                stopThread()
+//                stopThread()
             }
         }
     }
@@ -176,7 +177,7 @@ open class RiveArtboardRenderer(
     }
 
     fun clear() {
-        synchronized(lock) {
+        lock.withLock {
             playingAnimationList.clear()
             animationList.clear()
             playingStateMachineList.clear()
@@ -185,7 +186,7 @@ open class RiveArtboardRenderer(
     }
 
     fun reset() {
-        synchronized(lock) {
+        lock.withLock {
             stopAnimations()
             stop()
             clear()
@@ -203,7 +204,7 @@ open class RiveArtboardRenderer(
         areStateMachines: Boolean = false,
         settleInitialState: Boolean = true,
     ) {
-        synchronized(lock) {
+        lock.withLock {
             animationNames.forEach {
                 _playAnimation(it, loop, direction, areStateMachines, settleInitialState)
             }
@@ -217,7 +218,7 @@ open class RiveArtboardRenderer(
         isStateMachine: Boolean = false,
         settleInitialState: Boolean = true,
     ) {
-        synchronized(lock) {
+        lock.withLock {
             _playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
         }
     }
@@ -226,7 +227,7 @@ open class RiveArtboardRenderer(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO, settleInitialState: Boolean = true,
     ) {
-        synchronized(lock) {
+        lock.withLock {
             activeArtboard?.let {
                 if (it.animationNames.isNotEmpty()) {
                     _playAnimation(it.animationNames.first(), loop, direction)
@@ -243,7 +244,7 @@ open class RiveArtboardRenderer(
     }
 
     fun pause() {
-        synchronized(lock) {
+        lock.withLock {
             // pause will modify playing animations, so we cut a list of it first.
             playingAnimationList.toList().forEach { animation ->
                 _pause(animation)
@@ -255,7 +256,7 @@ open class RiveArtboardRenderer(
     }
 
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        synchronized(lock) {
+        lock.withLock {
             if (areStateMachines) {
                 _stateMachines(animationNames).forEach { stateMachine ->
                     _pause(stateMachine)
@@ -269,7 +270,7 @@ open class RiveArtboardRenderer(
     }
 
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        synchronized(lock) {
+        lock.withLock {
             if (isStateMachine) {
                 _stateMachines(animationName).forEach { stateMachine ->
                     _pause(stateMachine)
@@ -286,7 +287,7 @@ open class RiveArtboardRenderer(
      * called [stopAnimations] to avoid conflicting with [stop]
      */
     fun stopAnimations() {
-        synchronized(lock) {
+        lock.withLock {
             // stop will modify animations, so we cut a list of it first.
             animationList.toList().forEach { animation ->
                 _stop(animation)
@@ -298,7 +299,7 @@ open class RiveArtboardRenderer(
     }
 
     fun stopAnimations(animationNames: List<String>, areStateMachines: Boolean = false) {
-        synchronized(lock) {
+        lock.withLock {
             if (areStateMachines) {
                 _stateMachines(animationNames).forEach { stateMachine ->
                     _stop(stateMachine)
@@ -313,7 +314,7 @@ open class RiveArtboardRenderer(
 
 
     fun stopAnimations(animationName: String, isStateMachine: Boolean = false) {
-        synchronized(lock) {
+        lock.withLock {
             if (isStateMachine) {
                 _stateMachines(animationName).forEach { stateMachine ->
                     _stop(stateMachine)
@@ -328,7 +329,7 @@ open class RiveArtboardRenderer(
     }
 
     fun fireState(stateMachineName: String, inputName: String) {
-        synchronized(lock) {
+        lock.withLock {
             val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
             stateMachineInstances.forEach {
                 (it.input(inputName) as SMITrigger).fire()
@@ -338,7 +339,7 @@ open class RiveArtboardRenderer(
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        synchronized(lock) {
+        lock.withLock {
             val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
             stateMachineInstances.forEach {
                 (it.input(inputName) as SMIBoolean).value = value
@@ -348,7 +349,7 @@ open class RiveArtboardRenderer(
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        synchronized(lock) {
+        lock.withLock {
             val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
             stateMachineInstances.forEach {
                 (it.input(inputName) as SMINumber).value = value
