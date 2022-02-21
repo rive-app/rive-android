@@ -91,6 +91,10 @@ namespace rive_android
 		makeCurrent(EGL_NO_SURFACE);
 		eglDestroySurface(mDisplay, mSurface);
 		mSurface = EGL_NO_SURFACE;
+		auto sfcPtr = mSkSurface.release();
+		delete sfcPtr;
+		auto ctxPtr = mSkContext.release();
+		delete ctxPtr;
 	}
 
 	bool EGLThreadState::configHasAttribute(EGLConfig config,
@@ -155,7 +159,8 @@ namespace rive_android
 
 		GrBackendRenderTarget backendRenderTarget(
 		    mWidth, mHeight, 1, 8, fbInfo);
-		static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
+		static SkSurfaceProps surfaceProps(SkSurfaceProps::kDynamicMSAA_Flag,
+		                                   kUnknown_SkPixelGeometry);
 
 		mSkSurface =
 		    SkSurface::MakeFromBackendRenderTarget(getGrContext().get(),
@@ -192,7 +197,14 @@ namespace rive_android
 		return reinterpret_cast<void*>(symbol);
 	}
 
-	void EGLThreadState::swapBuffers() const { eglSwapBuffers(mDisplay, mSurface); }
+	void EGLThreadState::swapBuffers() const
+	{
+		if (mDisplay == EGL_NO_DISPLAY || mSurface == EGL_NO_SURFACE)
+		{
+			return;
+		}
+		eglSwapBuffers(mDisplay, mSurface);
+	}
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
 	{
