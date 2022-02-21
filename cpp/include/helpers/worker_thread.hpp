@@ -57,6 +57,8 @@ namespace rive_android
 		{
 			std::lock_guard<std::mutex> threadLock(mThreadMutex);
 			terminateThread();
+			// Detach thread from the JVM.
+			detachThread();
 		}
 
 		void run(Work work)
