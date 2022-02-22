@@ -76,10 +76,19 @@ namespace rive_android
 			eglTerminate(mDisplay);
 		if (mKtRendererClass != nullptr)
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
-		detachThread();
 	}
 
-	void EGLThreadState::onSettingsChanged(const Settings* settings) {}
+	void EGLThreadState::flush() const
+	{
+		if (!mSkContext)
+		{
+			LOGE("Cannot flush() without a context.");
+			return;
+		}
+		mSkContext->flush();
+	}
+
+	void EGLThreadState::onSettingsChanged(const Settings*) {}
 
 	void EGLThreadState::clearSurface()
 	{

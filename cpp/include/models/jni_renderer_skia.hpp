@@ -27,6 +27,11 @@ namespace rive_android
 
 		void stop();
 
+		WorkerThread<EGLThreadState>* workerThread() const
+		{
+			return mWorkerThread;
+		}
+
 		SkCanvas* canvas() const { return mGpuCanvas; }
 
 		rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
