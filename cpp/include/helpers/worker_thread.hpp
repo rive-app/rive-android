@@ -68,7 +68,7 @@ namespace rive_android
 		{
 			if (!mIsWorking)
 			{
-				LOGW("Trying to add work while this isn't running.");
+				LOGW("Can't add work while thread isn't running.");
 				return;
 			}
 			std::lock_guard<std::mutex> workLock(mWorkMutex);
@@ -115,7 +115,6 @@ namespace rive_android
 				terminateThread();
 			}
 			mThread = std::thread([this]() { threadMain(); });
-			LOGD("Releasing thread.");
 		}
 
 		void terminateThread() REQUIRES(mThreadMutex)
