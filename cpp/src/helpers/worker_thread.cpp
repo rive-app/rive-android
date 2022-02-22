@@ -2,6 +2,7 @@
 
 namespace rive_android
 {
+	// Instantiate static objects.
 	ThreadManager* ThreadManager::mInstance{nullptr};
 	std::mutex ThreadManager::mMutex;
 
