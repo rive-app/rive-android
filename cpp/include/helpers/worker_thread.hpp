@@ -129,8 +129,6 @@ namespace rive_android
 
 		void drainWorkQueue()
 		{
-			// TODO: test:
-			// std::lock_guard<std::mutex> lock(mWorkMutex);
 			while (!mWorkQueue.empty())
 			{
 				mWorkQueue.pop();
