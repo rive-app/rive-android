@@ -14,4 +14,36 @@ namespace rive_android
 		}
 		return mInstance;
 	}
+
+	WorkerThread<EGLThreadState>*
+	ThreadManager::acquireThread(const char* name,
+	                             std::function<void()> onAcquire)
+	{
+		std::lock_guard<std::mutex> threadLock(mMutex);
+
+		WorkerThread<EGLThreadState>* thread = nullptr;
+		if (mThreadPool.empty())
+		{
+			thread = new WorkerThread<EGLThreadState>(name, Affinity::Odd);
+		}
+		else
+		{
+			thread = mThreadPool.top();
+			mThreadPool.pop();
+		}
+
+		thread->setIsWorking(true, onAcquire);
+
+		return thread;
+	}
+
+	void ThreadManager::releaseThread(WorkerThread<EGLThreadState>* thread,
+	                                  std::function<void()> onRelease)
+	{
+		std::lock_guard<std::mutex> threadLock(mMutex);
+		// Thread state needs to release its resources also.
+		thread->setIsWorking(false);
+		thread->releaseQueue(onRelease);
+		mThreadPool.push(thread);
+	}
 } // namespace rive_android

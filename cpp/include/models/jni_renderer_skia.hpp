@@ -69,8 +69,6 @@ namespace rive_android
 		float mFpsSum = 0;
 		int mFpsCount = 0;
 
-		void setupThread() const;
-
 		ITracer* getTracer(bool trace) const;
 
 		void calculateFps();
