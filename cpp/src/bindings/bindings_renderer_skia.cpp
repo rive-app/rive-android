@@ -32,8 +32,12 @@ extern "C"
 	{
 		auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
 		auto thread = renderer->workerThread();
-		ThreadManager::getInstance()->releaseThread(thread,
-		                                            [=]() { delete renderer; });
+		ThreadManager::getInstance()->releaseThread(
+		    thread,
+		    [=]()
+		    {
+			    delete renderer;
+		    });
 	}
 
 	JNIEXPORT void JNICALL

@@ -61,6 +61,8 @@ namespace rive_android
 
 		rive::SkiaRenderer* mSkRenderer;
 
+		bool mIsDoingFrame = false;
+
 		/* Helpers for FPS calculations.*/
 		std::chrono::steady_clock::time_point mLastFrameTime;
 		float mAverageFps = -1.0f;

@@ -42,6 +42,17 @@ namespace rive_android
 			return mSurface == EGL_NO_SURFACE || mSkSurface == nullptr;
 		}
 
+		void unsetKtRendererClass()
+		{
+			if (mKtRendererClass != nullptr)
+			{
+				getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
+			}
+			mKtRendererClass = nullptr;
+			mKtDrawCallback = nullptr;
+			mKtAdvanceCallback = nullptr;
+		}
+
 		void setKtRendererClass(jclass localReference)
 		{
 			auto env = getJNIEnv();
