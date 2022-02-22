@@ -23,17 +23,9 @@ namespace rive_android
 
 		void onSettingsChanged(const Settings*);
 		bool setWindow(ANativeWindow*);
+		void clearSurface();
 		void swapBuffers() const;
-
-		sk_sp<GrDirectContext> getGrContext()
-		{
-			if (mSkContext)
-			{
-				return mSkContext;
-			}
-
-			return createGrContext();
-		}
+		void flush() const;
 
 		sk_sp<SkSurface> getSkSurface()
 		{
@@ -98,12 +90,21 @@ namespace rive_android
 		sk_sp<GrDirectContext> createGrContext();
 		sk_sp<SkSurface> createSkSurface();
 		static void* getProcAddress(const char*);
-		void clearSurface();
 		bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
 
 		EGLBoolean makeCurrent(EGLSurface surface) const
 		{
 			return eglMakeCurrent(mDisplay, surface, surface, mContext);
+		}
+
+		sk_sp<GrDirectContext> getGrContext()
+		{
+			if (mSkContext)
+			{
+				return mSkContext;
+			}
+
+			return createGrContext();
 		}
 	};
 } // namespace rive_android
