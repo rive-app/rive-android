@@ -36,6 +36,7 @@ extern "C"
 		    thread,
 		    [=]()
 		    {
+			    // Delete the renderer *only after* thread released resources.
 			    delete renderer;
 		    });
 	}

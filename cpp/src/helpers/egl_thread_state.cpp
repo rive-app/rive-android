@@ -212,6 +212,7 @@ namespace rive_android
 	{
 		if (mDisplay == EGL_NO_DISPLAY || mSurface == EGL_NO_SURFACE)
 		{
+			LOGE("Swapping buffers without a display/surface");
 			return;
 		}
 		eglSwapBuffers(mDisplay, mSurface);
