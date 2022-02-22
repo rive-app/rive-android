@@ -66,22 +66,34 @@ namespace rive_android
 
 		void run(Work work)
 		{
+			if (!mIsWorking)
+			{
+				LOGW("Trying to add work while this isn't running.");
+				return;
+			}
 			std::lock_guard<std::mutex> workLock(mWorkMutex);
 			mWorkQueue.emplace(std::move(work));
 			mWorkCondition.notify_all();
 		}
 
-		void releaseQueue()
+		void releaseQueue(std::function<void()> onRelease = nullptr)
 		{
+			std::lock_guard<std::mutex> workLock(mWorkMutex);
 			// Prevent any other work to be added here.
 			drainWorkQueue();
-			// Stop this thread state.
-			run(
-			    [](EGLThreadState* threadState)
+			// Force onto work queue, bypassing our runner function.
+			mWorkQueue.emplace(std::move(
+			    [=](EGLThreadState* threadState)
 			    {
 				    threadState->mIsStarted = false;
 				    threadState->clearSurface();
-			    });
+				    threadState->unsetKtRendererClass();
+				    if (onRelease)
+				    {
+					    onRelease();
+				    }
+			    }));
+			mWorkCondition.notify_all();
 		}
 
 		void setIsWorking(bool isIt, std::function<void()> onEvent = nullptr)
@@ -90,15 +102,6 @@ namespace rive_android
 				return;
 
 			mIsWorking = isIt;
-			if (!mIsWorking)
-			{
-				releaseQueue();
-			}
-			if (onEvent != nullptr)
-			{
-				// Notify.
-				run([=](ThreadState*) { onEvent(); });
-			}
 		}
 
 		void reset() { launchThread(); }
@@ -112,6 +115,7 @@ namespace rive_android
 				terminateThread();
 			}
 			mThread = std::thread([this]() { threadMain(); });
+			LOGD("Releasing thread.");
 		}
 
 		void terminateThread() REQUIRES(mThreadMutex)
@@ -126,6 +130,8 @@ namespace rive_android
 
 		void drainWorkQueue()
 		{
+			// TODO: test:
+			// std::lock_guard<std::mutex> lock(mWorkMutex);
 			while (!mWorkQueue.empty())
 			{
 				mWorkQueue.pop();
@@ -231,11 +237,12 @@ namespace rive_android
 		}
 
 		void releaseThread(WorkerThread<EGLThreadState>* thread,
-		                   std::function<void()> onRelease)
+		                   std::function<void()> onRelease = nullptr)
 		{
 			std::lock_guard<std::mutex> threadLock(mMutex);
 			// Thread state needs to release its resources also.
-			thread->setIsWorking(false, onRelease);
+			thread->setIsWorking(false);
+			thread->releaseQueue(onRelease);
 			mThreadPool.push(thread);
 		}
 	};

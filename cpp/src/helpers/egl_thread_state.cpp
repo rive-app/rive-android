@@ -104,6 +104,8 @@ namespace rive_android
 		delete sfcPtr;
 		auto ctxPtr = mSkContext.release();
 		delete ctxPtr;
+		mSkSurface = nullptr;
+		mSkContext = nullptr;
 	}
 
 	bool EGLThreadState::configHasAttribute(EGLConfig config,
