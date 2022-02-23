@@ -27,14 +27,14 @@ namespace rive_android
 		void swapBuffers() const;
 		void flush() const;
 
-		sk_sp<SkSurface> getSkSurface()
+		sk_sp<SkSurface> getSkiaSurface()
 		{
 			if (mSkSurface)
 			{
 				return mSkSurface;
 			}
 
-			return createSkSurface();
+			return createSkiaSurface();
 		}
 
 		bool hasNoSurface() const
@@ -98,8 +98,8 @@ namespace rive_android
 
 		jclass mKtRendererClass = nullptr;
 
-		sk_sp<GrDirectContext> createGrContext();
-		sk_sp<SkSurface> createSkSurface();
+		sk_sp<GrDirectContext> createSkiaContext();
+		sk_sp<SkSurface> createSkiaSurface();
 		static void* getProcAddress(const char*);
 		bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
 
@@ -108,14 +108,14 @@ namespace rive_android
 			return eglMakeCurrent(mDisplay, surface, surface, mContext);
 		}
 
-		sk_sp<GrDirectContext> getGrContext()
+		sk_sp<GrDirectContext> getSkiaContext()
 		{
 			if (mSkContext)
 			{
 				return mSkContext;
 			}
 
-			return createGrContext();
+			return createSkiaContext();
 		}
 	};
 } // namespace rive_android

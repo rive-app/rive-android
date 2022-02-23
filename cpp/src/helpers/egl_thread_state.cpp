@@ -119,7 +119,7 @@ namespace rive_android
 		return result && (outValue == value);
 	}
 
-	sk_sp<GrDirectContext> EGLThreadState::createGrContext()
+	sk_sp<GrDirectContext> EGLThreadState::createSkiaContext()
 	{
 		if (!makeCurrent(mSurface))
 		{
@@ -163,7 +163,7 @@ namespace rive_android
 		return mSkContext;
 	}
 
-	sk_sp<SkSurface> EGLThreadState::createSkSurface()
+	sk_sp<SkSurface> EGLThreadState::createSkiaSurface()
 	{
 		static GrGLFramebufferInfo fbInfo = {};
 		fbInfo.fFBOID = 0u;
@@ -175,7 +175,7 @@ namespace rive_android
 		                                   kUnknown_SkPixelGeometry);
 
 		mSkSurface =
-		    SkSurface::MakeFromBackendRenderTarget(getGrContext().get(),
+		    SkSurface::MakeFromBackendRenderTarget(getSkiaContext().get(),
 		                                           backendRenderTarget,
 		                                           kBottomLeft_GrSurfaceOrigin,
 		                                           kRGBA_8888_SkColorType,
@@ -230,7 +230,7 @@ namespace rive_android
 		mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, nullptr);
 		ANativeWindow_release(window);
 
-		if (!createGrContext())
+		if (!createSkiaContext())
 		{
 			LOGE("Unable to eglMakeCurrent");
 			mSurface = EGL_NO_SURFACE;
@@ -242,7 +242,7 @@ namespace rive_android
 
 		LOGI("Set up window surface %dx%d", mWidth, mHeight);
 
-		auto gpuSurface = createSkSurface();
+		auto gpuSurface = createSkiaSurface();
 		if (!gpuSurface)
 		{
 			LOGE("Unable to create a SkSurface??");

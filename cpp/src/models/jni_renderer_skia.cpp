@@ -61,7 +61,7 @@ namespace rive_android
 			    ANativeWindow_acquire(window);
 			    mWindow = window;
 
-			    auto gpuSurface = threadState->getSkSurface();
+			    auto gpuSurface = threadState->getSkiaSurface();
 			    mGpuCanvas = gpuSurface->getCanvas();
 			    mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
 		    });
