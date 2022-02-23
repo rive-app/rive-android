@@ -16,9 +16,7 @@ namespace rive_android
 		return mInstance;
 	}
 
-	WorkerThread<EGLThreadState>*
-	ThreadManager::acquireThread(const char* name,
-	                             std::function<void()> onAcquire)
+	WorkerThread<EGLThreadState>* ThreadManager::acquireThread(const char* name)
 	{
 		std::lock_guard<std::mutex> threadLock(mMutex);
 
@@ -33,7 +31,7 @@ namespace rive_android
 			mThreadPool.pop();
 		}
 
-		thread->setIsWorking(true, onAcquire);
+		thread->setIsWorking(true);
 
 		return thread;
 	}
