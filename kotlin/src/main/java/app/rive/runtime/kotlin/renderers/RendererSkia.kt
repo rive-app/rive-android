@@ -11,7 +11,7 @@ import app.rive.runtime.kotlin.core.Fit
 abstract class RendererSkia(private val trace: Boolean = false) :
     BaseRenderer(),
     Choreographer.FrameCallback {
-    override var cppPointer: Long = 0L
+    override var cppPointer: Long = constructor(trace)
 
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)

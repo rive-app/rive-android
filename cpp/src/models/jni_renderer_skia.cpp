@@ -90,10 +90,6 @@ namespace rive_android
 		{
 			mIsDoingFrame = false;
 		}
-		else
-		{
-			LOGD("Frame queued!");
-		}
 	}
 
 	void JNIRendererSkia::start()
