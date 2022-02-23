@@ -192,6 +192,7 @@ namespace rive_android
 		ThreadManager() : mThreadPool{} {};
 		~ThreadManager()
 		{
+			std::lock_guard<std::mutex> threadLock(mMutex);
 			// Clean up all the threads.
 			while (!mThreadPool.empty())
 			{
@@ -204,7 +205,8 @@ namespace rive_android
 		static ThreadManager* mInstance;
 		static std::mutex mMutex;
 
-		std::stack<WorkerThread<EGLThreadState>*> mThreadPool;
+		std::stack<WorkerThread<EGLThreadState>*>
+		    GUARDED_BY(mMutex) mThreadPool;
 
 	public:
 		// Singleton getter.
