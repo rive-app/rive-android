@@ -1,7 +1,6 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,55 +22,50 @@ class RecyclerActivity : AppCompatActivity() {
     }
 }
 
-class FileCheater(val number: Int, val resource: Int)
+// Holds a rive file resource for a RecyclerView list item.
+data class RiveFileResource(val number: Int, val resource: Int)
 
-object RiveFileDiffCallback : DiffUtil.ItemCallback<FileCheater>() {
-    override fun areItemsTheSame(oldItem: FileCheater, newItem: FileCheater): Boolean {
+object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveFileResource>() {
+    override fun areItemsTheSame(oldItem: RiveFileResource, newItem: RiveFileResource): Boolean {
         return oldItem.number == oldItem.number
     }
 
-    override fun areContentsTheSame(oldItem: FileCheater, newItem: FileCheater): Boolean {
+    override fun areContentsTheSame(oldItem: RiveFileResource, newItem: RiveFileResource): Boolean {
         return oldItem.number == oldItem.number
     }
 }
 
-class RiveAdapter : ListAdapter<FileCheater, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
+class RiveAdapter : ListAdapter<RiveFileResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
 
-    /* ViewHolder for Flower, takes in the inflated view and the onClick behavior. */
     class RiveViewHolder(itemView: View) :
         RecyclerView.ViewHolder(itemView) {
 
         private val riveAnimationView: RiveAnimationView =
             itemView.findViewById(R.id.rive_animation_view)
-        private var currentFile: FileCheater? = null
+        private var currentFile: RiveFileResource? = null
 
-        /* Bind flower name and image. */
-        fun bind(fileCheater: FileCheater) {
-            currentFile = fileCheater
-            riveAnimationView.setRiveResource(fileCheater.resource)
+        fun bind(riveFileResource: RiveFileResource) {
+            currentFile = riveFileResource
+            riveAnimationView.setRiveResource(riveFileResource.resource)
         }
     }
 
-    /* Creates and inflates view and return FlowerViewHolder. */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RiveViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.activity_recycler_item, parent, false)
         return RiveViewHolder(view)
     }
 
-    /* Gets current flower and uses it to bind view. */
     override fun onBindViewHolder(holder: RiveViewHolder, position: Int) {
-        val fileCheater = getItem(position)
-        Log.e("onBindViewHolder", "binding this file!")
-        holder.bind(fileCheater)
+        val riveFileResource = getItem(position)
+        holder.bind(riveFileResource)
     }
 
     override fun getItemCount(): Int {
         return 200
     }
 
-    override fun getItem(position: Int): FileCheater {
-        Log.e("GET_ITEM", "GET_ITEM ${Thread.activeCount()}")
-        return FileCheater(position, R.raw.paff)
+    override fun getItem(position: Int): RiveFileResource {
+        return RiveFileResource(position, R.raw.paff)
     }
 }
