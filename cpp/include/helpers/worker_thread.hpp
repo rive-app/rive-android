@@ -74,7 +74,7 @@ namespace rive_android
 			std::lock_guard<std::mutex> workLock(mWorkMutex);
 			mWorkQueue.emplace(std::move(work));
 			mWorkCondition.notify_all();
-      return true;
+			return true;
 		}
 
 		void releaseQueue(std::function<void()> onRelease = nullptr)
@@ -97,7 +97,7 @@ namespace rive_android
 			mWorkCondition.notify_all();
 		}
 
-		void setIsWorking(bool isIt, std::function<void()> onEvent = nullptr)
+		void setIsWorking(bool isIt)
 		{
 			if (isIt == mIsWorking)
 				return;
@@ -213,9 +213,7 @@ namespace rive_android
 		ThreadManager(ThreadManager const&) = delete;
 		void operator=(ThreadManager const&) = delete;
 
-		WorkerThread<EGLThreadState>*
-		acquireThread(const char* name,
-		              std::function<void()> onAcquire = nullptr);
+		WorkerThread<EGLThreadState>* acquireThread(const char*);
 
 		void releaseThread(WorkerThread<EGLThreadState>* thread,
 		                   std::function<void()> onRelease = nullptr);
