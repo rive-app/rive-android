@@ -64,16 +64,17 @@ namespace rive_android
 			detachThread();
 		}
 
-		void run(Work work)
+		bool run(Work work)
 		{
 			if (!mIsWorking)
 			{
 				LOGW("Can't add work while thread isn't running.");
-				return;
+				return false;
 			}
 			std::lock_guard<std::mutex> workLock(mWorkMutex);
 			mWorkQueue.emplace(std::move(work));
 			mWorkCondition.notify_all();
+      return true;
 		}
 
 		void releaseQueue(std::function<void()> onRelease = nullptr)

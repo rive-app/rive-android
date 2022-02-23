@@ -85,5 +85,11 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, AssetsActivity::class.java)
             )
         }
+
+        findViewById<Button>(R.id.go_recycler).setOnClickListener {
+            startActivity(
+                Intent(this, RecyclerActivity::class.java)
+            )
+        }
     }
 }

@@ -51,7 +51,7 @@ open class RiveArtboardRenderer(
     private var animationList =
         Collections.synchronizedList(mutableListOf<LinearAnimationInstance>())
     val animations: List<LinearAnimationInstance>
-        public get() {
+        get() {
             return synchronized(animationList) {
                 animationList.toList()
             }
@@ -62,7 +62,7 @@ open class RiveArtboardRenderer(
     private var stateMachineList =
         Collections.synchronizedList(mutableListOf<StateMachineInstance>())
     val stateMachines: List<StateMachineInstance>
-        public get() {
+        get() {
             return synchronized(stateMachineList) {
                 stateMachineList.toList()
             }
@@ -89,16 +89,20 @@ open class RiveArtboardRenderer(
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
 
     override fun draw() {
-        activeArtboard?.let {
-            it.drawSkia(
-                cppPointer, fit, alignment
-            )
+        if (cppPointer == 0L) {
+            return
         }
+        activeArtboard?.drawSkia(
+            cppPointer, fit, alignment
+        )
     }
 
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
     override fun advance(elapsed: Float) {
+        if (cppPointer == 0L) {
+            return
+        }
         activeArtboard?.let { ab ->
             // animations could change, lets cut a list.
             // order of animations is important.....

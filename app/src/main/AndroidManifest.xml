@@ -23,7 +23,10 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <activity android:name=".MainActivity">
+        <activity
+            android:name=".MainActivity"
+            android:clearTaskOnLaunch="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -45,6 +48,7 @@
             android:name=".MetricsActivity"
             android:exported="true" />
         <activity android:name=".AssetsActivity" />
+        <activity android:name=".RecyclerActivity" />
     </application>
 
 </manifest>

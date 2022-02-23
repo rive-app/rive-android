@@ -511,6 +511,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
         )
         pause()
+        renderer.stop()
         super.onDetachedFromWindow()
     }
 
