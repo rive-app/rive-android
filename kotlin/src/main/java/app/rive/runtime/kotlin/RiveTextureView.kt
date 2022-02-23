@@ -59,6 +59,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
         isOpaque = false
+        renderer.make()
     }
 
     @CallSuper
@@ -73,8 +74,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
         renderer.cleanup()
+        super.onDetachedFromWindow()
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {

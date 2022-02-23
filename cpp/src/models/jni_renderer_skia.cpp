@@ -74,7 +74,7 @@ namespace rive_android
 			return;
 		}
 		mIsDoingFrame = true;
-		mWorkerThread->run(
+		bool hasQueued = mWorkerThread->run(
 		    [=](EGLThreadState* threadState)
 		    {
 			    float elapsedMs = threadState->getElapsedMs(frameTimeNs);
@@ -86,6 +86,14 @@ namespace rive_android
 			    draw(threadState);
 			    mIsDoingFrame = false;
 		    });
+		if (!hasQueued)
+		{
+			mIsDoingFrame = false;
+		}
+		else
+		{
+			LOGD("Frame queued!");
+		}
 	}
 
 	void JNIRendererSkia::start()

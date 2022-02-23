@@ -8,10 +8,10 @@ import app.rive.runtime.kotlin.core.AABB
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 
-abstract class RendererSkia(trace: Boolean = false) :
+abstract class RendererSkia(private val trace: Boolean = false) :
     BaseRenderer(),
     Choreographer.FrameCallback {
-    final override var cppPointer: Long = constructor(trace)
+    override var cppPointer: Long = 0L
 
     external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)
@@ -35,6 +35,12 @@ abstract class RendererSkia(trace: Boolean = false) :
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(trace: Boolean): Long
 
+    fun make() {
+        if (cppPointer == 0L) {
+            cppPointer = constructor(trace)
+        }
+    }
+
     var isPlaying: Boolean = false
         private set
 
@@ -56,6 +62,9 @@ abstract class RendererSkia(trace: Boolean = false) :
      */
     fun start() {
         if (isPlaying) return
+        if (cppPointer == 0L) {
+            return
+        }
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
@@ -82,6 +91,9 @@ abstract class RendererSkia(trace: Boolean = false) :
     @CallSuper
     internal fun stopThread() {
         if (!isPlaying) return
+        if (cppPointer == 0L) {
+            return
+        }
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
@@ -111,8 +123,11 @@ abstract class RendererSkia(trace: Boolean = false) :
     @CallSuper
     fun cleanup() {
         clearSurface()
+        // Queues the cpp Renderer for deletion
         cleanupJNI(cppPointer)
-        cppPointer = 0
+        // Mark the underlying object as deleted right away:
+        //  this object is scheduled for deletion and shouldn't be used anymore.
+        cppPointer = 0L
     }
 
     open fun scheduleFrame() {
