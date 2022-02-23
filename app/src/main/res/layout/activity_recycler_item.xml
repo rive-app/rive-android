@@ -10,7 +10,7 @@
         android:layout_height="match_parent"
         android:layout_margin="8dp"
         android:textAppearance="?attr/textAppearanceHeadline5"
-        app:riveResource="@raw/paff"
+        app:riveResource="@raw/circle_move"
         app:riveAutoPlay="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

@@ -66,6 +66,6 @@ class RiveAdapter : ListAdapter<RiveFileResource, RiveAdapter.RiveViewHolder>(Ri
     }
 
     override fun getItem(position: Int): RiveFileResource {
-        return RiveFileResource(position, R.raw.paff)
+        return RiveFileResource(position, R.raw.circle_move)
     }
 }
