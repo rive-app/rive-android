@@ -171,8 +171,7 @@ namespace rive_android
 
 		GrBackendRenderTarget backendRenderTarget(
 		    mWidth, mHeight, 1, 8, fbInfo);
-		static SkSurfaceProps surfaceProps(SkSurfaceProps::kDynamicMSAA_Flag,
-		                                   kUnknown_SkPixelGeometry);
+		static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
 
 		mSkSurface =
 		    SkSurface::MakeFromBackendRenderTarget(getSkiaContext().get(),
