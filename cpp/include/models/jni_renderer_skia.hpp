@@ -27,6 +27,11 @@ namespace rive_android
 
 		void stop();
 
+		WorkerThread<EGLThreadState>* workerThread() const
+		{
+			return mWorkerThread;
+		}
+
 		SkCanvas* canvas() const { return mGpuCanvas; }
 
 		rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
@@ -56,13 +61,13 @@ namespace rive_android
 
 		rive::SkiaRenderer* mSkRenderer;
 
+		bool mIsDoingFrame = false;
+
 		/* Helpers for FPS calculations.*/
 		std::chrono::steady_clock::time_point mLastFrameTime;
 		float mAverageFps = -1.0f;
 		float mFpsSum = 0;
 		int mFpsCount = 0;
-
-		void setupThread() const;
 
 		ITracer* getTracer(bool trace) const;
 

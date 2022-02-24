@@ -26,7 +26,6 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
 
     init {
         // Get display metrics
-        val wm = activity.windowManager
         val window = activity.window
         // Let's get the system's default refresh rate in ms
         var refreshRateHz: Float = 60.0F
