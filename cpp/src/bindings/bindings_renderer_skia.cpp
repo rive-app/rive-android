@@ -3,6 +3,7 @@
 
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "helpers/worker_thread.hpp"
 
 #include "bindings/bindings_renderer_skia.hpp"
 #include "models/jni_renderer_skia.hpp"
@@ -29,7 +30,15 @@ extern "C"
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
 	    JNIEnv*, jobject, jlong rendererRef)
 	{
-		delete reinterpret_cast<JNIRendererSkia*>(rendererRef);
+		auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
+		auto thread = renderer->workerThread();
+		ThreadManager::getInstance()->releaseThread(
+		    thread,
+		    [=]()
+		    {
+			    // Delete the renderer *only after* thread released resources.
+			    delete renderer;
+		    });
 	}
 
 	JNIEXPORT void JNICALL

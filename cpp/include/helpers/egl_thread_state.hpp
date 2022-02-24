@@ -23,31 +23,34 @@ namespace rive_android
 
 		void onSettingsChanged(const Settings*);
 		bool setWindow(ANativeWindow*);
+		void clearSurface();
 		void swapBuffers() const;
+		void flush() const;
 
-		sk_sp<GrDirectContext> getGrContext()
-		{
-			if (mSkContext)
-			{
-				return mSkContext;
-			}
-
-			return createGrContext();
-		}
-
-		sk_sp<SkSurface> getSkSurface()
+		sk_sp<SkSurface> getSkiaSurface()
 		{
 			if (mSkSurface)
 			{
 				return mSkSurface;
 			}
 
-			return createSkSurface();
+			return createSkiaSurface();
 		}
 
 		bool hasNoSurface() const
 		{
 			return mSurface == EGL_NO_SURFACE || mSkSurface == nullptr;
+		}
+
+		void unsetKtRendererClass()
+		{
+			if (mKtRendererClass != nullptr)
+			{
+				getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
+			}
+			mKtRendererClass = nullptr;
+			mKtDrawCallback = nullptr;
+			mKtAdvanceCallback = nullptr;
 		}
 
 		void setKtRendererClass(jclass localReference)
@@ -95,15 +98,24 @@ namespace rive_android
 
 		jclass mKtRendererClass = nullptr;
 
-		sk_sp<GrDirectContext> createGrContext();
-		sk_sp<SkSurface> createSkSurface();
+		sk_sp<GrDirectContext> createSkiaContext();
+		sk_sp<SkSurface> createSkiaSurface();
 		static void* getProcAddress(const char*);
-		void clearSurface();
 		bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
 
 		EGLBoolean makeCurrent(EGLSurface surface) const
 		{
 			return eglMakeCurrent(mDisplay, surface, surface, mContext);
+		}
+
+		sk_sp<GrDirectContext> getSkiaContext()
+		{
+			if (mSkContext)
+			{
+				return mSkContext;
+			}
+
+			return createSkiaContext();
 		}
 	};
 } // namespace rive_android

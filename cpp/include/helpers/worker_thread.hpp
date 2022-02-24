@@ -19,8 +19,11 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <stack>
 #include <thread>
 
+#include "helpers/general.hpp"
+#include "helpers/egl_thread_state.hpp"
 #include "settings.hpp"
 #include "thread.hpp"
 
@@ -57,13 +60,49 @@ namespace rive_android
 		{
 			std::lock_guard<std::mutex> threadLock(mThreadMutex);
 			terminateThread();
+			// Detach thread from the JVM.
+			detachThread();
 		}
 
-		void run(Work work)
+		bool run(Work work)
 		{
+			if (!mIsWorking)
+			{
+				LOGW("Can't add work while thread isn't running.");
+				return false;
+			}
 			std::lock_guard<std::mutex> workLock(mWorkMutex);
 			mWorkQueue.emplace(std::move(work));
 			mWorkCondition.notify_all();
+			return true;
+		}
+
+		void releaseQueue(std::function<void()> onRelease = nullptr)
+		{
+			std::lock_guard<std::mutex> workLock(mWorkMutex);
+			// Prevent any other work to be added here.
+			drainWorkQueue();
+			// Force onto work queue, bypassing our runner function.
+			mWorkQueue.emplace(std::move(
+			    [=](EGLThreadState* threadState)
+			    {
+				    threadState->mIsStarted = false;
+				    threadState->clearSurface();
+				    threadState->unsetKtRendererClass();
+				    if (onRelease)
+				    {
+					    onRelease();
+				    }
+			    }));
+			mWorkCondition.notify_all();
+		}
+
+		void setIsWorking(bool isIt)
+		{
+			if (isIt == mIsWorking)
+				return;
+
+			mIsWorking = isIt;
 		}
 
 		void reset() { launchThread(); }
@@ -87,6 +126,14 @@ namespace rive_android
 				mWorkCondition.notify_all();
 			}
 			mThread.join();
+		}
+
+		void drainWorkQueue()
+		{
+			while (!mWorkQueue.empty())
+			{
+				mWorkQueue.pop();
+			}
 		}
 
 		void onSettingsChanged(ThreadState* threadState)
@@ -130,6 +177,8 @@ namespace rive_android
 		std::mutex mThreadMutex;
 		std::thread mThread GUARDED_BY(mThreadMutex);
 
+		bool mIsWorking = true;
+
 		std::mutex mWorkMutex;
 		bool mIsActive GUARDED_BY(mWorkMutex) = true;
 		std::queue<std::function<void(ThreadState*)>>
@@ -137,4 +186,38 @@ namespace rive_android
 		std::condition_variable_any mWorkCondition;
 	};
 
+	class ThreadManager
+	{
+	private:
+		ThreadManager() : mThreadPool{} {};
+		~ThreadManager()
+		{
+			std::lock_guard<std::mutex> threadLock(mMutex);
+			// Clean up all the threads.
+			while (!mThreadPool.empty())
+			{
+				auto current = mThreadPool.top();
+				mThreadPool.pop();
+				delete current;
+			}
+		}
+
+		static ThreadManager* mInstance;
+		static std::mutex mMutex;
+
+		std::stack<WorkerThread<EGLThreadState>*>
+		    GUARDED_BY(mMutex) mThreadPool;
+
+	public:
+		// Singleton getter.
+		static ThreadManager* getInstance();
+		// Singleton can't be copied/assigned.
+		ThreadManager(ThreadManager const&) = delete;
+		void operator=(ThreadManager const&) = delete;
+
+		WorkerThread<EGLThreadState>* acquireThread(const char*);
+
+		void releaseThread(WorkerThread<EGLThreadState>* thread,
+		                   std::function<void()> onRelease = nullptr);
+	};
 } // namespace rive_android
