@@ -105,7 +105,10 @@ namespace rive_android
 
 		EGLBoolean makeCurrent(EGLSurface surface) const
 		{
-			return eglMakeCurrent(mDisplay, surface, surface, mContext);
+			EGLBoolean res =
+			    eglMakeCurrent(mDisplay, surface, surface, mContext);
+			EGL_ERR_CHECK();
+			return res;
 		}
 
 		sk_sp<GrDirectContext> getSkiaContext()

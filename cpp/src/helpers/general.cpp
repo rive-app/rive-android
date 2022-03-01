@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <EGL/egl.h>
 #endif
 
 // luigi: murdered this due to our single renderer model right now...all canvas
@@ -198,6 +199,69 @@ namespace rive_android
 		{
 			fgets(readBuffer, sizeof(readBuffer), inputFile);
 			__android_log_write(2, "stderr", readBuffer);
+		}
+	}
+
+	void _check_egl_error(const char* file, int line)
+	{
+		EGLenum err(eglGetError());
+
+		while (true)
+		{
+			std::string error;
+
+			switch (err)
+			{
+				case EGL_SUCCESS:
+					return;
+				case EGL_NOT_INITIALIZED:
+					error = "EGL_NOT_INITIALIZED";
+					break;
+				case EGL_BAD_ACCESS:
+					error = "EGL_BAD_ACCESS";
+					break;
+				case EGL_BAD_ALLOC:
+					error = "EGL_BAD_ALLOC";
+					break;
+				case EGL_BAD_ATTRIBUTE:
+					error = "EGL_BAD_ATTRIBUTE";
+					break;
+				case EGL_BAD_CONTEXT:
+					error = "EGL_BAD_CONTEXT";
+					break;
+				case EGL_BAD_CONFIG:
+					error = "EGL_BAD_CONFIG";
+					break;
+				case EGL_BAD_CURRENT_SURFACE:
+					error = "EGL_BAD_CURRENT_SURFACE";
+					break;
+				case EGL_BAD_DISPLAY:
+					error = "EGL_BAD_DISPLAY";
+					break;
+				case EGL_BAD_SURFACE:
+					error = "EGL_BAD_SURFACE";
+					break;
+				case EGL_BAD_MATCH:
+					error = "EGL_BAD_MATCH";
+					break;
+				case EGL_BAD_PARAMETER:
+					error = "EGL_BAD_PARAMETER";
+					break;
+				case EGL_BAD_NATIVE_PIXMAP:
+					error = "EGL_BAD_NATIVE_PIXMAP";
+					break;
+				case EGL_BAD_NATIVE_WINDOW:
+					error = "EGL_BAD_NATIVE_WINDOW";
+					break;
+				case EGL_CONTEXT_LOST:
+					error = "EGL_CONTEXT_LOST";
+					break;
+				default:
+					LOGE("(%d) %s - %s:%d", err, "Unknown", file, line);
+					return;
+			}
+			LOGE("(%d) %s - %s:%d", err, error.c_str(), file, line);
+			err = eglGetError();
 		}
 	}
 #endif
