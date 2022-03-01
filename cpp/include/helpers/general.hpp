@@ -6,19 +6,20 @@
 #include <string>
 #include <android/log.h>
 
-#define LOG_TAG __FILE__
-
 // Print only on debug builds.
 #ifdef DEBUG
+#define LOG_TAG (std::string(__FILE__ ":") + std::to_string(__LINE__)).c_str()
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define EGL_ERR_CHECK() _check_egl_error(__FILE__, __LINE__)
 #else
 #define LOGE(...)
 #define LOGW(...)
 #define LOGD(...)
 #define LOGI(...)
+#define EGL_ERR_CHECK()
 #endif
 
 namespace rive_android
@@ -42,6 +43,7 @@ namespace rive_android
 	// luigi: this redirects stderr to android log (probably want to ifdef this
 	// out for release)
 	void logThread();
+	void _check_egl_error(const char* file, int line);
 #endif
 } // namespace rive_android
 #endif

@@ -11,7 +11,9 @@ namespace rive_android
 	EGLThreadState::EGLThreadState()
 	{
 		mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+		EGL_ERR_CHECK();
 		eglInitialize(mDisplay, 0, 0);
+		EGL_ERR_CHECK();
 
 		const EGLint configAttributes[] = {EGL_RENDERABLE_TYPE,
 		                                   EGL_OPENGL_ES2_BIT,
@@ -29,6 +31,8 @@ namespace rive_android
 
 		EGLint numConfigs = 0;
 		eglChooseConfig(mDisplay, configAttributes, nullptr, 0, &numConfigs);
+		EGL_ERR_CHECK();
+
 		std::vector<EGLConfig> supportedConfigs(
 		    static_cast<size_t>(numConfigs));
 		eglChooseConfig(mDisplay,
@@ -36,6 +40,7 @@ namespace rive_android
 		                supportedConfigs.data(),
 		                numConfigs,
 		                &numConfigs);
+		EGL_ERR_CHECK();
 
 		// Choose a config, either a match if possible or the first config
 		// otherwise
@@ -62,6 +67,7 @@ namespace rive_android
 
 		mContext =
 		    eglCreateContext(mDisplay, mConfig, nullptr, contextAttributes);
+		EGL_ERR_CHECK();
 
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
@@ -71,12 +77,19 @@ namespace rive_android
 	{
 		clearSurface();
 		if (mContext != EGL_NO_CONTEXT)
+		{
 			eglDestroyContext(mDisplay, mContext);
+			EGL_ERR_CHECK();
+		}
 		if (mDisplay != EGL_NO_DISPLAY)
+		{
 			eglTerminate(mDisplay);
+			EGL_ERR_CHECK();
+		}
 		if (mKtRendererClass != nullptr)
 			getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
 		eglReleaseThread();
+		EGL_ERR_CHECK();
 	}
 
 	void EGLThreadState::flush() const
@@ -100,6 +113,7 @@ namespace rive_android
 
 		makeCurrent(EGL_NO_SURFACE);
 		eglDestroySurface(mDisplay, mSurface);
+		EGL_ERR_CHECK();
 		mSurface = EGL_NO_SURFACE;
 		auto sfcPtr = mSkSurface.release();
 		delete sfcPtr;
@@ -200,6 +214,7 @@ namespace rive_android
 		}
 
 		auto symbol = eglGetProcAddress(name);
+		EGL_ERR_CHECK();
 		if (symbol == nullptr)
 		{
 			LOGE("Couldn't fetch symbol name for: %s", name);
@@ -216,6 +231,7 @@ namespace rive_android
 			return;
 		}
 		eglSwapBuffers(mDisplay, mSurface);
+		EGL_ERR_CHECK();
 	}
 
 	bool EGLThreadState::setWindow(ANativeWindow* window)
@@ -227,6 +243,7 @@ namespace rive_android
 		}
 
 		mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, nullptr);
+		EGL_ERR_CHECK();
 		ANativeWindow_release(window);
 
 		if (!createSkiaContext())
