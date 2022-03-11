@@ -102,8 +102,6 @@ namespace rive_android
 		mSkContext->flush();
 	}
 
-	void EGLThreadState::onSettingsChanged(const Settings*) {}
-
 	void EGLThreadState::clearSurface()
 	{
 		if (mSurface == EGL_NO_SURFACE)
