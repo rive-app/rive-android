@@ -169,7 +169,6 @@ namespace rive_android
 			LOGE("Has No Surface!");
 			// Sleep a bit so we don't churn too fast
 			std::this_thread::sleep_for(50ms);
-			mGpuCanvas = nullptr;
 			return;
 		}
 
