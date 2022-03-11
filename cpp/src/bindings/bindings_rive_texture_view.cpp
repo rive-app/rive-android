@@ -1,14 +1,8 @@
-#include <cmath>
 #include <string>
-
 #include <jni.h>
 
 #include "models/jni_renderer_skia.hpp"
 
-#include "helpers/general.hpp"
-#include "helpers/settings.hpp"
-
-using std::chrono::nanoseconds;
 using namespace rive_android;
 
 namespace
@@ -27,6 +21,15 @@ namespace
 extern "C"
 {
 #endif
+	JNIEXPORT float JNICALL
+	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(
+	    JNIEnv*, jobject, jlong rendererAddr)
+	{
+		return reinterpret_cast<JNIRendererSkia*>(rendererAddr)->averageFps();
+	}
+
+/** TODO: explore these helpers, might be useful for a few metrics
+
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetPreference(JNIEnv* env,
 	                                                              jobject,
@@ -38,28 +41,17 @@ extern "C"
 	}
 
 	JNIEXPORT float JNICALL
-	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(
-	    JNIEnv*, jobject, jlong rendererAddr)
-	{
-		return reinterpret_cast<JNIRendererSkia*>(rendererAddr)->averageFps();
-	}
-
-	JNIEXPORT float JNICALL
 	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetPipelineFrameTimeNS(
 	    JNIEnv*, jobject)
 	{
-		// TODO:
-		// return Renderer::getInstance()->frameTimeStats().mean();
-		return 0.0f;
+		return Renderer::getInstance()->frameTimeStats().mean();
 	}
 
 	JNIEXPORT float JNICALL
 	Java_app_rive_runtime_kotlin_RiveTextureView_cppGetPipelineFrameTimeStdDevNS(
 	    JNIEnv*, jobject)
 	{
-		// TODO:
-		// return sqrt(Renderer::getInstance()->frameTimeStats().var());
-		return 0.0f;
+		return sqrt(Renderer::getInstance()->frameTimeStats().var());
 	}
 
 	JNIEXPORT void JNICALL
@@ -67,10 +59,10 @@ extern "C"
 	                                                            jobject,
 	                                                            jint load)
 	{
-		// TODO: explore this
 		// It's an interesting heuristic for segmenting based on workload
 		// Renderer::getInstance()->setWorkload(load);
 	}
+*/
 #ifdef __cplusplus
 }
 #endif
