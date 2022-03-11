@@ -8,7 +8,6 @@
 #include <chrono>
 
 #include "helpers/general.hpp"
-#include "settings.hpp"
 
 #include "GrDirectContext.h"
 #include "SkSurface.h"
@@ -21,7 +20,6 @@ namespace rive_android
 		EGLThreadState();
 		~EGLThreadState();
 
-		void onSettingsChanged(const Settings*);
 		bool setWindow(ANativeWindow*);
 		void clearSurface();
 		void swapBuffers() const;

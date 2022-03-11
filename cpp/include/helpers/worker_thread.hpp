@@ -24,23 +24,10 @@
 
 #include "helpers/general.hpp"
 #include "helpers/egl_thread_state.hpp"
-#include "settings.hpp"
 #include "thread.hpp"
 
 namespace rive_android
 {
-	class HotPocketState
-	{
-	public:
-		void onSettingsChanged(const Settings* settings)
-		{
-			isEnabled = settings->getHotPocket();
-		}
-
-		bool isEnabled = false;
-		bool isStarted = false;
-	};
-
 	template <class ThreadState> class WorkerThread
 	{
 	public:
@@ -50,10 +37,6 @@ namespace rive_android
 		    mName(name), mAffinity(affinity)
 		{
 			launchThread();
-			auto settingsChanged = [this](ThreadState* threadState)
-			{ onSettingsChanged(threadState); };
-			Settings::getInstance()->addListener(
-			    [this, work = std::move(settingsChanged)]() { run(work); });
 		}
 
 		~WorkerThread()
@@ -134,13 +117,6 @@ namespace rive_android
 			{
 				mWorkQueue.pop();
 			}
-		}
-
-		void onSettingsChanged(ThreadState* threadState)
-		{
-			const Settings* settings = Settings::getInstance();
-			threadState->onSettingsChanged(settings);
-			setAffinity(mAffinity);
 		}
 
 		void threadMain()
