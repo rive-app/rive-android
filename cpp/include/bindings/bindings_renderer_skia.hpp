@@ -13,43 +13,43 @@ extern "C"
 	// Skia Renderer
 	JNIEXPORT jlong JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(
-	    JNIEnv* env, jobject ktRendererSkia, jboolean trace);
+	    JNIEnv*, jobject, jboolean);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSetSurface(
-	    JNIEnv* env, jobject, jobject surface, jlong rendererRef);
+	    JNIEnv*, jobject, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppClearSurface(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppRestore(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT jint JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 
 	JNIEXPORT jint JNICALL
 	Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(
-	    JNIEnv*, jobject, jlong rendererRef);
+	    JNIEnv*, jobject, jlong);
 #ifdef __cplusplus
 }
 #endif

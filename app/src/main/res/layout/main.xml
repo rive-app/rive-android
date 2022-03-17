@@ -10,15 +10,10 @@
         android:layout_height="match_parent">
 
         <LinearLayout
+            android:id="@+id/button_container"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <Button
-                android:id="@+id/go_android_player"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:text="Android Player" />
 
             <Button
                 android:id="@+id/go_simple"
@@ -31,7 +26,12 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:text="Multiple Artboards" />
-
+            
+            <Button
+                android:id="@+id/go_android_player"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Android Player" />
 
             <Button
                 android:id="@+id/go_loop_mode"
@@ -100,6 +100,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Recycler" />
+
+            <Button
+                android:id="@+id/go_meshes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Meshes" />
         </LinearLayout>
 
     </ScrollView>

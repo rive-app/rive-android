@@ -24,7 +24,7 @@ extern "C"
 		rive::AABB* artboardBounds = (rive::AABB*)artboardBoundsRef;
 		rive::AABB* requiredBounds = (rive::AABB*)requiredBoundsRef;
 
-		::DimensionsHelper helper;
+		DimensionsHelper helper;
 
 		helper.computeDimensions(
 		    fit, alignment, *availableBounds, *artboardBounds, *requiredBounds);
