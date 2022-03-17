@@ -5,91 +5,33 @@ import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 
-
 class MainActivity : AppCompatActivity() {
+    private val buttonsData = listOf(
+        Pair(R.id.go_simple, SimpleActivity::class.java),
+        Pair(R.id.go_multiple_artboards, MultipleArtboardsActivity::class.java),
+        Pair(R.id.go_android_player, AndroidPlayerActivity::class.java),
+        Pair(R.id.go_loop_mode, LoopModeActivity::class.java),
+        Pair(R.id.go_layout, LayoutActivity::class.java),
+        Pair(R.id.go_fragment, RiveFragmentActivity::class.java),
+        Pair(R.id.go_low_level, LowLevelActivity::class.java),
+        Pair(R.id.go_http, HttpActivity::class.java),
+        Pair(R.id.go_simple_state_machine, SimpleStateMachineActivity::class.java),
+        Pair(R.id.go_button, ButtonActivity::class.java),
+        Pair(R.id.go_blend, BlendActivity::class.java),
+        Pair(R.id.go_metrics, MetricsActivity::class.java),
+        Pair(R.id.go_assets, AssetsActivity::class.java),
+        Pair(R.id.go_recycler, RecyclerActivity::class.java),
+        Pair(R.id.go_meshes, MeshesActivity::class.java),
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main)
 
-        findViewById<Button>(R.id.go_simple).setOnClickListener {
-            startActivity(
-                Intent(this, SimpleActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_multiple_artboards).setOnClickListener {
-            startActivity(
-                Intent(this, MultipleArtboardsActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_android_player).setOnClickListener {
-            startActivity(
-                Intent(this, AndroidPlayerActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_loop_mode).setOnClickListener {
-            startActivity(
-                Intent(this, LoopModeActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_layout).setOnClickListener {
-            startActivity(
-                Intent(this, LayoutActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_fragment).setOnClickListener {
-            startActivity(
-                Intent(this, RiveFragmentActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_low_level).setOnClickListener {
-            startActivity(
-                Intent(this, LowLevelActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_http).setOnClickListener {
-            startActivity(
-                Intent(this, HttpActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_simple_state_machine).setOnClickListener {
-            startActivity(
-                Intent(this, SimpleStateMachineActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_button).setOnClickListener {
-            startActivity(
-                Intent(this, ButtonActivity::class.java)
-            )
-        }
-        findViewById<Button>(R.id.go_blend).setOnClickListener {
-            startActivity(
-                Intent(this, BlendActivity::class.java)
-            )
-        }
-        findViewById<Button>(R.id.go_metrics).setOnClickListener {
-            startActivity(
-                Intent(this, MetricsActivity::class.java)
-            )
-        }
-        findViewById<Button>(R.id.go_assets).setOnClickListener {
-            startActivity(
-                Intent(this, AssetsActivity::class.java)
-            )
-        }
-
-        findViewById<Button>(R.id.go_recycler).setOnClickListener {
-            startActivity(
-                Intent(this, RecyclerActivity::class.java)
-            )
+        buttonsData.forEach { pair ->
+            findViewById<Button>(pair.first).setOnClickListener {
+                startActivity(Intent(this, pair.second))
+            }
         }
     }
 }
