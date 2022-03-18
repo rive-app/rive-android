@@ -17,11 +17,11 @@ public const val RIVE_FRAGMENT_ARG_RES_ID = "resourceId"
  * Use the [RiveFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class RiveFragment : Fragment() {
+open class RiveFragment(private val name: String? = "Fragment") : Fragment() {
     private var rId: Int by Delegates.notNull()
 
-    private val riveView by lazy(LazyThreadSafetyMode.NONE) {
-        requireView().findViewById<RiveAnimationView>(R.id.rive_view)
+    protected val riveView by lazy(LazyThreadSafetyMode.NONE) {
+        requireView().findViewById<RiveAnimationView>(R.id.rive_view_fragment)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,8 +53,8 @@ class RiveFragment : Fragment() {
          * @return A new instance of RiveFragment.
          */
         @JvmStatic
-        fun newInstance(resId: Int) =
-            RiveFragment().apply {
+        fun newInstance(resId: Int, name: String? = null) =
+            RiveFragment(name).apply {
                 arguments = Bundle().apply {
                     putInt(RIVE_FRAGMENT_ARG_RES_ID, resId)
                 }
