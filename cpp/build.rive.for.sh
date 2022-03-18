@@ -7,9 +7,9 @@ ARCH_ARM=armeabi-v7a
 ARCH_ARM64=arm64-v8a
 
 NEEDS_CLEAN='false'
-FLAGS=
+FLAGS="-flto=full"
 # we default to release
-CONFIG="release" 
+CONFIG="release"
 
 usage() {
     printf "Usage: %s -a arch [-c]" "$0"
@@ -35,7 +35,7 @@ while getopts "a:cd" opt; do
     c) NEEDS_CLEAN="true" ;;
     d)
         CONFIG="debug"
-        FLAGS+="${FLAGS} -DDEBUG"
+        FLAGS="-DDEBUG"
         ;;
     \?) usage ;; # Print usage in case parameter is non-existent
     esac
