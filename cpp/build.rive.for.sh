@@ -7,7 +7,9 @@ ARCH_ARM=armeabi-v7a
 ARCH_ARM64=arm64-v8a
 
 NEEDS_CLEAN='false'
-FLAGS=
+FLAGS="-flto=full"
+# we default to release
+CONFIG="release"
 
 usage() {
     printf "Usage: %s -a arch [-c]" "$0"
@@ -31,7 +33,10 @@ while getopts "a:cd" opt; do
     case "$opt" in
     a) ARCH_NAME="$OPTARG" ;;
     c) NEEDS_CLEAN="true" ;;
-    d) FLAGS+="${FLAGS} -DDEBUG" ;;
+    d)
+        CONFIG="debug"
+        FLAGS="-DDEBUG"
+        ;;
     \?) usage ;; # Print usage in case parameter is non-existent
     esac
 done
@@ -60,17 +65,20 @@ SKIA_ARCH=
 
 buildFor() {
     # Build skia
+    pwd
+    # copy our make Skia script into the right folder.
+    cp make_skia_android.sh "$LIBRIVE"/skia/dependencies
     pushd "$LIBRIVE"/skia/dependencies
-    ./make_skia_android.sh "$SKIA_ARCH"
+    ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
 
     popd
 
     # Build librive_skia_renderer (internally builds librive)
     pushd "$LIBRIVE"/skia/renderer
     if ${NEEDS_CLEAN}; then
-        ./build.sh -p android."$SKIA_ARCH" clean
+        ./build.sh -p android."$SKIA_ARCH" "$CONFIG" clean
     fi
-    ./build.sh -p android."$SKIA_ARCH" release
+    ./build.sh -p android."$SKIA_ARCH" "$CONFIG"
     popd
 
     # Cleanup our android build location.
@@ -81,9 +89,9 @@ buildFor() {
     fi
 
     # copy in newly built rive/skia/skia_renderer files.
-    cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/release/librive.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/dependencies/skia_rive_optimized/out/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/release/librive_skia_renderer.a "$BUILD_DIR"
+    cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/dependencies/skia_rive_optimized/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
     # build the android .so!
@@ -101,7 +109,7 @@ if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="
     SKIA_ARCH=x86
     ARCH=i686
-    export BUILD_DIR=$PWD/build/$ARCH_NAME
+    export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
@@ -109,7 +117,7 @@ elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     echo "==== x86_64 ===="
     ARCH=x86_64
     SKIA_ARCH=x64
-    export BUILD_DIR=$PWD/build/$ARCH_NAME
+    export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
     LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
@@ -118,7 +126,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     ARCH=arm
     ARCH_PREFIX=armv7a
     SKIA_ARCH=arm
-    export BUILD_DIR=$PWD/build/$ARCH_NAME
+    export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang
     LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-androideabi
@@ -126,7 +134,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     ARCH=aarch64
     SKIA_ARCH=arm64
-    export BUILD_DIR=$PWD/build/$ARCH_NAME
+    export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
     LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
