@@ -9,6 +9,7 @@ on:
 jobs:
   publish:
     name: Release build and publish
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
