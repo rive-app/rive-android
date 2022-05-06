@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin
 
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -30,7 +31,7 @@ open class RiveArtboardRenderer(
     private var playingAnimationSet =
         Collections.synchronizedSet(HashSet<LinearAnimationInstance>())
     val playingAnimations: HashSet<LinearAnimationInstance>
-        public get() {
+        get() {
             return synchronized(playingAnimationSet) {
                 playingAnimationSet.toHashSet()
             }
@@ -40,7 +41,7 @@ open class RiveArtboardRenderer(
     private var playingStateMachineSet =
         Collections.synchronizedSet(HashSet<StateMachineInstance>())
     val playingStateMachines: HashSet<StateMachineInstance>
-        public get() {
+        get() {
             // toHashSet is not thread safe...
             return synchronized(playingStateMachineSet) {
                 playingStateMachineSet.toHashSet()
@@ -109,8 +110,8 @@ open class RiveArtboardRenderer(
             animations.forEach { animationInstance ->
                 if (playingAnimations.contains(animationInstance)) {
                     val looped = animationInstance.advance(elapsed)
+                    animationInstance.apply()
 
-                    animationInstance.apply(ab)
                     if (looped == Loop.ONESHOT) {
                         _stop(animationInstance)
                     } else if (looped != null) {
@@ -123,7 +124,7 @@ open class RiveArtboardRenderer(
 
                 if (playingStateMachines.contains(stateMachineInstance)) {
                     val stillPlaying =
-                        advanceStateMachineInstance(stateMachineInstance, ab, elapsed)
+                        resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
                     if (!stillPlaying) {
                         // State Machines need to pause not stop
@@ -140,12 +141,12 @@ open class RiveArtboardRenderer(
         }
     }
 
-    private fun advanceStateMachineInstance(
+    private fun resolveStateMachineAdvance(
         stateMachineInstance: StateMachineInstance,
-        artboard: Artboard,
         elapsed: Float
     ): Boolean {
-        val stillPlaying = stateMachineInstance.apply(artboard, elapsed)
+
+        val stillPlaying = stateMachineInstance.advance(elapsed)
 
         stateMachineInstance.statesChanged.forEach {
             notifyStateChanged(stateMachineInstance, it)
@@ -168,8 +169,8 @@ open class RiveArtboardRenderer(
         if (file == null) {
             this.artboardName = artboardName
         } else {
-            file?.let {
-                if (!it.artboardNames.contains(artboardName)) {
+            file?.let { file ->
+                if (!file.artboardNames.contains(artboardName)) {
                     throw ArtboardException("Artboard $artboardName not found")
                 }
             }
@@ -198,8 +199,10 @@ open class RiveArtboardRenderer(
         stopAnimations()
         stop()
         clear()
-        selectedArtboard?.let {
-            setArtboard(it)
+        selectedArtboard?.let { artboard ->
+            file?.let{ file ->
+                setArtboard(file.artboard(artboard.name))
+            }
         }
         start()
     }
@@ -230,12 +233,12 @@ open class RiveArtboardRenderer(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO, settleInitialState: Boolean = true,
     ) {
-        activeArtboard?.let {
-            if (it.animationNames.isNotEmpty()) {
-                _playAnimation(it.animationNames.first(), loop, direction)
-            } else if (it.stateMachineNames.isNotEmpty()) {
+        activeArtboard?.let { activeArtboard ->
+            if (activeArtboard.animationNames.isNotEmpty()) {
+                _playAnimation(activeArtboard.animationNames.first(), loop, direction)
+            } else if (activeArtboard.stateMachineNames.isNotEmpty()) {
                 _playAnimation(
-                    it.stateMachineNames.first(),
+                    activeArtboard.stateMachineNames.first(),
                     loop,
                     direction,
                     settleInitialState
@@ -353,22 +356,21 @@ open class RiveArtboardRenderer(
 
     private fun _animations(animationNames: Collection<String>): List<LinearAnimationInstance> {
         return animations.filter { animationInstance ->
-            animationNames.contains(animationInstance.animation.name)
+            animationNames.contains(animationInstance.name)
         }
     }
 
     private fun _stateMachines(animationNames: Collection<String>): List<StateMachineInstance> {
         return stateMachines.filter { stateMachineInstance ->
-            animationNames.contains(stateMachineInstance.stateMachine.name)
+            animationNames.contains(stateMachineInstance.name)
         }
     }
 
     private fun _getOrCreateStateMachines(animationName: String): List<StateMachineInstance> {
         val stateMachineInstances = _stateMachines(animationName)
         if (stateMachineInstances.isEmpty()) {
-            activeArtboard?.let {
-                val stateMachine = it.stateMachine(animationName)
-                val stateMachineInstance = StateMachineInstance(stateMachine)
+            activeArtboard?.let { activeArtboard ->
+                val stateMachineInstance = activeArtboard.stateMachine(animationName)
                 stateMachineList.add(stateMachineInstance)
                 return listOf(stateMachineInstance)
             }
@@ -394,10 +396,9 @@ open class RiveArtboardRenderer(
                 _play(animationInstance, loop, direction)
             }
             if (animationInstances.isEmpty()) {
-                activeArtboard?.let {
-                    val animation = it.animation(animationName)
-                    val linearAnimation = LinearAnimationInstance(animation)
-                    _play(linearAnimation, loop, direction)
+                activeArtboard?.let { activeArtboard ->
+                    val animationInstance = activeArtboard.animation(animationName)
+                    _play(animationInstance, loop, direction)
                 }
             }
         }
@@ -416,9 +417,7 @@ open class RiveArtboardRenderer(
         // otherwise it maybe "stuck" on the Enter state causing issues for fireState triggers.
         // https://2dimensions.slack.com/archives/CLLCU09T6/p1638984141105200
         if (settleStateMachineState) {
-            activeArtboard?.let {
-                advanceStateMachineInstance(stateMachineInstance, it, 0f)
-            }
+            resolveStateMachineAdvance(stateMachineInstance, 0f)
         }
 
         playingStateMachineSet.add(stateMachineInstance)
@@ -441,7 +440,7 @@ open class RiveArtboardRenderer(
         }
         if (!animationList.contains(animationInstance)) {
             if (direction == Direction.BACKWARDS) {
-                animationInstance.time(animationInstance.animation.endTime)
+                animationInstance.time(animationInstance.endTime)
             }
             animationList.add(animationInstance)
         }
@@ -487,31 +486,31 @@ open class RiveArtboardRenderer(
 
     private fun selectArtboard() {
         file?.let { file ->
-            artboardName?.let {
-                selectedArtboard = file.artboard(it)
-                selectedArtboard?.let {
-                    setArtboard(it)
+            artboardName?.let{ artboardName ->
+                selectedArtboard = file.artboard(artboardName)
+                selectedArtboard?.let { selectedArtboard ->
+                    setArtboard(selectedArtboard)
                 }
 
             } ?: run {
                 selectedArtboard = file.firstArtboard
-                selectedArtboard?.let {
-                    setArtboard(it)
+                selectedArtboard?.let { selectedArtboard ->
+                    setArtboard(selectedArtboard)
                 }
             }
         }
     }
 
     private fun setArtboard(artboard: Artboard) {
-        this.activeArtboard = artboard.getInstance()
+        this.activeArtboard = artboard
 
         if (autoplay) {
-            animationName?.let {
-                play(animationName = it)
+            animationName?.let { animationName->
+                play(animationName = animationName)
             } ?: run {
-                stateMachineName?.let {
+                stateMachineName?.let { stateMachineName ->
                     // With autoplay, we default to settling the initial state
-                    play(animationName = it, isStateMachine = true, settleInitialState = true)
+                    play(animationName = stateMachineName, isStateMachine = true, settleInitialState = true)
                 } ?: run {
                     // With autoplay, we default to settling the initial state
                     play(settleInitialState = true)
@@ -568,7 +567,7 @@ open class RiveArtboardRenderer(
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
         listeners.toList().forEach {
-            it.notifyStateChanged(stateMachine.stateMachine.name, state.toString())
+            it.notifyStateChanged(stateMachine.name, state.toString())
         }
     }
 }

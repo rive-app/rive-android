@@ -12,12 +12,9 @@ import app.rive.runtime.kotlin.core.errors.StateMachineInputException
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() {
-    private var cppPointer: Long = constructor(stateMachine.cppPointer)
-    private external fun constructor(stateMachinePointer: Long): Long
+class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
     private external fun cppAdvance(
         pointer: Long,
-        artboardPointer: Long,
         elapsedTime: Float
     ): Boolean
 
@@ -25,8 +22,20 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateChangedCount(cppPointer: Long): Int
     private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppName(cppPointer: Long): String
+    private external fun cppLayerCount(cppPointer: Long): Int
 
-    override val playable = stateMachine
+    /**
+     * Return the name given to an animation
+     */
+    override val name: String
+        get() = cppName(cppPointer)
+
+    /**
+     * Return the number of layers configured for the state machine.
+     */
+    val layerCount: Int
+        get() = cppLayerCount(cppPointer)
 
     /**
      * Advance the state machine by the [elapsedTime] in seconds.
@@ -35,8 +44,8 @@ class StateMachineInstance(val stateMachine: StateMachine) : PlayableInstance() 
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
-    override fun apply(artboard: Artboard, elapsed: Float): Boolean {
-        return cppAdvance(cppPointer, artboard.cppPointer, elapsed)
+    fun advance( elapsed: Float): Boolean {
+        return cppAdvance(cppPointer, elapsed)
     }
 
     /**

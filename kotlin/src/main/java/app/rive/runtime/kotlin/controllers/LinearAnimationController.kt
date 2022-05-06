@@ -15,23 +15,22 @@ class LinearAnimationController(
             field = value.coerceIn(0.0f, 1.0f)
         }
 
-    override fun apply(artboard: Artboard, elapsed: Float) {
+    override fun apply(elapsed: Float) {
         if (animationInstance == null) {
             // || animation can keep going?
             isActive = false
         }
 
         animationInstance?.let {
-            it.apply(artboard, this.mix)
+            it.apply(this.mix)
             it.advance(elapsed)
         }
 
     }
 
     override fun initialize(artboard: Artboard): Boolean {
-        val animation = artboard.animation(animationName)
-        val ai = LinearAnimationInstance(animation)
-        ai.apply(artboard, mix)
+        val ai = artboard.animation(animationName)
+        ai.apply(mix)
         ai.advance(0f)
         this.animationInstance = ai
 

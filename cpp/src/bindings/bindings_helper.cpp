@@ -20,9 +20,9 @@ extern "C"
 	{
 		auto fit = ::getFit(env, jfit);
 		auto alignment = ::getAlignment(env, jalignment);
-		rive::AABB* availableBounds = (rive::AABB*)availableBoundsRef;
-		rive::AABB* artboardBounds = (rive::AABB*)artboardBoundsRef;
-		rive::AABB* requiredBounds = (rive::AABB*)requiredBoundsRef;
+		auto availableBounds = (rive::AABB*)availableBoundsRef;
+		auto artboardBounds = (rive::AABB*)artboardBoundsRef;
+		auto requiredBounds = (rive::AABB*)requiredBoundsRef;
 
 		DimensionsHelper helper;
 

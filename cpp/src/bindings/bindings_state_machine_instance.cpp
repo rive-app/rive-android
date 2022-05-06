@@ -9,31 +9,16 @@ extern "C"
 #endif
 	using namespace rive_android;
 
-	// ANIMATION INSTANCE
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_core_StateMachineInstance_constructor(
-	    JNIEnv* env, jobject thisObj, jlong stateMachineRef)
-	{
-
-		auto animation = (rive::StateMachine*)stateMachineRef;
-
-		// TODO: delete this object?
-		auto stateMachineInstance = new rive::StateMachineInstance(animation);
-
-		return (jlong)stateMachineInstance;
-	}
-
 	JNIEXPORT jboolean JNICALL
 	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppAdvance(
 	    JNIEnv* env,
 	    jobject thisObj,
 	    jlong ref,
-	    jlong artboardRef,
 	    jfloat elapsedTime)
 	{
 		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
-		auto artboard = (rive::Artboard*)artboardRef;
-		return stateMachineInstance->advance(artboard, elapsedTime);
+
+		return stateMachineInstance->advance(elapsedTime);
 	}
 
 	JNIEXPORT jint JNICALL
@@ -68,6 +53,24 @@ extern "C"
 		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
 
 		return (jlong)stateMachineInstance->inputCount();
+	}
+
+	// ANIMATION
+	JNIEXPORT jstring JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppName(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+		return env->NewStringUTF(
+		    stateMachineInstance->stateMachine()->name().c_str());
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppLayerCount(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+		return (jint)stateMachineInstance->stateMachine()->layerCount();
 	}
 
 #ifdef __cplusplus

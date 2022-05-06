@@ -1,5 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "skia_factory.hpp"
 #include "rive/file.hpp"
 #include "rive/layout.hpp"
 
@@ -9,6 +10,8 @@
 #include <unistd.h>
 #include <EGL/egl.h>
 #endif
+
+static rive::SkiaFactory gFactory;
 
 // luigi: murdered this due to our single renderer model right now...all canvas
 // rendering won't work in this branch lets make sure we stich our rive android
@@ -159,9 +162,11 @@ namespace rive_android
 
 	long import(uint8_t* bytes, jint length)
 	{
-		auto reader = rive::BinaryReader(bytes, length);
-		rive::File* file = nullptr;
-		auto result = rive::File::import(reader, &file);
+		rive::ImportResult result;
+		auto file = rive::File::import(rive::Span<const uint8_t>(bytes, length),
+		                               &gFactory,
+		                               &result)
+		                .release();
 		if (result == rive::ImportResult::success)
 		{
 			return (long)file;

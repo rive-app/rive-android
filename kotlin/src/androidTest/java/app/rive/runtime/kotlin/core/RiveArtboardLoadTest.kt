@@ -5,6 +5,7 @@ import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,13 +30,22 @@ class RiveArtboardLoadTest {
         file.firstArtboard
         assertEquals(2, file.artboardCount);
         // Note index order seems to be reversed.
-        assertEquals(
+//        artbaord instances will not be the same cpp pointer.
+        assertNotEquals(
             file.artboard(name = "artboard1").cppPointer,
             file.artboard(1).cppPointer
         )
         assertEquals(
+            file.artboard(name = "artboard1").name,
+            file.artboard(1).name
+        )
+        assertNotEquals(
             file.artboard(name = "artboard2").cppPointer,
             file.artboard(0).cppPointer
+        )
+        assertEquals(
+            file.artboard(name = "artboard2").name,
+            file.artboard(0).name
         )
         assertEquals(listOf<String>("artboard2", "artboard1"), file.artboardNames)
     }

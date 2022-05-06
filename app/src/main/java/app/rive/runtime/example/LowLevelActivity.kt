@@ -45,7 +45,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
         override fun advance(elapsed: Float) {
             instance.advance(elapsed)
-            instance.apply(artboard)
+            instance.apply()
             artboard.advance(elapsed)
         }
     }
@@ -55,7 +55,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
     // Objects that the renderer needs for drawing
     private var artboard: Artboard = file.firstArtboard
-    private var instance: LinearAnimationInstance = LinearAnimationInstance(artboard.firstAnimation)
+    private var instance: LinearAnimationInstance = artboard.firstAnimation
 
     private var bounds: AABB = AABB(100f, 100f)
 

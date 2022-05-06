@@ -8,7 +8,7 @@ abstract class RiveController<T> {
         return true
     }
 
-    abstract fun apply(artboard: T, elapsed: Float)
+    abstract fun apply(elapsed: Float)
     protected open fun onActivate() {}
     protected open fun onDeactivate() {}
     open fun dispose() {}
