@@ -207,7 +207,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
             if (it.isBoolean) {
                 val boolBox = AppCompatCheckBox(this)
-                if ((it as StateMachineBooleanInput).value) {
+                if ((it as SMIBoolean).value) {
                     boolBox.isChecked = true
                 }
                 boolBox.setOnCheckedChangeListener { _, b ->
@@ -218,7 +218,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
             if (it.isNumber) {
                 val editText = AppCompatEditText(this)
-                editText.setText((it as StateMachineNumberInput).value.toString())
+                editText.setText((it as SMINumber).value.toString())
                 val editTriggerButton = AppCompatButton(this)
                 editTriggerButton.text = "Apply"
                 editTriggerButton.background.setTint(Color.WHITE)
@@ -331,9 +331,9 @@ class AndroidPlayerActivity : AppCompatActivity() {
             override fun notifyPlay(animation: PlayableInstance) {
                 var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    text = animation.animation.name
+                    text = animation.name
                 } else if (animation is StateMachineInstance) {
-                    text = animation.stateMachine.name
+                    text = animation.name
                 }
                 text?.let { theText ->
                     runOnUiThread {
@@ -350,9 +350,9 @@ class AndroidPlayerActivity : AppCompatActivity() {
             override fun notifyPause(animation: PlayableInstance) {
                 var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    text = animation.animation.name
+                    text = animation.name
                 } else if (animation is StateMachineInstance) {
-                    text = animation.stateMachine.name
+                    text = animation.name
                 }
                 text?.let {
                     runOnUiThread {
@@ -369,9 +369,9 @@ class AndroidPlayerActivity : AppCompatActivity() {
             override fun notifyStop(animation: PlayableInstance) {
                 var text: String? = null
                 if (animation is LinearAnimationInstance) {
-                    text = animation.animation.name
+                    text = animation.name
                 } else if (animation is StateMachineInstance) {
-                    text = animation.stateMachine.name
+                    text = animation.name
                 }
                 text?.let {
                     runOnUiThread {
@@ -389,7 +389,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
                 if (animation is LinearAnimationInstance) {
                     runOnUiThread {
                         val text = TextView(that)
-                        text.text = "Loop ${animation.animation.name}"
+                        text.text = "Loop ${animation.name}"
                         events.addView(text, 0)
                     }
                 }

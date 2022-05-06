@@ -136,7 +136,7 @@ class RiveEventTest {
             view.play("one", Loop.ONESHOT)
 
             view.renderer.advance(
-                view.renderer.animations.first().animation.effectiveDurationInSeconds + 1
+                view.renderer.animations.first().effectiveDurationInSeconds + 1
             )
 
             assertEquals(1, observer.plays.size)
@@ -158,7 +158,7 @@ class RiveEventTest {
             view.play("one", Loop.LOOP)
 
             view.renderer.advance(
-                view.renderer.animations.first().animation.effectiveDurationInSeconds
+                view.renderer.animations.first().effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)
@@ -180,7 +180,7 @@ class RiveEventTest {
             view.play("one", Loop.PINGPONG)
 
             view.renderer.advance(
-                view.renderer.animations.first().animation.effectiveDurationInSeconds
+                view.renderer.animations.first().effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)
@@ -198,8 +198,10 @@ class RiveEventTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assertEquals(observer.states.size, 1)
+            view.renderer.advance(0f)
             assertEquals(true, observer.states[0].stateMachineName == "State Machine 2")
             assertEquals(true, observer.states[0].stateName == "go right")
+            view.renderer.advance(2f)
             view.renderer.advance(2f)
             assertEquals(2, observer.states.size)
             assertEquals(true, observer.states[1].stateName == "ExitState")

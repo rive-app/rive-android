@@ -19,11 +19,12 @@ extern "C"
 		return (jlong)file;
 	}
 
+	// todo return default artboard instance.
 	JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboard(
 	    JNIEnv* env, jobject thisObj, jlong ref)
 	{
-		rive::File* file = (rive::File*)ref;
-		return (jlong)file->artboard();
+		auto file = (rive::File*)ref;
+		return (jlong)file->artboardAt(0).release();
 	}
 
 	JNIEXPORT jlong JNICALL
@@ -32,15 +33,15 @@ extern "C"
 	                                                         jlong ref,
 	                                                         jstring name)
 	{
-		rive::File* file = (rive::File*)ref;
-		return (jlong)file->artboard(jstring2string(env, name));
+		auto file = (rive::File*)ref;
+		return (jlong)file->artboardNamed(jstring2string(env, name)).release();
 	}
 
 	JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_File_cppDelete(
 	    JNIEnv* env, jobject thisObj, jlong ref)
 	{
 		// if we're wiping the file, we really should wipe all those refs?
-		rive::File* file = (rive::File*)ref;
+		auto file = (rive::File*)ref;
 		delete file;
 	}
 
@@ -49,7 +50,7 @@ extern "C"
 	                                                        jobject thisObj,
 	                                                        jlong ref)
 	{
-		rive::File* file = (rive::File*)ref;
+		auto file = (rive::File*)ref;
 
 		return (jint)file->artboardCount();
 	}
@@ -60,8 +61,8 @@ extern "C"
 	                                                          jlong ref,
 	                                                          jint index)
 	{
-		rive::File* file = (rive::File*)ref;
-		return (jlong)file->artboard(index);
+		auto file = (rive::File*)ref;
+		return (jlong)file->artboardAt(index).release();
 	}
 
 #ifdef __cplusplus

@@ -32,7 +32,7 @@ class RiveViewStateMachineTest {
             assertEquals(listOf("New Artboard"), mockView.file?.artboardNames)
             assertEquals(
                 listOf("one", "two"),
-                mockView.stateMachines.map { it.stateMachine.name }.toList()
+                mockView.stateMachines.map { it.name }.toList()
             )
         }
     }
@@ -45,7 +45,7 @@ class RiveViewStateMachineTest {
             mockView.artboardName = "New Artboard"
             assertEquals(
                 listOf<String>(),
-                mockView.stateMachines.map { it.stateMachine.name }.toList()
+                mockView.stateMachines.map { it.name }.toList()
             )
         }
     }

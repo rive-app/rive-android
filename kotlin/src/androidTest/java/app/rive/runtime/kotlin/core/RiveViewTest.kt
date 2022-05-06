@@ -40,7 +40,7 @@ class RiveViewTest {
             assertEquals(listOf("artboard2", "artboard1"), mockView.file?.artboardNames)
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
-                mockView.animations.map { it.animation.name }.toList()
+                mockView.animations.map { it.name }.toList()
             )
         }
     }
@@ -53,7 +53,7 @@ class RiveViewTest {
             mockView.artboardName = "artboard1"
             assertEquals(
                 listOf("artboard1animation1"),
-                mockView.animations.map { it.animation.name }.toList()
+                mockView.animations.map { it.name }.toList()
             )
         }
 
@@ -68,12 +68,12 @@ class RiveViewTest {
             mockView.artboardName = "artboard2"
             assertEquals(
                 listOf<String>(),
-                mockView.animations.map { it.animation.name }.toList()
+                mockView.animations.map { it.name }.toList()
             )
             mockView.play(listOf("artboard2animation1", "artboard2animation2"))
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
-                mockView.animations.map { it.animation.name }.toList()
+                mockView.animations.map { it.name }.toList()
             )
         }
     }
@@ -105,19 +105,19 @@ class RiveViewTest {
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.pause("junk")
             assertEquals(true, mockView.isPlaying)
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("one", "two", "three", "four")
             )
 
             mockView.pause("one")
             assertEquals(true, mockView.isPlaying)
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("two", "three", "four")
             )
             mockView.pause("two")
@@ -133,7 +133,7 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
 
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf<LinearAnimationInstance>()
             )
         }
@@ -146,14 +146,14 @@ class RiveViewTest {
             mockView.play(listOf("one", "two", "three", "four"))
             assertEquals(true, mockView.isPlaying)
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("one", "two", "three", "four")
             )
 
             mockView.pause(listOf("one", "three"))
             assertEquals(true, mockView.isPlaying)
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("two", "four")
             )
 
@@ -163,7 +163,7 @@ class RiveViewTest {
             mockView.renderer.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf<LinearAnimationInstance>()
             )
         }
@@ -190,13 +190,13 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play("one")
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("one"),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
         }
     }
@@ -208,7 +208,7 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play("junk")
         }
@@ -221,13 +221,13 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play(listOf("one", "two"))
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("one", "two"),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet()
+                mockView.playingAnimations.map { it.name }.toHashSet()
             )
         }
     }
@@ -345,22 +345,22 @@ class RiveViewTest {
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
             )
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
-                mockView.animations.map { it.animation.name }.toHashSet(),
+                mockView.animations.map { it.name }.toHashSet(),
             )
 
             mockView.stop(listOf("one", "three"))
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("two", "four"),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
             )
             assertEquals(
                 hashSetOf("two", "four"),
-                mockView.animations.map { it.animation.name }.toHashSet(),
+                mockView.animations.map { it.name }.toHashSet(),
             )
 
             mockView.stop(listOf("two", "four"))
@@ -370,11 +370,11 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<String>(),
-                mockView.playingAnimations.map { it.animation.name }.toHashSet(),
+                mockView.playingAnimations.map { it.name }.toHashSet(),
             )
             assertEquals(
                 hashSetOf<String>(),
-                mockView.animations.map { it.animation.name }.toHashSet(),
+                mockView.animations.map { it.name }.toHashSet(),
             )
         }
     }
@@ -387,20 +387,20 @@ class RiveViewTest {
 
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
-                mockView.animations.map { it.animation.name }.toHashSet()
+                mockView.animations.map { it.name }.toHashSet()
             )
             mockView.stop("junk")
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
-                mockView.animations.map { it.animation.name }.toHashSet()
+                mockView.animations.map { it.name }.toHashSet()
             )
 
             mockView.stop("one")
             assertEquals(true, mockView.isPlaying)
             assertEquals(
                 hashSetOf("two", "three", "four"),
-                mockView.animations.map { it.animation.name }.toHashSet()
+                mockView.animations.map { it.name }.toHashSet()
             )
 
             mockView.stop("two")
@@ -417,7 +417,7 @@ class RiveViewTest {
 
             assertEquals(
                 hashSetOf<LinearAnimationInstance>(),
-                mockView.animations.map { it.animation.name }.toHashSet()
+                mockView.animations.map { it.name }.toHashSet()
             )
         }
     }
