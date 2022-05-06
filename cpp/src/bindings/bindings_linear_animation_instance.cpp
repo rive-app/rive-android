@@ -10,20 +10,6 @@ extern "C"
 #endif
 	using namespace rive_android;
 
-	// ANIMATION INSTANCE
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_constructor(
-	    JNIEnv* env, jobject thisObj, jlong animationRef)
-	{
-
-		rive::LinearAnimation* animation = (rive::LinearAnimation*)animationRef;
-
-		// TODO: delete this object?
-		auto animationInstance = new rive::LinearAnimationInstance(animation);
-
-		return (jlong)animationInstance;
-	}
-
 	JNIEXPORT jobject JNICALL
 	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvance(
 	    JNIEnv* env, jobject thisObj, jlong ref, jfloat elapsedTime)
@@ -63,11 +49,10 @@ extern "C"
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppApply(
-	    JNIEnv* env, jobject thisObj, jlong ref, jlong artboardRef, jfloat mix)
+	    JNIEnv* env, jobject thisObj, jlong ref, jfloat mix)
 	{
 		auto animationInstance = (rive::LinearAnimationInstance*)ref;
-		auto artboard = (rive::Artboard*)artboardRef;
-		animationInstance->apply(artboard, mix);
+		animationInstance->apply(mix);
 	}
 
 	JNIEXPORT jfloat JNICALL
@@ -118,6 +103,49 @@ extern "C"
 		auto* animationInstance = (rive::LinearAnimationInstance*)ref;
 
 		animationInstance->loopValue(loopType);
+	}
+
+	// ANIMATION
+	JNIEXPORT jstring JNICALL
+	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppName(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+
+		auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+		return env->NewStringUTF(
+		    animationInstance->animation()->name().c_str());
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDuration(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+		return (jint)animationInstance->animation()->duration();
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppFps(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+		return (jint)animationInstance->animation()->fps();
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkStart(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+		return (jint)animationInstance->animation()->workStart();
+	}
+
+	JNIEXPORT jint JNICALL
+	Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkEnd(
+	    JNIEnv* env, jobject thisObj, jlong ref)
+	{
+		auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+		return (jint)animationInstance->animation()->workEnd();
 	}
 
 #ifdef __cplusplus

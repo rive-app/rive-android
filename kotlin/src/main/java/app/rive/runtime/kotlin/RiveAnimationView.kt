@@ -507,8 +507,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
-            playingAnimationsNames = playingAnimations.map { it.animation.name },
-            playingStateMachineNames = playingStateMachines.map { it.stateMachine.name }
+            playingAnimationsNames = playingAnimations.map { it.name },
+            playingStateMachineNames = playingStateMachines.map { it.name }
         )
         pause()
         renderer.stop()

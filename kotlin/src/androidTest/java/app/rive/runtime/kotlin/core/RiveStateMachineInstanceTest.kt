@@ -27,15 +27,13 @@ class RiveStateMachineInstanceTest {
     @Test
     fun nothing() {
         val stateMachine = file.firstArtboard.stateMachine("nothing")
-        val instance = StateMachineInstance(stateMachine)
-        assertEquals(0, instance.inputCount)
+        assertEquals(0, stateMachine.inputCount)
     }
 
     @Test
     fun number_input() {
         val stateMachine = file.firstArtboard.stateMachine("number_input")
-        val instance = StateMachineInstance(stateMachine)
-        val input = instance.input(0)
+        val input = stateMachine.input(0)
         assertEquals(false, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(true, input.isNumber)
@@ -49,9 +47,8 @@ class RiveStateMachineInstanceTest {
     @Test
     fun boolean_input() {
         val stateMachine = file.firstArtboard.stateMachine("boolean_input")
-        val instance = StateMachineInstance(stateMachine)
-        val input = instance.input(0)
-        assertEquals(1, instance.inputCount)
+        val input = stateMachine.input(0)
+        assertEquals(1, stateMachine.inputCount)
         assertEquals(true, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(false, input.isNumber)
@@ -67,8 +64,7 @@ class RiveStateMachineInstanceTest {
     @Test
     fun trigger_input() {
         val stateMachine = file.firstArtboard.stateMachine("trigger_input")
-        val instance = StateMachineInstance(stateMachine)
-        val input = instance.input(0)
+        val input = stateMachine.input(0)
         assertEquals(1, stateMachine.inputCount)
         assertEquals(false, input.isBoolean)
         assertEquals(true, input.isTrigger)
@@ -83,36 +79,35 @@ class RiveStateMachineInstanceTest {
     @Test
     fun mixed() {
         val stateMachine = file.firstArtboard.stateMachine("mixed")
-        val instance = StateMachineInstance(stateMachine)
         assertEquals(6, stateMachine.inputCount)
 
         assertEquals(
             listOf("zero", "off", "trigger", "two_point_two", "on", "three"),
             stateMachine.inputNames
         )
-        assertEquals(true, instance.input("zero").isNumber)
-        assertEquals(true, instance.input("off").isBoolean)
-        assertEquals(true, instance.input("trigger").isTrigger)
-        assertEquals(true, instance.input("two_point_two").isNumber)
-        assertEquals(true, instance.input("on").isBoolean)
-        assertEquals(true, instance.input("three").isNumber)
+        assertEquals(true, stateMachine.input("zero").isNumber)
+        assertEquals(true, stateMachine.input("off").isBoolean)
+        assertEquals(true, stateMachine.input("trigger").isTrigger)
+        assertEquals(true, stateMachine.input("two_point_two").isNumber)
+        assertEquals(true, stateMachine.input("on").isBoolean)
+        assertEquals(true, stateMachine.input("three").isNumber)
 
-        assertEquals(true, instance.input("zero") is SMINumber)
-        assertEquals(0f, (instance.input("zero") as SMINumber).value)
+        assertEquals(true, stateMachine.input("zero") is SMINumber)
+        assertEquals(0f, (stateMachine.input("zero") as SMINumber).value)
 
-        assertEquals(true, instance.input("three") is SMINumber)
-        assertEquals(3f, (instance.input("three") as SMINumber).value)
+        assertEquals(true, stateMachine.input("three") is SMINumber)
+        assertEquals(3f, (stateMachine.input("three") as SMINumber).value)
 
-        assertEquals(true, instance.input("two_point_two") is SMINumber)
-        assertEquals(2.2f, (instance.input("two_point_two") as SMINumber).value)
+        assertEquals(true, stateMachine.input("two_point_two") is SMINumber)
+        assertEquals(2.2f, (stateMachine.input("two_point_two") as SMINumber).value)
 
-        assertEquals(true, instance.input("off") is SMIBoolean)
-        assertEquals(false, (instance.input("off") as SMIBoolean).value)
+        assertEquals(true, stateMachine.input("off") is SMIBoolean)
+        assertEquals(false, (stateMachine.input("off") as SMIBoolean).value)
 
-        assertEquals(true, instance.input("on") is SMIBoolean)
-        assertEquals(true, (instance.input("on") as SMIBoolean).value)
+        assertEquals(true, stateMachine.input("on") is SMIBoolean)
+        assertEquals(true, (stateMachine.input("on") as SMIBoolean).value)
 
-        assertEquals(true, instance.input("trigger") is SMITrigger)
+        assertEquals(true, stateMachine.input("trigger") is SMITrigger)
 
 
     }

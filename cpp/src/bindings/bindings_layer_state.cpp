@@ -9,6 +9,8 @@
 #include "rive/animation/any_state.hpp"
 #include "rive/animation/animation_state.hpp"
 
+#include "rive/animation/linear_animation_instance.hpp"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -80,13 +82,15 @@ extern "C"
 		return layerState->is<rive::BlendStateDirect>();
 	}
 
-	JNIEXPORT jlong JNICALL
-	Java_app_rive_runtime_kotlin_core_AnimationState_cppAnimation(
-	    JNIEnv* env, jobject thisObj, jlong ref)
+	JNIEXPORT jstring JNICALL
+	Java_app_rive_runtime_kotlin_core_AnimationState_cppName(JNIEnv* env,
+	                                                         jobject thisObj,
+	                                                         jlong ref)
 	{
 
-		rive::AnimationState* animationState = (rive::AnimationState*)ref;
-		return (long)animationState->animation();
+		auto animationState = (rive::AnimationState*)ref;
+		// urgh this animation state is using forward declarations...
+		return env->NewStringUTF(animationState->animation()->name().c_str());
 	}
 
 #ifdef __cplusplus

@@ -7,12 +7,12 @@ package app.rive.runtime.kotlin.core
  */
 class AnimationState(cppPointer: Long) : LayerState(cppPointer) {
 
-    private external fun cppAnimation(cppPointer: Long): Long
+    private external fun cppName(cppPointer: Long): String
 
-    val animation: Animation
-        get() = Animation(cppAnimation(cppPointer))
+    val name: String
+        get() = cppName(cppPointer)
 
     override fun toString(): String {
-        return "${animation.name}"
+        return name
     }
 }

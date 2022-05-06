@@ -5,6 +5,7 @@ import app.rive.runtime.kotlin.RiveArtboardRenderer
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,7 +29,8 @@ class RiveStateMachineLoadTest {
 
         val stateMachineAlt = artboard.stateMachine(0)
         val stateMachine = artboard.stateMachine("artboard1stateMachine1")
-        assertEquals(stateMachineAlt.cppPointer, stateMachine.cppPointer)
+        assertEquals(stateMachineAlt.name, stateMachine.name)
+        assertNotEquals(stateMachineAlt.cppPointer, stateMachine.cppPointer)
         assertEquals(listOf("artboard1stateMachine1"), artboard.stateMachineNames)
     }
 
@@ -38,11 +40,13 @@ class RiveStateMachineLoadTest {
         val artboard = file.artboard("artboard2")
         val artboard2stateMachine1 = artboard.stateMachine(0)
         val artboard2stateMachine1Alt = artboard.stateMachine("artboard2stateMachine1")
-        assertEquals(artboard2stateMachine1Alt.cppPointer, artboard2stateMachine1.cppPointer)
+        assertNotEquals(artboard2stateMachine1Alt.cppPointer, artboard2stateMachine1.cppPointer)
+        assertEquals(artboard2stateMachine1Alt.name, artboard2stateMachine1.name)
 
         val artboard2stateMachine2 = artboard.stateMachine(1)
         val artboard2stateMachine2Alt = artboard.stateMachine("artboard2stateMachine2")
-        assertEquals(artboard2stateMachine2Alt.cppPointer, artboard2stateMachine2.cppPointer)
+        assertNotEquals(artboard2stateMachine2Alt.cppPointer, artboard2stateMachine2.cppPointer)
+        assertEquals(artboard2stateMachine2Alt.name, artboard2stateMachine2.name)
         assertEquals(
             listOf("artboard2stateMachine1", "artboard2stateMachine2"),
             artboard.stateMachineNames
