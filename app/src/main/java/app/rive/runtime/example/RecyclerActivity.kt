@@ -35,7 +35,8 @@ object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveFileResource>() {
     }
 }
 
-class RiveAdapter : ListAdapter<RiveFileResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
+class RiveAdapter :
+    ListAdapter<RiveFileResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
 
     class RiveViewHolder(itemView: View) :
         RecyclerView.ViewHolder(itemView) {

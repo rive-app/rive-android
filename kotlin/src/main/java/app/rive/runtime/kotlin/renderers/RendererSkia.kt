@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.renderers
 
-import android.util.Log
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper

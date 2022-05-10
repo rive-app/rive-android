@@ -15,10 +15,19 @@ namespace rive_android
 		env->DeleteLocalRef(clazz);
 		return output;
 	}
+
 	jfieldID getStaticFieldId(jclass clazz, const char* name, const char* sig)
 	{
 		JNIEnv* env = getJNIEnv();
 		jfieldID output = env->GetStaticFieldID(clazz, name, sig);
+		env->DeleteLocalRef(clazz);
+		return output;
+	}
+
+	jfieldID getFieldId(jclass clazz, const char* name, const char* sig)
+	{
+		JNIEnv* env = getJNIEnv();
+		jfieldID output = env->GetFieldID(clazz, name, sig);
 		env->DeleteLocalRef(clazz);
 		return output;
 	}
@@ -86,4 +95,14 @@ namespace rive_android
 		    getLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;");
 	};
 
+	jclass getPointerFClass() { return getClass("android/graphics/PointF"); };
+
+	jfieldID getXFieldId() { return getFieldId(getPointerFClass(), "x", "F"); }
+
+	jfieldID getYFieldId() { return getFieldId(getPointerFClass(), "y", "F"); }
+
+	jmethodID getPointFInitMethod()
+	{
+		return getMethodId(getPointerFClass(), "<init>", "(FF)V");
+	};
 } // namespace rive_android

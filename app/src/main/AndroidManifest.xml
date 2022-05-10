@@ -35,6 +35,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".SimpleActivity" />
+        <activity android:name=".EventsActivity" />
         <activity android:name=".MultipleArtboardsActivity" />
         <activity android:name=".AndroidPlayerActivity" />
         <activity android:name=".LoopModeActivity" />
