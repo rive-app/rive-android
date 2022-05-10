@@ -213,6 +213,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
     }
 
+    override fun onSurfaceTextureAvailable(
+        surfaceTexture: SurfaceTexture,
+        width: Int,
+        height: Int
+    ) {
+        super.onSurfaceTextureAvailable(surfaceTexture, width, height)
+        renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
+    }
+
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
@@ -602,6 +611,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun unregisterListener(listener: RiveArtboardRenderer.Listener) {
         renderer.unregisterListener(listener)
+    }
+
+    /// could live in RiveTextureView, but that doesnt really know
+    /// about the artboard renderer that knows about state machines?
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        event?.let{ event ->
+            val x = event.x;
+            val y = event.y;
+            when(event.action) {
+                MotionEvent.ACTION_MOVE ->renderer.pointerEvent(PointerEvents.POINTER_MOVE, x,y)
+                MotionEvent.ACTION_CANCEL ->renderer.pointerEvent(PointerEvents.POINTER_UP, x,y)
+                MotionEvent.ACTION_DOWN ->renderer.pointerEvent(PointerEvents.POINTER_DOWN, x,y)
+                MotionEvent.ACTION_UP ->renderer.pointerEvent(PointerEvents.POINTER_UP, x,y)
+            }
+        }
+        return true
     }
 }
 

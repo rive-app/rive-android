@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
+
 /**
  * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
  *
@@ -24,6 +25,9 @@ class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
     private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
     private external fun cppName(cppPointer: Long): String
     private external fun cppLayerCount(cppPointer: Long): Int
+    private external fun cppPointerDown(cppPointer: Long, x: Float, y: Float)
+    private external fun cppPointerUp(cppPointer: Long, x: Float, y: Float)
+    private external fun cppPointerMove(cppPointer: Long, x: Float, y: Float)
 
     /**
      * Return the name given to an animation
@@ -44,8 +48,20 @@ class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
-    fun advance( elapsed: Float): Boolean {
+    fun advance(elapsed: Float): Boolean {
         return cppAdvance(cppPointer, elapsed)
+    }
+
+    fun pointerDown(x: Float, y: Float) {
+        return cppPointerDown(cppPointer, x, y)
+    }
+
+    fun pointerUp(x: Float, y: Float) {
+        return cppPointerUp(cppPointer, x, y)
+    }
+
+    fun pointerMove(x: Float, y: Float) {
+        return cppPointerMove(cppPointer, x, y)
     }
 
     /**

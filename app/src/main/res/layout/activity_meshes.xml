@@ -10,11 +10,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:riveStateMachine="State Machine 1"
-        app:riveResource="@raw/prop_example" />
+        app:riveResource="@raw/prop_example"
+        app:riveStateMachine="State Machine 1" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -20,5 +20,10 @@ namespace rive_android
 	extern jfieldID getLoopLoopField();
 	extern jfieldID getPingPongLoopField();
 
+	extern jclass getPointerFClass();
+	extern jmethodID getPointFInitMethod();
+	extern jfieldID getXFieldId();
+	extern jfieldID getYFieldId();
+
 } // namespace rive_android
 #endif

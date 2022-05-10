@@ -18,12 +18,12 @@ class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
         val fpsView = findViewById<TextView>(R.id.fps)
         val fps = riveView.renderer.averageFps
         fpsView?.text =
-                java.lang.String.format(
-                        Locale.US,
-                        "Frame rate: %.1f Hz (%.2f ms)",
-                        fps,
-                        1e3f / fps
-                )
+            java.lang.String.format(
+                Locale.US,
+                "Frame rate: %.1f Hz (%.2f ms)",
+                fps,
+                1e3f / fps
+            )
     }
 
 

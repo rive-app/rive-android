@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_simple, SimpleActivity::class.java),
+        Pair(R.id.go_events, EventsActivity::class.java),
         Pair(R.id.go_multiple_artboards, MultipleArtboardsActivity::class.java),
         Pair(R.id.go_android_player, AndroidPlayerActivity::class.java),
         Pair(R.id.go_loop_mode, LoopModeActivity::class.java),

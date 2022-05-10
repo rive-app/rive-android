@@ -1,11 +1,17 @@
 package app.rive.runtime.kotlin
 
-import android.util.Log
+import android.graphics.PointF
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.*
 import kotlin.collections.HashSet
+
+
+enum class PointerEvents {
+    POINTER_DOWN, POINTER_UP, POINTER_MOVE
+}
+
 
 open class RiveArtboardRenderer(
     // PUBLIC
@@ -147,7 +153,6 @@ open class RiveArtboardRenderer(
     ): Boolean {
 
         val stillPlaying = stateMachineInstance.advance(elapsed)
-
         stateMachineInstance.statesChanged.forEach {
             notifyStateChanged(stateMachineInstance, it)
         }
@@ -200,7 +205,7 @@ open class RiveArtboardRenderer(
         stop()
         clear()
         selectedArtboard?.let { artboard ->
-            file?.let{ file ->
+            file?.let { file ->
                 setArtboard(file.artboard(artboard.name))
             }
         }
@@ -340,6 +345,30 @@ open class RiveArtboardRenderer(
         val stateMachineInstances = _getOrCreateStateMachines(stateMachineName)
         stateMachineInstances.forEach {
             (it.input(inputName) as SMINumber).value = value
+            _play(it, settleStateMachineState = false)
+        }
+    }
+
+
+    fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
+        /// TODO: once we start composing artboards we may need x,y offsets here...
+
+
+        val artboardEventLocation = Helpers.convertToArtboardSpace(
+            targetBounds,
+            PointF(x,y),
+            fit,
+            alignment,
+            artboardBounds()
+        )
+        stateMachines.forEach {
+
+            when (eventType) {
+                PointerEvents.POINTER_DOWN -> it.pointerDown(artboardEventLocation.x, artboardEventLocation.y)
+                PointerEvents.POINTER_UP -> it.pointerUp(artboardEventLocation.x, artboardEventLocation.y)
+                PointerEvents.POINTER_MOVE -> it.pointerMove(artboardEventLocation.x, artboardEventLocation.y)
+
+            }
             _play(it, settleStateMachineState = false)
         }
     }
@@ -486,7 +515,7 @@ open class RiveArtboardRenderer(
 
     private fun selectArtboard() {
         file?.let { file ->
-            artboardName?.let{ artboardName ->
+            artboardName?.let { artboardName ->
                 selectedArtboard = file.artboard(artboardName)
                 selectedArtboard?.let { selectedArtboard ->
                     setArtboard(selectedArtboard)
@@ -505,12 +534,16 @@ open class RiveArtboardRenderer(
         this.activeArtboard = artboard
 
         if (autoplay) {
-            animationName?.let { animationName->
+            animationName?.let { animationName ->
                 play(animationName = animationName)
             } ?: run {
                 stateMachineName?.let { stateMachineName ->
                     // With autoplay, we default to settling the initial state
-                    play(animationName = stateMachineName, isStateMachine = true, settleInitialState = true)
+                    play(
+                        animationName = stateMachineName,
+                        isStateMachine = true,
+                        settleInitialState = true
+                    )
                 } ?: run {
                     // With autoplay, we default to settling the initial state
                     play(settleInitialState = true)
