@@ -45,11 +45,11 @@ class TestUtils {
     class MockNoopArtboardRenderer : RiveArtboardRenderer() {
         /** NOP */
         override fun scheduleFrame() {
-
         }
 
         /** NOP */
         override fun draw() {}
+
     }
 
     /**
@@ -58,6 +58,10 @@ class TestUtils {
     class MockNoopRiveAnimationView(context: Context) : RiveAnimationView(context) {
         override fun makeRenderer(): MockNoopArtboardRenderer {
             return MockNoopArtboardRenderer()
+        }
+
+        fun setBounds(width:Float, height:Float) {
+            renderer.targetBounds = AABB(width, height)
         }
     }
 

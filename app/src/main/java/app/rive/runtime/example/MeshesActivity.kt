@@ -1,7 +1,7 @@
 package app.rive.runtime.example
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 
 class MeshesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

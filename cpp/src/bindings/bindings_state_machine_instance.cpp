@@ -11,10 +11,7 @@ extern "C"
 
 	JNIEXPORT jboolean JNICALL
 	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppAdvance(
-	    JNIEnv* env,
-	    jobject thisObj,
-	    jlong ref,
-	    jfloat elapsedTime)
+	    JNIEnv* env, jobject thisObj, jlong ref, jfloat elapsedTime)
 	{
 		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
 
@@ -71,6 +68,30 @@ extern "C"
 	{
 		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
 		return (jint)stateMachineInstance->stateMachine()->layerCount();
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerDown(
+	    JNIEnv* env, jobject thisObj, jlong ref, jfloat x, jfloat y)
+	{
+		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+		stateMachineInstance->pointerDown(rive::Vec2D(x, y));
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerMove(
+	    JNIEnv* env, jobject thisObj, jlong ref, jfloat x, jfloat y)
+	{
+		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+		stateMachineInstance->pointerMove(rive::Vec2D(x, y));
+	}
+
+	JNIEXPORT void JNICALL
+	Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerUp(
+	    JNIEnv* env, jobject thisObj, jlong ref, jfloat x, jfloat y)
+	{
+		auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+		stateMachineInstance->pointerUp(rive::Vec2D(x, y));
 	}
 
 #ifdef __cplusplus

@@ -22,6 +22,12 @@
                 android:text="Simple" />
 
             <Button
+                android:id="@+id/go_events"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="Touch Events" />
+
+            <Button
                 android:id="@+id/go_multiple_artboards"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
