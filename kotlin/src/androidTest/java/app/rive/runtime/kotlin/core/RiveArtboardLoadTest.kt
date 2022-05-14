@@ -57,6 +57,16 @@ class RiveArtboardLoadTest {
     }
 
     @Test
+    fun loadArtboardWithLongName() {
+        var file = File(appContext.resources.openRawResource(R.raw.long_artboard_name).readBytes())
+        assertEquals(
+            "super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long ",
+            file.firstArtboard.name
+        )
+
+    }
+
+    @Test
     fun loadArtboardNoArtboardCheck() {
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
         assertEquals(0, file.artboardCount);
