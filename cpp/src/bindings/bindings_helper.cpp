@@ -59,8 +59,8 @@ extern "C"
 
 		return env->NewObject(getPointerFClass(),
 		                      getPointFInitMethod(),
-		                      convertedLocation.x(),
-		                      convertedLocation.y());
+		                      convertedLocation.x,
+		                      convertedLocation.y);
 	}
 
 #ifdef __cplusplus
