@@ -278,8 +278,8 @@ source ~/.zshenv
 git add .
 ```
 
-5. Run the test suite
-6. Commit the submodule updates / new `.so` files to a branch, and submit a PR to `master`
+4. Run the test suite
+5. Commit the submodule updates / new `.so` files to a branch, and submit a PR to `master`
 
 ### Updating Dokka docs
 
