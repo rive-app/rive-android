@@ -46,9 +46,17 @@ if [ -z "$ARCH_NAME" ]; then
     usage
 fi
 
+EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
-    echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/22.1.7171670"
+    echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
+    exit 1
+# Check NDK version
+elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION} ]]; then
+    echo "Wrong NDK version"
+    echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
+    echo "Found ${NDK_PATH}"
     exit 1
 fi
 
