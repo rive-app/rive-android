@@ -253,13 +253,20 @@ cd ../..
 git add .
 ```
 
-3. The Android NDK builds `.so` files for [different architectures](https://developer.android.com/ndk/guides/abis), and we need to rebuild new `.so` files (located in `/kotlin/src/main/jniLibs/`) when pulling in latest changes from `rive-cpp`:
+3. The Android NDK builds `.so` files for [different architectures](https://developer.android.com/ndk/guides/abis). <br />
+   The current NDK version we're using is stored in [.ndk_version](./cpp/.ndk_version) ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version)) <br />
+   We also need to rebuild new `.so` files (located in `/kotlin/src/main/jniLibs/`) when pulling in latest changes from `rive-cpp`:
 
 ```bash
 cd cpp/
 # Builds .so files for each architecture
 # Note: You may need to install a few dependencies for this script to run
-# Android NDK - install v22.1.717670 from the SDK manager
+
+# Add NDK_PATH variable to your .zshenv
+NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+echo 'export NDK_PATH=~/Library/Android/sdk/ndk/${NDK_VERSION}' >> ~/.zshenv
+source ~/.zshenv
+
 # Ninja - brew install ninja
 # Premake5 - Need to add to your path
 ./build.all.sh
