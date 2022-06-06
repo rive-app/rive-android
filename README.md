@@ -275,6 +275,11 @@ git add .
 ```
 
 4. Run the test suite
+
+- open in Android Studio
+- right-click on kotlin/src/androidTest
+- "Run 'All Tests'"
+
 5. Commit the submodule updates / new `.so` files to a branch, and submit a PR to `master`
 
 ### Updating Dokka docs
