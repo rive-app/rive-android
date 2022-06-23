@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+
 set -ex
 
 source ./get_skia.sh

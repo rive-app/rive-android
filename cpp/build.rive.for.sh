@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 ARCH_X86=x86
