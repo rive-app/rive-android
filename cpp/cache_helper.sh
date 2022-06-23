@@ -5,7 +5,7 @@ set -e
 # required envs
 RIVE_CPP_DIR="${RIVE_CPP_DIR:=../..}"
 SKIA_DIR="${SKIA_DIR:=skia}"
-SKIA_REPO=${SKIA_DIR:-https://github.com/rive-app/skia}
+SKIA_REPO=${SKIA_REPO:-https://github.com/rive-app/skia}
 SKIA_BRANCH=${SKIA_BRANCH:-rive}
 COMPILE_TARGET="${COMPILE_TARGET:-$(uname -s)_$(uname -m)}"
 CACHE_NAME="${CACHE_NAME:=skia}"

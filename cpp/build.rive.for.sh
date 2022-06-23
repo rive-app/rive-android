@@ -67,15 +67,15 @@ elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
 fi
 
 # Common variables.
-TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG
-export LIBRIVE=$PWD/../submodules/rive-cpp
-export SYSROOT=$TOOLCHAIN/sysroot
-export INCLUDE=$SYSROOT/usr/include
-export INCLUDE_CXX=$INCLUDE/c++/v1
+TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
+export LIBRIVE="$PWD/../submodules/rive-cpp"
+export SYSROOT="$TOOLCHAIN/sysroot"
+export INCLUDE="$SYSROOT/usr/include"
+export INCLUDE_CXX="$INCLUDE/c++/v1"
 export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
-export AR=$TOOLCHAIN/bin/llvm-ar
-export SKIA_REPO=https://github.com/rive-app/skia
-export SKIA_BRANCH=rive
+export AR="$TOOLCHAIN/bin/llvm-ar"
+export SKIA_REPO="https://github.com/rive-app/skia"
+export SKIA_BRANCH="rive"
 export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
 export CACHE_NAME="rive_skia_android"
 
