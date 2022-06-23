@@ -3,20 +3,49 @@ name: Test Suite
 on: pull_request
 
 jobs:
-  build:
-    runs-on: macos-latest
+  build-x86:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with: 
+          submodules: true
+          token: ${{ secrets.PAT_GITHUB }}
+        
       - name: Update Java
         uses: actions/setup-java@v2
         with: 
           distribution: 'zulu' 
           java-version: '16'
-
-      - name: Test Android v30
-        uses: reactivecircus/android-emulator-runner@v2
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
         with:
-          api-level: 30
-          target: google_apis
-          script: ./gradlew kotlin:connectedAndroidTest
+          ndk-version: r22b
+          add-to-path: false
+      - name: Build rive for x86
+        run: |
+          cd cpp && ./build.rive.for.sh -c -a x86 
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+    # runs-on: macos-latest
+    # steps:
+    #   - name: Checkout Code
+    #     uses: actions/checkout@v2
+        
+    #   - name: Update Java
+    #     uses: actions/setup-java@v2
+    #     with: 
+    #       distribution: 'zulu' 
+    #       java-version: '16'
+      
+    #   - name: Build all 
+    #     run: |
+    #       cd cpp && ./build.all.sh
+
+    #   - name: Test Android v30
+    #     uses: reactivecircus/android-emulator-runner@v2
+    #     with:
+    #       api-level: 30
+    #       target: google_apis
+    #       script: ./gradlew kotlin:connectedAndroidTest
