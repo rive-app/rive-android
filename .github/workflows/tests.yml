@@ -22,6 +22,18 @@ jobs:
         with:
           ndk-version: r22b
           add-to-path: false
+      - name: Installing pre-requisites
+        run: |
+          set -x
+          
+          # Install some dependencies & premake5
+          sudo apt update && sudo apt-get -y install build-essential cmake wget clang g++ libgl1-mesa-dev libvorbis-dev libvpx-dev ninja-build
+          wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha15/premake-5.0.0-alpha15-linux.tar.gz
+          tar -xf premake-5.0.0-alpha15-linux.tar.gz
+          mkdir bin
+          cp premake5 bin/premake5
+          sudo chmod a+x premake5
+          sudo mv premake5 /usr/local/bin      
       - name: Build rive for x86
         run: |
           cd cpp && ./build.rive.for.sh -c -a x86 
