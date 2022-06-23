@@ -46,16 +46,21 @@ if [ -z "$ARCH_NAME" ]; then
     usage
 fi
 
-EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+else 
+    EXPECTED_NDK_VERSION=$(tr <.ndk_version.bots -d " \t\n\r")
+fi 
 
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
     echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
     exit 1
-# Check NDK version
-elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION} ]]; then
+# Check NDK version 
+elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "Wrong NDK version"
     echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
+    echo "          /opt/hostedtoolcache/ndk/${EXPECTED_NDK_VERSION}/x64"
     echo "Found ${NDK_PATH}"
     exit 1
 fi
