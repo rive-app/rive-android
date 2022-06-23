@@ -38,11 +38,11 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-DSK_GL \
 		-I$(LIBRIVE)/include \
 		-I$(LIBRIVE)/renderer/library/include \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/ \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/core \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/effects \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/gpu \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/config \
+		-I${LIBRIVE}/skia/dependencies/skia/ \
+		-I${LIBRIVE}/skia/dependencies/skia/include/core \
+		-I${LIBRIVE}/skia/dependencies/skia/include/effects \
+		-I${LIBRIVE}/skia/dependencies/skia/include/gpu \
+		-I${LIBRIVE}/skia/dependencies/skia/include/config \
 		-I${LIBRIVE}/skia/renderer/include \
 		$(CXXFLAGS)
 

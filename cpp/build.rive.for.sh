@@ -68,7 +68,12 @@ export INCLUDE=$SYSROOT/usr/include
 export INCLUDE_CXX=$INCLUDE/c++/v1
 export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
 export AR=$TOOLCHAIN/bin/llvm-ar
+export SKIA_REPO=https://github.com/rive-app/skia
+export SKIA_BRANCH=rive
+export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
+export CACHE_NAME="rive_skia_android"
 
+API=21
 SKIA_ARCH=
 
 buildFor() {
@@ -76,6 +81,8 @@ buildFor() {
     pwd
     # copy our make Skia script into the right folder.
     cp make_skia_android.sh "$LIBRIVE"/skia/dependencies
+    cp get_skia.sh "$LIBRIVE"/skia/dependencies
+    cp cache_helper.sh "$LIBRIVE"/skia/dependencies
     pushd "$LIBRIVE"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
 
@@ -98,7 +105,7 @@ buildFor() {
 
     # copy in newly built rive/skia/skia_renderer files.
     cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/dependencies/skia_rive_optimized/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+    cp "$LIBRIVE"/skia/dependencies/skia/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
     cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
@@ -111,7 +118,7 @@ buildFor() {
     cp "$BUILD_DIR"/libjnirivebridge.so "$JNI_DEST"
 }
 
-API=21
+
 
 if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="
