@@ -100,6 +100,9 @@ jobs:
           run: ls -R
           name: android-x86_64-so
           path: kotlin/src/main/jniLibs/x86_64/
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: kotlin/src/main/jniLibs/
       
       - name: Test Android v30
         uses: reactivecircus/android-emulator-runner@v2

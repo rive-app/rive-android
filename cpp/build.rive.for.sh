@@ -78,6 +78,7 @@ export SKIA_REPO="https://github.com/rive-app/skia"
 export SKIA_BRANCH="rive"
 export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
 export CACHE_NAME="rive_skia_android"
+export MAKE_SKIA_FILE="make_skia_android.sh"
 
 API=21
 SKIA_ARCH=

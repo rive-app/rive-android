@@ -10,6 +10,7 @@ SKIA_BRANCH=${SKIA_BRANCH:-rive}
 COMPILE_TARGET="${COMPILE_TARGET:-$(uname -s)_$(uname -m)}"
 CACHE_NAME="${CACHE_NAME:=skia}"
 OUTPUT_CACHE="${OUTPUT_CACHE:=out}"
+MAKE_SKIA_FILE="${MAKE_SKIA_FILE:=make_skia_android.sh}"
 
 # lets just make sure this exists, or fail
 if [[ ! -d $RIVE_CPP_DIR ]]
@@ -33,15 +34,16 @@ if test -f "$ARCHIVE_CONTENTS_PATH"; then
     ARCHIVE_CONTENTS="$(cat $ARCHIVE_CONTENTS_PATH)"
 fi
 
-# is OS_RELEASE too much?
+# TODO: could add OS_RELEASE in if portability is a problem
+# TODO: hmm how do we know the make skia script.. i guess its an arg? a back arg?
 if [[ $OSTYPE == 'darwin'* ]]; then
     # md5 -r == md5sum
-    CONFIGURE_VERSION=$(md5 -r configure_skia.sh|awk '{print $1}')
-    MAKE_SKIA_HASH=$(md5 -r $SKIA_DEPENDENCIES_DIR/make_skia_recorder.sh|awk '{print $1}')
+    CONFIGURE_VERSION=$(md5 -r cache_helper.sh|awk '{print $1}')
+    MAKE_SKIA_HASH=$(md5 -r $SKIA_DEPENDENCIES_DIR/$MAKE_SKIA_FILE|awk '{print $1}')
     BUILD_HASH=$(md5 -r -s "$SKIA_COMMIT_HASH $MAKE_SKIA_HASH $CONFIGURE_VERSION" | awk '{print $1}')
 else 
-    CONFIGURE_VERSION=$(md5sum configure_skia|awk '{print $1}')
-    MAKE_SKIA_HASH=$(md5sum $SKIA_DEPENDENCIES_DIR/make_skia_recorder.sh|awk '{print $1}')
+    CONFIGURE_VERSION=$(md5sum cache_helper.sh|awk '{print $1}')
+    MAKE_SKIA_HASH=$(md5sum $SKIA_DEPENDENCIES_DIR/$MAKE_SKIA_FILE|awk '{print $1}')
     BUILD_HASH=$(echo "$SKIA_COMMIT_HASH $MAKE_SKIA_HASH $CONFIGURE_VERSION" | md5sum | awk '{print $1}')
 fi
 
@@ -55,10 +57,9 @@ ARCHIVE_PATH="$SKIA_RECORDER_DIR/$ARCHIVE_FILE_NAME"
 
 pull_cache() {
     echo "Grabbing cached build from $ARCHIVE_URL"
-    pwd
     curl --output $SKIA_RECORDER_DIR/$ARCHIVE_FILE_NAME $ARCHIVE_URL 
     pushd $SKIA_RECORDER_DIR
-    tar -xf $ARCHIVE_FILE_NAME out archive_contents third_party
+    tar -xf $ARCHIVE_FILE_NAME out include archive_contents third_party
 }
 
 is_build_cached_remotely() {
@@ -73,14 +74,10 @@ is_build_cached_remotely() {
 
 upload_cache() {
     pushd ./$SKIA_DEPENDENCIES_DIR
-
     echo $EXPECTED_ARCHIVE_CONTENTS > $SKIA_DIR/$ARCHIVE_CONTENTS_NAME
     # not really sure about this third party biz
     # also we are caching on a per architecture path here, but out could contain more :thinking:
-    pwd 
-    ls -al 
-    ls -al $SKIA_DIR/out
-    tar -C $SKIA_DIR -cf $SKIA_DIR/$ARCHIVE_FILE_NAME $OUTPUT_CACHE $ARCHIVE_CONTENTS_NAME third_party/libpng third_party/externals/libpng
+    tar -C $SKIA_DIR -cf $SKIA_DIR/$ARCHIVE_FILE_NAME $OUTPUT_CACHE $ARCHIVE_CONTENTS_NAME include third_party/libpng third_party/externals/libpng
 
     popd
 
