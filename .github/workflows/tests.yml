@@ -64,8 +64,8 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: android-${{matrix.arch}}-so
-          path: kotlin/src/main/jniLibs/${{matrix.arch}}/libjnirivebridge.so
+          name: android-so
+          path: kotlin/src/main/jniLibs/${{matrix.arch}}
 
   run-tests:
     needs: build-android-so
@@ -82,24 +82,8 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          run: ls -R
-          name: android-x86-so
-          path: kotlin/src/main/jniLibs/x86/
-      - uses: actions/download-artifact@v3
-        with:
-          run: ls -R
-          name: android-armeabi-v7a-so
-          path: kotlin/src/main/jniLibs/armeabi-v7a/
-      - uses: actions/download-artifact@v3
-        with:
-          run: ls -R
-          name: android-arm64-v8a-so
-          path: kotlin/src/main/jniLibs/arm64-v8a/
-      - uses: actions/download-artifact@v3
-        with:
-          run: ls -R
-          name: android-x86_64-so
-          path: kotlin/src/main/jniLibs/x86_64/
+          name: android-so
+          path: kotlin/src/main/jniLibs/
       - name: Display structure of downloaded files
         run: ls -R
         working-directory: kotlin/src/main/jniLibs/

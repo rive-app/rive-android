@@ -57,6 +57,7 @@ ARCHIVE_PATH="$SKIA_RECORDER_DIR/$ARCHIVE_FILE_NAME"
 
 pull_cache() {
     echo "Grabbing cached build from $ARCHIVE_URL"
+    mkdir -p $SKIA_RECORDER_DIR
     curl --output $SKIA_RECORDER_DIR/$ARCHIVE_FILE_NAME $ARCHIVE_URL 
     pushd $SKIA_RECORDER_DIR
     tar -xf $ARCHIVE_FILE_NAME out include archive_contents third_party
