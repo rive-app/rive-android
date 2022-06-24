@@ -5,18 +5,29 @@ on: pull_request
 jobs:
   build-x86:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: us-west-2
+          role-to-assume:  ${{ secrets.ACTIONS_ROLE }}
+
       - name: Checkout Code
         uses: actions/checkout@v3
         with: 
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
+
         
       - name: Update Java
         uses: actions/setup-java@v2
         with: 
           distribution: 'zulu' 
           java-version: '16'
+
       - uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
