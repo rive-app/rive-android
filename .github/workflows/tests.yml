@@ -3,32 +3,42 @@ name: Test Suite
 on: pull_request
 
 jobs:
-  build-x86:
+  build-android-so:
+    strategy:
+      matrix:
+        arch: ["x86", "x86_64", "arm64-v8a", "armeabi-v7a"]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
+      - name: Cache .so
+        id: cache-so
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{github.workspace}}/android-ndk-r22b
+          # we are JUST going to cache for this workflow. 
+          # really we could cache flutter way more (based on the flutter version)
+          key: android-ndk-r22b-linux-x86_64
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: us-west-2
           role-to-assume:  ${{ secrets.ACTIONS_ROLE }}
-
       - name: Checkout Code
         uses: actions/checkout@v3
         with: 
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
-
-        
+          
       - name: Update Java
         uses: actions/setup-java@v2
         with: 
           distribution: 'zulu' 
           java-version: '16'
-      
-      
+
       - name: Installing pre-requisites
         run: |
           set -x
@@ -40,9 +50,9 @@ jobs:
           cp premake5 bin/premake5
           sudo chmod a+x premake5
           sudo mv premake5 /usr/local/bin      
-      
+
       - name: Cache NDK
-        id: cache
+        id: cache-ndk
         uses: actions/cache@v3
         with:
           path: |
@@ -50,38 +60,60 @@ jobs:
           # we are JUST going to cache for this workflow. 
           # really we could cache flutter way more (based on the flutter version)
           key: android-ndk-r22b-linux-x86_64
-
       - name: Get and Unzip NDK
-        if: ${{steps.cache.outputs.cache-hit != 'true'}}
+        if: ${{steps.cache-ndk.outputs.cache-hit != 'true'}}
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r22b-linux-x86_64.zip
+          wget -q https://dl.google.com/android/repository/android-ndk-r22b-linux-x86_64.zip
           unzip android-ndk-r22b-linux-x86_64.zip
           ls
-
-      - name: Build rive for x86
+      - name: Build rive for ${{ matrix.arch }}
         run: |
-          cd cpp && ./build.rive.for.sh -c -a x86 
+          cd cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
         env:
           NDK_PATH: ${{github.workspace}}/android-ndk-r22b
+      - 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: android-${{matrix.arch}}-so
+          path: kotlin/src/main/jniLibs/${{matrix.arch}}/libjnirivebridge.so
 
-    # runs-on: macos-latest
-    # steps:
-    #   - name: Checkout Code
-    #     uses: actions/checkout@v2
+  run-tests:
+    needs: build-android-so
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
         
-    #   - name: Update Java
-    #     uses: actions/setup-java@v2
-    #     with: 
-    #       distribution: 'zulu' 
-    #       java-version: '16'
-      
-    #   - name: Build all 
-    #     run: |
-    #       cd cpp && ./build.all.sh
+      - name: Update Java
+        uses: actions/setup-java@v2
+        with: 
+          distribution: 'zulu' 
+          java-version: '16'
 
-    #   - name: Test Android v30
-    #     uses: reactivecircus/android-emulator-runner@v2
-    #     with:
-    #       api-level: 30
-    #       target: google_apis
-    #       script: ./gradlew kotlin:connectedAndroidTest
+      - uses: actions/download-artifact@v3
+        with:
+          run: ls -R
+          name: android-x86-so
+          path: kotlin/src/main/jniLibs/x86/
+      - uses: actions/download-artifact@v3
+        with:
+          run: ls -R
+          name: android-armeabi-v7a-so
+          path: kotlin/src/main/jniLibs/armeabi-v7a/
+      - uses: actions/download-artifact@v3
+        with:
+          run: ls -R
+          name: android-arm64-v8a-so
+          path: kotlin/src/main/jniLibs/arm64-v8a/
+      - uses: actions/download-artifact@v3
+        with:
+          run: ls -R
+          name: android-x86_64-so
+          path: kotlin/src/main/jniLibs/x86_64/
+      
+      - name: Test Android v30
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          script: ./gradlew kotlin:connectedAndroidTest
