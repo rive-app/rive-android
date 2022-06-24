@@ -61,7 +61,8 @@ if [[ -z ${NDK_PATH+x} ]]; then
 elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "Wrong NDK version"
     echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
-    echo "          /opt/hostedtoolcache/ndk/${EXPECTED_NDK_VERSION}/x64"
+    echo "          For bot builds, googles NDK distros" 
+    echo "          we are currently using: https://github.com/android/ndk/wiki/Unsupported-Downloads"
     echo "Found ${NDK_PATH}"
     exit 1
 fi

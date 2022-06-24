@@ -61,7 +61,7 @@ jobs:
           cd cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
         env:
           NDK_PATH: ${{github.workspace}}/android-ndk-r22b
-
+      # NOTE: this is sneaky, we are adding multiple files from the matrix jobs into the same artifact
       - uses: actions/upload-artifact@v3
         with:
           name: android-so
