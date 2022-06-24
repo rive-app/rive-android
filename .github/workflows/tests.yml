@@ -65,7 +65,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: android-so
-          path: kotlin/src/main/jniLibs/${{matrix.arch}}/
+          path: kotlin/src/main/jniLibs/*
 
   run-tests:
     needs: build-android-so
