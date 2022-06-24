@@ -89,6 +89,8 @@ buildFor() {
     cp make_skia_android.sh "$LIBRIVE"/skia/dependencies
     cp get_skia.sh "$LIBRIVE"/skia/dependencies
     cp cache_helper.sh "$LIBRIVE"/skia/dependencies
+    cp build.sh "$LIBRIVE"/skia/renderer
+    cp premake5.lua "$LIBRIVE"/skia/renderer/build/
     pushd "$LIBRIVE"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
 
@@ -97,13 +99,11 @@ buildFor() {
     # Build librive_skia_renderer (internally builds librive)
     pushd "$LIBRIVE"/skia/renderer
     pwd
-    ls -al 
-    ls -al ../
-    ls -al ../dependencies/skia
     ls -al ../dependencies/skia/include/core/
     if ${NEEDS_CLEAN}; then
         ./build.sh -p android."$SKIA_ARCH" "$CONFIG" clean
     fi
+    ls -al ../dependencies/skia/include/core/
     ./build.sh -p android."$SKIA_ARCH" "$CONFIG"
     popd
 
