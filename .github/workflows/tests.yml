@@ -28,7 +28,7 @@ jobs:
           distribution: 'zulu' 
           java-version: '16'
 
-      - uses: nttld/setup-ndk@v1
+      - uses: nttld/setup-ndk@v1.0.6
         id: setup-ndk
         with:
           ndk-version: r22b
