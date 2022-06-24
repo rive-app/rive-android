@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 ARCH_X86=x86
 ARCH_X64=x86_64
@@ -96,6 +96,11 @@ buildFor() {
 
     # Build librive_skia_renderer (internally builds librive)
     pushd "$LIBRIVE"/skia/renderer
+    pwd
+    ls -al 
+    ls -al ../
+    ls -al ../dependencies/skia
+    ls -al ../dependencies/skia/include/core/
     if ${NEEDS_CLEAN}; then
         ./build.sh -p android."$SKIA_ARCH" "$CONFIG" clean
     fi
