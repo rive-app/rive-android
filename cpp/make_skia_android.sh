@@ -102,9 +102,6 @@ else
     else 
         build_android
         # hmm not the appiest with this guy
-        OUTPUT_CACHE=out/$ARCH upload_cache
+        OUTPUT_CACHE=out/release/$ARCH upload_cache
     fi 
 fi
-
-
-

@@ -77,6 +77,9 @@ upload_cache() {
     echo $EXPECTED_ARCHIVE_CONTENTS > $SKIA_DIR/$ARCHIVE_CONTENTS_NAME
     # not really sure about this third party biz
     # also we are caching on a per architecture path here, but out could contain more :thinking:
+    pwd 
+    ls -al 
+    ls -al $SKIA_DIR/out
     tar -C $SKIA_DIR -cf $SKIA_DIR/$ARCHIVE_FILE_NAME $OUTPUT_CACHE $ARCHIVE_CONTENTS_NAME third_party/libpng third_party/externals/libpng
 
     popd
