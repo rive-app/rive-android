@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+
+set -ex
 
 ARCH_X86=x86
 ARCH_X64=x86_64
@@ -46,43 +47,60 @@ if [ -z "$ARCH_NAME" ]; then
     usage
 fi
 
-EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
+else 
+    EXPECTED_NDK_VERSION=$(tr <.ndk_version.bots -d " \t\n\r")
+fi 
 
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
     echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
     exit 1
-# Check NDK version
-elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION} ]]; then
+# Check NDK version 
+elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "Wrong NDK version"
     echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
+    echo "          For bot builds, googles NDK distros" 
+    echo "          we are currently using: https://github.com/android/ndk/wiki/Unsupported-Downloads"
     echo "Found ${NDK_PATH}"
     exit 1
 fi
 
 # Common variables.
-TOOLCHAIN=$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG
-export LIBRIVE=$PWD/../submodules/rive-cpp
-export SYSROOT=$TOOLCHAIN/sysroot
-export INCLUDE=$SYSROOT/usr/include
-export INCLUDE_CXX=$INCLUDE/c++/v1
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
-export AR=$TOOLCHAIN/bin/llvm-ar
+TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
+if git remote -v | grep android;
+then
+    export RIVE_RUNTIME_DIR="$PWD/../submodules/rive-cpp"
+else
+    export RIVE_RUNTIME_DIR="$PWD/../../runtime" 
+fi 
+
+export SYSROOT="$TOOLCHAIN/sysroot"
+export INCLUDE="$SYSROOT/usr/include"
+export INCLUDE_CXX="$INCLUDE/c++/v1"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
+export AR="$TOOLCHAIN/bin/llvm-ar"
+
+export SKIA_REPO="https://github.com/rive-app/skia"
+export SKIA_BRANCH="rive"
+export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
+export CACHE_NAME="rive_skia_android"
+export MAKE_SKIA_FILE="make_skia_android.sh"
+export SKIA_DIR_NAME="skia"
+
+API=21
 SKIA_ARCH=
 
 buildFor() {
     # Build skia
-    pwd
-    # copy our make Skia script into the right folder.
-    cp make_skia_android.sh "$LIBRIVE"/skia/dependencies
-    pushd "$LIBRIVE"/skia/dependencies
+    pushd "$RIVE_RUNTIME_DIR"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
-
     popd
 
     # Build librive_skia_renderer (internally builds librive)
-    pushd "$LIBRIVE"/skia/renderer
+    pushd "$RIVE_RUNTIME_DIR"/skia/renderer
     if ${NEEDS_CLEAN}; then
         ./build.sh -p android."$SKIA_ARCH" "$CONFIG" clean
     fi
@@ -97,9 +115,9 @@ buildFor() {
     fi
 
     # copy in newly built rive/skia/skia_renderer files.
-    cp "$LIBRIVE"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/dependencies/skia_rive_optimized/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
-    cp "$LIBRIVE"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
     cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
 
     # build the android .so!
@@ -111,7 +129,7 @@ buildFor() {
     cp "$BUILD_DIR"/libjnirivebridge.so "$JNI_DEST"
 }
 
-API=21
+
 
 if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="

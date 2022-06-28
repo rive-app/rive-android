@@ -29,21 +29,21 @@ LIBS=-llog -landroid -lEGL -lGLESv3
 
 # Build the .so object.
 jni_bridge: $(OBJ_FILES)
-	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(LIBRIVE)/include -I${LIBRIVE}/renderer/library/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
+	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(RIVE_RUNTIME_DIR)/include -I${RIVE_RUNTIME_DIR}/renderer/library/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
 
 # BUILD all .o files - i.e. the files specified in OBJ_FILES.
 # Output all the .o files in ODIR
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) -c $< -o $(ODIR)/$(notdir $@) \
 		-DSK_GL \
-		-I$(LIBRIVE)/include \
-		-I$(LIBRIVE)/renderer/library/include \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/ \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/core \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/effects \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/gpu \
-		-I${LIBRIVE}/skia/dependencies/skia_rive_optimized/include/config \
-		-I${LIBRIVE}/skia/renderer/include \
+		-I$(RIVE_RUNTIME_DIR)/include \
+		-I$(RIVE_RUNTIME_DIR)/renderer/library/include \
+		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/ \
+		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/core \
+		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/effects \
+		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/gpu \
+		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/config \
+		-I${RIVE_RUNTIME_DIR}/skia/renderer/include \
 		$(CXXFLAGS)
 
 clean:
