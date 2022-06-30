@@ -233,6 +233,19 @@ The runtimes are built on top of our [C++ runtimes](https://github.com/rive-app/
 
 ## Contributing
 
+### Run the sample app
+
+If you need the prebuilt .so files, do the following:
+```bash
+cd cpp
+./build.all.sh
+cd ..
+```
+
+- In Android Studio, make sure you select "Project" in the upper-left corner, not "Android".
+- Select "app" as your target in the middle popup-menu. This is a folder inside runtime_android..." : Project:runtime_android:app
+- Now pick run (the triangle in the middle of the top window).
+
 ### Updating rive-cpp
 
 The runtime here should be updated to point to the latest `rive-cpp` submodule when that repo has new commits merged in. This ensures the `rive-android` runtime is up-to-date with its underlying native code layer to pull in latest patches, features, and more. Follow the steps below to update this submodule:
@@ -277,6 +290,7 @@ git add .
 4. Run the test suite
 
 - open in Android Studio
+- select Project, not Android, in the upper-left corner
 - right-click on kotlin/src/androidTest
 - "Run 'All Tests'"
 
