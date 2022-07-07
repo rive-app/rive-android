@@ -1,6 +1,7 @@
 package app.rive.runtime.example
 
 import android.content.Context
+import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.os.Bundle
 import android.view.ViewGroup
@@ -35,7 +36,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         override fun draw() {
             artboard.let {
                 save()
-                align(Fit.COVER, Alignment.CENTER, AABB(width, height), it.bounds)
+                align(Fit.COVER, Alignment.CENTER, RectF(0.0f, 0.0f, width, height), it.bounds)
                 it.drawSkia(
                     cppPointer
                 )
@@ -57,9 +58,9 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     private var artboard: Artboard = file.firstArtboard
     private var instance: LinearAnimationInstance = artboard.firstAnimation
 
-    private var bounds: AABB = AABB(100f, 100f)
+    private var bounds: RectF = RectF(0f, 0f, 100f, 100f)
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
-        bounds = AABB(width.toFloat(), height.toFloat())
+        bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
     }
 }

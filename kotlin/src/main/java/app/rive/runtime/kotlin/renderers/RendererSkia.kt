@@ -3,9 +3,10 @@ package app.rive.runtime.kotlin.renderers
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
-import app.rive.runtime.kotlin.core.AABB
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
+
+import android.graphics.RectF
 
 abstract class RendererSkia(private val trace: Boolean = false) :
     BaseRenderer(),
@@ -27,8 +28,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
         cppPointer: Long,
         fit: Fit,
         alignment: Alignment,
-        targetBoundsPointer: Long,
-        srcBoundsPointer: Long
+        targetBounds: RectF,
+        srcBounds: RectF
     )
 
     /** Instantiates JNIRendererSkia in C++ */
@@ -153,13 +154,13 @@ abstract class RendererSkia(private val trace: Boolean = false) :
         get() = cppAvgFps(cppPointer)
 
 
-    fun align(fit: Fit, alignment: Alignment, targetBounds: AABB, sourceBounds: AABB) {
+    fun align(fit: Fit, alignment: Alignment, targetBounds: RectF, sourceBounds: RectF) {
         cppAlign(
             cppPointer,
             fit,
             alignment,
-            targetBounds.cppPointer,
-            sourceBounds.cppPointer
+            targetBounds,
+            sourceBounds
         )
     }
 

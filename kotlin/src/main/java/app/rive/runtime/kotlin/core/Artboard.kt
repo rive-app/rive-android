@@ -4,6 +4,7 @@ import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 
+import android.graphics.RectF
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
@@ -41,7 +42,7 @@ class Artboard(val cppPointer: Long) {
         fit: Fit, alignment: Alignment,
     )
 
-    private external fun cppBounds(cppPointer: Long): Long
+    private external fun cppBounds(cppPointer: Long): RectF
     private external fun cppDelete(cppPointer: Long)
 
     /**
@@ -194,8 +195,8 @@ class Artboard(val cppPointer: Long) {
     /**
      * Get the bounds of Artboard as defined in the rive editor.
      */
-    val bounds: AABB
-        get() = AABB(cppBounds(cppPointer))
+    val bounds: RectF
+        get() = cppBounds(cppPointer)
 
     /**
      * Get the names of the animations in the artboard.

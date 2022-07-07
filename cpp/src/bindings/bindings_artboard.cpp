@@ -107,15 +107,16 @@ extern "C"
 		return artboard->advance(elapsedTime);
 	}
 
-	JNIEXPORT jlong JNICALL
+	JNIEXPORT jobject JNICALL
 	Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(JNIEnv* env,
 	                                                     jobject thisObj,
 	                                                     jlong ref)
 	{
-		auto artboard = (rive::ArtboardInstance*)ref;
-		// TODO: garbage collection?
-		auto bounds = new rive::AABB(artboard->bounds());
-		return (jlong)bounds;
+        auto cls = env->FindClass("android/graphics/RectF");
+        auto constructor = env->GetMethodID(cls, "<init>", "(FFFF)V");
+		const auto bounds = ((rive::ArtboardInstance*)ref)->bounds();
+        return env->NewObject(cls, constructor,
+                              bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
 	}
 
 	JNIEXPORT void JNICALL

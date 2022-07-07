@@ -80,8 +80,8 @@ class RiveArtboardLoadTest {
         assertEquals(1, artboard1.animationCount);
         assertEquals(1, artboard1.stateMachineCount);
         assertEquals("artboard1", artboard1.name);
-        assertEquals(500f, artboard1.bounds.height);
-        assertEquals(500f, artboard1.bounds.width);
+        assertEquals(500f, artboard1.bounds.height());
+        assertEquals(500f, artboard1.bounds.width());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import android.content.Context
+import android.graphics.RectF
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveArtboardRenderer
@@ -61,7 +62,7 @@ class TestUtils {
         }
 
         fun setBounds(width:Float, height:Float) {
-            renderer.targetBounds = AABB(width, height)
+            renderer.targetBounds = RectF(0f, 0f, width, height)
         }
     }
 

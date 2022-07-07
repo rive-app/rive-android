@@ -2,6 +2,7 @@
 #define _RIVE_ANDROID_JNI_REFS_HPP_
 
 #include <jni.h>
+#include "rive/math/aabb.hpp"
 
 namespace rive_android
 {
@@ -24,6 +25,9 @@ namespace rive_android
 	extern jmethodID getPointFInitMethod();
 	extern jfieldID getXFieldId();
 	extern jfieldID getYFieldId();
+
+    extern rive::AABB rectFToAABB(JNIEnv* env, jobject rectf);
+    extern void aabbToRectF(JNIEnv* env, const rive::AABB&, jobject rectf);
 
 } // namespace rive_android
 #endif

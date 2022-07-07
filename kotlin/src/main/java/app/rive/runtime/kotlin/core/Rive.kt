@@ -3,14 +3,15 @@ package app.rive.runtime.kotlin.core
 import android.content.Context
 import com.getkeepsafe.relinker.ReLinker
 
+import android.graphics.RectF
 
 object Rive {
     private external fun cppInitialize()
     private external fun cppCalculateRequiredBounds(
         fit: Fit, alignment: Alignment,
-        availableBoundsPointer: Long,
-        artboardBoundsPointer: Long,
-        requiredBoundsPointer: Long
+        availableBounds: RectF,
+        artboardBounds: RectF,
+        requiredBounds: RectF
     )
 
     private const val JNIRiveBridge = "jnirivebridge"
@@ -33,16 +34,16 @@ object Rive {
     fun calculateRequiredBounds(
         fit: Fit,
         alignment: Alignment,
-        availableBounds: AABB,
-        artboardBounds: AABB
-    ): AABB {
-        val requiredBounds = AABB(0f, 0f)
+        availableBounds: RectF,
+        artboardBounds: RectF
+    ): RectF {
+        val requiredBounds = RectF()
         cppCalculateRequiredBounds(
             fit,
             alignment,
-            availableBounds.cppPointer,
-            artboardBounds.cppPointer,
-            requiredBounds.cppPointer
+            availableBounds,
+            artboardBounds,
+            requiredBounds
         )
         return requiredBounds
     }

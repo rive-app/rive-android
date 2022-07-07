@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin
 
 import android.annotation.TargetApi
 import android.content.Context
+import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.os.Build
 import android.os.Handler
@@ -210,7 +211,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
-        renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
+        renderer.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
     override fun onSurfaceTextureAvailable(
@@ -219,7 +220,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         height: Int
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
-        renderer.targetBounds = AABB(width.toFloat(), height.toFloat())
+        renderer.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
     private fun loadHttp(url: String) {
@@ -570,13 +571,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val providedWidth = when (widthMode) {
-            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().width.toInt()
+            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().width().toInt()
             else -> MeasureSpec.getSize(widthMeasureSpec)
         }
 
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val providedHeight = when (heightMode) {
-            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().height.toInt()
+            MeasureSpec.UNSPECIFIED -> renderer.artboardBounds().height().toInt()
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
@@ -584,23 +585,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val usedBounds = Rive.calculateRequiredBounds(
             renderer.fit,
             renderer.alignment,
-            AABB(providedWidth.toFloat(), providedHeight.toFloat()),
+            RectF(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat()),
             renderer.artboardBounds()
         )
 
         //Measure Width
         val width: Int = when (widthMode) {
             MeasureSpec.EXACTLY -> providedWidth
-            MeasureSpec.AT_MOST -> min(usedBounds.width.toInt(), providedWidth)
+            MeasureSpec.AT_MOST -> min(usedBounds.width().toInt(), providedWidth)
             else ->
-                usedBounds.width.toInt()
+                usedBounds.width().toInt()
         }
 
         val height: Int = when (heightMode) {
             MeasureSpec.EXACTLY -> providedHeight
-            MeasureSpec.AT_MOST -> min(usedBounds.height.toInt(), providedHeight)
+            MeasureSpec.AT_MOST -> min(usedBounds.height().toInt(), providedHeight)
             else ->
-                usedBounds.height.toInt()
+                usedBounds.height().toInt()
         }
         setMeasuredDimension(width, height)
     }

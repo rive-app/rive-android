@@ -1,29 +1,30 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.PointF
+import android.graphics.RectF
 
 object Helpers {
     private external fun cppConvertToArtboardSpace(
-        touchSpaceBoundsPointer: Long,
+        touchSpaceBounds: RectF,
         touchSpaceLocation: PointF,
         fit: Fit,
         alignment: Alignment,
-        artboardSpaceBoundsPointer: Long,
+        artboardSpaceBounds: RectF,
     ): PointF
 
     fun convertToArtboardSpace(
-        touchBounds: AABB,
+        touchBounds: RectF,
         touchLocation: PointF,
         fit: Fit,
         alignment: Alignment,
-        artboardBounds: AABB,
+        artboardBounds: RectF,
     ): PointF {
         return cppConvertToArtboardSpace(
-            touchBounds.cppPointer,
+            touchBounds,
             touchLocation,
             fit,
             alignment,
-            artboardBounds.cppPointer
+            artboardBounds
         )
     }
 }

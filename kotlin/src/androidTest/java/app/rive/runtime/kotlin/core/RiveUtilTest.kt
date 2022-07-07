@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import android.content.Context
+import android.graphics.RectF
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -26,11 +27,11 @@ class RiveUtilTest {
         val usedBounds = Rive.calculateRequiredBounds(
             Fit.CONTAIN,
             Alignment.CENTER,
-            AABB(100f, 100f),
-            AABB(50f, 50f),
+            RectF(0f, 0f, 100f, 100f),
+            RectF(0f, 0f, 50f, 50f),
         )
-        assertEquals(100f, usedBounds.width)
-        assertEquals(100f, usedBounds.height)
+        assertEquals(100f, usedBounds.width())
+        assertEquals(100f, usedBounds.height())
     }
 
     @Test
@@ -40,11 +41,11 @@ class RiveUtilTest {
         val usedBounds = Rive.calculateRequiredBounds(
             Fit.COVER,
             Alignment.CENTER,
-            AABB(100f, 150f),
-            AABB(50f, 50f),
+            RectF(0f, 0f, 100f, 150f),
+            RectF(0f, 0f, 50f, 50f),
         )
-        assertEquals(150f, usedBounds.width)
-        assertEquals(150f, usedBounds.height)
+        assertEquals(150f, usedBounds.width())
+        assertEquals(150f, usedBounds.height())
     }
 
     @Test
@@ -54,10 +55,10 @@ class RiveUtilTest {
         val usedBounds = Rive.calculateRequiredBounds(
             Fit.CONTAIN,
             Alignment.CENTER,
-            AABB(100f, 150f),
-            AABB(50f, 50f),
+            RectF(0f, 0f, 100f, 150f),
+            RectF(0f, 0f, 50f, 50f),
         )
-        assertEquals(100f, usedBounds.width)
-        assertEquals(100f, usedBounds.height)
+        assertEquals(100f, usedBounds.width())
+        assertEquals(100f, usedBounds.height())
     }
 }

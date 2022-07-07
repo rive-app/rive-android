@@ -5,18 +5,6 @@
 
 using namespace rive_android;
 
-namespace
-{
-	std::string to_string(jstring jstr, JNIEnv* env)
-	{
-		const char* utf = env->GetStringUTFChars(jstr, nullptr);
-		std::string str(utf);
-		env->ReleaseStringUTFChars(jstr, utf);
-		return str;
-	}
-
-} // anonymous namespace
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -29,6 +17,14 @@ extern "C"
 	}
 
 /** TODO: explore these helpers, might be useful for a few metrics
+
+	std::string to_string(jstring jstr, JNIEnv* env)
+	{
+		const char* utf = env->GetStringUTFChars(jstr, nullptr);
+		std::string str(utf);
+		env->ReleaseStringUTFChars(jstr, utf);
+		return str;
+	}
 
 	JNIEXPORT void JNICALL
 	Java_app_rive_runtime_kotlin_RiveTextureView_cppSetPreference(JNIEnv* env,

@@ -54,11 +54,10 @@ namespace rive_android
 		float scaleX() const { return m_ScaleX; }
 		float scaleY() const { return m_ScaleY; }
 
-		void computeDimensions(rive::Fit fit,
-		                       rive::Alignment alignment,
-		                       const rive::AABB& frame,
-		                       const rive::AABB& content,
-		                       rive::AABB& output);
+        rive::AABB computeDimensions(rive::Fit fit,
+                                     rive::Alignment alignment,
+                                     const rive::AABB& frame,
+                                     const rive::AABB& content);
 	};
 } // namespace rive_android
 #endif

@@ -105,4 +105,24 @@ namespace rive_android
 	{
 		return getMethodId(getPointerFClass(), "<init>", "(FF)V");
 	};
+
+    static const char* AABBFieldNames[] = { "left", "top", "right", "bottom" };
+
+    rive::AABB rectFToAABB(JNIEnv* env, jobject rectf) {
+        auto cls = env->FindClass("android/graphics/RectF");
+        float values[4];
+        for (int i = 0; i < 4; ++i) {
+            values[i] = env->GetFloatField(rectf, env->GetFieldID(cls, AABBFieldNames[i], "F"));
+        }
+        return rive::AABB(values[0], values[1], values[2], values[3]);
+    }
+
+    void aabbToRectF(JNIEnv* env, const rive::AABB& aabb, jobject rectf) {
+        auto cls = env->FindClass("android/graphics/RectF");
+        const float values[4] = { aabb.left(), aabb.top(), aabb.right(), aabb.bottom() };
+        for (int i = 0; i < 4; ++i) {
+            env->SetFloatField(rectf, env->GetFieldID(cls, AABBFieldNames[i], "F"), values[i]);
+        }
+    }
+
 } // namespace rive_android

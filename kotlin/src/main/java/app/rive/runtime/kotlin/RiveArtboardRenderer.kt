@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin
 
 import android.graphics.PointF
+import android.graphics.RectF
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -28,7 +29,7 @@ open class RiveArtboardRenderer(
     RendererSkia(trace) {
     // PRIVATE
     private var listeners = HashSet<RiveArtboardRenderer.Listener>()
-    var targetBounds: AABB = AABB(0f, 0f)
+    var targetBounds: RectF = RectF()
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
         private set
@@ -185,10 +186,10 @@ open class RiveArtboardRenderer(
 
     }
 
-    fun artboardBounds(): AABB {
+    fun artboardBounds(): RectF {
         var output = activeArtboard?.bounds
         if (output == null) {
-            output = AABB(0f, 0f)
+            output = RectF()
         }
         return output
     }
