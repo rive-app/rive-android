@@ -30,22 +30,15 @@
 
 #define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
 
-#define REQUIRES(...)                                                          \
-	THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
+#define REQUIRES(...) THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
-namespace rive_android
-{
+namespace rive_android {
 
-	enum class Affinity
-	{
-		None,
-		Even,
-		Odd
-	};
+    enum class Affinity { None, Even, Odd };
 
-	int32_t getNumCpus();
+    int32_t getNumCpus();
 
-	void setAffinity(int32_t cpu);
+    void setAffinity(int32_t cpu);
 
-	void setAffinity(Affinity affinity);
+    void setAffinity(Affinity affinity);
 } // namespace rive_android

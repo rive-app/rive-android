@@ -23,41 +23,37 @@
 #include <string>
 #include <vector>
 
-namespace rive_android
-{
+namespace rive_android {
 
-	class Settings
-	{
-	private:
-		// Allows construction with std::unique_ptr from a static method, but
-		// disallows construction outside of the class since no one else can
-		// construct a ConstructorTag
-		struct ConstructorTag
-		{
-		};
+    class Settings {
+    private:
+        // Allows construction with std::unique_ptr from a static method, but
+        // disallows construction outside of the class since no one else can
+        // construct a ConstructorTag
+        struct ConstructorTag {};
 
-	public:
-		explicit Settings(ConstructorTag) : mHotPocket(false) {}
+    public:
+        explicit Settings(ConstructorTag) : mHotPocket(false) {}
 
-		static Settings* getInstance();
+        static Settings* getInstance();
 
-		using Listener = std::function<void()>;
+        using Listener = std::function<void()>;
 
-		void addListener(Listener listener);
+        void addListener(Listener listener);
 
-		void setPreference(std::string key, std::string value);
+        void setPreference(std::string key, std::string value);
 
-		bool getHotPocket() const;
+        bool getHotPocket() const;
 
-		bool isTraceEnabled() const;
+        bool isTraceEnabled() const;
 
-	private:
-		void notifyListeners();
+    private:
+        void notifyListeners();
 
-		mutable std::mutex mMutex;
-		std::vector<Listener> mListeners GUARDED_BY(mMutex);
-		std::atomic<bool> mHotPocket;
-		std::atomic<bool> mIsTraceEnabled;
-	};
+        mutable std::mutex mMutex;
+        std::vector<Listener> mListeners GUARDED_BY(mMutex);
+        std::atomic<bool> mHotPocket;
+        std::atomic<bool> mIsTraceEnabled;
+    };
 
 } // namespace rive_android

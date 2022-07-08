@@ -10,70 +10,59 @@
 #include "helpers/egl_thread_state.hpp"
 #include "helpers/worker_thread.hpp"
 
-namespace rive_android
-{
-	class JNIRendererSkia
-	{
-	public:
-		JNIRendererSkia(jobject ktObject, bool trace = false);
+namespace rive_android {
+    class JNIRendererSkia {
+    public:
+        JNIRendererSkia(jobject ktObject, bool trace = false);
 
-		~JNIRendererSkia();
+        ~JNIRendererSkia();
 
-		void setWindow(ANativeWindow* window);
+        void setWindow(ANativeWindow* window);
 
-		void doFrame(long frameTimeNs);
+        void doFrame(long frameTimeNs);
 
-		void start();
+        void start();
 
-		void stop();
+        void stop();
 
-		WorkerThread<EGLThreadState>* workerThread() const
-		{
-			return mWorkerThread;
-		}
+        WorkerThread<EGLThreadState>* workerThread() const { return mWorkerThread; }
 
-		SkCanvas* canvas() const { return mGpuCanvas; }
+        SkCanvas* canvas() const { return mGpuCanvas; }
 
-		rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
+        rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
 
-		float averageFps() const { return mAverageFps; }
+        float averageFps() const { return mAverageFps; }
 
-		int width() const
-		{
-			return mWindow ? ANativeWindow_getWidth(mWindow) : -1;
-		}
+        int width() const { return mWindow ? ANativeWindow_getWidth(mWindow) : -1; }
 
-		int height() const
-		{
-			return mWindow ? ANativeWindow_getHeight(mWindow) : -1;
-		}
+        int height() const { return mWindow ? ANativeWindow_getHeight(mWindow) : -1; }
 
-	private:
-		WorkerThread<EGLThreadState>* mWorkerThread;
+    private:
+        WorkerThread<EGLThreadState>* mWorkerThread;
 
-		jobject mKtRenderer;
+        jobject mKtRenderer;
 
-		ITracer* mTracer;
+        ITracer* mTracer;
 
-		ANativeWindow* mWindow;
+        ANativeWindow* mWindow;
 
-		SkCanvas* mGpuCanvas;
+        SkCanvas* mGpuCanvas;
 
-		rive::SkiaRenderer* mSkRenderer;
+        rive::SkiaRenderer* mSkRenderer;
 
-		bool mIsDoingFrame = false;
+        bool mIsDoingFrame = false;
 
-		/* Helpers for FPS calculations.*/
-		std::chrono::steady_clock::time_point mLastFrameTime;
-		float mAverageFps = -1.0f;
-		float mFpsSum = 0;
-		int mFpsCount = 0;
+        /* Helpers for FPS calculations.*/
+        std::chrono::steady_clock::time_point mLastFrameTime;
+        float mAverageFps = -1.0f;
+        float mFpsSum = 0;
+        int mFpsCount = 0;
 
-		ITracer* getTracer(bool trace) const;
+        ITracer* getTracer(bool trace) const;
 
-		void calculateFps();
+        void calculateFps();
 
-		void draw(EGLThreadState* threadState);
-	};
+        void draw(EGLThreadState* threadState);
+    };
 } // namespace rive_android
 #endif
