@@ -175,11 +175,6 @@ open class RiveArtboardRenderer(
         if (file == null) {
             this.artboardName = artboardName
         } else {
-            file?.let { file ->
-                if (!file.artboardNames.contains(artboardName)) {
-                    throw ArtboardException("Artboard $artboardName not found")
-                }
-            }
             this.artboardName = artboardName
             selectArtboard()
         }

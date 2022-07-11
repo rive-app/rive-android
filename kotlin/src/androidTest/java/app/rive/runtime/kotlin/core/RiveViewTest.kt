@@ -3,6 +3,8 @@ package app.rive.runtime.kotlin.core
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.errors.AnimationException
+import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
@@ -55,6 +57,16 @@ class RiveViewTest {
                 listOf("artboard1animation1"),
                 mockView.animations.map { it.name }.toList()
             )
+        }
+
+    }
+
+
+    @Test(expected = ArtboardException::class)
+    fun viewChangeToMissingArtboard() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multipleartboards)
+            mockView.artboardName = "artboardDoesntExist"
         }
 
     }
