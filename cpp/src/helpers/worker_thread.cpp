@@ -34,7 +34,7 @@ namespace rive_android {
         std::lock_guard<std::mutex> threadLock(mMutex);
         // Thread state needs to release its resources also.
         thread->setIsWorking(false);
-        thread->releaseQueue(onRelease);
+        thread->releaseQueue(std::move(onRelease));
         mThreadPool.push(thread);
     }
 } // namespace rive_android

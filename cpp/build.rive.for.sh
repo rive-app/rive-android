@@ -12,6 +12,10 @@ FLAGS="-flto=full"
 # we default to release
 CONFIG="release"
 
+CONFIG_SKIA_REPO="https://github.com/rive-app/skia"
+CONFIG_SKIA_BRANCH="rive"
+CONFIG_SKIA_DIR_NAME="skia"
+
 usage() {
     printf "Usage: %s -a arch [-c]" "$0"
     printf "\t-a Specify an architecture (i.e. '%s', '%s', '%s', '%s')", $ARCH_X86 $ARCH_X64 $ARCH_ARM $ARCH_ARM64
@@ -37,6 +41,10 @@ while getopts "a:cdl" opt; do
     d)
         CONFIG="debug"
         FLAGS="-DDEBUG"
+        # Use full skia for debug.
+        CONFIG_SKIA_REPO="https://github.com/google/skia"
+        CONFIG_SKIA_BRANCH="main"
+        CONFIG_SKIA_DIR_NAME="skia_full"
         ;;
     l)
         FLAGS="-DLOG"
@@ -85,12 +93,13 @@ export INCLUDE_CXX="$INCLUDE/c++/v1"
 export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
 export AR="$TOOLCHAIN/bin/llvm-ar"
 
-export SKIA_REPO="https://github.com/rive-app/skia"
-export SKIA_BRANCH="rive"
+export SKIA_REPO=$CONFIG_SKIA_REPO
+export SKIA_BRANCH=$CONFIG_SKIA_BRANCH
+export SKIA_DIR_NAME=$CONFIG_SKIA_DIR_NAME
+
 export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
 export CACHE_NAME="rive_skia_android"
 export MAKE_SKIA_FILE="make_skia_android.sh"
-export SKIA_DIR_NAME="skia"
 
 API=21
 SKIA_ARCH=
