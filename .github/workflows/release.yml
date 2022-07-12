@@ -79,6 +79,7 @@ jobs:
 
   publish:
     name: Release build and publish
+    needs: build-android-so
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
