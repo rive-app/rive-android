@@ -83,6 +83,15 @@ The simplest way to get a rive animation into your application is to include it 
         app:riveResource="@raw/off_road_car_blog" />
 ```
 
+Rive uses C++ for its setup and memory initialization. `RiveAnimationView` allocates Native objects and deallocates them through the JNI and makes sure that they are removed from memory during the `View` lifecycle, using Android's hooks `onAttachedToWindow()` and `onDetachedFromWindow()`.
+
+When using `File` objects and grabbing a reference to an `Artboard` this'll internally allocate `Artboard` objects. In turn, `Artboard` objects internally allocate `AnimationInstance`s and/or `StateMachineInstance`s. <br />
+This creates a DAG of dependencies that is resolved internally by the objects. Once the `File` is queued for deletion, it'll cascade onto its dependents - which will do the same.
+
+`RiveAnimationView` manages all of this internally, by allocating and deallocating `File` for the user.
+
+Our [`LowLevelActivity`](./app/src/main/java/app/rive/runtime/example/LowLevelActivity.kt) example shows how a user can do that manually by adding the `File` onto the `Renderer`'s dependencies, which will do the cleanup at the right time, that is within `onDetachedFromWindow`.
+
 ## Layout
 
 The animation view can be further customized as part of specifying [layout attributes](https://github.com/rive-app/rive-android/blob/master/kotlin/src/main/res/values/attrs.xml).

@@ -33,6 +33,7 @@ class LowLevelActivity : AppCompatActivity() {
 class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     // Initialize renderer first: we can't create Files without one.
     override val renderer = object : RendererSkia() {
+
         override fun draw() {
             artboard.let {
                 save()
@@ -45,22 +46,27 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         }
 
         override fun advance(elapsed: Float) {
-            instance.advance(elapsed)
-            instance.apply()
+            animationInstance.advance(elapsed)
+            animationInstance.apply()
             artboard.advance(elapsed)
         }
     }
 
-    // Keep a reference to the file to keep resources around.
-    private val file: File = File(resources.openRawResource(R.raw.basketball).readBytes())
+    private val file: File
 
     // Objects that the renderer needs for drawing
-    private var artboard: Artboard = file.firstArtboard
-    private var instance: LinearAnimationInstance = artboard.firstAnimation
+    private var artboard: Artboard
+    private var animationInstance: LinearAnimationInstance
 
-    private var bounds: RectF = RectF(0f, 0f, 100f, 100f)
+    init {
+        val resource = resources.openRawResource(R.raw.basketball)
+        // Keep a reference to the file to keep resources around.
+        file = File(resource.readBytes())
+        resource.close()
+        artboard = file.firstArtboard
+        animationInstance = artboard.firstAnimation
 
-    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
-        bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        // This will be deleted with its dependents.
+        renderer.dependencies.add(file)
     }
 }

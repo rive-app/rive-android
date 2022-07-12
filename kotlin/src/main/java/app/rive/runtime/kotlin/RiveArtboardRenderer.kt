@@ -96,6 +96,8 @@ open class RiveArtboardRenderer(
     private val hasPlayingAnimations: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
 
+    /// Note: This is happening in the render thread
+    /// be aware of thread safety!
     override fun draw() {
         if (cppPointer == 0L) {
             return
@@ -163,6 +165,8 @@ open class RiveArtboardRenderer(
     // PUBLIC FUNCTIONS
     fun setRiveFile(file: File) {
         this.file = file
+        // The Renderer takes care of disposing of this file.
+        dependencies.add(file)
         selectArtboard()
     }
 
@@ -235,11 +239,15 @@ open class RiveArtboardRenderer(
         direction: Direction = Direction.AUTO, settleInitialState: Boolean = true,
     ) {
         activeArtboard?.let { activeArtboard ->
-            if (activeArtboard.animationNames.isNotEmpty()) {
-                _playAnimation(activeArtboard.animationNames.first(), loop, direction)
-            } else if (activeArtboard.stateMachineNames.isNotEmpty()) {
+            val animationNames = activeArtboard.animationNames
+            if (animationNames.isNotEmpty()) {
+                _playAnimation(animationNames.first(), loop, direction)
+                return
+            }
+            val stateMachineNames = activeArtboard.stateMachineNames
+            if (stateMachineNames.isNotEmpty()) {
                 _playAnimation(
-                    activeArtboard.stateMachineNames.first(),
+                    stateMachineNames.first(),
                     loop,
                     direction,
                     settleInitialState
@@ -352,7 +360,7 @@ open class RiveArtboardRenderer(
 
         val artboardEventLocation = Helpers.convertToArtboardSpace(
             targetBounds,
-            PointF(x,y),
+            PointF(x, y),
             fit,
             alignment,
             artboardBounds()
@@ -360,9 +368,18 @@ open class RiveArtboardRenderer(
         stateMachines.forEach {
 
             when (eventType) {
-                PointerEvents.POINTER_DOWN -> it.pointerDown(artboardEventLocation.x, artboardEventLocation.y)
-                PointerEvents.POINTER_UP -> it.pointerUp(artboardEventLocation.x, artboardEventLocation.y)
-                PointerEvents.POINTER_MOVE -> it.pointerMove(artboardEventLocation.x, artboardEventLocation.y)
+                PointerEvents.POINTER_DOWN -> it.pointerDown(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
+                PointerEvents.POINTER_UP -> it.pointerUp(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
+                PointerEvents.POINTER_MOVE -> it.pointerMove(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
 
             }
             _play(it, settleStateMachineState = false)
@@ -527,6 +544,8 @@ open class RiveArtboardRenderer(
     }
 
     private fun setArtboard(artboard: Artboard) {
+        // Dispose of the old artboard, if any.
+        this.activeArtboard?.dispose()
         this.activeArtboard = artboard
 
         if (autoplay) {

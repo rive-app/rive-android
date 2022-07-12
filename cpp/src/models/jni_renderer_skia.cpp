@@ -27,8 +27,14 @@ namespace rive_android {
         mSkRenderer(nullptr) {}
 
     JNIRendererSkia::~JNIRendererSkia() {
-        // Make sure the thread is removed before the Global Ref.
-        getJNIEnv()->DeleteWeakGlobalRef(mKtRenderer);
+        // Clean up dependencies.
+        auto env = getJNIEnv();
+        jclass ktClass = env->GetObjectClass(mKtRenderer);
+        auto disposeDeps = env->GetMethodID(ktClass, "disposeDependencies", "()V");
+        env->CallVoidMethod(mKtRenderer, disposeDeps);
+
+        // N.B. Make sure the thread is removed before the Global Ref.
+        env->DeleteWeakGlobalRef(mKtRenderer);
         if (mSkRenderer) {
             delete mSkRenderer;
         }
@@ -87,6 +93,8 @@ namespace rive_android {
     }
 
     void JNIRendererSkia::stop() {
+        // Stop immediately
+        mWorkerThread->drainWorkQueue();
         mWorkerThread->run([=](EGLThreadState* threadState) { threadState->mIsStarted = false; });
     }
 

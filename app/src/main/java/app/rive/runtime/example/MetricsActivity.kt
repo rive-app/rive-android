@@ -5,6 +5,7 @@ import android.view.Choreographer
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import java.util.*
 
 
@@ -16,7 +17,8 @@ class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
 
     private fun updateFps() {
         val fpsView = findViewById<TextView>(R.id.fps)
-        val fps = riveView.renderer.averageFps
+        val renderer = riveView.renderer
+        val fps = if (renderer.cppPointer != NULL_POINTER) riveView.renderer.averageFps else -1f
         fpsView?.text =
             java.lang.String.format(
                 Locale.US,

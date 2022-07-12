@@ -26,17 +26,21 @@ class EventsActivity : AppCompatActivity() {
             override fun run() {
                 // do stuff then
                 // can call h again after work!
-                setTime()
-                if (keepGoing)
+                if (keepGoing) {
+                    setTime()
                     h.postDelayed(this, 360)
+                }
             }
         }, 360) // 1 second dela
 
     }
 
-    override fun onDestroy() {
+    override fun onDetachedFromWindow() {
+        // This the exit point for any RiveAnimationView, if we try to access
+        // underlying properties (e.g. setNumberState() above) _after_ we detached, underlying
+        // objects have probably been deallocated and this'll cause a crash.
         keepGoing = false
-        super.onDestroy()
+        super.onDetachedFromWindow()
     }
 
     private val clockView by lazy(LazyThreadSafetyMode.NONE) {

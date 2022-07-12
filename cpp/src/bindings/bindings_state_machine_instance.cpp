@@ -75,6 +75,13 @@ JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cp
     stateMachineInstance->pointerUp(rive::Vec2D(x, y));
 }
 
+JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppDelete(JNIEnv*,
+                                                                                        jobject,
+                                                                                        jlong ref) {
+    auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+    delete stateMachineInstance;
+}
+
 #ifdef __cplusplus
 }
 #endif

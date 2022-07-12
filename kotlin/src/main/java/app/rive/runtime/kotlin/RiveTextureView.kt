@@ -74,7 +74,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onDetachedFromWindow() {
-        renderer.cleanup()
+        renderer.delete()
         super.onDetachedFromWindow()
     }
 

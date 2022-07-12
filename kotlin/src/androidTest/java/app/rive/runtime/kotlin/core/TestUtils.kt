@@ -38,6 +38,11 @@ class TestUtils {
      * Choreographer API which would be calling native threading primitives.
      */
     class MockRiveAnimationView(context: Context) : RiveAnimationView(context) {
+        init {
+            // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
+            onAttachedToWindow()
+        }
+
         override fun makeRenderer(): MockArtboardRenderer {
             return MockArtboardRenderer()
         }
@@ -57,11 +62,16 @@ class TestUtils {
      * This RiveAnimationView uses a custom [MockNoopArtboardRenderer] to noop any drawing interactions.
      */
     class MockNoopRiveAnimationView(context: Context) : RiveAnimationView(context) {
+        init {
+            // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
+            onAttachedToWindow()
+        }
+
         override fun makeRenderer(): MockNoopArtboardRenderer {
             return MockNoopArtboardRenderer()
         }
 
-        fun setBounds(width:Float, height:Float) {
+        fun setBounds(width: Float, height: Float) {
             renderer.targetBounds = RectF(0f, 0f, width, height)
         }
     }

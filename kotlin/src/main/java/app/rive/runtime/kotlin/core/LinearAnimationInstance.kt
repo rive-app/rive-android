@@ -9,8 +9,12 @@ package app.rive.runtime.kotlin.core
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
-class LinearAnimationInstance(val cppPointer: Long, var mix: Float = 1.0f) :
-    PlayableInstance() {
+class LinearAnimationInstance(override var cppPointer: Long, var mix: Float = 1.0f) :
+    PlayableInstance(), NativeObject {
+
+    // LinearAnimationInstance don't have any dependencies.
+    override val dependencies: Nothing? by lazy { null }
+
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
     private external fun cppApply(pointer: Long, mix: Float)
     private external fun cppGetTime(pointer: Long): Float
@@ -25,6 +29,7 @@ class LinearAnimationInstance(val cppPointer: Long, var mix: Float = 1.0f) :
     private external fun cppWorkStart(cppPointer: Long): Int
     private external fun cppWorkEnd(cppPointer: Long): Int
 
+    external override fun cppDelete(pointer: Long)
 
     /**
      * Advance the animation by the [elapsedTime] in seconds.
@@ -170,8 +175,7 @@ class LinearAnimationInstance(val cppPointer: Long, var mix: Float = 1.0f) :
     var loop: Loop
         get() {
             val intLoop = cppGetLoop(cppPointer)
-            val loop = Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
-            return loop
+            return Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
         }
         set(loop) = cppSetLoop(cppPointer, loop.value)
 }

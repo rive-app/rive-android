@@ -2,6 +2,7 @@ package app.rive.runtime.example.utils
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
 import app.rive.runtime.kotlin.RiveAnimationView
 
 class RiveButton(context: Context, attrs: AttributeSet? = null) :
@@ -23,6 +24,14 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
                 recycle()
             }
         }
+    }
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        // Pass through for performing click
+        when (event?.action) {
+            MotionEvent.ACTION_UP -> performClick()
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun performClick(): Boolean {

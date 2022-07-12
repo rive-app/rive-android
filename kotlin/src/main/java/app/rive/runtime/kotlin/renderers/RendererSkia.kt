@@ -5,15 +5,20 @@ import android.view.Surface
 import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
+import app.rive.runtime.kotlin.core.NativeObject
 
 import android.graphics.RectF
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 
 abstract class RendererSkia(private val trace: Boolean = false) :
-    BaseRenderer(),
+    NativeObject,
     Choreographer.FrameCallback {
-    override var cppPointer: Long = constructor(trace)
+    // From NativeObject.
+    override val dependencies = mutableListOf<NativeObject>()
+    override var cppPointer: Long = NULL_POINTER
+    external override fun cppDelete(pointer: Long)
+    //
 
-    external override fun cleanupJNI(cppPointer: Long)
     private external fun cppStart(rendererPointer: Long)
     private external fun cppStop(rendererPointer: Long)
     private external fun cppSave(rendererPointer: Long)
@@ -36,7 +41,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     private external fun constructor(trace: Boolean): Long
 
     fun make() {
-        if (cppPointer == 0L) {
+        if (cppPointer == NULL_POINTER) {
             cppPointer = constructor(trace)
         }
     }
@@ -62,7 +67,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      */
     fun start() {
         if (isPlaying) return
-        if (cppPointer == 0L) {
+        if (cppPointer == NULL_POINTER) {
             return
         }
         isPlaying = true
@@ -91,14 +96,13 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     @CallSuper
     internal fun stopThread() {
         if (!isPlaying) return
-        if (cppPointer == 0L) {
+        if (cppPointer == NULL_POINTER) {
             return
         }
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
     }
-
 
     /**
      * Calls stop, and removes any pending frameCallbacks from the Choreographer
@@ -115,19 +119,6 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     private fun clearSurface() {
         stop()
         cppClearSurface(cppPointer)
-    }
-
-    /**
-     * Remove the [Renderer] object from memory.
-     */
-    @CallSuper
-    fun cleanup() {
-        clearSurface()
-        // Queues the cpp Renderer for deletion
-        cleanupJNI(cppPointer)
-        // Mark the underlying object as deleted right away:
-        //  this object is scheduled for deletion and shouldn't be used anymore.
-        cppPointer = 0L
     }
 
     open fun scheduleFrame() {
@@ -170,5 +161,31 @@ abstract class RendererSkia(private val trace: Boolean = false) :
             cppDoFrame(cppPointer, frameTimeNanos)
             scheduleFrame()
         }
+    }
+
+    /**
+     * Trigger a delete of the underlying C++ object.
+     *
+     * [cppDelete] call will enqueue a call to delete the underlying C++ object.
+     * This is to allow the current rendering thread to drain its queue before deleting dependencies.
+     * This will internally trigger a call to [disposeDependencies]
+     */
+    @CallSuper
+    open fun delete() {
+        clearSurface()
+        // Queues the cpp Renderer for deletion
+        cppDelete(cppPointer)
+        cppPointer = NULL_POINTER
+    }
+
+    /**
+     * Deletes all this renderer's dependents.
+     *
+     * Called internally by the JNI - Only once the thread work queue has been drained and we
+     * don't risk using dangling pointers of any dependency (e.g. Artboards or Animation Instances)
+     */
+    private fun disposeDependencies() {
+        dependencies.forEach { it.dispose() }
+        dependencies.clear()
     }
 }

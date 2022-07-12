@@ -22,8 +22,9 @@ JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cons
     ::JNIRendererSkia* renderer = new JNIRendererSkia(ktRendererSkia, trace);
     return (jlong)renderer;
 }
-JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cleanupJNI(
-    JNIEnv*, jobject, jlong rendererRef) {
+
+JNIEXPORT void JNICALL
+Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDelete(JNIEnv*, jobject, jlong rendererRef) {
     auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
     auto thread = renderer->workerThread();
     ThreadManager::getInstance()->releaseThread(thread, [=]() {
@@ -74,14 +75,14 @@ Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAlign(JNIEnv* env,
                                                              jlong ref,
                                                              jobject ktFit,
                                                              jobject ktAlignment,
-                                                             jlong targetBoundsRef,
-                                                             jlong sourceBoundsRef) {
+                                                             jobject targetBoundsRectF,
+                                                             jobject sourceBoundsRectF) {
     JNIRendererSkia* jniWrapper = (JNIRendererSkia*)ref;
     rive::Fit fit = getFit(env, ktFit);
     rive::Alignment alignment = getAlignment(env, ktAlignment);
-    rive::AABB* targetBounds = (rive::AABB*)targetBoundsRef;
-    rive::AABB* sourceBounds = (rive::AABB*)sourceBoundsRef;
-    jniWrapper->skRenderer()->align(fit, alignment, *targetBounds, *sourceBounds);
+    auto targetBounds = rectFToAABB(env, targetBoundsRectF);
+    auto sourceBounds = rectFToAABB(env, sourceBoundsRectF);
+    jniWrapper->skRenderer()->align(fit, alignment, targetBounds, sourceBounds);
 }
 
 JNIEXPORT jint JNICALL

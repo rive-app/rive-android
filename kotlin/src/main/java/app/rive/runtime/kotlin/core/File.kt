@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
 
@@ -17,36 +18,28 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  *
  * The rive editor will always let you download your file in the latest runtime format.
  */
-class File(bytes: ByteArray) {
-
-    private val cppPointer: Long
+class File(bytes: ByteArray) : NativeObject {
+    override var cppPointer: Long = NULL_POINTER
+    override val dependencies = mutableListOf<NativeObject>()
 
     init {
         cppPointer = import(bytes, bytes.size)
     }
 
     private external fun import(bytes: ByteArray, length: Int): Long
-    private external fun cppArtboard(cppPointer: Long): Long
     private external fun cppArtboardByName(cppPointer: Long, name: String): Long
     private external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String
     private external fun cppArtboardCount(cppPointer: Long): Int
-    private external fun cppDelete(cppPointer: Long)
+
+    external override fun cppDelete(pointer: Long)
 
     /**
      * Get the first artboard in the file.
      */
     val firstArtboard: Artboard
         @Throws(RiveException::class)
-        get() {
-            val artboardPointer = cppArtboard(cppPointer)
-            if (artboardPointer == 0L) {
-                throw ArtboardException("No Artboard found.")
-            }
-
-            return Artboard(
-                artboardPointer
-            )
-        }
+        get() = artboard(0)
 
     /**
      * Get the artboard called [name] in the file.
@@ -55,17 +48,18 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
+        // Creates a new artboard instance.
         val artboardPointer = cppArtboardByName(cppPointer, name)
-        if (artboardPointer == 0L) {
+        if (artboardPointer == NULL_POINTER) {
             throw ArtboardException(
                 "Artboard \"$name\" not found. " +
                         "Available Artboards: ${artboardNames.map { "\"$it\"" }}"
             )
         }
 
-        return Artboard(
-            artboardPointer
-        )
+        val ab = Artboard(artboardPointer)
+        dependencies.add(ab)
+        return ab
     }
 
     /**
@@ -75,15 +69,15 @@ class File(bytes: ByteArray) {
      */
     @Throws(RiveException::class)
     fun artboard(index: Int): Artboard {
-        val cppPointer = cppArtboardByIndex(cppPointer, index)
-        if (cppPointer == 0L) {
+        // Creates a new Artboard instance.
+        val artboardPointer = cppArtboardByIndex(cppPointer, index)
+        if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        return Artboard(
-            cppPointer
-        )
+        val ab = Artboard(artboardPointer)
+        dependencies.add(ab)
+        return ab
     }
-
 
     /**
      * Get the number of artboards in the file.
@@ -95,12 +89,8 @@ class File(bytes: ByteArray) {
      * Get the names of the artboards in the file.
      */
     val artboardNames: List<String>
-        get() = (0 until artboardCount).map { artboard(it).name }
-
-
-    protected fun finalize() {
-        if (cppPointer != -1L) {
-            cppDelete(cppPointer)
+        get() = (0 until artboardCount).map {
+            val name = cppArtboardNameByIndex(cppPointer, it)
+            name
         }
-    }
 }

@@ -5,6 +5,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 
 import android.graphics.RectF
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
@@ -17,18 +18,18 @@ import android.graphics.RectF
  *
  * The constructor uses a [cppPointer] to point to its c++ counterpart object.
  */
-class Artboard(val cppPointer: Long) {
+class Artboard(override var cppPointer: Long) : NativeObject {
     private external fun cppName(cppPointer: Long): String
-    private external fun cppFirstAnimation(cppPointer: Long): Long
 
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
     private external fun cppAnimationByName(cppPointer: Long, name: String): Long
     private external fun cppAnimationCount(cppPointer: Long): Int
+    private external fun cppAnimationNameByIndex(cppPointer: Long, index: Int): String
 
-    private external fun cppFirstStateMachine(cppPointer: Long): Long
     private external fun cppStateMachineByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateMachineByName(cppPointer: Long, name: String): Long
     private external fun cppStateMachineCount(cppPointer: Long): Int
+    private external fun cppStateMachineNameByIndex(cppPointer: Long, index: Int): String
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
 
@@ -43,7 +44,9 @@ class Artboard(val cppPointer: Long) {
     )
 
     private external fun cppBounds(cppPointer: Long): RectF
-    private external fun cppDelete(cppPointer: Long)
+
+    external override fun cppDelete(pointer: Long)
+    override val dependencies = mutableListOf<NativeObject>()
 
     /**
      * Get the [name] of the Artboard.
@@ -59,13 +62,7 @@ class Artboard(val cppPointer: Long) {
     val firstAnimation: LinearAnimationInstance
         @Throws(RiveException::class)
         get() {
-            val animationPointer = cppFirstAnimation(cppPointer)
-            if (animationPointer == 0L) {
-                throw AnimationException("No Animations found.")
-            }
-            return LinearAnimationInstance(
-                animationPointer
-            )
+            return animation(0)
         }
 
     /**
@@ -76,12 +73,12 @@ class Artboard(val cppPointer: Long) {
     @Throws(RiveException::class)
     fun animation(index: Int): LinearAnimationInstance {
         val animationPointer = cppAnimationByIndex(cppPointer, index)
-        if (animationPointer == 0L) {
+        if (animationPointer == NULL_POINTER) {
             throw AnimationException("No Animation found at index $index.")
         }
-        return LinearAnimationInstance(
-            animationPointer
-        )
+        val lai = LinearAnimationInstance(animationPointer)
+        dependencies.add(lai)
+        return lai
     }
 
     /**
@@ -90,15 +87,15 @@ class Artboard(val cppPointer: Long) {
     @Throws(RiveException::class)
     fun animation(name: String): LinearAnimationInstance {
         val animationPointer = cppAnimationByName(cppPointer, name)
-        if (animationPointer == 0L) {
+        if (animationPointer == NULL_POINTER) {
             throw AnimationException(
                 "Animation \"$name\" not found. " +
                         "Available Animations: ${animationNames.map { "\"$it\"" }}\""
             )
         }
-        return LinearAnimationInstance(
-            animationPointer
-        )
+        val lai = LinearAnimationInstance(animationPointer)
+        dependencies.add(lai)
+        return lai
     }
 
     /**
@@ -109,13 +106,7 @@ class Artboard(val cppPointer: Long) {
     val firstStateMachine: StateMachineInstance
         @Throws(RiveException::class)
         get() {
-            val stateMachinePointer = cppFirstStateMachine(cppPointer)
-            if (stateMachinePointer == 0L) {
-                throw StateMachineException("No StateMachines found.")
-            }
-            return StateMachineInstance(
-                stateMachinePointer
-            )
+            return stateMachine(0)
         }
 
 
@@ -127,12 +118,12 @@ class Artboard(val cppPointer: Long) {
     @Throws(RiveException::class)
     fun stateMachine(index: Int): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
-        if (stateMachinePointer == 0L) {
+        if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
-        return StateMachineInstance(
-            stateMachinePointer
-        )
+        val smi = StateMachineInstance(stateMachinePointer)
+        dependencies.add(smi)
+        return smi
     }
 
     /**
@@ -141,12 +132,12 @@ class Artboard(val cppPointer: Long) {
     @Throws(RiveException::class)
     fun stateMachine(name: String): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByName(cppPointer, name)
-        if (stateMachinePointer == 0L) {
+        if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
-        return StateMachineInstance(
-            stateMachinePointer
-        )
+        val smi = StateMachineInstance(stateMachinePointer)
+        dependencies.add(smi)
+        return smi
     }
 
     /**
@@ -202,20 +193,11 @@ class Artboard(val cppPointer: Long) {
      * Get the names of the animations in the artboard.
      */
     val animationNames: List<String>
-        get() = (0 until animationCount).map { animation(it).name }
+        get() = (0 until animationCount).map { cppAnimationNameByIndex(cppPointer, it) }
 
     /**
      * Get the names of the stateMachines in the artboard.
      */
     val stateMachineNames: List<String>
-        get() = (0 until stateMachineCount).map { stateMachine(it).name }
-
-
-    protected fun finalize() {
-        // If we are done with the artboard, and the artboard is an artboard instance, lets get rid of it.
-        // Otherwise we are letting the cpp manage the artboard lifecycle
-        if (cppPointer != -1L) {
-            cppDelete(cppPointer)
-        }
-    }
+        get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
 }

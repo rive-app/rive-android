@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
@@ -13,11 +14,14 @@ import app.rive.runtime.kotlin.core.errors.StateMachineInputException
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
+class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), NativeObject {
     private external fun cppAdvance(
         pointer: Long,
         elapsedTime: Float
     ): Boolean
+
+    // StateMachineInstances don't have any dependencies.
+    override val dependencies: Nothing? by lazy { null }
 
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
@@ -28,6 +32,8 @@ class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
     private external fun cppPointerDown(cppPointer: Long, x: Float, y: Float)
     private external fun cppPointerUp(cppPointer: Long, x: Float, y: Float)
     private external fun cppPointerMove(cppPointer: Long, x: Float, y: Float)
+
+    external override fun cppDelete(pointer: Long)
 
     /**
      * Return the name given to an animation
@@ -99,7 +105,7 @@ class StateMachineInstance(val cppPointer: Long) : PlayableInstance() {
     @Throws(RiveException::class)
     fun input(index: Int): SMIInput {
         val stateMachineInputPointer = cppSMIInputByIndex(cppPointer, index)
-        if (stateMachineInputPointer == 0L) {
+        if (stateMachineInputPointer == NULL_POINTER) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
         return convertInput(

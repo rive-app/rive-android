@@ -4,7 +4,7 @@
 #include "rive/layout.hpp"
 #include "skia_factory.hpp"
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -219,7 +219,7 @@ namespace rive_android {
         std::string str = std::string(cstr);
         return str;
     }
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
     void logThread() {
         int pipes[2];
         pipe(pipes);

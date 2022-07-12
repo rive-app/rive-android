@@ -170,33 +170,35 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     url = getString(R.styleable.RiveAnimationView_riveUrl),
                 )
                 renderer = makeRenderer()
-
-                if (rendererAttributes.resourceId != -1) {
-                    setRiveResource(
-                        rendererAttributes.resourceId,
-                        alignment = rendererAttributes.alignment,
-                        fit = rendererAttributes.fit,
-                        loop = rendererAttributes.loop,
-                        autoplay = rendererAttributes.autoplay,
-                        artboardName = rendererAttributes.artboardName,
-                        stateMachineName = rendererAttributes.stateMachineName,
-                        animationName = rendererAttributes.animationName,
-                    )
-                } else {
-                    renderer.alignment = rendererAttributes.alignment
-                    renderer.fit = rendererAttributes.fit
-                    renderer.loop = rendererAttributes.loop
-                    renderer.autoplay = rendererAttributes.autoplay
-                    renderer.artboardName = rendererAttributes.artboardName
-                    renderer.animationName = rendererAttributes.animationName
-                    renderer.stateMachineName = rendererAttributes.stateMachineName
-
-                    // If a URL has been provided, initiate downloading
-                    rendererAttributes.url?.let { loadHttp(it) }
-                }
             } finally {
                 recycle()
             }
+        }
+    }
+
+    private fun setupRenderer() {
+        if (rendererAttributes.resourceId != -1) {
+            setRiveResource(
+                rendererAttributes.resourceId,
+                alignment = rendererAttributes.alignment,
+                fit = rendererAttributes.fit,
+                loop = rendererAttributes.loop,
+                autoplay = rendererAttributes.autoplay,
+                artboardName = rendererAttributes.artboardName,
+                stateMachineName = rendererAttributes.stateMachineName,
+                animationName = rendererAttributes.animationName,
+            )
+        } else {
+            renderer.alignment = rendererAttributes.alignment
+            renderer.fit = rendererAttributes.fit
+            renderer.loop = rendererAttributes.loop
+            renderer.autoplay = rendererAttributes.autoplay
+            renderer.artboardName = rendererAttributes.artboardName
+            renderer.animationName = rendererAttributes.animationName
+            renderer.stateMachineName = rendererAttributes.stateMachineName
+
+            // If a URL has been provided, initiate downloading
+            rendererAttributes.url?.let { loadHttp(it) }
         }
     }
 
@@ -430,7 +432,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        val bytes = resources.openRawResource(resId).readBytes()
+        val stream = resources.openRawResource(resId)
+        val bytes = stream.readBytes()
         setRiveBytes(
             bytes,
             fit = fit,
@@ -441,6 +444,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             stateMachineName = stateMachineName,
             autoplay = autoplay
         )
+        stream.close()
     }
 
     /**
@@ -521,12 +525,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.name }
         )
         pause()
-        renderer.stop()
         super.onDetachedFromWindow()
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        setupRenderer()
 
         val detachedState = _detachedState
         if (detachedState != null) {
@@ -617,14 +621,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /// could live in RiveTextureView, but that doesnt really know
     /// about the artboard renderer that knows about state machines?
     override fun onTouchEvent(event: MotionEvent?): Boolean {
-        event?.let{ event ->
+        event?.let { event ->
             val x = event.x;
             val y = event.y;
-            when(event.action) {
-                MotionEvent.ACTION_MOVE ->renderer.pointerEvent(PointerEvents.POINTER_MOVE, x,y)
-                MotionEvent.ACTION_CANCEL ->renderer.pointerEvent(PointerEvents.POINTER_UP, x,y)
-                MotionEvent.ACTION_DOWN ->renderer.pointerEvent(PointerEvents.POINTER_DOWN, x,y)
-                MotionEvent.ACTION_UP ->renderer.pointerEvent(PointerEvents.POINTER_UP, x,y)
+            when (event.action) {
+                MotionEvent.ACTION_MOVE -> renderer.pointerEvent(PointerEvents.POINTER_MOVE, x, y)
+                MotionEvent.ACTION_CANCEL -> renderer.pointerEvent(PointerEvents.POINTER_UP, x, y)
+                MotionEvent.ACTION_DOWN -> renderer.pointerEvent(PointerEvents.POINTER_DOWN, x, y)
+                MotionEvent.ACTION_UP -> renderer.pointerEvent(PointerEvents.POINTER_UP, x, y)
             }
         }
         return true

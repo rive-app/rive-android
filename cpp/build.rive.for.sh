@@ -30,13 +30,16 @@ if [ -z "$HOST_TAG" ]; then
     exit 1
 fi
 
-while getopts "a:cd" opt; do
+while getopts "a:cdl" opt; do
     case "$opt" in
     a) ARCH_NAME="$OPTARG" ;;
     c) NEEDS_CLEAN="true" ;;
     d)
         CONFIG="debug"
         FLAGS="-DDEBUG"
+        ;;
+    l)
+        FLAGS="-DLOG"
         ;;
     \?) usage ;; # Print usage in case parameter is non-existent
     esac
@@ -49,19 +52,19 @@ fi
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     EXPECTED_NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
-else 
+else
     EXPECTED_NDK_VERSION=$(tr <.ndk_version.bots -d " \t\n\r")
-fi 
+fi
 
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
     echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
     exit 1
-# Check NDK version 
+# Check NDK version
 elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "Wrong NDK version"
     echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
-    echo "          For bot builds, googles NDK distros" 
+    echo "          For bot builds, googles NDK distros"
     echo "          we are currently using: https://github.com/android/ndk/wiki/Unsupported-Downloads"
     echo "Found ${NDK_PATH}"
     exit 1
@@ -70,12 +73,11 @@ fi
 # Common variables.
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
-if git remote -v | grep android;
-then
+if git remote -v | grep android; then
     export RIVE_RUNTIME_DIR="$PWD/../submodules/rive-cpp"
 else
-    export RIVE_RUNTIME_DIR="$PWD/../../runtime" 
-fi 
+    export RIVE_RUNTIME_DIR="$PWD/../../runtime"
+fi
 
 export SYSROOT="$TOOLCHAIN/sysroot"
 export INCLUDE="$SYSROOT/usr/include"
@@ -128,8 +130,6 @@ buildFor() {
     mkdir -p "$JNI_DEST"
     cp "$BUILD_DIR"/libjnirivebridge.so "$JNI_DEST"
 }
-
-
 
 if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="

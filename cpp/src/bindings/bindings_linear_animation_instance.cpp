@@ -118,6 +118,12 @@ JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_LinearAnimationInstance
     return (jint)animationInstance->animation()->workEnd();
 }
 
+JNIEXPORT void JNICALL
+Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDelete(JNIEnv*, jobject, jlong ref) {
+    auto animationInstance = (rive::LinearAnimationInstance*)ref;
+    delete animationInstance;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,7 +1,7 @@
 #include "helpers/general.hpp"
 #include <jni.h>
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
 #include <thread>
 #endif
 
@@ -12,7 +12,7 @@ using namespace rive_android;
 
 JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env,
                                                                             jobject thisObj) {
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
     // luigi: again ifdef this out for release (or murder completely, but
     // it's nice to catch all fprintf to stderr).
     std::thread t(logThread);

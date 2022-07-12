@@ -78,6 +78,12 @@ namespace rive_android {
 
         void reset() { launchThread(); }
 
+        void drainWorkQueue() {
+            while (!mWorkQueue.empty()) {
+                mWorkQueue.pop();
+            }
+        }
+
     private:
         void launchThread() {
             std::lock_guard<std::mutex> threadLock(mThreadMutex);
@@ -94,12 +100,6 @@ namespace rive_android {
                 mWorkCondition.notify_all();
             }
             mThread.join();
-        }
-
-        void drainWorkQueue() {
-            while (!mWorkQueue.empty()) {
-                mWorkQueue.pop();
-            }
         }
 
         void threadMain() {

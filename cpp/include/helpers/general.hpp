@@ -7,7 +7,7 @@
 #include <android/log.h>
 
 // Print only on debug builds.
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
 #define LOG_TAG (std::string(__FILE__ ":") + std::to_string(__LINE__)).c_str()
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
@@ -38,7 +38,7 @@ namespace rive_android {
 
     std::string jstring2string(JNIEnv* env, jstring jStr);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LOG)
     // luigi: this redirects stderr to android log (probably want to ifdef this
     // out for release)
     void logThread();

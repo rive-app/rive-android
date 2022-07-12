@@ -11,9 +11,9 @@ class ButtonActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.button)
 
-        var button = findViewById<RiveButton>(R.id.myButton)
+        val button = findViewById<RiveButton>(R.id.myButton)
         button.setOnClickListener {
-            var textView = findViewById<TextView>(R.id.myButtonCounter)
+            val textView = findViewById<TextView>(R.id.myButtonCounter)
             textView.text = (textView.text.toString().toInt() + 1).toString()
         }
 

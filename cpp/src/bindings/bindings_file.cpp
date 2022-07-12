@@ -23,6 +23,7 @@ JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboard(JNIEn
                                                                            jobject thisObj,
                                                                            jlong ref) {
     auto file = (rive::File*)ref;
+    // Creates a new Artboard instance.
     return (jlong)file->artboardAt(0).release();
 }
 
@@ -31,6 +32,7 @@ JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardByName
                                                                                  jlong ref,
                                                                                  jstring name) {
     auto file = (rive::File*)ref;
+    // Creates a new Artboard instance.
     return (jlong)file->artboardNamed(jstring2string(env, name)).release();
 }
 
@@ -55,7 +57,20 @@ JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardByInde
                                                                                   jlong ref,
                                                                                   jint index) {
     auto file = (rive::File*)ref;
+    // Creates a new Artboard instance.
     return (jlong)file->artboardAt(index).release();
+}
+
+JNIEXPORT
+jstring JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboardNameByIndex(JNIEnv* env,
+                                                                              jobject,
+                                                                              jlong ref,
+                                                                              jint index) {
+    auto file = (rive::File*)ref;
+
+    auto artboard = file->artboard(index);
+    auto name = artboard->name();
+    return env->NewStringUTF(name.c_str());
 }
 
 #ifdef __cplusplus

@@ -47,7 +47,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		$(CXXFLAGS)
 
 clean:
-	rm -f $(ODIR)/*.o
+	rm -rf $(ODIR)
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
 	rm -f $(BUILD_DIR)/librive.a
 	rm -f $(BUILD_DIR)/libskia.a
