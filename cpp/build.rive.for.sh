@@ -81,7 +81,8 @@ fi
 # Common variables.
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
-if git remote -v | grep android; then
+if [ -d "$PWD/../submodules/rive-cpp" ];
+then
     export RIVE_RUNTIME_DIR="$PWD/../submodules/rive-cpp"
 else
     export RIVE_RUNTIME_DIR="$PWD/../../runtime"
