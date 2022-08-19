@@ -53,9 +53,7 @@ namespace rive_android {
         CPU_ZERO(&cpuSet);
         for (int32_t cpu = 0; cpu < numCpus; ++cpu) {
             switch (affinity) {
-                case Affinity::None:
-                    CPU_SET(cpu, &cpuSet);
-                    break;
+                case Affinity::None: CPU_SET(cpu, &cpuSet); break;
                 case Affinity::Even:
                     if (cpu % 2 == 0)
                         CPU_SET(cpu, &cpuSet);

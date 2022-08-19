@@ -23,22 +23,29 @@ JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppName(JNI
     return env->NewStringUTF(artboard->name().c_str());
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstAnimation(
-    JNIEnv* env, jobject thisObj, jlong ref) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppFirstAnimation(JNIEnv* env,
+                                                             jobject thisObj,
+                                                             jlong ref) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
     return (jlong)artboard->animationAt(0).release();
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppFirstStateMachine(
-    JNIEnv* env, jobject thisObj, jlong ref) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppFirstStateMachine(JNIEnv* env,
+                                                                jobject thisObj,
+                                                                jlong ref) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
     return (jlong)artboard->stateMachineAt(0).release();
 }
 
-JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationNameByIndex(
-    JNIEnv* env, jobject, jlong ref, jint index) {
+JNIEXPORT jstring JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationNameByIndex(JNIEnv* env,
+                                                                   jobject,
+                                                                   jlong ref,
+                                                                   jint index) {
     auto artboard = (rive::ArtboardInstance*)ref;
 
     rive::LinearAnimation* animation = artboard->animation(index);
@@ -47,8 +54,11 @@ JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimatio
     return env->NewStringUTF(name.c_str());
 }
 
-JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineNameByIndex(
-    JNIEnv* env, jobject, jlong ref, jint index) {
+JNIEXPORT jstring JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineNameByIndex(JNIEnv* env,
+                                                                      jobject,
+                                                                      jlong ref,
+                                                                      jint index) {
     auto artboard = (rive::ArtboardInstance*)ref;
 
     rive::StateMachine* stateMachine = artboard->stateMachine(index);
@@ -57,15 +67,21 @@ JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMac
     return env->NewStringUTF(name.c_str());
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(
-    JNIEnv* env, jobject thisObj, jlong ref, jint index) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(JNIEnv* env,
+                                                               jobject thisObj,
+                                                               jlong ref,
+                                                               jint index) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
     return (jlong)artboard->animationAt(index).release();
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(
-    JNIEnv* env, jobject thisObj, jlong ref, jstring name) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(JNIEnv* env,
+                                                              jobject thisObj,
+                                                              jlong ref,
+                                                              jstring name) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
     return (jlong)artboard->animationNamed(jstring2string(env, name)).release();
@@ -79,30 +95,41 @@ JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCo
     return (jint)artboard->animationCount();
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(
-    JNIEnv* env, jobject thisObj, jlong ref, jint index) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(JNIEnv* env,
+                                                                  jobject thisObj,
+                                                                  jlong ref,
+                                                                  jint index) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
     return (jlong)artboard->stateMachineAt(index).release();
 }
 
-JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(
-    JNIEnv* env, jobject thisObj, jlong ref, jstring name) {
+JNIEXPORT jlong JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(JNIEnv* env,
+                                                                 jobject thisObj,
+                                                                 jlong ref,
+                                                                 jstring name) {
     auto artboard = (rive::ArtboardInstance*)ref;
     // Creates a new instance.
 
     return (jlong)artboard->stateMachineNamed(jstring2string(env, name)).release();
 }
 
-JNIEXPORT jint JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(
-    JNIEnv* env, jobject thisObj, jlong ref) {
+JNIEXPORT jint JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(JNIEnv* env,
+                                                                jobject thisObj,
+                                                                jlong ref) {
     auto artboard = (rive::ArtboardInstance*)ref;
 
     return (jint)artboard->stateMachineCount();
 }
 
-JNIEXPORT jboolean JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(
-    JNIEnv* env, jobject thisObj, jlong ref, jfloat elapsedTime) {
+JNIEXPORT jboolean JNICALL
+Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(JNIEnv* env,
+                                                      jobject thisObj,
+                                                      jlong ref,
+                                                      jfloat elapsedTime) {
     auto artboard = (rive::ArtboardInstance*)ref;
     return artboard->advance(elapsedTime);
 }
@@ -113,8 +140,8 @@ JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(J
     auto cls = env->FindClass("android/graphics/RectF");
     auto constructor = env->GetMethodID(cls, "<init>", "(FFFF)V");
     const auto bounds = ((rive::ArtboardInstance*)ref)->bounds();
-    return env->NewObject(
-        cls, constructor, bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
+    return env
+        ->NewObject(cls, constructor, bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
 }
 
 JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(JNIEnv* env,

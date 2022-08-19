@@ -32,8 +32,11 @@ namespace rive_android {
         EGL_ERR_CHECK();
 
         std::vector<EGLConfig> supportedConfigs(static_cast<size_t>(numConfigs));
-        eglChooseConfig(
-            mDisplay, configAttributes, supportedConfigs.data(), numConfigs, &numConfigs);
+        eglChooseConfig(mDisplay,
+                        configAttributes,
+                        supportedConfigs.data(),
+                        numConfigs,
+                        &numConfigs);
         EGL_ERR_CHECK();
 
         // Choose a config, either a match if possible or the first config
@@ -104,8 +107,9 @@ namespace rive_android {
         mSkContext = nullptr;
     }
 
-    bool
-    EGLThreadState::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value) const {
+    bool EGLThreadState::configHasAttribute(EGLConfig config,
+                                            EGLint attribute,
+                                            EGLint value) const {
         EGLint outValue = 0;
         EGLBoolean result = eglGetConfigAttrib(mDisplay, mConfig, attribute, &outValue);
         return result && (outValue == value);

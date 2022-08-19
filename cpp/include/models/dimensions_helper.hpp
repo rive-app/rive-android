@@ -22,8 +22,9 @@ namespace rive_android {
 
         void clipPath(rive::RenderPath* path) override {}
 
-        void
-        drawImage(const rive::RenderImage* image, rive::BlendMode value, float opacity) override {}
+        void drawImage(const rive::RenderImage* image,
+                       rive::BlendMode value,
+                       float opacity) override {}
 
         void drawImageMesh(const rive::RenderImage* image,
                            rive::rcp<rive::RenderBuffer> vertices_f32,

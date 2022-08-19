@@ -49,8 +49,10 @@ Java_app_rive_runtime_kotlin_core_Helpers_cppConvertToArtboardSpace(JNIEnv* env,
     auto touchLocation = rive::Vec2D(touchX, touchY);
     rive::Vec2D convertedLocation = inverse * touchLocation;
 
-    return env->NewObject(
-        getPointerFClass(), getPointFInitMethod(), convertedLocation.x, convertedLocation.y);
+    return env->NewObject(getPointerFClass(),
+                          getPointFInitMethod(),
+                          convertedLocation.x,
+                          convertedLocation.y);
 }
 
 #ifdef __cplusplus
