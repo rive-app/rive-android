@@ -58,9 +58,7 @@ class RiveViewTest {
                 mockView.animations.map { it.name }.toList()
             )
         }
-
     }
-
 
     @Test(expected = ArtboardException::class)
     fun viewChangeToMissingArtboard() {
@@ -484,6 +482,16 @@ class RiveViewTest {
             mockView.reset()
             assertNotEquals(mockView.renderer.activeArtboard?.cppPointer, originalPointer)
             assert(!mockView.isPlaying)
+        }
+    }
+
+    @Test
+    fun viewResetTwice() {
+        // This used to crash with a null pointer dereference.
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            mockView.reset()
+            mockView.reset()
         }
     }
 

@@ -204,11 +204,7 @@ open class RiveArtboardRenderer(
         stopAnimations()
         stop()
         clear()
-        selectedArtboard?.let { artboard ->
-            file?.let { file ->
-                setArtboard(file.artboard(artboard.name))
-            }
-        }
+        selectArtboard()
         start()
     }
 
@@ -544,9 +540,10 @@ open class RiveArtboardRenderer(
     }
 
     private fun setArtboard(artboard: Artboard) {
-        // Dispose of the old artboard, if any.
-        this.activeArtboard?.dispose()
+        dependencies.add(artboard)
+
         this.activeArtboard = artboard
+        
 
         if (autoplay) {
             animationName?.let { animationName ->
