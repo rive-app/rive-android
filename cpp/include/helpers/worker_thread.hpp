@@ -27,146 +27,146 @@
 #include "thread.hpp"
 
 namespace rive_android {
-    template <class ThreadState> class WorkerThread {
-    public:
-        using Work = std::function<void(ThreadState*)>;
+template <class ThreadState> class WorkerThread {
+public:
+    using Work = std::function<void(ThreadState*)>;
 
-        WorkerThread(const char* name, Affinity affinity) : mName(name), mAffinity(affinity) {
-            launchThread();
+    WorkerThread(const char* name, Affinity affinity) : mName(name), mAffinity(affinity) {
+        launchThread();
+    }
+
+    ~WorkerThread() {
+        std::lock_guard<std::mutex> threadLock(mThreadMutex);
+        terminateThread();
+        // Detach thread from the JVM.
+        detachThread();
+    }
+
+    bool run(Work work) {
+        if (!mIsWorking) {
+            LOGW("Can't add work while thread isn't running.");
+            return false;
         }
+        std::lock_guard<std::mutex> workLock(mWorkMutex);
+        mWorkQueue.emplace(std::move(work));
+        mWorkCondition.notify_all();
+        return true;
+    }
 
-        ~WorkerThread() {
-            std::lock_guard<std::mutex> threadLock(mThreadMutex);
+    void releaseQueue(std::function<void()> onRelease = nullptr) {
+        std::lock_guard<std::mutex> workLock(mWorkMutex);
+        // Prevent any other work to be added here.
+        drainWorkQueue();
+        // Force onto work queue, bypassing our runner function.
+        mWorkQueue.emplace(std::move([=](EGLThreadState* threadState) {
+            threadState->mIsStarted = false;
+            threadState->clearSurface();
+            threadState->unsetKtRendererClass();
+            if (onRelease) {
+                onRelease();
+            }
+        }));
+        mWorkCondition.notify_all();
+    }
+
+    void setIsWorking(bool isIt) {
+        if (isIt == mIsWorking)
+            return;
+
+        mIsWorking = isIt;
+    }
+
+    void reset() { launchThread(); }
+
+    void drainWorkQueue() {
+        while (!mWorkQueue.empty()) {
+            mWorkQueue.pop();
+        }
+    }
+
+private:
+    void launchThread() {
+        std::lock_guard<std::mutex> threadLock(mThreadMutex);
+        if (mThread.joinable()) {
             terminateThread();
-            // Detach thread from the JVM.
-            detachThread();
         }
+        mThread = std::thread([this]() { threadMain(); });
+    }
 
-        bool run(Work work) {
-            if (!mIsWorking) {
-                LOGW("Can't add work while thread isn't running.");
-                return false;
-            }
+    void terminateThread() REQUIRES(mThreadMutex) {
+        {
             std::lock_guard<std::mutex> workLock(mWorkMutex);
-            mWorkQueue.emplace(std::move(work));
-            mWorkCondition.notify_all();
-            return true;
-        }
-
-        void releaseQueue(std::function<void()> onRelease = nullptr) {
-            std::lock_guard<std::mutex> workLock(mWorkMutex);
-            // Prevent any other work to be added here.
-            drainWorkQueue();
-            // Force onto work queue, bypassing our runner function.
-            mWorkQueue.emplace(std::move([=](EGLThreadState* threadState) {
-                threadState->mIsStarted = false;
-                threadState->clearSurface();
-                threadState->unsetKtRendererClass();
-                if (onRelease) {
-                    onRelease();
-                }
-            }));
+            mIsActive = false;
             mWorkCondition.notify_all();
         }
+        mThread.join();
+    }
 
-        void setIsWorking(bool isIt) {
-            if (isIt == mIsWorking)
-                return;
+    void threadMain() {
+        setAffinity(mAffinity);
+        pthread_setname_np(pthread_self(), mName.c_str());
 
-            mIsWorking = isIt;
-        }
+        ThreadState threadState;
 
-        void reset() { launchThread(); }
-
-        void drainWorkQueue() {
-            while (!mWorkQueue.empty()) {
+        std::lock_guard<std::mutex> lock(mWorkMutex);
+        while (mIsActive) {
+            mWorkCondition.wait(mWorkMutex, [this]() REQUIRES(mWorkMutex) {
+                return !mWorkQueue.empty() || !mIsActive;
+            });
+            if (!mWorkQueue.empty()) {
+                auto head = mWorkQueue.front();
                 mWorkQueue.pop();
+
+                // Drop the mutex while we execute
+                mWorkMutex.unlock();
+                head(&threadState);
+                mWorkMutex.lock();
             }
         }
+    }
 
-    private:
-        void launchThread() {
-            std::lock_guard<std::mutex> threadLock(mThreadMutex);
-            if (mThread.joinable()) {
-                terminateThread();
-            }
-            mThread = std::thread([this]() { threadMain(); });
+    const std::string mName;
+    const Affinity mAffinity;
+
+    std::mutex mThreadMutex;
+    std::thread mThread GUARDED_BY(mThreadMutex);
+
+    bool mIsWorking = true;
+
+    std::mutex mWorkMutex;
+    bool mIsActive GUARDED_BY(mWorkMutex) = true;
+    std::queue<std::function<void(ThreadState*)>> mWorkQueue GUARDED_BY(mWorkMutex);
+    std::condition_variable_any mWorkCondition;
+};
+
+class ThreadManager {
+private:
+    ThreadManager() : mThreadPool{} {};
+    ~ThreadManager() {
+        std::lock_guard<std::mutex> threadLock(mMutex);
+        // Clean up all the threads.
+        while (!mThreadPool.empty()) {
+            auto current = mThreadPool.top();
+            mThreadPool.pop();
+            delete current;
         }
+    }
 
-        void terminateThread() REQUIRES(mThreadMutex) {
-            {
-                std::lock_guard<std::mutex> workLock(mWorkMutex);
-                mIsActive = false;
-                mWorkCondition.notify_all();
-            }
-            mThread.join();
-        }
+    static ThreadManager* mInstance;
+    static std::mutex mMutex;
 
-        void threadMain() {
-            setAffinity(mAffinity);
-            pthread_setname_np(pthread_self(), mName.c_str());
+    std::stack<WorkerThread<EGLThreadState>*> GUARDED_BY(mMutex) mThreadPool;
 
-            ThreadState threadState;
+public:
+    // Singleton getter.
+    static ThreadManager* getInstance();
+    // Singleton can't be copied/assigned.
+    ThreadManager(ThreadManager const&) = delete;
+    void operator=(ThreadManager const&) = delete;
 
-            std::lock_guard<std::mutex> lock(mWorkMutex);
-            while (mIsActive) {
-                mWorkCondition.wait(mWorkMutex, [this]() REQUIRES(mWorkMutex) {
-                    return !mWorkQueue.empty() || !mIsActive;
-                });
-                if (!mWorkQueue.empty()) {
-                    auto head = mWorkQueue.front();
-                    mWorkQueue.pop();
+    WorkerThread<EGLThreadState>* acquireThread(const char*);
 
-                    // Drop the mutex while we execute
-                    mWorkMutex.unlock();
-                    head(&threadState);
-                    mWorkMutex.lock();
-                }
-            }
-        }
-
-        const std::string mName;
-        const Affinity mAffinity;
-
-        std::mutex mThreadMutex;
-        std::thread mThread GUARDED_BY(mThreadMutex);
-
-        bool mIsWorking = true;
-
-        std::mutex mWorkMutex;
-        bool mIsActive GUARDED_BY(mWorkMutex) = true;
-        std::queue<std::function<void(ThreadState*)>> mWorkQueue GUARDED_BY(mWorkMutex);
-        std::condition_variable_any mWorkCondition;
-    };
-
-    class ThreadManager {
-    private:
-        ThreadManager() : mThreadPool{} {};
-        ~ThreadManager() {
-            std::lock_guard<std::mutex> threadLock(mMutex);
-            // Clean up all the threads.
-            while (!mThreadPool.empty()) {
-                auto current = mThreadPool.top();
-                mThreadPool.pop();
-                delete current;
-            }
-        }
-
-        static ThreadManager* mInstance;
-        static std::mutex mMutex;
-
-        std::stack<WorkerThread<EGLThreadState>*> GUARDED_BY(mMutex) mThreadPool;
-
-    public:
-        // Singleton getter.
-        static ThreadManager* getInstance();
-        // Singleton can't be copied/assigned.
-        ThreadManager(ThreadManager const&) = delete;
-        void operator=(ThreadManager const&) = delete;
-
-        WorkerThread<EGLThreadState>* acquireThread(const char*);
-
-        void releaseThread(WorkerThread<EGLThreadState>* thread,
-                           std::function<void()> onRelease = nullptr);
-    };
+    void releaseThread(WorkerThread<EGLThreadState>* thread,
+                       std::function<void()> onRelease = nullptr);
+};
 } // namespace rive_android

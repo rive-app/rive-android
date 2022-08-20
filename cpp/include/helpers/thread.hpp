@@ -34,11 +34,11 @@
 
 namespace rive_android {
 
-    enum class Affinity { None, Even, Odd };
+enum class Affinity { None, Even, Odd };
 
-    int32_t getNumCpus();
+int32_t getNumCpus();
 
-    void setAffinity(int32_t cpu);
+void setAffinity(int32_t cpu);
 
-    void setAffinity(Affinity affinity);
+void setAffinity(Affinity affinity);
 } // namespace rive_android

@@ -21,45 +21,45 @@
 
 namespace rive_android {
 
-    Settings* Settings::getInstance() {
-        static auto settings = std::make_unique<Settings>(ConstructorTag{});
-        return settings.get();
-    }
+Settings* Settings::getInstance() {
+    static auto settings = std::make_unique<Settings>(ConstructorTag{});
+    return settings.get();
+}
 
-    void Settings::addListener(Listener listener) {
+void Settings::addListener(Listener listener) {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mListeners.emplace_back(std::move(listener));
+}
+
+void Settings::setPreference(std::string key, std::string value) {
+    if (key == "hot_pocket") {
         std::lock_guard<std::mutex> lock(mMutex);
-        mListeners.emplace_back(std::move(listener));
+        mHotPocket = (value == "true");
+    } else {
+        LOGI("Can't find matching preference for %s", key.c_str());
+        return;
     }
 
-    void Settings::setPreference(std::string key, std::string value) {
-        if (key == "hot_pocket") {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mHotPocket = (value == "true");
-        } else {
-            LOGI("Can't find matching preference for %s", key.c_str());
-            return;
-        }
+    // Notify the listeners without the lock held
+    notifyListeners();
+}
 
-        // Notify the listeners without the lock held
-        notifyListeners();
+bool Settings::getHotPocket() const { return mHotPocket; }
+
+bool Settings::isTraceEnabled() const { return mIsTraceEnabled; }
+
+void Settings::notifyListeners() {
+    // Grab a local copy of the listeners
+    std::vector<Listener> listeners;
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        listeners = mListeners;
     }
 
-    bool Settings::getHotPocket() const { return mHotPocket; }
-
-    bool Settings::isTraceEnabled() const { return mIsTraceEnabled; }
-
-    void Settings::notifyListeners() {
-        // Grab a local copy of the listeners
-        std::vector<Listener> listeners;
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            listeners = mListeners;
-        }
-
-        // Call the listeners without the lock held
-        for (const auto& listener : listeners) {
-            listener();
-        }
+    // Call the listeners without the lock held
+    for (const auto& listener : listeners) {
+        listener();
     }
+}
 
 } // namespace rive_android

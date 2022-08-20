@@ -23,26 +23,26 @@
 #endif
 
 namespace rive_android {
-    extern JavaVM* globalJavaVM;
-    extern jobject androidCanvas;
-    extern int sdkVersion;
-    void setSDKVersion();
-    void logReferenceTables();
-    long import(uint8_t* bytes, jint length);
+extern JavaVM* globalJavaVM;
+extern jobject androidCanvas;
+extern int sdkVersion;
+void setSDKVersion();
+void logReferenceTables();
+long import(uint8_t* bytes, jint length);
 
-    rive::Alignment getAlignment(JNIEnv* env, jobject jalignment);
-    rive::Fit getFit(JNIEnv* env, jobject jfit);
-    JNIEnv* getJNIEnv();
+rive::Alignment getAlignment(JNIEnv* env, jobject jalignment);
+rive::Fit getFit(JNIEnv* env, jobject jfit);
+JNIEnv* getJNIEnv();
 
-    void detachThread();
+void detachThread();
 
-    std::string jstring2string(JNIEnv* env, jstring jStr);
+std::string jstring2string(JNIEnv* env, jstring jStr);
 
 #if defined(DEBUG) || defined(LOG)
-    // luigi: this redirects stderr to android log (probably want to ifdef this
-    // out for release)
-    void logThread();
-    void _check_egl_error(const char* file, int line);
+// luigi: this redirects stderr to android log (probably want to ifdef this
+// out for release)
+void logThread();
+void _check_egl_error(const char* file, int line);
 #endif
 } // namespace rive_android
 #endif

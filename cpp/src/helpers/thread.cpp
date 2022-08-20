@@ -21,50 +21,50 @@
 
 namespace rive_android {
 
-    int32_t getNumCpus() {
-        static int32_t sNumCpus = []() {
-            pid_t pid = gettid();
-            cpu_set_t cpuSet;
-            CPU_ZERO(&cpuSet);
-            sched_getaffinity(pid, sizeof(cpuSet), &cpuSet);
-
-            int32_t numCpus = 0;
-            while (CPU_ISSET(numCpus, &cpuSet)) {
-                ++numCpus;
-            }
-
-            return numCpus;
-        }();
-
-        return sNumCpus;
-    }
-
-    void setAffinity(int32_t cpu) {
+int32_t getNumCpus() {
+    static int32_t sNumCpus = []() {
+        pid_t pid = gettid();
         cpu_set_t cpuSet;
         CPU_ZERO(&cpuSet);
-        CPU_SET(cpu, &cpuSet);
-        sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
-    }
+        sched_getaffinity(pid, sizeof(cpuSet), &cpuSet);
 
-    void setAffinity(Affinity affinity) {
-        const int32_t numCpus = getNumCpus();
-
-        cpu_set_t cpuSet;
-        CPU_ZERO(&cpuSet);
-        for (int32_t cpu = 0; cpu < numCpus; ++cpu) {
-            switch (affinity) {
-                case Affinity::None: CPU_SET(cpu, &cpuSet); break;
-                case Affinity::Even:
-                    if (cpu % 2 == 0)
-                        CPU_SET(cpu, &cpuSet);
-                    break;
-                case Affinity::Odd:
-                    if (cpu % 2 == 1)
-                        CPU_SET(cpu, &cpuSet);
-                    break;
-            }
+        int32_t numCpus = 0;
+        while (CPU_ISSET(numCpus, &cpuSet)) {
+            ++numCpus;
         }
 
-        sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
+        return numCpus;
+    }();
+
+    return sNumCpus;
+}
+
+void setAffinity(int32_t cpu) {
+    cpu_set_t cpuSet;
+    CPU_ZERO(&cpuSet);
+    CPU_SET(cpu, &cpuSet);
+    sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
+}
+
+void setAffinity(Affinity affinity) {
+    const int32_t numCpus = getNumCpus();
+
+    cpu_set_t cpuSet;
+    CPU_ZERO(&cpuSet);
+    for (int32_t cpu = 0; cpu < numCpus; ++cpu) {
+        switch (affinity) {
+            case Affinity::None: CPU_SET(cpu, &cpuSet); break;
+            case Affinity::Even:
+                if (cpu % 2 == 0)
+                    CPU_SET(cpu, &cpuSet);
+                break;
+            case Affinity::Odd:
+                if (cpu % 2 == 1)
+                    CPU_SET(cpu, &cpuSet);
+                break;
+        }
     }
+
+    sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
+}
 } // namespace rive_android
