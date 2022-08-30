@@ -99,7 +99,7 @@ export SKIA_BRANCH=$CONFIG_SKIA_BRANCH
 export SKIA_DIR_NAME=$CONFIG_SKIA_DIR_NAME
 
 export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
-export CACHE_NAME="rive_skia_android"
+export CACHE_NAME="rive_skia_android_$EXPECTED_NDK_VERSION"
 export MAKE_SKIA_FILE="make_skia_android.sh"
 
 API=21

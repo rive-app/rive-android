@@ -43,7 +43,7 @@ The runtime here should be updated to point to the latest `rive-cpp` submodule w
 #### Steps
 
 The Android NDK builds `.so` files for [different architectures](https://developer.android.com/ndk/guides/abis). <br />
-The current NDK version we're using is stored in [.ndk_version](./cpp/.ndk_version) ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version)) <br />
+The current NDK version we're using is stored in [.ndk_version](./cpp/.ndk_version). Rive is constantly making use of the latest clang features, so please ensure your NDK is up to date. ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version)) <br />
 We also need to rebuild new `.so` files (located in `/kotlin/src/main/jniLibs/`) when pulling in latest changes from `rive-cpp`:
 
 ```bash

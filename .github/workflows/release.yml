@@ -56,21 +56,21 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            ${{github.workspace}}/android-ndk-r22b
+            ${{github.workspace}}/android-ndk-r25b
           # we are JUST going to cache for this workflow. 
           # really we could cache flutter way more (based on the flutter version)
-          key: android-ndk-r22b-linux-x86_64
+          key: android-ndk-r25b-linux
       - name: Get and Unzip NDK
         if: ${{steps.cache-ndk.outputs.cache-hit != 'true'}}
         run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r22b-linux-x86_64.zip
-          unzip android-ndk-r22b-linux-x86_64.zip
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip android-ndk-r25b-linux
           ls
       - name: Build rive for ${{ matrix.arch }}
         run: |
           cd cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
         env:
-          NDK_PATH: ${{github.workspace}}/android-ndk-r22b
+          NDK_PATH: ${{github.workspace}}/android-ndk-r25b
       # NOTE: this is sneaky, we are adding multiple files from the matrix jobs into the same artifact
       - uses: actions/upload-artifact@v3
         with:
