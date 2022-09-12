@@ -1,20 +1,42 @@
 package app.rive.runtime.kotlin.core
 
-interface NativeObject {
+import app.rive.runtime.kotlin.core.errors.RiveException
+
+abstract class NativeObject(private var unsafeCppPointer: Long) {
 
     companion object {
         // Static const value for a pointer.
         const val NULL_POINTER = 0L
     }
 
-    // This C++ object pointer
+    val hasCppObject: Boolean
+        get() {
+            return unsafeCppPointer != NULL_POINTER
+        }
+
     var cppPointer: Long
+        set(value) {
+            unsafeCppPointer = value
+        }
+        get() {
+            if (!hasCppObject) {
+                // we are not using the objects toString, because that could itself call native methods
+                throw RiveException(
+                    "C++ object for ${this.javaClass.name}@${
+                        Integer.toHexString(
+                            this.hashCode()
+                        )
+                    } does not exist. See MEMORY_MANAGEMENT.md for more information."
+                )
+            }
+            return unsafeCppPointer
+        }
 
     // Collection of native objects that are owned(created) by this.
-    val dependencies: MutableCollection<NativeObject>?
+    val dependencies = mutableListOf<NativeObject>()
 
     // Up to the implementer (interfaces cannot have external functions)
-    fun cppDelete(pointer: Long)
+    open fun cppDelete(pointer: Long) {}
 
     fun dispose() {
         dependencies?.forEach {
@@ -23,9 +45,9 @@ interface NativeObject {
         dependencies?.clear()
 
         // Do we want to warn/throw when deleting twice?
-        if (cppPointer != NULL_POINTER) {
-            cppDelete(cppPointer)
-            cppPointer = NULL_POINTER
+        if (hasCppObject) {
+            cppDelete(unsafeCppPointer)
+            unsafeCppPointer = NULL_POINTER
         }
     }
 }

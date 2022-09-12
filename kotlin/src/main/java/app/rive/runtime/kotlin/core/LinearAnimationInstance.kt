@@ -4,16 +4,13 @@ package app.rive.runtime.kotlin.core
  * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [cppPointer] keeps track of this relationship.
+ * The [unsafeCppPointer] keeps track of this relationship.
  *
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
-class LinearAnimationInstance(override var cppPointer: Long, var mix: Float = 1.0f) :
-    PlayableInstance(), NativeObject {
-
-    // LinearAnimationInstance don't have any dependencies.
-    override val dependencies: Nothing? by lazy { null }
+class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
+    PlayableInstance, NativeObject(unsafeCppPointer) {
 
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
     private external fun cppApply(pointer: Long, mix: Float)

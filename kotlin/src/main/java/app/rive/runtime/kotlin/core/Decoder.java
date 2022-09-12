@@ -20,7 +20,7 @@ public class Decoder {
             int height = bitmap.getHeight();
             int offset = 2; // [0] is width, [1] is height
             int[] pixels = new int[offset + width * height];
-            bitmap.getPixels(pixels, offset, width,0, 0, width, height);
+            bitmap.getPixels(pixels, offset, width, 0, 0, width, height);
 
             pixels[0] = width;
             pixels[1] = height;

@@ -5,10 +5,11 @@ package app.rive.runtime.kotlin.core
  *
  * These instances allow modification of the state of the attached state machine.
  *
- * The constructor uses a [cppPointer] to point to its c++ counterpart object.
+ * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
  */
-open class SMIInput(val cppPointer: Long) {
-
+open class SMIInput(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
+    //    SMIInput cpp objects are tied to the lifecycle of hte StateMachineInstances in cpp
+    //    Therefore we do not have a cppDelete implementation
     private external fun cppName(cppPointer: Long): String
     private external fun cppIsBoolean(cppPointer: Long): Boolean
     private external fun cppIsTrigger(cppPointer: Long): Boolean

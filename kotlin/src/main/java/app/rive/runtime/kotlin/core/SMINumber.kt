@@ -3,7 +3,7 @@ package app.rive.runtime.kotlin.core
 /**
  * [SMINumber]s represents a boolean input for State Machines
  */
-class SMINumber(cppPointer: Long) : SMIInput(cppPointer) {
+class SMINumber(unsafeCppPointer: Long) : SMIInput(unsafeCppPointer) {
     private external fun cppValue(cppPointer: Long): Float
     private external fun cppSetValue(cppPointer: Long, value: Float)
 

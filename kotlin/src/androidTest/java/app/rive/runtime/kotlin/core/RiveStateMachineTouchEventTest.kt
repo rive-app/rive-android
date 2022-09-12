@@ -46,14 +46,16 @@ class RiveStateMachineTouchEventTest {
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                0f,
-                0f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    0f,
+                    0f,
+                    0
+                )
+            )
             mockView.renderer.advance(0f)
             assertEquals(0, observer.states.size)
         }
@@ -73,14 +75,16 @@ class RiveStateMachineTouchEventTest {
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                25f,
-                25f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    25f,
+                    25f,
+                    0
+                )
+            )
             mockView.renderer.advance(0f)
 
             assertEquals(1, observer.states.size)
@@ -103,24 +107,28 @@ class RiveStateMachineTouchEventTest {
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                20f,
-                20f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    20f,
+                    20f,
+                    0
+                )
+            )
             mockView.renderer.advance(1f)
 
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                75f,
-                25f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    75f,
+                    25f,
+                    0
+                )
+            )
             mockView.renderer.advance(1f)
 
             assertEquals(2, observer.states.size)
@@ -133,7 +141,7 @@ class RiveStateMachineTouchEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.Observer()
 //            overall artboard's been upscaled 10x, so touching at x=25 y=25 should miss
-            (mockView as TestUtils.MockNoopRiveAnimationView).setBounds(1000f,1000f)
+            (mockView as TestUtils.MockNoopRiveAnimationView).setBounds(1000f, 1000f)
             mockView.registerListener(observer)
             mockView.setRiveResource(
                 R.raw.touchevents,
@@ -145,14 +153,16 @@ class RiveStateMachineTouchEventTest {
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                25f,
-                25f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    25f,
+                    25f,
+                    0
+                )
+            )
             mockView.renderer.advance(0f)
 
             assertEquals(0, observer.states.size)
@@ -164,7 +174,7 @@ class RiveStateMachineTouchEventTest {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.Observer()
 //            overall artboard's been upscaled 10x, so touching at x=25 y=25 should miss
-            (mockView as TestUtils.MockNoopRiveAnimationView).setBounds(1000f,1000f)
+            (mockView as TestUtils.MockNoopRiveAnimationView).setBounds(1000f, 1000f)
             mockView.registerListener(observer)
             mockView.setRiveResource(
                 R.raw.touchevents,
@@ -176,14 +186,16 @@ class RiveStateMachineTouchEventTest {
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
-            mockView.dispatchTouchEvent(MotionEvent.obtain(
-                downTime,
-                eventTime,
-                MotionEvent.ACTION_UP,
-                250f,
-                250f,
-                0
-            ))
+            mockView.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    downTime,
+                    eventTime,
+                    MotionEvent.ACTION_UP,
+                    250f,
+                    250f,
+                    0
+                )
+            )
             mockView.renderer.advance(0f)
 
             assertEquals(1, observer.states.size)

@@ -3,10 +3,11 @@ package app.rive.runtime.kotlin.core
 /**
  * [LayerState]s are a baseclass for state machine layer states.
  *
- * The constructor uses a [cppPointer] to point to its c++ counterpart object.
+ * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
  */
-open class LayerState(val cppPointer: Long) {
-
+open class LayerState(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
+    //    LayerState cpp objects are tied to the lifecycle of hte StateMachineInstances in cpp
+    //    Therefore we do not have a cppDelete implementation
     private external fun cppIsExitState(cppPointer: Long): Boolean
     private external fun cppIsAnyState(cppPointer: Long): Boolean
     private external fun cppIsEntryState(cppPointer: Long): Boolean

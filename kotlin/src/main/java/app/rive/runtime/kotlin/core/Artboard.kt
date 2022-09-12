@@ -1,24 +1,22 @@
 package app.rive.runtime.kotlin.core
 
+import android.graphics.RectF
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
-
-import android.graphics.RectF
-import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [cppPointer] keeps track of this relationship.
+ * The [unsafeCppPointer] keeps track of this relationship.
  *
  * [Artboard]s provide access to available [Animation]s, and some basic properties.
  * You can [draw] artboards using a [Renderer] that is tied to a canvas.
  *
- * The constructor uses a [cppPointer] to point to its c++ counterpart object.
+ * The constructor uses a [unsafeCppPointer] to point to its c++ counterpart object.
  */
-class Artboard(override var cppPointer: Long) : NativeObject {
+class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
 
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
@@ -46,7 +44,7 @@ class Artboard(override var cppPointer: Long) : NativeObject {
     private external fun cppBounds(cppPointer: Long): RectF
 
     external override fun cppDelete(pointer: Long)
-    override val dependencies = mutableListOf<NativeObject>()
+
 
     /**
      * Get the [name] of the Artboard.

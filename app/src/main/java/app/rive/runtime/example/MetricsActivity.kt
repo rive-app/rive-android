@@ -18,7 +18,7 @@ class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
     private fun updateFps() {
         val fpsView = findViewById<TextView>(R.id.fps)
         val renderer = riveView.renderer
-        val fps = if (renderer.cppPointer != NULL_POINTER) riveView.renderer.averageFps else -1f
+        val fps = if (renderer.hasCppObject) riveView.renderer.averageFps else -1f
         fpsView?.text =
             java.lang.String.format(
                 Locale.US,

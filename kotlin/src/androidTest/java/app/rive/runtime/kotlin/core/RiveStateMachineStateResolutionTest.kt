@@ -47,6 +47,7 @@ class RiveStateMachineStateResolutionTest {
             assertEquals(1, observer.states.size)
         }
     }
+
     @Test
     fun disablingAutoplaySuppressesStateResolution() {
         UiThreadStatement.runOnUiThread {

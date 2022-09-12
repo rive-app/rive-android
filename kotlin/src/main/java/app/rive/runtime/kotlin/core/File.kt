@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
 
@@ -8,7 +7,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  * [File]s are created in the rive editor.
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [cppPointer] keeps track of this relationship.
+ * The [unsafeCppPointer] keeps track of this relationship.
  *
  * You can export these .riv files and load them up. [File]s can contain multiple artboards.
  *
@@ -18,10 +17,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  *
  * The rive editor will always let you download your file in the latest runtime format.
  */
-class File(bytes: ByteArray) : NativeObject {
-    override var cppPointer: Long = NULL_POINTER
-    override val dependencies = mutableListOf<NativeObject>()
-
+class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
     init {
         cppPointer = import(bytes, bytes.size)
     }

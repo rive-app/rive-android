@@ -3,7 +3,7 @@ package app.rive.runtime.kotlin.core
 /**
  * [SMITrigger]s represents a trigger input for State Machines
  */
-class SMITrigger(cppPointer: Long) : SMIInput(cppPointer) {
+class SMITrigger(unsafeCppPointer: Long) : SMIInput(unsafeCppPointer) {
     private external fun cppFire(cppPointer: Long)
 
     fun fire() {

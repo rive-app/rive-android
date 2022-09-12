@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
@@ -9,19 +8,17 @@ import app.rive.runtime.kotlin.core.errors.StateMachineInputException
  * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
  *
  * This object has a counterpart in c++, which implements a lot of functionality.
- * The [cppPointer] keeps track of this relationship.
+ * The [unsafeCppPointer] keeps track of this relationship.
  *
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), NativeObject {
+class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
+    NativeObject(unsafeCppPointer) {
     private external fun cppAdvance(
         pointer: Long,
         elapsedTime: Float
     ): Boolean
-
-    // StateMachineInstances don't have any dependencies.
-    override val dependencies: Nothing? by lazy { null }
 
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
@@ -83,7 +80,7 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
         get() = cppStateChangedCount(cppPointer)
 
     private fun convertInput(input: SMIInput): SMIInput {
-        return when {
+        var input = when {
             input.isBoolean -> {
                 SMIBoolean(input.cppPointer)
             }
@@ -95,6 +92,8 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
             }
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
+        dependencies.add(input)
+        return input
     }
 
     /**
@@ -108,10 +107,12 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
         if (stateMachineInputPointer == NULL_POINTER) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
+        val input = SMIInput(
+            stateMachineInputPointer
+        )
+        dependencies.add(input)
         return convertInput(
-            SMIInput(
-                stateMachineInputPointer
-            )
+            input
         )
     }
 
@@ -123,6 +124,7 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
         for (i in 0 until inputCount) {
             val output = input(i)
             if (output.name == name) {
+                dependencies.add(output)
                 return output
             }
         }
@@ -142,7 +144,7 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
         get() = (0 until inputCount).map { input(it).name }
 
     private fun convertLayerState(state: LayerState): LayerState {
-        return when {
+        var state = when {
             state.isAnimationState -> {
                 AnimationState(state.cppPointer)
             }
@@ -160,6 +162,8 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
             }
             else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
         }
+        dependencies.add(state)
+        return state
     }
 
     /**
@@ -171,10 +175,12 @@ class StateMachineInstance(override var cppPointer: Long) : PlayableInstance(), 
         if (stateChanged == 0L) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
+        val layerState = LayerState(
+            stateChanged
+        )
+        dependencies.add(layerState)
         return convertLayerState(
-            LayerState(
-                stateChanged
-            )
+            layerState
         )
 
     }

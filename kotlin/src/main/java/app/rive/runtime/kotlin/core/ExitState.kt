@@ -3,9 +3,9 @@ package app.rive.runtime.kotlin.core
 /**
  * [ExitState]s are a baseclass for state machine layer states.
  *
- * The constructor uses a [cppPointer] to point to its c++ counterpart object.
+ * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
  */
-class ExitState(cppPointer: Long) : LayerState(cppPointer) {
+class ExitState(unsafeCppPointer: Long) : LayerState(unsafeCppPointer) {
 
     override fun toString(): String {
         return "ExitState"

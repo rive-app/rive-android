@@ -1,9 +1,8 @@
 package app.rive.runtime.kotlin.core
 
 import android.content.Context
-import com.getkeepsafe.relinker.ReLinker
-
 import android.graphics.RectF
+import com.getkeepsafe.relinker.ReLinker
 
 object Rive {
     private external fun cppInitialize()

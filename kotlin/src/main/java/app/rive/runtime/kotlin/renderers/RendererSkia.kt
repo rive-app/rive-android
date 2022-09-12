@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
+import android.graphics.RectF
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
@@ -7,15 +8,10 @@ import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 
-import android.graphics.RectF
-import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
-
 abstract class RendererSkia(private val trace: Boolean = false) :
-    NativeObject,
+    NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
     // From NativeObject.
-    override val dependencies = mutableListOf<NativeObject>()
-    override var cppPointer: Long = NULL_POINTER
     external override fun cppDelete(pointer: Long)
     //
 
@@ -41,7 +37,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     private external fun constructor(trace: Boolean): Long
 
     fun make() {
-        if (cppPointer == NULL_POINTER) {
+        if (!hasCppObject) {
             cppPointer = constructor(trace)
         }
     }
@@ -67,7 +63,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      */
     fun start() {
         if (isPlaying) return
-        if (cppPointer == NULL_POINTER) {
+        if (!hasCppObject) {
             return
         }
         isPlaying = true
@@ -96,7 +92,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     @CallSuper
     internal fun stopThread() {
         if (!isPlaying) return
-        if (cppPointer == NULL_POINTER) {
+        if (!hasCppObject) {
             return
         }
         // Prevent any other frame to be scheduled.

@@ -3,10 +3,8 @@ package app.rive.runtime.kotlin
 import android.graphics.PointF
 import android.graphics.RectF
 import app.rive.runtime.kotlin.core.*
-import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.*
-import kotlin.collections.HashSet
 
 
 enum class PointerEvents {
@@ -99,7 +97,7 @@ open class RiveArtboardRenderer(
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
     override fun draw() {
-        if (cppPointer == 0L) {
+        if (!hasCppObject) {
             return
         }
         activeArtboard?.drawSkia(
@@ -110,7 +108,7 @@ open class RiveArtboardRenderer(
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
     override fun advance(elapsed: Float) {
-        if (cppPointer == 0L) {
+        if (!hasCppObject) {
             return
         }
         activeArtboard?.let { ab ->
@@ -540,10 +538,10 @@ open class RiveArtboardRenderer(
     }
 
     private fun setArtboard(artboard: Artboard) {
-        dependencies.add(artboard)
-
+        // clean up any previous artboard if one was set
+        this.activeArtboard?.dispose()
         this.activeArtboard = artboard
-        
+
 
         if (autoplay) {
             animationName?.let { animationName ->
