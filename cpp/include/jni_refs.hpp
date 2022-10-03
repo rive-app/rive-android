@@ -4,7 +4,8 @@
 #include <jni.h>
 #include "rive/math/aabb.hpp"
 
-namespace rive_android {
+namespace rive_android
+{
 extern jint throwRiveException(const char* message);
 extern jint throwMalformedFileException(const char* message);
 extern jint throwUnsupportedRuntimeVersionException(const char* message);

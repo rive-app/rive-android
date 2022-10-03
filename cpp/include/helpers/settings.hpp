@@ -23,14 +23,17 @@
 #include <string>
 #include <vector>
 
-namespace rive_android {
+namespace rive_android
+{
 
-class Settings {
+class Settings
+{
 private:
     // Allows construction with std::unique_ptr from a static method, but
     // disallows construction outside of the class since no one else can
     // construct a ConstructorTag
-    struct ConstructorTag {};
+    struct ConstructorTag
+    {};
 
 public:
     explicit Settings(ConstructorTag) : mHotPocket(false) {}

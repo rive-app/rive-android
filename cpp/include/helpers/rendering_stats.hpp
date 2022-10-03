@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-namespace rive_android {
-class RenderingStats {
+namespace rive_android
+{
+class RenderingStats
+{
     double mLatestMean = 0, mLatestVar = 0;
     double mRunningMean = 0, mRunningVar = 0;
     size_t mN = 0;
@@ -16,11 +18,13 @@ public:
     // Add a sample.
     // When mNumToAvg samples have been calculated, store the mean and
     // average and start again.
-    void add(double x) {
+    void add(double x)
+    {
         ++mN;
         auto prevMean = mRunningMean;
         mRunningMean = ((mN - 1) * mRunningMean + x) / mN;
-        if (mN > 1) {
+        if (mN > 1)
+        {
             mRunningVar =
                 ((mN - 2) * mRunningVar) / (mN - 1) + (x - prevMean) * (x - prevMean) / mN;
         }
@@ -28,7 +32,8 @@ public:
             restart();
     }
 
-    void restart() {
+    void restart()
+    {
         mLatestMean = mRunningMean;
         mLatestVar = mRunningVar;
         mN = 0;

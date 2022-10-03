@@ -11,106 +11,130 @@
 #include "rive/artboard.hpp"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-using namespace rive_android;
+    using namespace rive_android;
 
-// Skia Renderer
-JNIEXPORT jlong JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(JNIEnv* env,
-                                                                jobject ktRendererSkia,
-                                                                jboolean trace) {
-    ::JNIRendererSkia* renderer = new JNIRendererSkia(ktRendererSkia, trace);
-    return (jlong)renderer;
-}
+    // Skia Renderer
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_constructor(JNIEnv* env,
+                                                                    jobject ktRendererSkia,
+                                                                    jboolean trace)
+    {
+        ::JNIRendererSkia* renderer = new JNIRendererSkia(ktRendererSkia, trace);
+        return (jlong)renderer;
+    }
 
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDelete(JNIEnv*, jobject, jlong rendererRef) {
-    auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
-    auto thread = renderer->workerThread();
-    ThreadManager::getInstance()->releaseThread(thread, [=]() {
-        // Delete the renderer *only after* thread released resources.
-        delete renderer;
-    });
-}
-
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(JNIEnv*, jobject, jlong rendererRef) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->stop();
-}
-
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(JNIEnv*, jobject, jlong rendererRef) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->start();
-}
-
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDoFrame(JNIEnv*,
-                                                               jobject,
-                                                               jlong rendererRef,
-                                                               jlong frameTimeNs) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->doFrame(frameTimeNs);
-}
-
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSetSurface(JNIEnv* env,
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDelete(JNIEnv*,
                                                                   jobject,
-                                                                  jobject surface,
-                                                                  jlong rendererRef) {
-    ANativeWindow* surfaceWindow = ANativeWindow_fromSurface(env, surface);
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(surfaceWindow);
-}
+                                                                  jlong rendererRef)
+    {
+        auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
+        auto thread = renderer->workerThread();
+        ThreadManager::getInstance()->releaseThread(thread, [=]() {
+            // Delete the renderer *only after* thread released resources.
+            delete renderer;
+        });
+    }
 
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppClearSurface(JNIEnv*,
-                                                                    jobject,
-                                                                    jlong rendererRef) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(nullptr);
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStop(JNIEnv*, jobject, jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->stop();
+    }
 
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(JNIEnv*, jobject, jlong rendererRef) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->save();
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(JNIEnv*,
+                                                                 jobject,
+                                                                 jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->start();
+    }
 
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppRestore(JNIEnv*,
-                                                               jobject,
-                                                               jlong rendererRef) {
-    reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->restore();
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDoFrame(JNIEnv*,
+                                                                   jobject,
+                                                                   jlong rendererRef,
+                                                                   jlong frameTimeNs)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->doFrame(frameTimeNs);
+    }
 
-JNIEXPORT void JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAlign(JNIEnv* env,
-                                                             jobject thisObj,
-                                                             jlong ref,
-                                                             jobject ktFit,
-                                                             jobject ktAlignment,
-                                                             jobject targetBoundsRectF,
-                                                             jobject sourceBoundsRectF) {
-    JNIRendererSkia* jniWrapper = (JNIRendererSkia*)ref;
-    rive::Fit fit = getFit(env, ktFit);
-    rive::Alignment alignment = getAlignment(env, ktAlignment);
-    auto targetBounds = rectFToAABB(env, targetBoundsRectF);
-    auto sourceBounds = rectFToAABB(env, sourceBoundsRectF);
-    jniWrapper->skRenderer()->align(fit, alignment, targetBounds, sourceBounds);
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSetSurface(JNIEnv* env,
+                                                                      jobject,
+                                                                      jobject surface,
+                                                                      jlong rendererRef)
+    {
+        ANativeWindow* surfaceWindow = ANativeWindow_fromSurface(env, surface);
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(surfaceWindow);
+    }
 
-JNIEXPORT jint JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(JNIEnv*, jobject, jlong rendererRef) {
-    return reinterpret_cast<JNIRendererSkia*>(rendererRef)->width();
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppClearSurface(JNIEnv*,
+                                                                        jobject,
+                                                                        jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(nullptr);
+    }
 
-JNIEXPORT jint JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(JNIEnv*, jobject, jlong rendererRef) {
-    return reinterpret_cast<JNIRendererSkia*>(rendererRef)->height();
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(JNIEnv*, jobject, jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->save();
+    }
 
-JNIEXPORT jfloat JNICALL
-Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAvgFps(JNIEnv*, jobject, jlong rendererRef) {
-    return reinterpret_cast<JNIRendererSkia*>(rendererRef)->averageFps();
-}
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppRestore(JNIEnv*,
+                                                                   jobject,
+                                                                   jlong rendererRef)
+    {
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->restore();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAlign(JNIEnv* env,
+                                                                 jobject thisObj,
+                                                                 jlong ref,
+                                                                 jobject ktFit,
+                                                                 jobject ktAlignment,
+                                                                 jobject targetBoundsRectF,
+                                                                 jobject sourceBoundsRectF)
+    {
+        JNIRendererSkia* jniWrapper = (JNIRendererSkia*)ref;
+        rive::Fit fit = getFit(env, ktFit);
+        rive::Alignment alignment = getAlignment(env, ktAlignment);
+        auto targetBounds = rectFToAABB(env, targetBoundsRectF);
+        auto sourceBounds = rectFToAABB(env, sourceBoundsRectF);
+        jniWrapper->skRenderer()->align(fit, alignment, targetBounds, sourceBounds);
+    }
+
+    JNIEXPORT jint JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppWidth(JNIEnv*,
+                                                                 jobject,
+                                                                 jlong rendererRef)
+    {
+        return reinterpret_cast<JNIRendererSkia*>(rendererRef)->width();
+    }
+
+    JNIEXPORT jint JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppHeight(JNIEnv*,
+                                                                  jobject,
+                                                                  jlong rendererRef)
+    {
+        return reinterpret_cast<JNIRendererSkia*>(rendererRef)->height();
+    }
+
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppAvgFps(JNIEnv*,
+                                                                  jobject,
+                                                                  jlong rendererRef)
+    {
+        return reinterpret_cast<JNIRendererSkia*>(rendererRef)->averageFps();
+    }
 
 #ifdef __cplusplus
 }

@@ -12,8 +12,10 @@
 #include "GrDirectContext.h"
 #include "SkSurface.h"
 
-namespace rive_android {
-class EGLThreadState {
+namespace rive_android
+{
+class EGLThreadState
+{
 public:
     EGLThreadState();
     ~EGLThreadState();
@@ -23,8 +25,10 @@ public:
     void swapBuffers() const;
     void flush() const;
 
-    sk_sp<SkSurface> getSkiaSurface() {
-        if (mSkSurface) {
+    sk_sp<SkSurface> getSkiaSurface()
+    {
+        if (mSkSurface)
+        {
             return mSkSurface;
         }
 
@@ -33,8 +37,10 @@ public:
 
     bool hasNoSurface() const { return mSurface == EGL_NO_SURFACE || mSkSurface == nullptr; }
 
-    void unsetKtRendererClass() {
-        if (mKtRendererClass != nullptr) {
+    void unsetKtRendererClass()
+    {
+        if (mKtRendererClass != nullptr)
+        {
             getJNIEnv()->DeleteWeakGlobalRef(mKtRendererClass);
         }
         mKtRendererClass = nullptr;
@@ -42,21 +48,24 @@ public:
         mKtAdvanceCallback = nullptr;
     }
 
-    void setKtRendererClass(jclass localReference) {
+    void setKtRendererClass(jclass localReference)
+    {
         auto env = getJNIEnv();
         mKtRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(localReference));
         mKtDrawCallback = env->GetMethodID(mKtRendererClass, "draw", "()V");
         mKtAdvanceCallback = env->GetMethodID(mKtRendererClass, "advance", "(F)V");
     }
 
-    static long getNowNs() {
+    static long getNowNs()
+    {
         using namespace std::chrono;
         // Reset time to avoid super-large update of position
         auto nowNs = time_point_cast<nanoseconds>(steady_clock::now());
         return nowNs.time_since_epoch().count();
     }
 
-    float getElapsedMs(long frameTimeNs) const {
+    float getElapsedMs(long frameTimeNs) const
+    {
         float elapsedMs = (frameTimeNs - mLastUpdate) / 1e9f;
         return elapsedMs;
     }
@@ -87,14 +96,17 @@ private:
     static void* getProcAddress(const char*);
     bool configHasAttribute(EGLConfig, EGLint, EGLint) const;
 
-    EGLBoolean makeCurrent(EGLSurface surface) const {
+    EGLBoolean makeCurrent(EGLSurface surface) const
+    {
         EGLBoolean res = eglMakeCurrent(mDisplay, surface, surface, mContext);
         EGL_ERR_CHECK();
         return res;
     }
 
-    sk_sp<GrDirectContext> getSkiaContext() {
-        if (mSkContext) {
+    sk_sp<GrDirectContext> getSkiaContext()
+    {
+        if (mSkContext)
+        {
             return mSkContext;
         }
 

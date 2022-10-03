@@ -26,24 +26,30 @@
 #include "helpers/egl_thread_state.hpp"
 #include "thread.hpp"
 
-namespace rive_android {
-template <class ThreadState> class WorkerThread {
+namespace rive_android
+{
+template <class ThreadState> class WorkerThread
+{
 public:
     using Work = std::function<void(ThreadState*)>;
 
-    WorkerThread(const char* name, Affinity affinity) : mName(name), mAffinity(affinity) {
+    WorkerThread(const char* name, Affinity affinity) : mName(name), mAffinity(affinity)
+    {
         launchThread();
     }
 
-    ~WorkerThread() {
+    ~WorkerThread()
+    {
         std::lock_guard<std::mutex> threadLock(mThreadMutex);
         terminateThread();
         // Detach thread from the JVM.
         detachThread();
     }
 
-    bool run(Work work) {
-        if (!mIsWorking) {
+    bool run(Work work)
+    {
+        if (!mIsWorking)
+        {
             LOGW("Can't add work while thread isn't running.");
             return false;
         }
@@ -53,7 +59,8 @@ public:
         return true;
     }
 
-    void releaseQueue(std::function<void()> onRelease = nullptr) {
+    void releaseQueue(std::function<void()> onRelease = nullptr)
+    {
         std::lock_guard<std::mutex> workLock(mWorkMutex);
         // Prevent any other work to be added here.
         drainWorkQueue();
@@ -62,14 +69,16 @@ public:
             threadState->mIsStarted = false;
             threadState->clearSurface();
             threadState->unsetKtRendererClass();
-            if (onRelease) {
+            if (onRelease)
+            {
                 onRelease();
             }
         }));
         mWorkCondition.notify_all();
     }
 
-    void setIsWorking(bool isIt) {
+    void setIsWorking(bool isIt)
+    {
         if (isIt == mIsWorking)
             return;
 
@@ -78,22 +87,27 @@ public:
 
     void reset() { launchThread(); }
 
-    void drainWorkQueue() {
-        while (!mWorkQueue.empty()) {
+    void drainWorkQueue()
+    {
+        while (!mWorkQueue.empty())
+        {
             mWorkQueue.pop();
         }
     }
 
 private:
-    void launchThread() {
+    void launchThread()
+    {
         std::lock_guard<std::mutex> threadLock(mThreadMutex);
-        if (mThread.joinable()) {
+        if (mThread.joinable())
+        {
             terminateThread();
         }
         mThread = std::thread([this]() { threadMain(); });
     }
 
-    void terminateThread() REQUIRES(mThreadMutex) {
+    void terminateThread() REQUIRES(mThreadMutex)
+    {
         {
             std::lock_guard<std::mutex> workLock(mWorkMutex);
             mIsActive = false;
@@ -102,18 +116,21 @@ private:
         mThread.join();
     }
 
-    void threadMain() {
+    void threadMain()
+    {
         setAffinity(mAffinity);
         pthread_setname_np(pthread_self(), mName.c_str());
 
         ThreadState threadState;
 
         std::lock_guard<std::mutex> lock(mWorkMutex);
-        while (mIsActive) {
+        while (mIsActive)
+        {
             mWorkCondition.wait(mWorkMutex, [this]() REQUIRES(mWorkMutex) {
                 return !mWorkQueue.empty() || !mIsActive;
             });
-            if (!mWorkQueue.empty()) {
+            if (!mWorkQueue.empty())
+            {
                 auto head = mWorkQueue.front();
                 mWorkQueue.pop();
 
@@ -139,13 +156,16 @@ private:
     std::condition_variable_any mWorkCondition;
 };
 
-class ThreadManager {
+class ThreadManager
+{
 private:
     ThreadManager() : mThreadPool{} {};
-    ~ThreadManager() {
+    ~ThreadManager()
+    {
         std::lock_guard<std::mutex> threadLock(mMutex);
         // Clean up all the threads.
-        while (!mThreadPool.empty()) {
+        while (!mThreadPool.empty())
+        {
             auto current = mThreadPool.top();
             mThreadPool.pop();
             delete current;

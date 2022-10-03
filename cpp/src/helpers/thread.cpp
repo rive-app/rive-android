@@ -19,9 +19,11 @@
 #include <sched.h>
 #include <unistd.h>
 
-namespace rive_android {
+namespace rive_android
+{
 
-int32_t getNumCpus() {
+int32_t getNumCpus()
+{
     static int32_t sNumCpus = []() {
         pid_t pid = gettid();
         cpu_set_t cpuSet;
@@ -29,7 +31,8 @@ int32_t getNumCpus() {
         sched_getaffinity(pid, sizeof(cpuSet), &cpuSet);
 
         int32_t numCpus = 0;
-        while (CPU_ISSET(numCpus, &cpuSet)) {
+        while (CPU_ISSET(numCpus, &cpuSet))
+        {
             ++numCpus;
         }
 
@@ -39,21 +42,27 @@ int32_t getNumCpus() {
     return sNumCpus;
 }
 
-void setAffinity(int32_t cpu) {
+void setAffinity(int32_t cpu)
+{
     cpu_set_t cpuSet;
     CPU_ZERO(&cpuSet);
     CPU_SET(cpu, &cpuSet);
     sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
 }
 
-void setAffinity(Affinity affinity) {
+void setAffinity(Affinity affinity)
+{
     const int32_t numCpus = getNumCpus();
 
     cpu_set_t cpuSet;
     CPU_ZERO(&cpuSet);
-    for (int32_t cpu = 0; cpu < numCpus; ++cpu) {
-        switch (affinity) {
-            case Affinity::None: CPU_SET(cpu, &cpuSet); break;
+    for (int32_t cpu = 0; cpu < numCpus; ++cpu)
+    {
+        switch (affinity)
+        {
+            case Affinity::None:
+                CPU_SET(cpu, &cpuSet);
+                break;
             case Affinity::Even:
                 if (cpu % 2 == 0)
                     CPU_SET(cpu, &cpuSet);

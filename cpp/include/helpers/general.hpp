@@ -22,7 +22,8 @@
 #define EGL_ERR_CHECK()
 #endif
 
-namespace rive_android {
+namespace rive_android
+{
 extern JavaVM* globalJavaVM;
 extern jobject androidCanvas;
 extern int sdkVersion;

@@ -32,9 +32,15 @@
 
 #define REQUIRES(...) THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
-namespace rive_android {
+namespace rive_android
+{
 
-enum class Affinity { None, Even, Odd };
+enum class Affinity
+{
+    None,
+    Even,
+    Odd
+};
 
 int32_t getNumCpus();
 

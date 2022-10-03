@@ -1,25 +1,32 @@
 #include "helpers/worker_thread.hpp"
 
-namespace rive_android {
+namespace rive_android
+{
 // Instantiate static objects.
 ThreadManager* ThreadManager::mInstance{nullptr};
 std::mutex ThreadManager::mMutex;
 
-ThreadManager* ThreadManager::getInstance() {
+ThreadManager* ThreadManager::getInstance()
+{
     std::lock_guard<std::mutex> lock(mMutex);
-    if (mInstance == nullptr) {
+    if (mInstance == nullptr)
+    {
         mInstance = new ThreadManager();
     }
     return mInstance;
 }
 
-WorkerThread<EGLThreadState>* ThreadManager::acquireThread(const char* name) {
+WorkerThread<EGLThreadState>* ThreadManager::acquireThread(const char* name)
+{
     std::lock_guard<std::mutex> threadLock(mMutex);
 
     WorkerThread<EGLThreadState>* thread = nullptr;
-    if (mThreadPool.empty()) {
+    if (mThreadPool.empty())
+    {
         thread = new WorkerThread<EGLThreadState>(name, Affinity::Odd);
-    } else {
+    }
+    else
+    {
         thread = mThreadPool.top();
         mThreadPool.pop();
     }
@@ -30,7 +37,8 @@ WorkerThread<EGLThreadState>* ThreadManager::acquireThread(const char* name) {
 }
 
 void ThreadManager::releaseThread(WorkerThread<EGLThreadState>* thread,
-                                  std::function<void()> onRelease) {
+                                  std::function<void()> onRelease)
+{
     std::lock_guard<std::mutex> threadLock(mMutex);
     // Thread state needs to release its resources also.
     thread->setIsWorking(false);

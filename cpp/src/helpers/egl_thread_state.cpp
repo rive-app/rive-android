@@ -6,8 +6,10 @@
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"
 
-namespace rive_android {
-EGLThreadState::EGLThreadState() {
+namespace rive_android
+{
+EGLThreadState::EGLThreadState()
+{
     mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     EGL_ERR_CHECK();
     eglInitialize(mDisplay, 0, 0);
@@ -62,13 +64,16 @@ EGLThreadState::EGLThreadState() {
     glEnable(GL_DEPTH_TEST);
 }
 
-EGLThreadState::~EGLThreadState() {
+EGLThreadState::~EGLThreadState()
+{
     clearSurface();
-    if (mContext != EGL_NO_CONTEXT) {
+    if (mContext != EGL_NO_CONTEXT)
+    {
         eglDestroyContext(mDisplay, mContext);
         EGL_ERR_CHECK();
     }
-    if (mDisplay != EGL_NO_DISPLAY) {
+    if (mDisplay != EGL_NO_DISPLAY)
+    {
         eglTerminate(mDisplay);
         EGL_ERR_CHECK();
     }
@@ -78,16 +83,20 @@ EGLThreadState::~EGLThreadState() {
     EGL_ERR_CHECK();
 }
 
-void EGLThreadState::flush() const {
-    if (!mSkContext) {
+void EGLThreadState::flush() const
+{
+    if (!mSkContext)
+    {
         LOGE("Cannot flush() without a context.");
         return;
     }
     mSkContext->flush();
 }
 
-void EGLThreadState::clearSurface() {
-    if (mSurface == EGL_NO_SURFACE) {
+void EGLThreadState::clearSurface()
+{
+    if (mSurface == EGL_NO_SURFACE)
+    {
         return;
     }
 
@@ -103,14 +112,17 @@ void EGLThreadState::clearSurface() {
     mSkContext = nullptr;
 }
 
-bool EGLThreadState::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value) const {
+bool EGLThreadState::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value) const
+{
     EGLint outValue = 0;
     EGLBoolean result = eglGetConfigAttrib(mDisplay, mConfig, attribute, &outValue);
     return result && (outValue == value);
 }
 
-sk_sp<GrDirectContext> EGLThreadState::createSkiaContext() {
-    if (!makeCurrent(mSurface)) {
+sk_sp<GrDirectContext> EGLThreadState::createSkiaContext()
+{
+    if (!makeCurrent(mSurface))
+    {
         LOGE("Unable to eglMakeCurrent");
         mSurface = EGL_NO_SURFACE;
         return nullptr;
@@ -118,13 +130,15 @@ sk_sp<GrDirectContext> EGLThreadState::createSkiaContext() {
 
     auto get_string = reinterpret_cast<PFNGLGETSTRINGPROC>(getProcAddress("glGetString"));
 
-    if (!get_string) {
+    if (!get_string)
+    {
         LOGE("get_string() failed");
         return nullptr;
     }
 
     auto c_version = reinterpret_cast<const char*>(get_string(GL_VERSION));
-    if (c_version == nullptr) {
+    if (c_version == nullptr)
+    {
         LOGE("c_version failed");
         return nullptr;
     }
@@ -137,7 +151,8 @@ sk_sp<GrDirectContext> EGLThreadState::createSkiaContext() {
     auto interface = version.find("OpenGL ES") == std::string::npos
                          ? GrGLMakeAssembledGLInterface(this, get_proc)
                          : GrGLMakeAssembledGLESInterface(this, get_proc);
-    if (!interface) {
+    if (!interface)
+    {
         LOGE("Failed to find the interface version!?");
         return nullptr;
     }
@@ -145,7 +160,8 @@ sk_sp<GrDirectContext> EGLThreadState::createSkiaContext() {
     return mSkContext;
 }
 
-sk_sp<SkSurface> EGLThreadState::createSkiaSurface() {
+sk_sp<SkSurface> EGLThreadState::createSkiaSurface()
+{
     static GrGLFramebufferInfo fbInfo = {};
     fbInfo.fFBOID = 0u;
     fbInfo.fFormat = GL_RGBA8;
@@ -162,7 +178,8 @@ sk_sp<SkSurface> EGLThreadState::createSkiaSurface() {
                                                         nullptr,
                                                         nullptr);
 
-    if (!mSkSurface) {
+    if (!mSkSurface)
+    {
         LOGE("Failed to get GPU Surface?!");
         return nullptr;
     }
@@ -170,22 +187,27 @@ sk_sp<SkSurface> EGLThreadState::createSkiaSurface() {
     return mSkSurface;
 }
 
-void* EGLThreadState::getProcAddress(const char* name) {
-    if (name == nullptr) {
+void* EGLThreadState::getProcAddress(const char* name)
+{
+    if (name == nullptr)
+    {
         return nullptr;
     }
 
     auto symbol = eglGetProcAddress(name);
     EGL_ERR_CHECK();
-    if (symbol == nullptr) {
+    if (symbol == nullptr)
+    {
         LOGE("Couldn't fetch symbol name for: %s", name);
     }
 
     return reinterpret_cast<void*>(symbol);
 }
 
-void EGLThreadState::swapBuffers() const {
-    if (mDisplay == EGL_NO_DISPLAY || mSurface == EGL_NO_SURFACE) {
+void EGLThreadState::swapBuffers() const
+{
+    if (mDisplay == EGL_NO_DISPLAY || mSurface == EGL_NO_SURFACE)
+    {
         LOGE("Swapping buffers without a display/surface");
         return;
     }
@@ -193,9 +215,11 @@ void EGLThreadState::swapBuffers() const {
     EGL_ERR_CHECK();
 }
 
-bool EGLThreadState::setWindow(ANativeWindow* window) {
+bool EGLThreadState::setWindow(ANativeWindow* window)
+{
     clearSurface();
-    if (!window) {
+    if (!window)
+    {
         return false;
     }
 
@@ -203,7 +227,8 @@ bool EGLThreadState::setWindow(ANativeWindow* window) {
     EGL_ERR_CHECK();
     ANativeWindow_release(window);
 
-    if (!createSkiaContext()) {
+    if (!createSkiaContext())
+    {
         LOGE("Unable to eglMakeCurrent");
         mSurface = EGL_NO_SURFACE;
         return false;
@@ -215,7 +240,8 @@ bool EGLThreadState::setWindow(ANativeWindow* window) {
     LOGI("Set up window surface %dx%d", mWidth, mHeight);
 
     auto gpuSurface = createSkiaSurface();
-    if (!gpuSurface) {
+    if (!gpuSurface)
+    {
         LOGE("Unable to create a SkSurface??");
         mSurface = EGL_NO_SURFACE;
         return false;

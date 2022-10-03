@@ -6,7 +6,8 @@ using namespace rive_android;
 rive::AABB DimensionsHelper::computeDimensions(rive::Fit fit,
                                                rive::Alignment alignment,
                                                const rive::AABB& frame,
-                                               const rive::AABB& content) {
+                                               const rive::AABB& content)
+{
     align(fit, alignment, frame, content);
     m_Width = m_ScaleX * content.width();
     m_Height = m_ScaleY * content.height();

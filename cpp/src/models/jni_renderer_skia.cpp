@@ -17,16 +17,19 @@
 
 using namespace std::chrono_literals;
 
-namespace rive_android {
+namespace rive_android
+{
 JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
     mWorkerThread(ThreadManager::getInstance()->acquireThread("EGLRenderer")),
     mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
     mTracer(getTracer(trace)),
     mWindow(nullptr),
     mGpuCanvas(nullptr),
-    mSkRenderer(nullptr) {}
+    mSkRenderer(nullptr)
+{}
 
-JNIRendererSkia::~JNIRendererSkia() {
+JNIRendererSkia::~JNIRendererSkia()
+{
     // Clean up dependencies.
     auto env = getJNIEnv();
     jclass ktClass = env->GetObjectClass(mKtRenderer);
@@ -35,20 +38,25 @@ JNIRendererSkia::~JNIRendererSkia() {
 
     // N.B. Make sure the thread is removed before the Global Ref.
     env->DeleteWeakGlobalRef(mKtRenderer);
-    if (mSkRenderer) {
+    if (mSkRenderer)
+    {
         delete mSkRenderer;
     }
-    if (mTracer) {
+    if (mTracer)
+    {
         delete mTracer;
     }
-    if (mWindow) {
+    if (mWindow)
+    {
         ANativeWindow_release(mWindow);
     }
 }
 
-void JNIRendererSkia::setWindow(ANativeWindow* window) {
+void JNIRendererSkia::setWindow(ANativeWindow* window)
+{
     mWorkerThread->run([=](EGLThreadState* threadState) {
-        if (!threadState->setWindow(window)) {
+        if (!threadState->setWindow(window))
+        {
             return;
         }
 
@@ -61,8 +69,10 @@ void JNIRendererSkia::setWindow(ANativeWindow* window) {
     });
 }
 
-void JNIRendererSkia::doFrame(long frameTimeNs) {
-    if (mIsDoingFrame) {
+void JNIRendererSkia::doFrame(long frameTimeNs)
+{
+    if (mIsDoingFrame)
+    {
         return;
     }
     mIsDoingFrame = true;
@@ -75,12 +85,14 @@ void JNIRendererSkia::doFrame(long frameTimeNs) {
         draw(threadState);
         mIsDoingFrame = false;
     });
-    if (!hasQueued) {
+    if (!hasQueued)
+    {
         mIsDoingFrame = false;
     }
 }
 
-void JNIRendererSkia::start() {
+void JNIRendererSkia::start()
+{
     mWorkerThread->run([=](EGLThreadState* threadState) {
         threadState->mIsStarted = true;
 
@@ -92,21 +104,27 @@ void JNIRendererSkia::start() {
     });
 }
 
-void JNIRendererSkia::stop() {
+void JNIRendererSkia::stop()
+{
     // Stop immediately
     mWorkerThread->drainWorkQueue();
     mWorkerThread->run([=](EGLThreadState* threadState) { threadState->mIsStarted = false; });
 }
 
-ITracer* JNIRendererSkia::getTracer(bool trace) const {
-    if (!trace) {
+ITracer* JNIRendererSkia::getTracer(bool trace) const
+{
+    if (!trace)
+    {
         return new NoopTracer();
     }
 
     bool traceAvailable = android_get_device_api_level() >= 23;
-    if (traceAvailable) {
+    if (traceAvailable)
+    {
         return new Tracer();
-    } else {
+    }
+    else
+    {
         LOGE("JNIRendererSkia cannot enable tracing on API <23. Api "
              "version is %d",
              android_get_device_api_level());
@@ -117,7 +135,8 @@ ITracer* JNIRendererSkia::getTracer(bool trace) const {
 /**
  * Calculate FPS over an average of 10 samples
  */
-void JNIRendererSkia::calculateFps() {
+void JNIRendererSkia::calculateFps()
+{
     mTracer->beginSection("calculateFps()");
     static constexpr int FPS_SAMPLES = 10;
 
@@ -125,7 +144,8 @@ void JNIRendererSkia::calculateFps() {
 
     mFpsSum += 1.0f / ((now - mLastFrameTime).count() / 1e9f);
     mFpsCount++;
-    if (mFpsCount == FPS_SAMPLES) {
+    if (mFpsCount == FPS_SAMPLES)
+    {
         mAverageFps = mFpsSum / mFpsCount;
         mFpsSum = 0;
         mFpsCount = 0;
@@ -134,10 +154,12 @@ void JNIRendererSkia::calculateFps() {
     mTracer->endSection();
 }
 
-void JNIRendererSkia::draw(EGLThreadState* threadState) {
+void JNIRendererSkia::draw(EGLThreadState* threadState)
+{
 
     // Don't render if we have no surface
-    if (threadState->hasNoSurface()) {
+    if (threadState->hasNoSurface())
+    {
         LOGE("Has No Surface!");
         // Sleep a bit so we don't churn too fast
         std::this_thread::sleep_for(50ms);

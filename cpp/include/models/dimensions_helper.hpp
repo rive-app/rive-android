@@ -4,9 +4,11 @@
 #include "rive/renderer.hpp"
 #include <jni.h>
 
-namespace rive_android {
+namespace rive_android
+{
 
-class DimensionsHelper : public rive::Renderer {
+class DimensionsHelper : public rive::Renderer
+{
 private:
     float m_Width;
     float m_Height;
@@ -14,7 +16,8 @@ private:
     float m_ScaleY;
     void save() override {}
     void restore() override {}
-    void transform(const rive::Mat2D& transform) override {
+    void transform(const rive::Mat2D& transform) override
+    {
         m_ScaleX = transform[0];
         m_ScaleY = transform[3];
     }
@@ -29,7 +32,8 @@ private:
                        rive::rcp<rive::RenderBuffer> uvCoords_f32,
                        rive::rcp<rive::RenderBuffer> indices_u16,
                        rive::BlendMode blendMode,
-                       float opacity) override {}
+                       float opacity) override
+    {}
 
 public:
     DimensionsHelper() : m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f) {}

@@ -19,23 +19,30 @@
 #include "helpers/general.hpp"
 #include "helpers/settings.hpp"
 
-namespace rive_android {
+namespace rive_android
+{
 
-Settings* Settings::getInstance() {
+Settings* Settings::getInstance()
+{
     static auto settings = std::make_unique<Settings>(ConstructorTag{});
     return settings.get();
 }
 
-void Settings::addListener(Listener listener) {
+void Settings::addListener(Listener listener)
+{
     std::lock_guard<std::mutex> lock(mMutex);
     mListeners.emplace_back(std::move(listener));
 }
 
-void Settings::setPreference(std::string key, std::string value) {
-    if (key == "hot_pocket") {
+void Settings::setPreference(std::string key, std::string value)
+{
+    if (key == "hot_pocket")
+    {
         std::lock_guard<std::mutex> lock(mMutex);
         mHotPocket = (value == "true");
-    } else {
+    }
+    else
+    {
         LOGI("Can't find matching preference for %s", key.c_str());
         return;
     }
@@ -48,7 +55,8 @@ bool Settings::getHotPocket() const { return mHotPocket; }
 
 bool Settings::isTraceEnabled() const { return mIsTraceEnabled; }
 
-void Settings::notifyListeners() {
+void Settings::notifyListeners()
+{
     // Grab a local copy of the listeners
     std::vector<Listener> listeners;
     {
@@ -57,7 +65,8 @@ void Settings::notifyListeners() {
     }
 
     // Call the listeners without the lock held
-    for (const auto& listener : listeners) {
+    for (const auto& listener : listeners)
+    {
         listener();
     }
 }

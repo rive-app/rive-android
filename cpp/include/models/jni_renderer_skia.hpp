@@ -10,8 +10,10 @@
 #include "helpers/egl_thread_state.hpp"
 #include "helpers/worker_thread.hpp"
 
-namespace rive_android {
-class JNIRendererSkia {
+namespace rive_android
+{
+class JNIRendererSkia
+{
 public:
     JNIRendererSkia(jobject ktObject, bool trace = false);
 

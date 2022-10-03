@@ -6,11 +6,13 @@
 
 #include "helpers/general.hpp"
 
-namespace rive_android {
+namespace rive_android
+{
 /**
  * Interface for a generic Tracer
  */
-class ITracer {
+class ITracer
+{
 public:
     ITracer() {}
     virtual ~ITracer() {}
@@ -18,7 +20,8 @@ public:
     virtual void endSection() = 0;
 };
 
-class NoopTracer : public ITracer {
+class NoopTracer : public ITracer
+{
 public:
     NoopTracer() {}
     ~NoopTracer() {}
@@ -26,16 +29,21 @@ public:
     void endSection() override{};
 };
 
-class Tracer : public ITracer {
+class Tracer : public ITracer
+{
 public:
-    Tracer() {
+    Tracer()
+    {
         void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-        if (lib != NULL) {
+        if (lib != NULL)
+        {
             ATrace_beginSection =
                 reinterpret_cast<fp_ATrace_beginSection>(dlsym(lib, "ATrace_beginSection"));
             ATrace_endSection =
                 reinterpret_cast<fp_ATrace_endSection>(dlsym(lib, "ATrace_endSection"));
-        } else {
+        }
+        else
+        {
             LOGE("Tracer cannot load libandroid.so!");
         }
     }
