@@ -179,8 +179,11 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      *
      * Called internally by the JNI - Only once the thread work queue has been drained and we
      * don't risk using dangling pointers of any dependency (e.g. Artboards or Animation Instances)
+     *
+     * N.B. this function is marked as `protected` instead of `private` because
+     * otherwise it's unaccesible from JNI on API < 24
      */
-    private fun disposeDependencies() {
+    protected fun disposeDependencies() {
         dependencies.forEach { it.dispose() }
         dependencies.clear()
     }
