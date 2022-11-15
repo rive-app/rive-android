@@ -40,7 +40,7 @@ while getopts "a:cdl" opt; do
     c) NEEDS_CLEAN="true" ;;
     d)
         CONFIG="debug"
-        FLAGS="-DDEBUG"
+        FLAGS="-DDEBUG -g"
         # Use full skia for debug.
         CONFIG_SKIA_REPO="https://github.com/google/skia"
         CONFIG_SKIA_BRANCH="main"
@@ -55,6 +55,10 @@ done
 
 if [ -z "$ARCH_NAME" ]; then
     echo "No architecture specified"
+    ATTACHED=$(eval "adb shell getprop ro.product.cpu.abi")
+    if [ -n "$ATTACHED" ]; then
+        echo "Device attached is: $ATTACHED"
+    fi
     usage
 fi
 
@@ -81,8 +85,7 @@ fi
 # Common variables.
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
-if [ -d "$PWD/../submodules/rive-cpp" ];
-then
+if [ -d "$PWD/../submodules/rive-cpp" ]; then
     export RIVE_RUNTIME_DIR="$PWD/../submodules/rive-cpp"
 else
     export RIVE_RUNTIME_DIR="$PWD/../../runtime"
@@ -98,7 +101,7 @@ export SKIA_REPO=$CONFIG_SKIA_REPO
 export SKIA_BRANCH=$CONFIG_SKIA_BRANCH
 export SKIA_DIR_NAME=$CONFIG_SKIA_DIR_NAME
 
-export COMPILE_TARGET="android_$EXPECTED_NDK_VERSION_$ARCH_NAME"
+export COMPILE_TARGET="android_${EXPECTED_NDK_VERSION}_$ARCH_NAME"
 export CACHE_NAME="rive_skia_android_$EXPECTED_NDK_VERSION"
 export MAKE_SKIA_FILE="make_skia_android.sh"
 
