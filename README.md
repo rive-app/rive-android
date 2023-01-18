@@ -28,7 +28,7 @@ The library is distributed through the [Maven](https://search.maven.org/artifact
 
 :blue_book: [General help docs](https://help.rive.app/)
 
-🛠 [Resources for building in Rive](https://rive.app/resources/)
+🛠 [Learning Rive](https://rive.app/learn-rive/)
 
 ## Getting Started
 
