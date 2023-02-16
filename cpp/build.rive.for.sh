@@ -77,7 +77,12 @@ elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "Wrong NDK version"
     echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
     echo "          For bot builds, googles NDK distros"
-    echo "          we are currently using: https://github.com/android/ndk/wiki/Unsupported-Downloads"
+    echo "          we are currently using: https://github.com/android/ndk/wiki/Unsupported-Downloads, you should be able to get android-ndk-r25b-darwin"
+    echo "          For human builds"
+    echo "              - open android studio"
+    echo "              - settings search for android sdk, then SDK tools"
+    echo "              - check `show package details` at the bottom"
+    echo "              - select 25.1.8937393 in NDK (Side by Side)"
     echo "Found ${NDK_PATH}"
     exit 1
 fi

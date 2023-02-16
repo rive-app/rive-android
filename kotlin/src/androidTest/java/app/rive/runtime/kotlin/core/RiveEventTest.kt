@@ -328,6 +328,7 @@ class RiveEventTest {
             view.fireState("two", "left")
             view.renderer.advance(0.0f)
 
+            // advancing by 0 always returns is playing true
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
@@ -344,6 +345,7 @@ class RiveEventTest {
             view.fireState("two", "right")
             view.renderer.advance(0.0f)
 
+            // advancing by 0 always returns is playing true
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
