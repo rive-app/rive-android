@@ -38,7 +38,7 @@ Follow along with the link below for a quick start in getting Rive Android integ
 
 ## Supported Versions
 
-Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK verison is **31**.
+Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version is **31**.
 
 ## Examples
 
