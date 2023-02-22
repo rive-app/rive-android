@@ -92,10 +92,17 @@ extern "C"
                                                              jobject thisObj,
                                                              jlong ref)
     {
-
         auto animationState = (rive::AnimationState*)ref;
-        // urgh this animation state is using forward declarations...
-        return env->NewStringUTF(animationState->animation()->name().c_str());
+        auto animation = animationState->animation();
+        if (animation == nullptr)
+        {
+            return env->NewStringUTF("Unknown");
+        }
+        else
+        {
+            // urgh this animation state is using forward declarations...
+            return env->NewStringUTF(animationState->animation()->name().c_str());
+        }
     }
 
 #ifdef __cplusplus

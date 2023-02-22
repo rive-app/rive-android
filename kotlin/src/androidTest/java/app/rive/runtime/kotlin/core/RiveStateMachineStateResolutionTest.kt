@@ -122,6 +122,26 @@ class RiveStateMachineStateResolutionTest {
         }
     }
 
+
+    @Test
+    fun getUnknownStateNameWhenAnimationIsMissing() {
+//        This test will crash the tester when it does not work
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            mockView.registerListener(observer)
+            mockView.setRiveResource(
+                R.raw.empty_animation_state,
+                autoplay = false
+            )
+            mockView.play(
+                "State Machine 1",
+                isStateMachine = true,
+            )
+            assertEquals(1, observer.states.size)
+            assertEquals("Unknown", observer.states[0].stateName)
+        }
+    }
+
     @Test
     fun triggerDoesNothingWithoutStateResolution() {
         UiThreadStatement.runOnUiThread {
