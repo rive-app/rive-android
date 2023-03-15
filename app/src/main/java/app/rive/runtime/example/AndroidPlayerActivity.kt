@@ -21,8 +21,9 @@ class AndroidPlayerActivity : AppCompatActivity() {
     var stopButtonMap: HashMap<String, View> = HashMap()
 
     private val animationResources = listOf(
-        R.raw.artboard_animations,
+        R.raw.circle_move,
         R.raw.basketball,
+        R.raw.artboard_animations,
         R.raw.clipping,
         R.raw.explorer,
         R.raw.f22,

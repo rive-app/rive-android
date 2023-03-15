@@ -15,7 +15,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     external override fun cppDelete(pointer: Long)
     //
 
-    private external fun cppStart(rendererPointer: Long)
+    private external fun cppStart(rendererPointer: Long, timeNanos: Long)
     private external fun cppStop(rendererPointer: Long)
     private external fun cppSave(rendererPointer: Long)
     private external fun cppRestore(rendererPointer: Long)
@@ -66,16 +66,15 @@ abstract class RendererSkia(private val trace: Boolean = false) :
         if (!hasCppObject) {
             return
         }
+        val nanoTime = System.nanoTime()
         isPlaying = true
-        cppStart(cppPointer)
+        cppStart(cppPointer, nanoTime)
         // Register for a new frame.
         scheduleFrame()
     }
 
     fun setSurface(surface: Surface) {
         cppSetSurface(surface, cppPointer)
-        // Register for a new frame.
-        cppDoFrame(cppPointer, 0)
     }
 
     /**
@@ -154,7 +153,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         if (isPlaying) {
-            cppDoFrame(cppPointer, frameTimeNanos)
+            val nanoTime = System.nanoTime()
+            cppDoFrame(cppPointer, nanoTime)
             scheduleFrame()
         }
     }
@@ -181,9 +181,10 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      * don't risk using dangling pointers of any dependency (e.g. Artboards or Animation Instances)
      *
      * N.B. this function is marked as `protected` instead of `private` because
-     * otherwise it's unaccesible from JNI on API < 24
+     * otherwise it's inaccessible from JNI on API < 24
      */
-    protected fun disposeDependencies() {
+    @CallSuper
+    protected open fun disposeDependencies() {
         dependencies.forEach { it.dispose() }
         dependencies.clear()
     }

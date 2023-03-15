@@ -105,6 +105,15 @@ open class RiveArtboardRenderer(
         )
     }
 
+    /**
+     * Overrides the underlying behavior because this class is internally adding [NativeObject]s to
+     * its [dependencies].
+     */
+    override fun disposeDependencies() {
+        super.disposeDependencies()
+        this.file = null
+    }
+
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
     override fun advance(elapsed: Float) {
@@ -162,9 +171,11 @@ open class RiveArtboardRenderer(
 
     // PUBLIC FUNCTIONS
     fun setRiveFile(file: File) {
-        this.file = file
-        // The Renderer takes care of disposing of this file.
-        dependencies.add(file)
+        if (file != this.file) {
+            this.file = file
+            // Add to [dependencies]: it will be cleaned up on [dispose()]
+            dependencies.add(file)
+        }
         selectArtboard()
     }
 
@@ -539,10 +550,11 @@ open class RiveArtboardRenderer(
 
     private fun setArtboard(artboard: Artboard) {
         // clean up any previous artboard if one was set
-        this.activeArtboard?.dispose()
-        this.activeArtboard = artboard
-
-
+        if (artboard != this.activeArtboard) {
+            this.activeArtboard?.dispose()
+            this.activeArtboard = artboard
+        }
+        
         if (autoplay) {
             animationName?.let { animationName ->
                 play(animationName = animationName)

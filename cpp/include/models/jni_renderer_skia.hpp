@@ -23,7 +23,7 @@ public:
 
     void doFrame(long frameTimeNs);
 
-    void start();
+    void start(long timeNs);
 
     void stop();
 

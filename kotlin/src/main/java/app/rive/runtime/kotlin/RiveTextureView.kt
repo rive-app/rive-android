@@ -28,6 +28,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     }
 
     protected abstract val renderer: RendererSkia
+    private lateinit var viewSurface: Surface
 
     private val refreshPeriodNanos: Long by lazy {
         val msInNS: Long = 1000000
@@ -68,8 +69,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         width: Int,
         height: Int
     ) {
-        val surface = Surface(surfaceTexture)
-        renderer.setSurface(surface)
+        viewSurface = Surface(surfaceTexture)
+        renderer.setSurface(viewSurface)
     }
 
     @CallSuper
@@ -89,7 +90,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-        // Returning true will `release()` for us
-        return true
+        viewSurface.release()
+        return false
     }
 }

@@ -49,9 +49,10 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(JNIEnv*,
                                                                  jobject,
-                                                                 jlong rendererRef)
+                                                                 jlong rendererRef,
+                                                                 jlong frameTimeNs)
     {
-        reinterpret_cast<JNIRendererSkia*>(rendererRef)->start();
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->start(frameTimeNs);
     }
 
     JNIEXPORT void JNICALL

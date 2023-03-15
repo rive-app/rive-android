@@ -66,6 +66,7 @@ void JNIRendererSkia::setWindow(ANativeWindow* window)
         auto gpuSurface = threadState->getSkiaSurface();
         mGpuCanvas = gpuSurface->getCanvas();
         mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
+        LOGW("Set Window Time: %ld", threadState->mLastUpdate);
     });
 }
 
@@ -73,11 +74,14 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
 {
     if (mIsDoingFrame)
     {
+        LOGW("Already doing frame!");
         return;
     }
     mIsDoingFrame = true;
     bool hasQueued = mWorkerThread->run([=](EGLThreadState* threadState) {
         float elapsedMs = threadState->getElapsedMs(frameTimeNs);
+        LOGW("doFrame() Time: %ld vs %ld", threadState->mLastUpdate, frameTimeNs);
+        LOGW("\tAdvance elapsed: %.2f", elapsedMs);
         threadState->mLastUpdate = frameTimeNs;
 
         auto env = getJNIEnv();
@@ -91,7 +95,7 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
     }
 }
 
-void JNIRendererSkia::start()
+void JNIRendererSkia::start(long timeNs)
 {
     mWorkerThread->run([=](EGLThreadState* threadState) {
         threadState->mIsStarted = true;
@@ -99,7 +103,7 @@ void JNIRendererSkia::start()
         jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
         threadState->setKtRendererClass(ktClass);
 
-        threadState->mLastUpdate = EGLThreadState::getNowNs();
+        threadState->mLastUpdate = timeNs;
         mLastFrameTime = std::chrono::steady_clock::now();
     });
 }

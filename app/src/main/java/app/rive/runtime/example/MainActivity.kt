@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_metrics, MetricsActivity::class.java),
         Pair(R.id.go_assets, AssetsActivity::class.java),
         Pair(R.id.go_recycler, RecyclerActivity::class.java),
+        Pair(R.id.go_viewpager, ViewPagerActivity::class.java),
         Pair(R.id.go_meshes, MeshesActivity::class.java),
         Pair(R.id.go_viewstub, ViewStubActivity::class.java),
     )

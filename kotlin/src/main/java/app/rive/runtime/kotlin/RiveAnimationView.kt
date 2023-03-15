@@ -140,7 +140,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val artboardName: String?,
         val animationName: String?,
         val stateMachineName: String?,
-        val resourceId: Int = -1,
+        var resourceId: Int = -1,
         val url: String?,
     ) {
         val alignment: Alignment = Alignment.values()[alignmentIndex]
@@ -432,6 +432,19 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
+        if (resId == rendererAttributes.resourceId && renderer.file != null) {
+            setRiveFile(
+                file = renderer.file!!,
+                fit = fit,
+                alignment = alignment,
+                loop = loop,
+                artboardName = artboardName,
+                animationName = animationName,
+                stateMachineName = stateMachineName,
+                autoplay = autoplay
+            )
+            return
+        }
         val stream = resources.openRawResource(resId)
         val bytes = stream.readBytes()
         setRiveBytes(
@@ -444,6 +457,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             stateMachineName = stateMachineName,
             autoplay = autoplay
         )
+        rendererAttributes.resourceId = resId
         stream.close()
     }
 
@@ -521,10 +535,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
+            resourceId = rendererAttributes.resourceId,
+            activeArtboardName = renderer.activeArtboard?.name,
             playingAnimationsNames = playingAnimations.map { it.name },
             playingStateMachineNames = playingStateMachines.map { it.name }
         )
         pause()
+        renderer.clear()
         super.onDetachedFromWindow()
     }
 
@@ -533,11 +550,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         setupRenderer()
 
         val detachedState = _detachedState
-        if (detachedState != null) {
+        if (detachedState?.resourceId == rendererAttributes.resourceId) {
+            artboardName = detachedState.activeArtboardName
             play(detachedState.playingAnimationsNames, areStateMachines = false)
             play(detachedState.playingStateMachineNames, areStateMachines = true)
-            _detachedState = null
         }
+        _detachedState = null
 
         if (rendererAttributes.riveTraceAnimations) {
             startFrameMetrics()
@@ -656,6 +674,8 @@ class RiveFileRequest(
 }
 
 data class DetachedRiveState(
+    val resourceId: Int,
+    val activeArtboardName: String?,
     val playingAnimationsNames: List<String>,
     val playingStateMachineNames: List<String>
 )
