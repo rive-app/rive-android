@@ -140,7 +140,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val artboardName: String?,
         val animationName: String?,
         val stateMachineName: String?,
-        val resourceId: Int = -1,
+        var resourceId: Int = -1,
         val url: String?,
     ) {
         val alignment: Alignment = Alignment.values()[alignmentIndex]
@@ -444,6 +444,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             stateMachineName = stateMachineName,
             autoplay = autoplay
         )
+        rendererAttributes.resourceId=resId
         stream.close()
     }
 
