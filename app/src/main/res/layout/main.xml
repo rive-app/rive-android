@@ -16,6 +16,12 @@
             android:orientation="vertical">
 
             <Button
+                android:id="@+id/go_viewpager"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="ViewPager" />
+
+            <Button
                 android:id="@+id/go_simple"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"

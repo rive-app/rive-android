@@ -52,7 +52,7 @@
         <activity android:name=".AssetsActivity" />
         <activity android:name=".RecyclerActivity" />
         <activity android:name=".MeshesActivity" />
-        <activity android:name=".ViewStubActivity" />
+        <activity android:name=".ViewStubActivity" />        <activity android:name=".ViewPagerActivity" />
     </application>
 
 </manifest>
