@@ -20,6 +20,8 @@ usage() {
     printf "Usage: %s -a arch [-c]" "$0"
     printf "\t-a Specify an architecture (i.e. '%s', '%s', '%s', '%s')", $ARCH_X86 $ARCH_X64 $ARCH_ARM $ARCH_ARM64
     printf "\t-c Clean previous builds\n"
+    printf "\t-d To build for debug (which also enables logging)\n"
+    printf "\t-l To enable logging\n"
     exit 1 # Exit script after printing help
 }
 

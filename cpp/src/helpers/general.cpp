@@ -293,7 +293,7 @@ void logThread()
     while (1)
     {
         fgets(readBuffer, sizeof(readBuffer), inputFile);
-        __android_log_write(2, "stderr", readBuffer);
+        __android_log_write(2, "rive_stderr", readBuffer);
     }
 }
 

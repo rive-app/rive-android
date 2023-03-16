@@ -24,6 +24,7 @@ extern "C"
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppStart(JNIEnv*,
                                                                                         jobject,
+                                                                                        jlong,
                                                                                         jlong);
 
     JNIEXPORT void JNICALL
