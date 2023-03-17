@@ -59,10 +59,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     open val defaultAutoplay = true
 
-    private val rendererAttributes: RendererAttrs
     public override val renderer: RiveArtboardRenderer
 
     private var _detachedState: DetachedRiveState? = null
+    private var _createBytesCache: ByteArray? = null
 
 
     var fit: Fit
@@ -131,7 +131,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = renderer.playingStateMachines
 
-    protected data class RendererAttrs(
+    data class RendererAttrs(
         val alignmentIndex: Int = 4,
         val fitIndex: Int = 1,
         val loopIndex: Int = 3,
@@ -149,6 +149,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     init {
+        var rendererAttributes: RendererAttrs
         context.theme.obtainStyledAttributes(
             attrs,
             R.styleable.RiveAnimationView,
@@ -169,42 +170,32 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1),
                     url = getString(R.styleable.RiveAnimationView_riveUrl),
                 )
-                renderer = makeRenderer()
+                renderer = makeRenderer(rendererAttributes)
             } finally {
                 recycle()
             }
         }
-    }
 
-    private fun setupRenderer() {
+        // Configure the renderer based on the xml
+        renderer.alignment = rendererAttributes.alignment
+        renderer.fit = rendererAttributes.fit
+        renderer.loop = rendererAttributes.loop
+        renderer.autoplay = rendererAttributes.autoplay
+        renderer.artboardName = rendererAttributes.artboardName
+        renderer.animationName = rendererAttributes.animationName
+        renderer.stateMachineName = rendererAttributes.stateMachineName
+
+        // if a file has been set, try to get it loaded.
         if (rendererAttributes.resourceId != -1) {
-            setRiveResource(
-                rendererAttributes.resourceId,
-                alignment = rendererAttributes.alignment,
-                fit = rendererAttributes.fit,
-                loop = rendererAttributes.loop,
-                autoplay = rendererAttributes.autoplay,
-                artboardName = rendererAttributes.artboardName,
-                stateMachineName = rendererAttributes.stateMachineName,
-                animationName = rendererAttributes.animationName,
-            )
-        } else {
-            renderer.alignment = rendererAttributes.alignment
-            renderer.fit = rendererAttributes.fit
-            renderer.loop = rendererAttributes.loop
-            renderer.autoplay = rendererAttributes.autoplay
-            renderer.artboardName = rendererAttributes.artboardName
-            renderer.animationName = rendererAttributes.animationName
-            renderer.stateMachineName = rendererAttributes.stateMachineName
-
-            // If a URL has been provided, initiate downloading
+            loadRiveResource(rendererAttributes.resourceId)
+        } else (
             rendererAttributes.url?.let { loadHttp(it) }
-        }
+        )
     }
 
     // Factory can be overridden for dependency-injection during testing.
     @TestOnly
-    open fun makeRenderer(): RiveArtboardRenderer {
+    open fun makeRenderer(rendererAttributes: RendererAttrs): RiveArtboardRenderer {
         return RiveArtboardRenderer(
             autoplay = rendererAttributes.autoplay,
             trace = rendererAttributes.riveTraceAnimations
@@ -230,17 +221,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val stringRequest = RiveFileRequest(url,
             { file ->
                 setRiveFile(
-                    file,
-                    renderer.artboardName,
-                    renderer.animationName,
-                    renderer.stateMachineName,
-                    renderer.autoplay,
-                    renderer.fit,
-                    renderer.alignment,
-                    renderer.loop
+                    file
                 )
             },
-            { throw IOException("Unable to download Rive file $url") })
+            { throw IOException("Unable to download Rive file $url") },)
         queue.add(stringRequest)
     }
 
@@ -432,10 +416,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        val stream = resources.openRawResource(resId)
-        val bytes = stream.readBytes()
-        setRiveBytes(
-            bytes,
+        configureRenderer(
             fit = fit,
             alignment = alignment,
             loop = loop,
@@ -444,7 +425,19 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             stateMachineName = stateMachineName,
             autoplay = autoplay
         )
-        rendererAttributes.resourceId=resId
+
+        loadRiveResource(resId)
+    }
+
+    private fun loadRiveResource(
+        @RawRes resId: Int,
+    ) {
+        val stream = resources.openRawResource(resId)
+        val bytes = stream.readBytes()
+        val file = File(bytes)
+        setRiveFile(
+            file,
+        )
         stream.close()
     }
 
@@ -470,9 +463,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        val file = File(bytes)
-        setRiveFile(
-            file,
+        configureRenderer(
             fit = fit,
             alignment = alignment,
             loop = loop,
@@ -481,29 +472,21 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             stateMachineName = stateMachineName,
             autoplay = autoplay
         )
+
+        val file = File(bytes)
+        setRiveFile(
+            file,
+        )
     }
 
-    /**
-     * Load the [rive file][File] into the view.
-     *
-     * - Optionally provide an [artboardName] to use, this defaults to the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animations.
-     * - Enable [autoplay] to start the animation without further prompts.
-     * - Configure [alignment] to specify how the animation should be aligned to its container.
-     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
-     *
-     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
-     */
-    private fun setRiveFile(
-        file: File,
-        artboardName: String?,
-        animationName: String?,
-        stateMachineName: String?,
-        autoplay: Boolean,
-        fit: Fit,
-        alignment: Alignment,
-        loop: Loop,
+    private fun configureRenderer(
+        artboardName: String? = null,
+        animationName: String? = null,
+        stateMachineName: String? = null,
+        autoplay: Boolean = renderer.autoplay,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.AUTO,
     ) {
         renderer.stopAnimations()
         renderer.clear()
@@ -514,11 +497,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.animationName = animationName
         renderer.stateMachineName = stateMachineName
         renderer.artboardName = artboardName
+    }
 
+    /**
+     * Load the [rive file][File] into the renderer.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     */
+    private fun setRiveFile(
+        file: File,
+    ) {
+        _createBytesCache = file.createBytes
         renderer.setRiveFile(file)
     }
 
+
     override fun onDetachedFromWindow() {
+        Log.d("onDetachedFromWindow", "${hashCode()}");
         // Track the playing animations and state machines so we can resume them if the window is
         // attached.
         _detachedState = DetachedRiveState(
@@ -526,13 +521,20 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             playingStateMachineNames = playingStateMachines.map { it.name }
         )
         pause()
+        renderer.clear()
+        renderer.detach()
         super.onDetachedFromWindow()
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        setupRenderer()
+        if (_createBytesCache != null && renderer.detached) {
+            renderer.setRiveFile(File(_createBytesCache!!))
+        }
 
+//        what exactly do we need here. the renderer itself should "know" all this stuff no?
+//        does it just need a prod?
+//        i guess we "clear it when we detach.. so this probably makes sense...
         val detachedState = _detachedState
         if (detachedState != null) {
             play(detachedState.playingAnimationsNames, areStateMachines = false)
@@ -540,9 +542,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             _detachedState = null
         }
 
-        if (rendererAttributes.riveTraceAnimations) {
-            startFrameMetrics()
-        }
+//        ok fine gotta put the trace somewhere, maybe just into a param on the view?!
+//        if (rendererAttributes.riveTraceAnimations) {
+//            startFrameMetrics()
+//        }
     }
 
     @TargetApi(Build.VERSION_CODES.N)

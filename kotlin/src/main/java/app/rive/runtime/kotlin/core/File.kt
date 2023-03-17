@@ -18,8 +18,10 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  * The rive editor will always let you download your file in the latest runtime format.
  */
 class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
+    val createBytes: ByteArray;
     init {
         cppPointer = import(bytes, bytes.size)
+        createBytes = bytes
     }
 
     private external fun import(bytes: ByteArray, length: Int): Long

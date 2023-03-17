@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin
 
 import android.graphics.PointF
 import android.graphics.RectF
+import android.util.Log
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import java.util.*
@@ -61,6 +62,15 @@ open class RiveArtboardRenderer(
             return synchronized(animationList) {
                 animationList.toList()
             }
+        }
+
+    fun detach(){
+        file = null
+    }
+
+    val detached: Boolean
+        get(){
+            return file == null
         }
 
 
@@ -162,6 +172,8 @@ open class RiveArtboardRenderer(
 
     // PUBLIC FUNCTIONS
     fun setRiveFile(file: File) {
+        this.activeArtboard = null
+        this.selectedArtboard = null
         this.file = file
         // The Renderer takes care of disposing of this file.
         dependencies.add(file)
