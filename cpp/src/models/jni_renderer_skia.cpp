@@ -91,7 +91,7 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
     }
 }
 
-void JNIRendererSkia::start()
+void JNIRendererSkia::start(long timeNs)
 {
     mWorkerThread->run([=](EGLThreadState* threadState) {
         threadState->mIsStarted = true;
@@ -99,7 +99,7 @@ void JNIRendererSkia::start()
         jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
         threadState->setKtRendererClass(ktClass);
 
-        threadState->mLastUpdate = EGLThreadState::getNowNs();
+        threadState->mLastUpdate = timeNs;
         mLastFrameTime = std::chrono::steady_clock::now();
     });
 }

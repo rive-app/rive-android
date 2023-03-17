@@ -15,7 +15,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     external override fun cppDelete(pointer: Long)
     //
 
-    private external fun cppStart(rendererPointer: Long)
+    private external fun cppStart(rendererPointer: Long, timeNanos: Long)
     private external fun cppStop(rendererPointer: Long)
     private external fun cppSave(rendererPointer: Long)
     private external fun cppRestore(rendererPointer: Long)
@@ -67,7 +67,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
             return
         }
         isPlaying = true
-        cppStart(cppPointer)
+        val timeNanos = System.nanoTime()
+        cppStart(cppPointer, timeNanos)
         // Register for a new frame.
         scheduleFrame()
     }
@@ -75,7 +76,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     fun setSurface(surface: Surface) {
         cppSetSurface(surface, cppPointer)
         // Register for a new frame.
-        cppDoFrame(cppPointer, 0)
+//        cppDoFrame(cppPointer, 0)
     }
 
     /**
@@ -154,7 +155,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         if (isPlaying) {
-            cppDoFrame(cppPointer, frameTimeNanos)
+            val nanoTime = System.nanoTime()
+            cppDoFrame(cppPointer, nanoTime)
             scheduleFrame()
         }
     }
