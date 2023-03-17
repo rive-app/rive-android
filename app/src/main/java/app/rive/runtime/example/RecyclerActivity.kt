@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -27,11 +28,11 @@ data class RiveFileResource(val number: Int, val resource: Int)
 
 object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveFileResource>() {
     override fun areItemsTheSame(oldItem: RiveFileResource, newItem: RiveFileResource): Boolean {
-        return oldItem.number == oldItem.number
+        return oldItem.number == newItem.number
     }
 
     override fun areContentsTheSame(oldItem: RiveFileResource, newItem: RiveFileResource): Boolean {
-        return oldItem.number == oldItem.number
+        return oldItem.number == newItem.number
     }
 }
 
@@ -58,6 +59,12 @@ class RiveAdapter :
     }
 
     override fun onBindViewHolder(holder: RiveViewHolder, position: Int) {
+        // Alternate background colors to differentiate various elements.
+        if (position % 2 == 1) {
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFFFFF"));
+        } else {
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFFAF8FD"));
+        }
         val riveFileResource = getItem(position)
         holder.bind(riveFileResource)
     }
@@ -67,6 +74,11 @@ class RiveAdapter :
     }
 
     override fun getItem(position: Int): RiveFileResource {
-        return RiveFileResource(position, R.raw.circle_move)
+        val res = if (position % 2 == 1) {
+            R.raw.basketball
+        } else {
+            R.raw.circle_move
+        }
+        return RiveFileResource(position, res)
     }
 }

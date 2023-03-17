@@ -497,6 +497,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         renderer.animationName = animationName
         renderer.stateMachineName = stateMachineName
         renderer.artboardName = artboardName
+        _detachedState = null
     }
 
     /**
@@ -522,7 +523,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         )
         pause()
         renderer.clear()
-        renderer.detach()
         super.onDetachedFromWindow()
     }
 
@@ -536,6 +536,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 //        does it just need a prod?
 //        i guess we "clear it when we detach.. so this probably makes sense...
         val detachedState = _detachedState
+        Log.d("Hello", "are we detached $detachedState")
         if (detachedState != null) {
             play(detachedState.playingAnimationsNames, areStateMachines = false)
             play(detachedState.playingStateMachineNames, areStateMachines = true)

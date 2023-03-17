@@ -185,7 +185,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      * N.B. this function is marked as `protected` instead of `private` because
      * otherwise it's unaccesible from JNI on API < 24
      */
-    protected fun disposeDependencies() {
+    protected open fun disposeDependencies() {
         dependencies.forEach { it.dispose() }
         dependencies.clear()
     }

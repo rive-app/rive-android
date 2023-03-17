@@ -64,10 +64,6 @@ open class RiveArtboardRenderer(
             }
         }
 
-    fun detach(){
-        file = null
-    }
-
     val detached: Boolean
         get(){
             return file == null
@@ -83,6 +79,11 @@ open class RiveArtboardRenderer(
                 stateMachineList.toList()
             }
         }
+
+    override fun disposeDependencies() {
+        super.disposeDependencies()
+        this.file = null
+    }
 
     var file: File? = null
         private set
