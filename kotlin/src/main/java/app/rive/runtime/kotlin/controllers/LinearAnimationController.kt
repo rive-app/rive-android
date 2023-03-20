@@ -10,7 +10,6 @@ class LinearAnimationController(
 ) : RiveController<Artboard>() {
     var animationInstance: LinearAnimationInstance? = null
     var mix: Float = mix
-        get() = field
         set(value) {
             field = value.coerceIn(0.0f, 1.0f)
         }

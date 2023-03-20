@@ -16,7 +16,7 @@ jobs:
   build-android-so:
     strategy:
       matrix:
-        arch: ["x86", "x86_64", "arm64-v8a", "armeabi-v7a"]
+        arch: [ "x86", "x86_64", "arm64-v8a", "armeabi-v7a" ]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -26,17 +26,17 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: us-west-2
-          role-to-assume:  ${{ secrets.ACTIONS_ROLE }}
+          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
       - name: Checkout Code
         uses: actions/checkout@v3
-        with: 
+        with:
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
 
       - name: Update Java
         uses: actions/setup-java@v2
-        with: 
-          distribution: 'zulu' 
+        with:
+          distribution: 'zulu'
           java-version: '16'
 
       - name: Installing pre-requisites
@@ -86,8 +86,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Update Java
         uses: actions/setup-java@v2
-        with: 
-          distribution: 'zulu' 
+        with:
+          distribution: 'zulu'
           java-version: '16'
       - uses: actions/download-artifact@v3
         with:
@@ -112,19 +112,19 @@ jobs:
           git config --local user.email 'hello@rive.app'
           git config --local user.name ${{ github.actor }}
 
-      - if : ${{ inputs.major == true }}
+      - if: ${{ inputs.major == true }}
         name: Major Release - Bump version number, update changelog, push and tag
         run: npm run release -- major --ci
         working-directory: ./.github/scripts/release
         env:
           GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
-      - if : ${{inputs.major == false && inputs.minor == true}}
+      - if: ${{inputs.major == false && inputs.minor == true}}
         name: Minor release - Bump version number, update changelog, push and tag
         run: npm run release -- minor --ci
         working-directory: ./.github/scripts/release
         env:
           GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
-      - if : ${{inputs.major == false && inputs.minor == false}}
+      - if: ${{inputs.major == false && inputs.minor == false}}
         name: Build release - Bump version number, update changelog, push and tag
         run: npm run release -- --ci
         working-directory: ./.github/scripts/release

@@ -10,7 +10,7 @@ ext {
     PUBLISH_ARTIFACT_ID = 'rive-android'
 }
 buildscript {
-    ext{
+    ext {
         gradle_version = '7.2.1'
         kotlin_version = "1.7.10"
         dokkaVersion = "1.4.30"

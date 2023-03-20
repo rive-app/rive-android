@@ -5,7 +5,6 @@ import android.view.Choreographer
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import java.util.*
 
 

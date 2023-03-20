@@ -18,7 +18,10 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  * The rive editor will always let you download your file in the latest runtime format.
  */
 class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
+    private val createBytes: ByteArray
+
     init {
+        createBytes = bytes
         cppPointer = import(bytes, bytes.size)
     }
 
@@ -29,6 +32,20 @@ class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
     private external fun cppArtboardCount(cppPointer: Long): Int
 
     external override fun cppDelete(pointer: Long)
+
+    /**
+     * Hydrate the file, and ensure we have loaded the [createBytes] into our cpp representation
+     * returns [Boolean] to indicate if it needed hydration
+     *
+     * We need this because File objects get garbage collected separately from our cpp objects
+     */
+    fun hydrate(): Boolean {
+        if (!hasCppObject) {
+            cppPointer = import(createBytes, createBytes.size)
+            return true
+        }
+        return false
+    }
 
     /**
      * Get the first artboard in the file.

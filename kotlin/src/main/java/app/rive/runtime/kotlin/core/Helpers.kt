@@ -27,4 +27,12 @@ object Helpers {
             artboardBounds
         )
     }
+
+    fun printStackTrace() {
+        try {
+            val boom = 1 / 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

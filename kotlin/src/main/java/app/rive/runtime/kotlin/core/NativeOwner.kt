@@ -39,10 +39,10 @@ abstract class NativeObject(private var unsafeCppPointer: Long) {
     open fun cppDelete(pointer: Long) {}
 
     fun dispose() {
-        dependencies?.forEach {
+        dependencies.forEach {
             it.dispose()
         }
-        dependencies?.clear()
+        dependencies.clear()
 
         // Do we want to warn/throw when deleting twice?
         if (hasCppObject) {

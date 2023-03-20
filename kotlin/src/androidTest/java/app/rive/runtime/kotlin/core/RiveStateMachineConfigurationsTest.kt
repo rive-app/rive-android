@@ -56,7 +56,7 @@ class RiveStateMachineConfigurationsTest {
         assertEquals(false, input.isTrigger)
         assertEquals(true, input.isNumber)
         assertEquals("Number 1", input.name)
-        assertEquals(state_machine.input("Number 1").cppPointer, input.cppPointer);
+        assertEquals(state_machine.input("Number 1").cppPointer, input.cppPointer)
     }
 
     @Test
@@ -69,7 +69,7 @@ class RiveStateMachineConfigurationsTest {
         assertEquals(false, input.isTrigger)
         assertEquals(false, input.isNumber)
         assertEquals("Boolean 1", input.name)
-        assertEquals(state_machine.input("Boolean 1").cppPointer, input.cppPointer);
+        assertEquals(state_machine.input("Boolean 1").cppPointer, input.cppPointer)
     }
 
     @Test
@@ -82,7 +82,7 @@ class RiveStateMachineConfigurationsTest {
         assertEquals(true, input.isTrigger)
         assertEquals(false, input.isNumber)
         assertEquals("Trigger 1", input.name)
-        assertEquals(state_machine.input("Trigger 1").cppPointer, input.cppPointer);
+        assertEquals(state_machine.input("Trigger 1").cppPointer, input.cppPointer)
     }
 
     @Test

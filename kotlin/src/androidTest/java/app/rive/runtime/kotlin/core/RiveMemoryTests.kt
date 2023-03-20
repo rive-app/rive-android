@@ -29,10 +29,10 @@ class RiveMemoryTests {
             appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
         )
         // cannot access file properties after disposing file.
-        assertEquals(file.artboardNames, listOf("New Artboard"));
+        assertEquals(file.artboardNames, listOf("New Artboard"))
         file.dispose()
         assertThrows(RiveException::class.java) {
-            file.artboardNames;
+            file.artboardNames
         }
     }
 
@@ -42,7 +42,7 @@ class RiveMemoryTests {
             appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
         )
         val artboard = file.firstArtboard
-        assertEquals(artboard.name, "New Artboard");
+        assertEquals(artboard.name, "New Artboard")
         file.dispose()
         assertThrows(RiveException::class.java) {
             artboard.name
@@ -55,7 +55,7 @@ class RiveMemoryTests {
             appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
         )
         val stateMachine = file.firstArtboard.stateMachine(0)
-        assertEquals(stateMachine.name, "mixed");
+        assertEquals(stateMachine.name, "mixed")
         file.dispose()
         assertThrows(RiveException::class.java) {
             stateMachine.name
@@ -68,7 +68,7 @@ class RiveMemoryTests {
             appContext.resources.openRawResource(R.raw.multipleartboards).readBytes()
         )
         val animation = file.firstArtboard.animation(0)
-        assertEquals(animation.name, "artboard2animation1");
+        assertEquals(animation.name, "artboard2animation1")
         file.dispose()
         assertThrows(RiveException::class.java) {
             animation.name
@@ -78,10 +78,8 @@ class RiveMemoryTests {
     @Test
     fun layerStateAccess() {
         var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
-        lateinit var layerState: LayerState;
+        lateinit var layerState: LayerState
         UiThreadStatement.runOnUiThread {
-            val observer = TestUtils.Observer()
-            mockView.registerListener(observer)
             mockView.setRiveResource(
                 R.raw.layerstatechange,
                 stateMachineName = "State Machine 1",
@@ -99,7 +97,7 @@ class RiveMemoryTests {
     }
 
     @Test
-    fun resetInvalidatesObjects() {
+    fun resetDoesNotInvalidatesObjects() {
         var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
 
         UiThreadStatement.runOnUiThread {
@@ -114,22 +112,28 @@ class RiveMemoryTests {
             val artboard = mockView.renderer.activeArtboard
             val stateMachine = artboard?.stateMachine(0)
             mockView.reset()
+
+            assertEquals(artboard?.name, "New Artboard")
+            assertEquals(stateMachine?.name, "State Machine 1")
+
+//            but disposing the renderer will still remove artboards after reset
+            mockView.renderer.dispose()
             assertThrows(RiveException::class.java) {
                 artboard?.name
             }
             assertThrows(RiveException::class.java) {
                 stateMachine?.name
             }
+            mockView.stop()
         }
     }
+
 
     @Test
     fun resetDoesNotResetManualArtboards() {
         var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
-        lateinit var artboard: Artboard;
+        lateinit var artboard: Artboard
         UiThreadStatement.runOnUiThread {
-            val observer = TestUtils.Observer()
-            mockView.registerListener(observer)
             mockView.setRiveResource(
                 R.raw.layerstatechange,
                 stateMachineName = "State Machine 1",
@@ -137,10 +141,10 @@ class RiveMemoryTests {
             )
             mockView.renderer.advance(0f)
             artboard = mockView.file!!.firstArtboard
-            assertEquals(artboard?.name, "New Artboard")
+            assertEquals(artboard.name, "New Artboard")
             mockView.reset()
             // reset will not have cleared this artboard, it was never attacked to the view.
-            assertEquals(artboard?.name, "New Artboard")
+            assertEquals(artboard.name, "New Artboard")
             // lets assume our view got gc'd
             mockView.renderer.dispose()
         }

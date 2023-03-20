@@ -2,7 +2,6 @@ package app.rive.runtime.example
 
 import android.content.Context
 import android.graphics.RectF
-import android.graphics.SurfaceTexture
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity

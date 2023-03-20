@@ -1,14 +1,14 @@
 name: On PR - test recorder
 
-on: 
+on:
   workflow_dispatch:
   pull_request:
-      
+
 jobs:
   build-android-so:
     strategy:
       matrix:
-        arch: ["x86", "x86_64", "arm64-v8a", "armeabi-v7a"]
+        arch: [ "x86", "x86_64", "arm64-v8a", "armeabi-v7a" ]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -18,17 +18,17 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: us-west-2
-          role-to-assume:  ${{ secrets.ACTIONS_ROLE }}
+          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
       - name: Checkout Code
         uses: actions/checkout@v3
-        with: 
+        with:
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
 
       - name: Update Java
         uses: actions/setup-java@v2
-        with: 
-          distribution: 'zulu' 
+        with:
+          distribution: 'zulu'
           java-version: '16'
 
       - name: Installing pre-requisites
@@ -75,11 +75,11 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
-        
+
       - name: Update Java
         uses: actions/setup-java@v2
-        with: 
-          distribution: 'zulu' 
+        with:
+          distribution: 'zulu'
           java-version: '16'
 
       - uses: actions/download-artifact@v3
@@ -89,7 +89,7 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
         working-directory: kotlin/src/main/jniLibs/
-      
+
       - name: Test Android v30
         uses: reactivecircus/android-emulator-runner@v2
         with:

@@ -26,7 +26,7 @@ open class RiveArtboardRenderer(
 ) : Observable<RiveArtboardRenderer.Listener>,
     RendererSkia(trace) {
     // PRIVATE
-    private var listeners = HashSet<RiveArtboardRenderer.Listener>()
+    private var listeners = HashSet<Listener>()
     var targetBounds: RectF = RectF()
     private var selectedArtboard: Artboard? = null
     var activeArtboard: Artboard? = null
@@ -93,6 +93,19 @@ open class RiveArtboardRenderer(
 
     private val hasPlayingAnimations: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
+
+    override fun make() {
+        super.make()
+        // if we are being made, lets make sure our file has its cpp side set
+        file?.let {
+            if (it.hydrate()) {
+                // if we hydrated, lets make sure we "set" the rive file again
+                // forcing some setup logic
+                setRiveFile(it)
+            }
+        }
+
+    }
 
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
@@ -162,10 +175,23 @@ open class RiveArtboardRenderer(
 
     // PUBLIC FUNCTIONS
     fun setRiveFile(file: File) {
+        clearObjectsWithStaleNatives()
         this.file = file
         // The Renderer takes care of disposing of this file.
         dependencies.add(file)
         selectArtboard()
+    }
+
+    /**
+     * We want to clear out all references to objects with potentially stale native counterparts
+     */
+    private fun clearObjectsWithStaleNatives() {
+        playingAnimationSet.clear()
+        animationList.clear()
+        playingStateMachineSet.clear()
+        stateMachineList.clear()
+        activeArtboard = null
+        selectedArtboard = null
     }
 
     fun setArtboardByName(artboardName: String?) {
@@ -191,17 +217,9 @@ open class RiveArtboardRenderer(
         return output
     }
 
-    fun clear() {
-        playingAnimationSet.clear()
-        animationList.clear()
-        playingStateMachineSet.clear()
-        stateMachineList.clear()
-    }
-
     fun reset() {
         stopAnimations()
         stop()
-        clear()
         selectArtboard()
         start()
     }
@@ -350,8 +368,6 @@ open class RiveArtboardRenderer(
 
     fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
         /// TODO: once we start composing artboards we may need x,y offsets here...
-
-
         val artboardEventLocation = Helpers.convertToArtboardSpace(
             targetBounds,
             PointF(x, y),
@@ -538,10 +554,7 @@ open class RiveArtboardRenderer(
     }
 
     private fun setArtboard(artboard: Artboard) {
-        // clean up any previous artboard if one was set
-        this.activeArtboard?.dispose()
         this.activeArtboard = artboard
-
 
         if (autoplay) {
             animationName?.let { animationName ->
@@ -576,11 +589,11 @@ open class RiveArtboardRenderer(
     }
 
     /* LISTENER OVERRIDES */
-    override fun registerListener(listener: RiveArtboardRenderer.Listener) {
+    override fun registerListener(listener: Listener) {
         listeners.add(listener)
     }
 
-    override fun unregisterListener(listener: RiveArtboardRenderer.Listener) {
+    override fun unregisterListener(listener: Listener) {
         listeners.remove(listener)
     }
 

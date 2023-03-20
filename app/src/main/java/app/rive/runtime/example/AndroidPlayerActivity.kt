@@ -23,6 +23,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     private val animationResources = listOf(
         R.raw.artboard_animations,
         R.raw.basketball,
+        R.raw.circle_move,
         R.raw.clipping,
         R.raw.explorer,
         R.raw.f22,

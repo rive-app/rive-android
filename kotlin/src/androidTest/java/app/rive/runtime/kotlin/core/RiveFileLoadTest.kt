@@ -25,24 +25,24 @@ class RiveFileLoadTest {
     @Test(expected = UnsupportedRuntimeVersionException::class)
     fun loadFormat6() {
         File(appContext.resources.openRawResource(R.raw.sample6).readBytes())
-        assert(false);
+        assert(false)
     }
 
     @Test(expected = MalformedFileException::class)
     fun loadJunk() {
         File(appContext.resources.openRawResource(R.raw.junk).readBytes())
-        assert(false);
+        assert(false)
     }
 
     @Test
     fun loadFormatFlux() {
         val file = File(appContext.resources.openRawResource(R.raw.flux_capacitor).readBytes())
-        assertEquals(1, file.firstArtboard.animationCount);
+        assertEquals(1, file.firstArtboard.animationCount)
     }
 
     @Test
     fun loadFormatBuggy() {
         val file = File(appContext.resources.openRawResource(R.raw.off_road_car_blog).readBytes())
-        assertEquals(5, file.firstArtboard.animationCount);
+        assertEquals(5, file.firstArtboard.animationCount)
     }
 }

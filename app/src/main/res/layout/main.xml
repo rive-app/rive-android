@@ -108,6 +108,12 @@
                 android:text="Recycler" />
 
             <Button
+                android:id="@+id/go_viewpager"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="ViewPager" />
+
+            <Button
                 android:id="@+id/go_meshes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

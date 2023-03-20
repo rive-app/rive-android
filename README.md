@@ -9,7 +9,8 @@
 
 An Android runtime library for [Rive](https://rive.app).
 
-The library is distributed through the [Maven](https://search.maven.org/artifact/app.rive/rive-android) repository.
+The library is distributed through
+the [Maven](https://search.maven.org/artifact/app.rive/rive-android) repository.
 
 ## Table of contents
 
@@ -22,7 +23,10 @@ The library is distributed through the [Maven](https://search.maven.org/artifact
 
 ## Rive Overview
 
-[Rive](https://rive.app) is a real-time interactive design and animation tool that helps teams create and run interactive animations anywhere. Designers and developers use our collaborative editor to create motion graphics that respond to different states and user inputs. Our lightweight open-source runtime libraries allow them to load their animations into apps, games, and websites.
+[Rive](https://rive.app) is a real-time interactive design and animation tool that helps teams
+create and run interactive animations anywhere. Designers and developers use our collaborative
+editor to create motion graphics that respond to different states and user inputs. Our lightweight
+open-source runtime libraries allow them to load their animations into apps, games, and websites.
 
 :house_with_garden: [Homepage](https://rive.app/)
 
@@ -32,17 +36,20 @@ The library is distributed through the [Maven](https://search.maven.org/artifact
 
 ## Getting Started
 
-Follow along with the link below for a quick start in getting Rive Android integrated into your multi-platform applications.
+Follow along with the link below for a quick start in getting Rive Android integrated into your
+multi-platform applications.
 
 [Getting Started with Rive in Android](https://help.rive.app/runtimes/overview/android)
 
 ## Supported Versions
 
-Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK verison is **31**.
+Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK verison
+is **31**.
 
 ## Examples
 
-Check out the `app/` folder to see an example application using the Rive Android runtime. It showcases a number of ways to manipulate Rives, including:
+Check out the `app/` folder to see an example application using the Rive Android runtime. It
+showcases a number of ways to manipulate Rives, including:
 
 - How to include Rive files into the project and reference them
 - Setting layout and loop mode options
@@ -53,8 +60,12 @@ Check out the `app/` folder to see an example application using the Rive Android
 
 ## Contributing
 
-We love contributions! Check out our [contributing docs](./CONTRIBUTING.md) to get more details into how to run this project, the examples, and more all locally.
+We love contributions! Check out our [contributing docs](./CONTRIBUTING.md) to get more details into
+how to run this project, the examples, and more all locally.
 
 ## Issues
 
-Have an issue with using the runtime, or want to suggest a feature/API to help make your development life better? Log an issue in our [issues](https://github.com/rive-app/rive-android/issues) tab! You can also browse older issues and discussion threads there to see solutions that may have worked for common problems.
+Have an issue with using the runtime, or want to suggest a feature/API to help make your development
+life better? Log an issue in our [issues](https://github.com/rive-app/rive-android/issues) tab! You
+can also browse older issues and discussion threads there to see solutions that may have worked for
+common problems.

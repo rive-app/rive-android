@@ -36,7 +36,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     /** Instantiates JNIRendererSkia in C++ */
     private external fun constructor(trace: Boolean): Long
 
-    fun make() {
+    @CallSuper
+    open fun make() {
         if (!hasCppObject) {
             cppPointer = constructor(trace)
         }
@@ -44,6 +45,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
 
     var isPlaying: Boolean = false
         private set
+    var isAttached: Boolean = false
+        protected set
 
     abstract fun draw()
     abstract fun advance(elapsed: Float)
@@ -63,6 +66,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
      */
     fun start() {
         if (isPlaying) return
+        if (!isAttached) return
         if (!hasCppObject) {
             return
         }
@@ -75,6 +79,8 @@ abstract class RendererSkia(private val trace: Boolean = false) :
 
     fun setSurface(surface: Surface) {
         cppSetSurface(surface, cppPointer)
+        isAttached = true
+        start()
     }
 
     /**
@@ -114,6 +120,7 @@ abstract class RendererSkia(private val trace: Boolean = false) :
     private fun clearSurface() {
         stop()
         cppClearSurface(cppPointer)
+        isAttached = false
     }
 
     open fun scheduleFrame() {

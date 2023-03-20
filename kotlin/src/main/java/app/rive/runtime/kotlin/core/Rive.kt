@@ -27,7 +27,7 @@ object Rive {
     fun init(context: Context) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
-        ReLinker.loadLibrary(context, JNIRiveBridge);
+        ReLinker.loadLibrary(context, JNIRiveBridge)
         initializeCppEnvironment()
     }
 

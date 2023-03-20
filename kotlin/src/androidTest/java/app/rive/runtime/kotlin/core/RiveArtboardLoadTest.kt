@@ -28,7 +28,7 @@ class RiveArtboardLoadTest {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         // Access an artboard can bail when we don't have one.
         file.firstArtboard
-        assertEquals(2, file.artboardCount);
+        assertEquals(2, file.artboardCount)
         // Note index order seems to be reversed.
 //        artbaord instances will not be the same cpp pointer.
         assertNotEquals(
@@ -69,7 +69,7 @@ class RiveArtboardLoadTest {
     @Test
     fun loadArtboardNoArtboardCheck() {
         var file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
-        assertEquals(0, file.artboardCount);
+        assertEquals(0, file.artboardCount)
         assertEquals(listOf<String>(), file.artboardNames)
     }
 
@@ -77,20 +77,20 @@ class RiveArtboardLoadTest {
     fun loadArtboardOne() {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard1 = file.artboard(name = "artboard1")
-        assertEquals(1, artboard1.animationCount);
-        assertEquals(1, artboard1.stateMachineCount);
-        assertEquals("artboard1", artboard1.name);
-        assertEquals(500f, artboard1.bounds.height());
-        assertEquals(500f, artboard1.bounds.width());
+        assertEquals(1, artboard1.animationCount)
+        assertEquals(1, artboard1.stateMachineCount)
+        assertEquals("artboard1", artboard1.name)
+        assertEquals(500f, artboard1.bounds.height())
+        assertEquals(500f, artboard1.bounds.width())
     }
 
     @Test
     fun loadArtboardTwo() {
         var file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
         var artboard2 = file.artboard(name = "artboard2")
-        assertEquals(2, artboard2.animationCount);
-        assertEquals(2, artboard2.stateMachineCount);
-        assertEquals("artboard2", artboard2.name);
+        assertEquals(2, artboard2.animationCount)
+        assertEquals(2, artboard2.stateMachineCount)
+        assertEquals("artboard2", artboard2.name)
     }
 
     @Test(expected = RiveException::class)

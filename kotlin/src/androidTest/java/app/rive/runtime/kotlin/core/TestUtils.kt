@@ -25,6 +25,11 @@ class TestUtils {
          * Instead of scheduling a new frame via the Choreographer (which uses a native C++ thread)
          * force an advance cycle. (We don't need to draw in tests either).
          */
+        init {
+//            lets just pretend we have a surface..
+            isAttached = true
+        }
+
         override fun scheduleFrame() {
             advance(0f)
         }
@@ -43,7 +48,7 @@ class TestUtils {
             onAttachedToWindow()
         }
 
-        override fun makeRenderer(): MockArtboardRenderer {
+        override fun makeRenderer(rendererAttributes: RendererAttrs): MockArtboardRenderer {
             return MockArtboardRenderer()
         }
     }
@@ -67,9 +72,10 @@ class TestUtils {
             onAttachedToWindow()
         }
 
-        override fun makeRenderer(): MockNoopArtboardRenderer {
+        override fun makeRenderer(rendererAttributes: RendererAttrs): MockNoopArtboardRenderer {
             return MockNoopArtboardRenderer()
         }
+
 
         fun setBounds(width: Float, height: Float) {
             renderer.targetBounds = RectF(0f, 0f, width, height)

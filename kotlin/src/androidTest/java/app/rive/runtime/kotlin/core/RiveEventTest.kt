@@ -278,6 +278,7 @@ class RiveEventTest {
             assertEquals(0, observer.states.size)
 
             view.fireState("State Machine 1", "change")
+
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
             view.renderer.advance(1f)
