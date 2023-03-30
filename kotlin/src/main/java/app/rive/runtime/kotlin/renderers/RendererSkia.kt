@@ -8,7 +8,7 @@ import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 
-abstract class RendererSkia(private val trace: Boolean = false) :
+abstract class RendererSkia(val trace: Boolean = false) :
     NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
     // From NativeObject.

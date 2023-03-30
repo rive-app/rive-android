@@ -23,7 +23,7 @@ class RiveViewStateMachineTest {
     }
 
     @Test
-    fun viewDefaultsLoadResouce() {
+    fun viewDefaultsLoadResource() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
             mockView.play(listOf("one", "two"), areStateMachines = true)
@@ -61,8 +61,9 @@ class RiveViewStateMachineTest {
             assertEquals(1, mockView.playingStateMachines.size)
             mockView.pause()
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Pause happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(0, mockView.playingStateMachines.size)
@@ -86,8 +87,9 @@ class RiveViewStateMachineTest {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Let the state machine animation run its course.
-            mockView.renderer.advance(1.01f)
+            mockView.artboardRenderer!!.advance(1.01f)
             assert(!mockView.isPlaying)
         }
     }
@@ -100,10 +102,12 @@ class RiveViewStateMachineTest {
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
 
-            assertEquals(1, view.renderer.stateMachines.size)
-            view.renderer.advance(2f)
+            assert(view.artboardRenderer != null)
+            val renderer = view.artboardRenderer!!
+            assertEquals(1, renderer.stateMachines.size)
+            renderer.advance(2f)
             assertEquals(false, view.isPlaying)
-            assertEquals(0, view.renderer.stateMachines.size)
+            assertEquals(0, renderer.stateMachines.size)
         }
     }
 

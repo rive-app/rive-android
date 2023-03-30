@@ -36,12 +36,12 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     override fun performClick(): Boolean {
         pressAnimation?.let {
-            renderer.stopAnimations()
-            renderer.play(it)
+            artboardRenderer?.stopAnimations()
+            artboardRenderer?.play(it)
             return true
         } ?: run {
-            renderer.stopAnimations()
-            renderer.play()
+            artboardRenderer?.stopAnimations()
+            artboardRenderer?.play()
         }
         return super.performClick()
     }

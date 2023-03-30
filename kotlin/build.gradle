@@ -30,6 +30,7 @@ android {
             }
         }
     }
+    namespace 'app.rive.runtime.kotlin'
 }
 configurations.all {
     resolutionStrategy.force "junit:junit:4.13.2"

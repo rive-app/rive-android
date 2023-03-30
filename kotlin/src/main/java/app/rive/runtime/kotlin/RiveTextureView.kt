@@ -27,8 +27,9 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         this.getMaybeActivity()!!
     }
 
-    protected abstract val renderer: RendererSkia
+    protected var renderer: RendererSkia? = null
     private lateinit var viewSurface: Surface
+    protected abstract fun createRenderer(): RendererSkia
 
     private val refreshPeriodNanos: Long by lazy {
         val msInNS: Long = 1000000
@@ -60,7 +61,10 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
         isOpaque = false
-        renderer.make()
+        // If no renderer has been made, we can't move forward.
+        // Only make the renderer once we are ready to display things.
+        renderer = createRenderer()
+        renderer!!.make()
     }
 
     @CallSuper
@@ -70,12 +74,14 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         height: Int
     ) {
         viewSurface = Surface(surfaceTexture)
-        renderer.setSurface(viewSurface)
+        renderer?.setSurface(viewSurface)
     }
 
     @CallSuper
     override fun onDetachedFromWindow() {
-        renderer.delete()
+        // If we delete, we must have a Renderer.
+        renderer!!.delete()
+        renderer = null
         super.onDetachedFromWindow()
     }
 
@@ -83,8 +89,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         super.onVisibilityChanged(changedView, visibility)
         // TODO: this should pause animations.
         when (visibility) {
-            View.VISIBLE -> renderer.start()
-            else -> renderer.stop()
+            View.VISIBLE -> renderer?.start()
+            else -> renderer?.stop()
         }
     }
 

@@ -45,8 +45,8 @@ while getopts "a:cdl" opt; do
         FLAGS="-DDEBUG -g"
         # Use full skia for debug.
         CONFIG_SKIA_REPO="https://github.com/google/skia"
-        CONFIG_SKIA_BRANCH="main"
-        CONFIG_SKIA_DIR_NAME="skia_full"
+        CONFIG_SKIA_BRANCH="chrome/m105"
+        CONFIG_SKIA_DIR_NAME="skia_debug"
         ;;
     l)
         FLAGS="-DLOG"

@@ -7,123 +7,180 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:paddingVertical="8dp">
 
         <LinearLayout
             android:id="@+id/button_container"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginHorizontal="24dp"
+            android:orientation="vertical"
+            android:paddingVertical="8dp">
 
             <Button
                 android:id="@+id/go_simple"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Simple" />
+                android:layout_marginVertical="4dp"
+                android:text="Simple"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_events"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Touch Events" />
+                android:layout_marginVertical="4dp"
+                android:text="Touch Events"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_multiple_artboards"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Multiple Artboards" />
+                android:layout_marginVertical="4dp"
+                android:text="Multiple Artboards"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_android_player"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Android Player" />
+                android:layout_marginVertical="4dp"
+                android:text="Android Player"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_loop_mode"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Loop mode" />
+                android:layout_marginVertical="4dp"
+                android:text="Loop mode"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_layout"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Layout" />
+                android:layout_marginVertical="4dp"
+                android:text="Layout"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_fragment"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Fragment" />
+                android:layout_marginVertical="4dp"
+                android:text="Fragment"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_low_level"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Low Level Renderer" />
+                android:layout_marginVertical="4dp"
+                android:text="Low Level Renderer"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_http"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="HTTP" />
+                android:layout_marginVertical="4dp"
+                android:text="HTTP"
+                android:textColor="@color/textColorPrimary" />
 
 
             <Button
                 android:id="@+id/go_simple_state_machine"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="State Machine" />
+                android:layout_marginVertical="4dp"
+                android:text="State Machine"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_button"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Buttons / Switches" />
+                android:layout_marginVertical="4dp"
+                android:text="Buttons / Switches"
+                android:textColor="@color/textColorPrimary" />
 
 
             <Button
                 android:id="@+id/go_blend"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Blend Modes" />
+                android:layout_marginVertical="4dp"
+                android:text="Blend Modes"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_metrics"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Metrics" />
+                android:layout_marginVertical="4dp"
+                android:text="Metrics"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_assets"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="Assets" />
+                android:layout_marginVertical="4dp"
+                android:text="Assets"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_recycler"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Recycler" />
+                android:layout_marginVertical="4dp"
+                android:text="Recycler"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_viewpager"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="ViewPager" />
+                android:layout_marginVertical="4dp"
+                android:text="ViewPager"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_meshes"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Meshes" />
+                android:layout_marginVertical="4dp"
+                android:text="Meshes"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_viewstub"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:text="ViewStub" />
+                android:layout_marginVertical="4dp"
+                android:text="ViewStub"
+                android:textColor="@color/textColorPrimary" />
         </LinearLayout>
 
     </ScrollView>

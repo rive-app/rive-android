@@ -42,7 +42,9 @@ class RiveStateMachineTouchEventTest {
                 stateMachineName = "main",
                 autoplay = true
             )
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
@@ -56,7 +58,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(0f)
+            renderer.advance(0f)
             assertEquals(0, observer.states.size)
         }
     }
@@ -71,7 +73,9 @@ class RiveStateMachineTouchEventTest {
                 stateMachineName = "main",
                 autoplay = true
             )
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
@@ -85,7 +89,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(0f)
+            renderer.advance(0f)
 
             assertEquals(1, observer.states.size)
 
@@ -103,7 +107,9 @@ class RiveStateMachineTouchEventTest {
                 stateMachineName = "main",
                 autoplay = true
             )
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
@@ -117,7 +123,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(1f)
+            renderer.advance(1f)
 
             mockView.dispatchTouchEvent(
                 MotionEvent.obtain(
@@ -129,7 +135,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(1f)
+            renderer.advance(1f)
 
             assertEquals(2, observer.states.size)
             assertEquals("x75updown", observer.states[1].stateName)
@@ -149,7 +155,9 @@ class RiveStateMachineTouchEventTest {
                 autoplay = true
             )
 
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
@@ -163,7 +171,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(0f)
+            renderer.advance(0f)
 
             assertEquals(0, observer.states.size)
         }
@@ -182,7 +190,9 @@ class RiveStateMachineTouchEventTest {
                 autoplay = true
             )
 
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
 
             val downTime = SystemClock.uptimeMillis()
             val eventTime = SystemClock.uptimeMillis() + 100
@@ -196,7 +206,7 @@ class RiveStateMachineTouchEventTest {
                     0
                 )
             )
-            mockView.renderer.advance(0f)
+            renderer.advance(0f)
 
             assertEquals(1, observer.states.size)
 

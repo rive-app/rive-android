@@ -2,7 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.RiveException
 
-abstract class NativeObject(private var unsafeCppPointer: Long) {
+abstract class NativeObject(var unsafeCppPointer: Long) {
 
     companion object {
         // Static const value for a pointer.
@@ -23,9 +23,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) {
                 // we are not using the objects toString, because that could itself call native methods
                 throw RiveException(
                     "C++ object for ${this.javaClass.name}@${
-                        Integer.toHexString(
-                            this.hashCode()
-                        )
+                        this.hashCode()
                     } does not exist. See MEMORY_MANAGEMENT.md for more information."
                 )
             }

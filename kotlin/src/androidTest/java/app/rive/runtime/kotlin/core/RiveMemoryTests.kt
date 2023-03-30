@@ -77,7 +77,7 @@ class RiveMemoryTests {
 
     @Test
     fun layerStateAccess() {
-        var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
+        val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
         lateinit var layerState: LayerState
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(
@@ -85,11 +85,14 @@ class RiveMemoryTests {
                 stateMachineName = "State Machine 1",
                 autoplay = true
             )
-            mockView.renderer.advance(1500f)
-            layerState = mockView.renderer.stateMachines.first().statesChanged.first()
+
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(1500f)
+            layerState = renderer.stateMachines.first().statesChanged.first()
             assertTrue(layerState.isAnimationState)
             // lets assume our view got gc'd
-            mockView.renderer.dispose()
+            renderer.dispose()
         }
         assertThrows(RiveException::class.java) {
             layerState.isAnimationState
@@ -98,7 +101,7 @@ class RiveMemoryTests {
 
     @Test
     fun resetDoesNotInvalidatesObjects() {
-        var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
+        val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
 
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.Observer()
@@ -108,8 +111,11 @@ class RiveMemoryTests {
                 stateMachineName = "State Machine 1",
                 autoplay = true
             )
-            mockView.renderer.advance(0f)
-            val artboard = mockView.renderer.activeArtboard
+
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
+            val artboard = renderer.activeArtboard
             val stateMachine = artboard?.stateMachine(0)
             mockView.reset()
 
@@ -117,7 +123,7 @@ class RiveMemoryTests {
             assertEquals(stateMachine?.name, "State Machine 1")
 
 //            but disposing the renderer will still remove artboards after reset
-            mockView.renderer.dispose()
+            renderer.dispose()
             assertThrows(RiveException::class.java) {
                 artboard?.name
             }
@@ -131,7 +137,7 @@ class RiveMemoryTests {
 
     @Test
     fun resetDoesNotResetManualArtboards() {
-        var mockView = TestUtils.MockNoopRiveAnimationView(appContext)
+        val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
         lateinit var artboard: Artboard
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(
@@ -139,14 +145,16 @@ class RiveMemoryTests {
                 stateMachineName = "State Machine 1",
                 autoplay = true
             )
-            mockView.renderer.advance(0f)
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
+            renderer.advance(0f)
             artboard = mockView.file!!.firstArtboard
             assertEquals(artboard.name, "New Artboard")
             mockView.reset()
             // reset will not have cleared this artboard, it was never attacked to the view.
             assertEquals(artboard.name, "New Artboard")
             // lets assume our view got gc'd
-            mockView.renderer.dispose()
+            renderer.dispose()
         }
         assertThrows(RiveException::class.java) {
             artboard.name

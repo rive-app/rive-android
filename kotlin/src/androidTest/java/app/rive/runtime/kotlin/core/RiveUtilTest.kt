@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RiveUtilTest {
 
-    lateinit var instrumentationContext: Context
+    private lateinit var instrumentationContext: Context
 
     @Before
     fun setup() {

@@ -159,8 +159,10 @@ class RiveStateMachineStateResolutionTest {
                 settleInitialState = false
             )
             mockView.fireState("StateResolution", "Jump")
+
+            assert(mockView.artboardRenderer != null)
             // trigger is registered, but it wouldn't be picked up until we evaluate the state next.
-            mockView.renderer.advance(0f)
+            mockView.artboardRenderer!!.advance(0f)
 
             assertEquals("StateResolution", observer.states[0].stateMachineName)
             assertEquals("Choice 2", observer.states[0].stateName)
@@ -184,8 +186,9 @@ class RiveStateMachineStateResolutionTest {
                 settleInitialState = true
             )
             mockView.fireState("StateResolution", "Jump")
+            assert(mockView.artboardRenderer != null)
             // trigger is registered, but it wont be picked up until we evaluate the state next.
-            mockView.renderer.advance(0f)
+            mockView.artboardRenderer!!.advance(0f)
 
             assertEquals(2, observer.states.size)
 

@@ -80,7 +80,7 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         get() = cppStateChangedCount(cppPointer)
 
     private fun convertInput(input: SMIInput): SMIInput {
-        var input = when {
+        val convertedInput = when {
             input.isBoolean -> {
                 SMIBoolean(input.cppPointer)
             }
@@ -93,7 +93,7 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
         dependencies.add(input)
-        return input
+        return convertedInput
     }
 
     /**
@@ -107,13 +107,8 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         if (stateMachineInputPointer == NULL_POINTER) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        val input = SMIInput(
-            stateMachineInputPointer
-        )
-        dependencies.add(input)
-        return convertInput(
-            input
-        )
+        val input = SMIInput(stateMachineInputPointer)
+        return convertInput(input)
     }
 
     /**

@@ -48,7 +48,7 @@ class TestUtils {
             onAttachedToWindow()
         }
 
-        override fun makeRenderer(rendererAttributes: RendererAttrs): MockArtboardRenderer {
+        override fun createRenderer(): MockArtboardRenderer {
             return MockArtboardRenderer()
         }
     }
@@ -72,13 +72,13 @@ class TestUtils {
             onAttachedToWindow()
         }
 
-        override fun makeRenderer(rendererAttributes: RendererAttrs): MockNoopArtboardRenderer {
+        override fun createRenderer(): MockNoopArtboardRenderer {
             return MockNoopArtboardRenderer()
         }
 
 
         fun setBounds(width: Float, height: Float) {
-            renderer.targetBounds = RectF(0f, 0f, width, height)
+            (renderer as MockNoopArtboardRenderer).targetBounds = RectF(0f, 0f, width, height)
         }
     }
 

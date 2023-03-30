@@ -96,8 +96,9 @@ class RiveViewTest {
             assertEquals(1, mockView.playingAnimations.size)
             mockView.pause()
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Pause happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(1, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
@@ -137,8 +138,9 @@ class RiveViewTest {
 
             mockView.pause("four")
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Pause happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
 
             assertEquals(
@@ -168,8 +170,9 @@ class RiveViewTest {
 
             mockView.pause(listOf("two", "four"))
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Pause happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
@@ -287,7 +290,8 @@ class RiveViewTest {
             // PingPong cycles between forwards and backwards
             mockView.play("two", loop = Loop.PINGPONG)
             assertEquals(Direction.FORWARDS, mockView.playingAnimations.first().direction)
-            mockView.renderer.advance(1001f)
+            assert(mockView.artboardRenderer != null)
+            mockView.artboardRenderer!!.advance(1001f)
             assertEquals(Direction.BACKWARDS, mockView.playingAnimations.first().direction)
 
         }
@@ -298,15 +302,16 @@ class RiveViewTest {
     fun viewSetResourceLoadArtboard() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_animations)
+            assert(mockView.artboardRenderer != null)
             assertEquals(
                 listOf("four", "three", "two", "one"),
-                mockView.renderer.file?.firstArtboard?.animationNames
+                mockView.artboardRenderer?.file?.firstArtboard?.animationNames
             )
 
             mockView.setRiveResource(R.raw.multipleartboards)
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
-                mockView.renderer.file?.firstArtboard?.animationNames
+                mockView.artboardRenderer?.file?.firstArtboard?.animationNames
             )
         }
     }
@@ -338,8 +343,9 @@ class RiveViewTest {
 
             mockView.stop()
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Stop happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(0, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
@@ -374,8 +380,9 @@ class RiveViewTest {
 
             mockView.stop(listOf("two", "four"))
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Stop happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
             assertEquals(
                 hashSetOf<String>(),
@@ -420,8 +427,9 @@ class RiveViewTest {
 
             mockView.stop("four")
             assert(mockView.isPlaying)
+            assert(mockView.artboardRenderer != null)
             // Stop happens on the next frame.
-            mockView.renderer.scheduleFrame()
+            mockView.artboardRenderer!!.scheduleFrame()
             assert(!mockView.isPlaying)
 
             assertEquals(
@@ -436,15 +444,17 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
+            assert(mockView.artboardRenderer != null)
+            val renderer = mockView.artboardRenderer!!
             mockView.play("one", Loop.PINGPONG)
-            mockView.renderer.advance(0.1f)
+            renderer.advance(0.1f)
 
             assertEquals(0.1f, mockView.animations.first().time)
 
-            assert(mockView.renderer.isPlaying)
+            assert(renderer.isPlaying)
             mockView.stop("one")
-            mockView.renderer.scheduleFrame()
-            assert(!mockView.renderer.isPlaying)
+            renderer.scheduleFrame()
+            assert(!renderer.isPlaying)
             mockView.play("one")
             assertEquals(0.0f, mockView.animations.first().time)
             assertEquals(Loop.ONESHOT, mockView.animations.first().loop)
@@ -459,7 +469,8 @@ class RiveViewTest {
 
             mockView.play("one", Loop.PINGPONG)
 
-            mockView.renderer.advance(0.1f)
+            assert(mockView.artboardRenderer != null)
+            mockView.artboardRenderer!!.advance(0.1f)
             assertEquals(0.1f, mockView.animations.first().time)
 
             mockView.pause("one")
@@ -476,10 +487,11 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
 
+            assert(mockView.artboardRenderer != null)
             mockView.play("one", Loop.PINGPONG)
-            val originalPointer = mockView.renderer.activeArtboard?.cppPointer
+            val originalPointer = mockView.artboardRenderer!!.activeArtboard?.cppPointer
             mockView.reset()
-            assertNotEquals(mockView.renderer.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(mockView.artboardRenderer!!.activeArtboard?.cppPointer, originalPointer)
             assert(!mockView.isPlaying)
         }
     }
@@ -499,9 +511,10 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = true)
             assertEquals(true, mockView.isPlaying)
-            val originalPointer = mockView.renderer.activeArtboard?.cppPointer
+            assert(mockView.artboardRenderer != null)
+            val originalPointer = mockView.artboardRenderer!!.activeArtboard?.cppPointer
             mockView.reset()
-            assertNotEquals(mockView.renderer.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(mockView.artboardRenderer!!.activeArtboard?.cppPointer, originalPointer)
             assertEquals(true, mockView.isPlaying)
         }
     }

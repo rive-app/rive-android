@@ -2,6 +2,7 @@
 #include "helpers/egl_thread_state.hpp"
 
 #include "SkImageInfo.h"
+#include "SkColorSpace.h"
 #include "GrBackendSurface.h"
 #include "gl/GrGLInterface.h"
 #include "gl/GrGLAssembleInterface.h"

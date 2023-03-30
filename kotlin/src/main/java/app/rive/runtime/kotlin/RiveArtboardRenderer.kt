@@ -11,6 +11,10 @@ enum class PointerEvents {
     POINTER_DOWN, POINTER_UP, POINTER_MOVE
 }
 
+sealed class ResourceType() {
+    class ResourceId(val id: Int) : ResourceType()
+    class ResourceUrl(val url: String) : ResourceType()
+}
 
 open class RiveArtboardRenderer(
     // PUBLIC
@@ -22,7 +26,8 @@ open class RiveArtboardRenderer(
     var animationName: String? = null,
     var stateMachineName: String? = null,
     var autoplay: Boolean = true,
-    trace: Boolean = false
+    trace: Boolean = false,
+    var resourceType: ResourceType? = null
 ) : Observable<RiveArtboardRenderer.Listener>,
     RendererSkia(trace) {
     // PRIVATE
@@ -93,19 +98,6 @@ open class RiveArtboardRenderer(
 
     private val hasPlayingAnimations: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
-
-    override fun make() {
-        super.make()
-        // if we are being made, lets make sure our file has its cpp side set
-        file?.let {
-            if (it.hydrate()) {
-                // if we hydrated, lets make sure we "set" the rive file again
-                // forcing some setup logic
-                setRiveFile(it)
-            }
-        }
-
-    }
 
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
@@ -206,7 +198,6 @@ open class RiveArtboardRenderer(
             this.artboardName = artboardName
             selectArtboard()
         }
-
     }
 
     fun artboardBounds(): RectF {

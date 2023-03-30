@@ -30,34 +30,12 @@ class LowLevelActivity : AppCompatActivity() {
 }
 
 class LowLevelRiveView(context: Context) : RiveTextureView(context) {
-    // Initialize renderer first: we can't create Files without one.
-    override val renderer = object : RendererSkia() {
-
-        override fun draw() {
-            artboard.let {
-                save()
-                align(Fit.COVER, Alignment.CENTER, RectF(0.0f, 0.0f, width, height), it.bounds)
-                it.drawSkia(
-                    cppPointer
-                )
-                restore()
-            }
-        }
-
-        override fun advance(elapsed: Float) {
-            animationInstance.advance(elapsed)
-            animationInstance.apply()
-            artboard.advance(elapsed)
-        }
-    }
-
-    private val file: File
-
+    private lateinit var file: File
     // Objects that the renderer needs for drawing
-    private var artboard: Artboard
-    private var animationInstance: LinearAnimationInstance
+    private lateinit var artboard: Artboard
+    private lateinit var animationInstance: LinearAnimationInstance
 
-    init {
+    private fun setupFile(skRenderer: RendererSkia) {
         val resource = resources.openRawResource(R.raw.basketball)
         // Keep a reference to the file to keep resources around.
         file = File(resource.readBytes())
@@ -66,6 +44,32 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         animationInstance = artboard.firstAnimation
 
         // This will be deleted with its dependents.
-        renderer.dependencies.add(file)
+        skRenderer.dependencies.add(file)
     }
+
+    override fun createRenderer(): RendererSkia {
+        val skRenderer = object : RendererSkia() {
+
+            override fun draw() {
+                artboard.let {
+                    save()
+                    align(Fit.COVER, Alignment.CENTER, RectF(0.0f, 0.0f, width, height), it.bounds)
+                    it.drawSkia(
+                        cppPointer
+                    )
+                    restore()
+                }
+            }
+
+            override fun advance(elapsed: Float) {
+                animationInstance.advance(elapsed)
+                animationInstance.apply()
+                artboard.advance(elapsed)
+            }
+        }
+        // Call setup file only once we created the renderer.
+        setupFile(skRenderer)
+        return skRenderer
+    }
+
 }
