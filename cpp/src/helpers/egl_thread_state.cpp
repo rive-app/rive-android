@@ -238,6 +238,15 @@ bool EGLThreadState::setWindow(ANativeWindow* window)
     mWidth = ANativeWindow_getWidth(window);
     mHeight = ANativeWindow_getHeight(window);
 
+    // Width/Height getters return negative values on error.
+    // Probably a race condition with surfaces being reclaimed by the OS before
+    // this function completes.
+    if (mWidth < 0 || mHeight < 0)
+    {
+        LOGE("Window is unavailable.");
+        return false;
+    }
+
     LOGI("Set up window surface %dx%d", mWidth, mHeight);
 
     auto gpuSurface = createSkiaSurface();

@@ -21,7 +21,10 @@ namespace rive_android
 {
 JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
     mWorkerThread(ThreadManager::getInstance()->acquireThread("EGLRenderer")),
-    mKtRenderer(getJNIEnv()->NewWeakGlobalRef(ktObject)),
+    // Grab a Global Ref to prevent Garbage Collection to clean up the object
+    //  from under us since the destructor will be called from the render thread
+    //  rather than the UI thread.
+    mKtRenderer(getJNIEnv()->NewGlobalRef(ktObject)),
     mTracer(getTracer(trace)),
     mWindow(nullptr),
     mGpuCanvas(nullptr),
@@ -36,8 +39,7 @@ JNIRendererSkia::~JNIRendererSkia()
     auto disposeDeps = env->GetMethodID(ktClass, "disposeDependencies", "()V");
     env->CallVoidMethod(mKtRenderer, disposeDeps);
 
-    // N.B. Make sure the thread is removed before the Global Ref.
-    env->DeleteWeakGlobalRef(mKtRenderer);
+    env->DeleteGlobalRef(mKtRenderer);
     if (mSkRenderer)
     {
         delete mSkRenderer;
