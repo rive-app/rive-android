@@ -11,11 +11,6 @@ enum class PointerEvents {
     POINTER_DOWN, POINTER_UP, POINTER_MOVE
 }
 
-sealed class ResourceType() {
-    class ResourceId(val id: Int) : ResourceType()
-    class ResourceUrl(val url: String) : ResourceType()
-}
-
 open class RiveArtboardRenderer(
     // PUBLIC
     fit: Fit = Fit.CONTAIN,
@@ -27,7 +22,6 @@ open class RiveArtboardRenderer(
     var stateMachineName: String? = null,
     var autoplay: Boolean = true,
     trace: Boolean = false,
-    var resourceType: ResourceType? = null
 ) : Observable<RiveArtboardRenderer.Listener>,
     RendererSkia(trace) {
     // PRIVATE

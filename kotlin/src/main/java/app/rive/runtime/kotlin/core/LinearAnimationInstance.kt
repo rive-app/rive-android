@@ -172,9 +172,9 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
     var loop: Loop
         get() {
             val intLoop = cppGetLoop(cppPointer)
-            return Loop.fromInt(intLoop) ?: throw IndexOutOfBoundsException()
+            return Loop.fromIndex(intLoop)
         }
-        set(loop) = cppSetLoop(cppPointer, loop.value)
+        set(loop) = cppSetLoop(cppPointer, loop.ordinal)
 }
 
 

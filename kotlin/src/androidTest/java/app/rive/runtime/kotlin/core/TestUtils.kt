@@ -42,25 +42,34 @@ class TestUtils {
      * This RiveAnimationView uses a custom [MockArtboardRenderer] to prevent tests from using the
      * Choreographer API which would be calling native threading primitives.
      */
-    class MockRiveAnimationView(context: Context) : RiveAnimationView(context) {
+    class MockRiveAnimationView(context: Context, attachOnInit: Boolean = true) :
+        RiveAnimationView(context) {
+
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
-            onAttachedToWindow()
+            if (attachOnInit) {
+                mockAttach()
+            }
         }
 
         override fun createRenderer(): MockArtboardRenderer {
             return MockArtboardRenderer()
         }
+        fun mockAttach() {
+            onAttachedToWindow()
+        }
+
+        fun mockDetach() {
+            onDetachedFromWindow()
+        }
     }
 
     class MockNoopArtboardRenderer : RiveArtboardRenderer() {
         /** NOP */
-        override fun scheduleFrame() {
-        }
+        override fun scheduleFrame() {}
 
         /** NOP */
         override fun draw() {}
-
     }
 
     /**

@@ -11,6 +11,8 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.*
 import androidx.annotation.RawRes
+import androidx.annotation.VisibleForTesting
+import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -20,7 +22,6 @@ import com.android.volley.Request
 import com.android.volley.Response
 import com.android.volley.toolbox.HttpHeaderParser
 import com.android.volley.toolbox.Volley
-import org.jetbrains.annotations.TestOnly
 import java.io.IOException
 import java.io.UnsupportedEncodingException
 import java.util.*
@@ -56,11 +57,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     companion object {
         // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
+        // Default attribute values.
+        const val alignmentIndexDefault = 4
+        const val fitIndexDefault = 1
+        const val loopIndexDefault = 3
     }
 
     open val defaultAutoplay = true
 
-    public val artboardRenderer: RiveArtboardRenderer?
+    val artboardRenderer: RiveArtboardRenderer?
         get() {
             if (renderer is RiveArtboardRenderer?) {
                 return renderer as RiveArtboardRenderer?
@@ -72,7 +77,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 }"
             )
         }
-    private var rendererAttributes: RendererAttrs
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    val rendererAttributes: RendererAttributes
 
     var fit: Fit
         get() = artboardRenderer!!.fit
@@ -140,21 +147,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = artboardRenderer!!.playingStateMachines
 
-    data class RendererAttrs(
-        val alignmentIndex: Int = 4,
-        val fitIndex: Int = 1,
-        val loopIndex: Int = 3,
+    /**
+     * Tracks the renderer attributes that need to be applied when this [View] within its lifecycle.
+     */
+    class RendererAttributes(
+        alignmentIndex: Int = alignmentIndexDefault,
+        fitIndex: Int = fitIndexDefault,
+        loopIndex: Int = loopIndexDefault,
         var autoplay: Boolean,
         val riveTraceAnimations: Boolean = false,
         var artboardName: String?,
         var animationName: String?,
         var stateMachineName: String?,
-        var resourceId: Int = -1,
-        val url: String?,
+        var resource: ResourceType?,
     ) {
-        var alignment: Alignment = Alignment.values()[alignmentIndex]
-        var fit: Fit = Fit.values()[fitIndex]
-        var loop: Loop = Loop.values()[loopIndex]
+        var alignment: Alignment = Alignment.fromIndex(alignmentIndex)
+        var fit: Fit = Fit.fromIndex(fitIndex)
+        var loop: Loop = Loop.fromIndex(loopIndex)
     }
 
     init {
@@ -164,7 +173,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             0, 0
         ).apply {
             try {
-                rendererAttributes = RendererAttrs(
+                val resId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
+                val resUrl = getString(R.styleable.RiveAnimationView_riveUrl)
+                // Give priority to loading a local resource.
+                val resourceFromValue = makeMaybeResource(
+                    if (resId == -1) resUrl else resId
+                )
+                rendererAttributes = RendererAttributes(
                     alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4),
                     fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1),
                     loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3),
@@ -175,9 +190,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     artboardName = getString(R.styleable.RiveAnimationView_riveArtboard),
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
-                    resourceId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1),
-                    url = getString(R.styleable.RiveAnimationView_riveUrl),
-                )
+                    resource = resourceFromValue,
+
+                    )
 
             } finally {
                 recycle()
@@ -199,15 +214,19 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardRenderer!!.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
-    private fun loadRiveResource(
-        @RawRes resId: Int,
-    ) {
+    private fun loadResource() {
+        when (val resource = rendererAttributes.resource) {
+            null -> Log.w(TAG, "loadResource: no resource to load")
+            is ResourceType.ResourceBytes -> setRiveFile(File(resource.bytes))
+            is ResourceType.ResourceId -> loadRiveResource(resource.id)
+            is ResourceType.ResourceUrl -> loadHttp(resource.url)
+        }
+    }
+
+    private fun loadRiveResource(@RawRes resId: Int) {
         val stream = resources.openRawResource(resId)
         val bytes = stream.readBytes()
-        val file = File(bytes)
-        setRiveFile(
-            file,
-        )
+        setRiveFile(File(bytes))
         stream.close()
     }
 
@@ -215,9 +234,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(url,
             { file ->
-                setRiveFile(
-                    file
-                )
+                setRiveFile(file)
             },
             { throw IOException("Unable to download Rive file $url") })
         queue.add(stringRequest)
@@ -316,6 +333,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         direction: Direction = Direction.AUTO,
         settleInitialState: Boolean = true
     ) {
+        rendererAttributes.apply {
+            this.loop = loop
+        }
         artboardRenderer?.play(loop, direction, settleInitialState)
     }
 
@@ -332,6 +352,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         areStateMachines: Boolean = false,
         settleInitialState: Boolean = true
     ) {
+        rendererAttributes.apply {
+            this.loop = loop
+        }
         artboardRenderer?.play(
             animationNames,
             loop,
@@ -354,6 +377,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         isStateMachine: Boolean = false,
         settleInitialState: Boolean = true
     ) {
+        rendererAttributes.apply {
+            this.animationName = animationName
+            this.loop = loop
+        }
         artboardRenderer?.play(animationName, loop, direction, isStateMachine, settleInitialState)
     }
 
@@ -417,30 +444,20 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        rendererAttributes.artboardName = artboardName // ?: rendererAttributes.artboardName
-        rendererAttributes.animationName = animationName // ?: rendererAttributes.animationName
-        rendererAttributes.stateMachineName =
-            stateMachineName // ?: rendererAttributes.stateMachineName
-        rendererAttributes.autoplay = autoplay // ?: rendererAttributes.autoplay
-        rendererAttributes.fit = fit // ?: rendererAttributes.fit
-        rendererAttributes.alignment = alignment // ?: rendererAttributes.alignment
-        rendererAttributes.loop = loop // ?: rendererAttributes.loop
-        rendererAttributes.resourceId = resId
+        rendererAttributes.apply {
+            this.artboardName = artboardName
+            this.animationName = animationName
+            this.stateMachineName = stateMachineName
+            this.autoplay = autoplay
+            this.fit = fit
+            this.alignment = alignment
+            this.loop = loop
+            this.resource = makeMaybeResource(resId)
+        }
+
         if (renderer != null) {
-            configureRenderer(
-                fit = rendererAttributes.fit,
-                alignment = rendererAttributes.alignment,
-                loop = rendererAttributes.loop,
-                artboardName = rendererAttributes.artboardName,
-                animationName = rendererAttributes.animationName,
-                stateMachineName = rendererAttributes.stateMachineName,
-                autoplay = rendererAttributes.autoplay,
-                resourceType = ResourceType.ResourceId(resId)
-            )
-            val stream = resources.openRawResource(resId)
-            val bytes = stream.readBytes()
-            setRiveFile(File(bytes))
-            stream.close()
+            configureRenderer()
+            loadResource()
         }
     }
 
@@ -466,42 +483,34 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
-        val file = File(bytes)
-
-        configureRenderer(
-            fit = fit,
-            alignment = alignment,
-            loop = loop,
-            artboardName = artboardName,
-            animationName = animationName,
-            stateMachineName = stateMachineName,
-            autoplay = autoplay
-        )
-
-        setRiveFile(file)
-    }
-
-    private fun configureRenderer(
-        artboardName: String? = null,
-        animationName: String? = null,
-        stateMachineName: String? = null,
-        autoplay: Boolean = artboardRenderer?.autoplay ?: defaultAutoplay,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.AUTO,
-        resourceType: ResourceType? = null
-    ) {
-        // If trying to configure the renderer, we assume that it exists.
-        artboardRenderer!!.apply {
-            this.stopAnimations()
+        rendererAttributes.apply {
+            this.artboardName = artboardName
+            this.animationName = animationName
+            this.stateMachineName = stateMachineName
+            this.autoplay = autoplay
             this.fit = fit
             this.alignment = alignment
             this.loop = loop
-            this.autoplay = autoplay
-            this.animationName = animationName
-            this.stateMachineName = stateMachineName
-            this.artboardName = artboardName
-            this.resourceType = resourceType
+            this.resource = makeMaybeResource(bytes)
+        }
+
+        if (renderer != null) {
+            configureRenderer()
+            loadResource()
+        }
+    }
+
+    private fun configureRenderer() {
+        // If trying to configure the renderer, we assume that it exists.
+        artboardRenderer!!.apply {
+            this.autoplay = rendererAttributes.autoplay
+            this.animationName = rendererAttributes.animationName
+            this.stateMachineName = rendererAttributes.stateMachineName
+            this.artboardName = rendererAttributes.artboardName
+            this.stopAnimations()
+            this.fit = rendererAttributes.fit
+            this.alignment = rendererAttributes.alignment
+            this.loop = rendererAttributes.loop
         }
     }
 
@@ -516,7 +525,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         pause()
         super.onDetachedFromWindow()
     }
-    
+
     override fun createRenderer(): RendererSkia {
         // Make the Renderer again every time this is visible and reset its state.
         return RiveArtboardRenderer(
@@ -528,28 +537,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
-        val resType: ResourceType? = if (rendererAttributes.resourceId != -1) {
-            ResourceType.ResourceId(rendererAttributes.resourceId)
-        } else if (rendererAttributes.url != null) {
-            ResourceType.ResourceUrl(rendererAttributes.url!!)
-        } else null
-        configureRenderer(
-            fit = rendererAttributes.fit,
-            alignment = rendererAttributes.alignment,
-            loop = rendererAttributes.loop,
-            artboardName = rendererAttributes.artboardName,
-            animationName = rendererAttributes.animationName,
-            stateMachineName = rendererAttributes.stateMachineName,
-            autoplay = rendererAttributes.autoplay,
-            resourceType = resType
-        )
-        if (resType is ResourceType.ResourceId) {
-            loadRiveResource(resType.id)
-        } else if (resType is ResourceType.ResourceUrl) {
-            loadHttp(resType.url)
-        }
-
-
+        configureRenderer()
+        loadResource()
         if (renderer!!.trace) {
             startFrameMetrics()
         }
@@ -693,14 +682,33 @@ class RiveFileRequest(
 }
 
 /**
- * Tracks the state for [RiveAnimationView] when detaching.
+ * Tracks which resource [RiveAnimationView] will load into the renderer.
  *
- * - [activeArtboardName] the name of the artboard that was last set
- * - [playingAnimationsNames] & [playingStateMachineNames] are all the animations that
- * were playing before detach.
+ * Use [makeMaybeResource] for making a new value passing in a resource.
  */
-data class DetachedRiveState(
-    val activeArtboardName: String?,
-    val playingAnimationsNames: List<String>,
-    val playingStateMachineNames: List<String>
-)
+
+sealed class ResourceType {
+    class ResourceId(val id: Int) : ResourceType()
+    class ResourceUrl(val url: String) : ResourceType()
+    class ResourceBytes(val bytes: ByteArray) : ResourceType()
+
+    companion object {
+        /**
+         * Factory function for making a [ResourceType].
+         *
+         * @throws [value] is an unknown type.
+         */
+        fun makeMaybeResource(value: Any?): ResourceType? {
+            return when (value) {
+                null -> null
+                is Int -> ResourceId(value)
+                is String -> ResourceUrl(value)
+                is ByteArray -> ResourceBytes(value)
+                else -> throw IllegalArgumentException(
+                    "Incompatible type ${value.javaClass.simpleName}."
+                )
+            }
+        }
+    }
+}
+

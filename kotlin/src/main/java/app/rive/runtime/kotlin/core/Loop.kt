@@ -1,13 +1,16 @@
 package app.rive.runtime.kotlin.core
 
-enum class Loop(val value: Int) {
-    ONESHOT(0),
-    LOOP(1),
-    PINGPONG(2),
-    AUTO(3);
+enum class Loop {
+    ONESHOT, LOOP, PINGPONG, AUTO;
 
     companion object {
-        private val map = values().associateBy(Loop::value)
-        fun fromInt(type: Int) = map[type]
+        fun fromIndex(index: Int): Loop {
+            val maxIndex = Loop.values().size
+            if (index < 0 || index > maxIndex) {
+                throw IndexOutOfBoundsException("Invalid Loop index value $index. It must be between 0 and $maxIndex")
+            }
+
+            return Loop.values()[index]
+        }
     }
 }
