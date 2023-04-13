@@ -42,7 +42,7 @@ import kotlin.math.min
  *
  *
  * Xml [attrs] can be used to set initial values for many
- * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource] or [setRiveFile].
+ * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource], [setRiveBytes], or [setRiveFile].
  * - Alternatively, provide the [url][R.styleable.RiveAnimationView_riveUrl] to load as a rive file over HTTP.
  * - Determine the [artboard][R.styleable.RiveAnimationView_riveArtboard] to use, this defaults to the first artboard in the file.
  * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
@@ -217,7 +217,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     private fun loadResource() {
         when (val resource = rendererAttributes.resource) {
             null -> Log.w(TAG, "loadResource: no resource to load")
-            is ResourceType.ResourceBytes -> setRiveFile(File(resource.bytes))
+            is ResourceType.ResourceBytes -> artboardRenderer?.setRiveFile(File(resource.bytes))
+            is ResourceType.ResourceRiveFile -> artboardRenderer?.let {
+                // Setting this file, so the renderer now needs to "own" it too.
+                resource.file.acquire()
+                it.setRiveFile(resource.file)
+            }
             is ResourceType.ResourceId -> loadRiveResource(resource.id)
             is ResourceType.ResourceUrl -> loadHttp(resource.url)
         }
@@ -226,17 +231,17 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     private fun loadRiveResource(@RawRes resId: Int) {
         val stream = resources.openRawResource(resId)
         val bytes = stream.readBytes()
-        setRiveFile(File(bytes))
+        artboardRenderer?.setRiveFile(File(bytes))
         stream.close()
     }
 
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
-        val stringRequest = RiveFileRequest(url,
-            { file ->
-                setRiveFile(file)
-            },
-            { throw IOException("Unable to download Rive file $url") })
+        val stringRequest = RiveFileRequest(
+            url,
+            { file -> artboardRenderer?.setRiveFile(file) },
+            { throw IOException("Unable to download Rive file $url") }
+        )
         queue.add(stringRequest)
     }
 
@@ -500,6 +505,47 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
+    /**
+     * Set up this View to use the specified Rive [file]. The [file] has been initialized outside
+     * this scope and the user passing it in is responsible for cleaning up its resources.
+     *
+     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Optionally provide a [stateMachineName] to load by default.
+     * - Enable [autoplay] to start the animation without further prompts.
+     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
+     * - Configure [alignment] to specify how the animation should be aligned to its container.
+     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     *
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     */
+    fun setRiveFile(
+        file: File,
+        artboardName: String? = null,
+        animationName: String? = null,
+        stateMachineName: String? = null,
+        autoplay: Boolean = artboardRenderer?.autoplay ?: defaultAutoplay,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        loop: Loop = Loop.AUTO,
+    ) {
+        rendererAttributes.apply {
+            this.artboardName = artboardName
+            this.animationName = animationName
+            this.stateMachineName = stateMachineName
+            this.autoplay = autoplay
+            this.fit = fit
+            this.alignment = alignment
+            this.loop = loop
+            this.resource = makeMaybeResource(file)
+        }
+
+        if (renderer != null) {
+            configureRenderer()
+            loadResource()
+        }
+    }
+
     private fun configureRenderer() {
         // If trying to configure the renderer, we assume that it exists.
         artboardRenderer!!.apply {
@@ -512,13 +558,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.alignment = rendererAttributes.alignment
             this.loop = rendererAttributes.loop
         }
-    }
-
-    /**
-     * Load the [rive file][File] into the view.
-     */
-    private fun setRiveFile(file: File) {
-        artboardRenderer?.setRiveFile(file)
     }
 
     override fun onDetachedFromWindow() {
@@ -691,6 +730,7 @@ sealed class ResourceType {
     class ResourceId(val id: Int) : ResourceType()
     class ResourceUrl(val url: String) : ResourceType()
     class ResourceBytes(val bytes: ByteArray) : ResourceType()
+    class ResourceRiveFile(val file: File) : ResourceType()
 
     companion object {
         /**
@@ -704,6 +744,7 @@ sealed class ResourceType {
                 is Int -> ResourceId(value)
                 is String -> ResourceUrl(value)
                 is ByteArray -> ResourceBytes(value)
+                is File -> ResourceRiveFile(value)
                 else -> throw IllegalArgumentException(
                     "Incompatible type ${value.javaClass.simpleName}."
                 )

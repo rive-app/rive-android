@@ -83,7 +83,7 @@ elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
     echo "          For human builds"
     echo "              - open android studio"
     echo "              - settings search for android sdk, then SDK tools"
-    echo "              - check `show package details` at the bottom"
+    echo "              - check "show package details" at the bottom"
     echo "              - select 25.1.8937393 in NDK (Side by Side)"
     echo "Found ${NDK_PATH}"
     exit 1

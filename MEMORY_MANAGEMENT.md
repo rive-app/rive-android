@@ -69,11 +69,14 @@ The diagram below illustrates the class hierarchy for `RiveAnimationView` highli
 Whenever there is a `has` dependency, the object that is created is "owned" by its creator. 
 <br />The `is-a` relationship indicates class inheritance.
 
-For example, when a `File` instances an `Artboard` it will add that instance to its `dependencies`. When a Native object calls `dispose()`, it will first dispose all of its dependencies and then it will clean itself up calling [NativeObject.dispose()](https://github.com/rive-app/rive-android/blob/63b80674da209a693a2c356335bfc6e680378f33/kotlin/src/main/java/app/rive/runtime/kotlin/core/NativeOwner.kt#L41-L52)
+For example, when a `File` instances an `Artboard` it will add that instance to its `dependencies`. 
+When a Native object calls `release()`, it will first release its reference on all its dependents and
+then it will decrease its own reference counter - if the counter reaches 0 then it can be disposed of
+and it'll call its JNI destructor.
 
 The diagram below illustrates the internal class hierarchy for the `Renderer`, as well as its `NativeObject` dependencies. 
-That is, a `RiveArtboardRenderer` only "owns" a `File`. When `RiveArtboardRenderer` calls `dispose()`, it'll dispose of the `File` only,
-which in turn will cascade the `dispose()` call on its own dependents.
+That is, a `RiveArtboardRenderer` only "owns" a `File`. When `RiveArtboardRenderer` calls `release()`, it'll release of the `File` only,
+which in turn will cascade the `release()` call on its own dependents.
 
 ```
                                          dependencies: List<NativeObject>

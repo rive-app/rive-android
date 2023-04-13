@@ -6,6 +6,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveArtboardRenderer
 import org.junit.Assert.assertEquals
+import java.util.concurrent.TimeoutException
+import kotlin.time.Duration
 
 
 class TestUtils {
@@ -17,6 +19,27 @@ class TestUtils {
         Rive.init(appContext)
 
         appContext
+    }
+
+    companion object {
+        fun waitUntil(
+            atMost: Duration,
+            condition: () -> Boolean
+        ) {
+            val maxTime = atMost.inWholeMilliseconds
+
+            val interval: Long = 50
+            var elapsed: Long = 0
+            do {
+                elapsed += interval
+                Thread.sleep(interval)
+
+                if (elapsed > maxTime) {
+                    throw TimeoutException("Took too long.")
+                }
+            } while (!condition())
+
+        }
     }
 
 
@@ -55,6 +78,7 @@ class TestUtils {
         override fun createRenderer(): MockArtboardRenderer {
             return MockArtboardRenderer()
         }
+
         fun mockAttach() {
             onAttachedToWindow()
         }

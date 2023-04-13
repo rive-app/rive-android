@@ -43,8 +43,8 @@ multi-platform applications.
 
 ## Supported Versions
 
-Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK verison
-is **31**.
+Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version
+is **33**.
 
 ## Examples
 
@@ -54,7 +54,7 @@ showcases a number of ways to manipulate Rives, including:
 - How to include Rive files into the project and reference them
 - Setting layout and loop mode options
 - Displaying single or multiple animations / artboards on one component
-- Setting up and maniuplating a state machine via inputs
+- Setting up and manipulating a state machine via inputs
 - Utilizing a low-level API to build a render loop for more control over scenes
 - ...and more!
 

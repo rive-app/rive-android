@@ -17,7 +17,6 @@ class RiveMemoryTests {
     private val appContext = testUtils.context
     private lateinit var mockRenderer: RiveArtboardRenderer
 
-
     @Before
     fun init() {
         mockRenderer = TestUtils.MockArtboardRenderer()
@@ -30,10 +29,100 @@ class RiveMemoryTests {
         )
         // cannot access file properties after disposing file.
         assertEquals(file.artboardNames, listOf("New Artboard"))
-        file.dispose()
+        file.release()
         assertThrows(RiveException::class.java) {
             file.artboardNames
         }
+    }
+
+    @Test
+    fun disposeNativeObject() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+        assertTrue(file.hasCppObject)
+        file.release()
+        assertEquals(0, file.refCount)
+        assertFalse(file.hasCppObject)
+    }
+
+    @Test
+    fun multiRefDisposeNativeObject() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+        assertTrue(file.hasCppObject)
+        file.acquire()
+        // Decrement a first time.
+        file.release()
+        assertEquals(file.refCount, 1)
+        assertTrue(file.hasCppObject)
+        // Delete it now:
+        file.release()
+        assertEquals(file.refCount, 0)
+        assertFalse(file.hasCppObject)
+    }
+
+    @Test
+    fun disposeTooMany() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+        assertTrue(file.hasCppObject)
+        file.release()
+        assertEquals(file.refCount, 0)
+        assertThrows(IllegalArgumentException::class.java) {
+            // Throws when trying to release() a second time...
+            file.release()
+        }
+    }
+
+    @Test
+    fun disposeWithDependencies() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+        assertTrue(file.hasCppObject)
+        assertTrue(file.dependencies.isEmpty())
+
+        val artboard = file.firstArtboard
+        assertEquals(file.dependencies.size, 1)
+        assertTrue(artboard.hasCppObject)
+        // Delete file & dependents.
+        file.release()
+        // Check we cleaned up...
+        assertEquals(file.refCount, 0)
+        assertFalse(file.hasCppObject)
+        assertFalse(artboard.hasCppObject)
+        assertTrue(file.dependencies.isEmpty())
+    }
+
+    @Test
+    fun disposeWithReferencedDependencies() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.state_machine_configurations).readBytes()
+        )
+        assertTrue(file.hasCppObject)
+        assertTrue(file.dependencies.isEmpty())
+
+        val artboard = file.firstArtboard
+        // Grab a reference to this to prevent it from being disposed.
+        artboard.acquire()
+        assertTrue(file.dependencies.isNotEmpty())
+        assertTrue(artboard.hasCppObject)
+        // Delete file & dependents.
+        file.release()
+        // Check what's cleaned up:
+        assertEquals(file.refCount, 0)
+        assertFalse(file.hasCppObject) // Gone.
+        assertTrue(file.dependencies.isEmpty()) // Gone.
+        assertEquals(artboard.refCount, 1) // Still here.
+        assertTrue(artboard.hasCppObject)
+
+        // Now clean up the artboard independently.
+        artboard.release()
+        assertEquals(artboard.refCount, 0)
+        assertFalse(artboard.hasCppObject) // Still here.
     }
 
     @Test
@@ -43,7 +132,8 @@ class RiveMemoryTests {
         )
         val artboard = file.firstArtboard
         assertEquals(artboard.name, "New Artboard")
-        file.dispose()
+        file.release()
+        assertEquals(file.refCount, 0)
         assertThrows(RiveException::class.java) {
             artboard.name
         }
@@ -56,7 +146,7 @@ class RiveMemoryTests {
         )
         val stateMachine = file.firstArtboard.stateMachine(0)
         assertEquals(stateMachine.name, "mixed")
-        file.dispose()
+        file.release()
         assertThrows(RiveException::class.java) {
             stateMachine.name
         }
@@ -69,7 +159,7 @@ class RiveMemoryTests {
         )
         val animation = file.firstArtboard.animation(0)
         assertEquals(animation.name, "artboard2animation1")
-        file.dispose()
+        file.release()
         assertThrows(RiveException::class.java) {
             animation.name
         }
@@ -92,7 +182,7 @@ class RiveMemoryTests {
             layerState = renderer.stateMachines.first().statesChanged.first()
             assertTrue(layerState.isAnimationState)
             // lets assume our view got gc'd
-            renderer.dispose()
+            renderer.release()
         }
         assertThrows(RiveException::class.java) {
             layerState.isAnimationState
@@ -123,7 +213,7 @@ class RiveMemoryTests {
             assertEquals(stateMachine?.name, "State Machine 1")
 
 //            but disposing the renderer will still remove artboards after reset
-            renderer.dispose()
+            renderer.release()
             assertThrows(RiveException::class.java) {
                 artboard?.name
             }
@@ -154,7 +244,7 @@ class RiveMemoryTests {
             // reset will not have cleared this artboard, it was never attacked to the view.
             assertEquals(artboard.name, "New Artboard")
             // lets assume our view got gc'd
-            renderer.dispose()
+            renderer.release()
         }
         assertThrows(RiveException::class.java) {
             artboard.name

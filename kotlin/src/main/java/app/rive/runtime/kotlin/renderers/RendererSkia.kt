@@ -191,7 +191,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
      * otherwise it's inaccessible from JNI on API < 24
      */
     protected open fun disposeDependencies() {
-        dependencies.forEach { it.dispose() }
+        dependencies.forEach { it.release() }
         dependencies.clear()
     }
 }

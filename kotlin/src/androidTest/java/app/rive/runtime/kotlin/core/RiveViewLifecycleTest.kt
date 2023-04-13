@@ -4,13 +4,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.ResourceType
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.errors.ArtboardException
-import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.seconds
 
 
 @RunWith(AndroidJUnit4::class)
@@ -180,6 +179,35 @@ class RiveViewLifecycleTest {
             assertNull(mockView.artboardRenderer)
             mockView.artboardName = "artboard1"
             mockView.artboardName // 💥 renderer doesn't exist
+        }
+    }
+
+    @Test
+    fun viewSetRiveFile() {
+        UiThreadStatement.runOnUiThread {
+            val attributes = mockView.rendererAttributes
+            val stream = appContext.resources.openRawResource(R.raw.multipleartboards)
+            val file = File(stream.readBytes())
+            mockView.setRiveFile(file)
+            stream.close()
+
+            assertEquals(file.refCount, 1)
+            assertNotNull(attributes.resource)
+            assertNull(mockView.artboardRenderer)
+
+            (mockView as TestUtils.MockRiveAnimationView).mockAttach()
+            assertNotNull(mockView.artboardRenderer)
+            assertEquals(file.refCount, 2) // Acquired resource
+
+            // Let's 'close' this view
+            (mockView as TestUtils.MockRiveAnimationView).mockDetach()
+
+            // Let's wait for the background thread to complete:
+            TestUtils.waitUntil(2.seconds) { file.refCount == 1 }
+            assertNull(mockView.artboardRenderer)
+            // Clean up the rest.
+            file.release()
+            assertEquals(file.refCount, 0)
         }
     }
 }

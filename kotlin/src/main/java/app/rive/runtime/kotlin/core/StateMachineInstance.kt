@@ -139,7 +139,7 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         get() = (0 until inputCount).map { input(it).name }
 
     private fun convertLayerState(state: LayerState): LayerState {
-        var state = when {
+        val convertedState = when {
             state.isAnimationState -> {
                 AnimationState(state.cppPointer)
             }
@@ -157,8 +157,8 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             }
             else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
         }
-        dependencies.add(state)
-        return state
+        dependencies.add(convertedState)
+        return convertedState
     }
 
     /**
@@ -170,14 +170,8 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         if (stateChanged == 0L) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        val layerState = LayerState(
-            stateChanged
-        )
-        dependencies.add(layerState)
-        return convertLayerState(
-            layerState
-        )
-
+        val layerState = LayerState(stateChanged)
+        return convertLayerState(layerState)
     }
 
     /**
