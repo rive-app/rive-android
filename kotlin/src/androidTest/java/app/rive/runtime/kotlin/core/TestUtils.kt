@@ -5,6 +5,7 @@ import android.graphics.RectF
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.RiveArtboardRenderer
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import org.junit.Assert.assertEquals
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration
@@ -117,7 +118,7 @@ class TestUtils {
 
     data class StateChanged(var stateMachineName: String, var stateName: String)
 
-    class Observer : RiveArtboardRenderer.Listener {
+    class Observer : RiveFileController.Listener {
         var plays = mutableListOf<PlayableInstance>()
         var pauses = mutableListOf<PlayableInstance>()
         var stops = mutableListOf<PlayableInstance>()

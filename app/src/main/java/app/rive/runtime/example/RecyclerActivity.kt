@@ -81,7 +81,7 @@ object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveResource>() {
     }
 }
 
-class RiveAdapter(val riveFiles: List<File>) :
+class RiveAdapter(private val riveFiles: List<File>) :
     ListAdapter<RiveResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
 
     class RiveViewHolder(itemView: View) :

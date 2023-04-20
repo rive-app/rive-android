@@ -10,7 +10,7 @@ import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.appcompat.widget.AppCompatEditText
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.RiveArtboardRenderer.Listener
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
 
 class AndroidPlayerActivity : AppCompatActivity() {
@@ -328,7 +328,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         loadResource(0)
         val that = this
         val events = findViewById<LinearLayout>(R.id.events)
-        val listener = object : Listener {
+        val listener = object : RiveFileController.Listener {
             override fun notifyPlay(animation: PlayableInstance) {
                 var text: String? = null
                 if (animation is LinearAnimationInstance) {

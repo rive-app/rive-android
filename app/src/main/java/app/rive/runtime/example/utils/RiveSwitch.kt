@@ -57,8 +57,8 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
                 riveArtboardRenderer = RiveArtboardRenderer(autoplay = false)
                 riveArtboardRenderer.setRiveFile(riveFile)
                 stateMachineName?.let {
-                    riveArtboardRenderer.setBooleanState(it, booleanStateInput, isChecked)
-                    riveArtboardRenderer.play(it, isStateMachine = true)
+                    riveArtboardRenderer.controller.setBooleanState(it, booleanStateInput, isChecked)
+                    riveArtboardRenderer.controller.play(it, isStateMachine = true)
                 }
 //                background = riveDrawable
             } finally {
@@ -68,7 +68,7 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun setCheckedAnimation(checked: Boolean) {
-        riveArtboardRenderer.let {
+        riveArtboardRenderer.controller.let {
             it.stopAnimations()
             if (checked) {
                 it.play(onAnimation)
@@ -81,13 +81,13 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
     private fun setStateMachine(checked: Boolean) {
         riveArtboardRenderer.let { drawable ->
             stateMachineName?.let { stateMachine ->
-                drawable.setBooleanState(stateMachine, booleanStateInput, checked)
+                drawable.controller.setBooleanState(stateMachine, booleanStateInput, checked)
             }
         }
     }
 
     override fun setChecked(checked: Boolean) {
-        var output = super.setChecked(checked)
+        val output = super.setChecked(checked)
 
         if (stateMachineName == null) {
             setCheckedAnimation(checked)

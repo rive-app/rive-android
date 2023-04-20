@@ -13,6 +13,7 @@ import android.view.*
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
@@ -52,7 +53,7 @@ import kotlin.math.min
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
-    Observable<RiveArtboardRenderer.Listener> {
+    Observable<RiveFileController.Listener> {
 
     companion object {
         // Static Tag for Logging.
@@ -64,6 +65,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     open val defaultAutoplay = true
+
+    val controller get() = artboardRenderer?.controller
 
     val artboardRenderer: RiveArtboardRenderer?
         get() {
@@ -249,7 +252,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Pauses all playing [animation instance][LinearAnimationInstance].
      */
     fun pause() {
-        artboardRenderer?.pause()
+        controller?.pause()
         stopFrameMetrics()
     }
 
@@ -261,7 +264,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        artboardRenderer?.pause(animationNames, areStateMachines)
+        controller?.pause(animationNames, areStateMachines)
     }
 
 
@@ -273,7 +276,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        artboardRenderer?.pause(animationName, isStateMachine)
+        controller?.pause(animationName, isStateMachine)
     }
 
     /**
@@ -284,7 +287,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * for the [animations][Animation] in the file.
      */
     fun stop() {
-        artboardRenderer?.stopAnimations()
+        controller?.stopAnimations()
         stopFrameMetrics()
     }
 
@@ -300,7 +303,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
-        artboardRenderer?.stopAnimations(animationNames, areStateMachines)
+        controller?.stopAnimations(animationNames, areStateMachines)
     }
 
     /**
@@ -315,7 +318,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
-        artboardRenderer?.stopAnimations(animationName, isStateMachine)
+        controller?.stopAnimations(animationName, isStateMachine)
     }
 
     /**
@@ -341,7 +344,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             this.loop = loop
         }
-        artboardRenderer?.play(loop, direction, settleInitialState)
+        controller?.play(loop, direction, settleInitialState)
     }
 
     /**
@@ -360,7 +363,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             this.loop = loop
         }
-        artboardRenderer?.play(
+        controller?.play(
             animationNames,
             loop,
             direction,
@@ -386,7 +389,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = animationName
             this.loop = loop
         }
-        artboardRenderer?.play(animationName, loop, direction, isStateMachine, settleInitialState)
+        controller?.play(
+            animationName,
+            loop,
+            direction,
+            isStateMachine,
+            settleInitialState
+        )
     }
 
     /**
@@ -402,7 +411,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
     fun fireState(stateMachineName: String, inputName: String) {
-        artboardRenderer?.fireState(stateMachineName, inputName)
+        controller?.fireState(stateMachineName, inputName)
     }
 
     /**
@@ -410,7 +419,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        artboardRenderer?.setBooleanState(stateMachineName, inputName, value)
+        controller?.setBooleanState(stateMachineName, inputName, value)
     }
 
     /**
@@ -418,7 +427,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        artboardRenderer?.setNumberState(stateMachineName, inputName, value)
+        controller?.setNumberState(stateMachineName, inputName, value)
     }
 
     /**
@@ -553,10 +562,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = rendererAttributes.animationName
             this.stateMachineName = rendererAttributes.stateMachineName
             this.artboardName = rendererAttributes.artboardName
-            this.stopAnimations()
+            controller.stopAnimations()
+            this.loop = rendererAttributes.loop
             this.fit = rendererAttributes.fit
             this.alignment = rendererAttributes.alignment
-            this.loop = rendererAttributes.loop
         }
     }
 
@@ -656,14 +665,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         setMeasuredDimension(width, height)
     }
 
-    override fun registerListener(listener: RiveArtboardRenderer.Listener) {
+    override fun registerListener(listener: RiveFileController.Listener) {
         Log.w(TAG, "registerListener(): Renderer not instantiated yet.")
-        artboardRenderer?.registerListener(listener)
+        controller?.registerListener(listener)
     }
 
-    override fun unregisterListener(listener: RiveArtboardRenderer.Listener) {
+    override fun unregisterListener(listener: RiveFileController.Listener) {
         Log.w(TAG, "unregisterListener(): Renderer not instantiated yet.")
-        artboardRenderer?.unregisterListener(listener)
+        controller?.unregisterListener(listener)
     }
 
     /// could live in RiveTextureView, but that doesnt really know
