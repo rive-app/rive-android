@@ -20,6 +20,28 @@ import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import java.util.Collections
 
+@RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class ControllerStateManagement
+
+/**
+ * Keeps track of the State of a given Controller so that it can be saved and restored.
+ */
+@ControllerStateManagement
+class ControllerState internal constructor(
+    val file: File?,
+    val activeArtboard: Artboard?,
+    val animations: List<LinearAnimationInstance>,
+    val playingAnimations: HashSet<LinearAnimationInstance>,
+    val stateMachines: List<StateMachineInstance>,
+    val playingStateMachines: HashSet<StateMachineInstance>,
+    val isActive: Boolean,
+) {
+    fun dispose() {
+        file?.release()
+    }
+}
 
 typealias OnStartCallback = () -> Unit
 
@@ -110,8 +132,59 @@ class RiveFileController(
             }
         }
 
+    val pausedAnimations: Set<LinearAnimationInstance>
+        get() {
+            return animationList subtract playingAnimationSet
+        }
+    val pausedStateMachines: Set<StateMachineInstance>
+        get() {
+            return stateMachineList subtract playingStateMachineSet
+        }
+
+
     val hasPlayingAnimations: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
+
+
+    /**
+     * Get a copy of the State of this Controller and acquire a reference to the File to prevent
+     * it being released from memory.
+     */
+    @ControllerStateManagement
+    fun saveControllerState(): ControllerState {
+        // Acquire the file to prevent it from being released.
+        this.file?.acquire()
+        return ControllerState(
+            file,
+            activeArtboard,
+            // Duplicate contents to grab a reference to the instances.
+            animations = animationList.toList(),
+            playingAnimations = playingAnimations.toHashSet(),
+            stateMachines = stateMachineList.toList(),
+            playingStateMachines = playingStateMachines.toHashSet(),
+            isActive
+        )
+    }
+
+    /**
+     * Restore a copy of the state on this Controller.
+     * It also releases the File reference that was acquired when creating this file.
+     */
+    @ControllerStateManagement
+    fun restoreControllerState(state: ControllerState) {
+        // Remove all old values.
+        reset()
+        // Restore all the previous values.
+        file = state.file
+        activeArtboard = state.activeArtboard
+        state.animations.forEach { animationList.add(it) }
+        state.stateMachines.forEach { stateMachineList.add(it) }
+        state.playingAnimations.forEach { play(it, it.loop, it.direction) }
+        state.playingStateMachines.forEach { play(it) }
+        isActive = state.isActive
+        // Release the state we had acquired previously to even things out.
+        state.file?.release()
+    }
 
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
@@ -140,8 +213,6 @@ class RiveFileController(
                         resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
                     if (!stillPlaying) {
-                        // State Machines need to pause not stop
-                        // as they have lots of stop and go possibilities
                         pause(stateMachineInstance)
                     }
                 }
@@ -160,7 +231,7 @@ class RiveFileController(
             return
         }
         this.file = file
-        // Select the first artboard.
+        // Select the artboard or the first one.
         selectArtboard(artboardName)
     }
 
@@ -172,7 +243,6 @@ class RiveFileController(
     fun selectArtboard(name: String? = null) {
         // Should this warn/throw when called without a File?
         file?.let {
-            // TODO: Cache the artboard instances like we do for animations/state machines?
             val artboard = if (name != null) it.artboard(name) else it.firstArtboard
             setArtboard(artboard)
         }
@@ -274,8 +344,8 @@ class RiveFileController(
         }
     }
 
-
     fun pause() {
+        isActive = false
         // pause will modify playing animations, so we cut a list of it first.
         playingAnimations.forEach { pause(it) }
         playingStateMachines.forEach { pause(it) }

@@ -7,7 +7,11 @@ import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,7 +31,8 @@ class RiveViewTest {
     @Test
     fun viewNoDefaults() {
         UiThreadStatement.runOnUiThread {
-            assertEquals(false, mockView.isPlaying)
+            assertFalse(mockView.isPlaying)
+            assertNull(mockView.controller.file)
         }
     }
 
@@ -35,9 +40,11 @@ class RiveViewTest {
     fun viewDefaultsLoadResource() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multipleartboards, autoplay = false)
+            assertNotNull(mockView.controller.file)
             mockView.play(listOf("artboard2animation1", "artboard2animation2"))
 
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
+            assertTrue(mockView.controller.isActive)
             assertEquals(listOf("artboard2", "artboard1"), mockView.file?.artboardNames)
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
@@ -145,7 +152,7 @@ class RiveViewTest {
 
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
-                hashSetOf<LinearAnimationInstance>()
+                emptySet<String>()
             )
         }
     }
@@ -176,7 +183,7 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
-                hashSetOf<LinearAnimationInstance>()
+                emptySet<String>()
             )
         }
     }
@@ -201,7 +208,7 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assert(!mockView.isPlaying)
             assertEquals(
-                hashSetOf<LinearAnimationInstance>(),
+                emptySet<String>(),
                 mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play("one")
@@ -219,7 +226,7 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assert(!mockView.isPlaying)
             assertEquals(
-                hashSetOf<LinearAnimationInstance>(),
+                emptySet<String>(),
                 mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play("junk")
@@ -232,7 +239,7 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
             assert(!mockView.isPlaying)
             assertEquals(
-                hashSetOf<LinearAnimationInstance>(),
+                emptySet<String>(),
                 mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.play(listOf("one", "two"))
@@ -433,7 +440,7 @@ class RiveViewTest {
             assert(!mockView.isPlaying)
 
             assertEquals(
-                hashSetOf<LinearAnimationInstance>(),
+                emptySet<String>(),
                 mockView.animations.map { it.name }.toHashSet()
             )
         }

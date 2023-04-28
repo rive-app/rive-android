@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.ResourceType
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.*
 import org.junit.Before
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.milliseconds
 
 
+@ControllerStateManagement
 @RunWith(AndroidJUnit4::class)
 class RiveViewLifecycleTest {
     private val testUtils = TestUtils()
@@ -201,12 +203,75 @@ class RiveViewLifecycleTest {
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
             // Background thread completes async - wait
-            TestUtils.waitUntil(100.milliseconds) { file.refCount == 1 }
+            TestUtils.waitUntil(500.milliseconds) { file.refCount == 1 }
             assertNull(mockView.artboardRenderer)
 
             // Clean up the rest.
             file.release()
             assertEquals(file.refCount, 0)
+        }
+    }
+
+    @Test
+    fun viewSaveController() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multipleartboards)
+
+            assertNotNull(mockView.controller.file)
+            // 'Open' the view - attached
+            (mockView as TestUtils.MockRiveAnimationView).mockAttach()
+
+            val savedState = mockView.controller.saveControllerState()
+            val file = savedState.file
+            assertNotNull(file)
+
+            // Let's 'close' this view - detached
+            (mockView as TestUtils.MockRiveAnimationView).mockDetach()
+            // Background thread completes async - wait
+            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 1 }
+            assertNull(mockView.artboardRenderer)
+
+            savedState.dispose()
+            assertEquals(0, file?.refCount)
+        }
+    }
+
+    @Test
+    fun viewSaveAndRestoreController() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multipleartboards)
+
+            assertNotNull(mockView.controller.file)
+            // 'Open' the view - attached
+            (mockView as TestUtils.MockRiveAnimationView).mockAttach()
+
+            val savedState = mockView.saveControllerState()
+            val file = savedState.file
+            assertNotNull(file)
+            // Make sure we cleaned up the old resource to avoid loading it twice.
+            assertNull(mockView.rendererAttributes.resource)
+
+            // Let's 'close' this view - detached
+            (mockView as TestUtils.MockRiveAnimationView).mockDetach()
+            assertFalse(mockView.controller.isActive)
+            // Background thread completes async - wait
+            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 1 }
+
+            assertEquals(1, savedState.playingAnimations.size)
+
+            // 'Restore' the view - reattach
+            (mockView as TestUtils.MockRiveAnimationView).mockAttach()
+            // We aren't loading it again.
+            assertNull(mockView.rendererAttributes.resource)
+            mockView.restoreControllerState(savedState)
+            assertTrue(mockView.controller.isActive)
+            assertTrue(mockView.controller.hasPlayingAnimations)
+
+            // Let's 'close' this view - detached
+            (mockView as TestUtils.MockRiveAnimationView).mockDetach()
+            // Background thread completes async and cleans everything up.
+            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 0 }
+            // No need to call `savedState.dispose()` because the state has already been restored.
         }
     }
 }

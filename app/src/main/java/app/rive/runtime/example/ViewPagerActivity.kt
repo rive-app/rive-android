@@ -2,19 +2,24 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
 import android.view.ViewGroup
+import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import app.rive.runtime.example.databinding.ViewPagerBinding
 import app.rive.runtime.example.databinding.ViewPagerRiveWrapperBinding
+import app.rive.runtime.kotlin.controllers.ControllerState
+import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
-
+@ControllerStateManagement
 class ViewPagerActivity : AppCompatActivity() {
     private lateinit var binding: ViewPagerBinding
+
+    companion object {
+        const val TAG = "ViewPagerActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,13 +28,15 @@ class ViewPagerActivity : AppCompatActivity() {
         binding = ViewPagerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Load multiple pages in advance.
+        binding.viewPager.offscreenPageLimit = 3
         binding.viewPager.apply {
             adapter = RiveViewPagerAdapter().apply {
                 submitList(
                     listOf(
-                        R.raw.basketball,
-                        R.raw.off_road_car_blog,
                         R.raw.flux_capacitor,
+                        R.raw.off_road_car_blog,
+                        R.raw.basketball,
                         R.raw.artboard_animations,
                     )
                 )
@@ -37,10 +44,18 @@ class ViewPagerActivity : AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // Make sure we clean up old values.
+        val riveAdapter = binding.viewPager.adapter as RiveViewPagerAdapter
+        riveAdapter.resourceCache.forEach { it?.dispose() }
+    }
+
     private class RiveTestViewHolder(val binding: ViewPagerRiveWrapperBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(res: Int) {
-            binding.riveTestView.setRiveResource(res)
+
+        fun bindResource(@RawRes resId: Int) {
+            binding.riveTestView.setRiveResource(resId)
         }
     }
 
@@ -54,6 +69,33 @@ class ViewPagerActivity : AppCompatActivity() {
                 return oldItem == newItem
             }
         }) {
+
+        // Keep ControllerStates around.
+        var resourceCache = arrayOfNulls<ControllerState>(itemCount)
+
+        override fun onViewRecycled(holder: RiveTestViewHolder) {
+            super.onViewRecycled(holder)
+        }
+
+        override fun onViewAttachedToWindow(holder: RiveTestViewHolder) {
+            super.onViewAttachedToWindow(holder)
+            val riveView = holder.binding.riveTestView
+            val savedState = resourceCache[holder.layoutPosition]
+            savedState?.let {
+                riveView.restoreControllerState(it)
+                // Once restored, we must clean up the reference.
+                resourceCache[holder.layoutPosition] = null
+            }
+        }
+
+        override fun onViewDetachedFromWindow(holder: RiveTestViewHolder) {
+            val riveView = holder.binding.riveTestView
+            val animationState = riveView.saveControllerState()
+            resourceCache[holder.layoutPosition] = animationState
+
+            super.onViewDetachedFromWindow(holder)
+        }
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RiveTestViewHolder {
             val binding =
                 ViewPagerRiveWrapperBinding.inflate(
@@ -64,26 +106,22 @@ class ViewPagerActivity : AppCompatActivity() {
             return RiveTestViewHolder(binding)
         }
 
+        override fun onCurrentListChanged(
+            previousList: MutableList<Int>,
+            currentList: MutableList<Int>,
+        ) {
+            super.onCurrentListChanged(previousList, currentList)
+            // Clean up old values.
+            resourceCache.forEach { it?.dispose() }
+            // Reallocate the cache if the list has changed.
+            // This can be refined further and be reallocated only if the resources have changed.
+            resourceCache = arrayOfNulls(itemCount)
+        }
+
         override fun onBindViewHolder(holder: RiveTestViewHolder, position: Int) {
             getItem(position).let {
-                holder.bind(it)
+                holder.bindResource(it)
             }
-        }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        // menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        return when (item.itemId) {
-            // R.id.action_settings -> true
-            else -> super.onOptionsItemSelected(item)
         }
     }
 }

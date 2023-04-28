@@ -87,7 +87,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        // TODO: this should pause animations.
         when (visibility) {
             View.VISIBLE -> renderer?.start()
             else -> renderer?.stop()

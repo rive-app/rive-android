@@ -13,8 +13,11 @@ import android.view.*
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
+import app.rive.runtime.kotlin.controllers.ControllerState
+import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.renderers.RendererMetrics
 import app.rive.runtime.kotlin.renderers.RendererSkia
 import com.android.volley.NetworkResponse
@@ -49,7 +52,7 @@ import kotlin.math.min
  * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
  * - Configure [alignment][R.styleable.RiveAnimationView_riveAlignment] to specify how the animation should be aligned to its container.
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
- * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+ * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
@@ -86,14 +89,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     val rendererAttributes: RendererAttributes
 
     var fit: Fit
-        get() = artboardRenderer!!.fit
+        get() = controller.fit
         set(value) {
+            // Not replacing with controller b/c it's currently calling `start()`
             artboardRenderer?.fit = value
         }
 
     var alignment: Alignment
-        get() = artboardRenderer!!.alignment
+        get() = controller.alignment
         set(value) {
+            // Not replacing with controller b/c it's currently calling `start()`
             artboardRenderer?.alignment = value
         }
 
@@ -101,7 +106,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Getter for the loaded [Rive file][File].
      */
     val file: File?
-        get() = artboardRenderer!!.file
+        get() = controller.file
 
     /**
      * Helper for determining performance metrics.
@@ -131,25 +136,25 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Get the currently loaded [animation instances][LinearAnimationInstance].
      */
     val animations: List<LinearAnimationInstance>
-        get() = artboardRenderer!!.animations
+        get() = controller.animations
 
     /**
      * Get the currently loaded [state machine instances][StateMachineInstance].
      */
     val stateMachines: List<StateMachineInstance>
-        get() = artboardRenderer!!.stateMachines
+        get() = controller.stateMachines
 
     /**
      * Get the currently playing [animation instances][LinearAnimationInstance].
      */
     val playingAnimations: HashSet<LinearAnimationInstance>
-        get() = artboardRenderer!!.playingAnimations
+        get() = controller.playingAnimations
 
     /**
      * Get the currently playing [state machine instances][StateMachineInstance].
      */
     val playingStateMachines: HashSet<StateMachineInstance>
-        get() = artboardRenderer!!.playingStateMachines
+        get() = controller.playingStateMachines
 
     /**
      * Tracks the renderer attributes that need to be applied when this [View] within its lifecycle.
@@ -252,27 +257,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 // Don't retain the handle.
                 file.release()
             }
-        }
-    }
-
-    private fun loadResource() {
-        when (val resource = rendererAttributes.resource) {
-            null -> Log.w(TAG, "loadResource: no resource to load")
-            is ResourceType.ResourceBytes -> artboardRenderer?.setRiveFile(File(resource.bytes))
-            is ResourceType.ResourceRiveFile -> artboardRenderer?.let {
-                // Setting this file, so the renderer now needs to "own" it too.
-                resource.file.acquire()
-                it.setRiveFile(resource.file)
-            }
-
-            is ResourceType.ResourceId -> loadRiveResource(resource.id)
-            is ResourceType.ResourceUrl -> loadHttp(resource.url)
-        }
-    }
-
-    private fun loadRiveResource(@RawRes resId: Int) {
-        resources.openRawResource(resId).use {
-            artboardRenderer?.setRiveFile(File(it.readBytes()))
         }
     }
 
@@ -459,6 +443,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Note: this will respect [autoplay]
      */
     fun reset() {
+        controller.reset()
         artboardRenderer?.reset()
     }
 
@@ -495,11 +480,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Load the [resource Id][resId] as a rive file and load it into the view.
      *
      * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
      *
      * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
@@ -538,11 +523,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Create a view file from a byte array and load it into the view
      *
      * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
      *
      * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
@@ -582,12 +567,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * this scope and the user passing it in is responsible for cleaning up its resources.
      *
      * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animaiton
+     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
      * - Optionally provide a [stateMachineName] to load by default.
      * - Enable [autoplay] to start the animation without further prompts.
      * - Configure [fit] to specify how and if the animation should be resized to fit its container.
      * - Configure [alignment] to specify how the animation should be aligned to its container.
-     * - Configure [loop] to configure if animations should loop, play once, or pingpong back and forth. Defaults to the setup in the rive file.
+     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
      *
      * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
      */
@@ -634,8 +619,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onDetachedFromWindow() {
+        // Suspend the controller so we can resume playing on reattach.
         controller.isActive = false
-        pause()
+        stopFrameMetrics()
         super.onDetachedFromWindow()
     }
 
@@ -664,6 +650,18 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.isActive = true
         // We are attached, start the renderer just to see if we want to play
         renderer!!.start()
+    }
+
+    @ControllerStateManagement
+    fun saveControllerState(): ControllerState {
+        // Invalidate the old resource to prevent it from loading again.
+        rendererAttributes.resource = null
+        return controller.saveControllerState()
+    }
+
+    @ControllerStateManagement
+    fun restoreControllerState(state: ControllerState) {
+        controller.restoreControllerState(state)
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -744,7 +742,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.unregisterListener(listener)
     }
 
-    /// could live in RiveTextureView, but that doesnt really know
+    /// could live in RiveTextureView, but that doesn't really know
     /// about the artboard renderer that knows about state machines?
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         event?.apply {

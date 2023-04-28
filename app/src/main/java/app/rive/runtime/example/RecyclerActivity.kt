@@ -12,91 +12,61 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.controllers.ControllerState
+import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
+@ControllerStateManagement
 class RecyclerActivity : AppCompatActivity() {
 
     companion object {
-        const val TAG = "RecyclerActivity"
         const val holderCount = 200
-        const val useIds = false
     }
-
-    private val riveFiles = mutableListOf<File>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_recycler)
 
-        val basketStream = resources.openRawResource(R.raw.basketball)
-        val basketBytes = basketStream.readBytes()
-        val circleStream = resources.openRawResource(R.raw.circle_move)
-        val circleBytes = circleStream.readBytes()
-
-        // Init all the elements.
-        repeat(holderCount) {
-            val bytes = if (it % 2 == 1) {
-                basketBytes
-            } else {
-                circleBytes
-            }
-            riveFiles.add(File(bytes))
-        }
-
-        basketStream.close()
-        circleStream.close()
-
         val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
-        recyclerView.adapter = RiveAdapter(riveFiles)
+        recyclerView.adapter = RiveAdapter()
         recyclerView.layoutManager = LinearLayoutManager(this)
     }
 
     override fun onDestroy() {
-        // Dereference all the files we initialized.
-        riveFiles.forEach {
-            it.release()
-        }
+        val riveAdapter: RiveAdapter =
+            findViewById<RecyclerView>(R.id.recycler_view).adapter as RiveAdapter
+        riveAdapter.resourceCache.forEach { it?.dispose() }
         super.onDestroy()
     }
 }
 
-// Holds a rive file resource for a RecyclerView list item.
-interface RiveResource {
-    val number: Int
-    val resource: Any
-}
-
-data class RiveIdResource(override val number: Int, @RawRes override val resource: Int) :
-    RiveResource
-
-data class RiveFileResource(override val number: Int, override val resource: File) : RiveResource
+data class RiveResource(@RawRes val id: Int)
 
 object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveResource>() {
     override fun areItemsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean {
-        return oldItem.number == newItem.number
+        return oldItem == newItem
     }
 
     override fun areContentsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean {
-        return oldItem.number == newItem.number
+        return oldItem == newItem
     }
 }
 
-class RiveAdapter(private val riveFiles: List<File>) :
+@ControllerStateManagement
+class RiveAdapter :
     ListAdapter<RiveResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
+
+    // Keep ControllerStates around.
+    internal val resourceCache =
+        arrayOfNulls<ControllerState>(RecyclerActivity.holderCount)
 
     class RiveViewHolder(itemView: View) :
         RecyclerView.ViewHolder(itemView) {
 
-        private val riveAnimationView: RiveAnimationView =
+        internal val riveAnimationView: RiveAnimationView =
             itemView.findViewById(R.id.rive_animation_view)
-        private var currentResource: RiveResource? = null
 
-        fun bind(riveFileResource: RiveResource) {
-            currentResource = riveFileResource
-            when (riveFileResource) {
-                is RiveIdResource -> riveAnimationView.setRiveResource(riveFileResource.resource)
-                is RiveFileResource -> riveAnimationView.setRiveFile(riveFileResource.resource)
-            }
+        fun bind(riveResource: RiveResource) {
+            riveAnimationView.setRiveResource(riveResource.id)
         }
     }
 
@@ -109,12 +79,29 @@ class RiveAdapter(private val riveFiles: List<File>) :
     override fun onBindViewHolder(holder: RiveViewHolder, position: Int) {
         // Alternate background colors to differentiate various elements.
         if (position % 2 == 1) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFFFFF"));
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFFFFF"))
         } else {
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFFAF8FD"));
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFFAF8FD"))
         }
         val riveFileResource = getItem(position)
         holder.bind(riveFileResource)
+    }
+
+    override fun onViewAttachedToWindow(holder: RiveViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        val savedState = resourceCache[holder.layoutPosition]
+        savedState?.let {
+            holder.riveAnimationView.restoreControllerState(it)
+            // Once restored, we must clean up the reference.
+            resourceCache[holder.layoutPosition] = null
+        }
+    }
+
+    override fun onViewDetachedFromWindow(holder: RiveViewHolder) {
+        // Before detaching, let's save the Controller state.
+        val savedState = holder.riveAnimationView.saveControllerState()
+        resourceCache[holder.layoutPosition] = savedState
+        super.onViewDetachedFromWindow(holder)
     }
 
     override fun getItemCount(): Int {
@@ -122,15 +109,11 @@ class RiveAdapter(private val riveFiles: List<File>) :
     }
 
     override fun getItem(position: Int): RiveResource {
-        if (RecyclerActivity.useIds) {
-            val res = if (position % 2 == 1) {
-                R.raw.basketball
-            } else {
-                R.raw.circle_move
-            }
-            return RiveIdResource(position, res)
+        val res = if (position % 2 == 1) {
+            R.raw.basketball
+        } else {
+            R.raw.circle_move
         }
-
-        return RiveFileResource(position, riveFiles[position])
+        return RiveResource(res)
     }
 }
