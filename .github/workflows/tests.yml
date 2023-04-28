@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
-          java-version: '16'
+          java-version: '17'
 
       - name: Installing pre-requisites
         run: |
@@ -80,7 +80,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
-          java-version: '16'
+          java-version: '17'
 
       - uses: actions/download-artifact@v3
         with:
