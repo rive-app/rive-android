@@ -58,6 +58,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     companion object {
         // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
+
         // Default attribute values.
         const val alignmentIndexDefault = 4
         const val fitIndexDefault = 1
@@ -66,7 +67,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     open val defaultAutoplay = true
 
-    val controller get() = artboardRenderer?.controller
+    var controller: RiveFileController
 
     val artboardRenderer: RiveArtboardRenderer?
         get() {
@@ -121,9 +122,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Getter/Setter for [autoplay].
      */
     var autoplay: Boolean
-        get() = artboardRenderer!!.autoplay
+        get() = controller.autoplay
         set(value) {
-            artboardRenderer?.autoplay = value
+            controller.autoplay = value
         }
 
     /**
@@ -182,6 +183,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val resourceFromValue = makeMaybeResource(
                     if (resId == -1) resUrl else resId
                 )
+
                 rendererAttributes = RendererAttributes(
                     alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4),
                     fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1),
@@ -194,9 +196,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
                     resource = resourceFromValue,
+                )
 
-                    )
+                controller = RiveFileController(
+                    loop = rendererAttributes.loop,
+                    autoplay = rendererAttributes.autoplay,
+                )
 
+                // Initialize resource if we have one.
+                resourceFromValue?.let {
+                    // Immediately set these values on the controller:
+                    // this is either going to be a [ResourceId] or a [ResourceUrl]
+                    loadFileFromResource {
+                        controller.file = it
+                        controller.setupScene(rendererAttributes)
+                    }
+                }
             } finally {
                 recycle()
             }
@@ -217,6 +232,29 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardRenderer!!.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
+    private fun loadFileFromResource(onComplete: (File) -> Unit) {
+        when (val resource = rendererAttributes.resource) {
+            null -> Log.w(TAG, "loadResource: no resource to load")
+            // Passes the resource through: ownership is coming from elsewhere.
+            is ResourceType.ResourceRiveFile -> onComplete(resource.file)
+            // loadFromNetwork() releases after onComplete() is called.
+            is ResourceType.ResourceUrl -> loadFromNetwork(resource.url, onComplete)
+            is ResourceType.ResourceBytes -> {
+                val file = File(resource.bytes)
+                onComplete(file)
+                // Don't retain the handle.
+                file.release()
+            }
+
+            is ResourceType.ResourceId -> resources.openRawResource(resource.id).use {
+                val file = File(it.readBytes())
+                onComplete(file)
+                // Don't retain the handle.
+                file.release()
+            }
+        }
+    }
+
     private fun loadResource() {
         when (val resource = rendererAttributes.resource) {
             null -> Log.w(TAG, "loadResource: no resource to load")
@@ -226,18 +264,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 resource.file.acquire()
                 it.setRiveFile(resource.file)
             }
+
             is ResourceType.ResourceId -> loadRiveResource(resource.id)
             is ResourceType.ResourceUrl -> loadHttp(resource.url)
         }
     }
 
     private fun loadRiveResource(@RawRes resId: Int) {
-        val stream = resources.openRawResource(resId)
-        val bytes = stream.readBytes()
-        artboardRenderer?.setRiveFile(File(bytes))
-        stream.close()
+        resources.openRawResource(resId).use {
+            artboardRenderer?.setRiveFile(File(it.readBytes()))
+        }
     }
 
+    @Deprecated(
+        "Use loadFromNetwork to avoid memory leaks.",
+        replaceWith = ReplaceWith("loadFromNetwork(url) { /* onComplete() */}")
+    )
     private fun loadHttp(url: String) {
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(
@@ -248,11 +290,24 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         queue.add(stringRequest)
     }
 
+    private fun loadFromNetwork(url: String, onComplete: (File) -> Unit) {
+        val queue = Volley.newRequestQueue(context)
+        val stringRequest = RiveFileRequest(
+            url,
+            {
+                onComplete(it)
+                it.release()
+            },
+            { throw IOException("Unable to download Rive file $url") }
+        )
+        queue.add(stringRequest)
+    }
+
     /**
      * Pauses all playing [animation instance][LinearAnimationInstance].
      */
     fun pause() {
-        controller?.pause()
+        controller.pause()
         stopFrameMetrics()
     }
 
@@ -264,7 +319,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller?.pause(animationNames, areStateMachines)
+        controller.pause(animationNames, areStateMachines)
     }
 
 
@@ -276,7 +331,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        controller?.pause(animationName, isStateMachine)
+        controller.pause(animationName, isStateMachine)
     }
 
     /**
@@ -287,7 +342,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * for the [animations][Animation] in the file.
      */
     fun stop() {
-        controller?.stopAnimations()
+        controller.stopAnimations()
         stopFrameMetrics()
     }
 
@@ -303,7 +358,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller?.stopAnimations(animationNames, areStateMachines)
+        controller.stopAnimations(animationNames, areStateMachines)
     }
 
     /**
@@ -318,7 +373,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animation][Animation]
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
-        controller?.stopAnimations(animationName, isStateMachine)
+        controller.stopAnimations(animationName, isStateMachine)
     }
 
     /**
@@ -344,7 +399,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             this.loop = loop
         }
-        controller?.play(loop, direction, settleInitialState)
+        controller.play(loop, direction, settleInitialState)
     }
 
     /**
@@ -363,7 +418,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             this.loop = loop
         }
-        controller?.play(
+        controller.play(
             animationNames,
             loop,
             direction,
@@ -389,7 +444,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = animationName
             this.loop = loop
         }
-        controller?.play(
+        controller.play(
             animationName,
             loop,
             direction,
@@ -411,7 +466,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
     fun fireState(stateMachineName: String, inputName: String) {
-        controller?.fireState(stateMachineName, inputName)
+        controller.fireState(stateMachineName, inputName)
     }
 
     /**
@@ -419,7 +474,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        controller?.setBooleanState(stateMachineName, inputName, value)
+        controller.setBooleanState(stateMachineName, inputName, value)
     }
 
     /**
@@ -427,7 +482,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        controller?.setNumberState(stateMachineName, inputName, value)
+        controller.setNumberState(stateMachineName, inputName, value)
     }
 
     /**
@@ -469,9 +524,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.resource = makeMaybeResource(resId)
         }
 
+        loadFileFromResource {
+            controller.file = it
+            controller.setupScene(rendererAttributes)
+        }
+
         if (renderer != null) {
             configureRenderer()
-            loadResource()
         }
     }
 
@@ -508,9 +567,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.resource = makeMaybeResource(bytes)
         }
 
+
+        loadFileFromResource {
+            controller.file = it
+            controller.setupScene(rendererAttributes)
+        }
         if (renderer != null) {
             configureRenderer()
-            loadResource()
         }
     }
 
@@ -549,9 +612,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.resource = makeMaybeResource(file)
         }
 
+
+        controller.file = file
+        controller.setupScene(rendererAttributes)
+
         if (renderer != null) {
             configureRenderer()
-            loadResource()
         }
     }
 
@@ -562,14 +628,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = rendererAttributes.animationName
             this.stateMachineName = rendererAttributes.stateMachineName
             this.artboardName = rendererAttributes.artboardName
-            controller.stopAnimations()
-            this.loop = rendererAttributes.loop
             this.fit = rendererAttributes.fit
             this.alignment = rendererAttributes.alignment
         }
     }
 
     override fun onDetachedFromWindow() {
+        controller.isActive = false
         pause()
         super.onDetachedFromWindow()
     }
@@ -577,20 +642,26 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun createRenderer(): RendererSkia {
         // Make the Renderer again every time this is visible and reset its state.
         return RiveArtboardRenderer(
-            autoplay = rendererAttributes.autoplay,
-            trace = rendererAttributes.riveTraceAnimations
+            trace = rendererAttributes.riveTraceAnimations,
+            controller = controller,
         )
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        // If the File has been deallocated, load it again. (e.g. this happens in RecyclerViews)
+        if (controller.file == null) {
+            loadFileFromResource {
+                controller.file = it
+                controller.setupScene(rendererAttributes)
+            }
+        }
 
         configureRenderer()
-        loadResource()
         if (renderer!!.trace) {
             startFrameMetrics()
         }
-
+        controller.isActive = true
         // We are attached, start the renderer just to see if we want to play
         renderer!!.start()
     }
@@ -666,13 +737,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun registerListener(listener: RiveFileController.Listener) {
-        Log.w(TAG, "registerListener(): Renderer not instantiated yet.")
-        controller?.registerListener(listener)
+        controller.registerListener(listener)
     }
 
     override fun unregisterListener(listener: RiveFileController.Listener) {
-        Log.w(TAG, "unregisterListener(): Renderer not instantiated yet.")
-        controller?.unregisterListener(listener)
+        controller.unregisterListener(listener)
     }
 
     /// could live in RiveTextureView, but that doesnt really know
@@ -685,21 +754,25 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     x,
                     y
                 )
+
                 MotionEvent.ACTION_CANCEL -> artboardRenderer?.pointerEvent(
                     PointerEvents.POINTER_UP,
                     x,
                     y
                 )
+
                 MotionEvent.ACTION_DOWN -> artboardRenderer?.pointerEvent(
                     PointerEvents.POINTER_DOWN,
                     x,
                     y
                 )
+
                 MotionEvent.ACTION_UP -> artboardRenderer?.pointerEvent(
                     PointerEvents.POINTER_UP,
                     x,
                     y
                 )
+
                 else -> {
                     Log.w(TAG, "onTouchEvent(): Renderer not instantiated yet.")
                 }

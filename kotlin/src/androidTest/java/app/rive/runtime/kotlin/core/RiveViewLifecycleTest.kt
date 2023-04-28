@@ -9,7 +9,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
@@ -186,25 +186,24 @@ class RiveViewLifecycleTest {
     fun viewSetRiveFile() {
         UiThreadStatement.runOnUiThread {
             val attributes = mockView.rendererAttributes
-            val stream = appContext.resources.openRawResource(R.raw.multipleartboards)
-            val file = File(stream.readBytes())
-            mockView.setRiveFile(file)
-            stream.close()
+            val file = appContext.resources.openRawResource(R.raw.multipleartboards).use {
+                val nFile = File(it.readBytes())
+                assertEquals(nFile.refCount, 1)
+                mockView.setRiveFile(nFile)
+                assertEquals(nFile.refCount, 2) // Acquired resource
+                nFile
+            }
 
-            assertEquals(file.refCount, 1)
             assertNotNull(attributes.resource)
             assertNull(mockView.artboardRenderer)
-
+            // 'Open' the view - attached
             (mockView as TestUtils.MockRiveAnimationView).mockAttach()
-            assertNotNull(mockView.artboardRenderer)
-            assertEquals(file.refCount, 2) // Acquired resource
-
-            // Let's 'close' this view
+            // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-
-            // Let's wait for the background thread to complete:
-            TestUtils.waitUntil(2.seconds) { file.refCount == 1 }
+            // Background thread completes async - wait
+            TestUtils.waitUntil(100.milliseconds) { file.refCount == 1 }
             assertNull(mockView.artboardRenderer)
+
             // Clean up the rest.
             file.release()
             assertEquals(file.refCount, 0)

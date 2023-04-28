@@ -2,13 +2,14 @@ package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.RiveException
 
+
 /**
  * NativeObject is a Kotlin object that's backed by a C++ counterpart via the JNI.
  * It keeps track of the current pointer value in its local variable [unsafeCppPointer].
  *
  * [unsafeCppPointer] is accessible via the [cppPointer] getter/setter.
  */
-abstract class NativeObject(private var unsafeCppPointer: Long, private var refs: Int = 1) {
+abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
     companion object {
         /** Static const value for an empty pointer. */
@@ -20,11 +21,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long, private var refs
      */
     val hasCppObject get() = unsafeCppPointer != NULL_POINTER
 
+    override var refs: Int = 1
     /**
      * The number of external references for this NativeObject.
      */
     val refCount get() = refs
-
     /**
      * Getter/Setter for the underlying C++ pointer value.
      *
@@ -47,7 +48,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long, private var refs
         }
 
     // Collection of native objects that are owned(created) by this.
-    val dependencies = mutableListOf<NativeObject>()
+    val dependencies = mutableListOf<RefCount>()
 
     // Up to the implementer (interfaces cannot have external functions)
     open fun cppDelete(pointer: Long) {}
@@ -57,9 +58,9 @@ abstract class NativeObject(private var unsafeCppPointer: Long, private var refs
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
-    fun acquire() {
+    override fun acquire() {
         require(refs > 0)
-        refs++
+        super.acquire()
     }
 
     /**
@@ -67,9 +68,9 @@ abstract class NativeObject(private var unsafeCppPointer: Long, private var refs
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
-    fun release() {
+    override fun release() {
         require(refs > 0)
-        refs--
+        super.release()
 
         if (refs == 0 && hasCppObject) {
             dispose()

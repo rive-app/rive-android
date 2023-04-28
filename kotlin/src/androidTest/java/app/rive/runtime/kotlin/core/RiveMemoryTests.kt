@@ -2,25 +2,20 @@ package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
-import app.rive.runtime.kotlin.RiveArtboardRenderer
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
 class RiveMemoryTests {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
-    private lateinit var mockRenderer: RiveArtboardRenderer
-
-    @Before
-    fun init() {
-        mockRenderer = TestUtils.MockArtboardRenderer()
-    }
+    private var controller = RiveFileController()
 
     @Test
     fun filesAccess() {
@@ -177,12 +172,12 @@ class RiveMemoryTests {
             )
 
             assert(mockView.artboardRenderer != null)
-            val renderer = mockView.artboardRenderer!!
-            renderer.advance(1500f)
-            layerState = renderer.stateMachines.first().statesChanged.first()
+            val riveFileController = mockView.controller
+            riveFileController.advance(1500f)
+            layerState = riveFileController.stateMachines.first().statesChanged.first()
             assertTrue(layerState.isAnimationState)
             // lets assume our view got gc'd
-            renderer.release()
+            riveFileController.release()
         }
         assertThrows(RiveException::class.java) {
             layerState.isAnimationState
@@ -190,7 +185,7 @@ class RiveMemoryTests {
     }
 
     @Test
-    fun resetDoesNotInvalidatesObjects() {
+    fun resetDoesNotReleaseNatives() {
         val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
 
         UiThreadStatement.runOnUiThread {
@@ -203,17 +198,17 @@ class RiveMemoryTests {
             )
 
             assert(mockView.artboardRenderer != null)
-            val renderer = mockView.artboardRenderer!!
-            renderer.advance(0f)
-            val artboard = renderer.activeArtboard
+            val riveFileController = mockView.controller
+            controller.advance(0f)
+            val artboard = riveFileController.activeArtboard
             val stateMachine = artboard?.stateMachine(0)
             mockView.reset()
 
             assertEquals(artboard?.name, "New Artboard")
             assertEquals(stateMachine?.name, "State Machine 1")
 
-//            but disposing the renderer will still remove artboards after reset
-            renderer.release()
+            // Releasing the controller will give up the file and its resources.
+            riveFileController.release()
             assertThrows(RiveException::class.java) {
                 artboard?.name
             }
@@ -236,15 +231,17 @@ class RiveMemoryTests {
                 autoplay = true
             )
             assert(mockView.artboardRenderer != null)
-            val renderer = mockView.artboardRenderer!!
-            renderer.advance(0f)
+            val riveFileController = mockView.controller
+            riveFileController.advance(0f)
             artboard = mockView.file!!.firstArtboard
             assertEquals(artboard.name, "New Artboard")
             mockView.reset()
-            // reset will not have cleared this artboard, it was never attacked to the view.
+            // reset will not have cleared this artboard, it was never attached to the view.
             assertEquals(artboard.name, "New Artboard")
             // lets assume our view got gc'd
-            renderer.release()
+            mockView.mockDetach()
+            // Let's wait until the background thread cleans everything up.
+            TestUtils.waitUntil(100.milliseconds) { riveFileController.refs == 0 }
         }
         assertThrows(RiveException::class.java) {
             artboard.name

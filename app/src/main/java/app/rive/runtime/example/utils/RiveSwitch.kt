@@ -1,11 +1,6 @@
 package app.rive.runtime.example.utils
 
-import android.content.Context
-import android.util.AttributeSet
-import androidx.appcompat.widget.AppCompatToggleButton
-import app.rive.runtime.kotlin.RiveArtboardRenderer
-import app.rive.runtime.kotlin.core.File
-
+/*
 class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
     AppCompatToggleButton(context, attrs) {
@@ -115,3 +110,4 @@ class RiveSwitch(context: Context, attrs: AttributeSet? = null) :
 
 
 }
+ */

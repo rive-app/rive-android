@@ -311,7 +311,7 @@ class RiveEventTest {
             view.fireState("one", "blend mix")
 
             assertEquals(true, view.isPlaying)
-            assertEquals(observer.states.size, 1)
+            assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }

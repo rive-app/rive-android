@@ -1,7 +1,9 @@
 package app.rive.runtime.kotlin.controllers
 
+import android.util.Log
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.Observable
+import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Direction
@@ -11,6 +13,7 @@ import app.rive.runtime.kotlin.core.LayerState
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
+import app.rive.runtime.kotlin.core.RefCount
 import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
@@ -21,14 +24,46 @@ import java.util.Collections
 typealias OnStartCallback = () -> Unit
 
 class RiveFileController(
-    var fit: Fit,
-    var alignment: Alignment,
-    var loop: Loop,
-    var file: File? = null,
-    var selectedArtboard: Artboard? = null,
-    var activeArtboard: Artboard? = null,
+    var fit: Fit = Fit.CONTAIN,
+    var alignment: Alignment = Alignment.CENTER,
+    var loop: Loop = Loop.AUTO,
+    var autoplay: Boolean = true,
+    file: File? = null,
+    internal var activeArtboard: Artboard? = null,
     var onStart: OnStartCallback? = null,
-) : Observable<RiveFileController.Listener> {
+) : Observable<RiveFileController.Listener>, RefCount {
+
+    companion object {
+        const val TAG = "RiveFileController"
+    }
+
+    /**
+     * How many objects are referencing this Controller.
+     * When [refs] > 0 the object will be kept alive with its references
+     * When [refs] reaches 0 it will [release] the file, if any.
+     */
+    override var refs: Int = 0
+
+    /**
+     * Whether this controller is active or not
+     * If this is false, it will prevent playing/drawing.
+     */
+    var isActive = false
+
+    internal var file: File? = file
+        set(value) {
+            if (value == field) {
+                return
+            }
+            // If we have an old file remove all the old values.
+            field?.let { reset() }
+            field = value
+            // We only need to acquire the reference to the [file] since all the other components
+            // will be fetched from this file (and will, in fact, become a dependency of [file])
+            field?.acquire()
+        }
+
+
     // warning: `toList()` access is not thread-safe, use animations instead
     private var animationList =
         Collections.synchronizedList(mutableListOf<LinearAnimationInstance>())
@@ -75,7 +110,7 @@ class RiveFileController(
             }
         }
 
-    internal val hasPlayingAnimations: Boolean
+    val hasPlayingAnimations: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
 
     /// Note: This is happening in the render thread
@@ -115,6 +150,85 @@ class RiveFileController(
         }
     }
 
+    /**
+     * Assigns the [file] to this Controller and instances the artboard provided via
+     * [artboardName]. If none is provided, it instantiates the first (i.e. default) artboard.
+     * If this controller is set to [autoplay] it will also start playing.
+     */
+    fun setRiveFile(file: File, artboardName: String? = null) {
+        if (file == this.file) {
+            return
+        }
+        this.file = file
+        // Select the first artboard.
+        selectArtboard(artboardName)
+    }
+
+    /**
+     * Instances the artboard with the specified [name]. If none is provided, it instantiates
+     * the first (i.e. default) artboard.
+     * If this controller is set to [autoplay] it will also start playing.
+     */
+    fun selectArtboard(name: String? = null) {
+        // Should this warn/throw when called without a File?
+        file?.let {
+            // TODO: Cache the artboard instances like we do for animations/state machines?
+            val artboard = if (name != null) it.artboard(name) else it.firstArtboard
+            setArtboard(artboard)
+        }
+    }
+
+    fun autoplay() {
+        if (autoplay) {
+            play(settleInitialState = true)
+        } else {
+            activeArtboard?.advance(0f)
+            onStart?.invoke()
+        }
+    }
+
+    private fun setArtboard(ab: Artboard) {
+        activeArtboard = ab
+        autoplay()
+    }
+
+    /**
+     * Use the parameters in [attrs] to initialize [activeArtboard] and any animation/state machine
+     * specified by [attrs] animationName or stateMachine name.
+     *
+     */
+    internal fun setupScene(attrs: RiveAnimationView.RendererAttributes) {
+        val mFile = file
+        if (mFile == null) {
+            Log.w(TAG, "Cannot init without a file")
+            return
+        }
+        // If anything has been previously set up, remove it.
+        reset()
+        autoplay = attrs.autoplay
+        val abName = attrs.artboardName
+
+        val artboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
+        this.activeArtboard = artboard
+
+        if (autoplay) {
+            val animName = attrs.animationName
+            val smName = attrs.stateMachineName
+
+            if (animName != null) {
+                play(animName)
+            } else if (smName != null) {
+                play(smName, settleInitialState = true, isStateMachine = true)
+            } else {
+                play(settleInitialState = true)
+            }
+        } else {
+            activeArtboard?.advance(0f)
+            // Schedule a single frame.
+            onStart?.invoke()
+        }
+    }
+
 
     fun play(
         animationNames: List<String>,
@@ -146,8 +260,7 @@ class RiveFileController(
         activeArtboard?.let { activeArtboard ->
             val animationNames = activeArtboard.animationNames
             if (animationNames.isNotEmpty()) {
-                playAnimation(animationNames.first(), loop, direction)
-                return
+                return playAnimation(animationNames.first(), loop, direction)
             }
             val stateMachineNames = activeArtboard.stateMachineNames
             if (stateMachineNames.isNotEmpty()) {
@@ -320,8 +433,6 @@ class RiveFileController(
         }
 
         playingStateMachineSet.add(stateMachineInstance)
-        // TODO:
-        // start()
         onStart?.invoke()
         notifyPlay(stateMachineInstance)
     }
@@ -348,8 +459,6 @@ class RiveFileController(
             animationInstance.direction = direction
         }
         playingAnimationSet.add(animationInstance)
-        // TODO:
-        // start()
         onStart?.invoke()
         notifyPlay(animationInstance)
     }
@@ -436,7 +545,21 @@ class RiveFileController(
         playingStateMachineSet.clear()
         stateMachineList.clear()
         activeArtboard = null
-        selectedArtboard = null
+    }
+
+    /**
+     * Release a reference associated with this Controller.
+     * If [refs] == 0, then give up all resources and [release] the file
+     */
+    override fun release() {
+        require(refs > 0)
+        super.release()
+
+        if (refs == 0) {
+            val oldFile = file
+            file = null
+            oldFile?.release()
+        }
     }
 
     /* LISTENER INTERFACE */

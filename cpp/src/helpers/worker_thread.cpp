@@ -43,6 +43,7 @@ void ThreadManager::releaseThread(WorkerThread<EGLThreadState>* thread,
     // Thread state needs to release its resources also.
     thread->setIsWorking(false);
     thread->releaseQueue(std::move(onRelease));
-    mThreadPool.push(thread);
 }
+
+void ThreadManager::putBack(WorkerThread<EGLThreadState>* thread) { mThreadPool.push(thread); }
 } // namespace rive_android

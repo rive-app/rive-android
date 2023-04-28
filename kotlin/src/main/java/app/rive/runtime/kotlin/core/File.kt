@@ -31,7 +31,7 @@ class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
     external override fun cppDelete(pointer: Long)
 
     /**
-     * Get the first artboard in the file.
+     * Get the first (i.e. the default) artboard in the file.
      */
     val firstArtboard: Artboard
         @Throws(RiveException::class)

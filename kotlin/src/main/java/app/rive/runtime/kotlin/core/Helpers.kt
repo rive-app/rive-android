@@ -28,9 +28,10 @@ object Helpers {
         )
     }
 
+    @Suppress("DIVISION_BY_ZERO", "unused")
     fun printStackTrace() {
         try {
-            val boom = 1 / 0
+            1 / 0
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -85,8 +85,6 @@ public:
         mIsWorking = isIt;
     }
 
-    void reset() { launchThread(); }
-
     void drainWorkQueue()
     {
         while (!mWorkQueue.empty())
@@ -188,5 +186,6 @@ public:
 
     void releaseThread(WorkerThread<EGLThreadState>* thread,
                        std::function<void()> onRelease = nullptr);
+    void putBack(WorkerThread<EGLThreadState>* thread);
 };
 } // namespace rive_android

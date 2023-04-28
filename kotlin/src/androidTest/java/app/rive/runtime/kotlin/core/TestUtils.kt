@@ -44,7 +44,8 @@ class TestUtils {
     }
 
 
-    class MockArtboardRenderer : RiveArtboardRenderer() {
+    class MockArtboardRenderer(controller: RiveFileController) :
+        RiveArtboardRenderer(controller = controller) {
         /**
          * Instead of scheduling a new frame via the Choreographer (which uses a native C++ thread)
          * force an advance cycle. (We don't need to draw in tests either).
@@ -77,7 +78,7 @@ class TestUtils {
         }
 
         override fun createRenderer(): MockArtboardRenderer {
-            return MockArtboardRenderer()
+            return MockArtboardRenderer(controller)
         }
 
         fun mockAttach() {
@@ -89,7 +90,8 @@ class TestUtils {
         }
     }
 
-    class MockNoopArtboardRenderer : RiveArtboardRenderer() {
+    class MockNoopArtboardRenderer(controller: RiveFileController) :
+        RiveArtboardRenderer(controller = controller) {
         /** NOP */
         override fun scheduleFrame() {}
 
@@ -103,16 +105,24 @@ class TestUtils {
     class MockNoopRiveAnimationView(context: Context) : RiveAnimationView(context) {
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
-            onAttachedToWindow()
+            mockAttach()
         }
 
         override fun createRenderer(): MockNoopArtboardRenderer {
-            return MockNoopArtboardRenderer()
+            return MockNoopArtboardRenderer(controller)
         }
 
 
         fun setBounds(width: Float, height: Float) {
             (renderer as MockNoopArtboardRenderer).targetBounds = RectF(0f, 0f, width, height)
+        }
+
+        private fun mockAttach() {
+            onAttachedToWindow()
+        }
+
+        fun mockDetach() {
+            onDetachedFromWindow()
         }
     }
 

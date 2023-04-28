@@ -25,30 +25,26 @@ open class RiveArtboardRenderer(
     fit: Fit = Fit.CONTAIN,
     alignment: Alignment = Alignment.CENTER,
     loop: Loop = Loop.AUTO,
+    autoplay: Boolean = true,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
     var animationName: String? = null,
     var stateMachineName: String? = null,
-    var autoplay: Boolean = true,
     trace: Boolean = false,
-    // Default state or override.
-    customState: RiveFileController? = null,
+    controller: RiveFileController,
 ) : RendererSkia(trace) {
+    private var controller: RiveFileController = controller.also {
+        it.onStart = ::start
+        it.acquire()
 
-    var controller: RiveFileController =
-        (customState ?: RiveFileController(fit, alignment, loop)).apply {
-            // Register the callback right away.
-            onStart = ::start
+        // Add controller and its file to dependencies.
+        // This guarantees that when the renderer is disposed, it will `.release()` them.
+        dependencies.add(it)
+        it.file?.let { ctrlFile ->
+            ctrlFile.acquire()
+            dependencies.add(ctrlFile)
         }
-        set(value) {
-            if (field == value) {
-                return
-            }
-            field = value
-            value.onStart = ::start
-        }
-
-    private var selectedArtboard: Artboard? = controller.selectedArtboard
+    }
 
     var targetBounds: RectF = RectF()
     var loop: Loop
@@ -66,6 +62,11 @@ open class RiveArtboardRenderer(
     val playingAnimations get() = controller.playingAnimations
     val stateMachines get() = controller.stateMachines
     val playingStateMachines get() = controller.playingStateMachines
+    var autoplay: Boolean
+        get() = controller.autoplay
+        set(value) {
+            controller.autoplay = value
+        }
 
     var fit = controller.fit
         set(value) {
@@ -88,9 +89,11 @@ open class RiveArtboardRenderer(
         if (!hasCppObject) {
             return
         }
-        activeArtboard?.drawSkia(
-            cppPointer, fit, alignment
-        )
+        if (controller.isActive) {
+            activeArtboard?.drawSkia(
+                cppPointer, fit, alignment
+            )
+        }
     }
 
     /// Note: This is happening in the render thread
@@ -100,7 +103,9 @@ open class RiveArtboardRenderer(
         if (!hasCppObject) {
             return
         }
-        controller.advance(elapsed)
+        if (controller.isActive) {
+            controller.advance(elapsed)
+        }
         // Are we done playing?
         if (!controller.hasPlayingAnimations) {
             stopThread()
@@ -295,16 +300,11 @@ open class RiveArtboardRenderer(
     private fun selectArtboard() {
         controller.file?.let { file ->
             artboardName?.let { artboardName ->
-                selectedArtboard = file.artboard(artboardName)
-                selectedArtboard?.let { selectedArtboard ->
-                    setArtboard(selectedArtboard)
-                }
-
+                val selectedArtboard = file.artboard(artboardName)
+                setArtboard(selectedArtboard)
             } ?: run {
-                selectedArtboard = file.firstArtboard
-                selectedArtboard?.let { selectedArtboard ->
-                    setArtboard(selectedArtboard)
-                }
+                val selectedArtboard = file.firstArtboard
+                setArtboard(selectedArtboard)
             }
         }
     }

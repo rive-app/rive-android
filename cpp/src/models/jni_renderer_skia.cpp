@@ -52,6 +52,8 @@ JNIRendererSkia::~JNIRendererSkia()
     {
         ANativeWindow_release(mWindow);
     }
+    // Put the thread back.
+    ThreadManager::getInstance()->putBack(mWorkerThread);
 }
 
 void JNIRendererSkia::setWindow(ANativeWindow* window)

@@ -115,7 +115,7 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
-                android:text="Buttons / Switches"
+                android:text="Button Presses"
                 android:textColor="@color/textColorPrimary" />
 
 

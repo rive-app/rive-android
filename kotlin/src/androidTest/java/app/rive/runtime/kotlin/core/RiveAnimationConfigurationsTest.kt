@@ -12,12 +12,10 @@ import org.junit.runner.RunWith
 class RiveAnimationConfigurationsTest {
     private val testUtils = TestUtils()
     private val appContext = testUtils.context
-    private lateinit var mockRenderer: TestUtils.MockArtboardRenderer
     private lateinit var file: File
 
     @Before
     fun setup() {
-        mockRenderer = TestUtils.MockArtboardRenderer()
         file = File(appContext.resources.openRawResource(R.raw.animationconfigurations).readBytes())
     }
 
