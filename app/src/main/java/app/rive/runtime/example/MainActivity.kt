@@ -4,7 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
+@ControllerStateManagement
 class MainActivity : AppCompatActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_simple, SimpleActivity::class.java),
@@ -21,6 +23,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_blend, BlendActivity::class.java),
         Pair(R.id.go_metrics, MetricsActivity::class.java),
         Pair(R.id.go_assets, AssetsActivity::class.java),
+
         Pair(R.id.go_recycler, RecyclerActivity::class.java),
         Pair(R.id.go_viewpager, ViewPagerActivity::class.java),
         Pair(R.id.go_meshes, MeshesActivity::class.java),
