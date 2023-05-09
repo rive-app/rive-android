@@ -5,10 +5,13 @@ import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
@@ -91,6 +94,26 @@ class RiveViewStateMachineTest {
             // Let the state machine animation run its course.
             mockView.artboardRenderer!!.advance(1.01f)
             assert(!mockView.isPlaying)
+        }
+    }
+
+    @Test
+    fun viewStateMachinePlayBeforeAttach() {
+        UiThreadStatement.runOnUiThread {
+            val mView = mockView as TestUtils.MockRiveAnimationView
+            val controller = mView.controller
+            mView.setRiveResource(R.raw.what_a_state)
+            mView.play("State Machine 2", isStateMachine = true)
+            assertEquals(1, controller.stateMachines.size)
+            // Scroll away: remove the view.
+            mView.mockDetach()
+            assertFalse(controller.isActive)
+            TestUtils.waitUntil(500.milliseconds) { null == controller.file }
+
+            // Scroll back, re-add the view.
+            mView.mockAttach()
+            assertTrue(controller.isActive)
+            assertEquals("State Machine 2", controller.stateMachines.first().name)
         }
     }
 

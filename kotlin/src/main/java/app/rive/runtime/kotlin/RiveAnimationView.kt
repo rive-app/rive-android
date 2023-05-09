@@ -425,7 +425,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         settleInitialState: Boolean = true
     ) {
         rendererAttributes.apply {
-            this.animationName = animationName
+            this.animationName = if (isStateMachine) null else animationName
+            this.stateMachineName = if (isStateMachine) animationName else null
             this.loop = loop
         }
         controller.play(
