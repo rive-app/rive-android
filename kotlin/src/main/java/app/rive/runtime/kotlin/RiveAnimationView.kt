@@ -291,6 +291,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Pauses all playing [animation instance][LinearAnimationInstance].
      */
     fun pause() {
+        artboardRenderer?.stop()
         controller.pause()
         stopFrameMetrics()
     }
@@ -616,6 +617,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.artboardName = rendererAttributes.artboardName
             this.fit = rendererAttributes.fit
             this.alignment = rendererAttributes.alignment
+            controller.file?.let { acquireFile(it) }
         }
     }
 

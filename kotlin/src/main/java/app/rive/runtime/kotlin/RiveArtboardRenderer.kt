@@ -40,10 +40,6 @@ open class RiveArtboardRenderer(
         // Add controller and its file to dependencies.
         // This guarantees that when the renderer is disposed, it will `.release()` them.
         dependencies.add(it)
-        it.file?.let { ctrlFile ->
-            ctrlFile.acquire()
-            dependencies.add(ctrlFile)
-        }
     }
 
     var targetBounds: RectF = RectF()
@@ -110,6 +106,18 @@ open class RiveArtboardRenderer(
         if (!controller.hasPlayingAnimations) {
             stopThread()
         }
+    }
+
+    internal fun acquireFile(file: File) {
+        // Make sure we release the old file first.
+        dependencies.firstOrNull { rc ->
+            rc is File
+        }?.let { rc ->
+            dependencies.remove(rc)
+            rc.release()
+        }
+        file.acquire()
+        dependencies.add(file)
     }
 
 

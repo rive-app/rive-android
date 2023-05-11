@@ -11,7 +11,7 @@ ext {
 }
 buildscript {
     ext {
-        gradle_version = '8.0.0'
+        gradle_version = '8.0.1'
         kotlin_version = "1.8.10"
         dokkaVersion = "1.4.30"
         compose_version = '1.4.1'

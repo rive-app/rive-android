@@ -40,6 +40,7 @@ class ControllerState internal constructor(
 ) {
     fun dispose() {
         file?.release()
+        activeArtboard?.release()
     }
 }
 
@@ -51,7 +52,7 @@ class RiveFileController(
     var loop: Loop = Loop.AUTO,
     var autoplay: Boolean = true,
     file: File? = null,
-    internal var activeArtboard: Artboard? = null,
+    activeArtboard: Artboard? = null,
     var onStart: OnStartCallback? = null,
 ) : Observable<RiveFileController.Listener>, RefCount {
 
@@ -68,7 +69,7 @@ class RiveFileController(
 
     /**
      * Whether this controller is active or not
-     * If this is false, it will prevent playing/drawing.
+     * If this is false, it will prevent advancing or drawing.
      */
     var isActive = false
 
@@ -78,13 +79,25 @@ class RiveFileController(
                 return
             }
             // If we have an old file remove all the old values.
-            field?.let { reset() }
+            field?.let {
+                reset()
+                it.release()
+            }
             field = value
             // We only need to acquire the reference to the [file] since all the other components
             // will be fetched from this file (and will, in fact, become a dependency of [file])
             field?.acquire()
         }
 
+    internal var activeArtboard: Artboard? = activeArtboard
+        set(value) {
+            if (value == field) {
+                return
+            }
+            field?.release()
+            field = value
+            field?.acquire()
+        }
 
     // warning: `toList()` access is not thread-safe, use animations instead
     private var animationList =
@@ -152,8 +165,9 @@ class RiveFileController(
      */
     @ControllerStateManagement
     fun saveControllerState(): ControllerState {
-        // Acquire the file to prevent it from being released.
+        // Acquire the file & artboard to prevent it from being released.
         this.file?.acquire()
+        this.activeArtboard?.acquire()
         return ControllerState(
             file,
             activeArtboard,
@@ -184,6 +198,7 @@ class RiveFileController(
         isActive = state.isActive
         // Release the state we had acquired previously to even things out.
         state.file?.release()
+        state.activeArtboard?.release()
     }
 
     /// Note: This is happening in the render thread
@@ -345,7 +360,6 @@ class RiveFileController(
     }
 
     fun pause() {
-        isActive = false
         // pause will modify playing animations, so we cut a list of it first.
         playingAnimations.forEach { pause(it) }
         playingStateMachines.forEach { pause(it) }
@@ -626,9 +640,7 @@ class RiveFileController(
         super.release()
 
         if (refs == 0) {
-            val oldFile = file
             file = null
-            oldFile?.release()
         }
     }
 

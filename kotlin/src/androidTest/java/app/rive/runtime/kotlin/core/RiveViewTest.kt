@@ -102,11 +102,9 @@ class RiveViewTest {
             assertEquals(1, mockView.animations.size)
             assertEquals(1, mockView.playingAnimations.size)
             mockView.pause()
-            assert(mockView.isPlaying)
-            assert(mockView.artboardRenderer != null)
-            // Pause happens on the next frame.
-            mockView.artboardRenderer!!.scheduleFrame()
-            assert(!mockView.isPlaying)
+            // Paused right away.
+            assertFalse(mockView.isPlaying)
+            assertNotNull(mockView.artboardRenderer)
             assertEquals(1, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
         }
@@ -301,6 +299,35 @@ class RiveViewTest {
             mockView.artboardRenderer!!.advance(1001f)
             assertEquals(Direction.BACKWARDS, mockView.playingAnimations.first().direction)
 
+        }
+    }
+
+
+    @Test
+    fun viewPlayPaused() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            assertFalse(mockView.isPlaying)
+            assertEquals(0, mockView.playingAnimations.size)
+            mockView.play("one")
+            assertTrue(mockView.isPlaying)
+            assertTrue(mockView.artboardRenderer!!.isPlaying)
+            assertEquals(
+                hashSetOf("one"),
+                mockView.playingAnimations.map { it.name }.toHashSet()
+            )
+            // Pause all.
+            mockView.pause()
+            assertFalse(mockView.isPlaying)
+            assertFalse(mockView.artboardRenderer!!.isPlaying)
+            // Restart.
+            mockView.play("one")
+            assertTrue(mockView.isPlaying)
+            assertTrue(mockView.artboardRenderer!!.isPlaying)
+            assertEquals(
+                hashSetOf("one"),
+                mockView.playingAnimations.map { it.name }.toHashSet()
+            )
         }
     }
 
