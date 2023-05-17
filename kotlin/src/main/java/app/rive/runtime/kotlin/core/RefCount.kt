@@ -1,18 +1,21 @@
 package app.rive.runtime.kotlin.core
 
 import androidx.annotation.CallSuper
+import java.util.concurrent.atomic.AtomicInteger
 
 
 interface RefCount {
-    var refs: Int
+    var refs: AtomicInteger
+    val refCount: Int
+        get() = refs.get()
 
     @CallSuper
     fun acquire() {
-        refs++
+        refs.incrementAndGet()
     }
 
     @CallSuper
     fun release() {
-        refs--
+        refs.decrementAndGet()
     }
 }

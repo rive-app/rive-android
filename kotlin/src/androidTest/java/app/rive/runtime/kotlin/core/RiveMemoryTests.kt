@@ -242,7 +242,7 @@ class RiveMemoryTests {
             // lets assume our view got garbage-collected
             mockView.mockDetach()
             // Let's wait until the background thread cleans everything up.
-            waitUntil(500.milliseconds) { riveFileController.refs == 0 }
+            waitUntil(500.milliseconds) { riveFileController.refCount == 0 }
         }
         assertThrows(RiveException::class.java) {
             artboard.name

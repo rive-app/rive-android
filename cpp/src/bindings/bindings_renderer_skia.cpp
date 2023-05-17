@@ -33,11 +33,11 @@ extern "C"
                                                                   jlong rendererRef)
     {
         auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
-        auto thread = renderer->workerThread();
-        ThreadManager::getInstance()->releaseThread(thread, [=]() {
-            // Delete the renderer *only after* thread released resources.
-            delete renderer;
-        });
+        auto worker = renderer->worker();
+        auto tMgr = renderer->threadManager();
+        worker->terminateThread(); // Joins and waits for the thread to terminate.
+        tMgr->putBack(worker);
+        delete renderer;
     }
 
     JNIEXPORT void JNICALL

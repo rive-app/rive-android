@@ -7,7 +7,7 @@
 #include "skia_renderer.hpp"
 
 #include "helpers/tracer.hpp"
-#include "helpers/egl_thread_state.hpp"
+#include "helpers/egl_share_thread_state.hpp"
 #include "helpers/worker_thread.hpp"
 
 namespace rive_android
@@ -27,7 +27,7 @@ public:
 
     void stop();
 
-    WorkerThread<EGLThreadState>* workerThread() const { return mWorkerThread; }
+    WorkerThread<EGLShareThreadState>* worker() const { return mWorker; }
 
     SkCanvas* canvas() const { return mGpuCanvas; }
 
@@ -39,8 +39,12 @@ public:
 
     int height() const { return mWindow ? ANativeWindow_getHeight(mWindow) : -1; }
 
+    std::shared_ptr<ThreadManager> threadManager() const { return mThreadManager; }
+
 private:
-    WorkerThread<EGLThreadState>* mWorkerThread;
+    std::shared_ptr<ThreadManager> mThreadManager;
+
+    WorkerThread<EGLShareThreadState>* mWorker;
 
     jobject mKtRenderer;
 
@@ -64,7 +68,7 @@ private:
 
     void calculateFps();
 
-    void draw(EGLThreadState* threadState);
+    void draw(EGLShareThreadState* threadState);
 };
 } // namespace rive_android
 #endif

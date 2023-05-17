@@ -112,6 +112,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Helper for determining performance metrics.
      */
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
+    private val bounds = RectF()
 
     /**
      * Getter/Setter for the currently loaded artboard Name
@@ -208,15 +209,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     autoplay = rendererAttributes.autoplay,
                 )
 
-                // Initialize resource if we have one.
-                resourceFromValue?.let {
-                    // Immediately set these values on the controller:
-                    // this is either going to be a [ResourceId] or a [ResourceUrl]
-                    loadFileFromResource {
-                        controller.file = it
-                        controller.setupScene(rendererAttributes)
-                    }
-                }
+                /** We can't initialize the File here just yet, because if the View doesn't get
+                 * allocated (i.e. onAttachedToWindow never gets called), the the File won't be
+                 * de-allocated.
+                 */
             } finally {
                 recycle()
             }
@@ -638,7 +634,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        // If the File has been deallocated, load it again. (e.g. this happens in RecyclerViews)
+        // If a File hasn't been set yet, try to initialize it.
         if (controller.file == null) {
             loadFileFromResource {
                 controller.file = it
@@ -712,11 +708,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
+        bounds.set(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat())
         // Lets work out how much space our artboard is going to actually use.
         val usedBounds = Rive.calculateRequiredBounds(
             artboardRenderer!!.fit,
             artboardRenderer!!.alignment,
-            RectF(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat()),
+            bounds,
             artboardRenderer!!.artboardBounds()
         )
 

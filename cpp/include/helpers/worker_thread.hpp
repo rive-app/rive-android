@@ -23,7 +23,7 @@
 #include <thread>
 
 #include "helpers/general.hpp"
-#include "helpers/egl_thread_state.hpp"
+#include "helpers/egl_share_thread_state.hpp"
 #include "thread.hpp"
 
 namespace rive_android
@@ -40,10 +40,10 @@ public:
 
     ~WorkerThread()
     {
-        std::lock_guard<std::mutex> threadLock(mThreadMutex);
-        terminateThread();
-        // Detach thread from the JVM.
-        detachThread();
+        if (mThread.joinable())
+        {
+            terminateThread();
+        }
     }
 
     bool run(Work work)
@@ -55,7 +55,7 @@ public:
         }
         std::lock_guard<std::mutex> workLock(mWorkMutex);
         mWorkQueue.emplace(std::move(work));
-        mWorkCondition.notify_all();
+        mWorkCondition.notify_one();
         return true;
     }
 
@@ -65,7 +65,7 @@ public:
         // Prevent any other work to be added here.
         drainWorkQueue();
         // Force onto work queue, bypassing our runner function.
-        mWorkQueue.emplace(std::move([=](EGLThreadState* threadState) {
+        mWorkQueue.emplace(std::move([=](EGLShareThreadState* threadState) {
             threadState->mIsStarted = false;
             threadState->clearSurface();
             threadState->unsetKtRendererClass();
@@ -74,7 +74,7 @@ public:
                 onRelease();
             }
         }));
-        mWorkCondition.notify_all();
+        mWorkCondition.notify_one();
     }
 
     void setIsWorking(bool isIt)
@@ -93,10 +93,23 @@ public:
         }
     }
 
+    void terminateThread() REQUIRES(mThreadMutex)
+    {
+        {
+            std::lock_guard<std::mutex> workLock(mWorkMutex);
+            drainWorkQueue();
+            mIsActive = false;
+            mWorkCondition.notify_one();
+        }
+        mThread.join();
+    }
+
 private:
+    friend class ThreadManager;
     void launchThread()
     {
         std::lock_guard<std::mutex> threadLock(mThreadMutex);
+        mIsActive = true;
         if (mThread.joinable())
         {
             terminateThread();
@@ -104,21 +117,12 @@ private:
         mThread = std::thread([this]() { threadMain(); });
     }
 
-    void terminateThread() REQUIRES(mThreadMutex)
-    {
-        {
-            std::lock_guard<std::mutex> workLock(mWorkMutex);
-            mIsActive = false;
-            mWorkCondition.notify_all();
-        }
-        mThread.join();
-    }
-
     void threadMain()
     {
         setAffinity(mAffinity);
         pthread_setname_np(pthread_self(), mName.c_str());
 
+        getJNIEnv(); // Attach thread to JVM.
         ThreadState threadState;
 
         std::lock_guard<std::mutex> lock(mWorkMutex);
@@ -138,6 +142,7 @@ private:
                 mWorkMutex.lock();
             }
         }
+        detachThread();
     }
 
     const std::string mName;
@@ -157,35 +162,38 @@ private:
 class ThreadManager
 {
 private:
-    ThreadManager() : mThreadPool{} {};
+    ThreadManager() : mWorkers{} {};
+
+    static std::weak_ptr<ThreadManager> mInstance;
+    static std::mutex mMutex;
+
+    std::stack<WorkerThread<EGLShareThreadState>*> GUARDED_BY(mMutex) mWorkers;
+
+public:
+    // Destructor is public so `shared_ptr` can dellocate.
     ~ThreadManager()
     {
         std::lock_guard<std::mutex> threadLock(mMutex);
         // Clean up all the threads.
-        while (!mThreadPool.empty())
+        while (!mWorkers.empty())
         {
-            auto current = mThreadPool.top();
-            mThreadPool.pop();
+            auto current = mWorkers.top();
+            mWorkers.pop();
             delete current;
         }
     }
-
-    static ThreadManager* mInstance;
-    static std::mutex mMutex;
-
-    std::stack<WorkerThread<EGLThreadState>*> GUARDED_BY(mMutex) mThreadPool;
-
-public:
     // Singleton getter.
-    static ThreadManager* getInstance();
-    // Singleton can't be copied/assigned.
+    static std::shared_ptr<ThreadManager> getInstance();
+    // Singleton can't be copied/assigned/moved.
     ThreadManager(ThreadManager const&) = delete;
-    void operator=(ThreadManager const&) = delete;
+    ThreadManager& operator=(ThreadManager const&) = delete;
+    ThreadManager(ThreadManager&&) = delete;
+    ThreadManager& operator=(ThreadManager&&) = delete;
 
-    WorkerThread<EGLThreadState>* acquireThread(const char*);
+    WorkerThread<EGLShareThreadState>* acquireWorker(const char*);
 
-    void releaseThread(WorkerThread<EGLThreadState>* thread,
+    void releaseThread(WorkerThread<EGLShareThreadState>* thread,
                        std::function<void()> onRelease = nullptr);
-    void putBack(WorkerThread<EGLThreadState>* thread);
+    void putBack(WorkerThread<EGLShareThreadState>* thread);
 };
 } // namespace rive_android

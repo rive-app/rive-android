@@ -155,12 +155,14 @@ extern "C"
         auto cls = env->FindClass("android/graphics/RectF");
         auto constructor = env->GetMethodID(cls, "<init>", "(FFFF)V");
         const auto bounds = ((rive::ArtboardInstance*)ref)->bounds();
-        return env->NewObject(cls,
-                              constructor,
-                              bounds.left(),
-                              bounds.top(),
-                              bounds.right(),
-                              bounds.bottom());
+        auto res = env->NewObject(cls,
+                                  constructor,
+                                  bounds.left(),
+                                  bounds.top(),
+                                  bounds.right(),
+                                  bounds.bottom());
+        env->DeleteLocalRef(cls);
+        return res;
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(JNIEnv* env,

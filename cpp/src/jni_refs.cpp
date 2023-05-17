@@ -98,6 +98,7 @@ rive::AABB rectFToAABB(JNIEnv* env, jobject rectf)
     {
         values[i] = env->GetFloatField(rectf, env->GetFieldID(cls, AABBFieldNames[i], "F"));
     }
+    env->DeleteLocalRef(cls);
     return rive::AABB(values[0], values[1], values[2], values[3]);
 }
 
@@ -109,6 +110,7 @@ void aabbToRectF(JNIEnv* env, const rive::AABB& aabb, jobject rectf)
     {
         env->SetFloatField(rectf, env->GetFieldID(cls, AABBFieldNames[i], "F"), values[i]);
     }
+    env->DeleteLocalRef(cls);
 }
 
 } // namespace rive_android

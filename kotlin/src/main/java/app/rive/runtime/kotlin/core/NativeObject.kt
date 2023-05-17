@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.RiveException
+import java.util.concurrent.atomic.AtomicInteger
 
 
 /**
@@ -21,11 +22,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      */
     val hasCppObject get() = unsafeCppPointer != NULL_POINTER
 
-    override var refs: Int = 1
-    /**
-     * The number of external references for this NativeObject.
-     */
-    val refCount get() = refs
+    override var refs = AtomicInteger(1)
     /**
      * Getter/Setter for the underlying C++ pointer value.
      *
@@ -59,7 +56,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      * @throws IllegalArgumentException if refs already is 0.
      */
     override fun acquire() {
-        require(refs > 0)
+        require(refs.get() > 0)
         super.acquire()
     }
 
@@ -69,10 +66,10 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      * @throws IllegalArgumentException if refs already is 0.
      */
     override fun release() {
-        require(refs > 0)
+        require(refs.get() > 0)
         super.release()
 
-        if (refs == 0 && hasCppObject) {
+        if (refs.get() == 0 && hasCppObject) {
             dispose()
         }
     }
@@ -84,7 +81,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      * If refs reaches 0 the object can be disposed.
      */
     private fun dispose() {
-        require(refs == 0)
+        require(refs.get() == 0)
 
         dependencies.apply {
             // Release all dependencies and clear the collection.

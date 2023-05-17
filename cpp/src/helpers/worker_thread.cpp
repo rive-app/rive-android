@@ -3,47 +3,60 @@
 namespace rive_android
 {
 // Instantiate static objects.
-ThreadManager* ThreadManager::mInstance{nullptr};
+std::weak_ptr<ThreadManager> ThreadManager::mInstance;
 std::mutex ThreadManager::mMutex;
 
-ThreadManager* ThreadManager::getInstance()
+std::shared_ptr<ThreadManager> ThreadManager::getInstance()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    if (mInstance == nullptr)
+    std::shared_ptr<ThreadManager> sharedInstance = mInstance.lock();
+    if (!sharedInstance)
     {
-        mInstance = new ThreadManager();
-    }
-    return mInstance;
-}
-
-WorkerThread<EGLThreadState>* ThreadManager::acquireThread(const char* name)
-{
-    std::lock_guard<std::mutex> threadLock(mMutex);
-
-    WorkerThread<EGLThreadState>* thread = nullptr;
-    if (mThreadPool.empty())
-    {
-        thread = new WorkerThread<EGLThreadState>(name, Affinity::Odd);
+        LOGD("📦 CREATING INSTANCE!!");
+        sharedInstance.reset(new ThreadManager, [](ThreadManager* p) { delete p; });
+        mInstance = sharedInstance;
     }
     else
     {
-        thread = mThreadPool.top();
-        mThreadPool.pop();
+        LOGD("🫱 FETCHED INSTANCE?! %ld", mInstance.use_count());
     }
 
-    thread->setIsWorking(true);
-
-    return thread;
+    return sharedInstance;
 }
 
-void ThreadManager::releaseThread(WorkerThread<EGLThreadState>* thread,
+WorkerThread<EGLShareThreadState>* ThreadManager::acquireWorker(const char* name)
+{
+    std::lock_guard<std::mutex> threadLock(mMutex);
+
+    WorkerThread<EGLShareThreadState>* worker = nullptr;
+    if (mWorkers.empty())
+    {
+        worker = new WorkerThread<EGLShareThreadState>(name, Affinity::Odd);
+    }
+    else
+    {
+        worker = mWorkers.top();
+        mWorkers.pop();
+        worker->launchThread();
+    }
+
+    worker->setIsWorking(true);
+
+    return worker;
+}
+
+void ThreadManager::releaseThread(WorkerThread<EGLShareThreadState>* worker,
                                   std::function<void()> onRelease)
 {
     std::lock_guard<std::mutex> threadLock(mMutex);
     // Thread state needs to release its resources also.
-    thread->setIsWorking(false);
-    thread->releaseQueue(std::move(onRelease));
+    worker->setIsWorking(false);
+    worker->releaseQueue(std::move(onRelease));
 }
 
-void ThreadManager::putBack(WorkerThread<EGLThreadState>* thread) { mThreadPool.push(thread); }
+void ThreadManager::putBack(WorkerThread<EGLShareThreadState>* worker)
+{
+    std::lock_guard<std::mutex> threadLock(mMutex);
+    mWorkers.push(worker);
+}
 } // namespace rive_android

@@ -19,6 +19,7 @@ import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 
 @RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
 @Retention(AnnotationRetention.BINARY)
@@ -65,7 +66,7 @@ class RiveFileController(
      * When [refs] > 0 the object will be kept alive with its references
      * When [refs] reaches 0 it will [release] the file, if any.
      */
-    override var refs: Int = 0
+    override var refs = AtomicInteger(0)
 
     /**
      * Whether this controller is active or not
@@ -636,10 +637,10 @@ class RiveFileController(
      * If [refs] == 0, then give up all resources and [release] the file
      */
     override fun release() {
-        require(refs > 0)
+        require(refs.get() > 0)
         super.release()
 
-        if (refs == 0) {
+        if (refs.get() == 0) {
             file = null
         }
     }

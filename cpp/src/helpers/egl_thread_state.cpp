@@ -91,7 +91,7 @@ void EGLThreadState::flush() const
         LOGE("Cannot flush() without a context.");
         return;
     }
-    mSkContext->flush();
+    mSkSurface->flushAndSubmit();
 }
 
 void EGLThreadState::clearSurface()
@@ -230,7 +230,7 @@ bool EGLThreadState::setWindow(ANativeWindow* window)
 
     if (!createSkiaContext())
     {
-        LOGE("Unable to eglMakeCurrent");
+        LOGE("Unable to create Skia context.");
         mSurface = EGL_NO_SURFACE;
         return false;
     }

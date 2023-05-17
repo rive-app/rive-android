@@ -20,7 +20,8 @@ using namespace std::chrono_literals;
 namespace rive_android
 {
 JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
-    mWorkerThread(ThreadManager::getInstance()->acquireThread("EGLRenderer")),
+    mThreadManager(ThreadManager::getInstance()),
+    mWorker(mThreadManager->acquireWorker("EGLRenderer")),
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
@@ -52,13 +53,11 @@ JNIRendererSkia::~JNIRendererSkia()
     {
         ANativeWindow_release(mWindow);
     }
-    // Put the thread back.
-    ThreadManager::getInstance()->putBack(mWorkerThread);
 }
 
 void JNIRendererSkia::setWindow(ANativeWindow* window)
 {
-    mWorkerThread->run([=](EGLThreadState* threadState) {
+    mWorker->run([=](EGLShareThreadState* threadState) {
         if (!threadState->setWindow(window))
         {
             return;
@@ -80,13 +79,14 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
         return;
     }
     mIsDoingFrame = true;
-    bool hasQueued = mWorkerThread->run([=](EGLThreadState* threadState) {
+    bool hasQueued = mWorker->run([=](EGLShareThreadState* threadState) {
         float elapsedMs = threadState->getElapsedMs(frameTimeNs);
         threadState->mLastUpdate = frameTimeNs;
 
         auto env = getJNIEnv();
         env->CallVoidMethod(mKtRenderer, threadState->mKtAdvanceCallback, elapsedMs);
-        draw(threadState);
+        calculateFps();
+        threadState->doDraw(mTracer, mGpuCanvas, mKtRenderer);
         mIsDoingFrame = false;
     });
     if (!hasQueued)
@@ -97,7 +97,7 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
 
 void JNIRendererSkia::start(long timeNs)
 {
-    mWorkerThread->run([=](EGLThreadState* threadState) {
+    mWorker->run([=](EGLShareThreadState* threadState) {
         threadState->mIsStarted = true;
 
         jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
@@ -110,9 +110,10 @@ void JNIRendererSkia::start(long timeNs)
 
 void JNIRendererSkia::stop()
 {
+    // TODO: There is something wrong here when onVisibilityChanged() is called.
     // Stop immediately
-    mWorkerThread->drainWorkQueue();
-    mWorkerThread->run([=](EGLThreadState* threadState) { threadState->mIsStarted = false; });
+    mWorker->drainWorkQueue();
+    mWorker->run([=](EGLShareThreadState* threadState) { threadState->mIsStarted = false; });
 }
 
 ITracer* JNIRendererSkia::getTracer(bool trace) const
@@ -157,8 +158,8 @@ void JNIRendererSkia::calculateFps()
     mLastFrameTime = now;
     mTracer->endSection();
 }
-
-void JNIRendererSkia::draw(EGLThreadState* threadState)
+/*
+void JNIRendererSkia::draw(EGLShareThreadState* threadState)
 {
 
     // Don't render if we have no surface
@@ -188,5 +189,5 @@ void JNIRendererSkia::draw(EGLThreadState* threadState)
 
     mTracer->endSection(); // draw()
 }
-
+*/
 } // namespace rive_android

@@ -120,7 +120,7 @@ static AndroidSkiaFactory gFactory;
 namespace rive_android
 {
 JavaVM* globalJavaVM;
-jobject androidCanvas;
+// jobject androidCanvas;
 int sdkVersion;
 
 JNIEnv* getJNIEnv()
@@ -172,7 +172,6 @@ rive::Fit getFit(JNIEnv* env, jobject jfit)
 {
     jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::getFitNameMethodId());
     const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
-    env->DeleteLocalRef(fitValue);
 
     rive::Fit fit = rive::Fit::none;
     if (strcmp(fitValueNative, "FILL") == 0)
@@ -203,6 +202,8 @@ rive::Fit getFit(JNIEnv* env, jobject jfit)
     {
         fit = rive::Fit::scaleDown;
     }
+    env->ReleaseStringUTFChars(fitValue, fitValueNative);
+    env->DeleteLocalRef(fitValue);
     return fit;
 }
 
@@ -211,7 +212,6 @@ rive::Alignment getAlignment(JNIEnv* env, jobject jalignment)
     jstring alignmentValue =
         (jstring)env->CallObjectMethod(jalignment, rive_android::getAlignmentNameMethodId());
     const char* alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
-    env->DeleteLocalRef(alignmentValue);
 
     rive::Alignment alignment = rive::Alignment::center;
     if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
@@ -250,6 +250,8 @@ rive::Alignment getAlignment(JNIEnv* env, jobject jalignment)
     {
         alignment = rive::Alignment::bottomRight;
     }
+    env->ReleaseStringUTFChars(alignmentValue, alignmentValueNative);
+    env->DeleteLocalRef(alignmentValue);
     return alignment;
 }
 
@@ -280,6 +282,7 @@ std::string jstring2string(JNIEnv* env, jstring jStr)
 {
     const char* cstr = env->GetStringUTFChars(jStr, NULL);
     std::string str = std::string(cstr);
+    env->ReleaseStringUTFChars(jStr, cstr);
     return str;
 }
 #if defined(DEBUG) || defined(LOG)
