@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.*
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
+import androidx.lifecycle.LifecycleOwner
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
@@ -45,7 +46,7 @@ import kotlin.math.min
  * directly for the most flexibility.
  *
  *
- * Xml [attrs] can be used to set initial values for many
+ * Xml attrs [AttributeSet] can be used to set initial values for many
  * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource], [setRiveBytes], or [setRiveFile].
  * - Alternatively, provide the [url][R.styleable.RiveAnimationView_riveUrl] to load as a rive file over HTTP.
  * - Determine the [artboard][R.styleable.RiveAnimationView_riveArtboard] to use, this defaults to the first artboard in the file.
@@ -57,7 +58,6 @@ import kotlin.math.min
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
     Observable<RiveFileController.Listener> {
-
     companion object {
         // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
@@ -209,10 +209,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     autoplay = rendererAttributes.autoplay,
                 )
 
-                /** We can't initialize the File here just yet, because if the View doesn't get
-                 * allocated (i.e. onAttachedToWindow never gets called), the the File won't be
-                 * de-allocated.
-                 */
+                // Initialize resource if we have one.
+                resourceFromValue?.let {
+                    // Immediately set these values on the controller:
+                    // this is either going to be a [ResourceId] or a [ResourceUrl]
+                    loadFileFromResource {
+                        controller.file = it
+                        controller.setupScene(rendererAttributes)
+                    }
+                }
             } finally {
                 recycle()
             }
@@ -293,11 +298,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Pauses any [animation instances][LinearAnimationInstance] for [animations][Animation] with
-     * any of the provided [names][animationNames].
+     * Pauses any [animation instances][LinearAnimationInstance] with any of the provided
+     * [names][animationNames].
      *
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animation][Animation]
+     * [animationNames]
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
         controller.pause(animationNames, areStateMachines)
@@ -305,11 +310,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
 
     /**
-     * Pauses any [animation instances][LinearAnimationInstance] for an [animation][Animation]
-     * called [animationName].
+     * Pauses any [animation instances][LinearAnimationInstance] called [animationName].
      *
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animation][Animation]
+     * [animationName] Animation
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
         controller.pause(animationName, isStateMachine)
@@ -320,7 +324,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      *
      * Animations Instances will be disposed of completely.
      * Subsequent plays will create new [animation instances][LinearAnimationInstance]
-     * for the [animations][Animation] in the file.
+     * for the animation in the file.
      */
     fun stop() {
         controller.stopAnimations()
@@ -328,37 +332,33 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Stops any [animation instances][LinearAnimationInstance] for [animations][Animation] with
-     * any of the provided [names][animationNames].
+     * Stops any [animation instances][LinearAnimationInstance] with any of the provided
+     * [names][animationNames].
      *
      * Animations Instances will be disposed of completely.
      * Subsequent plays will create new [animation instances][LinearAnimationInstance]
-     * for the [animations][Animation] in the file.
+     * for the animations in the file.
      *
-     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animation][Animation]
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
         controller.stopAnimations(animationNames, areStateMachines)
     }
 
     /**
-     * Stops any [animation instances][LinearAnimationInstance] for an [animation][Animation]
-     * called [animationName].
+     * Stops any [animation instances][LinearAnimationInstance] called [animationName].
      *
      * Animations Instances will be disposed of completely.
      * Subsequent plays will create new [animation instances][LinearAnimationInstance]
-     * for the [animations][Animation] in the file.
      *
-     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animation][Animation]
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation.
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
         controller.stopAnimations(animationName, isStateMachine)
     }
 
     /**
-     * Plays the first [animations][Animation] found for a [File].
+     * Plays the first animations found for a [File].
      *
      * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
      * Already playing animation instances will be updated to this loop mode if provided.
@@ -370,7 +370,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @experimental Optionally provide a [settleInitialState][Boolean] to inform the state machine to settle its
      * state on initialization by determining its starting state based of the initial input values.
      *
-     * For [animations][Animation] without an [animation instance][LinearAnimationInstance] one will be created and played.
+     * For any animation without an [animation instance][LinearAnimationInstance] one will be created and played.
      */
     fun play(
         loop: Loop = Loop.AUTO,
@@ -384,8 +384,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Plays any [animation instances][LinearAnimationInstance] for [animations][Animation] with
-     * any of the provided [names][animationNames].
+     * Plays any [animation instances][LinearAnimationInstance] with any of the
+     * provided [names][animationNames].
      *
      * see [play] for more details on options
      */
@@ -409,8 +409,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Plays any [animation instances][LinearAnimationInstance] for an [animation][Animation]
-     * called [animationName].
+     * Plays any [animation instances][LinearAnimationInstance] called [animationName].
      *
      * see [play] for more details on options
      */
@@ -617,13 +616,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    override fun onDetachedFromWindow() {
-        // Suspend the controller so we can resume playing on reattach.
-        controller.isActive = false
-        stopFrameMetrics()
-        super.onDetachedFromWindow()
-    }
 
+    /**
+     * Called from TextureView.onAttachedToWindow() - override for implementing a custom renderer.
+     */
     override fun createRenderer(): RendererSkia {
         // Make the Renderer again every time this is visible and reset its state.
         return RiveArtboardRenderer(
@@ -649,6 +645,18 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.isActive = true
         // We are attached, start the renderer just to see if we want to play
         renderer!!.start()
+    }
+
+    override fun onDestroy(owner: LifecycleOwner) {
+        super.onDestroy(owner)
+        controller.release()
+    }
+
+    override fun onDetachedFromWindow() {
+        // Deactivate the controller before onDetachedFromWindow().
+        controller.isActive = false
+        stopFrameMetrics()
+        super.onDetachedFromWindow()
     }
 
     @ControllerStateManagement

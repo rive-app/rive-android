@@ -6,7 +6,11 @@ import android.os.Bundle
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveTextureView
-import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.core.Fit
+import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 

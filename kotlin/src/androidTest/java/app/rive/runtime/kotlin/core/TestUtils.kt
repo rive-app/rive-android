@@ -85,8 +85,15 @@ class TestUtils {
             onAttachedToWindow()
         }
 
-        fun mockDetach() {
+        fun mockDetach(destroy: Boolean = true) {
             onDetachedFromWindow()
+            if (destroy) {
+                mockOnDestroy()
+            }
+        }
+
+        private fun mockOnDestroy() {
+            controller.release()
         }
     }
 
@@ -123,6 +130,8 @@ class TestUtils {
 
         fun mockDetach() {
             onDetachedFromWindow()
+            // Mimics onDestroy() but these tests don't have lifecycle observers.
+            controller.release()
         }
     }
 

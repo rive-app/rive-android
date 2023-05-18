@@ -66,7 +66,7 @@ class RiveFileController(
      * When [refs] > 0 the object will be kept alive with its references
      * When [refs] reaches 0 it will [release] the file, if any.
      */
-    override var refs = AtomicInteger(0)
+    override var refs = AtomicInteger(1)
 
     /**
      * Whether this controller is active or not

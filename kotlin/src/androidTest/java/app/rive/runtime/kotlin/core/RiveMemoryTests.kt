@@ -231,7 +231,7 @@ class RiveMemoryTests {
                 stateMachineName = "State Machine 1",
                 autoplay = true
             )
-            assert(mockView.artboardRenderer != null)
+            assertNotNull(mockView.artboardRenderer)
             val riveFileController = mockView.controller
             riveFileController.advance(0f)
             artboard = mockView.file!!.firstArtboard

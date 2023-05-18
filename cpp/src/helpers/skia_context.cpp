@@ -98,9 +98,13 @@ SkiaContextManager::SkiaContextManager()
 
 SkiaContextManager::~SkiaContextManager()
 {
-    // Release Skia Context.
-    mSkContext->abandonContext();
-    mSkContext.reset(nullptr);
+    // Release Skia Context if has been init'd.
+    if (mSkContext.get())
+    {
+        mSkContext->abandonContext();
+        mSkContext.reset(nullptr);
+    }
+
     if (mContext != EGL_NO_CONTEXT)
     {
         eglDestroyContext(mDisplay, mContext);

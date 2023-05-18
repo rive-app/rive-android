@@ -252,10 +252,10 @@ class RiveViewLifecycleTest {
             assertNull(mockView.rendererAttributes.resource)
 
             // Let's 'close' this view - detached
-            (mockView as TestUtils.MockRiveAnimationView).mockDetach()
+            (mockView as TestUtils.MockRiveAnimationView).mockDetach(false)
             assertFalse(mockView.controller.isActive)
             // Background thread completes async - wait
-            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 1 }
+            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 2 }
 
             assertEquals(1, savedState.playingAnimations.size)
 

@@ -10,17 +10,24 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
-    TextureView.SurfaceTextureListener {
+    TextureView.SurfaceTextureListener,
+    DefaultLifecycleObserver {
 
     companion object {
         const val TAG = "RiveTextureView"
     }
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
+    init {
+        // Attach the observer to give us lifecycle hooks.
+        (context as? LifecycleOwner)?.lifecycle?.addObserver(this)
+    }
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -97,5 +104,25 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         viewSurface.release()
         return false
+    }
+
+    override fun onCreate(owner: LifecycleOwner) {}
+
+    override fun onStart(owner: LifecycleOwner) {}
+
+    override fun onResume(owner: LifecycleOwner) {}
+
+    override fun onPause(owner: LifecycleOwner) {}
+
+    override fun onStop(owner: LifecycleOwner) {}
+
+    /**
+     * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
+     * is called.
+     * This typically happens when the Activity or Fragment is in the process of being permanently
+     * destroyed.
+     */
+    override fun onDestroy(owner: LifecycleOwner) {
+        owner.lifecycle.removeObserver(this)
     }
 }
