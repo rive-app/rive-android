@@ -10,33 +10,30 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
-import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewTreeLifecycleOwner
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
-    TextureView.SurfaceTextureListener,
-    DefaultLifecycleObserver {
+    TextureView.SurfaceTextureListener {
 
     companion object {
         const val TAG = "RiveTextureView"
     }
     // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
-    init {
-        // Attach the observer to give us lifecycle hooks.
-        (context as? LifecycleOwner)?.lifecycle?.addObserver(this)
-    }
-
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
-        this.getMaybeActivity()!!
+        getContextAsType<Activity>()!!
     }
 
+    private val lifecycleObserver: LifecycleObserver by lazy { createObserver() }
     protected var renderer: RendererSkia? = null
     private lateinit var viewSurface: Surface
     protected abstract fun createRenderer(): RendererSkia
+    protected abstract fun createObserver(): LifecycleObserver
 
     private val refreshPeriodNanos: Long by lazy {
         val msInNS: Long = 1000000
@@ -48,10 +45,15 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         (sInNS / refreshRateHz).toLong()
     }
 
-    private fun getMaybeActivity(): Activity? {
+    init {
+        // Attach the observer to give us lifecycle hooks.
+        getContextAsType<LifecycleOwner>()?.lifecycle?.addObserver(lifecycleObserver)
+    }
+
+    private inline fun<reified T> getContextAsType(): T? {
         var ctx = context
         while (ctx is ContextWrapper) {
-            if (ctx is Activity) {
+            if (ctx is T) {
                 return ctx
             }
             ctx = ctx.baseContext
@@ -104,25 +106,5 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         viewSurface.release()
         return false
-    }
-
-    override fun onCreate(owner: LifecycleOwner) {}
-
-    override fun onStart(owner: LifecycleOwner) {}
-
-    override fun onResume(owner: LifecycleOwner) {}
-
-    override fun onPause(owner: LifecycleOwner) {}
-
-    override fun onStop(owner: LifecycleOwner) {}
-
-    /**
-     * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
-     * is called.
-     * This typically happens when the Activity or Fragment is in the process of being permanently
-     * destroyed.
-     */
-    override fun onDestroy(owner: LifecycleOwner) {
-        owner.lifecycle.removeObserver(this)
     }
 }

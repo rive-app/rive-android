@@ -2,13 +2,11 @@ package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
-import app.rive.runtime.kotlin.core.TestUtils.Companion.waitUntil
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
@@ -177,7 +175,7 @@ class RiveMemoryTests {
             assertTrue(layerState.isAnimationState)
             // lets assume our view got garbage-collected
             mockView.mockDetach()
-            waitUntil(500.milliseconds) { mockView.artboardRenderer == null }
+            assertNull(mockView.artboardRenderer)
         }
         assertThrows(RiveException::class.java) {
             layerState.isAnimationState
@@ -209,7 +207,7 @@ class RiveMemoryTests {
 
             // Give up the file and its resources.
             mockView.mockDetach()
-            waitUntil(500.milliseconds) { mockView.artboardRenderer == null }
+            assertNull(mockView.artboardRenderer)
             assertThrows(RiveException::class.java) {
                 artboard?.name
             }
@@ -242,7 +240,7 @@ class RiveMemoryTests {
             // lets assume our view got garbage-collected
             mockView.mockDetach()
             // Let's wait until the background thread cleans everything up.
-            waitUntil(500.milliseconds) { riveFileController.refCount == 0 }
+            assertEquals(0, riveFileController.refCount)
         }
         assertThrows(RiveException::class.java) {
             artboard.name
@@ -285,7 +283,7 @@ class RiveMemoryTests {
 
             mockView.mockDetach()
             // Check artboard has been disposed.
-            waitUntil(500.milliseconds) { artboard.refCount == 0 }
+            assertEquals(0, artboard.refCount)
         }
     }
 }

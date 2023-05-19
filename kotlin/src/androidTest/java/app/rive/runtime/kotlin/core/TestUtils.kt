@@ -23,6 +23,7 @@ class TestUtils {
     }
 
     companion object {
+        @Suppress("unused")
         fun waitUntil(
             atMost: Duration,
             condition: () -> Boolean
@@ -39,7 +40,6 @@ class TestUtils {
                     throw TimeoutException("Took too long.")
                 }
             } while (!condition())
-
         }
     }
 
@@ -92,7 +92,7 @@ class TestUtils {
             }
         }
 
-        private fun mockOnDestroy() {
+        fun mockOnDestroy() {
             controller.release()
         }
     }

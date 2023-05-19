@@ -5,6 +5,8 @@ import android.graphics.RectF
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleObserver
 import app.rive.runtime.kotlin.RiveTextureView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
@@ -35,6 +37,7 @@ class LowLevelActivity : AppCompatActivity() {
 
 class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     private lateinit var file: File
+
     // Objects that the renderer needs for drawing
     private lateinit var artboard: Artboard
     private lateinit var animationInstance: LinearAnimationInstance
@@ -49,6 +52,18 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
         // This will be deleted with its dependents.
         skRenderer.dependencies.add(file)
+    }
+
+    override fun createObserver(): LifecycleObserver {
+        return object : DefaultLifecycleObserver {
+            /* Optionally override lifecycle methods. */
+            // override fun onCreate(owner: LifecycleOwner) {
+            //     super.onCreate(owner)
+            // }
+            // override fun onDestroy(owner: LifecycleOwner) {
+            //     super.onDestroy(owner)
+            // }
+        }
     }
 
     override fun createRenderer(): RendererSkia {

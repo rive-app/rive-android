@@ -74,7 +74,7 @@ class RiveFileController(
      */
     var isActive = false
 
-    internal var file: File? = file
+    var file: File? = file
         set(value) {
             if (value == field) {
                 return
@@ -90,7 +90,7 @@ class RiveFileController(
             field?.acquire()
         }
 
-    internal var activeArtboard: Artboard? = activeArtboard
+    var activeArtboard: Artboard? = activeArtboard
         set(value) {
             if (value == field) {
                 return

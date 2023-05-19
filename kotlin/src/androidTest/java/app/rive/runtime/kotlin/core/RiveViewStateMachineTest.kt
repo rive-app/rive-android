@@ -6,6 +6,7 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Ignore
@@ -104,7 +105,7 @@ class RiveViewStateMachineTest {
             // Scroll away: remove the view.
             mView.mockDetach()
             assertFalse(controller.isActive)
-            TestUtils.waitUntil(500.milliseconds) { null == controller.file }
+            assertNull(controller.file)
 
             // Scroll back, re-add the view.
             mView.mockAttach()

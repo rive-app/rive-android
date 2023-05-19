@@ -10,8 +10,11 @@ import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
 import android.view.*
+import androidx.annotation.CallSuper
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
@@ -628,6 +631,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         )
     }
 
+    override fun createObserver(): LifecycleObserver {
+        return RiveViewLifecycleObserver()
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         // If a File hasn't been set yet, try to initialize it.
@@ -645,11 +652,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.isActive = true
         // We are attached, start the renderer just to see if we want to play
         renderer!!.start()
-    }
-
-    override fun onDestroy(owner: LifecycleOwner) {
-        super.onDestroy(owner)
-        controller.release()
     }
 
     override fun onDetachedFromWindow() {
@@ -785,6 +787,32 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             }
         }
         return true
+    }
+
+
+    inner class RiveViewLifecycleObserver : DefaultLifecycleObserver {
+
+        override fun onCreate(owner: LifecycleOwner) {}
+
+        override fun onStart(owner: LifecycleOwner) {}
+
+        override fun onResume(owner: LifecycleOwner) {}
+
+        override fun onPause(owner: LifecycleOwner) {}
+
+        override fun onStop(owner: LifecycleOwner) {}
+
+        /**
+         * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
+         * is called.
+         * This typically happens when the Activity or Fragment is in the process of being permanently
+         * destroyed.
+         */
+        @CallSuper
+        override fun onDestroy(owner: LifecycleOwner) {
+            owner.lifecycle.removeObserver(this)
+            controller.release()
+        }
     }
 }
 

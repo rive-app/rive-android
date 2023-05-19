@@ -58,6 +58,8 @@
         <activity android:name=".MeshesActivity" />
         <activity android:name=".ViewStubActivity" />
         <activity android:name=".ViewPagerActivity" />
+        <!-- For testing -->
+        <activity android:name=".SingleActivity" />
     </application>
 
 </manifest>

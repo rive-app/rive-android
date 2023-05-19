@@ -202,8 +202,7 @@ class RiveViewLifecycleTest {
             (mockView as TestUtils.MockRiveAnimationView).mockAttach()
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-            // Background thread completes async - wait
-            TestUtils.waitUntil(500.milliseconds) { file.refCount == 1 }
+            assertEquals(1, file.refCount)
             assertNull(mockView.artboardRenderer)
 
             // Clean up the rest.
@@ -227,8 +226,7 @@ class RiveViewLifecycleTest {
 
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-            // Background thread completes async - wait
-            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 1 }
+            assertEquals(1, file?.refCount)
             assertNull(mockView.artboardRenderer)
 
             savedState.dispose()
@@ -254,8 +252,7 @@ class RiveViewLifecycleTest {
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach(false)
             assertFalse(mockView.controller.isActive)
-            // Background thread completes async - wait
-            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 2 }
+            assertEquals(2, file?.refCount)
 
             assertEquals(1, savedState.playingAnimations.size)
 
@@ -269,9 +266,21 @@ class RiveViewLifecycleTest {
 
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-            // Background thread completes async and cleans everything up.
-            TestUtils.waitUntil(500.milliseconds) { file?.refCount == 0 }
+            assertEquals(0, file?.refCount)
             // No need to call `savedState.dispose()` because the state has already been restored.
+        }
+    }
+
+    @Test
+    fun viewNeverAttaches() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.off_road_car_blog)
+            assertNotNull(mockView.controller.file)
+            // View is never attached
+            assertEquals(1, mockView.controller.refCount)
+            // View gets destroyed with its wrapping activity.
+            (mockView as TestUtils.MockRiveAnimationView).mockOnDestroy()
+            assertEquals(0, mockView.controller.refCount)
         }
     }
 }
