@@ -5,7 +5,6 @@
 #include "helpers/general.hpp"
 #include "helpers/worker_thread.hpp"
 
-#include "bindings/bindings_renderer_skia.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/layout.hpp"
 #include "rive/artboard.hpp"
@@ -75,9 +74,9 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppClearSurface(JNIEnv*,
-                                                                        jobject,
-                                                                        jlong rendererRef)
+    Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppDestroySurface(JNIEnv*,
+                                                                          jobject,
+                                                                          jlong rendererRef)
     {
         reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(nullptr);
     }

@@ -23,15 +23,15 @@ public:
     SkiaContextManager(SkiaContextManager&&) = delete;
     SkiaContextManager& operator=(SkiaContextManager&&) = delete;
 
-    std::mutex eglCtxMutex;
+    std::mutex mEglCtxMutex;
 
     EGLContext getContext() const { return mContext; }
     EGLDisplay getDisplay() const { return mDisplay; }
-    sk_sp<SkSurface> createSkiaSurface(int32_t width, int32_t height) REQUIRES(eglCtxMutex);
+    sk_sp<SkSurface> createSkiaSurface(int32_t width, int32_t height) REQUIRES(mEglCtxMutex);
     GrDirectContext* getSkiaContext();
-    EGLSurface getWindowSurface(ANativeWindow* window);
+    EGLSurface createWindowSurface(ANativeWindow* window);
 
-    EGLBoolean makeCurrent(EGLSurface surface = EGL_NO_SURFACE) REQUIRES(eglCtxMutex);
+    EGLBoolean makeCurrent(EGLSurface surface = EGL_NO_SURFACE) REQUIRES(mEglCtxMutex);
 
 private:
     static std::weak_ptr<SkiaContextManager> mInstance;
@@ -45,10 +45,7 @@ private:
     SkiaContextManager();
     ~SkiaContextManager();
 
-    static void* getProcAddress(const char*);
     void makeSkiaContext();
-
-    bool configHasAttribute(EGLConfig config, EGLint attribute, EGLint value) const;
 };
 
 } // namespace rive_android

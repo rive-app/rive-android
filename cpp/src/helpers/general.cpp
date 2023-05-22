@@ -120,7 +120,6 @@ static AndroidSkiaFactory gFactory;
 namespace rive_android
 {
 JavaVM* globalJavaVM;
-// jobject androidCanvas;
 int sdkVersion;
 
 JNIEnv* getJNIEnv()

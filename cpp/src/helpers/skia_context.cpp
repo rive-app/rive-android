@@ -6,6 +6,15 @@
 
 namespace rive_android
 {
+
+static bool configHasAttribute(EGLDisplay display, EGLConfig config, EGLint attribute, EGLint value)
+{
+    EGLint outValue = 0;
+    EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
+    EGL_ERR_CHECK();
+    return result && (outValue == value);
+}
+
 // Instantiate static objects.
 std::weak_ptr<SkiaContextManager> SkiaContextManager::mInstance;
 std::mutex SkiaContextManager::mMutex;
@@ -16,13 +25,13 @@ std::shared_ptr<SkiaContextManager> SkiaContextManager::getInstance()
     std::shared_ptr<SkiaContextManager> sharedInstance = mInstance.lock();
     if (!sharedInstance)
     {
-        LOGI("📦 CREATING INSTANCE!!");
+        LOGI("📦 Creating SkiaContextManager");
         sharedInstance.reset(new SkiaContextManager, [](SkiaContextManager* p) { delete p; });
         mInstance = sharedInstance;
     }
     else
     {
-        LOGI("🫱 FETCHED INSTANCE?! %ld", mInstance.use_count());
+        LOGI("🫱 SkiaContextManager Instance (now %ld)", mInstance.use_count());
     }
     return sharedInstance;
 }
@@ -38,7 +47,7 @@ SkiaContextManager::SkiaContextManager()
     if (!eglInitialize(mDisplay, 0, 0))
     {
         EGL_ERR_CHECK();
-        LOGE("FAILED TO INIT");
+        LOGE("eglInitialize() failed.");
     }
 
     const EGLint configAttributes[] = {EGL_RENDERABLE_TYPE,
@@ -50,7 +59,9 @@ SkiaContextManager::SkiaContextManager()
                                        EGL_RED_SIZE,
                                        8,
                                        EGL_DEPTH_SIZE,
-                                       16,
+                                       0,
+                                       EGL_STENCIL_SIZE,
+                                       8,
                                        EGL_ALPHA_SIZE,
                                        8,
                                        EGL_NONE};
@@ -59,7 +70,7 @@ SkiaContextManager::SkiaContextManager()
     if (!eglChooseConfig(mDisplay, configAttributes, nullptr, 0, &numConfigs))
     {
         EGL_ERR_CHECK();
-        LOGE("DIDNT FIND ANY CONFIG? %d", numConfigs);
+        LOGE("eglChooseConfig() didn't find any (%d)", numConfigs);
     }
 
     std::vector<EGLConfig> supportedConfigs(static_cast<size_t>(numConfigs));
@@ -69,13 +80,15 @@ SkiaContextManager::SkiaContextManager()
     // Choose a config, either a match if possible or the first config
     // otherwise
     const auto configMatches = [&](EGLConfig config) {
-        if (!configHasAttribute(mConfig, EGL_RED_SIZE, 8))
+        if (!configHasAttribute(mDisplay, mConfig, EGL_RED_SIZE, 8))
             return false;
-        if (!configHasAttribute(mConfig, EGL_GREEN_SIZE, 8))
+        if (!configHasAttribute(mDisplay, mConfig, EGL_GREEN_SIZE, 8))
             return false;
-        if (!configHasAttribute(mConfig, EGL_BLUE_SIZE, 8))
+        if (!configHasAttribute(mDisplay, mConfig, EGL_BLUE_SIZE, 8))
             return false;
-        return configHasAttribute(mConfig, EGL_DEPTH_SIZE, 16);
+        if (!configHasAttribute(mDisplay, mConfig, EGL_STENCIL_SIZE, 8))
+            return false;
+        return configHasAttribute(mDisplay, mConfig, EGL_DEPTH_SIZE, 0);
     };
 
     const auto configIter =
@@ -88,7 +101,7 @@ SkiaContextManager::SkiaContextManager()
     mContext = eglCreateContext(mDisplay, mConfig, nullptr, contextAttributes);
     if (mContext == EGL_NO_CONTEXT)
     {
-        LOGE("DID NOT GET A CONTEXT?!");
+        LOGE("eglCreateContext() failed.");
         EGL_ERR_CHECK();
     }
 
@@ -121,35 +134,10 @@ SkiaContextManager::~SkiaContextManager()
     }
 }
 
-void* SkiaContextManager::getProcAddress(const char* name)
-{
-    if (name == nullptr)
-    {
-        return nullptr;
-    }
-
-    auto symbol = eglGetProcAddress(name);
-    EGL_ERR_CHECK();
-    if (symbol == nullptr)
-    {
-        LOGE("Couldn't fetch symbol name for: %s", name);
-    }
-
-    return reinterpret_cast<void*>(symbol);
-}
-
 void SkiaContextManager::makeSkiaContext()
 {
-    auto get_string = reinterpret_cast<PFNGLGETSTRINGPROC>(getProcAddress("glGetString"));
-
-    if (!get_string)
-    {
-        LOGE("get_string() failed");
-        return;
-    }
-
     LOGI("c_version()");
-    auto c_version = reinterpret_cast<const char*>(get_string(GL_VERSION));
+    auto c_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     if (c_version == nullptr)
     {
         EGL_ERR_CHECK();
@@ -158,8 +146,7 @@ void SkiaContextManager::makeSkiaContext()
     }
 
     auto get_proc = [](void* context, const char name[]) -> GrGLFuncPtr {
-        return reinterpret_cast<GrGLFuncPtr>(
-            reinterpret_cast<SkiaContextManager*>(context)->getProcAddress(name));
+        return reinterpret_cast<GrGLFuncPtr>(eglGetProcAddress(name));
     };
     std::string version(c_version);
     auto interface = version.find("OpenGL ES") == std::string::npos
@@ -168,7 +155,7 @@ void SkiaContextManager::makeSkiaContext()
     LOGI("OpenGL Version %s", version.c_str());
     if (!interface)
     {
-        LOGE("Failed to find the interface version!?");
+        LOGE("GrGLMakeAssembledGL(ES)Interface failed.");
         return;
     }
     mSkContext = GrDirectContext::MakeGL(interface);
@@ -184,19 +171,18 @@ sk_sp<SkSurface> SkiaContextManager::createSkiaSurface(int32_t width, int32_t he
     GrBackendRenderTarget backendRenderTarget(width, height, 1, 8, fbInfo);
     static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
 
-    LOGI("SkSurface::MakeFromBackendRenderTarget");
     auto skSurface = SkSurface::MakeFromBackendRenderTarget(getSkiaContext(),
                                                             backendRenderTarget,
                                                             kBottomLeft_GrSurfaceOrigin,
                                                             kRGBA_8888_SkColorType,
-                                                            SkColorSpace::MakeSRGB(),
+                                                            nullptr,
                                                             &surfaceProps,
                                                             nullptr,
                                                             nullptr);
 
     if (!skSurface)
     {
-        LOGE("Failed to get GPU Surface?!");
+        LOGE("SkSurface::MakeFromBackendRenderTarget() failed.");
         return nullptr;
     }
 
@@ -212,7 +198,7 @@ GrDirectContext* SkiaContextManager::getSkiaContext()
     return mSkContext.get();
 }
 
-EGLSurface SkiaContextManager::getWindowSurface(ANativeWindow* window)
+EGLSurface SkiaContextManager::createWindowSurface(ANativeWindow* window)
 {
     auto res = eglCreateWindowSurface(mDisplay, mConfig, window, nullptr);
     EGL_ERR_CHECK();
@@ -226,13 +212,4 @@ EGLBoolean SkiaContextManager::makeCurrent(EGLSurface surface /* = EGL_NO_SURFAC
     EGL_ERR_CHECK();
     return res;
 }
-
-bool SkiaContextManager::configHasAttribute(EGLConfig config, EGLint attribute, EGLint value) const
-{
-    EGLint outValue = 0;
-    EGLBoolean result = eglGetConfigAttrib(mDisplay, mConfig, attribute, &outValue);
-    EGL_ERR_CHECK();
-    return result && (outValue == value);
-}
-
 } // namespace rive_android

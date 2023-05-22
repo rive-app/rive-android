@@ -67,7 +67,7 @@ EGLThreadState::EGLThreadState()
 
 EGLThreadState::~EGLThreadState()
 {
-    clearSurface();
+    destroySurface();
     if (mContext != EGL_NO_CONTEXT)
     {
         eglDestroyContext(mDisplay, mContext);
@@ -94,7 +94,7 @@ void EGLThreadState::flush() const
     mSkSurface->flushAndSubmit();
 }
 
-void EGLThreadState::clearSurface()
+void EGLThreadState::destroySurface()
 {
     if (mSurface == EGL_NO_SURFACE)
     {
@@ -218,7 +218,7 @@ void EGLThreadState::swapBuffers() const
 
 bool EGLThreadState::setWindow(ANativeWindow* window)
 {
-    clearSurface();
+    destroySurface();
     if (!window)
     {
         return false;

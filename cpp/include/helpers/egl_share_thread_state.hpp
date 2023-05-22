@@ -23,7 +23,7 @@ public:
     ~EGLShareThreadState();
 
     bool setWindow(ANativeWindow*);
-    void clearSurface();
+    void destroySurface();
     void doDraw(ITracer* tracer, SkCanvas* canvas, jobject ktRenderer) const;
 
     void unsetKtRendererClass()
@@ -46,7 +46,7 @@ public:
         mKtAdvanceCallback = env->GetMethodID(mKtRendererClass, "advance", "(F)V");
     }
 
-    static long getNowNs()
+    static uint64_t getNowNs()
     {
         using namespace std::chrono;
         // Reset time to avoid super-large update of position
@@ -54,7 +54,7 @@ public:
         return nowNs.time_since_epoch().count();
     }
 
-    float getElapsedMs(long frameTimeNs) const
+    float getElapsedMs(uint64_t frameTimeNs) const
     {
         float elapsedMs = (frameTimeNs - mLastUpdate) / 1e9f;
         return elapsedMs;
@@ -65,7 +65,7 @@ public:
     jmethodID mKtAdvanceCallback = nullptr;
 
     // Last update time in nanoseconds
-    long mLastUpdate = 0;
+    uint64_t mLastUpdate = 0;
 
     sk_sp<SkSurface> getSkiaSurface() const { return mSkSurface; }
 

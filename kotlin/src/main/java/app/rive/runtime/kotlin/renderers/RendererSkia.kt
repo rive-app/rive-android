@@ -24,7 +24,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
     private external fun cppAvgFps(rendererPointer: Long): Float
     private external fun cppDoFrame(rendererPointer: Long, frameTimeNanos: Long)
     private external fun cppSetSurface(surface: Surface, rendererPointer: Long)
-    private external fun cppClearSurface(rendererPointer: Long)
+    private external fun cppDestroySurface(rendererPointer: Long)
     private external fun cppAlign(
         cppPointer: Long,
         fit: Fit,
@@ -117,9 +117,9 @@ abstract class RendererSkia(val trace: Boolean = false) :
         Choreographer.getInstance().removeFrameCallback(this)
     }
 
-    private fun clearSurface() {
+    private fun destroySurface() {
         stop()
-        cppClearSurface(cppPointer)
+        cppDestroySurface(cppPointer)
         isAttached = false
     }
 
@@ -175,7 +175,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
      */
     @CallSuper
     open fun delete() {
-        clearSurface()
+        destroySurface()
         // Queues the cpp Renderer for deletion
         cppDelete(cppPointer)
         cppPointer = NULL_POINTER

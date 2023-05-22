@@ -12,7 +12,7 @@ EGLShareThreadState::EGLShareThreadState() : mSkiaContextManager(SkiaContextMana
 EGLShareThreadState::~EGLShareThreadState()
 {
     LOGD("EGLThreadState getting destroyed! 🧨");
-    clearSurface();
+    destroySurface();
 }
 
 void EGLShareThreadState::flush() const
@@ -25,14 +25,14 @@ void EGLShareThreadState::flush() const
     mSkSurface->flushAndSubmit();
 }
 
-void EGLShareThreadState::clearSurface()
+void EGLShareThreadState::destroySurface()
 {
     if (mSurface == EGL_NO_SURFACE)
     {
         return;
     }
 
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->eglCtxMutex);
+    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
     mSkiaContextManager->makeCurrent(EGL_NO_SURFACE);
     auto srf = mSurface;
     mSurface = EGL_NO_SURFACE;
@@ -56,15 +56,15 @@ void EGLShareThreadState::swapBuffers() const
 
 bool EGLShareThreadState::setWindow(ANativeWindow* window)
 {
-    clearSurface();
+    destroySurface();
     if (!window)
     {
         return false;
     }
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->eglCtxMutex);
+    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
 
-    LOGD("Making mSurface?!");
-    mSurface = mSkiaContextManager->getWindowSurface(window);
+    LOGD("mSkiaContextManager->createWindowSurface()");
+    mSurface = mSkiaContextManager->createWindowSurface(window);
     mSkiaContextManager->makeCurrent(mSurface);
 
     ANativeWindow_release(window);
@@ -111,7 +111,7 @@ void EGLShareThreadState::doDraw(ITracer* tracer, SkCanvas* canvas, jobject ktRe
     tracer->beginSection("draw()");
     // Lock context access for this thread.
 
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->eglCtxMutex);
+    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
     // Bind context to this thread.
     mSkiaContextManager->makeCurrent(mSurface);
     canvas->clear(SkColor((0x00000000)));

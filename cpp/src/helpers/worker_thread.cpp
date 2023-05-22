@@ -12,13 +12,13 @@ std::shared_ptr<ThreadManager> ThreadManager::getInstance()
     std::shared_ptr<ThreadManager> sharedInstance = mInstance.lock();
     if (!sharedInstance)
     {
-        LOGD("📦 CREATING INSTANCE!!");
+        LOGD("📦 Creating ThreadManager");
         sharedInstance.reset(new ThreadManager, [](ThreadManager* p) { delete p; });
         mInstance = sharedInstance;
     }
     else
     {
-        LOGD("🫱 FETCHED INSTANCE?! %ld", mInstance.use_count());
+        LOGD("🫱 ThreadManager Instance (now %ld)", mInstance.use_count());
     }
 
     return sharedInstance;

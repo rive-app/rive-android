@@ -67,7 +67,7 @@ public:
         // Force onto work queue, bypassing our runner function.
         mWorkQueue.emplace(std::move([=](EGLShareThreadState* threadState) {
             threadState->mIsStarted = false;
-            threadState->clearSurface();
+            threadState->destroySurface();
             threadState->unsetKtRendererClass();
             if (onRelease)
             {
