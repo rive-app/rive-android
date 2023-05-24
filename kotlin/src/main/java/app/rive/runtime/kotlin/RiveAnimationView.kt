@@ -361,7 +361,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Plays the first animations found for a [File].
+     * Restarts paused animations.
+     * If no animations were playing it plays the first in the [File].
      *
      * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
      * Already playing animation instances will be updated to this loop mode if provided.

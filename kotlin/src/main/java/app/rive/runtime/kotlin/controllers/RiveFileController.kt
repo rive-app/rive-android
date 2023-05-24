@@ -338,24 +338,37 @@ class RiveFileController(
         playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
     }
 
+    /**
+     * Restarts paused animations if there are any.
+     * Otherwise, it starts playing the first animation (timeline or state machine) in the Artboard.
+     */
     fun play(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         settleInitialState: Boolean = true,
     ) {
         activeArtboard?.let { activeArtboard ->
-            val animationNames = activeArtboard.animationNames
-            if (animationNames.isNotEmpty()) {
-                return playAnimation(animationNames.first(), loop, direction)
-            }
-            val stateMachineNames = activeArtboard.stateMachineNames
-            if (stateMachineNames.isNotEmpty()) {
-                return playAnimation(
-                    stateMachineNames.first(),
-                    loop,
-                    direction,
-                    settleInitialState
-                )
+            if (pausedAnimations.isNotEmpty() || pausedStateMachines.isNotEmpty()) {
+                animations.forEach {
+                    play(it, direction = direction, loop = loop)
+                }
+                stateMachines.forEach {
+                    play(it, settleInitialState)
+                }
+            } else {
+                val animationNames = activeArtboard.animationNames
+                if (animationNames.isNotEmpty()) {
+                    playAnimation(animationNames.first(), loop, direction)
+                }
+                val stateMachineNames = activeArtboard.stateMachineNames
+                if (stateMachineNames.isNotEmpty()) {
+                    return playAnimation(
+                        stateMachineNames.first(),
+                        loop,
+                        direction,
+                        settleInitialState
+                    )
+                }
             }
         }
     }

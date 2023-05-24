@@ -117,36 +117,36 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
             mockView.play(listOf("one", "two", "three", "four"))
 
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(
                 hashSetOf("one", "two", "three", "four"),
                 mockView.playingAnimations.map { it.name }.toHashSet()
             )
             mockView.pause("junk")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("one", "two", "three", "four")
             )
 
             mockView.pause("one")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
                 hashSetOf("two", "three", "four")
             )
             mockView.pause("two")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
 
             mockView.pause("three")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
 
             mockView.pause("four")
-            assert(mockView.isPlaying)
-            assert(mockView.artboardRenderer != null)
+            assertTrue(mockView.isPlaying)
+            assertNotNull(mockView.artboardRenderer)
             // Pause happens on the next frame.
             mockView.artboardRenderer!!.scheduleFrame()
-            assert(!mockView.isPlaying)
+            assertFalse(mockView.isPlaying)
 
             assertEquals(
                 mockView.playingAnimations.map { it.name }.toHashSet(),
@@ -327,6 +327,47 @@ class RiveViewTest {
             assertEquals(
                 hashSetOf("one"),
                 mockView.playingAnimations.map { it.name }.toHashSet()
+            )
+        }
+    }
+
+    @Test
+    fun viewPauseAllPlayOne() {
+        UiThreadStatement.runOnUiThread {
+            mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            assertFalse(mockView.isPlaying)
+            assertEquals(0, mockView.playingAnimations.size)
+            mockView.play(listOf("one", "two", "three"))
+            assertTrue(mockView.isPlaying)
+            assertEquals(
+                hashSetOf("one", "two", "three"),
+                mockView.playingAnimations.map { it.name }.toHashSet()
+            )
+            // Pause all.
+            mockView.pause()
+            assertFalse(mockView.isPlaying)
+            // Restart.
+            mockView.play()
+            assertTrue(mockView.isPlaying)
+            assertEquals(
+                hashSetOf("one", "two", "three"),
+                mockView.playingAnimations.map { it.name }.toHashSet()
+            )
+
+            // Pause all.
+            mockView.pause()
+            assertFalse(mockView.isPlaying)
+            // Play one
+            mockView.play("two")
+            assertTrue(mockView.isPlaying)
+            assertEquals(
+                hashSetOf("two"),
+                mockView.playingAnimations.map { it.name }.toHashSet()
+            )
+            // Check all animations that can be restarted.
+            assertEquals(
+                hashSetOf("one", "three"),
+                mockView.controller.pausedAnimations.map { it.name }.toHashSet()
             )
         }
     }
