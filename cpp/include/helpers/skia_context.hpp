@@ -15,15 +15,13 @@ class SkiaContextManager
 {
 public:
     // Singleton getter.
-    static std::shared_ptr<SkiaContextManager> getInstance();
+    static std::shared_ptr<SkiaContextManager> GetInstance();
 
     // Singleton can't be copied/assigned/moved.
     SkiaContextManager(SkiaContextManager const&) = delete;
     SkiaContextManager& operator=(SkiaContextManager const&) = delete;
     SkiaContextManager(SkiaContextManager&&) = delete;
     SkiaContextManager& operator=(SkiaContextManager&&) = delete;
-
-    std::mutex mEglCtxMutex;
 
     EGLContext getContext() const { return mContext; }
     EGLDisplay getDisplay() const { return mDisplay; }
@@ -33,7 +31,14 @@ public:
 
     EGLBoolean makeCurrent(EGLSurface surface = EGL_NO_SURFACE) REQUIRES(mEglCtxMutex);
 
+    std::mutex mEglCtxMutex;
+
 private:
+    SkiaContextManager();
+    ~SkiaContextManager();
+
+    void makeSkiaContext();
+
     static std::weak_ptr<SkiaContextManager> mInstance;
     static std::mutex mMutex;
 
@@ -41,11 +46,6 @@ private:
     EGLDisplay mDisplay = EGL_NO_DISPLAY;
     EGLConfig mConfig = static_cast<EGLConfig>(0);
     EGLContext mContext = EGL_NO_CONTEXT;
-
-    SkiaContextManager();
-    ~SkiaContextManager();
-
-    void makeSkiaContext();
 };
 
 } // namespace rive_android

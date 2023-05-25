@@ -183,7 +183,7 @@ public:
         }
     }
     // Singleton getter.
-    static std::shared_ptr<ThreadManager> getInstance();
+    static std::shared_ptr<ThreadManager> GetInstance();
     // Singleton can't be copied/assigned/moved.
     ThreadManager(ThreadManager const&) = delete;
     ThreadManager& operator=(ThreadManager const&) = delete;

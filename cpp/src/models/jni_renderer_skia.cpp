@@ -20,7 +20,7 @@ using namespace std::chrono_literals;
 namespace rive_android
 {
 JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
-    mThreadManager(ThreadManager::getInstance()),
+    mThreadManager(ThreadManager::GetInstance()),
     mWorker(mThreadManager->acquireWorker("EGLRenderer")),
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread

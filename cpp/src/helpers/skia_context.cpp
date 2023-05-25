@@ -7,7 +7,10 @@
 namespace rive_android
 {
 
-static bool configHasAttribute(EGLDisplay display, EGLConfig config, EGLint attribute, EGLint value)
+static bool config_has_attribute(EGLDisplay display,
+                                 EGLConfig config,
+                                 EGLint attribute,
+                                 EGLint value)
 {
     EGLint outValue = 0;
     EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
@@ -19,7 +22,7 @@ static bool configHasAttribute(EGLDisplay display, EGLConfig config, EGLint attr
 std::weak_ptr<SkiaContextManager> SkiaContextManager::mInstance;
 std::mutex SkiaContextManager::mMutex;
 
-std::shared_ptr<SkiaContextManager> SkiaContextManager::getInstance()
+std::shared_ptr<SkiaContextManager> SkiaContextManager::GetInstance()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<SkiaContextManager> sharedInstance = mInstance.lock();
@@ -80,15 +83,15 @@ SkiaContextManager::SkiaContextManager()
     // Choose a config, either a match if possible or the first config
     // otherwise
     const auto configMatches = [&](EGLConfig config) {
-        if (!configHasAttribute(mDisplay, mConfig, EGL_RED_SIZE, 8))
+        if (!config_has_attribute(mDisplay, mConfig, EGL_RED_SIZE, 8))
             return false;
-        if (!configHasAttribute(mDisplay, mConfig, EGL_GREEN_SIZE, 8))
+        if (!config_has_attribute(mDisplay, mConfig, EGL_GREEN_SIZE, 8))
             return false;
-        if (!configHasAttribute(mDisplay, mConfig, EGL_BLUE_SIZE, 8))
+        if (!config_has_attribute(mDisplay, mConfig, EGL_BLUE_SIZE, 8))
             return false;
-        if (!configHasAttribute(mDisplay, mConfig, EGL_STENCIL_SIZE, 8))
+        if (!config_has_attribute(mDisplay, mConfig, EGL_STENCIL_SIZE, 8))
             return false;
-        return configHasAttribute(mDisplay, mConfig, EGL_DEPTH_SIZE, 0);
+        return config_has_attribute(mDisplay, mConfig, EGL_DEPTH_SIZE, 0);
     };
 
     const auto configIter =

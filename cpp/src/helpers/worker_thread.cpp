@@ -6,7 +6,7 @@ namespace rive_android
 std::weak_ptr<ThreadManager> ThreadManager::mInstance;
 std::mutex ThreadManager::mMutex;
 
-std::shared_ptr<ThreadManager> ThreadManager::getInstance()
+std::shared_ptr<ThreadManager> ThreadManager::GetInstance()
 {
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<ThreadManager> sharedInstance = mInstance.lock();

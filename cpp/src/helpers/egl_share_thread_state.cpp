@@ -6,7 +6,7 @@ using namespace std::chrono_literals;
 
 namespace rive_android
 {
-EGLShareThreadState::EGLShareThreadState() : mSkiaContextManager(SkiaContextManager::getInstance())
+EGLShareThreadState::EGLShareThreadState() : mSkiaContextManager(SkiaContextManager::GetInstance())
 {}
 
 EGLShareThreadState::~EGLShareThreadState()
