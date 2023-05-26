@@ -6,101 +6,70 @@ using namespace std::chrono_literals;
 
 namespace rive_android
 {
-EGLShareThreadState::EGLShareThreadState() : mSkiaContextManager(SkiaContextManager::GetInstance())
-{}
+EGLShareThreadState::EGLShareThreadState() {}
 
-EGLShareThreadState::~EGLShareThreadState()
-{
-    LOGD("EGLThreadState getting destroyed! 🧨");
-    destroySurface();
-}
+EGLShareThreadState::~EGLShareThreadState() { LOGD("EGLThreadState getting destroyed! 🧨"); }
 
-void EGLShareThreadState::flush() const
+void EGLShareThreadState::destroySurface(EGLSurface eglSurface)
 {
-    if (!mSkSurface)
-    {
-        LOGE("Cannot flush() without a surface.");
-        return;
-    }
-    mSkSurface->flushAndSubmit();
-}
-
-void EGLShareThreadState::destroySurface()
-{
-    if (mSurface == EGL_NO_SURFACE)
+    if (eglSurface == EGL_NO_SURFACE)
     {
         return;
     }
 
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
-    mSkiaContextManager->makeCurrent(EGL_NO_SURFACE);
-    auto srf = mSurface;
-    mSurface = EGL_NO_SURFACE;
-    eglDestroySurface(mSkiaContextManager->getDisplay(), srf);
+    mSkiaContextManager.makeCurrent(EGL_NO_SURFACE);
+    eglDestroySurface(mSkiaContextManager.getDisplay(), eglSurface);
     EGL_ERR_CHECK();
-    mSkSurface = nullptr;
 }
 
-void EGLShareThreadState::swapBuffers() const
+void EGLShareThreadState::swapBuffers(EGLSurface eglSurface) const
 {
-    auto display = mSkiaContextManager->getDisplay();
-    if (display == EGL_NO_DISPLAY || mSurface == EGL_NO_SURFACE)
+    auto display = mSkiaContextManager.getDisplay();
+    if (display == EGL_NO_DISPLAY || eglSurface == EGL_NO_SURFACE)
     {
         LOGE("Swapping buffers without a display/surface");
         return;
     }
     // Context mutex has been locked from doDraw()
-    eglSwapBuffers(display, mSurface);
+    eglSwapBuffers(display, eglSurface);
     EGL_ERR_CHECK();
 }
 
-bool EGLShareThreadState::setWindow(ANativeWindow* window)
+EGLSurface EGLShareThreadState::createEGLSurface(ANativeWindow* window)
 {
-    destroySurface();
     if (!window)
     {
-        return false;
+        return EGL_NO_SURFACE;
     }
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
+    LOGD("mSkiaContextManager.createWindowSurface()");
+    return mSkiaContextManager.createWindowSurface(window);
+}
 
-    LOGD("mSkiaContextManager->createWindowSurface()");
-    mSurface = mSkiaContextManager->createWindowSurface(window);
-    mSkiaContextManager->makeCurrent(mSurface);
-
-    ANativeWindow_release(window);
-
-    auto width = ANativeWindow_getWidth(window);
-    auto height = ANativeWindow_getHeight(window);
-
+sk_sp<SkSurface> EGLShareThreadState::createSkiaSurface(EGLSurface eglSurface,
+                                                        int width,
+                                                        int height)
+{
     // Width/Height getters return negative values on error.
     // Probably a race condition with surfaces being reclaimed by the OS before
     // this function completes.
     if (width < 0 || height < 0)
     {
         LOGE("Window is unavailable.");
-        return false;
+        return nullptr;
     }
 
+    mSkiaContextManager.makeCurrent(eglSurface);
     LOGI("Set up window surface %dx%d", width, height);
-
-    mSkSurface = mSkiaContextManager->createSkiaSurface(width, height);
-    LOGD("I finally got my surface!");
-    mSkiaContextManager->makeCurrent();
-
-    if (!mSkSurface)
-    {
-        LOGE("Unable to create a SkSurface??");
-        mSurface = EGL_NO_SURFACE;
-        return false;
-    }
-
-    return true;
+    return mSkiaContextManager.createSkiaSurface(width, height);
 }
 
-void EGLShareThreadState::doDraw(ITracer* tracer, SkCanvas* canvas, jobject ktRenderer) const
+void EGLShareThreadState::doDraw(ITracer* tracer,
+                                 EGLSurface eglSurface,
+                                 SkSurface* skSurface,
+                                 jobject ktRenderer) const
 {
     // Don't render if we have no surface
-    if (hasNoSurface())
+    if (eglSurface == nullptr || skSurface == nullptr)
     {
         LOGE("Has No Surface!");
         // Sleep a bit so we don't churn too fast
@@ -111,22 +80,21 @@ void EGLShareThreadState::doDraw(ITracer* tracer, SkCanvas* canvas, jobject ktRe
     tracer->beginSection("draw()");
     // Lock context access for this thread.
 
-    std::lock_guard<std::mutex> guard(mSkiaContextManager->mEglCtxMutex);
     // Bind context to this thread.
-    mSkiaContextManager->makeCurrent(mSurface);
-    canvas->clear(SkColor((0x00000000)));
+    mSkiaContextManager.makeCurrent(eglSurface);
+    skSurface->getCanvas()->clear(SkColor((0x00000000)));
     auto env = getJNIEnv();
     // Kotlin callback.
     env->CallVoidMethod(ktRenderer, mKtDrawCallback);
 
     tracer->beginSection("flush()");
-    flush();
+    skSurface->flushAndSubmit();
     tracer->endSection(); // flush
 
     tracer->beginSection("swapBuffers()");
-    swapBuffers();
+    swapBuffers(eglSurface);
     // Unbind context.
-    mSkiaContextManager->makeCurrent();
+    mSkiaContextManager.makeCurrent();
 
     tracer->endSection(); // swapBuffers
     tracer->endSection(); // draw()

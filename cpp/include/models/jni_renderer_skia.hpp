@@ -8,7 +8,7 @@
 
 #include "helpers/tracer.hpp"
 #include "helpers/egl_share_thread_state.hpp"
-#include "helpers/worker_thread.hpp"
+#include "helpers/egl_worker.hpp"
 
 namespace rive_android
 {
@@ -27,9 +27,9 @@ public:
 
     void stop();
 
-    WorkerThread<EGLShareThreadState>* worker() const { return mWorker; }
+    WorkerThread<EGLShareThreadState>* worker() const { return mWorker.get(); }
 
-    SkCanvas* canvas() const { return mGpuCanvas; }
+    SkCanvas* canvas() const { return mSkSurface ? mSkSurface->getCanvas() : nullptr; }
 
     rive::SkiaRenderer* skRenderer() const { return mSkRenderer; }
 
@@ -39,24 +39,24 @@ public:
 
     int height() const { return mWindow ? ANativeWindow_getHeight(mWindow) : -1; }
 
-    std::shared_ptr<ThreadManager> threadManager() const { return mThreadManager; }
-
 private:
-    std::shared_ptr<ThreadManager> mThreadManager;
+    void releaseWorkerThreadObjects(EGLShareThreadState*);
 
-    WorkerThread<EGLShareThreadState>* mWorker;
+    rive::rcp<EGLWorker> mWorker = EGLWorker::Current();
 
     jobject mKtRenderer;
 
     ITracer* mTracer;
 
-    ANativeWindow* mWindow;
+    // Members that should only be accessed on the worker thread.
+    ANativeWindow* mWindow = nullptr;
+    EGLSurface mEGLSurface = EGL_NO_SURFACE;
+    SkSurface* mSkSurface = nullptr;
+    rive::SkiaRenderer* mSkRenderer = nullptr;
+    long mLastFrameTimeNs = 0; // TODO: this should be a std::chrono::time_point, or at least 64
+                               // bits.
 
-    SkCanvas* mGpuCanvas;
-
-    rive::SkiaRenderer* mSkRenderer;
-
-    bool mIsDoingFrame = false;
+    volatile bool mIsDoingFrame = false;
 
     /* Helpers for FPS calculations.*/
     std::chrono::steady_clock::time_point mLastFrameTime;

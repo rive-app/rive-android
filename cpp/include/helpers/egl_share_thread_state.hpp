@@ -22,9 +22,12 @@ public:
     EGLShareThreadState();
     ~EGLShareThreadState();
 
-    bool setWindow(ANativeWindow*);
-    void destroySurface();
-    void doDraw(ITracer* tracer, SkCanvas* canvas, jobject ktRenderer) const;
+    EGLSurface createEGLSurface(ANativeWindow*);
+    sk_sp<SkSurface> createSkiaSurface(EGLSurface, int width, int height);
+
+    void destroySurface(EGLSurface);
+
+    void doDraw(ITracer*, EGLSurface, SkSurface*, jobject ktRenderer) const;
 
     void unsetKtRendererClass()
     {
@@ -46,39 +49,16 @@ public:
         mKtAdvanceCallback = env->GetMethodID(mKtRendererClass, "advance", "(F)V");
     }
 
-    static uint64_t getNowNs()
-    {
-        using namespace std::chrono;
-        // Reset time to avoid super-large update of position
-        auto nowNs = time_point_cast<nanoseconds>(steady_clock::now());
-        return nowNs.time_since_epoch().count();
-    }
-
-    float getElapsedMs(uint64_t frameTimeNs) const
-    {
-        float elapsedMs = (frameTimeNs - mLastUpdate) / 1e9f;
-        return elapsedMs;
-    }
-
     bool mIsStarted = false;
     jmethodID mKtDrawCallback = nullptr;
     jmethodID mKtAdvanceCallback = nullptr;
 
-    // Last update time in nanoseconds
-    uint64_t mLastUpdate = 0;
-
-    sk_sp<SkSurface> getSkiaSurface() const { return mSkSurface; }
-
 private:
-    std::shared_ptr<SkiaContextManager> mSkiaContextManager;
-    EGLSurface mSurface = EGL_NO_SURFACE;
-    sk_sp<SkSurface> mSkSurface = nullptr;
+    SkiaContextManager mSkiaContextManager;
 
     jclass mKtRendererClass = nullptr;
 
-    bool hasNoSurface() const { return mSurface == EGL_NO_SURFACE || mSkSurface == nullptr; }
-    void swapBuffers() const;
-    void flush() const;
+    void swapBuffers(EGLSurface eglSurface) const;
 };
 } // namespace rive_android
 

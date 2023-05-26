@@ -32,10 +32,6 @@ extern "C"
                                                                   jlong rendererRef)
     {
         auto renderer = reinterpret_cast<JNIRendererSkia*>(rendererRef);
-        auto worker = renderer->worker();
-        auto tMgr = renderer->threadManager();
-        worker->terminateThread(); // Joins and waits for the thread to terminate.
-        tMgr->putBack(worker);
         delete renderer;
     }
 

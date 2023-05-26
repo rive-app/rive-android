@@ -20,20 +20,31 @@ using namespace std::chrono_literals;
 namespace rive_android
 {
 JNIRendererSkia::JNIRendererSkia(jobject ktObject, bool trace) :
-    mThreadManager(ThreadManager::GetInstance()),
-    mWorker(mThreadManager->acquireWorker("EGLRenderer")),
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
     mKtRenderer(getJNIEnv()->NewGlobalRef(ktObject)),
-    mTracer(getTracer(trace)),
-    mWindow(nullptr),
-    mGpuCanvas(nullptr),
-    mSkRenderer(nullptr)
+    mTracer(getTracer(trace))
 {}
 
 JNIRendererSkia::~JNIRendererSkia()
 {
+    // Delete the worker thread objects. And since the worker has captured our "this" pointer,
+    // wait for it to finish processing our work before continuing the destruction process.
+    {
+        std::mutex completedMutex;
+        std::condition_variable_any completedCondition;
+        std::unique_lock lock(completedMutex);
+        mWorker->run([=, &completedMutex, &completedCondition](EGLShareThreadState* threadState) {
+            {
+                std::unique_lock workerLock(completedMutex);
+                releaseWorkerThreadObjects(threadState);
+            }
+            completedCondition.notify_one();
+        });
+        completedCondition.wait(completedMutex);
+    }
+
     // Clean up dependencies.
     auto env = getJNIEnv();
     jclass ktClass = env->GetObjectClass(mKtRenderer);
@@ -41,34 +52,51 @@ JNIRendererSkia::~JNIRendererSkia()
     env->CallVoidMethod(mKtRenderer, disposeDeps);
 
     env->DeleteGlobalRef(mKtRenderer);
-    if (mSkRenderer)
-    {
-        delete mSkRenderer;
-    }
     if (mTracer)
     {
         delete mTracer;
     }
-    if (mWindow)
+}
+
+void JNIRendererSkia::releaseWorkerThreadObjects(EGLShareThreadState* threadState)
+{
+    if (mSkRenderer != nullptr)
+    {
+        delete mSkRenderer;
+        mSkRenderer = nullptr;
+    }
+    if (mSkSurface != nullptr)
+    {
+        mSkSurface->unref();
+        mSkSurface = nullptr;
+    }
+    if (mEGLSurface != EGL_NO_SURFACE)
+    {
+        threadState->destroySurface(mEGLSurface);
+        mEGLSurface = EGL_NO_SURFACE;
+    }
+    if (mWindow != nullptr)
     {
         ANativeWindow_release(mWindow);
+        mWindow = nullptr;
     }
 }
 
 void JNIRendererSkia::setWindow(ANativeWindow* window)
 {
     mWorker->run([=](EGLShareThreadState* threadState) {
-        if (!threadState->setWindow(window))
-        {
-            return;
-        }
-
-        ANativeWindow_acquire(window);
+        releaseWorkerThreadObjects(threadState);
         mWindow = window;
-
-        auto gpuSurface = threadState->getSkiaSurface();
-        mGpuCanvas = gpuSurface->getCanvas();
-        mSkRenderer = new rive::SkiaRenderer(mGpuCanvas);
+        if (mWindow == nullptr)
+            return;
+        ANativeWindow_acquire(mWindow);
+        mEGLSurface = threadState->createEGLSurface(mWindow);
+        if (mEGLSurface == EGL_NO_SURFACE)
+            return;
+        mSkSurface = threadState->createSkiaSurface(mEGLSurface, width(), height()).release();
+        if (mSkSurface == nullptr)
+            return;
+        mSkRenderer = new rive::SkiaRenderer(mSkSurface->getCanvas());
     });
 }
 
@@ -80,13 +108,13 @@ void JNIRendererSkia::doFrame(long frameTimeNs)
     }
     mIsDoingFrame = true;
     bool hasQueued = mWorker->run([=](EGLShareThreadState* threadState) {
-        float elapsedMs = threadState->getElapsedMs(frameTimeNs);
-        threadState->mLastUpdate = frameTimeNs;
+        float elapsedMs = (frameTimeNs - mLastFrameTimeNs) * 1e-9f;
+        mLastFrameTimeNs = frameTimeNs;
 
         auto env = getJNIEnv();
         env->CallVoidMethod(mKtRenderer, threadState->mKtAdvanceCallback, elapsedMs);
         calculateFps();
-        threadState->doDraw(mTracer, mGpuCanvas, mKtRenderer);
+        threadState->doDraw(mTracer, mEGLSurface, mSkSurface, mKtRenderer);
         mIsDoingFrame = false;
     });
     if (!hasQueued)
@@ -103,7 +131,7 @@ void JNIRendererSkia::start(long timeNs)
         jclass ktClass = getJNIEnv()->GetObjectClass(mKtRenderer);
         threadState->setKtRendererClass(ktClass);
 
-        threadState->mLastUpdate = timeNs;
+        mLastFrameTimeNs = timeNs;
         mLastFrameTime = std::chrono::steady_clock::now();
     });
 }
@@ -112,7 +140,6 @@ void JNIRendererSkia::stop()
 {
     // TODO: There is something wrong here when onVisibilityChanged() is called.
     // Stop immediately
-    mWorker->drainWorkQueue();
     mWorker->run([=](EGLShareThreadState* threadState) { threadState->mIsStarted = false; });
 }
 
@@ -158,36 +185,4 @@ void JNIRendererSkia::calculateFps()
     mLastFrameTime = now;
     mTracer->endSection();
 }
-/*
-void JNIRendererSkia::draw(EGLShareThreadState* threadState)
-{
-
-    // Don't render if we have no surface
-    if (threadState->hasNoSurface())
-    {
-        LOGE("Has No Surface!");
-        // Sleep a bit so we don't churn too fast
-        std::this_thread::sleep_for(50ms);
-        return;
-    }
-
-    calculateFps();
-
-    mTracer->beginSection("draw()");
-    mGpuCanvas->drawColor(SK_ColorTRANSPARENT, SkBlendMode::kClear);
-    auto env = getJNIEnv();
-    // Kotlin callback.
-    env->CallVoidMethod(mKtRenderer, threadState->mKtDrawCallback);
-
-    mTracer->beginSection("flush()");
-    threadState->flush();
-    mTracer->endSection(); // flush
-
-    mTracer->beginSection("swapBuffers()");
-    threadState->swapBuffers();
-    mTracer->endSection(); // swapBuffers
-
-    mTracer->endSection(); // draw()
-}
-*/
 } // namespace rive_android

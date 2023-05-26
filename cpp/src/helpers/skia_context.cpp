@@ -18,26 +18,6 @@ static bool config_has_attribute(EGLDisplay display,
     return result && (outValue == value);
 }
 
-// Instantiate static objects.
-std::weak_ptr<SkiaContextManager> SkiaContextManager::mInstance;
-std::mutex SkiaContextManager::mMutex;
-
-std::shared_ptr<SkiaContextManager> SkiaContextManager::GetInstance()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    std::shared_ptr<SkiaContextManager> sharedInstance = mInstance.lock();
-    if (!sharedInstance)
-    {
-        LOGI("📦 Creating SkiaContextManager");
-        sharedInstance.reset(new SkiaContextManager, [](SkiaContextManager* p) { delete p; });
-        mInstance = sharedInstance;
-    }
-    else
-    {
-        LOGI("🫱 SkiaContextManager Instance (now %ld)", mInstance.use_count());
-    }
-    return sharedInstance;
-}
 SkiaContextManager::SkiaContextManager()
 {
     mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -208,7 +188,7 @@ EGLSurface SkiaContextManager::createWindowSurface(ANativeWindow* window)
     return res;
 }
 
-EGLBoolean SkiaContextManager::makeCurrent(EGLSurface surface /* = EGL_NO_SURFACE */)
+EGLBoolean SkiaContextManager::makeCurrent(EGLSurface surface /* = EGL_NO_SURFACE */) const
 {
     auto ctx = surface == EGL_NO_SURFACE ? EGL_NO_CONTEXT : mContext;
     EGLBoolean res = eglMakeCurrent(mDisplay, surface, surface, ctx);

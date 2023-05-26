@@ -14,33 +14,19 @@ namespace rive_android
 class SkiaContextManager
 {
 public:
-    // Singleton getter.
-    static std::shared_ptr<SkiaContextManager> GetInstance();
-
-    // Singleton can't be copied/assigned/moved.
-    SkiaContextManager(SkiaContextManager const&) = delete;
-    SkiaContextManager& operator=(SkiaContextManager const&) = delete;
-    SkiaContextManager(SkiaContextManager&&) = delete;
-    SkiaContextManager& operator=(SkiaContextManager&&) = delete;
-
-    EGLContext getContext() const { return mContext; }
-    EGLDisplay getDisplay() const { return mDisplay; }
-    sk_sp<SkSurface> createSkiaSurface(int32_t width, int32_t height) REQUIRES(mEglCtxMutex);
-    GrDirectContext* getSkiaContext();
-    EGLSurface createWindowSurface(ANativeWindow* window);
-
-    EGLBoolean makeCurrent(EGLSurface surface = EGL_NO_SURFACE) REQUIRES(mEglCtxMutex);
-
-    std::mutex mEglCtxMutex;
-
-private:
     SkiaContextManager();
     ~SkiaContextManager();
 
-    void makeSkiaContext();
+    EGLContext getContext() const { return mContext; }
+    EGLDisplay getDisplay() const { return mDisplay; }
+    sk_sp<SkSurface> createSkiaSurface(int32_t width, int32_t height);
+    GrDirectContext* getSkiaContext();
+    EGLSurface createWindowSurface(ANativeWindow* window);
 
-    static std::weak_ptr<SkiaContextManager> mInstance;
-    static std::mutex mMutex;
+    EGLBoolean makeCurrent(EGLSurface = EGL_NO_SURFACE) const;
+
+private:
+    void makeSkiaContext();
 
     sk_sp<GrDirectContext> mSkContext = nullptr;
     EGLDisplay mDisplay = EGL_NO_DISPLAY;
