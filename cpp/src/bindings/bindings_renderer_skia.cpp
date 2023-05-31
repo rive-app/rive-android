@@ -80,7 +80,7 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_renderers_RendererSkia_cppSave(JNIEnv*, jobject, jlong rendererRef)
     {
-        reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->save();
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->getRendererOnWorkerThread()->save();
     }
 
     JNIEXPORT void JNICALL
@@ -88,7 +88,7 @@ extern "C"
                                                                    jobject,
                                                                    jlong rendererRef)
     {
-        reinterpret_cast<JNIRendererSkia*>(rendererRef)->skRenderer()->restore();
+        reinterpret_cast<JNIRendererSkia*>(rendererRef)->getRendererOnWorkerThread()->restore();
     }
 
     JNIEXPORT void JNICALL
@@ -105,7 +105,7 @@ extern "C"
         rive::Alignment alignment = getAlignment(env, ktAlignment);
         auto targetBounds = rectFToAABB(env, targetBoundsRectF);
         auto sourceBounds = rectFToAABB(env, sourceBoundsRectF);
-        jniWrapper->skRenderer()->align(fit, alignment, targetBounds, sourceBounds);
+        jniWrapper->getRendererOnWorkerThread()->align(fit, alignment, targetBounds, sourceBounds);
     }
 
     JNIEXPORT jint JNICALL

@@ -13,13 +13,11 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define EGL_ERR_CHECK() _check_egl_error(__FILE__, __LINE__)
 #else
 #define LOGE(...)
 #define LOGW(...)
 #define LOGD(...)
 #define LOGI(...)
-#define EGL_ERR_CHECK()
 #endif
 
 namespace rive_android

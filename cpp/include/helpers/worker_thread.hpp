@@ -33,68 +33,64 @@ template <class ThreadState> class WorkerThread
 {
 public:
     using Work = std::function<void(ThreadState*)>;
+    using WorkID = uint64_t;
 
-    WorkerThread(const char* name, Affinity affinity) : mName(name), mAffinity(affinity)
-    {
-        launchThread();
-    }
+    WorkerThread(const char* name, Affinity affinity) :
+        mName(name), mAffinity(affinity), mThread(std::thread([this]() { threadMain(); }))
+    {}
 
     ~WorkerThread() { terminateThread(); }
 
-    bool run(Work work) REQUIRES(mThreadMutex)
+    WorkID run(Work work)
     {
+        assert(work != nullptr); // Clients can't push the null termination token.
+        uint64_t pushedWorkID;
         {
             std::lock_guard workLock(mWorkMutex);
-            if (!mIsWorking)
-            {
-                LOGW("Can't add work while thread isn't running.");
-                return false;
-            }
-            assert(work != nullptr);
             assert(!mIsTerminated);
             mWorkQueue.emplace(std::move(work));
+            pushedWorkID = ++m_lastPushedWorkID;
         }
-        mWorkCondition.notify_one();
-        return true;
+        m_workPushedCondition.notify_one();
+        return pushedWorkID;
     }
 
-    void setIsWorking(bool isIt) REQUIRES(mThreadMutex)
+    void waitUntilComplete(WorkID workID)
     {
-        std::lock_guard<std::mutex> workLock(mWorkMutex);
-        mIsWorking = isIt;
+        if (m_lastCompletedWorkID >= workID)
+        {
+            return; // Early out that doesn't require a mutex!
+        }
+        std::lock_guard<std::mutex> threadLock(mWorkMutex);
+        while (m_lastCompletedWorkID < workID)
+        {
+            m_workedCompletedCondition.wait(mWorkMutex);
+        }
     }
 
-    void terminateThread() REQUIRES(mThreadMutex)
+    void runAndWait(Work work) { waitUntilComplete(run(work)); }
+
+    void terminateThread()
     {
         bool didSendTerminationToken = false;
         {
             std::lock_guard workLock(mWorkMutex);
             if (!mIsTerminated)
             {
-                // A null function is a special token that tells the thread to terminate.
                 mWorkQueue.emplace(nullptr);
-                didSendTerminationToken = true;
                 mIsTerminated = true;
+                didSendTerminationToken = true;
             }
         }
         if (didSendTerminationToken)
         {
-            mWorkCondition.notify_one();
+            m_workPushedCondition.notify_one();
             mThread.join();
         }
+        assert(m_lastCompletedWorkID == m_lastPushedWorkID);
     }
 
 private:
-    void launchThread()
-    {
-        std::lock_guard<std::mutex> threadLock(mThreadMutex);
-        if (mThread.joinable())
-        {
-            terminateThread();
-        }
-        mThread = std::thread([this]() { threadMain(); });
-    }
-
     void threadMain()
     {
         setAffinity(mAffinity);
@@ -103,13 +99,18 @@ private:
         getJNIEnv(); // Attach thread to JVM.
         ThreadState threadState;
 
-        std::lock_guard lock(mWorkMutex);
         for (;;)
         {
-            mWorkCondition.wait(mWorkMutex,
-                                [this]() REQUIRES(mWorkMutex) { return !mWorkQueue.empty(); });
-            Work work = mWorkQueue.front();
-            mWorkQueue.pop();
+            Work work;
+            {
+                std::lock_guard lock(mWorkMutex);
+                while (mWorkQueue.empty())
+                {
+                    m_workPushedCondition.wait(mWorkMutex);
+                }
+                work = mWorkQueue.front();
+                mWorkQueue.pop();
+            }
 
             if (!work)
             {
@@ -117,25 +118,24 @@ private:
                 break;
             }
 
-            // Drop the mutex while we execute
-            mWorkMutex.unlock();
             work(&threadState);
-            mWorkMutex.lock();
+            ++m_lastCompletedWorkID;
+            m_workedCompletedCondition.notify_all();
         }
         detachThread();
     }
 
     const std::string mName;
     const Affinity mAffinity;
+    std::thread mThread;
 
-    std::mutex mThreadMutex;
-    std::thread mThread GUARDED_BY(mThreadMutex);
-
-    bool mIsWorking GUARDED_BY(mWorkMutex) = true;
-    bool mIsTerminated GUARDED_BY(mWorkMutex) = false;
+    WorkID m_lastPushedWorkID = 0;
+    std::atomic<WorkID> m_lastCompletedWorkID = 0;
+    bool mIsTerminated = false;
 
     std::mutex mWorkMutex;
-    std::queue<std::function<void(ThreadState*)>> mWorkQueue GUARDED_BY(mWorkMutex);
-    std::condition_variable_any mWorkCondition;
+    std::queue<std::function<void(ThreadState*)>> mWorkQueue;
+    std::condition_variable_any m_workPushedCondition;
+    std::condition_variable_any m_workedCompletedCondition;
 };
 } // namespace rive_android

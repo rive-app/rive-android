@@ -1,5 +1,4 @@
 #include "jni_refs.hpp"
-#include "skia_renderer.hpp"
 #include "helpers/general.hpp"
 #include "models/jni_renderer_skia.hpp"
 #include "rive/artboard.hpp"
@@ -173,7 +172,7 @@ extern "C"
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         auto artboard = (rive::ArtboardInstance*)artboardRef;
         auto jniWrapper = (JNIRendererSkia*)rendererRef;
-        rive::SkiaRenderer* renderer = jniWrapper->skRenderer();
+        rive::Renderer* renderer = jniWrapper->getRendererOnWorkerThread();
         artboard->draw(renderer);
     }
 
@@ -188,7 +187,7 @@ extern "C"
         // TODO: consolidate this to work with an abstracted JNI Renderer.
         auto artboard = (rive::ArtboardInstance*)artboardRef;
         auto jniWrapper = (JNIRendererSkia*)rendererRef;
-        rive::SkiaRenderer* renderer = jniWrapper->skRenderer();
+        rive::Renderer* renderer = jniWrapper->getRendererOnWorkerThread();
 
         rive::Fit fit = getFit(env, ktFit);
         rive::Alignment alignment = getAlignment(env, ktAlignment);

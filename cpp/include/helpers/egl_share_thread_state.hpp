@@ -7,7 +7,6 @@
 #include <android/native_window.h>
 
 #include "helpers/general.hpp"
-#include "helpers/skia_context.hpp"
 #include "helpers/tracer.hpp"
 
 #include "GrDirectContext.h"
@@ -27,38 +26,15 @@ public:
 
     void destroySurface(EGLSurface);
 
-    void doDraw(ITracer*, EGLSurface, SkSurface*, jobject ktRenderer) const;
-
-    void unsetKtRendererClass()
-    {
-        auto env = getJNIEnv();
-        if (mKtRendererClass != nullptr)
-        {
-            env->DeleteWeakGlobalRef(mKtRendererClass);
-        }
-        mKtRendererClass = nullptr;
-        mKtDrawCallback = nullptr;
-        mKtAdvanceCallback = nullptr;
-    }
-
-    void setKtRendererClass(jclass localReference)
-    {
-        auto env = getJNIEnv();
-        mKtRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(localReference));
-        mKtDrawCallback = env->GetMethodID(mKtRendererClass, "draw", "()V");
-        mKtAdvanceCallback = env->GetMethodID(mKtRendererClass, "advance", "(F)V");
-    }
-
-    bool mIsStarted = false;
-    jmethodID mKtDrawCallback = nullptr;
-    jmethodID mKtAdvanceCallback = nullptr;
+    void makeCurrent(EGLSurface);
+    void swapBuffers();
 
 private:
-    SkiaContextManager mSkiaContextManager;
-
-    jclass mKtRendererClass = nullptr;
-
-    void swapBuffers(EGLSurface eglSurface) const;
+    EGLDisplay m_display = EGL_NO_DISPLAY;
+    EGLConfig m_config = static_cast<EGLConfig>(0);
+    EGLContext m_context = EGL_NO_CONTEXT;
+    sk_sp<GrDirectContext> m_skContext = nullptr;
+    EGLSurface m_currentSurface = EGL_NO_SURFACE;
 };
 } // namespace rive_android
 

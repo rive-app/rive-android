@@ -1,38 +1,135 @@
 #include <thread>
+#include <vector>
 
 #include "helpers/egl_share_thread_state.hpp"
 
-using namespace std::chrono_literals;
+#include "GrDirectContext.h"
+#include "gl/GrGLInterface.h"
+#include "gl/GrGLAssembleInterface.h"
+#include "SkSurface.h"
+
+#if 0
+#define EGL_ERR_CHECK() _check_egl_error(__FILE__, __LINE__)
+#else
+#define EGL_ERR_CHECK()
+#endif
 
 namespace rive_android
 {
-EGLShareThreadState::EGLShareThreadState() {}
-
-EGLShareThreadState::~EGLShareThreadState() { LOGD("EGLThreadState getting destroyed! 🧨"); }
-
-void EGLShareThreadState::destroySurface(EGLSurface eglSurface)
+static bool config_has_attribute(EGLDisplay display,
+                                 EGLConfig config,
+                                 EGLint attribute,
+                                 EGLint value)
 {
-    if (eglSurface == EGL_NO_SURFACE)
-    {
-        return;
-    }
-
-    mSkiaContextManager.makeCurrent(EGL_NO_SURFACE);
-    eglDestroySurface(mSkiaContextManager.getDisplay(), eglSurface);
+    EGLint outValue = 0;
+    EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
     EGL_ERR_CHECK();
+    return result && (outValue == value);
 }
 
-void EGLShareThreadState::swapBuffers(EGLSurface eglSurface) const
+EGLShareThreadState::EGLShareThreadState()
 {
-    auto display = mSkiaContextManager.getDisplay();
-    if (display == EGL_NO_DISPLAY || eglSurface == EGL_NO_SURFACE)
+    m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (m_display == EGL_NO_DISPLAY)
     {
-        LOGE("Swapping buffers without a display/surface");
+        EGL_ERR_CHECK();
+        LOGE("NO DISPLAY!?");
         return;
     }
-    // Context mutex has been locked from doDraw()
-    eglSwapBuffers(display, eglSurface);
+
+    if (!eglInitialize(m_display, 0, 0))
+    {
+        EGL_ERR_CHECK();
+        LOGE("eglInitialize() failed.");
+        return;
+    }
+
+    const EGLint configAttributes[] = {EGL_RENDERABLE_TYPE,
+                                       EGL_OPENGL_ES2_BIT,
+                                       EGL_BLUE_SIZE,
+                                       8,
+                                       EGL_GREEN_SIZE,
+                                       8,
+                                       EGL_RED_SIZE,
+                                       8,
+                                       EGL_DEPTH_SIZE,
+                                       0,
+                                       EGL_STENCIL_SIZE,
+                                       8,
+                                       EGL_ALPHA_SIZE,
+                                       8,
+                                       EGL_NONE};
+
+    EGLint num_configs = 0;
+    if (!eglChooseConfig(m_display, configAttributes, nullptr, 0, &num_configs))
+    {
+        EGL_ERR_CHECK();
+        LOGE("eglChooseConfig() didn't find any (%d)", num_configs);
+        return;
+    }
+
+    std::vector<EGLConfig> supportedConfigs(static_cast<size_t>(num_configs));
+    eglChooseConfig(m_display,
+                    configAttributes,
+                    supportedConfigs.data(),
+                    num_configs,
+                    &num_configs);
     EGL_ERR_CHECK();
+
+    // Choose a config, either a match if possible or the first config
+    // otherwise
+    const auto configMatches = [&](EGLConfig config) {
+        if (!config_has_attribute(m_display, m_config, EGL_RED_SIZE, 8))
+            return false;
+        if (!config_has_attribute(m_display, m_config, EGL_GREEN_SIZE, 8))
+            return false;
+        if (!config_has_attribute(m_display, m_config, EGL_BLUE_SIZE, 8))
+            return false;
+        if (!config_has_attribute(m_display, m_config, EGL_STENCIL_SIZE, 8))
+            return false;
+        return config_has_attribute(m_display, m_config, EGL_DEPTH_SIZE, 0);
+    };
+
+    const auto configIter =
+        std::find_if(supportedConfigs.cbegin(), supportedConfigs.cend(), configMatches);
+
+    m_config = (configIter != supportedConfigs.cend()) ? *configIter : supportedConfigs[0];
+
+    const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+
+    m_context = eglCreateContext(m_display, m_config, nullptr, contextAttributes);
+    if (m_context == EGL_NO_CONTEXT)
+    {
+        LOGE("eglCreateContext() failed.");
+        EGL_ERR_CHECK();
+    }
+}
+
+EGLShareThreadState::~EGLShareThreadState()
+{
+    LOGD("EGLThreadState getting destroyed! 🧨");
+
+    // Release Skia Context if has been init'd.
+    if (m_skContext.get())
+    {
+        m_skContext->abandonContext();
+        m_skContext.reset(nullptr);
+    }
+
+    if (m_context != EGL_NO_CONTEXT)
+    {
+        eglDestroyContext(m_display, m_context);
+        EGL_ERR_CHECK();
+    }
+
+    eglReleaseThread();
+    EGL_ERR_CHECK();
+
+    if (m_display != EGL_NO_DISPLAY)
+    {
+        eglTerminate(m_display);
+        EGL_ERR_CHECK();
+    }
 }
 
 EGLSurface EGLShareThreadState::createEGLSurface(ANativeWindow* window)
@@ -41,8 +138,55 @@ EGLSurface EGLShareThreadState::createEGLSurface(ANativeWindow* window)
     {
         return EGL_NO_SURFACE;
     }
+
     LOGD("mSkiaContextManager.createWindowSurface()");
-    return mSkiaContextManager.createWindowSurface(window);
+    auto res = eglCreateWindowSurface(m_display, m_config, window, nullptr);
+    EGL_ERR_CHECK();
+    return res;
+}
+
+void EGLShareThreadState::destroySurface(EGLSurface eglSurface)
+{
+    if (eglSurface == EGL_NO_SURFACE)
+    {
+        return;
+    }
+
+    if (m_currentSurface == eglSurface)
+    {
+        makeCurrent(EGL_NO_SURFACE);
+    }
+    eglDestroySurface(m_display, eglSurface);
+    EGL_ERR_CHECK();
+}
+
+static sk_sp<GrDirectContext> make_skia_context()
+{
+    LOGI("c_version()");
+    auto c_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    if (c_version == nullptr)
+    {
+        EGL_ERR_CHECK();
+        LOGE("c_version failed");
+        return nullptr;
+    }
+
+    auto get_proc = [](void* context, const char name[]) -> GrGLFuncPtr {
+        return reinterpret_cast<GrGLFuncPtr>(eglGetProcAddress(name));
+    };
+    std::string version(c_version);
+    auto interface = version.find("OpenGL ES") == std::string::npos
+                         ? GrGLMakeAssembledGLInterface(nullptr, get_proc)
+                         : GrGLMakeAssembledGLESInterface(nullptr, get_proc);
+    LOGI("OpenGL Version %s", version.c_str());
+    if (!interface)
+    {
+        LOGE("GrGLMakeAssembledGL(ES)Interface failed.");
+        return nullptr;
+    }
+    auto ctx = GrDirectContext::MakeGL(interface);
+    LOGI("Skia Context Created %p", ctx.get());
+    return ctx;
 }
 
 sk_sp<SkSurface> EGLShareThreadState::createSkiaSurface(EGLSurface eglSurface,
@@ -58,45 +202,58 @@ sk_sp<SkSurface> EGLShareThreadState::createSkiaSurface(EGLSurface eglSurface,
         return nullptr;
     }
 
-    mSkiaContextManager.makeCurrent(eglSurface);
-    LOGI("Set up window surface %dx%d", width, height);
-    return mSkiaContextManager.createSkiaSurface(width, height);
-}
+    makeCurrent(eglSurface);
 
-void EGLShareThreadState::doDraw(ITracer* tracer,
-                                 EGLSurface eglSurface,
-                                 SkSurface* skSurface,
-                                 jobject ktRenderer) const
-{
-    // Don't render if we have no surface
-    if (eglSurface == nullptr || skSurface == nullptr)
+    LOGI("Set up window surface %dx%d", width, height);
+    if (m_skContext == nullptr)
     {
-        LOGE("Has No Surface!");
-        // Sleep a bit so we don't churn too fast
-        std::this_thread::sleep_for(50ms);
-        return;
+        m_skContext = make_skia_context();
+        if (m_skContext == nullptr)
+        {
+            return nullptr;
+        }
     }
 
-    tracer->beginSection("draw()");
-    // Lock context access for this thread.
+    static GrGLFramebufferInfo fbInfo = {};
+    fbInfo.fFBOID = 0u;
+    fbInfo.fFormat = GL_RGBA8;
 
-    // Bind context to this thread.
-    mSkiaContextManager.makeCurrent(eglSurface);
-    skSurface->getCanvas()->clear(SkColor((0x00000000)));
-    auto env = getJNIEnv();
-    // Kotlin callback.
-    env->CallVoidMethod(ktRenderer, mKtDrawCallback);
+    GrBackendRenderTarget backendRenderTarget(width, height, 1, 8, fbInfo);
+    static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
 
-    tracer->beginSection("flush()");
-    skSurface->flushAndSubmit();
-    tracer->endSection(); // flush
+    auto skSurface = SkSurface::MakeFromBackendRenderTarget(m_skContext.get(),
+                                                            backendRenderTarget,
+                                                            kBottomLeft_GrSurfaceOrigin,
+                                                            kRGBA_8888_SkColorType,
+                                                            nullptr,
+                                                            &surfaceProps,
+                                                            nullptr,
+                                                            nullptr);
 
-    tracer->beginSection("swapBuffers()");
-    swapBuffers(eglSurface);
-    // Unbind context.
-    mSkiaContextManager.makeCurrent();
+    if (!skSurface)
+    {
+        LOGE("SkSurface::MakeFromBackendRenderTarget() failed.");
+        return nullptr;
+    }
 
-    tracer->endSection(); // swapBuffers
-    tracer->endSection(); // draw()
+    return skSurface;
+}
+
+void EGLShareThreadState::makeCurrent(EGLSurface eglSurface)
+{
+    if (eglSurface == m_currentSurface)
+    {
+        return;
+    }
+    auto ctx = eglSurface == EGL_NO_SURFACE ? EGL_NO_CONTEXT : m_context;
+    eglMakeCurrent(m_display, eglSurface, eglSurface, ctx);
+    m_currentSurface = eglSurface;
+    EGL_ERR_CHECK();
+}
+
+void EGLShareThreadState::swapBuffers()
+{
+    eglSwapBuffers(m_display, m_currentSurface);
+    EGL_ERR_CHECK();
 }
 } // namespace rive_android
