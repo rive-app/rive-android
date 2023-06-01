@@ -328,6 +328,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         loadResource(0)
         val that = this
         val events = findViewById<LinearLayout>(R.id.events)
+        val elapsedTextView = findViewById<TextView>(R.id.elapsed_text_view)
         val listener = object : RiveFileController.Listener {
             override fun notifyPlay(animation: PlayableInstance) {
                 var text: String? = null
@@ -401,6 +402,12 @@ class AndroidPlayerActivity : AppCompatActivity() {
                     val text = TextView(that)
                     text.text = "$stateMachineName: State Changed: $stateName"
                     events.addView(text, 0)
+                }
+            }
+
+            override fun notifyAdvance(elapsed: Float) {
+                runOnUiThread {
+                    elapsedTextView.text = "Delta time: $elapsed"
                 }
             }
         }

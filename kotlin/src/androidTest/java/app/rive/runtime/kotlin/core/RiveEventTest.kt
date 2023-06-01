@@ -47,6 +47,20 @@ class RiveEventTest {
     }
 
     @Test
+    fun testAdvanceEvent() {
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            view.autoplay = false
+
+            view.setRiveResource(R.raw.multiple_animations)
+            view.registerListener(observer)
+
+            view.play("one")
+            assert(observer.elapsed > 0)
+        }
+    }
+
+    @Test
     fun testPlayEventAlreadyPlaying() {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.Observer()

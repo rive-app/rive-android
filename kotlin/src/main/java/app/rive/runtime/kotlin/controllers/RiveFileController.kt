@@ -234,6 +234,7 @@ class RiveFileController(
                 }
             }
             ab.advance(elapsed)
+            notifyAdvance(elapsed)
         }
     }
 
@@ -605,33 +606,27 @@ class RiveFileController(
     }
 
     private fun notifyPlay(playableInstance: PlayableInstance) {
-        listeners.toList().forEach {
-            it.notifyPlay(playableInstance)
-        }
+        listeners.forEach { it.notifyPlay(playableInstance) }
     }
 
     private fun notifyPause(playableInstance: PlayableInstance) {
-        listeners.toList().forEach {
-            it.notifyPause(playableInstance)
-        }
+        listeners.forEach { it.notifyPause(playableInstance) }
     }
 
     private fun notifyStop(playableInstance: PlayableInstance) {
-        listeners.toList().forEach {
-            it.notifyStop(playableInstance)
-        }
+        listeners.forEach { it.notifyStop(playableInstance) }
     }
 
     private fun notifyLoop(playableInstance: PlayableInstance) {
-        listeners.toList().forEach {
-            it.notifyLoop(playableInstance)
-        }
+        listeners.forEach { it.notifyLoop(playableInstance) }
+    }
+
+    private fun notifyAdvance(elapsed: Float) {
+        listeners.forEach { it.notifyAdvance(elapsed) }
     }
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
-        listeners.toList().forEach {
-            it.notifyStateChanged(stateMachine.name, state.toString())
-        }
+        listeners.forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
     }
 
     /**
@@ -665,5 +660,6 @@ class RiveFileController(
         fun notifyStop(animation: PlayableInstance)
         fun notifyLoop(animation: PlayableInstance)
         fun notifyStateChanged(stateMachineName: String, stateName: String)
+        fun notifyAdvance(elapsed: Float) {}
     }
 }

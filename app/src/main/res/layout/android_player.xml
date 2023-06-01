@@ -56,6 +56,12 @@
                     android:spinnerMode="dropdown" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/elapsed_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Delta time: " />
+
             <LinearLayout
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"

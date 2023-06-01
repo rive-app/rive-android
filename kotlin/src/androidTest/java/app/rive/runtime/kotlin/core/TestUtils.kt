@@ -143,6 +143,7 @@ class TestUtils {
         var stops = mutableListOf<PlayableInstance>()
         var loops = mutableListOf<PlayableInstance>()
         var states = mutableListOf<StateChanged>()
+        var elapsed: Float = 0f;
 
         override fun notifyPlay(animation: PlayableInstance) {
             plays.add(animation)
@@ -162,6 +163,10 @@ class TestUtils {
 
         override fun notifyStateChanged(stateMachineName: String, stateName: String) {
             states.add(StateChanged(stateMachineName, stateName))
+        }
+
+        override fun notifyAdvance(elapsed: Float) {
+            this.elapsed= 0.016f;
         }
     }
 }
