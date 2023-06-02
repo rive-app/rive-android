@@ -160,7 +160,6 @@ class RiveMemoryTests {
     @Test
     fun layerStateAccess() {
         val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
-        lateinit var layerState: LayerState
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(
                 R.raw.layerstatechange,
@@ -171,14 +170,12 @@ class RiveMemoryTests {
             assert(mockView.artboardRenderer != null)
             val riveFileController = mockView.controller
             riveFileController.advance(1500f)
-            layerState = riveFileController.stateMachines.first().statesChanged.first()
+            val layerState = riveFileController.stateMachines.first().statesChanged.first()
             assertTrue(layerState.isAnimationState)
             // lets assume our view got garbage-collected
             mockView.mockDetach()
             assertNull(mockView.artboardRenderer)
-        }
-        assertThrows(RiveException::class.java) {
-            layerState.isAnimationState
+            assertFalse(layerState.isAnimationState) // It's been deallocated.
         }
     }
 

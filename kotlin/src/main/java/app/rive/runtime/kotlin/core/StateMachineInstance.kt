@@ -92,7 +92,6 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             }
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
-        dependencies.add(input)
         return convertedInput
     }
 
@@ -119,7 +118,6 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         for (i in 0 until inputCount) {
             val output = input(i)
             if (output.name == name) {
-                dependencies.add(output)
                 return output
             }
         }
@@ -157,7 +155,6 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             }
             else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
         }
-        dependencies.add(convertedState)
         return convertedState
     }
 
