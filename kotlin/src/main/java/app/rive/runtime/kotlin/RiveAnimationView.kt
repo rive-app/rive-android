@@ -811,8 +811,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
          */
         @CallSuper
         override fun onDestroy(owner: LifecycleOwner) {
-            owner.lifecycle.removeObserver(this)
             controller.release()
+            owner.lifecycle.removeObserver(this)
         }
     }
 }

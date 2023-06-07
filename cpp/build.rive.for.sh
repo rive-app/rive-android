@@ -8,7 +8,7 @@ ARCH_ARM=armeabi-v7a
 ARCH_ARM64=arm64-v8a
 
 NEEDS_CLEAN='false'
-FLAGS="-flto=full"
+FLAGS="-flto=full -DNDEBUG"
 # we default to release
 CONFIG="release"
 

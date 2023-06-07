@@ -10,12 +10,12 @@ interface RefCount {
         get() = refs.get()
 
     @CallSuper
-    fun acquire() {
-        refs.incrementAndGet()
+    fun acquire(): Int {
+        return refs.incrementAndGet()
     }
 
     @CallSuper
-    fun release() {
-        refs.decrementAndGet()
+    fun release(): Int {
+        return refs.decrementAndGet()
     }
 }

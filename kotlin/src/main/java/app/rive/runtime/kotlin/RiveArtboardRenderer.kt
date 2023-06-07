@@ -36,7 +36,6 @@ open class RiveArtboardRenderer(
     private var controller: RiveFileController = controller.also {
         it.onStart = ::start
         it.acquire()
-
         // Add controller and its file to dependencies.
         // This guarantees that when the renderer is disposed, it will `.release()` them.
         dependencies.add(it)
@@ -110,11 +109,9 @@ open class RiveArtboardRenderer(
 
     internal fun acquireFile(file: File) {
         // Make sure we release the old file first.
-        dependencies.firstOrNull { rc ->
-            rc is File
-        }?.let { rc ->
-            dependencies.remove(rc)
-            rc.release()
+        dependencies.firstOrNull { rc -> rc is File }?.let { fileDep ->
+            dependencies.remove(fileDep)
+            fileDep.release()
         }
         file.acquire()
         dependencies.add(file)

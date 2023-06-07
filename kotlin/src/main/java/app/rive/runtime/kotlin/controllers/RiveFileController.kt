@@ -105,12 +105,8 @@ class RiveFileController(
         Collections.synchronizedList(mutableListOf<LinearAnimationInstance>())
     val animations: List<LinearAnimationInstance>
         get() {
-            return if (animationList.isNotEmpty()) {
-                synchronized(animationList) {
-                    animationList.toList()
-                }
-            } else {
-                emptyList()
+            return synchronized(animationList) {
+                animationList.toList()
             }
         }
 
@@ -198,8 +194,7 @@ class RiveFileController(
         state.playingStateMachines.forEach { play(it) }
         isActive = state.isActive
         // Release the state we had acquired previously to even things out.
-        state.file?.release()
-        state.activeArtboard?.release()
+        state.dispose()
     }
 
     /// Note: This is happening in the render thread
@@ -223,7 +218,6 @@ class RiveFileController(
             }
 
             stateMachines.forEach { stateMachineInstance ->
-
                 if (playingStateMachines.contains(stateMachineInstance)) {
                     val stillPlaying =
                         resolveStateMachineAdvance(stateMachineInstance, elapsed)
@@ -644,13 +638,15 @@ class RiveFileController(
      * Release a reference associated with this Controller.
      * If [refs] == 0, then give up all resources and [release] the file
      */
-    override fun release() {
-        require(refs.get() > 0)
-        super.release()
+    @Synchronized
+    override fun release(): Int {
+        val count = super.release()
+        require(count >= 0)
 
-        if (refs.get() == 0) {
+        if (count == 0) {
             file = null
         }
+        return count
     }
 
     /* LISTENER INTERFACE */

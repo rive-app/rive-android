@@ -169,8 +169,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
     /**
      * Trigger a delete of the underlying C++ object.
      *
-     * [cppDelete] call will enqueue a call to delete the underlying C++ object.
-     * This is to allow the current rendering thread to drain its queue before deleting dependencies.
+     * [cppDelete] call will delete the underlying object.
      * This will internally trigger a call to [disposeDependencies]
      */
     @CallSuper
@@ -184,8 +183,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
     /**
      * Deletes all this renderer's dependents.
      *
-     * Called internally by the JNI - Only once the thread work queue has been drained and we
-     * don't risk using dangling pointers of any dependency (e.g. Artboards or Animation Instances)
+     * Called internally by the JNI within ~JNIRendererSkia()
      *
      * N.B. this function is marked as `protected` instead of `private` because
      * otherwise it's inaccessible from JNI on API < 24

@@ -55,9 +55,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
-    override fun acquire() {
-        require(refs.get() > 0)
-        super.acquire()
+    @Synchronized
+    override fun acquire(): Int {
+        val count = super.acquire()
+        require(count >= 0)
+        return count
     }
 
     /**
@@ -65,13 +67,15 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
-    override fun release() {
-        require(refs.get() > 0)
-        super.release()
+    @Synchronized
+    override fun release(): Int {
+        val count = super.release()
+        require(count >= 0)
 
-        if (refs.get() == 0 && hasCppObject) {
+        if (count == 0 && hasCppObject) {
             dispose()
         }
+        return count
     }
 
     /**
@@ -80,6 +84,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      * Uses [refs] to keep track of how many objects are using this NativeObject.
      * If refs reaches 0 the object can be disposed.
      */
+    @Synchronized
     private fun dispose() {
         require(refs.get() == 0)
 

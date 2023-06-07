@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -28,7 +28,8 @@ class RecyclerActivity : AppCompatActivity() {
 
         val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
         recyclerView.adapter = RiveAdapter()
-        recyclerView.layoutManager = LinearLayoutManager(this)
+//        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = GridLayoutManager(this, 3)
     }
 
     override fun onDestroy() {

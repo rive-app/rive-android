@@ -12,6 +12,7 @@
 #include "GrDirectContext.h"
 #include "SkSurface.h"
 #include "SkCanvas.h"
+#include "SkColorSpace.h"
 
 namespace rive_android
 {
