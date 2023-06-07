@@ -99,18 +99,15 @@ private:
         getJNIEnv(); // Attach thread to JVM.
         ThreadState threadState;
 
+        std::unique_lock lock(mWorkMutex);
         for (;;)
         {
-            Work work;
+            while (mWorkQueue.empty())
             {
-                std::lock_guard lock(mWorkMutex);
-                while (mWorkQueue.empty())
-                {
-                    m_workPushedCondition.wait(mWorkMutex);
-                }
-                work = mWorkQueue.front();
-                mWorkQueue.pop();
+                m_workPushedCondition.wait(mWorkMutex);
             }
+            Work work = mWorkQueue.front();
+            mWorkQueue.pop();
 
             if (!work)
             {
@@ -118,7 +115,10 @@ private:
                 break;
             }
 
+            lock.unlock();
             work(&threadState);
+            lock.lock();
+
             ++m_lastCompletedWorkID;
             m_workedCompletedCondition.notify_all();
         }
