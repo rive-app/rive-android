@@ -12,6 +12,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:riveAutoPlay="false" />
+        app:riveAutoPlay="true" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

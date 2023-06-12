@@ -12,7 +12,6 @@ import android.view.View
 import androidx.annotation.CallSuper
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
@@ -50,7 +49,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         getContextAsType<LifecycleOwner>()?.lifecycle?.addObserver(lifecycleObserver)
     }
 
-    private inline fun<reified T> getContextAsType(): T? {
+    private inline fun <reified T> getContextAsType(): T? {
         var ctx = context
         while (ctx is ContextWrapper) {
             if (ctx is T) {

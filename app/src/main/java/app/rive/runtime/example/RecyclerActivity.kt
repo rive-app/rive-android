@@ -14,27 +14,35 @@ import androidx.recyclerview.widget.RecyclerView
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
+import app.rive.runtime.kotlin.core.File
 
 @ControllerStateManagement
 class RecyclerActivity : AppCompatActivity() {
 
     companion object {
         const val holderCount = 200
+        const val numCols = 3
+        // Either use the shared file (true) or initialize in the adapter (false)
+        const val useSharedFile = true
     }
+
+    lateinit var sharedFile: File
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_recycler)
 
+        sharedFile = resources.openRawResource(R.raw.basketball).use { File(it.readBytes()) }
+
         val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
-        recyclerView.adapter = RiveAdapter()
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.layoutManager = GridLayoutManager(this, 3)
+        recyclerView.adapter = RiveAdapter(sharedFile, useSharedFile)
+        recyclerView.layoutManager = GridLayoutManager(this, numCols)
     }
 
     override fun onDestroy() {
         val riveAdapter: RiveAdapter =
             findViewById<RecyclerView>(R.id.recycler_view).adapter as RiveAdapter
+        sharedFile.release()
         riveAdapter.resourceCache.forEach { it?.dispose() }
         super.onDestroy()
     }
@@ -53,7 +61,7 @@ object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveResource>() {
 }
 
 @ControllerStateManagement
-class RiveAdapter :
+class RiveAdapter(private val sharedFile: File, private val useSharedFile: Boolean) :
     ListAdapter<RiveResource, RiveAdapter.RiveViewHolder>(RiveFileDiffCallback) {
 
     // Keep ControllerStates around.
@@ -77,6 +85,30 @@ class RiveAdapter :
         return RiveViewHolder(view)
     }
 
+    private fun initialize(holder: RiveViewHolder) {
+        if (useSharedFile) {
+            holder.riveAnimationView.setRiveFile(sharedFile)
+        } else {
+            val riveFileResource = getItem(holder.adapterPosition)
+            holder.bind(riveFileResource)
+        }
+    }
+
+    private fun restoreControllerAt(holder: RiveViewHolder): Boolean {
+        val position = holder.adapterPosition
+        if (resourceCache[position] == null) {
+            return false
+        }
+
+        val savedState = resourceCache[position]
+        savedState?.let {
+            holder.riveAnimationView.restoreControllerState(it)
+            // Once restored clean up the reference.
+            resourceCache[position] = null
+        }
+        return true
+    }
+
     override fun onBindViewHolder(holder: RiveViewHolder, position: Int) {
         // Alternate background colors to differentiate various elements.
         if (position % 2 == 1) {
@@ -84,24 +116,20 @@ class RiveAdapter :
         } else {
             holder.itemView.setBackgroundColor(Color.parseColor("#FFFAF8FD"))
         }
-        val riveFileResource = getItem(position)
-        holder.bind(riveFileResource)
     }
 
     override fun onViewAttachedToWindow(holder: RiveViewHolder) {
         super.onViewAttachedToWindow(holder)
-        val savedState = resourceCache[holder.layoutPosition]
-        savedState?.let {
-            holder.riveAnimationView.restoreControllerState(it)
-            // Once restored, we must clean up the reference.
-            resourceCache[holder.layoutPosition] = null
+
+        if (!restoreControllerAt(holder)) {
+            initialize(holder)
         }
     }
 
     override fun onViewDetachedFromWindow(holder: RiveViewHolder) {
         // Before detaching, let's save the Controller state.
         val savedState = holder.riveAnimationView.saveControllerState()
-        resourceCache[holder.layoutPosition] = savedState
+        resourceCache[holder.adapterPosition] = savedState
         super.onViewDetachedFromWindow(holder)
     }
 

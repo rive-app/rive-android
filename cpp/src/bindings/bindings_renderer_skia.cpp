@@ -67,6 +67,12 @@ extern "C"
     {
         ANativeWindow* surfaceWindow = ANativeWindow_fromSurface(env, surface);
         reinterpret_cast<JNIRendererSkia*>(rendererRef)->setWindow(surfaceWindow);
+        if (surfaceWindow)
+        {
+            // Release this handle. If the renderer grabbed a reference it
+            // won't deallocate.
+            ANativeWindow_release(surfaceWindow);
+        }
     }
 
     JNIEXPORT void JNICALL
