@@ -497,11 +497,13 @@ class RiveFileController(
         }
     }
 
+    // Method is synchronized because it's used by play() from the UI thread as well as
+    // advance() on the Worker thread, so we need to avoid race conditions.
+    @Synchronized
     private fun resolveStateMachineAdvance(
         stateMachineInstance: StateMachineInstance,
         elapsed: Float
     ): Boolean {
-
         val stillPlaying = stateMachineInstance.advance(elapsed)
         stateMachineInstance.statesChanged.forEach {
             notifyStateChanged(stateMachineInstance, it)

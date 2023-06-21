@@ -16,7 +16,10 @@ extern "C"
                                                                           jint length)
     {
         rive_android::setSDKVersion();
-        auto file = import((uint8_t*)env->GetByteArrayElements(bytes, NULL), length);
+
+        jbyte* byte_array = env->GetByteArrayElements(bytes, NULL);
+        long file = import((uint8_t*)byte_array, length);
+        env->ReleaseByteArrayElements(bytes, byte_array, JNI_ABORT);
         return (jlong)file;
     }
 

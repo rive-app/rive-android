@@ -162,6 +162,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
      *
      * [elapsedTime] is currently not taken into account.
      */
+    @Synchronized
     fun advance(elapsedTime: Float): Boolean {
         return cppAdvance(cppPointer, elapsedTime)
     }
