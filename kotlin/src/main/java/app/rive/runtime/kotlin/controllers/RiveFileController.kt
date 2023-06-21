@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.controllers
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.Observable
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -591,7 +592,8 @@ class RiveFileController(
     }
 
     // == Listeners ==
-    private var listeners = HashSet<Listener>()
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal var listeners = HashSet<Listener>()
 
     override fun registerListener(listener: Listener) {
         listeners.add(listener)
@@ -602,27 +604,28 @@ class RiveFileController(
     }
 
     private fun notifyPlay(playableInstance: PlayableInstance) {
-        listeners.forEach { it.notifyPlay(playableInstance) }
+        listeners.toList().forEach { it.notifyPlay(playableInstance) }
     }
 
     private fun notifyPause(playableInstance: PlayableInstance) {
-        listeners.forEach { it.notifyPause(playableInstance) }
+        listeners.toList().forEach { it.notifyPause(playableInstance) }
     }
 
     private fun notifyStop(playableInstance: PlayableInstance) {
-        listeners.forEach { it.notifyStop(playableInstance) }
+        listeners.toList().forEach { it.notifyStop(playableInstance) }
     }
 
     private fun notifyLoop(playableInstance: PlayableInstance) {
-        listeners.forEach { it.notifyLoop(playableInstance) }
+        listeners.toList().forEach { it.notifyLoop(playableInstance) }
     }
 
+    @WorkerThread
     private fun notifyAdvance(elapsed: Float) {
-        listeners.forEach { it.notifyAdvance(elapsed) }
+        listeners.toList().forEach { it.notifyAdvance(elapsed) }
     }
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
-        listeners.forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
+        listeners.toList().forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
     }
 
     /**

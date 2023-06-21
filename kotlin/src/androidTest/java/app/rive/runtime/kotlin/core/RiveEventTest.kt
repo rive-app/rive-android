@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -42,6 +43,34 @@ class RiveEventTest {
             view.registerListener(observer)
 
             view.play("one")
+            assertEquals(1, observer.plays.size)
+        }
+    }
+
+    @Test
+    fun testModifyListenersOnPlay() {
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            var listener: RiveFileController.Listener? = null
+            listener = object : RiveFileController.Listener {
+                override fun notifyPlay(animation: PlayableInstance) {
+                    // Modify the listener list when it gets notified
+                    // Should *not* throw a ConcurrentModificationException
+                    listener?.let { view.controller.listeners.clear() }
+                }
+
+                override fun notifyPause(animation: PlayableInstance) {}
+                override fun notifyStop(animation: PlayableInstance) {}
+                override fun notifyLoop(animation: PlayableInstance) {}
+                override fun notifyStateChanged(stateMachineName: String, stateName: String) {}
+            }
+            view.autoplay = false
+
+            view.setRiveResource(R.raw.multiple_animations)
+            view.registerListener(listener)
+            view.registerListener(observer)
+            view.play("one")
+            // Still got notified.
             assertEquals(1, observer.plays.size)
         }
     }
