@@ -44,11 +44,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         (sInNS / refreshRateHz).toLong()
     }
 
-    init {
-        // Attach the observer to give us lifecycle hooks.
-        getContextAsType<LifecycleOwner>()?.lifecycle?.addObserver(lifecycleObserver)
-    }
-
     private inline fun <reified T> getContextAsType(): T? {
         var ctx = context
         while (ctx is ContextWrapper) {
@@ -58,6 +53,15 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
             ctx = ctx.baseContext
         }
         return null
+    }
+
+    private fun addLifeCycleObserver() {
+        //`lifecycle` is already check and put if absent. So we just need to add `lifecycleObserver` without check is it already added or not.
+        getContextAsType<LifecycleOwner>()?.lifecycle?.addObserver(lifecycleObserver)
+    }
+
+    private fun removeLifeCycleObserver() {
+        getContextAsType<LifecycleOwner>()?.lifecycle?.removeObserver(lifecycleObserver)
     }
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {} // called every time when swapBuffers is called
@@ -73,6 +77,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // Only make the renderer once we are ready to display things.
         renderer = createRenderer()
         renderer!!.make()
+        addLifeCycleObserver()
     }
 
     @CallSuper
@@ -90,6 +95,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         // If we delete, we must have a Renderer.
         renderer!!.delete()
         renderer = null
+        removeLifeCycleObserver()
         super.onDetachedFromWindow()
     }
 
