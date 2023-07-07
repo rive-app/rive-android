@@ -9,26 +9,6 @@ extern "C"
 #endif
     using namespace rive_android;
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(JNIEnv* env,
-                                                                      jobject thisObj,
-                                                                      jobject jfit,
-                                                                      jobject jalignment,
-                                                                      jobject availableBoundsRectF,
-                                                                      jobject artboardBoundsRectF,
-                                                                      jobject requiredBoundsRectF)
-    {
-        auto fit = ::getFit(env, jfit);
-        auto alignment = ::getAlignment(env, jalignment);
-        auto availableBounds = rectFToAABB(env, availableBoundsRectF);
-        auto artboardBounds = rectFToAABB(env, artboardBoundsRectF);
-
-        DimensionsHelper helper;
-
-        auto required = helper.computeDimensions(fit, alignment, availableBounds, artboardBounds);
-        aabbToRectF(env, required, requiredBoundsRectF);
-    }
-
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_Helpers_cppConvertToArtboardSpace(JNIEnv* env,
                                                                         jobject thisObj,

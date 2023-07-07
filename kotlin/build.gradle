@@ -6,6 +6,7 @@ apply plugin: 'org.jetbrains.dokka'
 android {
     compileSdkVersion 33
     buildToolsVersion "30.0.3"
+    ndkVersion "25.1.8937393"
 
     defaultConfig {
         minSdkVersion 21
@@ -13,10 +14,23 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        externalNativeBuild {
+            cmake {
+                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+                arguments "-DCMAKE_VERBOSE_MAKEFILE=1", "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON",
+                        '-DANDROID_CPP_FEATURES=no-exceptions no-rtti', "-DANDROID_STL=c++_shared"
+            }
+        }
     }
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
     }
     testOptions {
         unitTests.includeAndroidResources = true
@@ -42,7 +56,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.getkeepsafe.relinker:relinker:1.4.4'
+    implementation 'com.getkeepsafe.relinker:relinker:1.4.5'
     implementation 'androidx.startup:startup-runtime:1.1.1'
 
     testImplementation 'junit:junit:4.13.2'

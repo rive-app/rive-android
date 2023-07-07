@@ -7,16 +7,20 @@
 ehthumbs.db
 Thumbs.db
 
-cpp/*.o
-cpp/*.so
-cpp/build
-cpp/deps
-cpp/Toolchains
+kotlin/src/main/cpp/*.o
+kotlin/src/main/cpp/*.so
+kotlin/src/main/cpp/build
+kotlin/src/main/cpp/deps
+kotlin/src/main/cpp/Toolchains
+kotlin/src/main/cpp/test/build
+kotlin/src/main/cpp/test/build_catch_tests
+kotlin/src/main/cpp/test/output
+kotlin/src/main/cpp/test/Catch2
+
 *.iml
 .gradle
 local.properties
 .idea
-.DS_Store
 build
 captures
 build.pixel.sh
@@ -26,3 +30,4 @@ build.nexus.sh
 .settings
 .classpath
 kotlin/src/main/jniLibs/*
+kotlin/.cxx

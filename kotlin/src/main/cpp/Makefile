@@ -20,22 +20,27 @@ O_FILES = $(patsubst %.cpp,$(ODIR)/%.o,$(notdir $(SRC_FILES)))
 
 DEPS=$(O_FILES) \
 	$(BUILD_DIR)/librive.a \
-	$(BUILD_DIR)/libc++_static.a \
 	$(BUILD_DIR)/libskia.a \
 	$(BUILD_DIR)/librive_skia_renderer.a \
 
-LDIR=-L$(SYSROOT)/usr/lib
 LIBS=-llog -landroid -lEGL -lGLESv3
 
 # Build the .so object.
 jni_bridge: $(OBJ_FILES)
-	$(CXX) -shared $(DEPS) -o $(BUILD_DIR)/libjnirivebridge.so --sysroot=$(SYSROOT) -I$(RIVE_RUNTIME_DIR)/include -I${RIVE_RUNTIME_DIR}/renderer/library/include -I$(INCLUDE) -I$(INCLUDE_CXX) $(LDIR) $(LIBS) $(CXXFLAGS) -static-libstdc++ -static-libgcc -ldl  -Wl,--hash-style=both
+	$(CXX) -shared -o $(BUILD_DIR)/libjnirivebridge.so \
+	--target=$(TARGET_ARCH)  \
+	--sysroot=$(SYSROOT) \
+	$(CXXFLAGS) \
+	-static-libstdc++ -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Qunused-arguments \
+	$(DEPS) \
+	$(LIBS) -latomic -lm 
 
 # BUILD all .o files - i.e. the files specified in OBJ_FILES.
 # Output all the .o files in ODIR
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) -c $< -o $(ODIR)/$(notdir $@) \
 		-DSK_GL \
+		-Iinclude \
 		-I$(RIVE_RUNTIME_DIR)/include \
 		-I$(RIVE_RUNTIME_DIR)/renderer/library/include \
 		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/ \

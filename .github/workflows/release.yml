@@ -13,86 +13,17 @@ on:
         default: false
 
 jobs:
-  build-android-so:
-    strategy:
-      matrix:
-        arch: [ "x86", "x86_64", "arm64-v8a", "armeabi-v7a" ]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
-      - name: Checkout Code
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-          token: ${{ secrets.PAT_GITHUB }}
-
-      - name: Update Java
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Installing pre-requisites
-        run: |
-          set -x
-          # Install some dependencies & premake5
-          sudo apt update && sudo apt-get -y install build-essential cmake wget clang g++ libgl1-mesa-dev libvorbis-dev libvpx-dev ninja-build
-          wget https://github.com/premake/premake-core/releases/download/v5.0.0-alpha15/premake-5.0.0-alpha15-linux.tar.gz
-          tar -xf premake-5.0.0-alpha15-linux.tar.gz
-          mkdir bin
-          cp premake5 bin/premake5
-          sudo chmod a+x premake5
-          sudo mv premake5 /usr/local/bin      
-
-      - name: Cache NDK
-        id: cache-ndk
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{github.workspace}}/android-ndk-r25b
-          # we are JUST going to cache for this workflow. 
-          # really we could cache flutter way more (based on the flutter version)
-          key: android-ndk-r25b-linux
-      - name: Get and Unzip NDK
-        if: ${{steps.cache-ndk.outputs.cache-hit != 'true'}}
-        run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip android-ndk-r25b-linux
-          ls
-      - name: Build rive for ${{ matrix.arch }}
-        run: |
-          cd cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
-        env:
-          NDK_PATH: ${{github.workspace}}/android-ndk-r25b
-      # NOTE: this is sneaky, we are adding multiple files from the matrix jobs into the same artifact
-      - uses: actions/upload-artifact@v3
-        with:
-          name: android-so
-          path: kotlin/src/main/jniLibs/*
-
   publish:
     name: Release build and publish
-    needs: build-android-so
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Update Java
         uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
           java-version: '17'
-      - uses: actions/download-artifact@v3
-        with:
-          name: android-so
-          path: kotlin/src/main/jniLibs/
 
       # Base64 decodes and pipes the GPG key content into the secret file
       - name: Prepare environment

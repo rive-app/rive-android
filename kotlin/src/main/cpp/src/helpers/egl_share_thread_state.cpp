@@ -8,7 +8,7 @@
 #include "gl/GrGLAssembleInterface.h"
 #include "SkSurface.h"
 
-#if 0
+#if defined(DEBUG) || defined(LOG)
 #define EGL_ERR_CHECK() _check_egl_error(__FILE__, __LINE__)
 #else
 #define EGL_ERR_CHECK()

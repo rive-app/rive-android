@@ -30,6 +30,8 @@ android {
         jvmTarget = '1.8'
     }
     namespace 'app.rive.runtime.compatibilitytest'
+    ndkVersion '25.1.8937393'
+    buildToolsVersion '30.0.3'
 }
 
 dependencies {

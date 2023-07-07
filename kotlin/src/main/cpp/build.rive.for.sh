@@ -7,6 +7,7 @@ ARCH_X64=x86_64
 ARCH_ARM=armeabi-v7a
 ARCH_ARM64=arm64-v8a
 
+ONLY_DEPS='true'
 NEEDS_CLEAN='false'
 FLAGS="-flto=full -DNDEBUG"
 # we default to release
@@ -36,10 +37,11 @@ if [ -z "$HOST_TAG" ]; then
     exit 1
 fi
 
-while getopts "a:cdl" opt; do
+while getopts "a:cbdl" opt; do
     case "$opt" in
     a) ARCH_NAME="$OPTARG" ;;
     c) NEEDS_CLEAN="true" ;;
+    b) ONLY_DEPS="false" ;;
     d)
         CONFIG="debug"
         FLAGS="-DDEBUG -g"
@@ -92,16 +94,22 @@ fi
 # Common variables.
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
-if [ -d "$PWD/../submodules/rive-cpp" ]; then
-    export RIVE_RUNTIME_DIR="$PWD/../submodules/rive-cpp"
+if [ -z "${RIVE_RUNTIME_DIR}" ]; then
+    echo "RIVE_RUNTIME_DIR is not set"
+    if [ -d "$PWD/../../../../submodules/rive-cpp" ]; then
+        export RIVE_RUNTIME_DIR="$PWD/../../../../submodules/rive-cpp"
+    else
+        export RIVE_RUNTIME_DIR="$PWD/../../../../../runtime"
+    fi
 else
-    export RIVE_RUNTIME_DIR="$PWD/../../runtime"
+    echo "RIVE_RUNTIME_DIR already set: ${RIVE_RUNTIME_DIR}"
 fi
 
 export SYSROOT="$TOOLCHAIN/sysroot"
 export INCLUDE="$SYSROOT/usr/include"
 export INCLUDE_CXX="$INCLUDE/c++/v1"
-export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -Iinclude -fPIC -Oz ${FLAGS}"
+export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -fPIC -Oz ${FLAGS}"
+# export CXXFLAGS="-std=c++17 -Wall -fno-exceptions -fno-rtti -fsanitize=hwaddress -fno-omit-frame-pointer -Iinclude -fPIC -O1 ${FLAGS}"
 export AR="$TOOLCHAIN/bin/llvm-ar"
 
 export SKIA_REPO=$CONFIG_SKIA_REPO
@@ -121,6 +129,15 @@ buildFor() {
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
     popd
 
+    # Build librive_pls_renderer (internally builds librive)
+    # pushd "$RIVE_RUNTIME_DIR"/../pls/out
+    # premake5 --os=android --arch=$SKIA_ARCH gmake2
+    # if ${NEEDS_CLEAN}; then
+    #     make config=$CONFIG clean
+    # fi
+    # make config=$CONFIG -j20 rive rive_pls_renderer
+    # popd
+
     # Build librive_skia_renderer (internally builds librive)
     pushd "$RIVE_RUNTIME_DIR"/skia/renderer
     if ${NEEDS_CLEAN}; then
@@ -138,13 +155,19 @@ buildFor() {
 
     # copy in newly built rive/skia/skia_renderer files.
     cp "$RIVE_RUNTIME_DIR"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
-    cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
-    cp "$LIBCXX"/libc++_static.a "$BUILD_DIR"
+    # cp "$RIVE_RUNTIME_DIR/../pls/out/android_$CONFIG/librive_pls_renderer.a" "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
+
+    if ! ${ONLY_DEPS}; then
+        # Skip building the library.
+        echo "ONLY DEPS!"
+        exit 0
+    fi
 
     # build the android .so!
     mkdir -p "$BUILD_DIR"/obj
-    make -j7
+    make -j20
 
     JNI_DEST=../kotlin/src/main/jniLibs/$ARCH_NAME
     mkdir -p "$JNI_DEST"
@@ -155,14 +178,16 @@ if [ "$ARCH_NAME" = "$ARCH_X86" ]; then
     echo "==== x86 ===="
     SKIA_ARCH=x86
     ARCH=i686
+    export TARGET_ARCH="$ARCH-linux-android$API"
     export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
-    export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
+    export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
     LIBCXX=$SYSROOT/usr/lib/$ARCH-linux-android
 elif [ "$ARCH_NAME" = "$ARCH_X64" ]; then
     echo "==== x86_64 ===="
     ARCH=x86_64
     SKIA_ARCH=x64
+    export TARGET_ARCH="$ARCH-linux-android$API"
     export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang
@@ -172,6 +197,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM" ]; then
     ARCH=arm
     ARCH_PREFIX=armv7a
     SKIA_ARCH=arm
+    export TARGET_ARCH="$ARCH_PREFIX-linux-androideabi$API"
     export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH_PREFIX-linux-androideabi$API-clang
@@ -180,6 +206,7 @@ elif [ "$ARCH_NAME" = "$ARCH_ARM64" ]; then
     echo "==== ARM64 ===="
     ARCH=aarch64
     SKIA_ARCH=arm64
+    export TARGET_ARCH="$ARCH-linux-android$API"
     export BUILD_DIR=$PWD/build/$CONFIG/$ARCH_NAME
     export CXX=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang++
     export CC=$TOOLCHAIN/bin/$ARCH-linux-android$API-clang

@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import android.util.Log
 import com.getkeepsafe.relinker.ReLinker
 
 object Rive {
@@ -14,6 +15,7 @@ object Rive {
     )
 
     private const val JNIRiveBridge = "jnirivebridge"
+    private const val RiveAndroid = "rive-android"
 
     /**
      * Initialises Rive.
@@ -27,7 +29,10 @@ object Rive {
     fun init(context: Context) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
-        ReLinker.loadLibrary(context, JNIRiveBridge)
+        ReLinker
+            .log { Log.d("ReLinkerLogs", "(${Thread.currentThread().id}) $it") }
+            .loadLibrary(context, RiveAndroid)
+//            .loadLibrary(context, JNIRiveBridge)
         initializeCppEnvironment()
     }
 
