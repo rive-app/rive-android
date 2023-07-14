@@ -10,8 +10,8 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import app.rive.runtime.kotlin.renderers.RendererSkia
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
@@ -28,7 +28,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         getContextAsType<Activity>()!!
     }
 
-    private val lifecycleObserver: LifecycleObserver by lazy { createObserver() }
+    protected val lifecycleObserver: LifecycleObserver by lazy { createObserver() }
     protected var renderer: RendererSkia? = null
     private lateinit var viewSurface: Surface
     protected abstract fun createRenderer(): RendererSkia
@@ -44,12 +44,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         (sInNS / refreshRateHz).toLong()
     }
 
-    init {
-        // Attach the observer to give us lifecycle hooks.
-        getContextAsType<LifecycleOwner>()?.lifecycle?.addObserver(lifecycleObserver)
-    }
-
-    private inline fun <reified T> getContextAsType(): T? {
+    protected inline fun <reified T> getContextAsType(): T? {
         var ctx = context
         while (ctx is ContextWrapper) {
             if (ctx is T) {

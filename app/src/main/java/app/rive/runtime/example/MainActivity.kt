@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_meshes, MeshesActivity::class.java),
         Pair(R.id.go_viewstub, ViewStubActivity::class.java),
         Pair(R.id.go_compose, ComposeActivity::class.java),
+        Pair(R.id.go_frame, FrameActivity::class.java),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

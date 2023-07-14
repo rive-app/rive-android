@@ -12,11 +12,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity
-            android:name=".ComposeActivity"
-            android:exported="false"
-            android:label="@string/title_activity_compose"
-            android:theme="@style/AppTheme" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -58,6 +53,13 @@
         <activity android:name=".MeshesActivity" />
         <activity android:name=".ViewStubActivity" />
         <activity android:name=".ViewPagerActivity" />
+        <activity
+            android:name=".ComposeActivity"
+            android:exported="false"
+            android:label="@string/title_activity_compose"
+            android:theme="@style/AppTheme" />
+        <activity android:name=".FrameActivity" />
+
         <!-- For testing -->
         <activity android:name=".SingleActivity" />
     </application>

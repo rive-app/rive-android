@@ -16,6 +16,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewTreeLifecycleOwner
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
@@ -161,6 +162,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         get() = controller.playingStateMachines
 
     /**
+     * The current [LifecycleOwner]. At the time of creation it will be the [Activity].
+     */
+    private var lifecycleOwner: LifecycleOwner? = getContextAsType<LifecycleOwner>()
+
+    /**
      * Tracks the renderer attributes that need to be applied when this [View] within its lifecycle.
      */
     class RendererAttributes(
@@ -211,6 +217,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     loop = rendererAttributes.loop,
                     autoplay = rendererAttributes.autoplay,
                 )
+                /**
+                 * Attach the observer to give us lifecycle hooks
+                 * N.B. we're attaching in the constructor because the View can be created without
+                 * getting ever attached (e.g. in RecyclerViews) - we need to register the Observer
+                 * right away. [lifecycleOwner] at this point is going to be the wrapping Activity.
+                 */
+                lifecycleOwner?.lifecycle?.addObserver(lifecycleObserver)
 
                 // Initialize resource if we have one.
                 resourceFromValue?.let {
@@ -633,11 +646,33 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun createObserver(): LifecycleObserver {
-        return RiveViewLifecycleObserver()
+        return RiveViewLifecycleObserver(controller)
+    }
+
+    /**
+     * Ensure that the current [lifecycleOwner] is still valid in this View's tree.
+     * Upon creation, the original [lifecycleOwner] is going to be the [Activity] containing this
+     * [RiveAnimationView]. If the [View] is added within a different [LifecycleOwner] this needs
+     * to be validated again.
+     * This could arise when adding the [View] to a [Fragment].
+     * If the [lifecycleOwner] has changed, this is swapped out.
+     * Calling addObserver again will trigger a onCreate/onStart/onResume again.
+     */
+    private fun validateLifecycleOwner() {
+        val currentLifecycleOwner = ViewTreeLifecycleOwner.get(this)
+        currentLifecycleOwner?.let {
+            if (it != lifecycleOwner) {
+                lifecycleOwner?.lifecycle?.removeObserver(lifecycleObserver)
+                lifecycleOwner = currentLifecycleOwner
+                lifecycleOwner?.lifecycle?.addObserver(lifecycleObserver)
+            }
+        }
+
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        validateLifecycleOwner()
         // If a File hasn't been set yet, try to initialize it.
         if (controller.file == null) {
             loadFileFromResource {
@@ -789,31 +824,39 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
         return true
     }
+}
 
+/**
+ * The [DefaultLifecycleObserver] tied to a [RiveAnimationView].
+ * Created within RiveAnimationView() to make sure things are properly cleaned up when the View
+ * is destroyed.
+ *
+ * N.B. since the [RiveAnimationView] can change [LifecycleOwner] during its lifetime, this is
+ * updated within [RiveAnimationView.onAttachedToWindow]. If there is a new [LifecycleOwner]
+ * [onCreate], [onStart], and [onResume] will be called again when it is registered.
+ */
+class RiveViewLifecycleObserver(private val controller: RiveFileController) :
+    DefaultLifecycleObserver {
+    override fun onCreate(owner: LifecycleOwner) {}
 
-    inner class RiveViewLifecycleObserver : DefaultLifecycleObserver {
+    override fun onStart(owner: LifecycleOwner) {}
 
-        override fun onCreate(owner: LifecycleOwner) {}
+    override fun onResume(owner: LifecycleOwner) {}
 
-        override fun onStart(owner: LifecycleOwner) {}
+    override fun onPause(owner: LifecycleOwner) {}
 
-        override fun onResume(owner: LifecycleOwner) {}
+    override fun onStop(owner: LifecycleOwner) {}
 
-        override fun onPause(owner: LifecycleOwner) {}
-
-        override fun onStop(owner: LifecycleOwner) {}
-
-        /**
-         * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
-         * is called.
-         * This typically happens when the Activity or Fragment is in the process of being permanently
-         * destroyed.
-         */
-        @CallSuper
-        override fun onDestroy(owner: LifecycleOwner) {
-            controller.release()
-            owner.lifecycle.removeObserver(this)
-        }
+    /**
+     * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
+     * is called.
+     * This typically happens when the Activity or Fragment is in the process of being permanently
+     * destroyed.
+     */
+    @CallSuper
+    override fun onDestroy(owner: LifecycleOwner) {
+        controller.release()
+        owner.lifecycle.removeObserver(this)
     }
 }
 
