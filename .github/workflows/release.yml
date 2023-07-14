@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       major:
-        description: 'Major'
+        description: "Major"
         type: boolean
         default: false
       minor:
-        description: 'Minor'
+        description: "Minor"
         type: boolean
         default: false
 
@@ -19,11 +19,41 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-      - name: Update Java
-        uses: actions/setup-java@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          aws-region: us-west-2
+          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
+
+      - name: Update Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Install NDK & tools
+        # Starts from: pwd => /home/runner/work/rive/rive
+        # ANDROID_HOME => /usr/local/lib/android/sdk
+        run: |
+          set -x 
+          echo "y" | sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install 'build-tools;30.0.3' platform-tools --sdk_root=${ANDROID_SDK_ROOT}
+          cd ${ANDROID_HOME} 
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip
+          echo "y" | sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
+
+      - name: Installing pre-requisites
+        run: |
+          set -x
+          # Install some dependencies & premake5
+          sudo apt update && sudo apt-get -y install build-essential cmake clang g++ libgl1-mesa-dev libvorbis-dev libvpx-dev ninja-build
+          wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-alpha15/premake-5.0.0-alpha15-linux.tar.gz
+          tar -xf premake-5.0.0-alpha15-linux.tar.gz
+          sudo mv premake5 /usr/local/bin
 
       # Base64 decodes and pipes the GPG key content into the secret file
       - name: Prepare environment
@@ -64,8 +94,12 @@ jobs:
 
       # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
+        env:
+          # ANDROID_SDK_ROOT has been in the env by 'setup-android' above 
+          #   and is => /usr/local/lib/android/sdk
+          NDK_PATH: ${{ env.ANDROID_SDK_ROOT }}/android-ndk-r25b
         run: ./gradlew kotlin:assembleRelease
-      
+
       # Runs upload, and then closes & releases the repository
       - name: Publish to MavenCentral
         run: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
