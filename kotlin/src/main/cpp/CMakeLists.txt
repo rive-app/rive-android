@@ -11,8 +11,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fno-exceptions -fno-rtti")
 set(CMAKE_CXX_FLAGS_RELEASE "-Oz")
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(RIVE_RUNTIME_DIR "${PROJECT_SOURCE_DIR}/../../../../../runtime")
-message("LOOKED FOR: ${RIVE_RUNTIME_DIR}")
+
+# Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
+if(EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
+    set(ENV{RIVE_RUNTIME_DIR} "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
+else()
+    set(ENV{RIVE_RUNTIME_DIR} "${PROJECT_SOURCE_DIR}/../../../../../runtime")
+endif()
+
+message("LOOKED FOR: '$ENV{RIVE_RUNTIME_DIR}'")
 message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 
 
@@ -54,14 +61,14 @@ if(NOT SCRIPT_RESULT EQUAL "0")
 endif()
 include_directories(
         include
-        ${RIVE_RUNTIME_DIR}/include
-        ${RIVE_RUNTIME_DIR}/renderer/library/include
-        ${RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/
-        ${RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/core
-        ${RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/effects
-        ${RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/gpu
-        ${RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/config
-        ${RIVE_RUNTIME_DIR}/skia/renderer/include
+        $ENV{RIVE_RUNTIME_DIR}/include
+        $ENV{RIVE_RUNTIME_DIR}/renderer/library/include
+        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/
+        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/core
+        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/effects
+        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/gpu
+        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/config
+        $ENV{RIVE_RUNTIME_DIR}/skia/renderer/include
 )
 
 file(GLOB SOURCES
