@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_GITHUB }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -98,7 +101,7 @@ jobs:
       # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
         env:
-          # ANDROID_SDK_ROOT has been in the env by 'setup-android' above 
+          # ANDROID_SDK_ROOT has been in the env by 'setup-android' above
           #   and is => /usr/local/lib/android/sdk
           NDK_PATH: ${{ env.ANDROID_SDK_ROOT }}/android-ndk-r25b
         run: ./gradlew kotlin:assembleRelease
