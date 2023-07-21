@@ -8,39 +8,50 @@
 
 // Print only on debug builds.
 #if defined(DEBUG) || defined(LOG)
-#define LOG_TAG (std::string(__FILE__ ":") + std::to_string(__LINE__)).c_str()
+// CMake builds print out a lot of gibberish with this macro - comment it out for now.
+// #define LOG_TAG (std::string(__FILE__ ":") + std::to_string(__LINE__)).c_str()
+#define LOG_TAG "rive-android-jni"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define EGL_ERR_CHECK() _check_egl_error(__FILE__, __LINE__)
 #else
 #define LOGE(...)
 #define LOGW(...)
 #define LOGD(...)
 #define LOGI(...)
+#define EGL_ERR_CHECK()
 #endif
 
 namespace rive_android
 {
-extern JavaVM* globalJavaVM;
-extern int sdkVersion;
-void setSDKVersion();
-void logReferenceTables();
-long import(uint8_t* bytes, jint length);
+enum class RendererType
+{
+    Skia = 0,
+    Rive = 1
+};
 
-rive::Alignment getAlignment(JNIEnv* env, jobject jalignment);
-rive::Fit getFit(JNIEnv* env, jobject jfit);
-JNIEnv* getJNIEnv();
+extern JavaVM* g_JVM;
+extern long g_sdkVersion;
+void SetSDKVersion();
+void LogReferenceTables();
+long Import(uint8_t*, jint, RendererType = RendererType::Skia);
 
-void detachThread();
+rive::Alignment GetAlignment(JNIEnv*, jobject);
+rive::Fit GetFit(JNIEnv*, jobject);
+JNIEnv* GetJNIEnv();
 
-std::string jstring2string(JNIEnv* env, jstring jStr);
+void DetachThread();
+
+std::string JStringToString(JNIEnv*, jstring);
+int SizeTTOInt(size_t);
 
 #if defined(DEBUG) || defined(LOG)
 // luigi: this redirects stderr to android log (probably want to ifdef this
 // out for release)
-void logThread();
-void _check_egl_error(const char* file, int line);
+[[noreturn]] void LogThread();
+void _check_egl_error(const char*, int);
 #endif
 } // namespace rive_android
 #endif

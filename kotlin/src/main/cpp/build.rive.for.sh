@@ -124,39 +124,47 @@ API=21
 SKIA_ARCH=
 
 buildFor() {
+    if ${NEEDS_CLEAN}; then
+        echo "Cleaning everything!"
+        # Skia
+        pushd "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"
+        bin/gn clean ./out/"$CONFIG"/"$SKIA_ARCH"
+        popd
+        # PLS
+        pushd "$RIVE_RUNTIME_DIR"/../pls/out
+        make config=$CONFIG clean
+        popd
+        # rive_skia_renderer
+        pushd "$RIVE_RUNTIME_DIR"/skia/renderer
+        ./build.sh -p android."$SKIA_ARCH" clean
+        popd
+        # Android lib
+        make clean
+    fi
+
     # Build skia
     pushd "$RIVE_RUNTIME_DIR"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
     popd
 
     # Build librive_pls_renderer (internally builds librive)
-    # pushd "$RIVE_RUNTIME_DIR"/../pls/out
-    # premake5 --os=android --arch=$SKIA_ARCH gmake2
-    # if ${NEEDS_CLEAN}; then
-    #     make config=$CONFIG clean
-    # fi
-    # make config=$CONFIG -j20 rive rive_pls_renderer
-    # popd
+    pushd "$RIVE_RUNTIME_DIR"/../pls/out
+    premake5 --scripts="$RIVE_RUNTIME_DIR"/build --os=android --arch="$SKIA_ARCH" gmake2
+    make config=$CONFIG -j20 rive rive_pls_renderer
+    popd
 
     # Build librive_skia_renderer (internally builds librive)
     pushd "$RIVE_RUNTIME_DIR"/skia/renderer
-    if ${NEEDS_CLEAN}; then
-        ./build.sh -p android."$SKIA_ARCH" "$CONFIG" clean
-    fi
     ./build.sh -p android."$SKIA_ARCH" "$CONFIG"
     popd
 
     # Cleanup our android build location.
     mkdir -p "$BUILD_DIR"
-    if ${NEEDS_CLEAN}; then
-        # echo 'cleaning!'
-        make clean
-    fi
 
     # copy in newly built rive/skia/skia_renderer files.
     cp "$RIVE_RUNTIME_DIR"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
-    # cp "$RIVE_RUNTIME_DIR/../pls/out/android_$CONFIG/librive_pls_renderer.a" "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR/../pls/out/android/$SKIA_ARCH/$CONFIG/lib/librive_pls_renderer.a" "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
 
     if ! ${ONLY_DEPS}; then
@@ -169,7 +177,7 @@ buildFor() {
     mkdir -p "$BUILD_DIR"/obj
     make -j20
 
-    JNI_DEST=../kotlin/src/main/jniLibs/$ARCH_NAME
+    JNI_DEST=../jniLibs/$ARCH_NAME
     mkdir -p "$JNI_DEST"
     cp "$BUILD_DIR"/libjnirivebridge.so "$JNI_DEST"
 }

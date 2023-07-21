@@ -7,10 +7,10 @@
 
 namespace rive_android
 {
-jclass getClass(const char* name) { return getJNIEnv()->FindClass(name); }
+jclass getClass(const char* name) { return GetJNIEnv()->FindClass(name); }
 jmethodID getMethodId(jclass clazz, const char* name, const char* sig)
 {
-    JNIEnv* env = getJNIEnv();
+    JNIEnv* env = GetJNIEnv();
     jmethodID output = env->GetMethodID(clazz, name, sig);
     env->DeleteLocalRef(clazz);
     return output;
@@ -18,7 +18,7 @@ jmethodID getMethodId(jclass clazz, const char* name, const char* sig)
 
 jfieldID getStaticFieldId(jclass clazz, const char* name, const char* sig)
 {
-    JNIEnv* env = getJNIEnv();
+    JNIEnv* env = GetJNIEnv();
     jfieldID output = env->GetStaticFieldID(clazz, name, sig);
     env->DeleteLocalRef(clazz);
     return output;
@@ -26,71 +26,71 @@ jfieldID getStaticFieldId(jclass clazz, const char* name, const char* sig)
 
 jfieldID getFieldId(jclass clazz, const char* name, const char* sig)
 {
-    JNIEnv* env = getJNIEnv();
+    JNIEnv* env = GetJNIEnv();
     jfieldID output = env->GetFieldID(clazz, name, sig);
     env->DeleteLocalRef(clazz);
     return output;
 }
 
-jint throwRiveException(const char* message)
+jint ThrowRiveException(const char* message)
 {
     jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/RiveException");
-    return getJNIEnv()->ThrowNew(exClass, message);
+    return GetJNIEnv()->ThrowNew(exClass, message);
 }
-jint throwMalformedFileException(const char* message)
+jint ThrowMalformedFileException(const char* message)
 {
     jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/MalformedFileException");
-    return getJNIEnv()->ThrowNew(exClass, message);
+    return GetJNIEnv()->ThrowNew(exClass, message);
 }
-jint throwUnsupportedRuntimeVersionException(const char* message)
+jint ThrowUnsupportedRuntimeVersionException(const char* message)
 {
     jclass exClass = getClass("app/rive/runtime/kotlin/core/errors/"
                               "UnsupportedRuntimeVersionException");
-    return getJNIEnv()->ThrowNew(exClass, message);
+    return GetJNIEnv()->ThrowNew(exClass, message);
 }
 
-jclass getFitClass() { return getClass("app/rive/runtime/kotlin/core/Fit"); };
-jmethodID getFitNameMethodId()
+jclass GetFitClass() { return getClass("app/rive/runtime/kotlin/core/Fit"); };
+jmethodID GetFitNameMethodId()
 {
-    return getMethodId(getFitClass(), "name", "()Ljava/lang/String;");
+    return getMethodId(GetFitClass(), "name", "()Ljava/lang/String;");
 }
 
-jclass getAlignmentClass() { return getClass("app/rive/runtime/kotlin/core/Alignment"); }
-jmethodID getAlignmentNameMethodId()
+jclass GetAlignmentClass() { return getClass("app/rive/runtime/kotlin/core/Alignment"); }
+jmethodID GetAlignmentNameMethodId()
 {
-    return getMethodId(getAlignmentClass(), "name", "()Ljava/lang/String;");
+    return getMethodId(GetAlignmentClass(), "name", "()Ljava/lang/String;");
 };
 
-jclass getLoopClass() { return getClass("app/rive/runtime/kotlin/core/Loop"); };
+jclass GetLoopClass() { return getClass("app/rive/runtime/kotlin/core/Loop"); };
 
-jfieldID getNoneLoopField()
+jfieldID GetNoneLoopField()
 {
-    return getStaticFieldId(getLoopClass(), "NONE", "Lapp/rive/runtime/kotlin/core/Loop;");
+    return getStaticFieldId(GetLoopClass(), "NONE", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
-jfieldID getOneShotLoopField()
+jfieldID GetOneShotLoopField()
 {
-    return getStaticFieldId(getLoopClass(), "ONESHOT", "Lapp/rive/runtime/kotlin/core/Loop;");
+    return getStaticFieldId(GetLoopClass(), "ONESHOT", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
-jfieldID getLoopLoopField()
+jfieldID GetLoopLoopField()
 {
-    return getStaticFieldId(getLoopClass(), "LOOP", "Lapp/rive/runtime/kotlin/core/Loop;");
+    return getStaticFieldId(GetLoopClass(), "LOOP", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
-jfieldID getPingPongLoopField()
+jfieldID GetPingPongLoopField()
 {
-    return getStaticFieldId(getLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;");
+    return getStaticFieldId(GetLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
 
-jclass getPointerFClass() { return getClass("android/graphics/PointF"); };
+jclass GetPointerFClass() { return getClass("android/graphics/PointF"); };
 
-jfieldID getXFieldId() { return getFieldId(getPointerFClass(), "x", "F"); }
+jfieldID GetXFieldId() { return getFieldId(GetPointerFClass(), "x", "F"); }
 
-jfieldID getYFieldId() { return getFieldId(getPointerFClass(), "y", "F"); }
+jfieldID GetYFieldId() { return getFieldId(GetPointerFClass(), "y", "F"); }
 
-jmethodID getPointFInitMethod() { return getMethodId(getPointerFClass(), "<init>", "(FF)V"); };
+jmethodID GetPointFInitMethod() { return getMethodId(GetPointerFClass(), "<init>", "(FF)V"); };
 
 static const char* AABBFieldNames[] = {"left", "top", "right", "bottom"};
 
-rive::AABB rectFToAABB(JNIEnv* env, jobject rectf)
+rive::AABB RectFToAABB(JNIEnv* env, jobject rectf)
 {
     auto cls = env->FindClass("android/graphics/RectF");
     float values[4];
@@ -102,7 +102,7 @@ rive::AABB rectFToAABB(JNIEnv* env, jobject rectf)
     return rive::AABB(values[0], values[1], values[2], values[3]);
 }
 
-void aabbToRectF(JNIEnv* env, const rive::AABB& aabb, jobject rectf)
+void AABBToRectF(JNIEnv* env, const rive::AABB& aabb, jobject rectf)
 {
     auto cls = env->FindClass("android/graphics/RectF");
     const float values[4] = {aabb.left(), aabb.top(), aabb.right(), aabb.bottom()};

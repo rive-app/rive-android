@@ -16,7 +16,7 @@ extern "C"
                                                                          jlong ref,
                                                                          jfloat elapsedTime)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         animationInstance->advance(elapsedTime);
         bool didLoop = animationInstance->didLoop();
 
@@ -29,19 +29,19 @@ extern "C"
             switch (loopType)
             {
                 case rive::Loop::oneShot:
-                    enumField = ::getOneShotLoopField();
+                    enumField = ::GetOneShotLoopField();
                     break;
                 case rive::Loop::loop:
-                    enumField = ::getLoopLoopField();
+                    enumField = ::GetLoopLoopField();
                     break;
                 case rive::Loop::pingPong:
-                    enumField = ::getPingPongLoopField();
+                    enumField = ::GetPingPongLoopField();
                     break;
                 default:
-                    enumField = ::getNoneLoopField();
+                    enumField = ::GetNoneLoopField();
                     break;
             }
-            jclass jClass = ::getLoopClass();
+            jclass jClass = ::GetLoopClass();
             loopValue = env->GetStaticObjectField(jClass, enumField);
             env->DeleteLocalRef(jClass);
         }
@@ -55,7 +55,7 @@ extern "C"
                                                                        jlong ref,
                                                                        jfloat mix)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         animationInstance->apply(mix);
     }
 
@@ -65,7 +65,7 @@ extern "C"
                                                                          jlong ref)
     {
 
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         return animationInstance->time();
     }
 
@@ -75,7 +75,7 @@ extern "C"
                                                                          jlong ref,
                                                                          jfloat time)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         animationInstance->time(time);
     }
 
@@ -85,7 +85,7 @@ extern "C"
                                                                               jlong ref,
                                                                               jint direction)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         animationInstance->direction(direction);
     }
 
@@ -94,8 +94,8 @@ extern "C"
                                                                               jobject thisObj,
                                                                               jlong ref)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
-        return animationInstance->direction();
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
+        return static_cast<int>(animationInstance->direction());
     }
 
     JNIEXPORT jint JNICALL
@@ -103,7 +103,7 @@ extern "C"
                                                                          jobject thisObj,
                                                                          jlong ref)
     {
-        auto* animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         return (jint)animationInstance->loop();
     }
 
@@ -113,7 +113,7 @@ extern "C"
                                                                          jlong ref,
                                                                          jint loopType)
     {
-        auto* animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
 
         animationInstance->loopValue(loopType);
     }
@@ -125,7 +125,7 @@ extern "C"
                                                                       jlong ref)
     {
 
-        auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
         return env->NewStringUTF(animationInstance->animation()->name().c_str());
     }
 
@@ -134,7 +134,7 @@ extern "C"
                                                                           jobject thisObj,
                                                                           jlong ref)
     {
-        auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
         return (jint)animationInstance->animation()->duration();
     }
 
@@ -143,7 +143,7 @@ extern "C"
                                                                      jobject thisObj,
                                                                      jlong ref)
     {
-        auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
         return (jint)animationInstance->animation()->fps();
     }
 
@@ -152,7 +152,7 @@ extern "C"
                                                                            jobject thisObj,
                                                                            jlong ref)
     {
-        auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
         return (jint)animationInstance->animation()->workStart();
     }
 
@@ -161,14 +161,14 @@ extern "C"
                                                                          jobject thisObj,
                                                                          jlong ref)
     {
-        auto* animationInstance = (const rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
         return (jint)animationInstance->animation()->workEnd();
     }
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDelete(JNIEnv*, jobject, jlong ref)
     {
-        auto animationInstance = (rive::LinearAnimationInstance*)ref;
+        auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(ref);
         delete animationInstance;
     }
 

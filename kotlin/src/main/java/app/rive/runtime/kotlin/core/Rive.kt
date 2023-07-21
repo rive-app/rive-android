@@ -14,8 +14,14 @@ object Rive {
         requiredBounds: RectF
     )
 
-    private const val JNIRiveBridge = "jnirivebridge"
     private const val RiveAndroid = "rive-android"
+
+    /**
+     * Public getter for the default renderer type.
+     * This can be customized via [Rive.init]
+     */
+    var defaultRendererType: RendererType = RendererType.Skia
+        private set
 
     /**
      * Initialises Rive.
@@ -23,16 +29,19 @@ object Rive {
      * This loads the c++ libraries required to use Rive objects and then makes sure we
      * initialize our cpp environment.
      *
-     * To handle loading .so files for the jnirivebridge yourself, use [initializeCppEnvironment]
+     * Specify the default renderer to be used when initializing [File] or [RiveAnimationView]
+     * by providing a [defaultRenderer] value. This defaults to [RendererType.Skia]
+     *
+     * To handle loading .so files for the rive-android lib yourself, use [initializeCppEnvironment]
      * instead.
      */
-    fun init(context: Context) {
+    fun init(context: Context, defaultRenderer: RendererType = RendererType.Skia) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
         ReLinker
-            .log { Log.d("ReLinkerLogs", "(${Thread.currentThread().id}) $it") }
+            // .log { Log.d("ReLinkerLogs", "(${Thread.currentThread().id}) $it") }
             .loadLibrary(context, RiveAndroid)
-//            .loadLibrary(context, JNIRiveBridge)
+        defaultRendererType = defaultRenderer
         initializeCppEnvironment()
     }
 

@@ -24,15 +24,15 @@ extern "C"
                                                                       jobject artboardBoundsRectF,
                                                                       jobject requiredBoundsRectF)
     {
-        auto fit = ::getFit(env, jfit);
-        auto alignment = ::getAlignment(env, jalignment);
-        auto availableBounds = rectFToAABB(env, availableBoundsRectF);
-        auto artboardBounds = rectFToAABB(env, artboardBoundsRectF);
+        auto fit = ::GetFit(env, jfit);
+        auto alignment = ::GetAlignment(env, jalignment);
+        auto availableBounds = RectFToAABB(env, availableBoundsRectF);
+        auto artboardBounds = RectFToAABB(env, artboardBoundsRectF);
 
         DimensionsHelper helper;
 
         auto required = helper.computeDimensions(fit, alignment, availableBounds, artboardBounds);
-        aabbToRectF(env, required, requiredBoundsRectF);
+        AABBToRectF(env, required, requiredBoundsRectF);
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env,
@@ -41,12 +41,12 @@ extern "C"
 #if defined(DEBUG) || defined(LOG)
         // luigi: again ifdef this out for release (or murder completely, but
         // it's nice to catch all fprintf to stderr).
-        std::thread t(logThread);
+        std::thread t(LogThread);
         // detach so it outlives the ref
         t.detach();
 #endif
         // pretty much considered the entrypoint.
-        env->GetJavaVM(&::globalJavaVM);
+        env->GetJavaVM(&::g_JVM);
     }
 
 #ifdef __cplusplus

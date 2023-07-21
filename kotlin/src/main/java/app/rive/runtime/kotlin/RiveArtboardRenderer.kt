@@ -12,7 +12,9 @@ import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Helpers
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
-import app.rive.runtime.kotlin.renderers.RendererSkia
+import app.rive.runtime.kotlin.core.RendererType
+import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.renderers.Renderer
 import kotlin.DeprecationLevel.WARNING
 
 
@@ -31,8 +33,9 @@ open class RiveArtboardRenderer(
     var animationName: String? = null,
     var stateMachineName: String? = null,
     trace: Boolean = false,
+    rendererType: RendererType = Rive.defaultRendererType,
     controller: RiveFileController,
-) : RendererSkia(trace) {
+) : Renderer(rendererType, trace) {
     private var controller: RiveFileController = controller.also {
         it.onStart = ::start
         it.acquire()

@@ -32,6 +32,10 @@
             <enum name="PINGPONG" value="2" />
             <enum name="NONE" value="3" />
         </attr>
+        <attr name="riveRenderer" format="enum">
+            <enum name="Skia" value="0" />
+            <enum name="Rive" value="1" />
+        </attr>
         <attr name="riveResource" format="reference" />
         <attr name="riveUrl" format="string" />
     </declare-styleable>
@@ -48,5 +52,6 @@
         <attr name="riveLoop" />
         <attr name="riveResource" />
         <attr name="riveUrl" />
+        <attr name="riveRenderer" />
     </declare-styleable>
 </resources>

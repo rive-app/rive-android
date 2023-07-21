@@ -1,7 +1,7 @@
 #include <string>
 #include <jni.h>
 
-#include "models/jni_renderer_skia.hpp"
+#include "models/jni_renderer.hpp"
 
 using namespace rive_android;
 
@@ -14,7 +14,7 @@ extern "C"
                                                                   jobject,
                                                                   jlong rendererAddr)
     {
-        return reinterpret_cast<JNIRendererSkia*>(rendererAddr)->averageFps();
+        return reinterpret_cast<JNIRenderer*>(rendererAddr)->averageFps();
     }
 
 /** TODO: explore these helpers, might be useful for a few metrics

@@ -22,6 +22,7 @@ DEPS=$(O_FILES) \
 	$(BUILD_DIR)/librive.a \
 	$(BUILD_DIR)/libskia.a \
 	$(BUILD_DIR)/librive_skia_renderer.a \
+	$(BUILD_DIR)/librive_pls_renderer.a \
 
 LIBS=-llog -landroid -lEGL -lGLESv3
 
@@ -42,6 +43,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-DSK_GL \
 		-Iinclude \
 		-I$(RIVE_RUNTIME_DIR)/include \
+		-I$(RIVE_RUNTIME_DIR)/../pls/include \
 		-I$(RIVE_RUNTIME_DIR)/renderer/library/include \
 		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/ \
 		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/core \
@@ -57,5 +59,6 @@ clean:
 	rm -f $(BUILD_DIR)/librive.a
 	rm -f $(BUILD_DIR)/libskia.a
 	rm -f $(BUILD_DIR)/librive_skia_renderer.a
+	rm -f $(BUILD_DIR)/librive_pls_renderer.a
 	rm -f $(BUILD_DIR)/libc++_static.a
 	

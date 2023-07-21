@@ -14,16 +14,25 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
+      - name: Rive Renderer Repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          repository: ${{ secrets.RIVE_RENDERER_REPO }}
+          token: ${{ secrets.PAT_GITHUB }}
+          path: ./submodules/pls
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ secrets.ACTIONS_ROLE }}
+    
 
       - name: Update Java
         uses: actions/setup-java@v2

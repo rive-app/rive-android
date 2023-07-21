@@ -23,8 +23,8 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RendererMetrics
-import app.rive.runtime.kotlin.renderers.RendererSkia
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
 import com.android.volley.Request
@@ -67,9 +67,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         const val TAG = "RiveAnimationView"
 
         // Default attribute values.
-        const val alignmentIndexDefault = 4
-        const val fitIndexDefault = 1
-        const val loopIndexDefault = 3
+        const val alignmentIndexDefault = 4 /* Alignment.CENTER */
+        const val fitIndexDefault = 1       /* Fit.CONTAIN */
+        const val loopIndexDefault = 3      /* Loop.AUTO */
+        val rendererIndexDefault = Rive.defaultRendererType.value
     }
 
     open val defaultAutoplay = true
@@ -173,6 +174,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignmentIndex: Int = alignmentIndexDefault,
         fitIndex: Int = fitIndexDefault,
         loopIndex: Int = loopIndexDefault,
+        rendererIndex: Int = rendererIndexDefault,
         var autoplay: Boolean,
         val riveTraceAnimations: Boolean = false,
         var artboardName: String?,
@@ -183,6 +185,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         var alignment: Alignment = Alignment.fromIndex(alignmentIndex)
         var fit: Fit = Fit.fromIndex(fitIndex)
         var loop: Loop = Loop.fromIndex(loopIndex)
+        val rendererType: RendererType = RendererType.fromIndex(rendererIndex)
     }
 
     init {
@@ -200,9 +203,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 )
 
                 rendererAttributes = RendererAttributes(
-                    alignmentIndex = getInteger(R.styleable.RiveAnimationView_riveAlignment, 4),
-                    fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, 1),
-                    loopIndex = getInteger(R.styleable.RiveAnimationView_riveLoop, 3),
+                    alignmentIndex = getInteger(
+                        R.styleable.RiveAnimationView_riveAlignment,
+                        alignmentIndexDefault
+                    ),
+                    fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, fitIndexDefault),
+                    loopIndex = getInteger(
+                        R.styleable.RiveAnimationView_riveLoop,
+                        loopIndexDefault
+                    ),
                     autoplay =
                     getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay),
                     riveTraceAnimations =
@@ -211,6 +220,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
                     resource = resourceFromValue,
+                    rendererIndex = getInteger(
+                        R.styleable.RiveAnimationView_riveRenderer,
+                        rendererIndexDefault
+                    ),
                 )
 
                 controller = RiveFileController(
@@ -262,14 +275,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             // loadFromNetwork() releases after onComplete() is called.
             is ResourceType.ResourceUrl -> loadFromNetwork(resource.url, onComplete)
             is ResourceType.ResourceBytes -> {
-                val file = File(resource.bytes)
+                val file = File(resource.bytes, rendererAttributes.rendererType)
                 onComplete(file)
                 // Don't retain the handle.
                 file.release()
             }
 
             is ResourceType.ResourceId -> resources.openRawResource(resource.id).use {
-                val file = File(it.readBytes())
+                val file = File(it.readBytes(), rendererAttributes.rendererType)
                 onComplete(file)
                 // Don't retain the handle.
                 file.release()
@@ -285,6 +298,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(
             url,
+            rendererAttributes.rendererType,
             { file -> artboardRenderer?.setRiveFile(file) },
             { throw IOException("Unable to download Rive file $url") }
         )
@@ -295,6 +309,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val queue = Volley.newRequestQueue(context)
         val stringRequest = RiveFileRequest(
             url,
+            rendererAttributes.rendererType,
             {
                 onComplete(it)
                 it.release()
@@ -600,6 +615,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
     ) {
+        if (file.rendererType != rendererAttributes.rendererType) {
+            throw RiveException(
+                "Incompatible Renderer types: file initialized with ${file.rendererType.name}" +
+                        " but View is set up for ${rendererAttributes.rendererType.name}"
+            )
+        }
         rendererAttributes.apply {
             this.artboardName = artboardName
             this.animationName = animationName
@@ -637,11 +658,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Called from TextureView.onAttachedToWindow() - override for implementing a custom renderer.
      */
-    override fun createRenderer(): RendererSkia {
+    override fun createRenderer(): Renderer {
         // Make the Renderer again every time this is visible and reset its state.
         return RiveArtboardRenderer(
             trace = rendererAttributes.riveTraceAnimations,
             controller = controller,
+            rendererType = rendererAttributes.rendererType,
         )
     }
 
@@ -863,6 +885,7 @@ class RiveViewLifecycleObserver(private val controller: RiveFileController) :
 // Custom Volley request to download and create rive files over http
 class RiveFileRequest(
     url: String,
+    private val rendererType: RendererType,
     private val listener: Response.Listener<File>,
     errorListener: Response.ErrorListener
 ) : Request<File>(Method.GET, url, errorListener) {
@@ -872,7 +895,7 @@ class RiveFileRequest(
     override fun parseNetworkResponse(response: NetworkResponse?): Response<File> {
         return try {
             val bytes = response?.data ?: ByteArray(0)
-            val file = File(bytes)
+            val file = File(bytes, rendererType)
             Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
         } catch (e: UnsupportedEncodingException) {
             Response.error(ParseError(e))

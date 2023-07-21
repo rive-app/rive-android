@@ -13,16 +13,15 @@ The underlying [C++ runtime](https://github.com/rive-app/rive-cpp) is mapped to 
 the `app.rive.runtime.kotlin.core` namespace. These allow more fine grained control for more complex
 animation loops. Our high level views are simply built on top of this.
 
+#### `/cpp` && `/submodules`
+
+This runtime is built on top of our [C++ runtime](https://github.com/rive-app/rive-cpp). This is
+included as a submodule in `/submodules`. The `/cpp` folder contains the C++ side of our Android bindings and is located at `/kotlin/src/main/cpp`
+
 ### `/app`
 
 Multiple sample activities can be found here, this can be a useful reference for getting started
 with using the runtimes.
-
-### `/cpp` && `/submodules`
-
-This runtime is built on top of our [C++ runtime](https://github.com/rive-app/rive-cpp). This is
-included as a submodule in `/submodules`. The `/cpp` folder contains the C++ side of our bindings
-into android.
 
 ## Development workflow
 
@@ -39,7 +38,7 @@ run the test suite:
 
 - Open the project in Android Studio
 - Select the "Project" view (upper-right corner)
-- Right-click on kotlin/src/androidTest and select "Run All Tests"
+- Right-click on `kotlin/src/androidTest` and select "Run All Tests"
 
 ### Building `.so` files
 

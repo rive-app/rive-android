@@ -46,7 +46,7 @@ The diagram below illustrates the class hierarchy for `RiveAnimationView` highli
             |RiveTextureView       |
             +----------------------+
             |abstract              |
-            |renderer: RendererSkia|
+            |renderer: Renderer    |
             +----------+-----------+
                        |
                        |
@@ -85,7 +85,7 @@ which in turn will cascade the `release()` call on its own dependents.
                                                         has
                                                          |
 +--------------------+       +------------+       +------+-----+
-|RiveArtboardRenderer+-is-a->|RendererSkia+-is-a->|NativeObject|
+|RiveArtboardRenderer+-is-a->|  Renderer  +-is-a->|NativeObject|
 +---------+----------+       +------------+       +------^-----+
           |                                              |
          has                                             |

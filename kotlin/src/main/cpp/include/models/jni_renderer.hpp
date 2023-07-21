@@ -1,32 +1,35 @@
-#ifndef _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
-#define _RIVE_ANDROID_JAVA_RENDERER_SKIA_HPP_
+#ifndef _RIVE_ANDROID_JNI_RENDERER_HPP_
+#define _RIVE_ANDROID_JNI_RENDERER_HPP_
 
 #include <GLES3/gl3.h>
 #include <jni.h>
 
-#include "skia_renderer.hpp"
-
 #include "helpers/tracer.hpp"
-#include "helpers/egl_share_thread_state.hpp"
+#include "helpers/thread_state_egl.hpp"
 #include "helpers/egl_worker.hpp"
+#include "models/worker_impl.hpp"
+#include "rive/renderer.hpp"
 
 namespace rive_android
 {
-class JNIRendererSkia
+class JNIRenderer
 {
 public:
-    JNIRendererSkia(jobject ktObject, bool trace = false);
+    JNIRenderer(jobject ktObject,
+                bool trace = false,
+                const RendererType rendererType = RendererType::Skia);
 
-    ~JNIRendererSkia();
+    ~JNIRenderer();
 
     void setWindow(ANativeWindow* window);
 
     rive::Renderer* getRendererOnWorkerThread() const;
 
-    void start(long timeNs);
+    void start(long long timeNs);
+
     void stop();
 
-    void doFrame(long frameTimeNs);
+    void doFrame(long long frameTimeNs);
 
     float averageFps() const { return mAverageFps; }
 
@@ -34,9 +37,7 @@ public:
     int height() const { return m_window ? ANativeWindow_getHeight(m_window) : -1; }
 
 private:
-    class WorkerSideImpl;
-
-    rive::rcp<EGLWorker> mWorker = EGLWorker::Current();
+    rive::rcp<EGLWorker> mWorker;
 
     jobject m_ktRenderer;
 
@@ -45,7 +46,7 @@ private:
     ANativeWindow* m_window = nullptr;
 
     std::thread::id m_workerThreadID;
-    std::unique_ptr<WorkerSideImpl> m_workerSideImpl;
+    std::unique_ptr<WorkerImpl> m_workerImpl;
 
     /* Helpers for FPS calculations.*/
     std::chrono::steady_clock::time_point mLastFrameTime;
@@ -58,8 +59,6 @@ private:
     ITracer* getTracer(bool trace) const;
 
     void calculateFps();
-
-    void draw(EGLShareThreadState* threadState);
 };
 } // namespace rive_android
-#endif
+#endif // _RIVE_ANDROID_JNI_RENDERER_HPP_

@@ -17,12 +17,13 @@ import app.rive.runtime.kotlin.core.errors.RiveException
  *
  * The rive editor will always let you download your file in the latest runtime format.
  */
-class File(bytes: ByteArray) : NativeObject(NULL_POINTER) {
+class File(bytes: ByteArray, val rendererType: RendererType = Rive.defaultRendererType) :
+    NativeObject(NULL_POINTER) {
     init {
-        cppPointer = import(bytes, bytes.size)
+        cppPointer = import(bytes, bytes.size, rendererType.value)
     }
 
-    private external fun import(bytes: ByteArray, length: Int): Long
+    private external fun import(bytes: ByteArray, length: Int, rendererType: Int): Long
     private external fun cppArtboardByName(cppPointer: Long, name: String): Long
     private external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
     private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String

@@ -7,8 +7,19 @@ import androidx.annotation.CallSuper
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
+import app.rive.runtime.kotlin.core.RendererType
+import app.rive.runtime.kotlin.core.Rive
 
-abstract class RendererSkia(val trace: Boolean = false) :
+@Deprecated("RendererSkia is now Renderer",
+    level = DeprecationLevel.ERROR,
+    replaceWith = ReplaceWith("Renderer")
+)
+abstract class RendererSkia
+
+abstract class Renderer(
+    private val type: RendererType = Rive.defaultRendererType,
+    val trace: Boolean = false
+) :
     NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
     // From NativeObject.
@@ -33,13 +44,13 @@ abstract class RendererSkia(val trace: Boolean = false) :
         srcBounds: RectF
     )
 
-    /** Instantiates JNIRendererSkia in C++ */
-    private external fun constructor(trace: Boolean): Long
+    /** Instantiates JNIRenderer in C++ */
+    private external fun constructor(trace: Boolean, type: Int): Long
 
     @CallSuper
     open fun make() {
         if (!hasCppObject) {
-            cppPointer = constructor(trace)
+            cppPointer = constructor(trace, type.value)
         }
     }
 
@@ -52,7 +63,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
     abstract fun advance(elapsed: Float)
 
     /**
-     * Starts the SkiaRenderer & registers for frameCallbacks
+     * Starts the Renderer & registers for frameCallbacks
      *
      * Goal:
      * When we trigger start, doFrame gets called once per frame
@@ -183,7 +194,7 @@ abstract class RendererSkia(val trace: Boolean = false) :
     /**
      * Deletes all this renderer's dependents.
      *
-     * Called internally by the JNI within ~JNIRendererSkia()
+     * Called internally by the JNI within ~JNIRenderer()
      *
      * N.B. this function is marked as `protected` instead of `private` because
      * otherwise it's inaccessible from JNI on API < 24

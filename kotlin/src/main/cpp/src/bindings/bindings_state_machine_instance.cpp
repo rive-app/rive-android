@@ -15,8 +15,7 @@ extern "C"
                                                                       jlong ref,
                                                                       jfloat elapsedTime)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
-
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         return stateMachineInstance->advance(elapsedTime);
     }
 
@@ -25,8 +24,8 @@ extern "C"
                                                                                 jobject thisObj,
                                                                                 jlong ref)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
-        return stateMachineInstance->stateChangedCount();
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
+        return SizeTTOInt(stateMachineInstance->stateChangedCount());
     }
 
     JNIEXPORT jlong JNICALL
@@ -35,7 +34,7 @@ extern "C"
                                                                                   jlong ref,
                                                                                   jint index)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         return (jlong)stateMachineInstance->stateChangedByIndex(index);
     }
 
@@ -45,7 +44,7 @@ extern "C"
                                                                               jlong ref,
                                                                               jint index)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
 
         return (jlong)stateMachineInstance->input(index);
     }
@@ -55,9 +54,8 @@ extern "C"
                                                                          jobject thisObj,
                                                                          jlong ref)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
-
-        return (jlong)stateMachineInstance->inputCount();
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
+        return SizeTTOInt(stateMachineInstance->inputCount());
     }
 
     // ANIMATION
@@ -66,7 +64,7 @@ extern "C"
                                                                    jobject thisObj,
                                                                    jlong ref)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         return env->NewStringUTF(stateMachineInstance->stateMachine()->name().c_str());
     }
 
@@ -75,7 +73,7 @@ extern "C"
                                                                          jobject thisObj,
                                                                          jlong ref)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         return (jint)stateMachineInstance->stateMachine()->layerCount();
     }
 
@@ -86,7 +84,7 @@ extern "C"
                                                                           jfloat x,
                                                                           jfloat y)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         stateMachineInstance->pointerDown(rive::Vec2D(x, y));
     }
 
@@ -97,7 +95,7 @@ extern "C"
                                                                           jfloat x,
                                                                           jfloat y)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         stateMachineInstance->pointerMove(rive::Vec2D(x, y));
     }
 
@@ -108,14 +106,14 @@ extern "C"
                                                                         jfloat x,
                                                                         jfloat y)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         stateMachineInstance->pointerUp(rive::Vec2D(x, y));
     }
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppDelete(JNIEnv*, jobject, jlong ref)
     {
-        auto stateMachineInstance = (rive::StateMachineInstance*)ref;
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         delete stateMachineInstance;
     }
 

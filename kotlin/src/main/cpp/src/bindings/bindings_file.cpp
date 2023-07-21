@@ -13,24 +13,15 @@ extern "C"
     JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_import(JNIEnv* env,
                                                                           jobject thisObj,
                                                                           jbyteArray bytes,
-                                                                          jint length)
+                                                                          jint length,
+                                                                          jint type)
     {
-        rive_android::setSDKVersion();
-
+        rive_android::SetSDKVersion();
+        RendererType rendererType = static_cast<RendererType>(type);
         jbyte* byte_array = env->GetByteArrayElements(bytes, NULL);
-        long file = import((uint8_t*)byte_array, length);
+        long file = Import(reinterpret_cast<uint8_t*>(byte_array), length, rendererType);
         env->ReleaseByteArrayElements(bytes, byte_array, JNI_ABORT);
         return (jlong)file;
-    }
-
-    // todo return default artboard instance.
-    JNIEXPORT jlong JNICALL Java_app_rive_runtime_kotlin_core_File_cppArtboard(JNIEnv* env,
-                                                                               jobject thisObj,
-                                                                               jlong ref)
-    {
-        auto file = (rive::File*)ref;
-        // Creates a new Artboard instance.
-        return (jlong)file->artboardAt(0).release();
     }
 
     JNIEXPORT jlong JNICALL
@@ -39,9 +30,9 @@ extern "C"
                                                              jlong ref,
                                                              jstring name)
     {
-        auto file = (rive::File*)ref;
+        auto file = reinterpret_cast<rive::File*>(ref);
         // Creates a new Artboard instance.
-        return (jlong)file->artboardNamed(jstring2string(env, name)).release();
+        return (jlong)file->artboardNamed(JStringToString(env, name)).release();
     }
 
     JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_File_cppDelete(JNIEnv* env,
@@ -49,7 +40,7 @@ extern "C"
                                                                             jlong ref)
     {
         // if we're wiping the file, we really should wipe all those refs?
-        auto file = (rive::File*)ref;
+        auto file = reinterpret_cast<rive::File*>(ref);
         delete file;
     }
 
@@ -57,7 +48,7 @@ extern "C"
                                                                                    jobject thisObj,
                                                                                    jlong ref)
     {
-        auto file = (rive::File*)ref;
+        auto file = reinterpret_cast<rive::File*>(ref);
 
         return (jint)file->artboardCount();
     }
@@ -68,7 +59,7 @@ extern "C"
                                                               jlong ref,
                                                               jint index)
     {
-        auto file = (rive::File*)ref;
+        auto file = reinterpret_cast<rive::File*>(ref);
         // Creates a new Artboard instance.
         return (jlong)file->artboardAt(index).release();
     }
@@ -79,7 +70,7 @@ extern "C"
                                                                                   jlong ref,
                                                                                   jint index)
     {
-        auto file = (rive::File*)ref;
+        auto file = reinterpret_cast<rive::File*>(ref);
 
         auto artboard = file->artboard(index);
         auto name = artboard->name();

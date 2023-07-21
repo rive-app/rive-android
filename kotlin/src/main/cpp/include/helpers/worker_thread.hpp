@@ -24,19 +24,22 @@
 #include <thread>
 
 #include "helpers/general.hpp"
-#include "helpers/egl_share_thread_state.hpp"
+#include "helpers/thread_state_egl.hpp"
 #include "thread.hpp"
 
 namespace rive_android
 {
-template <class ThreadState> class WorkerThread
+class WorkerThread
 {
 public:
-    using Work = std::function<void(ThreadState*)>;
+    using Work = std::function<void(EGLThreadState*)>;
     using WorkID = uint64_t;
 
-    WorkerThread(const char* name, Affinity affinity) :
-        mName(name), mAffinity(affinity), mThread(std::thread([this]() { threadMain(); }))
+    WorkerThread(const char* name, Affinity affinity, const RendererType rendererType) :
+        m_RendererType(rendererType),
+        mName(name),
+        mAffinity(affinity),
+        mThread(std::thread([this]() { threadMain(); }))
     {}
 
     ~WorkerThread() { terminateThread(); }
@@ -90,14 +93,21 @@ public:
         assert(m_lastCompletedWorkID == m_lastPushedWorkID);
     }
 
+    RendererType rendererType() const { return m_RendererType; }
+
+protected:
+    const RendererType m_RendererType;
+
 private:
+    static std::unique_ptr<EGLThreadState> MakeThreadState(const RendererType type);
+
     void threadMain()
     {
         setAffinity(mAffinity);
         pthread_setname_np(pthread_self(), mName.c_str());
 
-        getJNIEnv(); // Attach thread to JVM.
-        ThreadState threadState;
+        GetJNIEnv(); // Attach thread to JVM.
+        std::unique_ptr<EGLThreadState> threadState = MakeThreadState(m_RendererType);
 
         std::unique_lock lock(mWorkMutex);
         for (;;)
@@ -116,13 +126,13 @@ private:
             }
 
             lock.unlock();
-            work(&threadState);
+            work(threadState.get());
             lock.lock();
 
             ++m_lastCompletedWorkID;
             m_workedCompletedCondition.notify_all();
         }
-        detachThread();
+        DetachThread();
     }
 
     const std::string mName;
@@ -134,7 +144,7 @@ private:
     bool mIsTerminated = false;
 
     std::mutex mWorkMutex;
-    std::queue<std::function<void(ThreadState*)>> mWorkQueue;
+    std::queue<std::function<void(EGLThreadState*)>> mWorkQueue;
     std::condition_variable_any m_workPushedCondition;
     std::condition_variable_any m_workedCompletedCondition;
 };

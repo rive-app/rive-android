@@ -13,7 +13,7 @@ import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
-import app.rive.runtime.kotlin.renderers.RendererSkia
+import app.rive.runtime.kotlin.renderers.Renderer
 
 
 class LowLevelActivity : AppCompatActivity() {
@@ -42,7 +42,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
     private lateinit var artboard: Artboard
     private lateinit var animationInstance: LinearAnimationInstance
 
-    private fun setupFile(skRenderer: RendererSkia) {
+    private fun setupFile(renderer: Renderer) {
         val resource = resources.openRawResource(R.raw.basketball)
         // Keep a reference to the file to keep resources around.
         file = File(resource.readBytes())
@@ -51,7 +51,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         animationInstance = artboard.firstAnimation
 
         // This will be deleted with its dependents.
-        skRenderer.dependencies.add(file)
+        renderer.dependencies.add(file)
     }
 
     override fun createObserver(): LifecycleObserver {
@@ -66,8 +66,8 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         }
     }
 
-    override fun createRenderer(): RendererSkia {
-        val skRenderer = object : RendererSkia() {
+    override fun createRenderer(): Renderer {
+        val renderer = object : Renderer() {
 
             override fun draw() {
                 artboard.let {
@@ -87,8 +87,8 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
             }
         }
         // Call setup file only once we created the renderer.
-        setupFile(skRenderer)
-        return skRenderer
+        setupFile(renderer)
+        return renderer
     }
 
 }

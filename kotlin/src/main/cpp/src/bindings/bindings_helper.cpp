@@ -18,22 +18,22 @@ extern "C"
                                                                         jobject jalignment,
                                                                         jobject artboardSpaceRectF)
     {
-        auto fit = ::getFit(env, jfit);
-        auto alignment = ::getAlignment(env, jalignment);
-        auto artboardSpaceBounds = rectFToAABB(env, artboardSpaceRectF);
-        auto touchSpaceBounds = rectFToAABB(env, touchSpaceRectF);
-        jlong touchX = (jlong)env->GetFloatField(touchSpacePointF, getXFieldId());
-        jlong touchY = (jlong)env->GetFloatField(touchSpacePointF, getYFieldId());
+        auto fit = ::GetFit(env, jfit);
+        auto alignment = ::GetAlignment(env, jalignment);
+        auto artboardSpaceBounds = RectFToAABB(env, artboardSpaceRectF);
+        auto touchSpaceBounds = RectFToAABB(env, touchSpaceRectF);
+        jlong touchX = (jlong)env->GetFloatField(touchSpacePointF, GetXFieldId());
+        jlong touchY = (jlong)env->GetFloatField(touchSpacePointF, GetYFieldId());
 
         rive::Mat2D forward =
             rive::computeAlignment(fit, alignment, touchSpaceBounds, artboardSpaceBounds);
         rive::Mat2D inverse = forward.invertOrIdentity();
 
-        auto touchLocation = rive::Vec2D(touchX, touchY);
+        auto touchLocation = rive::Vec2D(static_cast<float>(touchX), static_cast<float>(touchY));
         rive::Vec2D convertedLocation = inverse * touchLocation;
 
-        return env->NewObject(getPointerFClass(),
-                              getPointFInitMethod(),
+        return env->NewObject(GetPointerFClass(),
+                              GetPointFInitMethod(),
                               convertedLocation.x,
                               convertedLocation.y);
     }

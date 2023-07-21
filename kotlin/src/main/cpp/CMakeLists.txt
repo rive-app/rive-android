@@ -14,14 +14,16 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
 if(EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
-    set(ENV{RIVE_RUNTIME_DIR} "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
+    set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
+    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-cpp")
+    set(PLS_DIR "${PACKAGES_DIR}/submodules/pls")
 else()
-    set(ENV{RIVE_RUNTIME_DIR} "${PROJECT_SOURCE_DIR}/../../../../../runtime")
+    set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
+    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/runtime")
+    set(PLS_DIR "${PACKAGES_DIR}/pls")
 endif()
 
-message("LOOKED FOR: '$ENV{RIVE_RUNTIME_DIR}'")
 message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
-
 
 #[[ CMake adds these flags depending on CMAKE_BUILD_TYPE
     1. Release: `-O3 -DNDEBUG`
@@ -31,11 +33,13 @@ message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 ]]
 
 add_definitions(-DSK_GL)
+add_definitions(-DRIVE_GLES)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(SKIA_DIR_NAME "skia_debug")
     set(DEBUG_FLAG "-d")
     set(CONFIG "debug")
+    add_definitions(-DDEBUG)
 endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release" OR
@@ -43,6 +47,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release" OR
         CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
     set(SKIA_DIR_NAME "skia")
     set(CONFIG "release")
+    add_definitions(-DNDEBUG)
 endif ()
 
 message("Skia location: ${SKIA_DIR_NAME}")
@@ -62,6 +67,7 @@ endif()
 include_directories(
         include
         $ENV{RIVE_RUNTIME_DIR}/include
+        ${PLS_DIR}/include
         $ENV{RIVE_RUNTIME_DIR}/renderer/library/include
         $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/
         $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/core
@@ -71,7 +77,7 @@ include_directories(
         $ENV{RIVE_RUNTIME_DIR}/skia/renderer/include
 )
 
-file(GLOB SOURCES
+file(GLOB SOURCES CONFIGURE_DEPENDS
         src/*.cpp
         src/bindings/*.cpp
         src/helpers/*.cpp
@@ -83,6 +89,7 @@ add_library(rive-android SHARED ${SOURCES})
 set(static_libs
         rive
         rive_skia_renderer
+        rive_pls_renderer
         skia
         )
 
@@ -105,6 +112,7 @@ find_library(gles-fdsalib GLESv3fdas)
 target_link_libraries(rive-android
         rive-lib
         rive_skia_renderer-lib
+        rive_pls_renderer-lib
         skia-lib
 
         ${log-lib}

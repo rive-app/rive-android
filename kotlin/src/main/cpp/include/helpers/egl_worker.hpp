@@ -1,20 +1,25 @@
-#pragma once
+#ifndef RIVE_ANDROID_EGL_WORKER_HPP
+#define RIVE_ANDROID_EGL_WORKER_HPP
 
-#include "helpers/egl_share_thread_state.hpp"
+#include "helpers/thread_state_egl.hpp"
 #include "helpers/worker_thread.hpp"
 #include "rive/refcnt.hpp"
 
 namespace rive_android
 {
-class EGLWorker : public WorkerThread<EGLShareThreadState>, public rive::RefCnt<EGLWorker>
+class EGLWorker : public WorkerThread, public rive::RefCnt<EGLWorker>
 {
 public:
-    static rive::rcp<EGLWorker> Current();
+    static rive::rcp<EGLWorker> Current(const RendererType);
 
 private:
     friend class rive::RefCnt<EGLWorker>;
 
-    EGLWorker() : WorkerThread("EGLWorker", Affinity::None) {}
+    EGLWorker(const RendererType rendererType) :
+        WorkerThread("EGLWorker", Affinity::None, rendererType)
+    {}
     ~EGLWorker();
 };
 } // namespace rive_android
+
+#endif // RIVE_ANDROID_EGL_WORKER_HPP

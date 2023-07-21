@@ -23,7 +23,7 @@ extern "C"
                                                                 jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::ExitState>();
     }
 
@@ -33,7 +33,7 @@ extern "C"
                                                                jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::AnyState>();
     }
 
@@ -43,7 +43,7 @@ extern "C"
                                                                  jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::EntryState>();
     }
 
@@ -53,7 +53,7 @@ extern "C"
                                                                      jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::AnimationState>();
     }
 
@@ -63,7 +63,7 @@ extern "C"
                                                                  jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::BlendState>();
     }
 
@@ -73,7 +73,7 @@ extern "C"
                                                                    jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::BlendState1D>();
     }
 
@@ -83,7 +83,7 @@ extern "C"
                                                                        jlong ref)
     {
 
-        rive::LayerState* layerState = (rive::LayerState*)ref;
+        rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
         return layerState->is<rive::BlendStateDirect>();
     }
 
@@ -92,7 +92,7 @@ extern "C"
                                                              jobject thisObj,
                                                              jlong ref)
     {
-        auto animationState = (rive::AnimationState*)ref;
+        auto animationState = reinterpret_cast<rive::AnimationState*>(ref);
         auto animation = animationState->animation();
         if (animation == nullptr)
         {

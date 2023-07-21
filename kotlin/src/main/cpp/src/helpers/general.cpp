@@ -1,8 +1,8 @@
 #include "jni_refs.hpp"
+#include "helpers/android_skia_factory.hpp"
 #include "helpers/general.hpp"
 #include "rive/file.hpp"
-#include "rive/layout.hpp"
-#include "skia_factory.hpp"
+#include "rive/pls/pls_factory.hpp"
 
 #if defined(DEBUG) || defined(LOG)
 #include <errno.h>
@@ -11,128 +11,28 @@
 #include <EGL/egl.h>
 #endif
 
-class AndroidSkiaFactory : public rive::SkiaFactory
-{
-public:
-    std::vector<uint8_t> platformDecode(rive::Span<const uint8_t> span,
-                                        rive::SkiaFactory::ImageInfo* info) override
-    {
-        auto env = rive_android::getJNIEnv();
-        std::vector<uint8_t> pixels;
-
-        jclass cls = env->FindClass("app/rive/runtime/kotlin/core/Decoder");
-        if (!cls)
-        {
-            LOGE("can't find class 'app/rive/runtime/kotlin/core/Decoder'");
-            return pixels;
-        }
-
-        jmethodID method = env->GetStaticMethodID(cls, "decodeToPixels", "([B)[I");
-        if (!method)
-        {
-            LOGE("can't find static method decodeToPixels");
-            return pixels;
-        }
-
-        jbyteArray encoded = env->NewByteArray(span.size());
-        if (!encoded)
-        {
-            LOGE("failed to allcoate NewByteArray");
-            return pixels;
-        }
-
-        env->SetByteArrayRegion(encoded, 0, span.size(), (jbyte*)span.data());
-        auto jpixels = (jintArray)env->CallStaticObjectMethod(cls, method, encoded);
-        env->DeleteLocalRef(encoded); // no longer need encoded
-
-        // At ths point, we have the decode results. Now we just need to convert
-        // it into the form we need (ImageInfo + premul pixels)
-
-        size_t arrayCount = env->GetArrayLength(jpixels);
-        if (arrayCount < 2)
-        {
-            LOGE("bad array length (unexpected)");
-            return pixels;
-        }
-
-        int* rawPixels = env->GetIntArrayElements(jpixels, nullptr);
-        const uint32_t width = rawPixels[0];
-        const uint32_t height = rawPixels[1];
-        const size_t pixelCount = (size_t)width * height;
-        if (pixelCount == 0)
-        {
-            LOGE("don't support empty images (zero dimension)");
-            return pixels;
-        }
-        if (2 + pixelCount < arrayCount)
-        {
-            LOGE("not enough elements in pixel array");
-            return pixels;
-        }
-
-        auto div255 = [](unsigned value) { return (value + 128) * 257 >> 16; };
-
-        pixels.resize(pixelCount * 4);
-        uint8_t* bytes = pixels.data();
-        bool isOpaque = true;
-        for (size_t i = 0; i < pixelCount; ++i)
-        {
-            uint32_t p = rawPixels[2 + i];
-            unsigned a = (p >> 24) & 0xFF;
-            unsigned r = (p >> 16) & 0xFF;
-            unsigned g = (p >> 8) & 0xFF;
-            unsigned b = (p >> 0) & 0xFF;
-            // convert to premul as needed
-            if (a != 255)
-            {
-                r = div255(r * a);
-                g = div255(g * a);
-                b = div255(b * a);
-                isOpaque = false;
-            }
-            bytes[0] = r;
-            bytes[1] = g;
-            bytes[2] = b;
-            bytes[3] = a;
-            bytes += 4;
-        }
-        env->ReleaseIntArrayElements(jpixels, rawPixels, 0);
-
-        info->rowBytes = width * 4; // we're snug
-        info->width = width;
-        info->height = height;
-        info->colorType = ColorType::rgba;
-        info->alphaType = isOpaque ? AlphaType::opaque : AlphaType::premul;
-        return pixels;
-    }
-};
-
-static AndroidSkiaFactory gFactory;
-
-// luigi: murdered this due to our single renderer model right now...all canvas
-// rendering won't work in this branch lets make sure we stich our rive android
-// renderers into the rive namespace namespace rive
-// {
-// 	RenderPaint *makeRenderPaint() { return new rive_android::JNIRenderPaint();
-// } 	RenderPath *makeRenderPath() { return new rive_android::JNIRenderPath();
-// } } // namespace rive
+/**
+ * Global factories that are used to instantiate render objects (paths, buffers, textures, etc.)
+ */
+static AndroidSkiaFactory g_SkiaFactory;
+static rive::pls::PLSFactory g_RiveFactory;
 
 namespace rive_android
 {
-JavaVM* globalJavaVM;
-int sdkVersion;
+JavaVM* g_JVM;
+long g_sdkVersion;
 
-JNIEnv* getJNIEnv()
+JNIEnv* GetJNIEnv()
 {
     // double check it's all ok
     JNIEnv* g_env;
-    int getEnvStat = globalJavaVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
+    int getEnvStat = g_JVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED)
     {
-        // std::cout << "GetEnv: not attached" << std::endl;
-        if (globalJavaVM->AttachCurrentThread((JNIEnv**)&g_env, NULL) != 0)
+        LOGW("JVM::GetEnv - Not Attached.");
+        if (g_JVM->AttachCurrentThread((JNIEnv**)&g_env, NULL) != 0)
         {
-            // std::cout << "Failed to attach" << std::endl;
+            LOGE("Failed to attach current thread.");
         }
     }
     else if (getEnvStat == JNI_OK)
@@ -141,35 +41,35 @@ JNIEnv* getJNIEnv()
     }
     else if (getEnvStat == JNI_EVERSION)
     {
-        // std::cout << "GetEnv: version not supported" << std::endl;
+        LOGE("JVM::GetEnv: unsupported version %d", getEnvStat);
     }
     return g_env;
 }
-void detachThread()
+void DetachThread()
 {
-    if (!(globalJavaVM->DetachCurrentThread() == JNI_OK))
+    if (g_JVM->DetachCurrentThread() != JNI_OK)
     {
-        LOGE("Could not detach thread from JVM");
+        LOGE("DetachCurrentThread failed.");
     }
 }
 
-void logReferenceTables()
+void LogReferenceTables()
 {
-    jclass vm_class = getJNIEnv()->FindClass("dalvik/system/VMDebug");
-    jmethodID dump_mid = getJNIEnv()->GetStaticMethodID(vm_class, "dumpReferenceTables", "()V");
-    getJNIEnv()->CallStaticVoidMethod(vm_class, dump_mid);
+    jclass vm_class = GetJNIEnv()->FindClass("dalvik/system/VMDebug");
+    jmethodID dump_mid = GetJNIEnv()->GetStaticMethodID(vm_class, "dumpReferenceTables", "()V");
+    GetJNIEnv()->CallStaticVoidMethod(vm_class, dump_mid);
 }
 
-void setSDKVersion()
+void SetSDKVersion()
 {
     char sdk_ver_str[255];
     __system_property_get("ro.build.version.sdk", sdk_ver_str);
-    sdkVersion = atoi(sdk_ver_str);
+    g_sdkVersion = strtol(sdk_ver_str, NULL, 10);
 }
 
-rive::Fit getFit(JNIEnv* env, jobject jfit)
+rive::Fit GetFit(JNIEnv* env, jobject jfit)
 {
-    jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::getFitNameMethodId());
+    jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::GetFitNameMethodId());
     const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
 
     rive::Fit fit = rive::Fit::none;
@@ -206,10 +106,10 @@ rive::Fit getFit(JNIEnv* env, jobject jfit)
     return fit;
 }
 
-rive::Alignment getAlignment(JNIEnv* env, jobject jalignment)
+rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 {
     jstring alignmentValue =
-        (jstring)env->CallObjectMethod(jalignment, rive_android::getAlignmentNameMethodId());
+        (jstring)env->CallObjectMethod(jalignment, rive_android::GetAlignmentNameMethodId());
     const char* alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
 
     rive::Alignment alignment = rive::Alignment::center;
@@ -254,38 +154,49 @@ rive::Alignment getAlignment(JNIEnv* env, jobject jalignment)
     return alignment;
 }
 
-long import(uint8_t* bytes, jint length)
+long Import(uint8_t* bytes, jint length, RendererType rendererType)
 {
     rive::ImportResult result;
-    auto file =
-        rive::File::import(rive::Span<const uint8_t>(bytes, length), &gFactory, &result).release();
+    rive::Factory* fileFactory = rendererType == RendererType::Skia
+                                     ? static_cast<rive::Factory*>(&g_SkiaFactory)
+                                     : static_cast<rive::Factory*>(&g_RiveFactory);
+    rive::File* file =
+        rive::File::import(rive::Span<const uint8_t>(bytes, length), fileFactory, &result)
+            .release();
     if (result == rive::ImportResult::success)
     {
         return (long)file;
     }
     else if (result == rive::ImportResult::unsupportedVersion)
     {
-        return throwUnsupportedRuntimeVersionException("Unsupported Rive File Version.");
+        return ThrowUnsupportedRuntimeVersionException("Unsupported Rive File Version.");
     }
     else if (result == rive::ImportResult::malformed)
     {
-        return throwMalformedFileException("Malformed Rive File.");
+        return ThrowMalformedFileException("Malformed Rive File.");
     }
     else
     {
-        return throwRiveException("Unknown error loading file.");
+        return ThrowRiveException("Unknown error loading file.");
     }
 }
 
-std::string jstring2string(JNIEnv* env, jstring jStr)
+std::string JStringToString(JNIEnv* env, jstring jStr)
 {
+    if (jStr == nullptr)
+    {
+        return std::string();
+    }
     const char* cstr = env->GetStringUTFChars(jStr, NULL);
     std::string str = std::string(cstr);
     env->ReleaseStringUTFChars(jStr, cstr);
     return str;
 }
+
+int SizeTTOInt(size_t sizeT) { return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT); }
+
 #if defined(DEBUG) || defined(LOG)
-void logThread()
+[[noreturn]] void LogThread()
 {
     int pipes[2];
     pipe(pipes);

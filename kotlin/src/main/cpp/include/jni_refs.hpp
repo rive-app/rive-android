@@ -6,28 +6,28 @@
 
 namespace rive_android
 {
-extern jint throwRiveException(const char* message);
-extern jint throwMalformedFileException(const char* message);
-extern jint throwUnsupportedRuntimeVersionException(const char* message);
-extern jclass getFitClass();
-extern jmethodID getFitNameMethodId();
+extern jint ThrowRiveException(const char* message);
+extern jint ThrowMalformedFileException(const char* message);
+extern jint ThrowUnsupportedRuntimeVersionException(const char* message);
+extern jclass GetFitClass();
+extern jmethodID GetFitNameMethodId();
 
-extern jclass getAlignmentClass();
-extern jmethodID getAlignmentNameMethodId();
+extern jclass GetAlignmentClass();
+extern jmethodID GetAlignmentNameMethodId();
 
-extern jclass getLoopClass();
-extern jfieldID getNoneLoopField();
-extern jfieldID getOneShotLoopField();
-extern jfieldID getLoopLoopField();
-extern jfieldID getPingPongLoopField();
+extern jclass GetLoopClass();
+extern jfieldID GetNoneLoopField();
+extern jfieldID GetOneShotLoopField();
+extern jfieldID GetLoopLoopField();
+extern jfieldID GetPingPongLoopField();
 
-extern jclass getPointerFClass();
-extern jmethodID getPointFInitMethod();
-extern jfieldID getXFieldId();
-extern jfieldID getYFieldId();
+extern jclass GetPointerFClass();
+extern jmethodID GetPointFInitMethod();
+extern jfieldID GetXFieldId();
+extern jfieldID GetYFieldId();
 
-extern rive::AABB rectFToAABB(JNIEnv* env, jobject rectf);
-extern void aabbToRectF(JNIEnv* env, const rive::AABB&, jobject rectf);
+extern rive::AABB RectFToAABB(JNIEnv* env, jobject rectf);
+extern void AABBToRectF(JNIEnv* env, const rive::AABB&, jobject rectf);
 
 } // namespace rive_android
 #endif

@@ -10,9 +10,8 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
-import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
-import app.rive.runtime.kotlin.renderers.RendererSkia
+import app.rive.runtime.kotlin.renderers.Renderer
 
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
@@ -29,9 +28,9 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     }
 
     protected val lifecycleObserver: LifecycleObserver by lazy { createObserver() }
-    protected var renderer: RendererSkia? = null
+    protected var renderer: Renderer? = null
     private lateinit var viewSurface: Surface
-    protected abstract fun createRenderer(): RendererSkia
+    protected abstract fun createRenderer(): Renderer
     protected abstract fun createObserver(): LifecycleObserver
 
     private val refreshPeriodNanos: Long by lazy {
