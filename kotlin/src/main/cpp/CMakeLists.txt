@@ -88,6 +88,8 @@ add_library(rive-android SHARED ${SOURCES})
 
 set(static_libs
         rive
+        rive_harfbuzz
+        rive_sheenbidi
         rive_skia_renderer
         rive_pls_renderer
         skia
@@ -111,6 +113,8 @@ find_library(gles-fdsalib GLESv3fdas)
 
 target_link_libraries(rive-android
         rive-lib
+        rive_harfbuzz-lib
+        rive_sheenbidi-lib
         rive_skia_renderer-lib
         rive_pls_renderer-lib
         skia-lib

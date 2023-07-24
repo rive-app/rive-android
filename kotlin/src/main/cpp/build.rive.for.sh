@@ -163,6 +163,8 @@ buildFor() {
 
     # copy in newly built rive/skia/skia_renderer files.
     cp "$RIVE_RUNTIME_DIR"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_harfbuzz.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_sheenbidi.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR/../pls/out/android/$SKIA_ARCH/$CONFIG/lib/librive_pls_renderer.a" "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
