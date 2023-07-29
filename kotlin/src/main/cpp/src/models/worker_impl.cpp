@@ -112,10 +112,10 @@ void PLSWorkerImpl::destroy(EGLThreadState* threadState)
 void PLSWorkerImpl::clear(EGLThreadState* threadState)
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::pls::PLSRenderContextGL* plsContext = plsThreadState->plsContext();
+    rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
     rive::pls::PLSRenderContext::FrameDescriptor frameDescriptor;
     frameDescriptor.renderTarget = m_plsRenderTarget;
-    frameDescriptor.loadAction = rive::pls::PLSRenderContext::LoadAction::clear;
+    frameDescriptor.loadAction = rive::pls::LoadAction::clear;
     frameDescriptor.clearColor = 0;
     plsContext->beginFrame(std::move(frameDescriptor));
 }
@@ -123,7 +123,7 @@ void PLSWorkerImpl::clear(EGLThreadState* threadState)
 void PLSWorkerImpl::flush(EGLThreadState* threadState)
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::pls::PLSRenderContextGL* plsContext = plsThreadState->plsContext();
+    rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
     plsContext->flush();
     if (m_plsRenderTarget->drawFramebufferID() != 0)
     {

@@ -46,7 +46,8 @@ void PLSThreadState::makeCurrent(EGLSurface eglSurface)
 
     if (m_plsContext == nullptr)
     {
-        m_plsContext = rive::pls::PLSRenderContextGL::Make();
+        m_plsImpl = rive::pls::PLSRenderContextGLImpl::Make();
+        m_plsContext = std::make_unique<rive::pls::PLSRenderContext>(m_plsImpl);
     }
 }
 

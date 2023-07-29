@@ -128,19 +128,19 @@ public:
 
         threadState->makeCurrent(m_eglSurface);
         PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-        rive::pls::PLSRenderContextGL* plsContext = plsThreadState->plsContext();
+        rive::pls::PLSRenderContextGLImpl* plsContextImpl = plsThreadState->plsContextImpl();
         int width = ANativeWindow_getWidth(window);
         int height = ANativeWindow_getHeight(window);
-        m_plsRenderTarget = plsContext->wrapGLRenderTarget(0, width, height);
+        m_plsRenderTarget = plsContextImpl->wrapGLRenderTarget(0, width, height);
         if (m_plsRenderTarget == nullptr)
         {
-            m_plsRenderTarget = plsContext->makeOffscreenRenderTarget(width, height);
+            m_plsRenderTarget = plsContextImpl->makeOffscreenRenderTarget(width, height);
         }
         if (m_plsRenderTarget == nullptr)
         {
             return;
         }
-        m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
+        m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsThreadState->plsContext());
         *success = true;
     }
 

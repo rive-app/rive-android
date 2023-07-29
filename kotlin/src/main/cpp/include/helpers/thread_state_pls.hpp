@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "thread_state_egl.hpp"
-#include "rive/pls/gl/pls_render_context_gl.hpp"
+#include "rive/pls/gl/pls_render_context_gl_impl.hpp"
 
 namespace rive_android
 {
@@ -18,7 +18,8 @@ public:
 
     ~PLSThreadState() { releaseContext(); }
 
-    rive::pls::PLSRenderContextGL* plsContext() const { return m_plsContext.get(); }
+    rive::pls::PLSRenderContext* plsContext() const { return m_plsContext.get(); }
+    rive::pls::PLSRenderContextGLImpl* plsContextImpl() const { return m_plsImpl.get(); }
 
     void destroySurface(EGLSurface eglSurface) override;
 
@@ -28,7 +29,8 @@ protected:
     void releaseContext() override;
 
 private:
-    std::unique_ptr<rive::pls::PLSRenderContextGL> m_plsContext;
+    rive::rcp<rive::pls::PLSRenderContextGLImpl> m_plsImpl;
+    std::unique_ptr<rive::pls::PLSRenderContext> m_plsContext;
 
     bool m_ownsCurrentSurface = false;
 };
