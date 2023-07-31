@@ -128,7 +128,8 @@ public:
 
         threadState->makeCurrent(m_eglSurface);
         PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-        rive::pls::PLSRenderContextGLImpl* plsContextImpl = plsThreadState->plsContextImpl();
+        auto plsContextImpl =
+            plsThreadState->plsContext()->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
         int width = ANativeWindow_getWidth(window);
         int height = ANativeWindow_getHeight(window);
         m_plsRenderTarget = plsContextImpl->wrapGLRenderTarget(0, width, height);

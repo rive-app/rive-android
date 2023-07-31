@@ -19,7 +19,6 @@ public:
     ~PLSThreadState() { releaseContext(); }
 
     rive::pls::PLSRenderContext* plsContext() const { return m_plsContext.get(); }
-    rive::pls::PLSRenderContextGLImpl* plsContextImpl() const { return m_plsImpl.get(); }
 
     void destroySurface(EGLSurface eglSurface) override;
 
@@ -29,7 +28,6 @@ protected:
     void releaseContext() override;
 
 private:
-    rive::rcp<rive::pls::PLSRenderContextGLImpl> m_plsImpl;
     std::unique_ptr<rive::pls::PLSRenderContext> m_plsContext;
 
     bool m_ownsCurrentSurface = false;
