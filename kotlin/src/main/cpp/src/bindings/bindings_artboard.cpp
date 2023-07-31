@@ -4,6 +4,7 @@
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/state_machine_instance.hpp"
+#include "rive/text/text_value_run.hpp"
 #include <jni.h>
 #include <stdio.h>
 
@@ -115,6 +116,16 @@ extern "C"
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
 
         return (jint)artboard->stateMachineCount();
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRun(JNIEnv* env,
+                                                                   jobject thisObj,
+                                                                   jlong ref,
+                                                                   jstring name)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return (jlong)artboard->find<rive::TextValueRun>(JStringToString(env, name));
     }
 
     JNIEXPORT jboolean JNICALL

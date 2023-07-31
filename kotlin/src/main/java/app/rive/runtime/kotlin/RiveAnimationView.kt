@@ -500,6 +500,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
+     * Get the current value for a text run named [textRunName] on the active artboard if it exists.
+     */
+    fun getTextRunValue(textRunName: String): String? = try {
+        controller.getTextRunValue(textRunName)
+    } catch (e: RiveException) {
+        null
+    }
+
+    /**
+     * Set the text value for a text run named [textRunName] to [textValue] on the active artboard
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(textRunName: String, textValue: String) {
+        controller.setTextRunValue(textRunName, textValue)
+    }
+
+    /**
      * Check if the animation is currently playing
      */
     val isPlaying: Boolean

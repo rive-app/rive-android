@@ -1,9 +1,11 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.RectF
+import android.util.Log
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
+import app.rive.runtime.kotlin.core.errors.TextValueRunException
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
@@ -30,6 +32,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
     private external fun cppStateMachineNameByIndex(cppPointer: Long, index: Int): String
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
+    private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
 
     // TODO: this will be a cppDraw call after we remove our old renderer.
     private external fun cppDrawSkia(
@@ -136,6 +139,20 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
         val smi = StateMachineInstance(stateMachinePointer)
         dependencies.add(smi)
         return smi
+    }
+
+    /**
+     * Get a [RiveTextValueRun] with a given [name] in the [Artboard].
+     */
+    @Throws(RiveException::class)
+    fun textRun(name: String): RiveTextValueRun {
+        val textRunPointer = cppFindTextValueRun(cppPointer, name)
+        if (textRunPointer == NULL_POINTER) {
+            throw TextValueRunException("No Rive TextValueRun found with name \"$name.\"")
+        }
+        val run = RiveTextValueRun(textRunPointer)
+        dependencies.add(run)
+        return run
     }
 
     /**

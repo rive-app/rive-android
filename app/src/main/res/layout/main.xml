@@ -200,6 +200,15 @@
                 android:text="Frame"
                 android:textColor="@color/textColorPrimary" />
 
+            <Button
+                android:id="@+id/go_dynamic_text"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Dynamic Text"
+                android:textColor="@color/textColorPrimary" />
+
         </LinearLayout>
 
     </ScrollView>

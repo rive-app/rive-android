@@ -59,6 +59,7 @@
             android:label="@string/title_activity_compose"
             android:theme="@style/AppTheme" />
         <activity android:name=".FrameActivity" />
+        <activity android:name=".DynamicTextActivity" />
 
         <!-- For testing -->
         <activity android:name=".SingleActivity" />

@@ -19,6 +19,7 @@ import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
+import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -446,6 +447,23 @@ class RiveFileController(
             (it.input(inputName) as SMINumber).value = value
             play(it, settleStateMachineState = false)
         }
+    }
+
+    /**
+     * Get the current value for a text run named [textRunName] on the active artboard if it exists.
+     */
+    fun getTextRunValue(textRunName: String): String? = try {
+        activeArtboard?.textRun(textRunName)?.text
+    } catch (e: RiveException) {
+        null
+    }
+
+    /**
+     * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(textRunName: String, textValue: String){
+        activeArtboard?.textRun(textRunName)?.text = textValue;
     }
 
     private fun animations(animationName: String): List<LinearAnimationInstance> {
