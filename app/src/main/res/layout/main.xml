@@ -209,6 +209,15 @@
                 android:text="Dynamic Text"
                 android:textColor="@color/textColorPrimary" />
 
+            <Button
+                android:id="@+id/go_stress_test"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Stress Test"
+                android:textColor="@color/textColorPrimary" />
+
         </LinearLayout>
 
     </ScrollView>

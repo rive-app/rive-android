@@ -43,6 +43,15 @@ abstract class Renderer(
         targetBounds: RectF,
         srcBounds: RectF
     )
+    private external fun cppTransform(
+        cppPointer: Long,
+        x: Float,
+        sy: Float,
+        sx: Float,
+        y: Float,
+        tx: Float,
+        ty: Float
+    )
 
     /** Instantiates JNIRenderer in C++ */
     private external fun constructor(trace: Boolean, type: Int): Long
@@ -166,6 +175,20 @@ abstract class Renderer(
             targetBounds,
             sourceBounds
         )
+    }
+
+    fun transform(x: Float, sy: Float, sx: Float, y: Float, tx: Float, ty: Float) {
+        cppTransform(cppPointer, x, sy, sx, y, tx, ty)
+    }
+
+    fun scale(sx: Float, sy: Float)
+    {
+        transform(sx, 0f, 0f, sy, 0f, 0f)
+    }
+
+    fun translate(dx: Float, dy: Float)
+    {
+        transform(1f, 0f, 0f, 1f, dx, dy)
     }
 
     @CallSuper

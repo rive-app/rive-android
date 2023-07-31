@@ -112,6 +112,21 @@ extern "C"
         jniWrapper->getRendererOnWorkerThread()->align(fit, alignment, targetBounds, sourceBounds);
     }
 
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_renderers_Renderer_cppTransform(JNIEnv* env,
+                                                                 jobject thisObj,
+                                                                 jlong ref,
+                                                                 jfloat x,
+                                                                 jfloat sy,
+                                                                 jfloat sx,
+                                                                 jfloat y,
+                                                                 jfloat tx,
+                                                                 jfloat ty)
+    {
+        JNIRenderer* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
+        jniWrapper->getRendererOnWorkerThread()->transform(rive::Mat2D(x, sy, sx, y, tx, ty));
+    }
+
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_renderers_Renderer_cppWidth(JNIEnv*, jobject, jlong rendererRef)
     {

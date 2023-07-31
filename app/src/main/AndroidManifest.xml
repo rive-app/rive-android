@@ -60,6 +60,7 @@
             android:theme="@style/AppTheme" />
         <activity android:name=".FrameActivity" />
         <activity android:name=".DynamicTextActivity" />
+        <activity android:name=".StressTestActivity" />
 
         <!-- For testing -->
         <activity android:name=".SingleActivity" />
