@@ -56,22 +56,23 @@ changes are introduced, we need to build new `.so` files for different architect
 
 The Android NDK builds `.so` files
 for [different architectures](https://developer.android.com/ndk/guides/abis). <br />
-The current NDK version we're using is stored in [.ndk_version](./cpp/.ndk_version). Rive is
+The current NDK version we're using is stored in [.ndk_version](./kotlin/src/main/cpp/.ndk_version). Rive is
 constantly making use of the latest clang features, so please ensure your NDK is up to
 date. ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version)) <br />
-We also need to rebuild new `.so` files (located in `/kotlin/src/main/jniLibs/`) when pulling in
-latest changes from `rive-cpp`:
+Make sure you're rebuilding the native libraries when pulling in the latest changes from `rive-cpp`:
 
 ```bash
-cd cpp/
+cd kotlin/src/main/cpp/
 
 # Add NDK_PATH variable to your .zshenv
 NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
 echo 'export NDK_PATH=~/Library/Android/sdk/ndk/${NDK_VERSION}' >> ~/.zshenv
 source ~/.zshenv
 
-# Builds .so files for each architecture
-./build.all.sh
-# After the script above completes successfully, you may see 4 new .so files. Make sure these are committed as a code change
+# Back to the top of the repo
+cd -
+# Make sure everything still builds
+./gradlew assembleDebug
+# After the script above completes successfully, commit your changes
 git add .
 ```

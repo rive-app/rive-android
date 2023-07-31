@@ -55,10 +55,12 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 
 clean:
 	rm -rf $(ODIR)
+	rm -f $(BUILD_DIR)/libc++_static.a
 	rm -f $(BUILD_DIR)/libjnirivebridge.so
+	rm -f $(BUILD_DIR)/librive_harfbuzz.a
+	rm -f $(BUILD_DIR)/librive_pls_renderer.a
+	rm -f $(BUILD_DIR)/librive_sheenbidi.a
+	rm -f $(BUILD_DIR)/librive_skia_renderer.a
 	rm -f $(BUILD_DIR)/librive.a
 	rm -f $(BUILD_DIR)/libskia.a
-	rm -f $(BUILD_DIR)/librive_skia_renderer.a
-	rm -f $(BUILD_DIR)/librive_pls_renderer.a
-	rm -f $(BUILD_DIR)/libc++_static.a
 	

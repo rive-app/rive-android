@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -ex
 
 ARCH_X86=x86
@@ -123,25 +122,32 @@ export MAKE_SKIA_FILE="make_skia_android.sh"
 API=21
 SKIA_ARCH=
 
-buildFor() {
-    if ${NEEDS_CLEAN}; then
-        echo "Cleaning everything!"
-        # Skia
-        pushd "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"
+# Cleans the build for the specified architecture
+cleanFor() {
+    echo "Cleaning everything!"
+    # Skia
+    pushd "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"
+    if [ -d ./bin ]; then
+        # Skia clone: let's clean the build
         bin/gn clean ./out/"$CONFIG"/"$SKIA_ARCH"
-        popd
-        # PLS
-        pushd "$RIVE_RUNTIME_DIR"/../pls/out
-        make config=$CONFIG clean
-        popd
-        # rive_skia_renderer
-        pushd "$RIVE_RUNTIME_DIR"/skia/renderer
-        ./build.sh -p android."$SKIA_ARCH" clean
-        popd
-        # Android lib
-        make clean
+    else
+        # Skia download.
+        rm archive_contents
     fi
+    popd
+    # PLS
+    pushd "$RIVE_RUNTIME_DIR"/../pls/out
+    make config=$CONFIG clean
+    popd
+    # rive_skia_renderer
+    pushd "$RIVE_RUNTIME_DIR"/skia/renderer
+    ./build.sh -p android."$SKIA_ARCH" clean
+    popd
+    # Android lib
+    make clean
+}
 
+buildFor() {
     # Build skia
     pushd "$RIVE_RUNTIME_DIR"/skia/dependencies
     ./make_skia_android.sh "$SKIA_ARCH" "$CONFIG"
@@ -226,4 +232,8 @@ else
     usage
 fi
 
+if ${NEEDS_CLEAN}; then
+    cleanFor
+    exit 1
+fi
 buildFor

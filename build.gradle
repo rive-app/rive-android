@@ -44,13 +44,13 @@ allprojects {
     }
 }
 
-task cleanDeps(type: Exec) {
-    workingDir './cpp'
-    commandLine './build.clean.sh'
+tasks.register('cleanDeps', Exec) {
+    workingDir './kotlin/src/main/cpp'
+    commandLine './clean_all.sh'
 }
 
-task clean(type: Delete) {
-    // dependsOn(cleanDeps)
+tasks.register('clean', Delete) {
+    dependsOn(cleanDeps)
     delete rootProject.buildDir
 }
 
