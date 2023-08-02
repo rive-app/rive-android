@@ -59,6 +59,11 @@ showcases a number of ways to manipulate Rives, including:
 - Utilizing a low-level API to build a render loop for more control over scenes
 - ...and more!
 
+
+### Awesome Rive
+
+For even more examples and resources on using Rive at runtime or in other tools, checkout the [awesome-rive](https://github.com/rive-app/awesome-rive) repo.
+
 ## Experimental Features
 
 The Rive renderer is available _experimentally_ in `7.0.0`.
