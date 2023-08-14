@@ -1,8 +1,7 @@
 #include "jni_refs.hpp"
-#include "helpers/android_skia_factory.hpp"
+#include "helpers/android_factories.hpp"
 #include "helpers/general.hpp"
 #include "rive/file.hpp"
-#include "rive/pls/pls_factory.hpp"
 
 #if defined(DEBUG) || defined(LOG)
 #include <errno.h>
@@ -15,7 +14,7 @@
  * Global factories that are used to instantiate render objects (paths, buffers, textures, etc.)
  */
 static AndroidSkiaFactory g_SkiaFactory;
-static rive::pls::PLSFactory g_RiveFactory;
+static AndroidPLSFactory g_RiveFactory;
 
 namespace rive_android
 {
