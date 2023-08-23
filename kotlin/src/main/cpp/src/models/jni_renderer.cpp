@@ -114,7 +114,10 @@ void JNIRenderer::stop()
 
 void JNIRenderer::doFrame(long long frameTimeNs)
 {
-    mWorker->waitUntilComplete(m_workIDForLastFrame);
+    if (!mWorker->canScheduleWork(m_workIDForLastFrame))
+    {
+        return;
+    }
     m_workIDForLastFrame = mWorker->run([=](EGLThreadState* threadState) {
         if (!m_workerImpl)
             return;

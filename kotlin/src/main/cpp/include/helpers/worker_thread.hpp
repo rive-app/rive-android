@@ -73,6 +73,8 @@ public:
 
     void runAndWait(Work work) { waitUntilComplete(run(work)); }
 
+    bool canScheduleWork(WorkID workID) const { return m_lastCompletedWorkID >= workID; }
+
     void terminateThread()
     {
         bool didSendTerminationToken = false;
