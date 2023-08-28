@@ -17,17 +17,13 @@ class SkiaThreadState : public EGLThreadState
 {
 public:
     SkiaThreadState() = default;
-
-    ~SkiaThreadState() { releaseContext(); }
+    ~SkiaThreadState();
 
     sk_sp<SkSurface> createSkiaSurface(EGLSurface, int width, int height);
 
     void destroySurface(EGLSurface) override;
 
     void makeCurrent(EGLSurface) override;
-
-protected:
-    void releaseContext() override;
 
 private:
     sk_sp<GrDirectContext> m_skContext = nullptr;

@@ -6,11 +6,17 @@
 
 #include "helpers/egl_worker.hpp"
 #include "helpers/general.hpp"
+#include "helpers/thread_state_pls.hpp"
+#include "rive/math/math_types.hpp"
 #include "rive/pls/pls_image.hpp"
+#include "rive/pls/gl/pls_render_context_gl_impl.hpp"
 
 #include <vector>
 
-bool JNIDecodeImage(rive::Span<const uint8_t> encodedBytes,
+using namespace rive;
+using namespace rive::pls;
+
+bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
                     bool premultiply,
                     uint32_t* width,
                     uint32_t* height,
@@ -108,8 +114,8 @@ bool JNIDecodeImage(rive::Span<const uint8_t> encodedBytes,
     return true;
 }
 
-std::vector<uint8_t> AndroidSkiaFactory::platformDecode(rive::Span<const uint8_t> encodedBytes,
-                                                        rive::SkiaFactory::ImageInfo* info)
+std::vector<uint8_t> AndroidSkiaFactory::platformDecode(Span<const uint8_t> encodedBytes,
+                                                        SkiaFactory::ImageInfo* info)
 {
     uint32_t width, height;
     std::vector<uint8_t> pixels;
@@ -127,29 +133,51 @@ std::vector<uint8_t> AndroidSkiaFactory::platformDecode(rive::Span<const uint8_t
     return pixels;
 }
 
-class AndroidPLSImage : public rive::pls::PLSImage
+class AndroidPLSImage : public PLSImage
 {
 public:
-    AndroidPLSImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBA) :
-        PLSImage(width, height, std::move(imageDataRGBA)),
+    AndroidPLSImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr) :
+        PLSImage(width, height),
         m_glWorker(rive_android::EGLWorker::Current(rive_android::RendererType::Rive))
-    {}
+    {
+        // Create the texture on the worker thread where the GL context is current.
+        const uint8_t* imageDataRGBA = imageDataRGBAPtr.release();
+        m_textureCreationWorkID = m_glWorker->run([this, imageDataRGBA](
+                                                      rive_android::EGLThreadState* threadState) {
+            auto plsState = static_cast<rive_android::PLSThreadState*>(threadState);
+            uint32_t mipLevelCount = math::msb(m_Height | m_Width);
+            auto* glImpl = plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
+            resetTexture(glImpl->makeImageTexture(m_Width, m_Height, mipLevelCount, imageDataRGBA));
+            delete[] imageDataRGBA;
+        });
+    }
 
     ~AndroidPLSImage() override
     {
-        rive::pls::PLSTexture* texture = releaseTexture();
-        if (texture)
+        // Ensure we are done initializing the texture before we turn around and delete it.
+        m_glWorker->waitUntilComplete(m_textureCreationWorkID);
+        // Since this is the destructor, we know nobody else is using this object anymore and there
+        // is not a race condition from accessing the texture from any thread.
+        PLSTexture* texture = releaseTexture();
+        if (texture != nullptr)
         {
-            m_glWorker->run([=](rive_android::EGLThreadState*) { texture->unref(); });
+            // Delete the texture on the worker thread where the GL context is current.
+            m_glWorker->run([texture](rive_android::EGLThreadState*) { texture->unref(); });
         }
     }
 
 private:
-    rive::rcp<rive_android::EGLWorker> m_glWorker;
+    rcp<rive_android::EGLWorker> m_glWorker;
+    rive_android::EGLWorker::WorkID m_textureCreationWorkID;
 };
 
-std::unique_ptr<rive::RenderImage> AndroidPLSFactory::decodeImage(
-    rive::Span<const uint8_t> encodedBytes)
+rcp<RenderBuffer> AndroidPLSFactory::makeBufferU16(Span<const uint16_t> data) { return nullptr; }
+
+rcp<RenderBuffer> AndroidPLSFactory::makeBufferU32(Span<const uint32_t> data) { return nullptr; }
+
+rcp<RenderBuffer> AndroidPLSFactory::makeBufferF32(Span<const float> data) { return nullptr; }
+
+std::unique_ptr<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
 {
     uint32_t width, height;
     std::vector<uint8_t> pixels;

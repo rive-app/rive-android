@@ -155,7 +155,7 @@ buildFor() {
 
     # Build librive_pls_renderer (internally builds librive)
     pushd "$RIVE_RUNTIME_DIR"/../pls/out
-    premake5 --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --os=android --arch="$SKIA_ARCH" gmake2
+    premake5 --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
     make config=$CONFIG -j20 rive rive_pls_renderer
     popd
 

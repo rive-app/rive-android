@@ -44,7 +44,7 @@ public:
 
     ~WorkerThread() { terminateThread(); }
 
-    WorkID run(Work work)
+    WorkID run(Work&& work)
     {
         assert(work != nullptr); // Clients can't push the null termination token.
         uint64_t pushedWorkID;
@@ -71,7 +71,7 @@ public:
         }
     }
 
-    void runAndWait(Work work) { waitUntilComplete(run(work)); }
+    void runAndWait(Work&& work) { waitUntilComplete(run(std::move(work))); }
 
     bool canScheduleWork(WorkID workID) const { return m_lastCompletedWorkID >= workID; }
 

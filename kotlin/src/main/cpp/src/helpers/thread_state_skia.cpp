@@ -33,7 +33,7 @@ static sk_sp<GrDirectContext> make_skia_context()
     return ctx;
 }
 
-void SkiaThreadState::releaseContext()
+SkiaThreadState::~SkiaThreadState()
 {
     // Release Skia Context if has been init'd.
     if (m_skContext.get())

@@ -27,15 +27,9 @@ public:
     void swapBuffers();
 
 protected:
-    virtual void releaseContext() = 0;
-
     EGLSurface m_currentSurface = EGL_NO_SURFACE;
-
     EGLDisplay m_display = EGL_NO_DISPLAY;
-
     EGLContext m_context = EGL_NO_CONTEXT;
-
-private:
     EGLConfig m_config = static_cast<EGLConfig>(0);
 };
 } // namespace rive_android
