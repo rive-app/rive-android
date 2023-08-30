@@ -40,7 +40,9 @@ popd
 
 # PLS
 pushd "$RIVE_RUNTIME_DIR"/../pls/out
-make clean
+if [[ -e Makefile ]]; then
+  make clean
+fi
 rm -rf ./android
 rm -rf ./dependencies
 rm -rf ./obj

@@ -36,11 +36,11 @@ public:
     using WorkID = uint64_t;
 
     WorkerThread(const char* name, Affinity affinity, const RendererType rendererType) :
-        m_RendererType(rendererType),
-        mName(name),
-        mAffinity(affinity),
-        mThread(std::thread([this]() { threadMain(); }))
-    {}
+        m_RendererType(rendererType), mName(name), mAffinity(affinity), mWorkMutex{}
+    {
+        // Don't launch the worker thread until all of our objects are fully initialized.
+        mThread = std::thread([this]() { threadMain(); });
+    }
 
     ~WorkerThread() { terminateThread(); }
 
@@ -139,15 +139,16 @@ private:
 
     const std::string mName;
     const Affinity mAffinity;
-    std::thread mThread;
 
     WorkID m_lastPushedWorkID = 0;
     std::atomic<WorkID> m_lastCompletedWorkID = 0;
     bool mIsTerminated = false;
 
-    std::mutex mWorkMutex;
     std::queue<std::function<void(EGLThreadState*)>> mWorkQueue;
     std::condition_variable_any m_workPushedCondition;
     std::condition_variable_any m_workedCompletedCondition;
+
+    std::mutex mWorkMutex;
+    std::thread mThread;
 };
 } // namespace rive_android

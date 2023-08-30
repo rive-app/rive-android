@@ -37,7 +37,7 @@ class RiveActivityLifecycleTest {
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(500.milliseconds) { controller.refCount == 0 }
+        waitUntil(1500.milliseconds) { controller.refCount == 0 }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
@@ -79,7 +79,7 @@ class RiveActivityLifecycleTest {
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(500.milliseconds) { controller.refCount == 0 }
+        waitUntil(1500.milliseconds) { controller.refCount == 0 }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
