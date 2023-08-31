@@ -171,11 +171,12 @@ private:
     rive_android::EGLWorker::WorkID m_textureCreationWorkID;
 };
 
-rcp<RenderBuffer> AndroidPLSFactory::makeBufferU16(Span<const uint16_t> data) { return nullptr; }
-
-rcp<RenderBuffer> AndroidPLSFactory::makeBufferU32(Span<const uint32_t> data) { return nullptr; }
-
-rcp<RenderBuffer> AndroidPLSFactory::makeBufferF32(Span<const float> data) { return nullptr; }
+rcp<RenderBuffer> AndroidPLSFactory::makeRenderBuffer(RenderBufferType type,
+                                                      RenderBufferFlags flags,
+                                                      size_t sizeInBytes)
+{
+    return nullptr;
+}
 
 std::unique_ptr<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
 {

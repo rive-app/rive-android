@@ -25,9 +25,10 @@ public:
 class AndroidPLSFactory : public rive::pls::PLSFactory
 {
 public:
-    rive::rcp<rive::RenderBuffer> makeBufferU16(rive::Span<const uint16_t>) override;
-    rive::rcp<rive::RenderBuffer> makeBufferU32(rive::Span<const uint32_t>) override;
-    rive::rcp<rive::RenderBuffer> makeBufferF32(rive::Span<const float>) override;
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType,
+                                                   rive::RenderBufferFlags,
+                                                   size_t) override;
+
     std::unique_ptr<rive::RenderImage> decodeImage(rive::Span<const uint8_t>) override;
 };
 
