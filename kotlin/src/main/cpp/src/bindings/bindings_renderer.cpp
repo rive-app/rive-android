@@ -44,19 +44,17 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_renderers_Renderer_cppStart(JNIEnv*,
                                                              jobject,
-                                                             jlong rendererRef,
-                                                             jlong frameTimeNs)
+                                                             jlong rendererRef)
     {
-        reinterpret_cast<JNIRenderer*>(rendererRef)->start(frameTimeNs);
+        reinterpret_cast<JNIRenderer*>(rendererRef)->start();
     }
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_renderers_Renderer_cppDoFrame(JNIEnv*,
                                                                jobject,
-                                                               jlong rendererRef,
-                                                               jlong frameTimeNs)
+                                                               jlong rendererRef)
     {
-        reinterpret_cast<JNIRenderer*>(rendererRef)->doFrame(frameTimeNs);
+        reinterpret_cast<JNIRenderer*>(rendererRef)->doFrame();
     }
 
     JNIEXPORT void JNICALL

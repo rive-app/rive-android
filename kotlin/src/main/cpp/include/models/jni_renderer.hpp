@@ -25,40 +25,40 @@ public:
 
     rive::Renderer* getRendererOnWorkerThread() const;
 
-    void start(long long timeNs);
+    void start();
 
     void stop();
 
-    void doFrame(long long frameTimeNs);
+    void doFrame();
 
-    float averageFps() const { return mAverageFps; }
+    float averageFps() const { return m_averageFps; }
 
     int width() const { return m_window ? ANativeWindow_getWidth(m_window) : -1; }
     int height() const { return m_window ? ANativeWindow_getHeight(m_window) : -1; }
 
 private:
-    rive::rcp<EGLWorker> mWorker;
+    static constexpr uint8_t kMaxScheduledFrames = 2;
 
+    rive::rcp<EGLWorker> m_worker;
     jobject m_ktRenderer;
-
-    ITracer* m_tracer;
 
     ANativeWindow* m_window = nullptr;
 
     std::thread::id m_workerThreadID;
     std::unique_ptr<WorkerImpl> m_workerImpl;
+    std::atomic_uint8_t m_numScheduledFrames = 0;
 
     /* Helpers for FPS calculations.*/
-    std::chrono::steady_clock::time_point mLastFrameTime;
-    float mAverageFps = -1.0f;
-    float mFpsSum = 0;
-    int mFpsCount = 0;
+    std::chrono::steady_clock::time_point m_fpsLastFrameTime;
+    std::atomic<float> m_averageFps = -1.0f;
+    float m_fpsSum = 0.0f;
+    int m_fpsCount = 0;
 
-    EGLWorker::WorkID m_workIDForLastFrame = 0;
+    ITracer* m_tracer;
 
     ITracer* getTracer(bool trace) const;
 
-    void calculateFps();
+    void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
 };
 } // namespace rive_android
 #endif // _RIVE_ANDROID_JNI_RENDERER_HPP_

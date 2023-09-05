@@ -48,14 +48,14 @@ public:
         }
     }
 
-    void start(jobject ktRenderer, long long timeNs);
+    void start(jobject ktRenderer, std::chrono::high_resolution_clock::time_point frameTime);
 
     void stop();
 
     void doFrame(ITracer* tracer,
                  EGLThreadState* threadState,
                  jobject ktRenderer,
-                 long frameTimeNs);
+                 std::chrono::high_resolution_clock::time_point frameTime);
 
     virtual void clear(EGLThreadState* threadState) = 0;
 
@@ -78,8 +78,7 @@ protected:
     jclass m_ktRendererClass = nullptr;
     jmethodID m_ktDrawCallback = nullptr;
     jmethodID m_ktAdvanceCallback = nullptr;
-    long mLastFrameTimeNs = 0; // TODO: this should be a std::chrono::time_point, or at least 64
-    // bits.
+    std::chrono::high_resolution_clock::time_point m_lastFrameTime;
     bool m_isStarted = false;
 };
 

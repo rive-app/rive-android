@@ -4,8 +4,7 @@ apply plugin: 'org.jetbrains.dokka'
 
 
 android {
-    compileSdkVersion 33
-    buildToolsVersion "30.0.3"
+    compileSdk 33
     ndkVersion "25.1.8937393"
 
     defaultConfig {

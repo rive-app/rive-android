@@ -7,7 +7,7 @@
     tools:context=".ViewStubActivity">
     <!-- To show the ViewStub -->
     <Button
-        android:id="@+id/showButtonForViewStub"
+        android:id="@+id/viewstub_show_button"
         android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
@@ -20,7 +20,7 @@
 
     <!-- To hide the ViewStub -->
     <Button
-        android:id="@+id/hideButtonForViewStub"
+        android:id="@+id/viewstub_hide_button"
         android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
@@ -32,7 +32,7 @@
         android:textStyle="bold" />
 
     <ViewStub
-        android:id="@+id/rive_viewstub_container"
+        android:id="@+id/viewstub_rive_container"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"

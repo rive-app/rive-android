@@ -25,7 +25,7 @@ JNIRenderer::JNIRenderer(jobject ktObject,
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
-    mWorker(EGLWorker::Current(rendererType)),
+    m_worker(EGLWorker::Current(rendererType)),
     m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktObject)),
     m_tracer(getTracer(trace))
 {}
@@ -34,7 +34,7 @@ JNIRenderer::~JNIRenderer()
 {
     // Delete the worker thread objects. And since the worker has captured our "this" pointer,
     // wait for it to finish processing our work before continuing the destruction process.
-    mWorker->runAndWait([=](EGLThreadState* threadState) {
+    m_worker->runAndWait([=](EGLThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->destroy(threadState);
@@ -69,7 +69,7 @@ void JNIRenderer::setWindow(ANativeWindow* window)
     {
         ANativeWindow_acquire(m_window);
     }
-    mWorker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](EGLThreadState* threadState) {
         m_workerThreadID = std::this_thread::get_id();
         if (m_workerImpl)
         {
@@ -78,7 +78,7 @@ void JNIRenderer::setWindow(ANativeWindow* window)
         }
         if (m_window)
         {
-            m_workerImpl = WorkerImpl::Make(m_window, threadState, mWorker->rendererType());
+            m_workerImpl = WorkerImpl::Make(m_window, threadState, m_worker->rendererType());
         }
     });
 }
@@ -93,37 +93,42 @@ rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
     return m_workerImpl->renderer();
 }
 
-void JNIRenderer::start(long long timeNs)
+void JNIRenderer::start()
 {
-    mWorker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](EGLThreadState* threadState) {
         if (!m_workerImpl)
             return;
-        m_workerImpl->start(m_ktRenderer, timeNs);
+        auto now = std::chrono::steady_clock::now();
+        m_fpsLastFrameTime = now;
+        m_workerImpl->start(m_ktRenderer, now);
     });
-    mLastFrameTime = std::chrono::steady_clock::now();
 }
 
 void JNIRenderer::stop()
 {
-    mWorker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](EGLThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->stop();
     });
 }
 
-void JNIRenderer::doFrame(long long frameTimeNs)
+void JNIRenderer::doFrame()
 {
-    if (!mWorker->canScheduleWork(m_workIDForLastFrame))
+    if (m_numScheduledFrames >= kMaxScheduledFrames)
     {
         return;
     }
-    m_workIDForLastFrame = mWorker->run([=](EGLThreadState* threadState) {
+
+    m_worker->run([=](EGLThreadState* threadState) {
         if (!m_workerImpl)
             return;
-        m_workerImpl->doFrame(m_tracer, threadState, m_ktRenderer, frameTimeNs);
+        auto now = std::chrono::high_resolution_clock::now();
+        m_workerImpl->doFrame(m_tracer, threadState, m_ktRenderer, now);
+        m_numScheduledFrames--;
+        calculateFps(now);
     });
-    calculateFps();
+    m_numScheduledFrames++;
 }
 
 ITracer* JNIRenderer::getTracer(bool trace) const
@@ -150,22 +155,22 @@ ITracer* JNIRenderer::getTracer(bool trace) const
 /**
  * Calculate FPS over an average of 10 samples
  */
-void JNIRenderer::calculateFps()
+void JNIRenderer::calculateFps(std::chrono::high_resolution_clock::time_point frameTime)
 {
     m_tracer->beginSection("calculateFps()");
     static constexpr int FPS_SAMPLES = 10;
 
-    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    float elapsed = std::chrono::duration<float>(frameTime - m_fpsLastFrameTime).count();
 
-    mFpsSum += 1.0f / ((now - mLastFrameTime).count() / 1e9f);
-    mFpsCount++;
-    if (mFpsCount == FPS_SAMPLES)
+    m_fpsSum += 1.0f / elapsed;
+    m_fpsCount++;
+    if (m_fpsCount == FPS_SAMPLES)
     {
-        mAverageFps = mFpsSum / mFpsCount;
-        mFpsSum = 0;
-        mFpsCount = 0;
+        m_averageFps = m_fpsSum / static_cast<float>(FPS_SAMPLES);
+        m_fpsSum = 0;
+        m_fpsCount = 0;
     }
-    mLastFrameTime = now;
+    m_fpsLastFrameTime = frameTime;
     m_tracer->endSection();
 }
 } // namespace rive_android

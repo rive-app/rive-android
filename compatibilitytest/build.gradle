@@ -5,6 +5,8 @@ plugins {
 
 android {
     compileSdk 33
+    namespace 'app.rive.runtime.compatibilitytest'
+    ndkVersion '25.1.8937393'
 
     defaultConfig {
         applicationId "app.rive.runtime.compatibilitytest"
@@ -29,15 +31,12 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    namespace 'app.rive.runtime.compatibilitytest'
-    ndkVersion '25.1.8937393'
-    buildToolsVersion '30.0.3'
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation project(path: ':kotlin')
     testImplementation 'junit:junit:4.+'

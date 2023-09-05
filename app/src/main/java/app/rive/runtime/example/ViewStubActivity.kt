@@ -2,19 +2,22 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.view.View
-import android.view.ViewStub
-import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.bundleOf
 import androidx.fragment.app.add
 import androidx.fragment.app.commit
+import app.rive.runtime.example.databinding.ActivityViewStubBinding
 
 class ViewStubActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityViewStubBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_view_stub)
+        binding = ActivityViewStubBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val viewStub = findViewById<ViewStub>(R.id.rive_viewstub_container)
+        val viewStub = binding.viewstubRiveContainer
         viewStub.setOnInflateListener { _, _ ->
             // Instantiate our RiveFragment
             if (savedInstanceState == null) {
@@ -28,14 +31,11 @@ class ViewStubActivity : AppCompatActivity() {
             }
         }
 
-        val showButton = findViewById<Button>(R.id.showButtonForViewStub)
-        val hideButton = findViewById<Button>(R.id.hideButtonForViewStub)
-
-        showButton.setOnClickListener {
+        binding.viewstubShowButton.setOnClickListener {
             viewStub.visibility = View.VISIBLE
         }
 
-        hideButton.setOnClickListener {
+        binding.viewstubHideButton.setOnClickListener {
             viewStub.visibility = View.GONE
         }
 

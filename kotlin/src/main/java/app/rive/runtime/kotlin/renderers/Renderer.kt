@@ -26,14 +26,14 @@ abstract class Renderer(
     external override fun cppDelete(pointer: Long)
     //
 
-    private external fun cppStart(rendererPointer: Long, timeNanos: Long)
+    private external fun cppStart(rendererPointer: Long)
     private external fun cppStop(rendererPointer: Long)
     private external fun cppSave(rendererPointer: Long)
     private external fun cppRestore(rendererPointer: Long)
     private external fun cppWidth(rendererPointer: Long): Int
     private external fun cppHeight(rendererPointer: Long): Int
     private external fun cppAvgFps(rendererPointer: Long): Float
-    private external fun cppDoFrame(rendererPointer: Long, frameTimeNanos: Long)
+    private external fun cppDoFrame(rendererPointer: Long)
     private external fun cppSetSurface(surface: Surface, rendererPointer: Long)
     private external fun cppDestroySurface(rendererPointer: Long)
     private external fun cppAlign(
@@ -90,9 +90,8 @@ abstract class Renderer(
         if (!hasCppObject) {
             return
         }
-        val nanoTime = System.nanoTime()
         isPlaying = true
-        cppStart(cppPointer, nanoTime)
+        cppStart(cppPointer)
         // Register for a new frame.
         scheduleFrame()
     }
@@ -194,8 +193,7 @@ abstract class Renderer(
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         if (isPlaying) {
-            val nanoTime = System.nanoTime()
-            cppDoFrame(cppPointer, nanoTime)
+            cppDoFrame(cppPointer)
             scheduleFrame()
         }
     }

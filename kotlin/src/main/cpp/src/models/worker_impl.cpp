@@ -25,14 +25,14 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(struct ANativeWindow* window,
     return impl;
 }
 
-void WorkerImpl::start(jobject ktRenderer, long long timeNs)
+void WorkerImpl::start(jobject ktRenderer, std::chrono::high_resolution_clock::time_point frameTime)
 {
     auto env = GetJNIEnv();
     jclass ktClass = GetJNIEnv()->GetObjectClass(ktRenderer);
     m_ktRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(ktClass));
     m_ktDrawCallback = env->GetMethodID(m_ktRendererClass, "draw", "()V");
     m_ktAdvanceCallback = env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
-    mLastFrameTimeNs = timeNs;
+    m_lastFrameTime = frameTime;
     m_isStarted = true;
 }
 
@@ -52,18 +52,18 @@ void WorkerImpl::stop()
 void WorkerImpl::doFrame(ITracer* tracer,
                          EGLThreadState* threadState,
                          jobject ktRenderer,
-                         long frameTimeNs)
+                         std::chrono::high_resolution_clock::time_point frameTime)
 {
     if (!m_isStarted)
     {
         return;
     }
 
-    float elapsedMs = (frameTimeNs - mLastFrameTimeNs) * 1e-9f;
-    mLastFrameTimeNs = frameTimeNs;
+    float fElapsedMs = std::chrono::duration<float>(frameTime - m_lastFrameTime).count();
+    m_lastFrameTime = frameTime;
 
     auto env = GetJNIEnv();
-    env->CallVoidMethod(ktRenderer, m_ktAdvanceCallback, elapsedMs);
+    env->CallVoidMethod(ktRenderer, m_ktAdvanceCallback, fElapsedMs);
 
     tracer->beginSection("draw()");
 
