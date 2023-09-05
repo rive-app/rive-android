@@ -34,6 +34,7 @@ class WorkerThread
 public:
     using Work = std::function<void(EGLThreadState*)>;
     using WorkID = uint64_t;
+    constexpr static WorkID kWorkIDAlwaysFinished = 0;
 
     WorkerThread(const char* name, Affinity affinity, const RendererType rendererType) :
         m_RendererType(rendererType), mName(name), mAffinity(affinity), mWorkMutex{}
@@ -43,6 +44,16 @@ public:
     }
 
     ~WorkerThread() { terminateThread(); }
+
+    const std::thread::id threadID() const { return mThread.get_id(); }
+
+    // Only accessible on the worker thread.
+    EGLThreadState* threadState() const
+    {
+        assert(std::this_thread::get_id() == threadID());
+        assert(m_threadState != nullptr);
+        return m_threadState.get();
+    }
 
     WorkID run(Work&& work)
     {
@@ -107,7 +118,7 @@ private:
         pthread_setname_np(pthread_self(), mName.c_str());
 
         GetJNIEnv(); // Attach thread to JVM.
-        std::unique_ptr<EGLThreadState> threadState = MakeThreadState(m_RendererType);
+        m_threadState = MakeThreadState(m_RendererType);
 
         std::unique_lock lock(mWorkMutex);
         for (;;)
@@ -126,20 +137,21 @@ private:
             }
 
             lock.unlock();
-            work(threadState.get());
+            work(m_threadState.get());
             lock.lock();
 
             ++m_lastCompletedWorkID;
             m_workedCompletedCondition.notify_all();
         }
+        m_threadState.reset();
         DetachThread();
     }
 
     const std::string mName;
     const Affinity mAffinity;
 
-    WorkID m_lastPushedWorkID = 0;
-    std::atomic<WorkID> m_lastCompletedWorkID = 0;
+    WorkID m_lastPushedWorkID = kWorkIDAlwaysFinished;
+    std::atomic<WorkID> m_lastCompletedWorkID = kWorkIDAlwaysFinished;
     bool mIsTerminated = false;
 
     std::queue<std::function<void(EGLThreadState*)>> mWorkQueue;
@@ -148,5 +160,6 @@ private:
 
     std::mutex mWorkMutex;
     std::thread mThread;
+    std::unique_ptr<EGLThreadState> m_threadState;
 };
 } // namespace rive_android

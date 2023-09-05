@@ -9,6 +9,7 @@
 #include "helpers/thread_state_pls.hpp"
 #include "rive/math/math_types.hpp"
 #include "rive/pls/pls_image.hpp"
+#include "rive/pls/gl/pls_render_buffer_gl_impl.hpp"
 #include "rive/pls/gl/pls_render_context_gl_impl.hpp"
 
 #include <vector>
@@ -133,6 +134,111 @@ std::vector<uint8_t> AndroidSkiaFactory::platformDecode(Span<const uint8_t> enco
     return pixels;
 }
 
+// PLSRenderBufferGLImpl specialization that can take advantage EGLWorker and be used on or off the
+// GL thread.
+class AndroidPLSRenderBuffer : public PLSRenderBufferGLImpl
+{
+public:
+    AndroidPLSRenderBuffer(RenderBufferType type, RenderBufferFlags flags, size_t sizeInBytes) :
+        PLSRenderBufferGLImpl(type, flags, sizeInBytes),
+        m_glWorker(rive_android::EGLWorker::Current(rive_android::RendererType::Rive))
+    {
+        if (std::this_thread::get_id() != m_glWorker->threadID())
+        {
+            // We aren't on the GL thread. Init this object on the GL thread.
+            // Keep this class alive until the worker thread finishes initializing it.
+            rcp<AndroidPLSRenderBuffer> thisRef = ref_rcp(this);
+            m_bufferCreationWorkID =
+                m_glWorker->run([thisRef](rive_android::EGLThreadState* threadState) {
+                    auto plsState = static_cast<rive_android::PLSThreadState*>(threadState);
+                    auto* glImpl =
+                        plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
+                    thisRef->init(ref_rcp(glImpl->state()));
+                });
+        }
+        else
+        {
+            auto plsState = static_cast<rive_android::PLSThreadState*>(m_glWorker->threadState());
+            auto* glImpl = plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
+            init(ref_rcp(glImpl->state()));
+            m_bufferCreationWorkID = rive_android::WorkerThread::kWorkIDAlwaysFinished;
+        }
+    }
+
+    ~AndroidPLSRenderBuffer()
+    {
+        if (std::this_thread::get_id() != m_glWorker->threadID())
+        {
+            // Ensure we are done initializing the buffers before we turn around and delete them.
+            m_glWorker->waitUntilComplete(m_bufferCreationWorkID);
+            // We aren't on the GL thread. Intercept the buffers before ~PLSRenderBufferGLImpl(),
+            // and then marshal them off to the GL thread for deletion.
+            std::array<GLuint, pls::kBufferRingSize> buffersToDelete = detachBuffers();
+            rcp<GLState> glState = ref_rcp(state());
+            m_glWorker->run([buffersToDelete, glState](rive_android::EGLThreadState* threadState) {
+                for (GLuint bufferID : buffersToDelete)
+                {
+                    if (bufferID != 0)
+                    {
+                        glState->deleteBuffer(bufferID);
+                    }
+                }
+            });
+        }
+    }
+
+    void* onMap() override
+    {
+        if (std::this_thread::get_id() != m_glWorker->threadID())
+        {
+            // We aren't on the GL thread. Allocate a side buffer to fill.
+            assert(m_offThreadBufferDataMirror == nullptr);
+            m_offThreadBufferDataMirror.reset(new uint8_t[sizeInBytes()]);
+            return m_offThreadBufferDataMirror.get();
+        }
+        else
+        {
+            return PLSRenderBufferGLImpl::onMap();
+        }
+    }
+
+    void onUnmap() override
+    {
+        if (std::this_thread::get_id() != m_glWorker->threadID())
+        {
+            // We aren't on the GL thread. Marshal our side buffer to the GL thread to update the
+            // buffer.
+            const uint8_t* sideBufferData = m_offThreadBufferDataMirror.release();
+            assert(sideBufferData != nullptr);
+            // Keep this class alive until the worker thread finishes updating the buffer.
+            rcp<AndroidPLSRenderBuffer> thisRef = ref_rcp(this);
+            m_glWorker->run([sideBufferData, thisRef](rive_android::EGLThreadState* threadState) {
+                void* ptr = thisRef->PLSRenderBufferGLImpl::onMap();
+                memcpy(ptr, sideBufferData, thisRef->sizeInBytes());
+                thisRef->PLSRenderBufferGLImpl::onUnmap();
+                delete[] sideBufferData;
+            });
+        }
+        else
+        {
+            assert(!m_offThreadBufferDataMirror);
+            PLSRenderBufferGLImpl::onUnmap();
+        }
+    }
+
+protected:
+    const rcp<rive_android::EGLWorker> m_glWorker;
+    std::unique_ptr<uint8_t[]> m_offThreadBufferDataMirror;
+    rive_android::EGLWorker::WorkID m_bufferCreationWorkID;
+};
+
+rcp<RenderBuffer> AndroidPLSFactory::makeRenderBuffer(RenderBufferType type,
+                                                      RenderBufferFlags flags,
+                                                      size_t sizeInBytes)
+{
+    return make_rcp<AndroidPLSRenderBuffer>(type, flags, sizeInBytes);
+}
+
 class AndroidPLSImage : public PLSImage
 {
 public:
@@ -167,16 +273,9 @@ public:
     }
 
 private:
-    rcp<rive_android::EGLWorker> m_glWorker;
+    const rcp<rive_android::EGLWorker> m_glWorker;
     rive_android::EGLWorker::WorkID m_textureCreationWorkID;
 };
-
-rcp<RenderBuffer> AndroidPLSFactory::makeRenderBuffer(RenderBufferType type,
-                                                      RenderBufferFlags flags,
-                                                      size_t sizeInBytes)
-{
-    return nullptr;
-}
 
 std::unique_ptr<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
 {
