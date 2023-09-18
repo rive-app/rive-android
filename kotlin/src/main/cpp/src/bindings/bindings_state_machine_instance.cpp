@@ -38,6 +38,27 @@ extern "C"
         return (jlong)stateMachineInstance->stateChangedByIndex(index);
     }
 
+    JNIEXPORT jint JNICALL
+    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventCount(JNIEnv* env,
+                                                                                 jobject thisObj,
+                                                                                 jlong ref)
+    {
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
+        return SizeTTOInt(stateMachineInstance->reportedEventCount());
+    }
+
+    JNIEXPORT jobject JNICALL
+    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventAt(JNIEnv* env,
+                                                                              jobject thisObj,
+                                                                              jlong ref,
+                                                                              jint index)
+    {
+        auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
+        const rive::EventReport eventReport = stateMachineInstance->reportedEventAt(index);
+
+        return env->NewObject(GetRiveEventReportClass(), GetRiveEventReportConstructorId(), (jlong)eventReport.event(), eventReport.secondsDelay());
+    }
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSMIInputByIndex(JNIEnv* env,
                                                                               jobject thisObj,

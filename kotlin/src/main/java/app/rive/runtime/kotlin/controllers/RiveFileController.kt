@@ -15,6 +15,7 @@ import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
 import app.rive.runtime.kotlin.core.RefCount
+import app.rive.runtime.kotlin.core.RiveEvent
 import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
@@ -462,7 +463,7 @@ class RiveFileController(
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
      * @throws RiveException if the text run does not exist.
      */
-    fun setTextRunValue(textRunName: String, textValue: String){
+    fun setTextRunValue(textRunName: String, textValue: String) {
         activeArtboard?.textRun(textRunName)?.text = textValue;
     }
 
@@ -524,8 +525,15 @@ class RiveFileController(
         elapsed: Float
     ): Boolean {
         val stillPlaying = stateMachineInstance.advance(elapsed)
-        stateMachineInstance.statesChanged.forEach {
-            notifyStateChanged(stateMachineInstance, it)
+        if (listeners.isNotEmpty()) {
+            stateMachineInstance.statesChanged.forEach {
+                notifyStateChanged(stateMachineInstance, it)
+            }
+        }
+        if (eventListeners.isNotEmpty()) {
+            stateMachineInstance.eventsReported.forEach {
+                notifyEvent(it);
+            }
         }
         return stillPlaying
     }
@@ -612,6 +620,8 @@ class RiveFileController(
     // == Listeners ==
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var listeners = HashSet<Listener>()
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal var eventListeners = HashSet<RiveEventListener>()
 
     override fun registerListener(listener: Listener) {
         listeners.add(listener)
@@ -619,6 +629,22 @@ class RiveFileController(
 
     override fun unregisterListener(listener: Listener) {
         listeners.remove(listener)
+    }
+
+    /**
+     * Adds a [RiveEventListener] to get notified on [RiveEvent]s
+     *
+     * Remove with: [removeEventListener]
+     */
+    fun addEventListener(listener: RiveEventListener) {
+        eventListeners.add(listener);
+    }
+
+    /**
+     * Removes the [listener]
+     */
+    fun removeEventListener(listener: RiveEventListener) {
+        eventListeners.remove(listener)
     }
 
     private fun notifyPlay(playableInstance: PlayableInstance) {
@@ -644,6 +670,10 @@ class RiveFileController(
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
         listeners.toList().forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
+    }
+
+    private fun notifyEvent(event: RiveEvent) {
+        eventListeners.toList().forEach{ it.notifyEvent(event)}
     }
 
     /**
@@ -680,5 +710,9 @@ class RiveFileController(
         fun notifyLoop(animation: PlayableInstance)
         fun notifyStateChanged(stateMachineName: String, stateName: String)
         fun notifyAdvance(elapsed: Float) {}
+    }
+
+    interface RiveEventListener {
+        fun notifyEvent(event: RiveEvent)
     }
 }

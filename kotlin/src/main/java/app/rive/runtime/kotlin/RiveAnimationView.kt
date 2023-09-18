@@ -827,6 +827,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.unregisterListener(listener)
     }
 
+    /**
+     * Adds a [RiveEventListener] to get notified on [RiveEvent]s
+     *
+     * Remove with: [removeEventListener]
+     */
+    fun addEventListener(listener: RiveFileController.RiveEventListener) {
+        controller.addEventListener(listener);
+    }
+
+    /**
+     * Removes the [listener]
+     */
+    fun removeEventListener(listener: RiveFileController.RiveEventListener) {
+        controller.removeEventListener(listener);
+    }
+
+
     /// could live in RiveTextureView, but that doesn't really know
     /// about the artboard renderer that knows about state machines?
     override fun onTouchEvent(event: MotionEvent?): Boolean {

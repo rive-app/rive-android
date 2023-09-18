@@ -9,6 +9,16 @@ namespace rive_android
 extern jint ThrowRiveException(const char* message);
 extern jint ThrowMalformedFileException(const char* message);
 extern jint ThrowUnsupportedRuntimeVersionException(const char* message);
+
+extern jclass GetHashMapClass();
+extern jmethodID GetHashMapConstructorId();
+extern jclass GetFloatClass();
+extern jmethodID GetFloatConstructor();
+extern jclass GetBooleanClass();
+extern jmethodID GetBooleanConstructor();
+extern jclass GetShortClass();
+extern jmethodID GetShortConstructor();
+
 extern jclass GetFitClass();
 extern jmethodID GetFitNameMethodId();
 
@@ -20,6 +30,9 @@ extern jfieldID GetNoneLoopField();
 extern jfieldID GetOneShotLoopField();
 extern jfieldID GetLoopLoopField();
 extern jfieldID GetPingPongLoopField();
+
+extern jclass GetRiveEventReportClass();
+extern jmethodID GetRiveEventReportConstructorId();
 
 extern jclass GetPointerFClass();
 extern jmethodID GetPointFInitMethod();

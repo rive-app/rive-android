@@ -17,59 +17,97 @@
             android:orientation="vertical">
 
             <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/star_event_asset"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:riveFit="COVER"
-                app:riveResource="@raw/play_button_event_example"
-                app:riveStateMachine="State Machine" />
+                app:riveResource="@raw/rating"
+                app:riveStateMachine="State Machine 1" />
+
+            <TextView
+                android:id="@+id/star_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Star rating: none selected"
+                android:textSize="28sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.063" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginLeft="16dp"
+                android:layout_marginRight="16dp"
+                android:background="@android:color/darker_gray" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Button (URL Event): Open https://rive.app"
+                android:textSize="20sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.063" />
 
             <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/url_event_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/star_rating"
+                app:riveFit="COVER"
+                app:riveResource="@raw/url_event_button"
+                app:riveStateMachine="button" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginLeft="16dp"
+                android:layout_marginRight="16dp"
+                android:background="@android:color/darker_gray" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Button (General Event): Console Log"
+                android:textSize="20sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:riveFit="COVER"
-                app:riveResource="@raw/switch_event_example"
-                app:riveStateMachine="Main State Machine" />
+                app:layout_constraintVertical_bias="0.063" />
 
             <app.rive.runtime.kotlin.RiveAnimationView
+                android:id="@+id/log_event_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/star_rating"
                 app:riveFit="COVER"
-                app:riveResource="@raw/magic_8_ball_v2"
-                app:riveStateMachine="Main State Machine" />
-
-            <app.rive.runtime.kotlin.RiveAnimationView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:riveFit="COVER"
-                app:riveResource="@raw/leg_day_events_example"
-                app:riveStateMachine="Don't Skip Leg Day" />
-
-            <app.rive.runtime.kotlin.RiveAnimationView
-                android:id="@+id/clock"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:riveFit="COVER"
-                app:riveResource="@raw/watch_v1"
-                app:riveStateMachine="Time" />
-
+                app:riveResource="@raw/log_event_button"
+                app:riveStateMachine="button" />
 
         </LinearLayout>
     </ScrollView>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

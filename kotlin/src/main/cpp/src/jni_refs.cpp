@@ -49,6 +49,18 @@ jint ThrowUnsupportedRuntimeVersionException(const char* message)
     return GetJNIEnv()->ThrowNew(exClass, message);
 }
 
+jclass GetHashMapClass() { return getClass("java/util/HashMap"); };
+jmethodID GetHashMapConstructorId() { return getMethodId(GetHashMapClass(), "<init>", "()V"); }
+
+jclass GetFloatClass() { return getClass("java/lang/Float"); };
+jmethodID GetFloatConstructor() { return getMethodId(GetFloatClass(), "<init>", "(F)V"); }
+
+jclass GetBooleanClass() { return getClass("java/lang/Boolean"); };
+jmethodID GetBooleanConstructor() { return getMethodId(GetBooleanClass(), "<init>", "(Z)V"); }
+
+jclass GetShortClass() { return getClass("java/lang/Short"); };
+jmethodID GetShortConstructor() { return getMethodId(GetShortClass(), "<init>", "(S)V"); }
+
 jclass GetFitClass() { return getClass("app/rive/runtime/kotlin/core/Fit"); };
 jmethodID GetFitNameMethodId()
 {
@@ -79,6 +91,9 @@ jfieldID GetPingPongLoopField()
 {
     return getStaticFieldId(GetLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
+
+jclass GetRiveEventReportClass() { return getClass("app/rive/runtime/kotlin/core/RiveEventReport"); };
+jmethodID GetRiveEventReportConstructorId() { return getMethodId(GetRiveEventReportClass(), "<init>", "(JF)V"); }
 
 jclass GetPointerFClass() { return getClass("android/graphics/PointF"); };
 

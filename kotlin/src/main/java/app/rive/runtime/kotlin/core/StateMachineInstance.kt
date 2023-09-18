@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.errors.RiveEventException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 
@@ -24,6 +25,8 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateChangedCount(cppPointer: Long): Int
     private external fun cppStateChangedByIndex(cppPointer: Long, index: Int): Long
+    private external fun cppReportedEventCount(cppPointer: Long): Int
+    private external fun cppReportedEventAt(cppPointer: Long, index: Int): RiveEventReport
     private external fun cppName(cppPointer: Long): String
     private external fun cppLayerCount(cppPointer: Long): Int
     private external fun cppPointerDown(cppPointer: Long, x: Float, y: Float)
@@ -78,6 +81,12 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
      */
     private val stateChangedCount: Int
         get() = cppStateChangedCount(cppPointer)
+
+    /**
+     * Return the number of events fired in the last advance.
+     */
+    private val reportedEventCount: Int
+        get() = cppReportedEventCount(cppPointer)
 
     private fun convertInput(input: SMIInput): SMIInput {
         val convertedInput = when {
@@ -158,17 +167,33 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
         return convertedState
     }
 
+
     /**
      * Get a specific state changed in the last advance.
+     * @throws RiveException if no [LayerState] is found at the given [index]
      */
     @Throws(RiveException::class)
     fun stateChanged(index: Int): LayerState {
         val stateChanged = cppStateChangedByIndex(cppPointer, index)
         if (stateChanged == 0L) {
-            throw StateMachineInputException("No StateMachineInput found at index $index.")
+            throw StateMachineInputException("No LayerState found at index $index.")
         }
         val layerState = LayerState(stateChanged)
         return convertLayerState(layerState)
+    }
+
+    /**
+     * Get a specific event fired in the last advance.
+     * @throws RiveException if no event is found at the given [index]
+     */
+    @Throws(RiveException::class)
+    fun eventAt(index: Int): RiveEvent {
+        val eventReport = cppReportedEventAt(cppPointer, index)
+        if (eventReport.unsafeCppPointer == NULL_POINTER) {
+            throw RiveEventException("No Rive Event found at index $index.")
+        }
+
+        return eventReport.event;
     }
 
     /**
@@ -177,6 +202,9 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
     val statesChanged: List<LayerState>
         get() = (0 until stateChangedCount).map { stateChanged(it) }
 
+
+    val eventsReported: List<RiveEvent>
+        get() = (0 until reportedEventCount).map { eventAt(it) }
 }
 
 

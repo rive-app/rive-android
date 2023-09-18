@@ -137,6 +137,13 @@ class TestUtils {
 
     data class StateChanged(var stateMachineName: String, var stateName: String)
 
+    class EventObserver : RiveFileController.RiveEventListener {
+        var events = mutableListOf<RiveEvent>()
+        override fun notifyEvent(event: RiveEvent) {
+            events.add(event)
+        }
+    }
+
     class Observer : RiveFileController.Listener {
         var plays = mutableListOf<PlayableInstance>()
         var pauses = mutableListOf<PlayableInstance>()
