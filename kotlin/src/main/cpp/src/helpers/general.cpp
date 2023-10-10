@@ -1,5 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/android_factories.hpp"
+#include "helpers/egl_worker.hpp"
 #include "helpers/general.hpp"
 #include "rive/file.hpp"
 
@@ -155,10 +156,11 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 
 long Import(uint8_t* bytes, jint length, RendererType rendererType)
 {
+    rive::Factory* fileFactory =
+        (rendererType == RendererType::Rive && EGLWorker::RiveWorker() != nullptr)
+            ? static_cast<rive::Factory*>(&g_RiveFactory)
+            : static_cast<rive::Factory*>(&g_SkiaFactory);
     rive::ImportResult result;
-    rive::Factory* fileFactory = rendererType == RendererType::Skia
-                                     ? static_cast<rive::Factory*>(&g_SkiaFactory)
-                                     : static_cast<rive::Factory*>(&g_RiveFactory);
     rive::File* file =
         rive::File::import(rive::Span<const uint8_t>(bytes, length), fileFactory, &result)
             .release();

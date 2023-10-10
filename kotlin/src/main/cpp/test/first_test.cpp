@@ -15,7 +15,7 @@ TEST_CASE("Factorial of 0 is 1 (fail)", "[single-file]") { REQUIRE(Factorial(0) 
 
 TEST_CASE("Factorials of 1 and higher are computed (pass)", "[single-file]")
 {
-    rive::rcp<EGLWorker> worker = EGLWorker::Current();
+    rive::rcp<EGLWorker> worker = EGLWorker::CurrentOrSkia();
     printf("AM I ALIVE?!\n");
     // worker->run([=](EGLThreadState* ts) { printf("I am alive!?\n"); });
     REQUIRE(Factorial(1) == 1);

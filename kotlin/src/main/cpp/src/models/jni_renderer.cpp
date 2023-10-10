@@ -25,7 +25,7 @@ JNIRenderer::JNIRenderer(jobject ktObject,
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
-    m_worker(EGLWorker::Current(rendererType)),
+    m_worker(EGLWorker::CurrentOrSkia(rendererType)),
     m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktObject)),
     m_tracer(getTracer(trace))
 {}

@@ -126,9 +126,13 @@ public:
         }
 
         threadState->makeCurrent(m_eglSurface);
-        PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-        auto plsContextImpl =
-            plsThreadState->plsContext()->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
+        rive::pls::PLSRenderContext* plsContext =
+            PLSWorkerImpl::PlsThreadState(threadState)->plsContext();
+        if (plsContext == nullptr)
+        {
+            return; // PLS was not supported.
+        }
+        auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
         int width = ANativeWindow_getWidth(window);
         int height = ANativeWindow_getHeight(window);
         m_plsRenderTarget = plsContextImpl->wrapGLRenderTarget(0, width, height);
@@ -140,7 +144,7 @@ public:
         {
             return;
         }
-        m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsThreadState->plsContext());
+        m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
         *success = true;
     }
 

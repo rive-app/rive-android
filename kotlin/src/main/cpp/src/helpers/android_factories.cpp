@@ -141,7 +141,7 @@ class AndroidPLSRenderBuffer : public PLSRenderBufferGLImpl
 public:
     AndroidPLSRenderBuffer(RenderBufferType type, RenderBufferFlags flags, size_t sizeInBytes) :
         PLSRenderBufferGLImpl(type, flags, sizeInBytes),
-        m_glWorker(rive_android::EGLWorker::Current(rive_android::RendererType::Rive))
+        m_glWorker(rive_android::EGLWorker::RiveWorker())
     {
         if (std::this_thread::get_id() != m_glWorker->threadID())
         {
@@ -244,7 +244,7 @@ class AndroidPLSImage : public PLSImage
 public:
     AndroidPLSImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr) :
         PLSImage(width, height),
-        m_glWorker(rive_android::EGLWorker::Current(rive_android::RendererType::Rive))
+        m_glWorker(rive_android::EGLWorker::RiveWorker())
     {
         // Create the texture on the worker thread where the GL context is current.
         const uint8_t* imageDataRGBA = imageDataRGBAPtr.release();

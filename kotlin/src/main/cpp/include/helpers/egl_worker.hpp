@@ -7,18 +7,35 @@
 
 namespace rive_android
 {
-class EGLWorker : public WorkerThread, public rive::RefCnt<EGLWorker>
+class EGLWorker : public WorkerThread
 {
 public:
-    static rive::rcp<EGLWorker> Current(const RendererType);
+    // Returns the current worker of the requested renderer type, or the current Skia worker if the
+    // requested type is not supported.
+    static rive::rcp<EGLWorker> CurrentOrSkia(RendererType);
+
+    // Returns the Rive renderer worker, or null if it is not supported.
+    static rive::rcp<EGLWorker> RiveWorker();
+
+    // Returns the current Skia renderer worker.
+    static rive::rcp<EGLWorker> SkiaWorker();
+
+    ~EGLWorker();
+
+    // These methods work with rive::rcp<> for tracking _external_ references. They don't
+    // necessarily delete this object when the external ref count goes to zero, and they may have
+    // other side effects as well.
+    void ref();
+    void unref();
 
 private:
-    friend class rive::RefCnt<EGLWorker>;
-
     EGLWorker(const RendererType rendererType) :
         WorkerThread("EGLWorker", Affinity::None, rendererType)
     {}
-    ~EGLWorker();
+
+    void externalRefCountDidReachZero();
+
+    size_t m_externalRefCount = 0;
 };
 } // namespace rive_android
 
