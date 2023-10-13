@@ -27,9 +27,9 @@ with using the runtimes.
 
 ### Running Locally
 
-Open the project in Android Studio and ensure you can run "Make Project" to run the Gradle build.
-Run the `app/` example app that runs the local Android runtime code to test out changes on a device
-or emulator.
+Open the project in Android Studio and ensure the `app` build variant is set to `debug` (or manually update the dependencies to use the local Rive runtime as a resource) and that you can run "Make Project" to run the Gradle build.
+
+In Android Studio, to select which build variant to build and run, go to **Build > Select Build Variant** and select a build variant from the menu.
 
 ### Testing
 

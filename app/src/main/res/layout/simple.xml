@@ -37,6 +37,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/simple_view_asset"
         app:riveFit="COVER"
-        app:riveUrl="https://cdn.rive.app/animations/truck.riv" />
+        app:riveUrl="https://cdn.rive.app/animations/vehicles.riv" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

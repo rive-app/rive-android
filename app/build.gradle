@@ -29,6 +29,14 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        preview {
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            getIsDefault().set(true)
+            signingConfig signingConfigs.debug
+        }
     }
 
     compileOptions {
@@ -63,7 +71,9 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.fragment:fragment-ktx:1.6.1'
-    implementation project(path: ':kotlin')
+    debugImplementation project(path: ':kotlin')
+    releaseImplementation project(path: ':kotlin')
+    previewImplementation 'app.rive:rive-android:+'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.activity:activity-compose:1.7.2'

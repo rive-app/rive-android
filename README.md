@@ -49,13 +49,19 @@ is **33**.
 
 ## Examples
 
-Check out the `app/` folder to see an example application using the Rive Android runtime. It
-showcases a number of ways to manipulate Rives, including:
+Check out the `app/` folder to see an example application using the Rive Android runtime.
+
+To run the example app set the `app` build variant to `preview`. In Android Studio, to select which build variant to build and run, go to **Build > Select Build Variant** and select a build variant from the menu.
+
+The `preview` build variant makes use of the hosted Rive dependency. If you're looking to contribute, set the build variant to `debug` and see `CONTRIBUTING.md` for more information. Building this variant will require additional configuration and setup.
+
+The example showcases a number of ways to manipulate Rives, including:
 
 - How to include Rive files into the project and reference them
 - Setting layout and loop mode options
 - Displaying single or multiple animations / artboards on one component
 - Setting up and manipulating a state machine via inputs
+- Handling events
 - Utilizing a low-level API to build a render loop for more control over scenes
 - ...and more!
 
