@@ -593,4 +593,20 @@ class RiveViewTest {
             assertEquals(true, mockView.isPlaying)
         }
     }
+
+    @Test
+    fun customAssetLoader() {
+        UiThreadStatement.runOnUiThread {
+            val assetStore = mutableListOf<FileAsset>()
+            val customLoader = object : FileAssetLoader() {
+                override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
+                    return assetStore.add(asset)
+                }
+            }
+            mockView.setAssetLoader(customLoader)
+            assert(assetStore.isEmpty()) // Before loading.
+            mockView.setRiveResource(R.raw.walle, autoplay = true)
+            assertEquals(2, assetStore.size) // All loaded.
+        }
+    }
 }

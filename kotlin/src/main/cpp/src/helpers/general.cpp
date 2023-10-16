@@ -154,16 +154,25 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
     return alignment;
 }
 
-long Import(uint8_t* bytes, jint length, RendererType rendererType)
+rive::Factory* GetFactory(RendererType rendererType)
 {
-    rive::Factory* fileFactory =
-        (rendererType == RendererType::Rive && EGLWorker::RiveWorker() != nullptr)
-            ? static_cast<rive::Factory*>(&g_RiveFactory)
-            : static_cast<rive::Factory*>(&g_SkiaFactory);
+    return (rendererType == RendererType::Rive && EGLWorker::RiveWorker() != nullptr)
+               ? static_cast<rive::Factory*>(&g_RiveFactory)
+               : static_cast<rive::Factory*>(&g_SkiaFactory);
+}
+
+long Import(uint8_t* bytes,
+            jint length,
+            RendererType rendererType,
+            rive::FileAssetLoader* assetLoader)
+{
     rive::ImportResult result;
-    rive::File* file =
-        rive::File::import(rive::Span<const uint8_t>(bytes, length), fileFactory, &result)
-            .release();
+    rive::Factory* fileFactory = GetFactory(rendererType);
+    rive::File* file = rive::File::import(rive::Span<const uint8_t>(bytes, length),
+                                          fileFactory,
+                                          &result,
+                                          assetLoader)
+                           .release();
     if (result == rive::ImportResult::success)
     {
         return (long)file;
@@ -195,6 +204,16 @@ std::string JStringToString(JNIEnv* env, jstring jStr)
 }
 
 int SizeTTOInt(size_t sizeT) { return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT); }
+
+size_t JIntToSizeT(jint jintValue)
+{
+    if (jintValue < 0)
+    {
+        LOGW("JIntToSizeT() - value is a negative number %d", jintValue);
+        return 0;
+    }
+    return jintValue > SIZE_T_MAX ? SIZE_T_MAX : static_cast<size_t>(jintValue);
+}
 
 #if defined(DEBUG) || defined(LOG)
 [[noreturn]] void LogThread()

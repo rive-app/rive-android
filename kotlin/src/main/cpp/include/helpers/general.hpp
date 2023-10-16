@@ -2,6 +2,8 @@
 #define _RIVE_ANDROID_GENERAL_HPP_
 
 #include "rive/layout.hpp"
+#include "rive/factory.hpp"
+#include "rive/file_asset_loader.hpp"
 #include <jni.h>
 #include <string>
 #include <android/log.h>
@@ -28,6 +30,7 @@ namespace rive_android
 {
 enum class RendererType
 {
+    None = -1,
     Skia = 0,
     Rive = 1
 };
@@ -36,16 +39,18 @@ extern JavaVM* g_JVM;
 extern long g_sdkVersion;
 void SetSDKVersion();
 void LogReferenceTables();
-long Import(uint8_t*, jint, RendererType = RendererType::Skia);
+long Import(uint8_t*, jint, RendererType = RendererType::Skia, rive::FileAssetLoader* = nullptr);
 
 rive::Alignment GetAlignment(JNIEnv*, jobject);
 rive::Fit GetFit(JNIEnv*, jobject);
+rive::Factory* GetFactory(RendererType);
 JNIEnv* GetJNIEnv();
 
 void DetachThread();
 
 std::string JStringToString(JNIEnv*, jstring);
 int SizeTTOInt(size_t);
+size_t JIntToSizeT(jint);
 
 #if defined(DEBUG) || defined(LOG)
 // luigi: this redirects stderr to android log (probably want to ifdef this

@@ -22,6 +22,7 @@ class RecyclerActivity : AppCompatActivity() {
     companion object {
         const val holderCount = 200
         const val numCols = 3
+
         // Either use the shared file (true) or initialize in the adapter (false)
         const val useSharedFile = true
     }

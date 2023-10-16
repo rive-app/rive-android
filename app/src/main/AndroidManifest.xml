@@ -61,8 +61,11 @@
             android:theme="@style/AppTheme" />
         <activity android:name=".FrameActivity" />
         <activity android:name=".DynamicTextActivity" />
+        <activity android:name=".AssetLoaderActivity" />
         <activity android:name=".StressTestActivity" />
-        <activity android:name=".SingleActivity" />  <!-- For testing -->
+        <!-- For testing 👇 -->
+        <activity android:name=".SingleActivity" />
+        <activity android:name=".EmptyActivity" />
     </application>
 
 </manifest>

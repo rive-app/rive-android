@@ -10,7 +10,7 @@ import app.rive.runtime.kotlin.core.Fit
 import kotlin.properties.Delegates
 
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-public const val RIVE_FRAGMENT_ARG_RES_ID = "resourceId"
+const val RIVE_FRAGMENT_ARG_RES_ID = "resourceId"
 
 /**
  * A [RiveFragment] encapsulates a [RiveAnimationView].

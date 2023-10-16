@@ -73,10 +73,6 @@ class ViewPagerActivity : AppCompatActivity() {
         // Keep ControllerStates around.
         var resourceCache = arrayOfNulls<ControllerState>(itemCount)
 
-        override fun onViewRecycled(holder: RiveTestViewHolder) {
-            super.onViewRecycled(holder)
-        }
-
         override fun onViewAttachedToWindow(holder: RiveTestViewHolder) {
             super.onViewAttachedToWindow(holder)
             val riveView = holder.binding.riveTestView

@@ -66,6 +66,9 @@ rcp<EGLWorker> EGLWorker::CurrentOrSkia(RendererType rendererType)
     rcp<EGLWorker> currentOrSkia;
     switch (rendererType)
     {
+        case RendererType::None:
+            assert(false);
+            break;
         case RendererType::Rive:
             currentOrSkia = RiveWorker();
             break;
@@ -84,6 +87,9 @@ static const char* renderer_name(RendererType rendererType)
 {
     switch (rendererType)
     {
+        case RendererType::None:
+            assert(false);
+            return "";
         case RendererType::Rive:
             return "Rive";
         case RendererType::Skia:
@@ -117,6 +123,9 @@ void EGLWorker::externalRefCountDidReachZero()
 {
     switch (rendererType())
     {
+        case RendererType::None:
+            assert(false);
+            break;
         case RendererType::Rive:
             // Release the Rive worker's GPU resources, but keep the GL context alive. We have
             // simple way to release GPU resources here instead, without having to pay the hefty

@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
-import android.util.Log
 import com.getkeepsafe.relinker.ReLinker
 
 object Rive {

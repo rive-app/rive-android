@@ -38,6 +38,8 @@
         </attr>
         <attr name="riveResource" format="reference" />
         <attr name="riveUrl" format="string" />
+        <attr name="riveAssetLoaderClass" format="string" />
+        <attr name="riveShouldLoadCDNAssets" format="boolean" />
     </declare-styleable>
 
     <declare-styleable name="RiveAnimationView">
@@ -53,5 +55,7 @@
         <attr name="riveResource" />
         <attr name="riveUrl" />
         <attr name="riveRenderer" />
+        <attr name="riveAssetLoaderClass" />
+        <attr name="riveShouldLoadCDNAssets" />
     </declare-styleable>
 </resources>

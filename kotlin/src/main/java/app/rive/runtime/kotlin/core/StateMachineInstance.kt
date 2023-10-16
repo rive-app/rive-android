@@ -93,12 +93,15 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             input.isBoolean -> {
                 SMIBoolean(input.cppPointer)
             }
+
             input.isTrigger -> {
                 SMITrigger(input.cppPointer)
             }
+
             input.isNumber -> {
                 SMINumber(input.cppPointer)
             }
+
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
         return convertedInput
@@ -150,18 +153,23 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             state.isAnimationState -> {
                 AnimationState(state.cppPointer)
             }
+
             state.isAnyState -> {
                 AnyState(state.cppPointer)
             }
+
             state.isEntryState -> {
                 EntryState(state.cppPointer)
             }
+
             state.isExitState -> {
                 ExitState(state.cppPointer)
             }
+
             state.isBlendState -> {
                 BlendState(state.cppPointer)
             }
+
             else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
         }
         return convertedState
@@ -193,7 +201,7 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
             throw RiveEventException("No Rive Event found at index $index.")
         }
 
-        return eventReport.event;
+        return eventReport.event
     }
 
     /**

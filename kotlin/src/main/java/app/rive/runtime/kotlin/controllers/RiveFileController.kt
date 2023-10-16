@@ -290,10 +290,13 @@ class RiveFileController(
         // If anything has been previously set up, remove it.
         reset()
         autoplay = attrs.autoplay
+        alignment = attrs.alignment
+        fit = attrs.fit
+        loop = attrs.loop
+
         val abName = attrs.artboardName
 
-        val artboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
-        this.activeArtboard = artboard
+        this.activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
 
         if (autoplay) {
             val animName = attrs.animationName
@@ -464,7 +467,7 @@ class RiveFileController(
      * @throws RiveException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
-        activeArtboard?.textRun(textRunName)?.text = textValue;
+        activeArtboard?.textRun(textRunName)?.text = textValue
     }
 
     private fun animations(animationName: String): List<LinearAnimationInstance> {
@@ -532,7 +535,7 @@ class RiveFileController(
         }
         if (eventListeners.isNotEmpty()) {
             stateMachineInstance.eventsReported.forEach {
-                notifyEvent(it);
+                notifyEvent(it)
             }
         }
         return stillPlaying
@@ -620,6 +623,7 @@ class RiveFileController(
     // == Listeners ==
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var listeners = HashSet<Listener>()
+
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var eventListeners = HashSet<RiveEventListener>()
 
@@ -637,7 +641,7 @@ class RiveFileController(
      * Remove with: [removeEventListener]
      */
     fun addEventListener(listener: RiveEventListener) {
-        eventListeners.add(listener);
+        eventListeners.add(listener)
     }
 
     /**
@@ -673,7 +677,7 @@ class RiveFileController(
     }
 
     private fun notifyEvent(event: RiveEvent) {
-        eventListeners.toList().forEach{ it.notifyEvent(event)}
+        eventListeners.toList().forEach { it.notifyEvent(event) }
     }
 
     /**

@@ -8,6 +8,7 @@
 #include "helpers/thread_state_egl.hpp"
 #include "helpers/egl_worker.hpp"
 #include "models/worker_impl.hpp"
+
 #include "rive/renderer.hpp"
 
 namespace rive_android

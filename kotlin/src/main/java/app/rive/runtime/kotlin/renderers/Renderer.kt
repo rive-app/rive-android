@@ -4,20 +4,23 @@ import android.graphics.RectF
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
+import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 
-@Deprecated("RendererSkia is now Renderer",
+@Deprecated(
+    "RendererSkia is now Renderer",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("Renderer")
 )
 abstract class RendererSkia
 
 abstract class Renderer(
-    private val type: RendererType = Rive.defaultRendererType,
+    @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    val type: RendererType = Rive.defaultRendererType,
     val trace: Boolean = false
 ) :
     NativeObject(NULL_POINTER),
@@ -43,6 +46,7 @@ abstract class Renderer(
         targetBounds: RectF,
         srcBounds: RectF
     )
+
     private external fun cppTransform(
         cppPointer: Long,
         x: Float,
@@ -180,13 +184,11 @@ abstract class Renderer(
         cppTransform(cppPointer, x, sy, sx, y, tx, ty)
     }
 
-    fun scale(sx: Float, sy: Float)
-    {
+    fun scale(sx: Float, sy: Float) {
         transform(sx, 0f, 0f, sy, 0f, 0f)
     }
 
-    fun translate(dx: Float, dy: Float)
-    {
+    fun translate(dx: Float, dy: Float) {
         transform(1f, 0f, 0f, 1f, dx, dy)
     }
 

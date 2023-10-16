@@ -69,7 +69,6 @@ class TestUtils {
      */
     class MockRiveAnimationView(context: Context, attachOnInit: Boolean = true) :
         RiveAnimationView(context) {
-
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
             if (attachOnInit) {
@@ -173,7 +172,7 @@ class TestUtils {
         }
 
         override fun notifyAdvance(elapsed: Float) {
-            this.elapsed= 0.016f;
+            this.elapsed = 0.016f;
         }
     }
 }

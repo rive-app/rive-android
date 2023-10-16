@@ -8,10 +8,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
+import app.rive.runtime.kotlin.core.RiveEvent
 import app.rive.runtime.kotlin.core.RiveGeneralEvent
 import app.rive.runtime.kotlin.core.RiveOpenURLEvent
-import app.rive.runtime.kotlin.core.RiveEvent
-import java.lang.Exception
 
 
 class EventsActivity : AppCompatActivity() {
@@ -37,15 +36,15 @@ class EventsActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        starRatingAnimation.removeEventListener(starRatingListener);
-        urlButtonAnimation.removeEventListener(urlButtonListener);
-        logButtonAnimation.removeEventListener(logButtonListener);
+        starRatingAnimation.removeEventListener(starRatingListener)
+        urlButtonAnimation.removeEventListener(urlButtonListener)
+        logButtonAnimation.removeEventListener(logButtonListener)
         super.onDestroy()
     }
 
-    private lateinit var starRatingListener: RiveFileController.RiveEventListener;
-    private lateinit var urlButtonListener: RiveFileController.RiveEventListener;
-    private lateinit var logButtonListener: RiveFileController.RiveEventListener;
+    private lateinit var starRatingListener: RiveFileController.RiveEventListener
+    private lateinit var urlButtonListener: RiveFileController.RiveEventListener
+    private lateinit var logButtonListener: RiveFileController.RiveEventListener
 
     private fun setStarRating() {
         val starRatingTextView = findViewById<TextView>(R.id.star_rating)
@@ -54,7 +53,10 @@ class EventsActivity : AppCompatActivity() {
             override fun notifyEvent(event: RiveEvent) {
                 when (event) {
                     is RiveGeneralEvent -> {
-                        Log.i("RiveEvent", "General event received, name: ${event.name}, delaySeconds: ${event.delay} properties: ${event.properties}")
+                        Log.i(
+                            "RiveEvent",
+                            "General event received, name: ${event.name}, delaySeconds: ${event.delay} properties: ${event.properties}"
+                        )
                         runOnUiThread {
                             // This event contains a number value with the name "rating"
                             // to indicate the star rating selected
@@ -67,7 +69,7 @@ class EventsActivity : AppCompatActivity() {
                 }
             }
         }
-        starRatingAnimation.addEventListener(starRatingListener);
+        starRatingAnimation.addEventListener(starRatingListener)
     }
 
     private fun setUrlButton() {
@@ -78,7 +80,7 @@ class EventsActivity : AppCompatActivity() {
                         Log.i("RiveEvent", "Open URL Rive event: ${event.url}")
                         runOnUiThread {
                             try {
-                                val uri = Uri.parse(event.url);
+                                val uri = Uri.parse(event.url)
                                 val browserIntent =
                                     Intent(Intent.ACTION_VIEW, uri)
                                 startActivity(browserIntent)
@@ -90,7 +92,7 @@ class EventsActivity : AppCompatActivity() {
                 }
             }
         }
-        urlButtonAnimation.addEventListener(urlButtonListener);
+        urlButtonAnimation.addEventListener(urlButtonListener)
     }
 
     private fun setLogButton() {
@@ -100,6 +102,7 @@ class EventsActivity : AppCompatActivity() {
                     is RiveOpenURLEvent -> {
                         Log.i("RiveEvent", "Open URL Rive event: ${event.url}")
                     }
+
                     is RiveGeneralEvent -> {
                         Log.i("RiveEvent", "General Rive event")
                     }
@@ -109,9 +112,9 @@ class EventsActivity : AppCompatActivity() {
                 Log.i("RiveEvent", "type: ${event.type}")
                 Log.i("RiveEvent", "properties: ${event.properties}")
                 // `data` contains all information in the event
-                Log.i("RiveEvent", "data: ${event.data}");
+                Log.i("RiveEvent", "data: ${event.data}")
             }
         }
-        logButtonAnimation.addEventListener(logButtonListener);
+        logButtonAnimation.addEventListener(logButtonListener)
     }
 }

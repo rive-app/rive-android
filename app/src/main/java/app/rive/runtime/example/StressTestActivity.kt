@@ -3,17 +3,21 @@ package app.rive.runtime.example
 import android.content.Context
 import android.graphics.RectF
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.RiveTextureView
-import app.rive.runtime.kotlin.core.*
-import app.rive.runtime.kotlin.renderers.Renderer
-import java.util.*
-import android.view.MotionEvent
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
-import kotlin.math.*
+import app.rive.runtime.kotlin.RiveTextureView
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.core.Fit
+import app.rive.runtime.kotlin.core.LinearAnimationInstance
+import app.rive.runtime.kotlin.renderers.Renderer
+import java.util.Locale
+import kotlin.math.min
 
 
 class StressTestActivity : AppCompatActivity() {
@@ -33,9 +37,9 @@ class StressTestActivity : AppCompatActivity() {
 }
 
 class StressTestView(context: Context) : RiveTextureView(context) {
-    private var instanceCount : Int = 1
-    private var totalElapsed : Float = 0f
-    private var totalFrames : Int = 0
+    private var instanceCount: Int = 1
+    private var totalElapsed: Float = 0f
+    private var totalFrames: Int = 0
 
     override fun createObserver(): LifecycleObserver {
         return object : DefaultLifecycleObserver {
@@ -60,7 +64,7 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                     val rows = (instanceCount + 6) / 7
                     val cols = min(instanceCount, 7)
                     translate(0f, (rows - 1) * -.5f * 200f)
-                    for (j in 1 .. rows) {
+                    for (j in 1..rows) {
                         save()
                         translate((cols - 1) * -.5f * 125f, 0f)
                         for (i in 1..cols) {
@@ -95,7 +99,7 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                 if (totalElapsed > 1f) {
                     val fps = totalFrames / totalElapsed
                     val fpsView =
-                        ((getParent() as ViewGroup).getParent() as ViewGroup).getChildAt(1) as TextView
+                        ((parent as ViewGroup).parent as ViewGroup).getChildAt(1) as TextView
                     fpsView.text =
                         java.lang.String.format(
                             Locale.US,
@@ -132,7 +136,7 @@ class StressTestView(context: Context) : RiveTextureView(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
 
-        val action: Int = event.getActionMasked()
+        val action: Int = event.actionMasked
 
         return when (action) {
             MotionEvent.ACTION_DOWN -> {
@@ -142,10 +146,12 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                     instanceCount += 7
                 totalElapsed = 0f
                 totalFrames = 0
-                val fpsView = ((getParent() as ViewGroup).getParent() as ViewGroup).getChildAt(1) as TextView
+                val fpsView =
+                    ((parent as ViewGroup).parent as ViewGroup).getChildAt(1) as TextView
                 fpsView.text = java.lang.String.format("%d instances", instanceCount)
                 true
             }
+
             else -> super.onTouchEvent(event)
         }
     }

@@ -4,14 +4,26 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.widget.*
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.Spinner
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.appcompat.widget.AppCompatEditText
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.Direction
+import app.rive.runtime.kotlin.core.LinearAnimationInstance
+import app.rive.runtime.kotlin.core.Loop
+import app.rive.runtime.kotlin.core.PlayableInstance
+import app.rive.runtime.kotlin.core.SMIBoolean
+import app.rive.runtime.kotlin.core.SMINumber
+import app.rive.runtime.kotlin.core.StateMachineInstance
 
 class AndroidPlayerActivity : AppCompatActivity() {
     var loop: Loop = Loop.AUTO
@@ -74,10 +86,13 @@ class AndroidPlayerActivity : AppCompatActivity() {
             when (view.getId()) {
                 R.id.loop_auto ->
                     loop = Loop.AUTO
+
                 R.id.loop_loop ->
                     loop = Loop.LOOP
+
                 R.id.loop_oneshot ->
                     loop = Loop.ONESHOT
+
                 R.id.loop_pingpong ->
                     loop = Loop.PINGPONG
             }
@@ -90,8 +105,10 @@ class AndroidPlayerActivity : AppCompatActivity() {
             when (view.getId()) {
                 R.id.direction_auto ->
                     direction = Direction.AUTO
+
                 R.id.direction_backwards ->
                     direction = Direction.BACKWARDS
+
                 R.id.direction_forwards ->
                     direction = Direction.FORWARDS
             }

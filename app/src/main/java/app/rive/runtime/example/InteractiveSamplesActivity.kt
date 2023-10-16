@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
-import java.util.*
+import java.util.Calendar
 
 class InteractiveSamplesActivity : AppCompatActivity() {
     private var keepGoing = true

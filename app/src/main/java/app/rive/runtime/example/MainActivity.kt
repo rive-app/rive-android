@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_blend, BlendActivity::class.java),
         Pair(R.id.go_metrics, MetricsActivity::class.java),
         Pair(R.id.go_assets, AssetsActivity::class.java),
-
         Pair(R.id.go_recycler, RecyclerActivity::class.java),
         Pair(R.id.go_viewpager, ViewPagerActivity::class.java),
         Pair(R.id.go_meshes, MeshesActivity::class.java),
@@ -32,6 +31,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_compose, ComposeActivity::class.java),
         Pair(R.id.go_frame, FrameActivity::class.java),
         Pair(R.id.go_dynamic_text, DynamicTextActivity::class.java),
+        Pair(R.id.go_assets_loader, AssetLoaderActivity::class.java),
         Pair(R.id.go_stress_test, StressTestActivity::class.java),
     )
 

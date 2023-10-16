@@ -22,7 +22,7 @@ class LowLevelActivity : AppCompatActivity() {
         setContentView(R.layout.activity_low_level)
 
         // Hides the app/action bar
-        supportActionBar?.hide();
+        supportActionBar?.hide()
 
         // Attach the Rive view to the activity's root layout
         val layout = findViewById<ViewGroup>(R.id.low_level_view_root)

@@ -1,7 +1,6 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.RectF
-import android.util.Log
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException

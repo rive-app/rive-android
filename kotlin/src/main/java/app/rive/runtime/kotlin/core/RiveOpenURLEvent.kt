@@ -8,7 +8,7 @@ package app.rive.runtime.kotlin.core
  *
  * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
  */
-class RiveOpenURLEvent(unsafeCppPointer: Long, delay: Float): RiveEvent(unsafeCppPointer, delay) {
+class RiveOpenURLEvent(unsafeCppPointer: Long, delay: Float) : RiveEvent(unsafeCppPointer, delay) {
     private external fun cppURL(cppPointer: Long): String
     private external fun cppTarget(cppPointer: Long): String
 

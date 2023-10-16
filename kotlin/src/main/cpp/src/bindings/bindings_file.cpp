@@ -14,12 +14,17 @@ extern "C"
                                                                           jobject thisObj,
                                                                           jbyteArray bytes,
                                                                           jint length,
-                                                                          jint type)
+                                                                          jint type,
+                                                                          jlong fileAssetLoader)
     {
-        rive_android::SetSDKVersion();
+        SetSDKVersion();
         RendererType rendererType = static_cast<RendererType>(type);
+        rive::FileAssetLoader* assetLoader =
+            reinterpret_cast<rive::FileAssetLoader*>(fileAssetLoader);
+
         jbyte* byte_array = env->GetByteArrayElements(bytes, NULL);
-        long file = Import(reinterpret_cast<uint8_t*>(byte_array), length, rendererType);
+        long file =
+            Import(reinterpret_cast<uint8_t*>(byte_array), length, rendererType, assetLoader);
         env->ReleaseByteArrayElements(bytes, byte_array, JNI_ABORT);
         return (jlong)file;
     }

@@ -50,6 +50,5 @@ popd
 
 # Skia
 pushd "$RIVE_RUNTIME_DIR"/skia/dependencies/
-rm -rf ./skia/out
-rm -rf ./skia_debug/out
+rm -rf ./skia ./skia_debug
 popd

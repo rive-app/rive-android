@@ -44,7 +44,7 @@ open class RiveEvent(unsafeCppPointer: Long, val delay: Float) : NativeObject(un
      * Type of event
      */
     val type: EventType
-        get() = EventType.fromInt(typeCode) ?: EventType.GeneralEvent;
+        get() = EventType.fromInt(typeCode) ?: EventType.GeneralEvent
 
     /**
      * Properties attached to the event

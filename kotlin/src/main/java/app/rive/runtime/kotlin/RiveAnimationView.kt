@@ -59,6 +59,7 @@ import kotlin.math.min
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
  */
+@ExperimentalAssetLoader
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
     Observable<RiveFileController.Listener> {
@@ -70,6 +71,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         const val alignmentIndexDefault = 4 /* Alignment.CENTER */
         const val fitIndexDefault = 1       /* Fit.CONTAIN */
         const val loopIndexDefault = 3      /* Loop.AUTO */
+        const val traceAnimationsDefault = false
+        const val shouldLoadCDNAssetsDefault = true
         val rendererIndexDefault = Rive.defaultRendererType.value
     }
 
@@ -176,16 +179,91 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loopIndex: Int = loopIndexDefault,
         rendererIndex: Int = rendererIndexDefault,
         var autoplay: Boolean,
-        val riveTraceAnimations: Boolean = false,
+        var riveTraceAnimations: Boolean = false,
         var artboardName: String?,
         var animationName: String?,
         var stateMachineName: String?,
         var resource: ResourceType?,
+        var assetLoader: FileAssetLoader? = null,
     ) {
+        companion object {
+            /**
+             * When a [name] is provided, it tries to build a [FileAssetLoader].
+             * [name] needs to be a full class name, including the package (e.g. `java.lang.Thread`)
+             *
+             * This function expects that the classname provided is either a [FileAssetLoader], for
+             * which the class has a constructor with no parameters, or a [ContextAssetLoader],
+             * for which the constructor has a single parameter of type [Context].
+             */
+            fun assetLoaderFrom(name: String?, context: Context): FileAssetLoader? {
+                return if (!name.isNullOrEmpty()) {
+                    try {
+                        val kClass = Class.forName(name).kotlin
+                        val maybeContextAssetLoader =
+                            kClass.constructors.find {
+                                it.parameters.size == 1 && it.parameters.first().type.classifier == Context::class
+                            }?.call(context)
+                        if (maybeContextAssetLoader != null) {
+                            return maybeContextAssetLoader as ContextAssetLoader
+                        }
+                        val maybeNoArgConstructor =
+                            kClass.constructors.find { it.parameters.isEmpty() }
+                        // Returns null if it doesn't exist.
+                        return maybeNoArgConstructor?.call() as FileAssetLoader?
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to initialize AssetLoader from name: $name")
+                        e.printStackTrace()
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+        }
+
         var alignment: Alignment = Alignment.fromIndex(alignmentIndex)
         var fit: Fit = Fit.fromIndex(fitIndex)
         var loop: Loop = Loop.fromIndex(loopIndex)
-        val rendererType: RendererType = RendererType.fromIndex(rendererIndex)
+        var rendererType: RendererType = RendererType.fromIndex(rendererIndex)
+    }
+
+
+    class Builder(internal val context: Context) {
+        internal var alignment: Alignment? = null
+        internal var fit: Fit? = null
+        internal var loop: Loop? = null
+        internal var rendererType: RendererType? = null
+        internal var autoplay: Boolean? = null
+        internal var traceAnimations: Boolean? = null
+        internal var artboardName: String? = null
+        internal var animationName: String? = null
+        internal var stateMachineName: String? = null
+        internal var assetLoader: FileAssetLoader? = null
+        internal var shouldLoadCDNAssets: Boolean = shouldLoadCDNAssetsDefault
+
+        internal var resource: Any? = null
+        internal var resourceType: ResourceType? = null
+
+        fun setAlignment(value: Alignment) = apply { alignment = value }
+        fun setFit(value: Fit) = apply { fit = value }
+        fun setLoop(value: Loop) = apply { loop = value }
+        fun setRendererType(value: RendererType) = apply { rendererType = value }
+        fun setAutoplay(value: Boolean) = apply { autoplay = value }
+        fun setTraceAnimations(value: Boolean) = apply { traceAnimations = value }
+        fun setArtboardName(value: String) = apply { artboardName = value }
+        fun setAnimationName(value: String) = apply { animationName = value }
+        fun setStateMachineName(value: String) = apply { stateMachineName = value }
+        fun setResource(value: Any) = apply {
+            resourceType = makeMaybeResource(value) // Will throw with invalid types.
+            resource = value
+        }
+
+        fun setAssetLoader(value: FileAssetLoader) = apply { assetLoader = value }
+        fun setShouldLoadCDNAssets(value: Boolean) = apply { shouldLoadCDNAssets = value }
+
+        fun build(): RiveAnimationView {
+            return RiveAnimationView(this)
+        }
     }
 
     init {
@@ -201,6 +279,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val resourceFromValue = makeMaybeResource(
                     if (resId == -1) resUrl else resId
                 )
+                // Try making a custom loader
+                val customLoader = RendererAttributes.assetLoaderFrom(
+                    getString(R.styleable.RiveAnimationView_riveAssetLoaderClass),
+                    context
+                )
+                val shouldLoadCDNAssets = getBoolean(
+                    R.styleable.RiveAnimationView_riveShouldLoadCDNAssets,
+                    shouldLoadCDNAssetsDefault
+                )
 
                 rendererAttributes = RendererAttributes(
                     alignmentIndex = getInteger(
@@ -215,7 +302,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     autoplay =
                     getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay),
                     riveTraceAnimations =
-                    getBoolean(R.styleable.RiveAnimationView_riveTraceAnimations, false),
+                    getBoolean(
+                        R.styleable.RiveAnimationView_riveTraceAnimations,
+                        traceAnimationsDefault
+                    ),
                     artboardName = getString(R.styleable.RiveAnimationView_riveArtboard),
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
@@ -224,6 +314,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         R.styleable.RiveAnimationView_riveRenderer,
                         rendererIndexDefault
                     ),
+                    assetLoader = FallbackAssetLoader(
+                        context = context,
+                        loader = customLoader,
+                        loadCDNAssets = shouldLoadCDNAssets,
+                    )
                 )
 
                 controller = RiveFileController(
@@ -253,6 +348,25 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
+    constructor(builder: Builder) : this(builder.context) {
+        // This is taken for granted: nothing is initializing the renderer in the main constructor.
+        require(this.artboardRenderer == null)
+        rendererAttributes.apply {
+            rendererType = builder.rendererType ?: RendererType.fromIndex(rendererIndexDefault)
+            autoplay = builder.autoplay ?: defaultAutoplay
+            riveTraceAnimations = builder.traceAnimations ?: traceAnimationsDefault
+            artboardName = builder.artboardName
+            animationName = builder.animationName
+            stateMachineName = builder.stateMachineName
+            resource = builder.resourceType
+            // Rearrange builder dependencies here.
+            (assetLoader as FallbackAssetLoader).resetWith(builder)
+            alignment = builder.alignment ?: this.alignment
+            fit = builder.fit ?: this.fit
+            loop = builder.loop ?: this.loop
+        }
+    }
+
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
         artboardRenderer!!.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
@@ -275,14 +389,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             // loadFromNetwork() releases after onComplete() is called.
             is ResourceType.ResourceUrl -> loadFromNetwork(resource.url, onComplete)
             is ResourceType.ResourceBytes -> {
-                val file = File(resource.bytes, rendererAttributes.rendererType)
+                val file = File(
+                    bytes = resource.bytes,
+                    rendererType = rendererAttributes.rendererType,
+                    fileAssetLoader = rendererAttributes.assetLoader,
+                )
                 onComplete(file)
                 // Don't retain the handle.
                 file.release()
             }
 
             is ResourceType.ResourceId -> resources.openRawResource(resource.id).use {
-                val file = File(it.readBytes(), rendererAttributes.rendererType)
+                val file = File(
+                    bytes = it.readBytes(),
+                    rendererType = rendererAttributes.rendererType,
+                    fileAssetLoader = rendererAttributes.assetLoader,
+                )
                 onComplete(file)
                 // Don't retain the handle.
                 file.release()
@@ -300,7 +422,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             url,
             rendererAttributes.rendererType,
             { file -> artboardRenderer?.setRiveFile(file) },
-            { throw IOException("Unable to download Rive file $url") }
+            { throw IOException("Unable to download Rive file $url") },
+            assetLoader = rendererAttributes.assetLoader
         )
         queue.add(stringRequest)
     }
@@ -314,7 +437,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 onComplete(it)
                 it.release()
             },
-            { throw IOException("Unable to download Rive file $url") }
+            { throw IOException("Unable to download Rive file $url") },
+            assetLoader = rendererAttributes.assetLoader
         )
         queue.add(stringRequest)
     }
@@ -658,6 +782,18 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
+    /**
+     * Overrides the current asset loader.
+     *
+     * A RiveView creates a [FallbackAssetLoader] by default.
+     */
+    fun setAssetLoader(assetLoader: FileAssetLoader?) {
+        if (assetLoader != rendererAttributes.assetLoader) {
+            rendererAttributes.assetLoader?.release()
+            rendererAttributes.assetLoader = assetLoader
+        }
+    }
+
     private fun configureRenderer() {
         // If trying to configure the renderer, we assume that it exists.
         artboardRenderer!!.apply {
@@ -685,7 +821,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun createObserver(): LifecycleObserver {
-        return RiveViewLifecycleObserver(controller)
+        return RiveViewLifecycleObserver(
+            dependencies = listOfNotNull(controller, rendererAttributes.assetLoader)
+        )
     }
 
     /**
@@ -833,14 +971,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Remove with: [removeEventListener]
      */
     fun addEventListener(listener: RiveFileController.RiveEventListener) {
-        controller.addEventListener(listener);
+        controller.addEventListener(listener)
     }
 
     /**
      * Removes the [listener]
      */
     fun removeEventListener(listener: RiveFileController.RiveEventListener) {
-        controller.removeEventListener(listener);
+        controller.removeEventListener(listener)
     }
 
 
@@ -891,7 +1029,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
  * updated within [RiveAnimationView.onAttachedToWindow]. If there is a new [LifecycleOwner]
  * [onCreate], [onStart], and [onResume] will be called again when it is registered.
  */
-class RiveViewLifecycleObserver(private val controller: RiveFileController) :
+class RiveViewLifecycleObserver(private val dependencies: List<RefCount>) :
     DefaultLifecycleObserver {
     override fun onCreate(owner: LifecycleOwner) {}
 
@@ -911,7 +1049,7 @@ class RiveViewLifecycleObserver(private val controller: RiveFileController) :
      */
     @CallSuper
     override fun onDestroy(owner: LifecycleOwner) {
-        controller.release()
+        dependencies.forEach { it.release() }
         owner.lifecycle.removeObserver(this)
     }
 }
@@ -921,7 +1059,8 @@ class RiveFileRequest(
     url: String,
     private val rendererType: RendererType,
     private val listener: Response.Listener<File>,
-    errorListener: Response.ErrorListener
+    errorListener: Response.ErrorListener,
+    private val assetLoader: FileAssetLoader? = null
 ) : Request<File>(Method.GET, url, errorListener) {
 
     override fun deliverResponse(response: File) = listener.onResponse(response)
@@ -929,7 +1068,12 @@ class RiveFileRequest(
     override fun parseNetworkResponse(response: NetworkResponse?): Response<File> {
         return try {
             val bytes = response?.data ?: ByteArray(0)
-            val file = File(bytes, rendererType)
+            val file =
+                File(
+                    bytes = bytes,
+                    rendererType = rendererType,
+                    fileAssetLoader = assetLoader,
+                )
             Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
         } catch (e: UnsupportedEncodingException) {
             Response.error(ParseError(e))

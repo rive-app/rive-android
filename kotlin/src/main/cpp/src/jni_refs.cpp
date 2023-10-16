@@ -92,8 +92,14 @@ jfieldID GetPingPongLoopField()
     return getStaticFieldId(GetLoopClass(), "PINGPONG", "Lapp/rive/runtime/kotlin/core/Loop;");
 };
 
-jclass GetRiveEventReportClass() { return getClass("app/rive/runtime/kotlin/core/RiveEventReport"); };
-jmethodID GetRiveEventReportConstructorId() { return getMethodId(GetRiveEventReportClass(), "<init>", "(JF)V"); }
+jclass GetRiveEventReportClass()
+{
+    return getClass("app/rive/runtime/kotlin/core/RiveEventReport");
+};
+jmethodID GetRiveEventReportConstructorId()
+{
+    return getMethodId(GetRiveEventReportClass(), "<init>", "(JF)V");
+}
 
 jclass GetPointerFClass() { return getClass("android/graphics/PointF"); };
 

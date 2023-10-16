@@ -23,6 +23,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     val hasCppObject get() = unsafeCppPointer != NULL_POINTER
 
     override var refs = AtomicInteger(1)
+
     /**
      * Getter/Setter for the underlying C++ pointer value.
      *
