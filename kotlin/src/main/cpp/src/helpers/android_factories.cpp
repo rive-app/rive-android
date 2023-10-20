@@ -243,8 +243,7 @@ class AndroidPLSImage : public PLSImage
 {
 public:
     AndroidPLSImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr) :
-        PLSImage(width, height),
-        m_glWorker(rive_android::EGLWorker::RiveWorker())
+        PLSImage(width, height), m_glWorker(rive_android::EGLWorker::RiveWorker())
     {
         // Create the texture on the worker thread where the GL context is current.
         const uint8_t* imageDataRGBA = imageDataRGBAPtr.release();

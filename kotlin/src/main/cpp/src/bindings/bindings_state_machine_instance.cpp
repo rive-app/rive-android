@@ -56,7 +56,10 @@ extern "C"
         auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(ref);
         const rive::EventReport eventReport = stateMachineInstance->reportedEventAt(index);
 
-        return env->NewObject(GetRiveEventReportClass(), GetRiveEventReportConstructorId(), (jlong)eventReport.event(), eventReport.secondsDelay());
+        return env->NewObject(GetRiveEventReportClass(),
+                              GetRiveEventReportConstructorId(),
+                              (jlong)eventReport.event(),
+                              eventReport.secondsDelay());
     }
 
     JNIEXPORT jlong JNICALL
