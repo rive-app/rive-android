@@ -1,6 +1,9 @@
 package app.rive.runtime.example
 
 import TestUtils.Companion.waitUntil
+import android.view.ViewGroup
+import android.widget.Button
+import androidx.core.view.updateLayoutParams
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -84,4 +87,50 @@ class RiveActivityLifecycleTest {
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
     }
+
+    @Test
+    fun resizeRiveView() {
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
+        lateinit var riveView: RiveAnimationView
+        lateinit var controller: RiveFileController
+        var ogWidth = 0f
+        // Start the Activity.
+        activityScenario.onActivity {
+            riveView = it.findViewById(R.id.rive_single)
+            controller = riveView.controller
+
+            assertEquals(2, controller.refCount)
+            assertTrue(controller.isActive)
+            assertNotNull(controller.file)
+            assertNotNull(controller.activeArtboard)
+
+            ogWidth = riveView.artboardRenderer!!.width
+
+            var isResized = false
+
+            Button(it).apply {
+                text = "RESIZE"
+                setOnClickListener {
+                    riveView.updateLayoutParams {
+                        width = (ogWidth - 1).toInt()
+                    }
+                    isResized = true
+                }
+                (riveView.parent as ViewGroup).addView(this)
+                performClick()
+            }
+            assert(isResized)
+        }
+
+        // Close it down.
+        activityScenario.close()
+        // This assert is not very robust...
+        assertEquals(ogWidth - 1f, riveView.artboardRenderer?.width)
+        // Background thread deallocates asynchronously.
+        waitUntil(1500.milliseconds) { controller.refCount == 0 }
+        assertFalse(controller.isActive)
+        assertNull(controller.file)
+        assertNull(controller.activeArtboard)
+    }
+
 }

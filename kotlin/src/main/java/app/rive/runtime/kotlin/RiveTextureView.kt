@@ -55,7 +55,9 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {} // called every time when swapBuffers is called
-    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+        onSurfaceTextureAvailable(surface, width, height)
+    }
 
     @CallSuper
     override fun onAttachedToWindow() {
@@ -75,8 +77,14 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         width: Int,
         height: Int
     ) {
+        if (this::viewSurface.isInitialized) {
+            viewSurface.release()
+        }
         viewSurface = Surface(surfaceTexture)
-        renderer?.setSurface(viewSurface)
+        renderer?.apply {
+            stop()
+            setSurface(viewSurface)
+        }
     }
 
     @CallSuper
