@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_dynamic_text, DynamicTextActivity::class.java),
         Pair(R.id.go_assets_loader, AssetLoaderActivity::class.java),
         Pair(R.id.go_stress_test, StressTestActivity::class.java),
+        Pair(R.id.go_rive_font_load_simple, FontLoadActivity::class.java)
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
