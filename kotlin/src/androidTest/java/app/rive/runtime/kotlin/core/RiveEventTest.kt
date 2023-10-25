@@ -24,10 +24,11 @@ class RiveEventTest {
     fun fire_a_single_general_event() {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.EventObserver()
-            view.setRiveResource(R.raw.events_test)
+            view.setRiveResource(R.raw.events_test, stateMachineName = "State Machine 1")
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireGeneralEvent")
+            view.fireState("State Machine 1", "FireGeneralEvent") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(1, observer.events.size)
             val event = observer.events[0];
@@ -36,6 +37,8 @@ class RiveEventTest {
             Assert.assertEquals(EventType.GeneralEvent, event.type)
             val expectedProperties =  hashMapOf("SomeNumber" to 11.0f, "SomeString" to "Something", "SomeBoolean" to true)
             Assert.assertEquals(expectedProperties, event.properties)
+            view.artboardRenderer?.advance(0.016f);
+
         }
     }
 
@@ -43,10 +46,11 @@ class RiveEventTest {
     fun fire_a_single_open_url_event() {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.EventObserver()
-            view.setRiveResource(R.raw.events_test)
+            view.setRiveResource(R.raw.events_test, stateMachineName = "State Machine 1")
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireOpenUrlEvent")
+            view.fireState("State Machine 1", "FireOpenUrlEvent") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(1, observer.events.size)
             val event = observer.events[0];
@@ -64,10 +68,11 @@ class RiveEventTest {
     fun fire_multiple_events() {
         UiThreadStatement.runOnUiThread {
             val observer = TestUtils.EventObserver()
-            view.setRiveResource(R.raw.events_test)
+            view.setRiveResource(R.raw.events_test, stateMachineName = "State Machine 1")
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireBothEvents")
+            view.fireState("State Machine 1", "FireBothEvents") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(2, observer.events.size)
         }

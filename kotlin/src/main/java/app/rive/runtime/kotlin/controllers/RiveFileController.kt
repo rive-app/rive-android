@@ -527,15 +527,15 @@ class RiveFileController(
         stateMachineInstance: StateMachineInstance,
         elapsed: Float
     ): Boolean {
+        if (eventListeners.isNotEmpty()) {
+            stateMachineInstance.eventsReported.forEach {
+                notifyEvent(it)
+            }
+        }
         val stillPlaying = stateMachineInstance.advance(elapsed)
         if (listeners.isNotEmpty()) {
             stateMachineInstance.statesChanged.forEach {
                 notifyStateChanged(stateMachineInstance, it)
-            }
-        }
-        if (eventListeners.isNotEmpty()) {
-            stateMachineInstance.eventsReported.forEach {
-                notifyEvent(it)
             }
         }
         return stillPlaying
