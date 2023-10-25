@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.util.Log
-import androidx.annotation.RequiresOptIn
 import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.RiveAnimationView
 import com.android.volley.NetworkResponse
@@ -16,7 +15,7 @@ import com.android.volley.toolbox.Volley
  * This annotation marks the use of [FileAssetLoader]s as experimental as we iterate through
  * the API and validate its consistency.
  */
-@RequiresOptIn
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING, message = "The FileAssetLoader API is experimental")
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 annotation class ExperimentalAssetLoader

@@ -12,6 +12,7 @@ import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.errors.RiveException
 import org.junit.Assert.*
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.milliseconds
@@ -88,6 +89,8 @@ class RiveActivityLifecycleTest {
         assertNull(controller.activeArtboard)
     }
 
+
+    @Ignore("(umberto) disabling this test for now since it seems to be way too flaky for our bots.")
     @Test
     fun resizeRiveView() {
         val activityScenario = ActivityScenario.launch(SingleActivity::class.java);

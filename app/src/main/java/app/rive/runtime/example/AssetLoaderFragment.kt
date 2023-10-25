@@ -34,6 +34,7 @@ private fun makeContainer(context: Context): FrameLayout {
     }
 }
 
+@ExperimentalAssetLoader
 class AssetLoaderFragment : Fragment() {
     private var _binding: FragmentAssetLoaderBinding? = null
     private val binding get() = _binding!!

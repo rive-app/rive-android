@@ -58,18 +58,19 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset, rive::Span<const u
     if (!byteArray)
     {
         LOGE("JNIFileAssetLoader::loadContents() failed to allocate NewByteArray");
+        env->DeleteLocalRef(fileAssetClass);
         return false;
     }
     env->SetByteArrayRegion(byteArray,
                             0,
                             rive_android::SizeTTOInt(inBandBytes.size()),
                             (jbyte*)inBandBytes.data());
-
-    env->CallBooleanMethod(m_ktFileAssetLoader, m_ktLoadContentsFn, ktFileAsset, byteArray);
+    jboolean result =
+        env->CallBooleanMethod(m_ktFileAssetLoader, m_ktLoadContentsFn, ktFileAsset, byteArray);
 
     env->DeleteLocalRef(byteArray);
     env->DeleteLocalRef(ktFileAsset);
     env->DeleteLocalRef(fileAssetClass);
-    return true;
+    return result;
 }
 } // namespace rive_android
