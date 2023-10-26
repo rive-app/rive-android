@@ -29,7 +29,7 @@ public:
                                                    rive::RenderBufferFlags,
                                                    size_t) override;
 
-    std::unique_ptr<rive::RenderImage> decodeImage(rive::Span<const uint8_t>) override;
+    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t>) override;
 };
 
 #endif // RIVE_ANDROID_ANDROID_SKIA_FACTORY_HPP

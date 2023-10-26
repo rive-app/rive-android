@@ -276,7 +276,7 @@ private:
     rive_android::EGLWorker::WorkID m_textureCreationWorkID;
 };
 
-std::unique_ptr<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
+rcp<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
 {
     uint32_t width, height;
     std::vector<uint8_t> pixels;
@@ -287,5 +287,5 @@ std::unique_ptr<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> 
     }
     std::unique_ptr<uint8_t[]> bytes(new uint8_t[pixels.size()]);
     memcpy(bytes.get(), pixels.data(), pixels.size());
-    return std::make_unique<AndroidPLSImage>(width, height, std::move(bytes));
+    return make_rcp<AndroidPLSImage>(width, height, std::move(bytes));
 }
