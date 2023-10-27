@@ -15,7 +15,10 @@ import com.android.volley.toolbox.Volley
  * This annotation marks the use of [FileAssetLoader]s as experimental as we iterate through
  * the API and validate its consistency.
  */
-@RequiresOptIn(level = RequiresOptIn.Level.WARNING, message = "The FileAssetLoader API is experimental")
+@RequiresOptIn(
+    level = RequiresOptIn.Level.WARNING,
+    message = "The FileAssetLoader API is experimental"
+)
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 annotation class ExperimentalAssetLoader
@@ -104,7 +107,7 @@ open class FallbackAssetLoader(
 open class CDNAssetLoader(context: Context) : FileAssetLoader() {
     private val tag = javaClass.simpleName
 
-    private val queue = Volley.newRequestQueue(context)
+    private val queue by lazy(LazyThreadSafetyMode.NONE) { Volley.newRequestQueue(context) }
 
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         val url = asset.cdnUrl
