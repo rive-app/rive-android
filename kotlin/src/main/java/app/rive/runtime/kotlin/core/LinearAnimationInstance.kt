@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import java.util.concurrent.locks.ReentrantLock
+
 /**
  * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
  *
@@ -9,7 +11,11 @@ package app.rive.runtime.kotlin.core
  * Use this to keep track of an animation current state and progress. And to help [apply] changes
  * that the [animation] makes to components in an [Artboard].
  */
-class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
+class LinearAnimationInstance(
+    unsafeCppPointer: Long,
+    private val artboardLock: ReentrantLock,
+    var mix: Float = 1.0f
+) :
     PlayableInstance, NativeObject(unsafeCppPointer) {
 
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
@@ -35,7 +41,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
      *      otherwise it returns null.
      */
     fun advance(elapsedTime: Float): Loop? {
-        return cppAdvance(cppPointer, elapsedTime)
+        synchronized(artboardLock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
 
@@ -46,7 +52,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
      * other animations applied to the [artboard].
      */
     fun apply() {
-        cppApply(cppPointer, mix)
+        synchronized(artboardLock) { cppApply(cppPointer, mix) }
     }
 
     /**
@@ -55,7 +61,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
      * Returns true if the animation will continue to animate after this advance.
      */
     fun apply(elapsed: Float): Boolean {
-        cppApply(cppPointer, mix)
+        synchronized(artboardLock) { cppApply(cppPointer, mix) }
         val loopType = cppAdvance(cppPointer, elapsed)
         return loopType != Loop.ONESHOT
     }
@@ -73,7 +79,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
      * Sets the animation's point in time to [time]
      */
     fun time(time: Float) {
-        cppSetTime(cppPointer, time)
+        synchronized(artboardLock) { cppSetTime(cppPointer, time) }
     }
 
     /**
@@ -85,7 +91,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
             val intDirection = cppGetDirection(cppPointer)
             return Direction.fromInt(intDirection) ?: throw IndexOutOfBoundsException()
         }
-        set(direction) = cppSetDirection(cppPointer, direction.value)
+        set(direction) = synchronized(artboardLock) { cppSetDirection(cppPointer, direction.value) }
 
     /**
      * Get the duration of an animation in frames, this does not take [workStart]
@@ -174,7 +180,7 @@ class LinearAnimationInstance(unsafeCppPointer: Long, var mix: Float = 1.0f) :
             val intLoop = cppGetLoop(cppPointer)
             return Loop.fromIndex(intLoop)
         }
-        set(loop) = cppSetLoop(cppPointer, loop.ordinal)
+        set(loop) = synchronized(artboardLock) { cppSetLoop(cppPointer, loop.ordinal) }
 }
 
 

@@ -4,11 +4,9 @@ import android.graphics.PointF
 import android.graphics.RectF
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.File
-import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Helpers
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
@@ -23,11 +21,6 @@ enum class PointerEvents {
 }
 
 open class RiveArtboardRenderer(
-    // PUBLIC
-    fit: Fit = Fit.CONTAIN,
-    alignment: Alignment = Alignment.CENTER,
-    loop: Loop = Loop.AUTO,
-    autoplay: Boolean = true,
     // TODO: would love to get rid of these three fields here.
     var artboardName: String? = null,
     var animationName: String? = null,
@@ -39,8 +32,8 @@ open class RiveArtboardRenderer(
     private var controller: RiveFileController = controller.also {
         it.onStart = ::start
         it.acquire()
-        // Add controller and its file to dependencies.
-        // This guarantees that when the renderer is disposed, it will `.release()` them.
+        // Add controller to the Renderer dependencies.
+        // When the renderer is disposed, it'll `release()` `it`
         dependencies.add(it)
     }
 
@@ -88,9 +81,7 @@ open class RiveArtboardRenderer(
             return
         }
         if (controller.isActive) {
-            activeArtboard?.drawSkia(
-                cppPointer, fit, alignment
-            )
+            activeArtboard?.drawSkia(cppPointer, fit, alignment)
         }
     }
 
@@ -339,9 +330,15 @@ open class RiveArtboardRenderer(
 
             }
         } else {
+            // (umberto) pretty sure this API is unused, but it might need deprecation and removal
             this.activeArtboard?.advance(0f)
             start()
         }
+    }
+
+    override fun disposeDependencies() {
+        // Lock to make sure things are disposed in an orderly manner.
+        synchronized(file?.lock ?: this) { super.disposeDependencies() }
     }
 
     @Deprecated(

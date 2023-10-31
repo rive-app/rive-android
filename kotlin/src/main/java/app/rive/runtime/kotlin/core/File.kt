@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * [File]s are created in the rive editor.
@@ -21,8 +22,7 @@ class File(
     bytes: ByteArray,
     val rendererType: RendererType = Rive.defaultRendererType,
     fileAssetLoader: FileAssetLoader? = null,
-) :
-    NativeObject(NULL_POINTER) {
+) : NativeObject(NULL_POINTER) {
     init {
         // Set the correct renderer type.
         fileAssetLoader?.setRendererType(rendererType)
@@ -34,6 +34,8 @@ class File(
             fileAssetLoader?.cppPointer ?: NULL_POINTER
         )
     }
+
+    val lock = ReentrantLock()
 
     private external fun import(
         bytes: ByteArray,
@@ -72,7 +74,7 @@ class File(
             )
         }
 
-        val ab = Artboard(artboardPointer)
+        val ab = Artboard(artboardPointer, lock)
         dependencies.add(ab)
         return ab
     }
@@ -89,7 +91,7 @@ class File(
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        val ab = Artboard(artboardPointer)
+        val ab = Artboard(artboardPointer, lock)
         dependencies.add(ab)
         return ab
     }
@@ -108,4 +110,9 @@ class File(
             val name = cppArtboardNameByIndex(cppPointer, it)
             name
         }
+
+    override fun release(): Int {
+        // `super.release()` is already @Synchronized, but wrap this in its own lock.
+        synchronized(lock) { return super.release() }
+    }
 }

@@ -220,7 +220,7 @@ class RiveViewLifecycleTest {
             // 'Open' the view - attached
             (mockView as TestUtils.MockRiveAnimationView).mockAttach()
 
-            val savedState = mockView.controller.saveControllerState()
+            val savedState = mockView.controller.saveControllerState()!!
             val file = savedState.file
             assertNotNull(file)
 
@@ -230,7 +230,7 @@ class RiveViewLifecycleTest {
             assertNull(mockView.artboardRenderer)
 
             savedState.dispose()
-            assertEquals(0, file?.refCount)
+            assertEquals(0, file.refCount)
         }
     }
 
@@ -243,7 +243,7 @@ class RiveViewLifecycleTest {
             // 'Open' the view - attached
             (mockView as TestUtils.MockRiveAnimationView).mockAttach()
 
-            val savedState = mockView.saveControllerState()
+            val savedState = mockView.saveControllerState()!!
             val file = savedState.file
             assertNotNull(file)
             // Make sure we cleaned up the old resource to avoid loading it twice.
@@ -252,7 +252,7 @@ class RiveViewLifecycleTest {
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach(false)
             assertFalse(mockView.controller.isActive)
-            assertEquals(2, file?.refCount)
+            assertEquals(2, file.refCount)
 
             assertEquals(1, savedState.playingAnimations.size)
 
@@ -266,7 +266,7 @@ class RiveViewLifecycleTest {
 
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-            assertEquals(0, file?.refCount)
+            assertEquals(0, file.refCount)
             // No need to call `savedState.dispose()` because the state has already been restored.
         }
     }

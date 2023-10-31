@@ -34,8 +34,8 @@ annotation class ControllerStateManagement
  */
 @ControllerStateManagement
 class ControllerState internal constructor(
-    val file: File?,
-    val activeArtboard: Artboard?,
+    val file: File,
+    val activeArtboard: Artboard,
     val animations: List<LinearAnimationInstance>,
     val playingAnimations: HashSet<LinearAnimationInstance>,
     val stateMachines: List<StateMachineInstance>,
@@ -43,8 +43,8 @@ class ControllerState internal constructor(
     val isActive: Boolean,
 ) {
     fun dispose() {
-        file?.release()
-        activeArtboard?.release()
+        file.release()
+        activeArtboard.release()
     }
 }
 
@@ -82,15 +82,18 @@ class RiveFileController(
             if (value == field) {
                 return
             }
-            // If we have an old file remove all the old values.
-            field?.let {
-                reset()
-                it.release()
+
+            synchronized(field?.lock ?: this) {
+                // If we have an old file remove all the old values.
+                field?.let {
+                    reset()
+                    it.release()
+                }
+                field = value
+                // We only need to acquire the reference to the [file] since all the other components
+                // will be fetched from this file (and will, in fact, become a dependency of [file])
+                field?.acquire()
             }
-            field = value
-            // We only need to acquire the reference to the [file] since all the other components
-            // will be fetched from this file (and will, in fact, become a dependency of [file])
-            field?.acquire()
         }
 
     var activeArtboard: Artboard? = activeArtboard
@@ -162,15 +165,27 @@ class RiveFileController(
     /**
      * Get a copy of the State of this Controller and acquire a reference to the File to prevent
      * it being released from memory.
+     *
+     * Returns a [ControllerState] object with everything the controller was using.
+     * If the controller is pointing to stale data, it'll return null
      */
     @ControllerStateManagement
-    fun saveControllerState(): ControllerState {
-        // Acquire the file & artboard to prevent it from being released.
-        this.file?.acquire()
-        this.activeArtboard?.acquire()
+    fun saveControllerState(): ControllerState? {
+        val mFile = this.file ?: return null
+        val mArtboard = this.activeArtboard ?: return null
+        synchronized(mFile.lock) {
+            // This resource had already been released.
+            if (!mFile.hasCppObject) {
+                return null
+            }
+            // Acquire the file & artboard to prevent dispose().
+            mFile.acquire()
+            mArtboard.acquire()
+        }
+
         return ControllerState(
-            file,
-            activeArtboard,
+            mFile,
+            mArtboard,
             // Duplicate contents to grab a reference to the instances.
             animations = animationList.toList(),
             playingAnimations = playingAnimations.toHashSet(),
@@ -181,8 +196,10 @@ class RiveFileController(
     }
 
     /**
-     * Restore a copy of the state on this Controller.
-     * It also releases the File reference that was acquired when creating this file.
+     * Restore a copy of the state to this Controller.
+     *
+     * It also [release()]s any resources currently associated with this Controller in favor of the
+     * ones stored on the [state]
      */
     @ControllerStateManagement
     fun restoreControllerState(state: ControllerState) {
@@ -204,34 +221,37 @@ class RiveFileController(
     /// be aware of thread safety!
     @WorkerThread
     fun advance(elapsed: Float) {
-        activeArtboard?.let { ab ->
-            // animations could change, lets cut a list.
-            // order of animations is important.....
-            animations.forEach { animationInstance ->
-                if (playingAnimations.contains(animationInstance)) {
-                    val looped = animationInstance.advance(elapsed)
-                    animationInstance.apply()
+        val mLock = this.file?.lock ?: return
+        synchronized(mLock) {
+            activeArtboard?.let { ab ->
+                // animations could change, lets cut a list.
+                // order of animations is important.....
+                animations.forEach { animationInstance ->
+                    if (playingAnimations.contains(animationInstance)) {
+                        val looped = animationInstance.advance(elapsed)
+                        animationInstance.apply()
 
-                    if (looped == Loop.ONESHOT) {
-                        stop(animationInstance)
-                    } else if (looped != null) {
-                        notifyLoop(animationInstance)
+                        if (looped == Loop.ONESHOT) {
+                            stop(animationInstance)
+                        } else if (looped != null) {
+                            notifyLoop(animationInstance)
+                        }
                     }
                 }
-            }
 
-            stateMachines.forEach { stateMachineInstance ->
-                if (playingStateMachines.contains(stateMachineInstance)) {
-                    val stillPlaying =
-                        resolveStateMachineAdvance(stateMachineInstance, elapsed)
+                stateMachines.forEach { stateMachineInstance ->
+                    if (playingStateMachines.contains(stateMachineInstance)) {
+                        val stillPlaying =
+                            resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
-                    if (!stillPlaying) {
-                        pause(stateMachineInstance)
+                        if (!stillPlaying) {
+                            pause(stateMachineInstance)
+                        }
                     }
                 }
+                ab.advance(elapsed)
+                notifyAdvance(elapsed)
             }
-            ab.advance(elapsed)
-            notifyAdvance(elapsed)
         }
     }
 
@@ -277,11 +297,11 @@ class RiveFileController(
     }
 
     /**
-     * Use the parameters in [attrs] to initialize [activeArtboard] and any animation/state machine
-     * specified by [attrs] animationName or stateMachine name.
+     * Use the parameters in [rendererAttributes] to initialize [activeArtboard] and any animation/state machine
+     * specified by [rendererAttributes] animationName or stateMachine name.
      *
      */
-    internal fun setupScene(attrs: RiveAnimationView.RendererAttributes) {
+    internal fun setupScene(rendererAttributes: RiveAnimationView.RendererAttributes) {
         val mFile = file
         if (mFile == null) {
             Log.w(TAG, "Cannot init without a file")
@@ -289,18 +309,18 @@ class RiveFileController(
         }
         // If anything has been previously set up, remove it.
         reset()
-        autoplay = attrs.autoplay
-        alignment = attrs.alignment
-        fit = attrs.fit
-        loop = attrs.loop
+        autoplay = rendererAttributes.autoplay
+        alignment = rendererAttributes.alignment
+        fit = rendererAttributes.fit
+        loop = rendererAttributes.loop
 
-        val abName = attrs.artboardName
+        val abName = rendererAttributes.artboardName
 
         this.activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
 
         if (autoplay) {
-            val animName = attrs.animationName
-            val smName = attrs.stateMachineName
+            val animName = rendererAttributes.animationName
+            val smName = rendererAttributes.stateMachineName
 
             if (animName != null) {
                 play(animName)
@@ -520,9 +540,6 @@ class RiveFileController(
         }
     }
 
-    // Method is synchronized because it's used by play() from the UI thread as well as
-    // advance() on the Worker thread, so we need to avoid race conditions.
-    @Synchronized
     private fun resolveStateMachineAdvance(
         stateMachineInstance: StateMachineInstance,
         elapsed: Float
@@ -695,7 +712,6 @@ class RiveFileController(
      * Release a reference associated with this Controller.
      * If [refs] == 0, then give up all resources and [release] the file
      */
-    @Synchronized
     override fun release(): Int {
         val count = super.release()
         require(count >= 0)

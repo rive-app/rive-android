@@ -1,6 +1,8 @@
 package app.rive.runtime.kotlin.renderers
 
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
@@ -22,8 +24,7 @@ abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val type: RendererType = Rive.defaultRendererType,
     val trace: Boolean = false
-) :
-    NativeObject(NULL_POINTER),
+) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
     // From NativeObject.
     external override fun cppDelete(pointer: Long)
@@ -91,9 +92,7 @@ abstract class Renderer(
     fun start() {
         if (isPlaying) return
         if (!isAttached) return
-        if (!hasCppObject) {
-            return
-        }
+        if (!hasCppObject) return
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
@@ -120,9 +119,7 @@ abstract class Renderer(
     @CallSuper
     internal fun stopThread() {
         if (!isPlaying) return
-        if (!hasCppObject) {
-            return
-        }
+        if (!hasCppObject) return
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
@@ -147,7 +144,9 @@ abstract class Renderer(
     }
 
     open fun scheduleFrame() {
-        Choreographer.getInstance().postFrameCallback(this)
+        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+            Choreographer.getInstance().postFrameCallback(this@Renderer)
+        }
     }
 
 

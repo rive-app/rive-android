@@ -5,6 +5,7 @@ import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * [Artboard]s as designed in the Rive animation editor.
@@ -17,7 +18,8 @@ import app.rive.runtime.kotlin.core.errors.TextValueRunException
  *
  * The constructor uses a [unsafeCppPointer] to point to its c++ counterpart object.
  */
-class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
+class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
+    NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
 
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
@@ -47,7 +49,6 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
 
     external override fun cppDelete(pointer: Long)
 
-
     /**
      * Get the [name] of the Artboard.
      */
@@ -76,7 +77,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
         if (animationPointer == NULL_POINTER) {
             throw AnimationException("No Animation found at index $index.")
         }
-        val lai = LinearAnimationInstance(animationPointer)
+        val lai = LinearAnimationInstance(animationPointer, fileLock)
         dependencies.add(lai)
         return lai
     }
@@ -93,7 +94,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
                         "Available Animations: ${animationNames.map { "\"$it\"" }}\""
             )
         }
-        val lai = LinearAnimationInstance(animationPointer)
+        val lai = LinearAnimationInstance(animationPointer, fileLock)
         dependencies.add(lai)
         return lai
     }
@@ -121,7 +122,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
-        val smi = StateMachineInstance(stateMachinePointer)
+        val smi = StateMachineInstance(stateMachinePointer, fileLock)
         dependencies.add(smi)
         return smi
     }
@@ -135,7 +136,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
-        val smi = StateMachineInstance(stateMachinePointer)
+        val smi = StateMachineInstance(stateMachinePointer, fileLock)
         dependencies.add(smi)
         return smi
     }
@@ -178,16 +179,15 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
      *
      * [elapsedTime] is currently not taken into account.
      */
-    @Synchronized
     fun advance(elapsedTime: Float): Boolean {
-        return cppAdvance(cppPointer, elapsedTime)
+        synchronized(fileLock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
     /**
      * Draw the the artboard to the [renderer].
      */
     fun drawSkia(rendererAddress: Long) {
-        cppDrawSkia(cppPointer, rendererAddress)
+        synchronized(fileLock) { cppDrawSkia(cppPointer, rendererAddress) }
     }
 
     /**
@@ -195,7 +195,7 @@ class Artboard(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
      * Also align the artboard to the render surface
      */
     fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
-        cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment)
+        synchronized(fileLock) { cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment) }
     }
 
     /**

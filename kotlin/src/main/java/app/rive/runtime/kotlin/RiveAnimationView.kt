@@ -812,7 +812,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Called from TextureView.onAttachedToWindow() - override for implementing a custom renderer.
      */
     override fun createRenderer(): Renderer {
-        // Make the Renderer again every time this is visible and reset its state.
         return RiveArtboardRenderer(
             trace = rendererAttributes.riveTraceAnimations,
             controller = controller,
@@ -875,7 +874,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     @ControllerStateManagement
-    fun saveControllerState(): ControllerState {
+    fun saveControllerState(): ControllerState? {
         // Invalidate the old resource to prevent it from loading again.
         rendererAttributes.resource = null
         return controller.saveControllerState()
@@ -1042,9 +1041,9 @@ class RiveViewLifecycleObserver(private val dependencies: List<RefCount>) :
     override fun onStop(owner: LifecycleOwner) {}
 
     /**
-     * DefaultLifecycleObserver.onDestroy() is called when the LifecycleOwner's onDestroy() method
+     * [DefaultLifecycleObserver] [onDestroy()] is called when the [LifecycleOwner]'s [onDestroy()] method
      * is called.
-     * This typically happens when the Activity or Fragment is in the process of being permanently
+     * This typically happens when the [Activity] or [Fragment] is in the process of being permanently
      * destroyed.
      */
     @CallSuper

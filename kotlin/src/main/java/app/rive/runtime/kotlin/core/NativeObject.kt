@@ -33,6 +33,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
         set(value) {
             unsafeCppPointer = value
         }
+        @Throws(RiveException::class)
         get() {
             if (!hasCppObject) {
                 // we are not using the objects toString, because that could itself call native methods
@@ -56,10 +57,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
+    @Throws(IllegalArgumentException::class)
     @Synchronized
     override fun acquire(): Int {
         val count = super.acquire()
-        require(count >= 0)
+        require(count > 1) // Never acquire a disposed object.
         return count
     }
 
@@ -68,10 +70,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      *
      * @throws IllegalArgumentException if refs already is 0.
      */
+    @Throws(IllegalArgumentException::class)
     @Synchronized
     override fun release(): Int {
         val count = super.release()
-        require(count >= 0)
+        require(count >= 0) // Never release a disposed object.
 
         if (count == 0 && hasCppObject) {
             dispose()
@@ -83,8 +86,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      * Disposes of this reference and potentially any of the dependents.
      *
      * Uses [refs] to keep track of how many objects are using this NativeObject.
-     * If refs reaches 0 the object can be disposed.
+     * When refs == 0 the object will be disposed.
+     *
+     * @throws IllegalArgumentException if refs is != 0
      */
+    @Throws(IllegalArgumentException::class)
     @Synchronized
     private fun dispose() {
         require(refs.get() == 0)

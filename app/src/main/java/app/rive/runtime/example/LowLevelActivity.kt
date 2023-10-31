@@ -73,9 +73,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
                 artboard.let {
                     save()
                     align(Fit.COVER, Alignment.CENTER, RectF(0.0f, 0.0f, width, height), it.bounds)
-                    it.drawSkia(
-                        cppPointer
-                    )
+                    it.drawSkia(cppPointer)
                     restore()
                 }
             }

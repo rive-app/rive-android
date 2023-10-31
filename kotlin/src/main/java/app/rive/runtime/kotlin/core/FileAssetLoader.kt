@@ -53,30 +53,36 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
 abstract class ContextAssetLoader(protected val context: Context) : FileAssetLoader()
 
 @ExperimentalAssetLoader
-open class FallbackAssetLoader(
+class FallbackAssetLoader(
     context: Context,
     loadCDNAssets: Boolean = true,
     loader: FileAssetLoader? = null,
 ) : FileAssetLoader() {
 
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    val loaders = mutableListOf<FileAssetLoader>().apply {
-        loader?.let { add(it) }
-        if (loadCDNAssets) add(CDNAssetLoader(context))
+    val loaders = mutableListOf<FileAssetLoader>()
+
+    init {
+        loader?.let { appendLoader(it) }
+        if (loadCDNAssets) {
+            appendLoader(CDNAssetLoader(context))
+        }
     }
 
-    open fun appendLoader(loader: FileAssetLoader) {
+    fun appendLoader(loader: FileAssetLoader) {
         loaders.add(loader)
+        // Make sure everything is disposed.
+        dependencies.add(loader)
+    }
+
+    fun prependLoader(loader: FileAssetLoader) {
+        loaders.add(0, loader)
+        // Make sure everything is disposed.
+        dependencies.add(loader)
     }
 
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         return loaders.any { it.loadContents(asset, inBandBytes) }
-    }
-
-    override fun release(): Int {
-        // Release up all loaders.
-        loaders.forEach { it.release() }
-        return super.release()
     }
 
     private fun resetCDNLoader(needsCDNLoader: Boolean, context: Context) {
@@ -85,7 +91,10 @@ open class FallbackAssetLoader(
         if (cdnLoaderIndex == -1 && needsCDNLoader) {
             appendLoader(CDNAssetLoader(context))
         } else if (cdnLoaderIndex >= 0 && !needsCDNLoader) {
-            loaders.removeAt(cdnLoaderIndex).release()
+            loaders.removeAt(cdnLoaderIndex).let {
+                dependencies.remove(it)
+                it.release()
+            }
         }
     }
 
@@ -97,7 +106,7 @@ open class FallbackAssetLoader(
         // First, try setting up a custom loader.
         builder.assetLoader?.let {
             // Prepend loader to make sure custom always executes first.
-            loaders.add(0, it)
+            prependLoader(it)
         }
         resetCDNLoader(builder.shouldLoadCDNAssets, builder.context)
     }

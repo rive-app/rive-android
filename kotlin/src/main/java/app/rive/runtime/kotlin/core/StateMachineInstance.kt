@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import app.rive.runtime.kotlin.core.errors.RiveEventException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
+import java.util.concurrent.locks.ReentrantLock
 
 
 /**
@@ -14,13 +15,10 @@ import app.rive.runtime.kotlin.core.errors.StateMachineInputException
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
+class StateMachineInstance(unsafeCppPointer: Long, private val artboardLock: ReentrantLock) :
+    PlayableInstance,
     NativeObject(unsafeCppPointer) {
-    private external fun cppAdvance(
-        pointer: Long,
-        elapsedTime: Float
-    ): Boolean
-
+    private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
     private external fun cppStateChangedCount(cppPointer: Long): Int
@@ -49,25 +47,23 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
 
     /**
      * Advance the state machine by the [elapsedTime] in seconds.
-     * &
-     * Applies the state machine instance's current set of transformations to an [artboard].
      *
      * Returns true if the state machine will continue to animate after this advance.
      */
     fun advance(elapsed: Float): Boolean {
-        return cppAdvance(cppPointer, elapsed)
+        synchronized(artboardLock) { return cppAdvance(cppPointer, elapsed) }
     }
 
     fun pointerDown(x: Float, y: Float) {
-        return cppPointerDown(cppPointer, x, y)
+        synchronized(artboardLock) { return cppPointerDown(cppPointer, x, y) }
     }
 
     fun pointerUp(x: Float, y: Float) {
-        return cppPointerUp(cppPointer, x, y)
+        synchronized(artboardLock) { return cppPointerUp(cppPointer, x, y) }
     }
 
     fun pointerMove(x: Float, y: Float) {
-        return cppPointerMove(cppPointer, x, y)
+        synchronized(artboardLock) { return cppPointerMove(cppPointer, x, y) }
     }
 
     /**
@@ -91,15 +87,15 @@ class StateMachineInstance(unsafeCppPointer: Long) : PlayableInstance,
     private fun convertInput(input: SMIInput): SMIInput {
         val convertedInput = when {
             input.isBoolean -> {
-                SMIBoolean(input.cppPointer)
+                SMIBoolean(input.cppPointer, artboardLock)
             }
 
             input.isTrigger -> {
-                SMITrigger(input.cppPointer)
+                SMITrigger(input.cppPointer, artboardLock)
             }
 
             input.isNumber -> {
-                SMINumber(input.cppPointer)
+                SMINumber(input.cppPointer, artboardLock)
             }
 
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
