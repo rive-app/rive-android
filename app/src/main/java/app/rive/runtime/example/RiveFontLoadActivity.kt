@@ -2,9 +2,7 @@ package app.rive.runtime.example
 
 import android.content.Context
 import android.os.Bundle
-import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.core.ExperimentalAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.ContextAssetLoader
 import kotlin.random.Random
@@ -19,7 +17,6 @@ class FontLoadActivity : AppCompatActivity() {
     }
 }
 
-@ExperimentalAssetLoader
 open class HandleSimpleRiveAsset(context: Context) : ContextAssetLoader(context) {
     private val fontPool = arrayOf(
         R.raw.montserrat,

@@ -10,7 +10,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 
 @ControllerStateManagement
@@ -174,16 +173,6 @@ class RiveViewLifecycleTest {
         }
     }
 
-    @Test(expected = NullPointerException::class)
-    fun viewGetMissingRenderer() {
-        UiThreadStatement.runOnUiThread {
-            mockView.setRiveResource(R.raw.multipleartboards)
-            assertNull(mockView.artboardRenderer)
-            mockView.artboardName = "artboard1"
-            mockView.artboardName // 💥 renderer doesn't exist
-        }
-    }
-
     @Test
     fun viewSetRiveFile() {
         UiThreadStatement.runOnUiThread {
@@ -262,7 +251,7 @@ class RiveViewLifecycleTest {
             assertNull(mockView.rendererAttributes.resource)
             mockView.restoreControllerState(savedState)
             assertTrue(mockView.controller.isActive)
-            assertTrue(mockView.controller.hasPlayingAnimations)
+            assertTrue(mockView.controller.isAdvancing)
 
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()

@@ -17,16 +17,16 @@ class RiveControllerTest {
     @Test
     fun initEmpty() {
         val fileController = RiveFileController()
-        assert(!fileController.hasPlayingAnimations)
+        assert(!fileController.isAdvancing)
         fileController.play()
         // Without file nor artboard there's nothing to play...
-        assert(!fileController.hasPlayingAnimations)
+        assert(!fileController.isAdvancing)
     }
 
     @Test
     fun initEmptyAddFile() {
         val fileController = RiveFileController()
-        assertFalse(fileController.hasPlayingAnimations)
+        assertFalse(fileController.isAdvancing)
         val bytes = appContext.resources
             .openRawResource(R.raw.off_road_car_blog)
             .use {
@@ -39,7 +39,7 @@ class RiveControllerTest {
         fileController.setRiveFile(file)
         assertNotNull(fileController.activeArtboard)
         // Setting the File with autoplay (default) starts the controller.
-        assertTrue(fileController.hasPlayingAnimations)
+        assertTrue(fileController.isAdvancing)
     }
 
     @Test
@@ -51,10 +51,10 @@ class RiveControllerTest {
             }
         val fileController = RiveFileController(file = file, autoplay = false)
         assertNull(fileController.activeArtboard)
-        assertFalse(fileController.hasPlayingAnimations)
+        assertFalse(fileController.isAdvancing)
         // Cannot play without an active artboard.
         fileController.play()
-        assertFalse(fileController.hasPlayingAnimations)
+        assertFalse(fileController.isAdvancing)
     }
 
     @Test
@@ -66,7 +66,7 @@ class RiveControllerTest {
             }
         val fileController = RiveFileController(file = file, autoplay = false)
         assertNull(fileController.activeArtboard)
-        assertFalse(fileController.hasPlayingAnimations)
+        assertFalse(fileController.isAdvancing)
 
         fileController.apply {
             // Select the first artboard.
@@ -74,7 +74,7 @@ class RiveControllerTest {
             // Play the first animation
             play()
         }
-        assertTrue(fileController.hasPlayingAnimations)
+        assertTrue(fileController.isAdvancing)
         assertEquals("idle", fileController.animations.first().name)
     }
 
@@ -104,20 +104,20 @@ class RiveControllerTest {
             }
         val firstController = RiveFileController()
         assertNull(firstController.activeArtboard)
-        assertFalse(firstController.hasPlayingAnimations)
+        assertFalse(firstController.isAdvancing)
 
         firstController.setRiveFile(file)
         assertNotNull(firstController.activeArtboard)
-        assertTrue(firstController.hasPlayingAnimations)
+        assertTrue(firstController.isAdvancing)
         assertEquals(1, firstController.animations.size)
 
         val secondController = RiveFileController()
         assertNull(secondController.activeArtboard)
-        assertFalse(secondController.hasPlayingAnimations)
+        assertFalse(secondController.isAdvancing)
         // Setting the *same* file.
         secondController.setRiveFile(file)
         assertNotNull(secondController.activeArtboard)
-        assertTrue(secondController.hasPlayingAnimations)
+        assertTrue(secondController.isAdvancing)
         assertEquals(1, secondController.animations.size)
 
         // Different Artboard instances.

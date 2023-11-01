@@ -12,7 +12,6 @@ import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
@@ -124,10 +123,10 @@ class RiveViewStateMachineTest {
 
             assert(view.artboardRenderer != null)
             val renderer = view.artboardRenderer!!
-            assertEquals(1, renderer.stateMachines.size)
+            assertEquals(1, view.stateMachines.size)
             renderer.advance(2f)
             assertEquals(false, view.isPlaying)
-            assertEquals(0, renderer.stateMachines.size)
+            assertEquals(0, view.stateMachines.size)
         }
     }
 

@@ -111,6 +111,9 @@ class RiveStateMachineStateResolutionTest {
                 autoplay = false
             )
             mockView.setNumberState("StateResolution", "Choice", 1f)
+            // (umberto) Force an advance to digest the new input value now that those are queued
+            mockView.controller.advance(0f)
+            //
             mockView.play(
                 "StateResolution",
                 isStateMachine = true,
@@ -180,6 +183,9 @@ class RiveStateMachineStateResolutionTest {
                 autoplay = false
             )
             mockView.setNumberState("StateResolution", "Choice", 2f)
+            // (umberto) Force an advance to digest the new input value now that those are queued
+            mockView.artboardRenderer!!.advance(0f)
+            //
             mockView.play(
                 "StateResolution",
                 isStateMachine = true,
@@ -187,9 +193,9 @@ class RiveStateMachineStateResolutionTest {
             )
             mockView.fireState("StateResolution", "Jump")
             assert(mockView.artboardRenderer != null)
-            // trigger is registered, but it wont be picked up until we evaluate the state next.
+            // (umberto) Force an advance to digest the new input value now that those are queued
             mockView.artboardRenderer!!.advance(0f)
-
+            //
             assertEquals(2, observer.states.size)
 
             assertEquals("StateResolution", observer.states[0].stateMachineName)

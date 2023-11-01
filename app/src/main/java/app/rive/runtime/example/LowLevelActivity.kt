@@ -70,18 +70,27 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         val renderer = object : Renderer() {
 
             override fun draw() {
-                artboard.let {
-                    save()
-                    align(Fit.COVER, Alignment.CENTER, RectF(0.0f, 0.0f, width, height), it.bounds)
-                    it.drawSkia(cppPointer)
-                    restore()
+                synchronized(file.lock) {
+                    artboard.let {
+                        save()
+                        align(
+                            Fit.COVER,
+                            Alignment.CENTER,
+                            RectF(0.0f, 0.0f, width, height),
+                            it.bounds
+                        )
+                        it.drawSkia(cppPointer)
+                        restore()
+                    }
                 }
             }
 
             override fun advance(elapsed: Float) {
-                animationInstance.advance(elapsed)
-                animationInstance.apply()
-                artboard.advance(elapsed)
+                synchronized(file.lock) {
+                    animationInstance.advance(elapsed)
+                    animationInstance.apply()
+                    artboard.advance(elapsed)
+                }
             }
         }
         // Call setup file only once we created the renderer.

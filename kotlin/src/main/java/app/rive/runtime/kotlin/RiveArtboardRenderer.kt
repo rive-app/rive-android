@@ -1,19 +1,11 @@
 package app.rive.runtime.kotlin
 
-import android.graphics.PointF
-import android.graphics.RectF
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.Artboard
-import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.File
-import app.rive.runtime.kotlin.core.Helpers
-import app.rive.runtime.kotlin.core.Loop
-import app.rive.runtime.kotlin.core.PlayableInstance
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.renderers.Renderer
-import kotlin.DeprecationLevel.WARNING
 
 
 enum class PointerEvents {
@@ -21,57 +13,23 @@ enum class PointerEvents {
 }
 
 open class RiveArtboardRenderer(
-    // TODO: would love to get rid of these three fields here.
-    var artboardName: String? = null,
-    var animationName: String? = null,
-    var stateMachineName: String? = null,
     trace: Boolean = false,
     rendererType: RendererType = Rive.defaultRendererType,
-    controller: RiveFileController,
+    private var controller: RiveFileController,
 ) : Renderer(rendererType, trace) {
-    private var controller: RiveFileController = controller.also {
-        it.onStart = ::start
-        it.acquire()
-        // Add controller to the Renderer dependencies.
-        // When the renderer is disposed, it'll `release()` `it`
-        dependencies.add(it)
+
+    private val fit get() = controller.fit
+    private val alignment get() = controller.alignment
+
+    init {
+        controller.also {
+            it.onStart = ::start
+            it.acquire()
+            // Add controller to the Renderer dependencies.
+            // When the renderer is disposed, it'll `release()` `it`
+            dependencies.add(it)
+        }
     }
-
-    var targetBounds: RectF = RectF()
-    var loop: Loop
-        get() = controller.loop
-        set(value) {
-            controller.loop = value
-        }
-    var activeArtboard: Artboard?
-        get() = controller.activeArtboard
-        set(value) {
-            controller.activeArtboard = value
-        }
-    val file: File? get() = controller.file
-    val animations get() = controller.animations
-    val playingAnimations get() = controller.playingAnimations
-    val stateMachines get() = controller.stateMachines
-    val playingStateMachines get() = controller.playingStateMachines
-    var autoplay: Boolean
-        get() = controller.autoplay
-        set(value) {
-            controller.autoplay = value
-        }
-
-    var fit = controller.fit
-        set(value) {
-            field = value
-            // make sure we draw the next frame even if we are not playing right now
-            start()
-        }
-
-    var alignment = controller.alignment
-        set(value) {
-            field = value
-            // make sure we draw the next frame even if we are not playing right now
-            start()
-        }
 
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
@@ -81,7 +39,7 @@ open class RiveArtboardRenderer(
             return
         }
         if (controller.isActive) {
-            activeArtboard?.drawSkia(cppPointer, fit, alignment)
+            controller.activeArtboard?.drawSkia(cppPointer, fit, alignment)
         }
     }
 
@@ -96,261 +54,31 @@ open class RiveArtboardRenderer(
             controller.advance(elapsed)
         }
         // Are we done playing?
-        if (!controller.hasPlayingAnimations) {
+        if (!controller.isAdvancing) {
             stopThread()
         }
     }
 
     internal fun acquireFile(file: File) {
-        // Make sure we release the old file first.
+        synchronized(file.lock) { file.acquire() }
+        // Make sure we release the old file if one was set.
         dependencies.firstOrNull { rc -> rc is File }?.let { fileDep ->
             dependencies.remove(fileDep)
             fileDep.release()
         }
-        file.acquire()
         dependencies.add(file)
     }
-
-
-    // PUBLIC FUNCTIONS
-    fun setRiveFile(file: File) {
-        controller.reset()
-        controller.file = file
-        // The Renderer takes care of disposing of this file.
-        dependencies.add(file)
-        selectArtboard()
-    }
-
-    fun setArtboardByName(artboardName: String?) {
-        if (this.artboardName == artboardName) {
-            return
-        }
-
-        controller.stopAnimations()
-        this.artboardName = artboardName
-        selectArtboard()
-    }
-
-    fun artboardBounds(): RectF = activeArtboard?.bounds ?: RectF()
 
     fun reset() {
         controller.stopAnimations()
+        controller.reset()
         stop()
-        selectArtboard()
+        controller.selectArtboard()
         start()
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING, replaceWith =
-        ReplaceWith("controller.play(animationNames, loop, direction, areStateMachines, settleInitialState)")
-    )
-    fun play(
-        animationNames: List<String>,
-        loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO,
-        areStateMachines: Boolean = false,
-        settleInitialState: Boolean = true,
-    ) {
-        controller.play(animationNames, loop, direction, areStateMachines, settleInitialState)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING, replaceWith =
-        ReplaceWith("controller.play(animationName, loop, direction, isStateMachine, settleInitialState)")
-    )
-    fun play(
-        animationName: String,
-        loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO,
-        isStateMachine: Boolean = false,
-        settleInitialState: Boolean = true,
-    ) {
-        controller.play(animationName, loop, direction, isStateMachine, settleInitialState)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.play(loop, direction, settleInitialState)")
-    )
-    fun play(
-        loop: Loop = Loop.AUTO,
-        direction: Direction = Direction.AUTO,
-        settleInitialState: Boolean = true,
-    ) {
-        controller.play(loop, direction, settleInitialState)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING, replaceWith = ReplaceWith("controller.pause()")
-    )
-    fun pause() {
-        controller.pause()
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.pause(animationNames, areStateMachines)"),
-    )
-    fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller.pause(animationNames, areStateMachines)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.pause(animationName, isStateMachine)"),
-    )
-    fun pause(animationName: String, isStateMachine: Boolean = false) {
-        controller.pause(animationName, isStateMachine)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING, replaceWith = ReplaceWith("controller.stopAnimations()"),
-    )
-    fun stopAnimations() {
-        controller.stopAnimations()
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.stopAnimations(animationNames, areStateMachines)"),
-    )
-    fun stopAnimations(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller.stopAnimations(animationNames, areStateMachines)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.stopAnimations(animationName, isStateMachine)"),
-    )
-    fun stopAnimations(animationName: String, isStateMachine: Boolean = false) {
-        controller.stopAnimations(animationName, isStateMachine)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith = ReplaceWith("controller.fireState(stateMachineName, inputName)"),
-    )
-    fun fireState(stateMachineName: String, inputName: String) {
-        controller.fireState(stateMachineName, inputName)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith =
-        ReplaceWith("controller.setBooleanState(stateMachineName, inputName, value)"),
-    )
-    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        controller.setBooleanState(stateMachineName, inputName, value)
-    }
-
-    @Deprecated(
-        "Use RiveFileController directly",
-        level = WARNING,
-        replaceWith =
-        ReplaceWith("controller.setNumberState(stateMachineName, inputName, value)"),
-    )
-    fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        controller.setNumberState(stateMachineName, inputName, value)
-    }
-
-    fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
-        /// TODO: once we start composing artboards we may need x,y offsets here...
-        val artboardEventLocation = Helpers.convertToArtboardSpace(
-            targetBounds,
-            PointF(x, y),
-            fit,
-            alignment,
-            artboardBounds()
-        )
-        controller.stateMachines.forEach {
-
-            when (eventType) {
-                PointerEvents.POINTER_DOWN -> it.pointerDown(
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
-
-                PointerEvents.POINTER_UP -> it.pointerUp(
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
-
-                PointerEvents.POINTER_MOVE -> it.pointerMove(
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
-
-            }
-            controller.play(it, settleStateMachineState = false)
-        }
-    }
-
-    private fun selectArtboard() {
-        controller.file?.let { file ->
-            artboardName?.let { artboardName ->
-                val selectedArtboard = file.artboard(artboardName)
-                setArtboard(selectedArtboard)
-            } ?: run {
-                val selectedArtboard = file.firstArtboard
-                setArtboard(selectedArtboard)
-            }
-        }
-    }
-
-    private fun setArtboard(artboard: Artboard) {
-        // This goes straight to setting the State.
-        this.activeArtboard = artboard
-
-        if (autoplay) {
-            animationName?.let { animationName ->
-                controller.play(animationName = animationName)
-            } ?: run {
-                stateMachineName?.let { stateMachineName ->
-                    // With autoplay, we default to settling the initial state
-                    controller.play(
-                        animationName = stateMachineName,
-                        isStateMachine = true,
-                        settleInitialState = true
-                    )
-                } ?: run {
-                    // With autoplay, we default to settling the initial state
-                    controller.play(settleInitialState = true)
-                }
-
-            }
-        } else {
-            // (umberto) pretty sure this API is unused, but it might need deprecation and removal
-            this.activeArtboard?.advance(0f)
-            start()
-        }
     }
 
     override fun disposeDependencies() {
         // Lock to make sure things are disposed in an orderly manner.
-        synchronized(file?.lock ?: this) { super.disposeDependencies() }
-    }
-
-    @Deprecated(
-        "Use RiveFileController.Listener",
-        level = WARNING,
-        replaceWith = ReplaceWith("Replace with RiveController.Listener")
-    )
-    interface Listener {
-        fun notifyPlay(animation: PlayableInstance)
-        fun notifyPause(animation: PlayableInstance)
-        fun notifyStop(animation: PlayableInstance)
-        fun notifyLoop(animation: PlayableInstance)
-        fun notifyStateChanged(stateMachineName: String, stateName: String)
+        synchronized(controller.file?.lock ?: this) { super.disposeDependencies() }
     }
 }

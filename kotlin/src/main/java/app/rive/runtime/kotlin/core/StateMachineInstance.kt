@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantLock
  * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
  * that the [StateMachine] makes to components in an [Artboard].
  */
-class StateMachineInstance(unsafeCppPointer: Long, private val artboardLock: ReentrantLock) :
+class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     PlayableInstance,
     NativeObject(unsafeCppPointer) {
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
@@ -51,19 +51,19 @@ class StateMachineInstance(unsafeCppPointer: Long, private val artboardLock: Ree
      * Returns true if the state machine will continue to animate after this advance.
      */
     fun advance(elapsed: Float): Boolean {
-        synchronized(artboardLock) { return cppAdvance(cppPointer, elapsed) }
+        synchronized(lock) { return cppAdvance(cppPointer, elapsed) }
     }
 
     fun pointerDown(x: Float, y: Float) {
-        synchronized(artboardLock) { return cppPointerDown(cppPointer, x, y) }
+        synchronized(lock) { return cppPointerDown(cppPointer, x, y) }
     }
 
     fun pointerUp(x: Float, y: Float) {
-        synchronized(artboardLock) { return cppPointerUp(cppPointer, x, y) }
+        synchronized(lock) { return cppPointerUp(cppPointer, x, y) }
     }
 
     fun pointerMove(x: Float, y: Float) {
-        synchronized(artboardLock) { return cppPointerMove(cppPointer, x, y) }
+        synchronized(lock) { return cppPointerMove(cppPointer, x, y) }
     }
 
     /**
@@ -86,18 +86,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val artboardLock: Ree
 
     private fun convertInput(input: SMIInput): SMIInput {
         val convertedInput = when {
-            input.isBoolean -> {
-                SMIBoolean(input.cppPointer, artboardLock)
-            }
-
-            input.isTrigger -> {
-                SMITrigger(input.cppPointer, artboardLock)
-            }
-
-            input.isNumber -> {
-                SMINumber(input.cppPointer, artboardLock)
-            }
-
+            input.isBoolean -> SMIBoolean(input.cppPointer)
+            input.isTrigger -> SMITrigger(input.cppPointer)
+            input.isNumber -> SMINumber(input.cppPointer)
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
         return convertedInput

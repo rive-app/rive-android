@@ -26,9 +26,9 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
-    override fun onTouchEvent(event: MotionEvent?): Boolean {
+    override fun onTouchEvent(event: MotionEvent): Boolean {
         // Pass through for performing click
-        when (event?.action) {
+        when (event.action) {
             MotionEvent.ACTION_UP -> performClick()
         }
         return super.onTouchEvent(event)
@@ -36,12 +36,12 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     override fun performClick(): Boolean {
         pressAnimation?.let {
-            artboardRenderer?.stopAnimations()
-            artboardRenderer?.play(it)
+            controller.stopAnimations()
+            controller.play(it)
             return true
         } ?: run {
-            artboardRenderer?.stopAnimations()
-            artboardRenderer?.play()
+            controller.stopAnimations()
+            controller.play()
         }
         return super.performClick()
     }

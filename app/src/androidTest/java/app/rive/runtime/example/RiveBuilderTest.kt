@@ -131,12 +131,11 @@ class RiveBuilderTest {
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
-            val renderer = riveView.artboardRenderer
             assertTrue(controller.isActive)
             assertFalse(controller.autoplay)
-            assertEquals(Alignment.BOTTOM_CENTER, renderer?.alignment)
-            assertEquals(Fit.FIT_HEIGHT, renderer?.fit)
-            assertEquals(Loop.PINGPONG, renderer?.loop)
+            assertEquals(Alignment.BOTTOM_CENTER, controller.alignment)
+            assertEquals(Fit.FIT_HEIGHT, controller.fit)
+            assertEquals(Loop.PINGPONG, controller.loop)
             assertTrue(riveView.artboardRenderer!!.trace)
             assertEquals("artboard2", controller.activeArtboard?.name)
             assertEquals(

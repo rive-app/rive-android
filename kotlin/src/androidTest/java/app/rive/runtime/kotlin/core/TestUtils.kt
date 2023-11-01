@@ -120,7 +120,7 @@ class TestUtils {
 
 
         fun setBounds(width: Float, height: Float) {
-            (renderer as MockNoopArtboardRenderer).targetBounds = RectF(0f, 0f, width, height)
+            controller.targetBounds = RectF(0f, 0f, width, height)
         }
 
         private fun mockAttach() {

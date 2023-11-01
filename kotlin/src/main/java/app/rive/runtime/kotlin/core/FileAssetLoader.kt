@@ -11,19 +11,6 @@ import com.android.volley.Response
 import com.android.volley.toolbox.HttpHeaderParser
 import com.android.volley.toolbox.Volley
 
-/**
- * This annotation marks the use of [FileAssetLoader]s as experimental as we iterate through
- * the API and validate its consistency.
- */
-@RequiresOptIn(
-    level = RequiresOptIn.Level.WARNING,
-    message = "The FileAssetLoader API is experimental"
-)
-@Retention(AnnotationRetention.BINARY)
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-annotation class ExperimentalAssetLoader
-
-@ExperimentalAssetLoader
 abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
     init {
         // Make the corresponding C++ object.
@@ -49,10 +36,8 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
     }
 }
 
-@ExperimentalAssetLoader
 abstract class ContextAssetLoader(protected val context: Context) : FileAssetLoader()
 
-@ExperimentalAssetLoader
 class FallbackAssetLoader(
     context: Context,
     loadCDNAssets: Boolean = true,
@@ -112,7 +97,6 @@ class FallbackAssetLoader(
     }
 }
 
-@ExperimentalAssetLoader
 open class CDNAssetLoader(context: Context) : FileAssetLoader() {
     private val tag = javaClass.simpleName
 

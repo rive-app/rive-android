@@ -7,18 +7,12 @@ import android.view.Choreographer
 import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.VisibleForTesting
+import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
-
-@Deprecated(
-    "RendererSkia is now Renderer",
-    level = DeprecationLevel.ERROR,
-    replaceWith = ReplaceWith("Renderer")
-)
-abstract class RendererSkia
 
 abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
@@ -73,7 +67,10 @@ abstract class Renderer(
     var isAttached: Boolean = false
         protected set
 
+    @WorkerThread
     abstract fun draw()
+
+    @WorkerThread
     abstract fun advance(elapsed: Float)
 
     /**

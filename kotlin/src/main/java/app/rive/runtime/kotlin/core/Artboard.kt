@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * The constructor uses a [unsafeCppPointer] to point to its c++ counterpart object.
  */
-class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
+class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
 
@@ -77,7 +77,7 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
         if (animationPointer == NULL_POINTER) {
             throw AnimationException("No Animation found at index $index.")
         }
-        val lai = LinearAnimationInstance(animationPointer, fileLock)
+        val lai = LinearAnimationInstance(animationPointer, lock)
         dependencies.add(lai)
         return lai
     }
@@ -94,7 +94,7 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
                         "Available Animations: ${animationNames.map { "\"$it\"" }}\""
             )
         }
-        val lai = LinearAnimationInstance(animationPointer, fileLock)
+        val lai = LinearAnimationInstance(animationPointer, lock)
         dependencies.add(lai)
         return lai
     }
@@ -122,7 +122,7 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, fileLock)
+        val smi = StateMachineInstance(stateMachinePointer, lock)
         dependencies.add(smi)
         return smi
     }
@@ -136,7 +136,7 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, fileLock)
+        val smi = StateMachineInstance(stateMachinePointer, lock)
         dependencies.add(smi)
         return smi
     }
@@ -180,14 +180,14 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
      * [elapsedTime] is currently not taken into account.
      */
     fun advance(elapsedTime: Float): Boolean {
-        synchronized(fileLock) { return cppAdvance(cppPointer, elapsedTime) }
+        synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
     /**
      * Draw the the artboard to the [renderer].
      */
     fun drawSkia(rendererAddress: Long) {
-        synchronized(fileLock) { cppDrawSkia(cppPointer, rendererAddress) }
+        synchronized(lock) { cppDrawSkia(cppPointer, rendererAddress) }
     }
 
     /**
@@ -195,7 +195,7 @@ class Artboard(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
      * Also align the artboard to the render surface
      */
     fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
-        synchronized(fileLock) { cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment) }
+        synchronized(lock) { cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment) }
     }
 
     /**

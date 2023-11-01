@@ -13,7 +13,7 @@ import java.util.concurrent.locks.ReentrantLock
  */
 class LinearAnimationInstance(
     unsafeCppPointer: Long,
-    private val artboardLock: ReentrantLock,
+    private val lock: ReentrantLock,
     var mix: Float = 1.0f
 ) :
     PlayableInstance, NativeObject(unsafeCppPointer) {
@@ -41,7 +41,7 @@ class LinearAnimationInstance(
      *      otherwise it returns null.
      */
     fun advance(elapsedTime: Float): Loop? {
-        synchronized(artboardLock) { return cppAdvance(cppPointer, elapsedTime) }
+        synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
 
@@ -52,7 +52,7 @@ class LinearAnimationInstance(
      * other animations applied to the [artboard].
      */
     fun apply() {
-        synchronized(artboardLock) { cppApply(cppPointer, mix) }
+        synchronized(lock) { cppApply(cppPointer, mix) }
     }
 
     /**
@@ -61,7 +61,7 @@ class LinearAnimationInstance(
      * Returns true if the animation will continue to animate after this advance.
      */
     fun apply(elapsed: Float): Boolean {
-        synchronized(artboardLock) { cppApply(cppPointer, mix) }
+        synchronized(lock) { cppApply(cppPointer, mix) }
         val loopType = cppAdvance(cppPointer, elapsed)
         return loopType != Loop.ONESHOT
     }
@@ -79,7 +79,7 @@ class LinearAnimationInstance(
      * Sets the animation's point in time to [time]
      */
     fun time(time: Float) {
-        synchronized(artboardLock) { cppSetTime(cppPointer, time) }
+        synchronized(lock) { cppSetTime(cppPointer, time) }
     }
 
     /**
@@ -91,7 +91,7 @@ class LinearAnimationInstance(
             val intDirection = cppGetDirection(cppPointer)
             return Direction.fromInt(intDirection) ?: throw IndexOutOfBoundsException()
         }
-        set(direction) = synchronized(artboardLock) { cppSetDirection(cppPointer, direction.value) }
+        set(direction) = synchronized(lock) { cppSetDirection(cppPointer, direction.value) }
 
     /**
      * Get the duration of an animation in frames, this does not take [workStart]
@@ -180,7 +180,7 @@ class LinearAnimationInstance(
             val intLoop = cppGetLoop(cppPointer)
             return Loop.fromIndex(intLoop)
         }
-        set(loop) = synchronized(artboardLock) { cppSetLoop(cppPointer, loop.ordinal) }
+        set(loop) = synchronized(lock) { cppSetLoop(cppPointer, loop.ordinal) }
 }
 
 

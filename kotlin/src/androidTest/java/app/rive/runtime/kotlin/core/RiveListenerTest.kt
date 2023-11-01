@@ -181,7 +181,7 @@ class RiveListenerTest {
             assert(view.artboardRenderer != null)
             val renderer = view.artboardRenderer!!
             renderer.advance(
-                renderer.animations.first().effectiveDurationInSeconds + 1
+                view.animations.first().effectiveDurationInSeconds + 1
             )
 
             assertEquals(1, observer.plays.size)
@@ -205,7 +205,7 @@ class RiveListenerTest {
             assert(view.artboardRenderer != null)
             val renderer = view.artboardRenderer!!
             renderer.advance(
-                renderer.animations.first().effectiveDurationInSeconds
+                view.animations.first().effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)
@@ -229,7 +229,7 @@ class RiveListenerTest {
             assert(view.artboardRenderer != null)
             val renderer = view.artboardRenderer!!
             renderer.advance(
-                renderer.animations.first().effectiveDurationInSeconds
+                view.animations.first().effectiveDurationInSeconds
             )
 
             assertEquals(1, observer.plays.size)

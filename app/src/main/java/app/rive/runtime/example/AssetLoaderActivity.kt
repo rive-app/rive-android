@@ -11,7 +11,6 @@ import app.rive.runtime.kotlin.core.ContextAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
 import app.rive.runtime.kotlin.core.BytesRequest
-import app.rive.runtime.kotlin.core.ExperimentalAssetLoader
 import app.rive.runtime.kotlin.core.Rive
 import com.android.volley.toolbox.Volley
 import com.google.android.material.tabs.TabLayoutMediator
@@ -20,7 +19,6 @@ import kotlin.random.Random
 class AssetLoaderActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAssetLoaderBinding
 
-    @ExperimentalAssetLoader
     override fun onCreate(savedInstanceState: Bundle?) {
         // Setup
         Rive.init(this)
@@ -56,7 +54,6 @@ class AssetLoaderActivity : AppCompatActivity() {
  *
  * The main purpose of this class is to demonstrate how create a custom [ContextAssetLoader] via XML.
  */
-@ExperimentalAssetLoader
 class WalleAssetLoader(context: Context) : ContextAssetLoader(context) {
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         val identifier =
@@ -73,7 +70,6 @@ class WalleAssetLoader(context: Context) : ContextAssetLoader(context) {
 /**
  * Loads a random image from picsum.photos.
  */
-@ExperimentalAssetLoader
 class RandomNetworkLoader(context: Context) : FileAssetLoader() {
     private val loremImage = "https://picsum.photos"
     private val queue = Volley.newRequestQueue(context)

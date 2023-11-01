@@ -380,13 +380,13 @@ class RiveViewTest {
             assert(mockView.artboardRenderer != null)
             assertEquals(
                 listOf("four", "three", "two", "one"),
-                mockView.artboardRenderer?.file?.firstArtboard?.animationNames
+                mockView.file?.firstArtboard?.animationNames
             )
 
             mockView.setRiveResource(R.raw.multipleartboards)
             assertEquals(
                 listOf("artboard2animation1", "artboard2animation2"),
-                mockView.artboardRenderer?.file?.firstArtboard?.animationNames
+                mockView.file?.firstArtboard?.animationNames
             )
         }
     }
@@ -564,9 +564,9 @@ class RiveViewTest {
 
             assert(mockView.artboardRenderer != null)
             mockView.play("one", Loop.PINGPONG)
-            val originalPointer = mockView.artboardRenderer!!.activeArtboard?.cppPointer
+            val originalPointer = mockView.controller.activeArtboard?.cppPointer
             mockView.reset()
-            assertNotEquals(mockView.artboardRenderer!!.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(mockView.controller.activeArtboard?.cppPointer, originalPointer)
             assert(!mockView.isPlaying)
         }
     }
@@ -587,9 +587,9 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = true)
             assertEquals(true, mockView.isPlaying)
             assert(mockView.artboardRenderer != null)
-            val originalPointer = mockView.artboardRenderer!!.activeArtboard?.cppPointer
+            val originalPointer = mockView.controller.activeArtboard?.cppPointer
             mockView.reset()
-            assertNotEquals(mockView.artboardRenderer!!.activeArtboard?.cppPointer, originalPointer)
+            assertNotEquals(mockView.controller.activeArtboard?.cppPointer, originalPointer)
             assertEquals(true, mockView.isPlaying)
         }
     }

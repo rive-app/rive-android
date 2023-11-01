@@ -1,15 +1,19 @@
 package app.rive.runtime.kotlin.controllers
 
+import android.graphics.PointF
+import android.graphics.RectF
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.Observable
+import app.rive.runtime.kotlin.PointerEvents
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
+import app.rive.runtime.kotlin.core.Helpers
 import app.rive.runtime.kotlin.core.LayerState
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.core.Loop
@@ -22,6 +26,7 @@ import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.Collections
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 @RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
@@ -51,8 +56,6 @@ class ControllerState internal constructor(
 typealias OnStartCallback = () -> Unit
 
 class RiveFileController(
-    var fit: Fit = Fit.CONTAIN,
-    var alignment: Alignment = Alignment.CENTER,
     var loop: Loop = Loop.AUTO,
     var autoplay: Boolean = true,
     file: File? = null,
@@ -76,6 +79,17 @@ class RiveFileController(
      * If this is false, it will prevent advancing or drawing.
      */
     var isActive = false
+
+    var fit: Fit = Fit.CONTAIN
+        set(value) {
+            field = value
+            onStart?.invoke()
+        }
+    var alignment: Alignment = Alignment.CENTER
+        set(value) {
+            field = value
+            onStart?.invoke()
+        }
 
     var file: File? = file
         set(value) {
@@ -158,8 +172,13 @@ class RiveFileController(
         }
 
 
-    val hasPlayingAnimations: Boolean
-        get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty()
+    val isAdvancing: Boolean
+        get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
+
+    val artboardBounds: RectF
+        get() = activeArtboard?.bounds ?: RectF()
+
+    var targetBounds: RectF = RectF()
 
 
     /**
@@ -217,13 +236,20 @@ class RiveFileController(
         state.dispose()
     }
 
-    /// Note: This is happening in the render thread
-    /// be aware of thread safety!
+    /**
+     * Note: This is happening in the render thread: this function is synchronized with a
+     * [ReentrantLock] stored on the [File] because this is a critical section with the UI thread.
+     * When advancing or performing operations around an animations data structure, be conscious
+     * of thread safety.
+     */
     @WorkerThread
     fun advance(elapsed: Float) {
         val mLock = this.file?.lock ?: return
         synchronized(mLock) {
             activeArtboard?.let { ab ->
+                // Process all the inputs right away.
+                processAllInputs()
+
                 // animations could change, lets cut a list.
                 // order of animations is important.....
                 animations.forEach { animationInstance ->
@@ -275,10 +301,11 @@ class RiveFileController(
      * If this controller is set to [autoplay] it will also start playing.
      */
     fun selectArtboard(name: String? = null) {
-        // Should this warn/throw when called without a File?
         file?.let {
             val artboard = if (name != null) it.artboard(name) else it.firstArtboard
             setArtboard(artboard)
+        } ?: run {
+            Log.w(TAG, "selectArtboard: cannot select an Artboard without a valid File.")
         }
     }
 
@@ -292,6 +319,8 @@ class RiveFileController(
     }
 
     private fun setArtboard(ab: Artboard) {
+        if (ab == activeArtboard) return
+        stopAnimations()
         activeArtboard = ab
         autoplay()
     }
@@ -448,29 +477,63 @@ class RiveFileController(
         }
     }
 
+    private data class ChangedInput(
+        val stateMachineName: String,
+        val name: String,
+        val value: Any? = null
+    )
+
+    private val changedInputs = ConcurrentLinkedQueue<ChangedInput>()
+
+    /**
+     * Queues an input with [inputName] so that it can be processed on the next advance.
+     * It also tries to start the thread if it's not started, which will internally cause advance
+     * to happen at least once.
+     */
+    private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null) {
+        synchronized(changedInputs) {
+            changedInputs.add(ChangedInput(stateMachineName, inputName, value))
+            // Restart the thread if needed.
+            onStart?.invoke()
+        }
+    }
+
+    @WorkerThread
+    private fun processAllInputs() {
+        synchronized(changedInputs) {
+            while (changedInputs.isNotEmpty()) {
+                val input = changedInputs.remove()
+                val instances = getOrCreateStateMachines(input.stateMachineName)
+                instances.forEach { stateMachineInstance ->
+                    when (val smiInput = stateMachineInstance.input(input.name)) {
+                        is SMITrigger -> {
+                            smiInput.fire()
+                        }
+
+                        is SMIBoolean -> {
+                            smiInput.value = input.value as Boolean
+                        }
+
+                        is SMINumber -> {
+                            smiInput.value = input.value as Float
+                        }
+                    }
+                    play(stateMachineInstance, settleStateMachineState = true)
+                }
+            }
+        }
+    }
 
     fun fireState(stateMachineName: String, inputName: String) {
-        val stateMachineInstances = getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMITrigger).fire()
-            play(it, settleStateMachineState = false)
-        }
+        queueInput(stateMachineName, inputName)
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        val stateMachineInstances = getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMIBoolean).value = value
-            play(it, settleStateMachineState = false)
-        }
+        queueInput(stateMachineName, inputName, value)
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        val stateMachineInstances = getOrCreateStateMachines(stateMachineName)
-        stateMachineInstances.forEach {
-            (it.input(inputName) as SMINumber).value = value
-            play(it, settleStateMachineState = false)
-        }
+        queueInput(stateMachineName, inputName, value)
     }
 
     /**
@@ -637,6 +700,39 @@ class RiveFileController(
         }
     }
 
+
+    fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
+        /// TODO: once we start composing artboards we may need x,y offsets here...
+        val artboardEventLocation = Helpers.convertToArtboardSpace(
+            targetBounds,
+            PointF(x, y),
+            fit,
+            alignment,
+            activeArtboard?.bounds ?: RectF()
+        )
+        stateMachines.forEach {
+
+            when (eventType) {
+                PointerEvents.POINTER_DOWN -> it.pointerDown(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
+
+                PointerEvents.POINTER_UP -> it.pointerUp(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
+
+                PointerEvents.POINTER_MOVE -> it.pointerMove(
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
+
+            }
+            play(it, settleStateMachineState = false)
+        }
+    }
+
     // == Listeners ==
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var listeners = HashSet<Listener>()
@@ -717,6 +813,8 @@ class RiveFileController(
         require(count >= 0)
 
         if (count == 0) {
+            require(!isActive)
+            // Will `release()` the file if one was set
             file = null
         }
         return count

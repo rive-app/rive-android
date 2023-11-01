@@ -28,7 +28,8 @@ class RiveEventTest {
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireGeneralEvent")
-            view.fireState("State Machine 1", "FireGeneralEvent") // TODO: (gordon) calling twice to step around event issue
+            // (umberto) with this new setup this now passes: is this right or wrong?
+            // view.fireState("State Machine 1", "FireGeneralEvent") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(1, observer.events.size)
             val event = observer.events[0];
@@ -50,7 +51,8 @@ class RiveEventTest {
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireOpenUrlEvent")
-            view.fireState("State Machine 1", "FireOpenUrlEvent") // TODO: (gordon) calling twice to step around event issue
+            // (umberto) with this new setup this now passes: is this right or wrong?
+            // view.fireState("State Machine 1", "FireOpenUrlEvent") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(1, observer.events.size)
             val event = observer.events[0];
@@ -72,7 +74,8 @@ class RiveEventTest {
             view.addEventListener(observer);
             view.play()
             view.fireState("State Machine 1", "FireBothEvents")
-            view.fireState("State Machine 1", "FireBothEvents") // TODO: (gordon) calling twice to step around event issue
+            // (umberto) with this new setup this now passes: is this right or wrong?
+            // view.fireState("State Machine 1", "FireBothEvents") // TODO: (gordon) calling twice to step around event issue
             view.artboardRenderer?.advance(0.016f);
             Assert.assertEquals(2, observer.events.size)
         }

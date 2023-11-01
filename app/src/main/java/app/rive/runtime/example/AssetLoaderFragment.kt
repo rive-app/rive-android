@@ -13,7 +13,6 @@ import app.rive.runtime.example.databinding.FragmentAssetButtonBinding
 import app.rive.runtime.example.databinding.FragmentAssetLoaderBinding
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.BytesRequest
-import app.rive.runtime.kotlin.core.ExperimentalAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
 import app.rive.runtime.kotlin.core.Loop
@@ -34,7 +33,6 @@ private fun makeContainer(context: Context): FrameLayout {
     }
 }
 
-@ExperimentalAssetLoader
 class AssetLoaderFragment : Fragment() {
     private var _binding: FragmentAssetLoaderBinding? = null
     private val binding get() = _binding!!
@@ -72,7 +70,6 @@ class AssetLoaderFragment : Fragment() {
     }
 }
 
-@ExperimentalAssetLoader
 class AssetButtonFragment : Fragment() {
     private var _binding: FragmentAssetButtonBinding? = null
     private val binding get() = _binding!!
@@ -141,7 +138,6 @@ class AssetButtonFragment : Fragment() {
         return view
     }
 
-    @ExperimentalAssetLoader
     private class AssetStore : FileAssetLoader() {
         val assetList = mutableListOf<FileAsset>()
         override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
@@ -150,7 +146,6 @@ class AssetButtonFragment : Fragment() {
     }
 }
 
-@ExperimentalAssetLoader
 class FontAssetFragment : Fragment() {
     private var _binding: FragmentAssetButtonBinding? = null
     private val binding get() = _binding!!
@@ -182,7 +177,6 @@ class FontAssetFragment : Fragment() {
         return view
     }
 
-    @ExperimentalAssetLoader
     private class RandomFontDecoder(private val context: Context) : FileAssetLoader() {
         lateinit var fontAsset: FileAsset
         override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {

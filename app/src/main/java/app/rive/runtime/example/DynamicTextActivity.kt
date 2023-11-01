@@ -23,7 +23,7 @@ class DynamicTextActivity : AppCompatActivity(), TextWatcher {
      * Reference to a [RiveTextValueRun]
      */
     private val textRun by lazy(LazyThreadSafetyMode.NONE) {
-        animationView.artboardRenderer?.activeArtboard?.textRun("name")
+        animationView.controller.activeArtboard?.textRun("name")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

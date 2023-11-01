@@ -59,7 +59,6 @@ import kotlin.math.min
  * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
  * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
  */
-@ExperimentalAssetLoader
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs),
     Observable<RiveFileController.Listener> {
@@ -100,14 +99,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         get() = controller.fit
         set(value) {
             // Not replacing with controller b/c it's currently calling `start()`
-            artboardRenderer?.fit = value
+            controller.fit = value
         }
 
     var alignment: Alignment
         get() = controller.alignment
         set(value) {
             // Not replacing with controller b/c it's currently calling `start()`
-            artboardRenderer?.alignment = value
+            controller.alignment = value
         }
 
     /**
@@ -127,9 +126,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Setting a new name, will load the new artboard & depending on [autoplay] play them
      */
     var artboardName: String?
-        get() = artboardRenderer!!.artboardName
+        get() = controller.activeArtboard?.name
         set(name) {
-            artboardRenderer?.setArtboardByName(name)
+            controller.selectArtboard(name)
         }
 
     /**
@@ -369,7 +368,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
-        artboardRenderer!!.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
     override fun onSurfaceTextureAvailable(
@@ -378,7 +377,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         height: Int
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
-        artboardRenderer!!.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
     }
 
     private fun loadFileFromResource(onComplete: (File) -> Unit) {
@@ -410,22 +409,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 file.release()
             }
         }
-    }
-
-    @Deprecated(
-        "Use loadFromNetwork to avoid memory leaks.",
-        replaceWith = ReplaceWith("loadFromNetwork(url) { /* onComplete() */}")
-    )
-    private fun loadHttp(url: String) {
-        val queue = Volley.newRequestQueue(context)
-        val stringRequest = RiveFileRequest(
-            url,
-            rendererAttributes.rendererType,
-            { file -> artboardRenderer?.setRiveFile(file) },
-            { throw IOException("Unable to download Rive file $url") },
-            assetLoader = rendererAttributes.assetLoader
-        )
-        queue.add(stringRequest)
     }
 
     private fun loadFromNetwork(url: String, onComplete: (File) -> Unit) {
@@ -596,7 +579,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Note: this will respect [autoplay]
      */
     fun reset() {
-        controller.reset()
         artboardRenderer?.reset()
     }
 
@@ -663,7 +645,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardName: String? = null,
         animationName: String? = null,
         stateMachineName: String? = null,
-        autoplay: Boolean = artboardRenderer?.autoplay ?: defaultAutoplay,
+        autoplay: Boolean = controller.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
@@ -682,10 +664,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loadFileFromResource {
             controller.file = it
             controller.setupScene(rendererAttributes)
-        }
-
-        if (renderer != null) {
-            configureRenderer()
+            artboardRenderer?.acquireFile(it)
         }
     }
 
@@ -706,7 +685,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardName: String? = null,
         animationName: String? = null,
         stateMachineName: String? = null,
-        autoplay: Boolean = artboardRenderer?.autoplay ?: defaultAutoplay,
+        autoplay: Boolean = controller.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
@@ -726,9 +705,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loadFileFromResource {
             controller.file = it
             controller.setupScene(rendererAttributes)
-        }
-        if (renderer != null) {
-            configureRenderer()
+            artboardRenderer?.acquireFile(it)
         }
     }
 
@@ -751,7 +728,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         artboardName: String? = null,
         animationName: String? = null,
         stateMachineName: String? = null,
-        autoplay: Boolean = artboardRenderer?.autoplay ?: defaultAutoplay,
+        autoplay: Boolean = controller.autoplay,
         fit: Fit = Fit.CONTAIN,
         alignment: Alignment = Alignment.CENTER,
         loop: Loop = Loop.AUTO,
@@ -777,9 +754,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.file = file
         controller.setupScene(rendererAttributes)
 
-        if (renderer != null) {
-            configureRenderer()
-        }
+        artboardRenderer?.acquireFile(file)
     }
 
     /**
@@ -793,20 +768,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             rendererAttributes.assetLoader = assetLoader
         }
     }
-
-    private fun configureRenderer() {
-        // If trying to configure the renderer, we assume that it exists.
-        artboardRenderer!!.apply {
-            this.autoplay = rendererAttributes.autoplay
-            this.animationName = rendererAttributes.animationName
-            this.stateMachineName = rendererAttributes.stateMachineName
-            this.artboardName = rendererAttributes.artboardName
-            this.fit = rendererAttributes.fit
-            this.alignment = rendererAttributes.alignment
-            controller.file?.let { acquireFile(it) }
-        }
-    }
-
 
     /**
      * Called from TextureView.onAttachedToWindow() - override for implementing a custom renderer.
@@ -856,8 +817,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 controller.setupScene(rendererAttributes)
             }
         }
+        // If a file has been set up, the renderer needs a ref.
+        controller.file?.let { artboardRenderer?.acquireFile(it) }
 
-        configureRenderer()
         if (renderer!!.trace) {
             startFrameMetrics()
         }
@@ -920,23 +882,23 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val providedWidth = when (widthMode) {
-            MeasureSpec.UNSPECIFIED -> artboardRenderer!!.artboardBounds().width().toInt()
+            MeasureSpec.UNSPECIFIED -> controller.artboardBounds.width().toInt()
             else -> MeasureSpec.getSize(widthMeasureSpec)
         }
 
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val providedHeight = when (heightMode) {
-            MeasureSpec.UNSPECIFIED -> artboardRenderer!!.artboardBounds().height().toInt()
+            MeasureSpec.UNSPECIFIED -> controller.artboardBounds.height().toInt()
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
         bounds.set(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat())
         // Lets work out how much space our artboard is going to actually use.
         val usedBounds = Rive.calculateRequiredBounds(
-            artboardRenderer!!.fit,
-            artboardRenderer!!.alignment,
+            controller.fit,
+            controller.alignment,
             bounds,
-            artboardRenderer!!.artboardBounds()
+            controller.artboardBounds
         )
 
         //Measure Width
@@ -981,30 +943,29 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
 
-    /// could live in RiveTextureView, but that doesn't really know
-    /// about the artboard renderer that knows about state machines?
-    override fun onTouchEvent(event: MotionEvent?): Boolean {
-        event?.apply {
+    // Handoff to Controller which knows about artboards & state machines.
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        event.apply {
             when (action) {
-                MotionEvent.ACTION_MOVE -> artboardRenderer?.pointerEvent(
+                MotionEvent.ACTION_MOVE -> controller.pointerEvent(
                     PointerEvents.POINTER_MOVE,
                     x,
                     y
                 )
 
-                MotionEvent.ACTION_CANCEL -> artboardRenderer?.pointerEvent(
+                MotionEvent.ACTION_CANCEL -> controller.pointerEvent(
                     PointerEvents.POINTER_UP,
                     x,
                     y
                 )
 
-                MotionEvent.ACTION_DOWN -> artboardRenderer?.pointerEvent(
+                MotionEvent.ACTION_DOWN -> controller.pointerEvent(
                     PointerEvents.POINTER_DOWN,
                     x,
                     y
                 )
 
-                MotionEvent.ACTION_UP -> artboardRenderer?.pointerEvent(
+                MotionEvent.ACTION_UP -> controller.pointerEvent(
                     PointerEvents.POINTER_UP,
                     x,
                     y

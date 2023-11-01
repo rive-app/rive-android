@@ -74,7 +74,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
         pauseButtonMap.clear()
         stopButtonMap.clear()
 
-        animationView.artboardRenderer?.file?.firstArtboard?.name?.let {
+        animationView.controller.file?.firstArtboard?.name?.let {
             loadArtboard(it)
         }
     }
@@ -262,7 +262,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun loadArtboard(artboardName: String) {
         val controls = findViewById<LinearLayout>(R.id.controls)
         controls.removeAllViews()
-        animationView.artboardRenderer?.file?.artboard(artboardName)?.let { artboard ->
+        animationView.controller.file?.artboard(artboardName)?.let { artboard ->
             if (artboard.stateMachineNames.isNotEmpty()) {
                 val stateMachineHeader = TextView(this)
                 stateMachineHeader.text = "State Machines:"
@@ -286,7 +286,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     }
 
     fun setSpinner() {
-        animationView.artboardRenderer?.file?.artboardNames?.let { artboardNames ->
+        animationView.controller.file?.artboardNames?.let { artboardNames ->
             val dropdown = findViewById<Spinner>(R.id.artboards)
             val adapter = ArrayAdapter<String>(
                 this,

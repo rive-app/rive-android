@@ -1,16 +1,14 @@
 package app.rive.runtime.kotlin.core
 
-import java.util.concurrent.locks.ReentrantLock
-
 /**
  * [SMITrigger]s represents a trigger input for State Machines
  */
-class SMITrigger(unsafeCppPointer: Long, private val artboardLock: ReentrantLock) :
+class SMITrigger(unsafeCppPointer: Long) :
     SMIInput(unsafeCppPointer) {
     private external fun cppFire(cppPointer: Long)
 
-    fun fire() {
-        synchronized(artboardLock) { cppFire(cppPointer) }
+    internal fun fire() {
+        cppFire(cppPointer)
     }
 
     override fun toString(): String {

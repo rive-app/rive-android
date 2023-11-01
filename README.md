@@ -136,7 +136,12 @@ android {
 
 ### Breaking Changes 
 
-#### **7.0.0**
+#### **9.0.0**
 
-- `RendererSkia` is now called to `Renderer`
+- State Machine Inputs aren't processed on the UI thread anymore, but they are queued and processed
+by the worker thread on the `advance()` following `RiveAnimationView.[fireState()/setNumberState()/setBooleanState()]`
+- `RiveArtboardRenderer`
+  - Constructor is simplified and now takes fewer parameters
+  - Deprecated APIs from `RiveArtboardRenderer` are now accessible via `RiveAnimationView` or `RiveAnimationView.controller`
+- `RiveFileController.hasPlayingAnimations` is now `isAdvancing`
 
