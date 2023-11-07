@@ -28,6 +28,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
 
 @RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
 @Retention(AnnotationRetention.BINARY)
@@ -115,9 +116,11 @@ class RiveFileController(
             if (value == field) {
                 return
             }
-            field?.release()
-            field = value
-            field?.acquire()
+            synchronized(file?.lock ?: this) {
+                field?.release()
+                field = value
+                field?.acquire()
+            }
         }
 
     // warning: `toList()` access is not thread-safe, use animations instead
@@ -164,13 +167,19 @@ class RiveFileController(
 
     val pausedAnimations: Set<LinearAnimationInstance>
         get() {
-            return animationList subtract playingAnimationSet
+            return animations subtract playingAnimations
         }
     val pausedStateMachines: Set<StateMachineInstance>
         get() {
-            return stateMachineList subtract playingStateMachineSet
+            return stateMachines subtract playingStateMachines
         }
 
+    private val changedInputs = ConcurrentLinkedQueue<ChangedInput>()
+
+    /**
+     * Lock to prevent race conditions on starting and stopping the rendering thread.
+     */
+    internal val startStopLock = ReentrantLock()
 
     val isAdvancing: Boolean
         get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
@@ -200,18 +209,18 @@ class RiveFileController(
             // Acquire the file & artboard to prevent dispose().
             mFile.acquire()
             mArtboard.acquire()
-        }
 
-        return ControllerState(
-            mFile,
-            mArtboard,
-            // Duplicate contents to grab a reference to the instances.
-            animations = animationList.toList(),
-            playingAnimations = playingAnimations.toHashSet(),
-            stateMachines = stateMachineList.toList(),
-            playingStateMachines = playingStateMachines.toHashSet(),
-            isActive
-        )
+            return ControllerState(
+                mFile,
+                mArtboard,
+                // Duplicate contents to grab a reference to the instances.
+                animations = animationList.toList(),
+                playingAnimations = playingAnimations.toHashSet(),
+                stateMachines = stateMachineList.toList(),
+                playingStateMachines = playingStateMachines.toHashSet(),
+                isActive
+            )
+        }
     }
 
     /**
@@ -222,28 +231,31 @@ class RiveFileController(
      */
     @ControllerStateManagement
     fun restoreControllerState(state: ControllerState) {
-        // Remove all old values.
-        reset()
-        // Restore all the previous values.
-        file = state.file
-        activeArtboard = state.activeArtboard
-        state.animations.forEach { animationList.add(it) }
-        state.stateMachines.forEach { stateMachineList.add(it) }
-        state.playingAnimations.forEach { play(it, it.loop, it.direction) }
-        state.playingStateMachines.forEach { play(it) }
-        isActive = state.isActive
-        // Release the state we had acquired previously to even things out.
-        state.dispose()
+        synchronized(file?.lock ?: this) {
+            // Remove all old values.
+            reset()
+            // Restore all the previous values.
+            file = state.file
+            activeArtboard = state.activeArtboard
+            state.animations.forEach { animationList.add(it) }
+            state.stateMachines.forEach { stateMachineList.add(it) }
+            state.playingAnimations.forEach { play(it, it.loop, it.direction) }
+            state.playingStateMachines.forEach { play(it) }
+            isActive = state.isActive
+            // Release the state we had acquired previously to even things out.
+            state.dispose()
+        }
     }
 
     /**
      * Note: This is happening in the render thread: this function is synchronized with a
-     * [ReentrantLock] stored on the [File] because this is a critical section with the UI thread.
+     * ReentrantLock stored on the [File] because this is a critical section with the UI thread.
      * When advancing or performing operations around an animations data structure, be conscious
      * of thread safety.
      */
     @WorkerThread
     fun advance(elapsed: Float) {
+        // We need a file to advance.
         val mLock = this.file?.lock ?: return
         synchronized(mLock) {
             activeArtboard?.let { ab ->
@@ -313,8 +325,9 @@ class RiveFileController(
         if (autoplay) {
             play(settleInitialState = true)
         } else {
+            // advance() locks on the file lock internally
             activeArtboard?.advance(0f)
-            onStart?.invoke()
+            synchronized(startStopLock) { onStart?.invoke() }
         }
     }
 
@@ -361,7 +374,7 @@ class RiveFileController(
         } else {
             activeArtboard?.advance(0f)
             // Schedule a single frame.
-            onStart?.invoke()
+            synchronized(startStopLock) { onStart?.invoke() }
         }
     }
 
@@ -449,11 +462,12 @@ class RiveFileController(
      * called [stopAnimations] to avoid conflicting with [stop]
      */
     fun stopAnimations() {
-        // stop will modify animations, so we cut a list of it first.
+        // Check whether we need to go through the synchronized `animations` getter
         if (animationList.isNotEmpty()) {
             animations.forEach { stop(it) }
         }
 
+        // Check whether we need to go through the synchronized `stateMachines` getter
         if (stateMachineList.isNotEmpty()) {
             stateMachines.forEach { stop(it) }
         }
@@ -472,18 +486,9 @@ class RiveFileController(
         if (isStateMachine) {
             stateMachines(animationName).forEach { stop(it) }
         } else {
-
             animations(animationName).forEach { stop(it) }
         }
     }
-
-    private data class ChangedInput(
-        val stateMachineName: String,
-        val name: String,
-        val value: Any? = null
-    )
-
-    private val changedInputs = ConcurrentLinkedQueue<ChangedInput>()
 
     /**
      * Queues an input with [inputName] so that it can be processed on the next advance.
@@ -491,7 +496,11 @@ class RiveFileController(
      * to happen at least once.
      */
     private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null) {
-        synchronized(changedInputs) {
+        // `synchronize(startStopLock)` so the UI thread will not attempt starting while the worker
+        // thread is still deciding to stop.
+        // If this happened during an advance, we could potentially miss an input if `isAdvancing`
+        // has already been checked and the worker thread stopped.
+        synchronized(startStopLock) {
             changedInputs.add(ChangedInput(stateMachineName, inputName, value))
             // Restart the thread if needed.
             onStart?.invoke()
@@ -500,26 +509,17 @@ class RiveFileController(
 
     @WorkerThread
     private fun processAllInputs() {
-        synchronized(changedInputs) {
-            while (changedInputs.isNotEmpty()) {
-                val input = changedInputs.remove()
-                val instances = getOrCreateStateMachines(input.stateMachineName)
-                instances.forEach { stateMachineInstance ->
-                    when (val smiInput = stateMachineInstance.input(input.name)) {
-                        is SMITrigger -> {
-                            smiInput.fire()
-                        }
-
-                        is SMIBoolean -> {
-                            smiInput.value = input.value as Boolean
-                        }
-
-                        is SMINumber -> {
-                            smiInput.value = input.value as Float
-                        }
-                    }
-                    play(stateMachineInstance, settleStateMachineState = true)
+        // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
+        while (changedInputs.isNotEmpty()) {
+            val input = changedInputs.remove()
+            val stateMachines = getOrCreateStateMachines(input.stateMachineName)
+            stateMachines.forEach { stateMachineInstance ->
+                when (val smiInput = stateMachineInstance.input(input.name)) {
+                    is SMITrigger -> smiInput.fire()
+                    is SMIBoolean -> smiInput.value = input.value as Boolean
+                    is SMINumber -> smiInput.value = input.value as Float
                 }
+                play(stateMachineInstance, settleStateMachineState = true)
             }
         }
     }
@@ -637,8 +637,10 @@ class RiveFileController(
             resolveStateMachineAdvance(stateMachineInstance, 0f)
         }
 
-        playingStateMachineSet.add(stateMachineInstance)
-        onStart?.invoke()
+        synchronized(startStopLock) {
+            playingStateMachineSet.add(stateMachineInstance)
+            onStart?.invoke()
+        }
         notifyPlay(stateMachineInstance)
     }
 
@@ -663,8 +665,10 @@ class RiveFileController(
         if (direction != Direction.AUTO) {
             animationInstance.direction = direction
         }
-        playingAnimationSet.add(animationInstance)
-        onStart?.invoke()
+        synchronized(startStopLock) {
+            playingAnimationSet.add(animationInstance)
+            onStart?.invoke()
+        }
         notifyPlay(animationInstance)
     }
 
@@ -801,6 +805,7 @@ class RiveFileController(
         animationList.clear()
         playingStateMachineSet.clear()
         stateMachineList.clear()
+        changedInputs.clear()
         activeArtboard = null
     }
 
@@ -833,4 +838,10 @@ class RiveFileController(
     interface RiveEventListener {
         fun notifyEvent(event: RiveEvent)
     }
+
+    private data class ChangedInput(
+        val stateMachineName: String,
+        val name: String,
+        val value: Any? = null
+    )
 }

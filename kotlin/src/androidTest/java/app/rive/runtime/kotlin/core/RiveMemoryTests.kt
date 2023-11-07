@@ -252,7 +252,7 @@ class RiveMemoryTests {
             assert(mockView.artboardRenderer != null)
             val riveFileController = mockView.controller
             val ogFile = riveFileController.file
-            assertEquals(2, ogFile?.refCount)
+            assertEquals(1, ogFile?.refCount)
             riveFileController.advance(0f)
             appContext.resources.openRawResource(R.raw.state_machine_configurations).use {
                 val file = File(it.readBytes()) // Acquire File upon creation.
@@ -260,7 +260,7 @@ class RiveMemoryTests {
                 file.release() // Release ownership.
             }
             assertEquals(0, ogFile?.refCount)
-            assertEquals(2, riveFileController.file?.refCount)
+            assertEquals(1, riveFileController.file?.refCount)
         }
     }
 
@@ -272,7 +272,7 @@ class RiveMemoryTests {
             assert(mockView.artboardRenderer != null)
             val riveFileController = mockView.controller
             val ogFile = riveFileController.file
-            assertEquals(2, ogFile?.refCount)
+            assertEquals(1, ogFile?.refCount)
             val artboard = riveFileController.activeArtboard!!
             assertEquals(2, artboard.refCount)
             riveFileController.reset() // Gives up artboard.

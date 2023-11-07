@@ -28,7 +28,7 @@ class RiveStateMachineInstanceTest {
     }
 
     @Test
-    fun number_input() {
+    fun numberInput() {
         val stateMachine = file.firstArtboard.stateMachine("number_input")
         val input = stateMachine.input(0)
         assertEquals(false, input.isBoolean)
@@ -42,7 +42,7 @@ class RiveStateMachineInstanceTest {
     }
 
     @Test
-    fun boolean_input() {
+    fun booleanInput() {
         val stateMachine = file.firstArtboard.stateMachine("boolean_input")
         val input = stateMachine.input(0)
         assertEquals(1, stateMachine.inputCount)
@@ -59,7 +59,7 @@ class RiveStateMachineInstanceTest {
     }
 
     @Test
-    fun trigger_input() {
+    fun triggerInput() {
         val stateMachine = file.firstArtboard.stateMachine("trigger_input")
         val input = stateMachine.input(0)
         assertEquals(1, stateMachine.inputCount)
@@ -105,8 +105,5 @@ class RiveStateMachineInstanceTest {
         assertEquals(true, (stateMachine.input("on") as SMIBoolean).value)
 
         assertEquals(true, stateMachine.input("trigger") is SMITrigger)
-
-
     }
-
 }

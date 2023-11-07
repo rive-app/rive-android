@@ -51,7 +51,7 @@ class TestUtils {
          * force an advance cycle. (We don't need to draw in tests either).
          */
         init {
-//            lets just pretend we have a surface..
+            // lets just pretend we have a surface..
             isAttached = true
         }
 

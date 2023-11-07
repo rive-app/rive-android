@@ -135,9 +135,9 @@ abstract class Renderer(
     }
 
     private fun destroySurface() {
+        isAttached = false
         stop()
         cppDestroySurface(cppPointer)
-        isAttached = false
     }
 
     open fun scheduleFrame() {

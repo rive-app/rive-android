@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.*
 import org.junit.Test

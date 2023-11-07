@@ -609,4 +609,21 @@ class RiveViewTest {
             assertEquals(2, assetStore.size) // All loaded.
         }
     }
+
+    @Test
+    fun swapFilesStopsAdvancing() {
+        UiThreadStatement.runOnUiThread {
+            // Use Noop Renderer so it doesn't advance right away.
+            mockView = TestUtils.MockNoopRiveAnimationView(appContext)
+            mockView.setRiveResource(R.raw.state_machine_configurations)
+            mockView.fireState("trigger_input", "Trigger 1")
+            // Inputs need processing and have been scheduled
+            assertTrue(mockView.controller.isAdvancing)
+
+            // Set a new file
+            mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
+            // Cleaned everything up after setting a new file.
+            assertFalse(mockView.controller.isAdvancing)
+        }
+    }
 }

@@ -664,7 +664,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loadFileFromResource {
             controller.file = it
             controller.setupScene(rendererAttributes)
-            artboardRenderer?.acquireFile(it)
         }
     }
 
@@ -705,7 +704,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loadFileFromResource {
             controller.file = it
             controller.setupScene(rendererAttributes)
-            artboardRenderer?.acquireFile(it)
         }
     }
 
@@ -754,7 +752,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.file = file
         controller.setupScene(rendererAttributes)
 
-        artboardRenderer?.acquireFile(file)
     }
 
     /**
@@ -817,8 +814,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 controller.setupScene(rendererAttributes)
             }
         }
-        // If a file has been set up, the renderer needs a ref.
-        controller.file?.let { artboardRenderer?.acquireFile(it) }
 
         if (renderer!!.trace) {
             startFrameMetrics()

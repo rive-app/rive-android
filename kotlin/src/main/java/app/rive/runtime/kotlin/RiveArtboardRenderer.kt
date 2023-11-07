@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin
 
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.renderers.Renderer
@@ -53,20 +52,14 @@ open class RiveArtboardRenderer(
         if (controller.isActive) {
             controller.advance(elapsed)
         }
-        // Are we done playing?
-        if (!controller.isAdvancing) {
-            stopThread()
-        }
-    }
 
-    internal fun acquireFile(file: File) {
-        synchronized(file.lock) { file.acquire() }
-        // Make sure we release the old file if one was set.
-        dependencies.firstOrNull { rc -> rc is File }?.let { fileDep ->
-            dependencies.remove(fileDep)
-            fileDep.release()
+        // Don't stop if we're queueing more inputs.
+        synchronized(controller.startStopLock) {
+            // Are we done playing?
+            if (!controller.isAdvancing) {
+                stopThread()
+            }
         }
-        dependencies.add(file)
     }
 
     fun reset() {
