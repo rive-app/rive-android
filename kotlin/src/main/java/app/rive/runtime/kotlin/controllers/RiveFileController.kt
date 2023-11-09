@@ -5,6 +5,7 @@ import android.graphics.RectF
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.Observable
 import app.rive.runtime.kotlin.PointerEvents
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -496,12 +497,16 @@ class RiveFileController(
      * to happen at least once.
      */
     private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null) {
+        queueInputs(ChangedInput(stateMachineName, inputName, value))
+    }
+
+    internal fun queueInputs(vararg inputs: ChangedInput) {
         // `synchronize(startStopLock)` so the UI thread will not attempt starting while the worker
         // thread is still deciding to stop.
         // If this happened during an advance, we could potentially miss an input if `isAdvancing`
         // has already been checked and the worker thread stopped.
         synchronized(startStopLock) {
-            changedInputs.add(ChangedInput(stateMachineName, inputName, value))
+            changedInputs.addAll(inputs)
             // Restart the thread if needed.
             onStart?.invoke()
         }
@@ -509,19 +514,22 @@ class RiveFileController(
 
     @WorkerThread
     private fun processAllInputs() {
+        // Gather all state machines that need playing and do that only once.
+        val playableSet = mutableSetOf<StateMachineInstance>()
         // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
         while (changedInputs.isNotEmpty()) {
             val input = changedInputs.remove()
             val stateMachines = getOrCreateStateMachines(input.stateMachineName)
             stateMachines.forEach { stateMachineInstance ->
+                playableSet.add(stateMachineInstance)
                 when (val smiInput = stateMachineInstance.input(input.name)) {
                     is SMITrigger -> smiInput.fire()
                     is SMIBoolean -> smiInput.value = input.value as Boolean
                     is SMINumber -> smiInput.value = input.value as Float
                 }
-                play(stateMachineInstance, settleStateMachineState = true)
             }
         }
+        playableSet.forEach { play(it, settleStateMachineState = false) }
     }
 
     fun fireState(stateMachineName: String, inputName: String) {
@@ -838,10 +846,4 @@ class RiveFileController(
     interface RiveEventListener {
         fun notifyEvent(event: RiveEvent)
     }
-
-    private data class ChangedInput(
-        val stateMachineName: String,
-        val name: String,
-        val value: Any? = null
-    )
 }

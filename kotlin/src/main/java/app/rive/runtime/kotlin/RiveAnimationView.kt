@@ -606,6 +606,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
+     * Update multiple states at once supplying one or more [inputs]
+     */
+    fun setMultipleStates(vararg inputs: ChangedInput) {
+        controller.queueInputs(*inputs)
+    }
+
+    /**
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
      */
     fun getTextRunValue(textRunName: String): String? = try {
@@ -1069,3 +1076,8 @@ sealed class ResourceType {
     }
 }
 
+/**
+ * Wraps the data necessary for grabbing an input with [name] with [value]
+ * [value] is necessary when wrapping [SMINumber] and [SMIBoolean] inputs.
+ */
+data class ChangedInput(val stateMachineName: String, val name: String, val value: Any? = null)

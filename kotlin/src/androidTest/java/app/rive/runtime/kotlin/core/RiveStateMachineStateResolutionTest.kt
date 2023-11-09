@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
@@ -206,4 +207,27 @@ class RiveStateMachineStateResolutionTest {
         }
     }
 
+    @Test
+    fun setupMultipleStates() {
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            mockView.registerListener(observer)
+            mockView.setRiveResource(
+                R.raw.state_machine_state_resolution,
+                stateMachineName = "MultiStateResolution",
+                autoplay = false
+            )
+            mockView.setMultipleStates(
+                ChangedInput("MultiStateResolution", "Choice", 0f),
+                ChangedInput("MultiStateResolution", "isFirst", true),
+            )
+            // (umberto) Force an advance to digest the new input value now that those are queued
+            mockView.artboardRenderer!!.advance(0f)
+            //
+            assertEquals(1, observer.states.size)
+
+            assertEquals("MultiStateResolution", observer.states[0].stateMachineName)
+            assertEquals("Choice 1", observer.states[0].stateName)
+        }
+    }
 }
