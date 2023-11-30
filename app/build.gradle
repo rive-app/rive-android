@@ -91,4 +91,5 @@ dependencies {
     androidTestImplementation project(path: ':kotlin')
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
     debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.12'
 }

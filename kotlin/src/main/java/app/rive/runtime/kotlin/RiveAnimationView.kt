@@ -201,7 +201,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         val maybeContextAssetLoader =
                             kClass.constructors.find {
                                 it.parameters.size == 1 && it.parameters.first().type.classifier == Context::class
-                            }?.call(context)
+                            }?.call(context.applicationContext)
                         if (maybeContextAssetLoader != null) {
                             return maybeContextAssetLoader as ContextAssetLoader
                         }
@@ -281,7 +281,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 // Try making a custom loader
                 val customLoader = RendererAttributes.assetLoaderFrom(
                     getString(R.styleable.RiveAnimationView_riveAssetLoaderClass),
-                    context
+                    context.applicationContext
                 )
                 val shouldLoadCDNAssets = getBoolean(
                     R.styleable.RiveAnimationView_riveShouldLoadCDNAssets,
@@ -314,7 +314,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         rendererIndexDefault
                     ),
                     assetLoader = FallbackAssetLoader(
-                        context = context,
+                        context = context.applicationContext,
                         loader = customLoader,
                         loadCDNAssets = shouldLoadCDNAssets,
                     )
@@ -412,7 +412,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     private fun loadFromNetwork(url: String, onComplete: (File) -> Unit) {
-        val queue = Volley.newRequestQueue(context)
+        val queue = Volley.newRequestQueue(context.applicationContext)
         val stringRequest = RiveFileRequest(
             url,
             rendererAttributes.rendererType,

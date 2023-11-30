@@ -50,7 +50,7 @@ class FallbackAssetLoader(
     init {
         loader?.let { appendLoader(it) }
         if (loadCDNAssets) {
-            appendLoader(CDNAssetLoader(context))
+            appendLoader(CDNAssetLoader(context.applicationContext))
         }
     }
 
@@ -74,7 +74,7 @@ class FallbackAssetLoader(
         // Make sure CDN Loader is set.
         val cdnLoaderIndex = loaders.indexOfFirst { it is CDNAssetLoader }
         if (cdnLoaderIndex == -1 && needsCDNLoader) {
-            appendLoader(CDNAssetLoader(context))
+            appendLoader(CDNAssetLoader(context.applicationContext))
         } else if (cdnLoaderIndex >= 0 && !needsCDNLoader) {
             loaders.removeAt(cdnLoaderIndex).let {
                 dependencies.remove(it)
@@ -93,14 +93,14 @@ class FallbackAssetLoader(
             // Prepend loader to make sure custom always executes first.
             prependLoader(it)
         }
-        resetCDNLoader(builder.shouldLoadCDNAssets, builder.context)
+        resetCDNLoader(builder.shouldLoadCDNAssets, builder.context.applicationContext)
     }
 }
 
 open class CDNAssetLoader(context: Context) : FileAssetLoader() {
     private val tag = javaClass.simpleName
 
-    private val queue by lazy(LazyThreadSafetyMode.NONE) { Volley.newRequestQueue(context) }
+    private val queue by lazy { Volley.newRequestQueue(context) }
 
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         val url = asset.cdnUrl
