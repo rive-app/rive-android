@@ -38,13 +38,12 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset, rive::Span<const u
         return false;
     }
 
-    long assetAddress = reinterpret_cast<long>(&asset);
     // Renderer type must be set.
     // If not set, FileAsset constructor will throw on RendererType::None value being -1
     assert(m_rendererType != RendererType::None);
     jobject ktFileAsset = env->NewObject(fileAssetClass,
                                          fileAssetConstructor,
-                                         assetAddress,
+                                         reinterpret_cast<jlong>(&asset),
                                          static_cast<int>(m_rendererType));
     if (!ktFileAsset)
     {
