@@ -222,12 +222,12 @@ class RiveBuilderTest {
         activityScenario.onActivity { activity ->
             riveView = RiveAnimationView.Builder(activity)
                 .setResource(R.raw.basketball)
-                .setRendererType(RendererType.Rive)
+                .setRendererType(RendererType.Canvas)
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
             assertNotNull(riveView.artboardRenderer)
-            assertEquals(RendererType.Rive, riveView.artboardRenderer?.type)
+            assertEquals(RendererType.Canvas, riveView.artboardRenderer?.type)
         }
         activityScenario.close()
         // Background thread deallocates asynchronously.

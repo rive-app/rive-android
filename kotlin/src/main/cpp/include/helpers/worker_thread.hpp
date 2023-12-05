@@ -32,10 +32,11 @@ namespace rive_android
 class WorkerThread
 {
 public:
-    using Work = std::function<void(EGLThreadState*)>;
+    using Work = std::function<void(DrawableThreadState*)>;
     using WorkID = uint64_t;
     constexpr static WorkID kWorkIDAlwaysFinished = 0;
 
+    // A worker object that starts a background thread to perform its tasks.
     WorkerThread(const char* name, Affinity affinity, const RendererType rendererType) :
         m_RendererType(rendererType), mName(name), mAffinity(affinity), mWorkMutex{}
     {
@@ -43,12 +44,12 @@ public:
         mThread = std::thread([this]() { threadMain(); });
     }
 
-    ~WorkerThread() { terminateThread(); }
+    virtual ~WorkerThread() { terminateThread(); }
 
     const std::thread::id threadID() const { return mThread.get_id(); }
 
     // Only accessible on the worker thread.
-    EGLThreadState* threadState() const
+    DrawableThreadState* threadState() const
     {
         assert(std::this_thread::get_id() == threadID());
         assert(m_threadState != nullptr);
@@ -110,7 +111,7 @@ protected:
     const RendererType m_RendererType;
 
 private:
-    static std::unique_ptr<EGLThreadState> MakeThreadState(const RendererType type);
+    static std::unique_ptr<DrawableThreadState> MakeThreadState(const RendererType type);
 
     void threadMain()
     {
@@ -154,12 +155,12 @@ private:
     std::atomic<WorkID> m_lastCompletedWorkID = kWorkIDAlwaysFinished;
     bool mIsTerminated = false;
 
-    std::queue<std::function<void(EGLThreadState*)>> mWorkQueue;
+    std::queue<std::function<void(DrawableThreadState*)>> mWorkQueue;
     std::condition_variable_any m_workPushedCondition;
     std::condition_variable_any m_workedCompletedCondition;
 
     std::mutex mWorkMutex;
     std::thread mThread;
-    std::unique_ptr<EGLThreadState> m_threadState;
+    std::unique_ptr<DrawableThreadState> m_threadState;
 };
 } // namespace rive_android

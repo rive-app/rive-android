@@ -4,18 +4,17 @@
 
 namespace rive_android
 {
-std::unique_ptr<EGLThreadState> WorkerThread::MakeThreadState(const RendererType type)
+std::unique_ptr<DrawableThreadState> WorkerThread::MakeThreadState(const RendererType type)
 {
-    std::unique_ptr<EGLThreadState> threadState;
-    if (type == RendererType::Skia)
+    switch (type)
     {
-        threadState = std::make_unique<SkiaThreadState>();
+        case RendererType::Skia:
+            return std::make_unique<SkiaThreadState>();
+        case RendererType::Canvas:
+            return std::make_unique<CanvasThreadState>();
+        default:
+        case RendererType::Rive:
+            return std::make_unique<PLSThreadState>();
     }
-    else
-    {
-        threadState = std::make_unique<PLSThreadState>();
-    }
-
-    return threadState;
 }
 } // namespace rive_android

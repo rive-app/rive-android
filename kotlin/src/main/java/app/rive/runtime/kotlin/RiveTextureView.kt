@@ -67,8 +67,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         isOpaque = false
         // If no renderer has been made, we can't move forward.
         // Only make the renderer once we are ready to display things.
-        renderer = createRenderer()
-        renderer!!.make()
+        renderer = createRenderer().apply { make() }
     }
 
     @CallSuper

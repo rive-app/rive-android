@@ -33,8 +33,10 @@
             <enum name="NONE" value="3" />
         </attr>
         <attr name="riveRenderer" format="enum">
+            <enum name="None" value="-1" />
             <enum name="Skia" value="0" />
             <enum name="Rive" value="1" />
+            <enum name="Canvas" value="2" />
         </attr>
         <attr name="riveResource" format="reference" />
         <attr name="riveUrl" format="string" />

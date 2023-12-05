@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.RectF
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.RiveArtboardRenderer
+import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import org.junit.Assert.assertEquals
 import java.util.concurrent.TimeoutException

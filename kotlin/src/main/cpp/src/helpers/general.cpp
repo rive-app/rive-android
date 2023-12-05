@@ -1,6 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/android_factories.hpp"
-#include "helpers/egl_worker.hpp"
+#include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
 #include "rive/file.hpp"
 
@@ -11,14 +11,15 @@
 #include <EGL/egl.h>
 #endif
 
+namespace rive_android
+{
 /**
  * Global factories that are used to instantiate render objects (paths, buffers, textures, etc.)
  */
-static AndroidSkiaFactory g_SkiaFactory;
 static AndroidPLSFactory g_RiveFactory;
+static AndroidSkiaFactory g_SkiaFactory;
+static AndroidCanvasFactory g_CanvasFactory;
 
-namespace rive_android
-{
 JavaVM* g_JVM;
 long g_sdkVersion;
 
@@ -156,9 +157,16 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 
 rive::Factory* GetFactory(RendererType rendererType)
 {
-    return (rendererType == RendererType::Rive && EGLWorker::RiveWorker() != nullptr)
-               ? static_cast<rive::Factory*>(&g_RiveFactory)
-               : static_cast<rive::Factory*>(&g_SkiaFactory);
+    if (rendererType == RendererType::Rive && RefWorker::RiveWorker() != nullptr)
+    {
+        return static_cast<rive::Factory*>(&g_RiveFactory);
+    }
+    else if (rendererType == RendererType::Canvas)
+    {
+        return static_cast<rive::Factory*>(&g_CanvasFactory);
+    }
+    // Current fallback is Skia.
+    return static_cast<rive::Factory*>(&g_SkiaFactory);
 }
 
 long Import(uint8_t* bytes,

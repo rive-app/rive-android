@@ -16,7 +16,7 @@ import app.rive.runtime.kotlin.core.Rive
 
 abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    val type: RendererType = Rive.defaultRendererType,
+    var type: RendererType = Rive.defaultRendererType,
     val trace: Boolean = false
 ) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
@@ -62,10 +62,21 @@ abstract class Renderer(
         }
     }
 
+    /**
+     * Helper function to reassign the renderer type.
+     * This might be necessary if `constructor()` couldn't build the Renderer with `type`
+     * but had to fall back on a different value (e.g. PLS isn't available on emulators and
+     * the Renderer defaults back to Skia)
+     */
+    private fun setRendererType(newType: Int) {
+        if (newType != type.value) {
+            type = RendererType.fromIndex(newType)
+        }
+    }
+
     var isPlaying: Boolean = false
         private set
     var isAttached: Boolean = false
-        protected set
 
     @WorkerThread
     abstract fun draw()

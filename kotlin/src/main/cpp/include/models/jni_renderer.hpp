@@ -1,12 +1,12 @@
 #ifndef _RIVE_ANDROID_JNI_RENDERER_HPP_
 #define _RIVE_ANDROID_JNI_RENDERER_HPP_
-
+#include <android/native_window.h>
 #include <GLES3/gl3.h>
 #include <jni.h>
 
 #include "helpers/tracer.hpp"
 #include "helpers/thread_state_egl.hpp"
-#include "helpers/egl_worker.hpp"
+#include "helpers/worker_ref.hpp"
 #include "models/worker_impl.hpp"
 
 #include "rive/renderer.hpp"
@@ -16,13 +16,13 @@ namespace rive_android
 class JNIRenderer
 {
 public:
-    JNIRenderer(jobject ktObject,
+    JNIRenderer(jobject ktRenderer,
                 bool trace = false,
                 const RendererType rendererType = RendererType::Skia);
 
     ~JNIRenderer();
 
-    void setWindow(ANativeWindow* window);
+    void setSurface(SurfaceVariant);
 
     rive::Renderer* getRendererOnWorkerThread() const;
 
@@ -34,16 +34,42 @@ public:
 
     float averageFps() const { return m_averageFps; }
 
-    int width() const { return m_window ? ANativeWindow_getWidth(m_window) : -1; }
-    int height() const { return m_window ? ANativeWindow_getHeight(m_window) : -1; }
+    RendererType rendererType() const { return m_worker->rendererType(); }
+
+    int width() const
+    {
+        if (rendererType() == RendererType::Canvas)
+        {
+            auto renderer = static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
+            return renderer->width();
+        }
+        else if (auto window = std::get_if<ANativeWindow*>(&m_surface))
+        {
+            return ANativeWindow_getWidth(*window);
+        }
+        return -1;
+    }
+    int height() const
+    {
+        if (rendererType() == RendererType::Canvas)
+        {
+            auto renderer = static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
+            return renderer->height();
+        }
+        else if (auto window = std::get_if<ANativeWindow*>(&m_surface))
+        {
+            return ANativeWindow_getHeight(*window);
+        }
+        return -1;
+    }
 
 private:
     static constexpr uint8_t kMaxScheduledFrames = 2;
 
-    rive::rcp<EGLWorker> m_worker;
+    rive::rcp<RefWorker> m_worker;
     jobject m_ktRenderer;
 
-    ANativeWindow* m_window = nullptr;
+    SurfaceVariant m_surface = std::monostate{};
 
     std::thread::id m_workerThreadID;
     std::unique_ptr<WorkerImpl> m_workerImpl;
@@ -60,6 +86,33 @@ private:
     ITracer* getTracer(bool trace) const;
 
     void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
+
+    void acquireSurface(SurfaceVariant surface)
+    {
+        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
+        {
+            ANativeWindow_acquire(*window);
+            m_surface = *window;
+        }
+        else if (jobject* ktSurface = std::get_if<jobject>(&surface))
+        {
+            m_surface = GetJNIEnv()->NewGlobalRef(*ktSurface);
+        }
+    }
+
+    void releaseSurface()
+    {
+        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&m_surface))
+        {
+            ANativeWindow_release(*window);
+        }
+        else if (jobject* surface = std::get_if<jobject>(&m_surface))
+        {
+            GetJNIEnv()->DeleteGlobalRef(*surface);
+        }
+        // Reset to the empty value.
+        m_surface = std::monostate{};
+    }
 };
 } // namespace rive_android
 #endif // _RIVE_ANDROID_JNI_RENDERER_HPP_

@@ -11,7 +11,14 @@
 
 namespace rive_android
 {
-class EGLThreadState
+class DrawableThreadState
+{
+public:
+    virtual ~DrawableThreadState(){};
+    virtual void swapBuffers() = 0;
+};
+
+class EGLThreadState : public DrawableThreadState
 {
 public:
     EGLThreadState();
@@ -24,13 +31,19 @@ public:
 
     virtual void makeCurrent(EGLSurface) = 0;
 
-    void swapBuffers();
+    void swapBuffers() override;
 
 protected:
     EGLSurface m_currentSurface = EGL_NO_SURFACE;
     EGLDisplay m_display = EGL_NO_DISPLAY;
     EGLContext m_context = EGL_NO_CONTEXT;
     EGLConfig m_config = static_cast<EGLConfig>(0);
+};
+
+class CanvasThreadState : public DrawableThreadState
+{
+public:
+    void swapBuffers() override {}
 };
 } // namespace rive_android
 

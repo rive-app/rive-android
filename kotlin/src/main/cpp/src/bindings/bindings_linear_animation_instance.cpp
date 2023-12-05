@@ -29,19 +29,19 @@ extern "C"
             switch (loopType)
             {
                 case rive::Loop::oneShot:
-                    enumField = ::GetOneShotLoopField();
+                    enumField = GetOneShotLoopField();
                     break;
                 case rive::Loop::loop:
-                    enumField = ::GetLoopLoopField();
+                    enumField = GetLoopLoopField();
                     break;
                 case rive::Loop::pingPong:
-                    enumField = ::GetPingPongLoopField();
+                    enumField = GetPingPongLoopField();
                     break;
                 default:
-                    enumField = ::GetNoneLoopField();
+                    enumField = GetNoneLoopField();
                     break;
             }
-            jclass jClass = ::GetLoopClass();
+            jclass jClass = GetLoopClass();
             loopValue = env->GetStaticObjectField(jClass, enumField);
             env->DeleteLocalRef(jClass);
         }

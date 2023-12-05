@@ -25,6 +25,16 @@ extern "C"
     {
         RendererType rendererType = static_cast<RendererType>(type);
         JNIRenderer* renderer = new JNIRenderer(ktRenderer, trace, rendererType);
+        // If using a fallback renderer, reassign this value.
+        int actualType = static_cast<int>(renderer->rendererType());
+        if (type != actualType)
+        {
+            jclass ktRendererClass = env->GetObjectClass(ktRenderer);
+            jmethodID setRendererType =
+                env->GetMethodID(ktRendererClass, "setRendererType", "(I)V");
+            env->CallVoidMethod(ktRenderer, setRendererType, actualType);
+            env->DeleteLocalRef(ktRendererClass);
+        }
         return (jlong)renderer;
     }
 
@@ -59,13 +69,21 @@ extern "C"
                                                                   jobject surface,
                                                                   jlong rendererRef)
     {
-        ANativeWindow* surfaceWindow = ANativeWindow_fromSurface(env, surface);
-        reinterpret_cast<JNIRenderer*>(rendererRef)->setWindow(surfaceWindow);
-        if (surfaceWindow)
+        JNIRenderer* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
+        if (renderer->rendererType() != RendererType::Canvas)
         {
-            // Release this handle. If the renderer grabbed a reference it
-            // won't deallocate.
-            ANativeWindow_release(surfaceWindow);
+            ANativeWindow* surfaceWindow = ANativeWindow_fromSurface(env, surface);
+            reinterpret_cast<JNIRenderer*>(rendererRef)->setSurface(surfaceWindow);
+            if (surfaceWindow)
+            {
+                // Release this handle.
+                // If the renderer grabbed a reference it won't deallocate.
+                ANativeWindow_release(surfaceWindow);
+            }
+        }
+        else
+        {
+            renderer->setSurface(surface);
         }
     }
 
@@ -74,7 +92,7 @@ extern "C"
                                                                       jobject,
                                                                       jlong rendererRef)
     {
-        reinterpret_cast<JNIRenderer*>(rendererRef)->setWindow(nullptr);
+        reinterpret_cast<JNIRenderer*>(rendererRef)->setSurface(std::monostate{});
     }
 
     JNIEXPORT void JNICALL

@@ -1,21 +1,37 @@
-
 #include "models/worker_impl.hpp"
 
 namespace rive_android
 {
-std::unique_ptr<WorkerImpl> WorkerImpl::Make(struct ANativeWindow* window,
-                                             EGLThreadState* threadState,
+
+std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
+                                             DrawableThreadState* threadState,
                                              const RendererType type)
 {
-    bool success;
+    assert(surface.index() > 0); // Valid surface?
+
+    bool success = false;
     std::unique_ptr<WorkerImpl> impl;
-    if (type == RendererType::Skia)
+    switch (type)
     {
-        impl = std::make_unique<SkiaWorkerImpl>(window, threadState, &success);
-    }
-    else
-    {
-        impl = std::make_unique<PLSWorkerImpl>(window, threadState, &success);
+        case RendererType::Rive:
+        {
+            ANativeWindow* window = std::get<ANativeWindow*>(surface);
+            impl = std::make_unique<PLSWorkerImpl>(window, threadState, &success);
+            break;
+        }
+        case RendererType::Skia:
+        {
+            ANativeWindow* window = std::get<ANativeWindow*>(surface);
+            impl = std::make_unique<SkiaWorkerImpl>(window, threadState, &success);
+            break;
+        }
+        case RendererType::Canvas:
+        {
+            jobject ktSurface = std::get<jobject>(surface);
+            impl = std::make_unique<CanvasWorkerImpl>(ktSurface, &success);
+        }
+        default:
+            break;
     }
     if (!success)
     {
@@ -28,7 +44,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(struct ANativeWindow* window,
 void WorkerImpl::start(jobject ktRenderer, std::chrono::high_resolution_clock::time_point frameTime)
 {
     auto env = GetJNIEnv();
-    jclass ktClass = GetJNIEnv()->GetObjectClass(ktRenderer);
+    jclass ktClass = env->GetObjectClass(ktRenderer);
     m_ktRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(ktClass));
     m_ktDrawCallback = env->GetMethodID(m_ktRendererClass, "draw", "()V");
     m_ktAdvanceCallback = env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
@@ -50,7 +66,7 @@ void WorkerImpl::stop()
 }
 
 void WorkerImpl::doFrame(ITracer* tracer,
-                         EGLThreadState* threadState,
+                         DrawableThreadState* threadState,
                          jobject ktRenderer,
                          std::chrono::high_resolution_clock::time_point frameTime)
 {
@@ -67,9 +83,7 @@ void WorkerImpl::doFrame(ITracer* tracer,
 
     tracer->beginSection("draw()");
 
-    // Bind context to this thread.
-    threadState->makeCurrent(m_eglSurface);
-    clear(threadState);
+    prepareForDraw(threadState);
     // Kotlin callback.
     env->CallVoidMethod(ktRenderer, m_ktDrawCallback);
 
@@ -85,31 +99,34 @@ void WorkerImpl::doFrame(ITracer* tracer,
 }
 
 /* SkiaWorkerImpl */
-void SkiaWorkerImpl::destroy(EGLThreadState* threadState)
+void SkiaWorkerImpl::destroy(DrawableThreadState* threadState)
 {
     m_skRenderer.reset();
     m_skSurface.reset();
-    WorkerImpl::destroy(threadState);
+    EGLWorkerImpl::destroy(threadState);
 }
 
-void SkiaWorkerImpl::clear(EGLThreadState* threadState)
+void SkiaWorkerImpl::clear(DrawableThreadState*) const
 {
     m_skSurface->getCanvas()->clear(uint32_t((0x00000000)));
 }
 
-void SkiaWorkerImpl::flush(EGLThreadState* threadState) { m_skSurface->flushAndSubmit(); }
+void SkiaWorkerImpl::flush(DrawableThreadState* threadState) const
+{
+    m_skSurface->flushAndSubmit();
+}
 
 rive::Renderer* SkiaWorkerImpl::renderer() const { return m_skRenderer.get(); }
 
 /* PLSWorkerImpl */
-void PLSWorkerImpl::destroy(EGLThreadState* threadState)
+void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 {
     m_plsRenderer.reset();
     m_plsRenderTarget.reset();
-    WorkerImpl::destroy(threadState);
+    EGLWorkerImpl::destroy(threadState);
 }
 
-void PLSWorkerImpl::clear(EGLThreadState* threadState)
+void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
@@ -120,7 +137,7 @@ void PLSWorkerImpl::clear(EGLThreadState* threadState)
     plsContext->beginFrame(std::move(frameDescriptor));
 }
 
-void PLSWorkerImpl::flush(EGLThreadState* threadState)
+void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
@@ -137,4 +154,23 @@ void PLSWorkerImpl::flush(EGLThreadState* threadState)
 
 rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
 
+/* CanvasWorkerImpl */
+void CanvasWorkerImpl::destroy(DrawableThreadState*)
+{
+    assert(m_ktSurface != nullptr);
+
+    m_canvasRenderer.reset();
+    GetJNIEnv()->DeleteGlobalRef(m_ktSurface);
+    m_ktSurface = nullptr;
+}
+
+void CanvasWorkerImpl::prepareForDraw(DrawableThreadState*) const
+{
+    m_canvasRenderer->bindCanvas(m_ktSurface);
+}
+
+void CanvasWorkerImpl::flush(DrawableThreadState*) const
+{
+    m_canvasRenderer->unlockAndPost(m_ktSurface);
+}
 } // namespace rive_android

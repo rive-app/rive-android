@@ -23,8 +23,10 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.renderers.PointerEvents
 import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RendererMetrics
+import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
 import com.android.volley.Request

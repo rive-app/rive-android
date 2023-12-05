@@ -155,12 +155,11 @@ extern "C"
         return res;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkia(JNIEnv* env,
-                                                                                  jobject,
-                                                                                  jlong artboardRef,
-                                                                                  jlong rendererRef)
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(JNIEnv* env,
+                                                                              jobject,
+                                                                              jlong artboardRef,
+                                                                              jlong rendererRef)
     {
-        // TODO: consolidate this to work with an abstracted JNI Renderer.
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(artboardRef);
         auto jniWrapper = reinterpret_cast<JNIRenderer*>(rendererRef);
         rive::Renderer* renderer = jniWrapper->getRendererOnWorkerThread();
@@ -168,12 +167,12 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppDrawSkiaAligned(JNIEnv* env,
-                                                                  jobject,
-                                                                  jlong artboardRef,
-                                                                  jlong rendererRef,
-                                                                  jobject ktFit,
-                                                                  jobject ktAlignment)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppDrawAligned(JNIEnv* env,
+                                                              jobject,
+                                                              jlong artboardRef,
+                                                              jlong rendererRef,
+                                                              jobject ktFit,
+                                                              jobject ktAlignment)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(artboardRef);
         auto jniWrapper = reinterpret_cast<JNIRenderer*>(rendererRef);
@@ -185,10 +184,7 @@ extern "C"
         renderer->save();
         renderer->align(fit,
                         alignment,
-                        rive::AABB(0,
-                                   0,
-                                   static_cast<float>(jniWrapper->width()),
-                                   static_cast<float>(jniWrapper->height())),
+                        rive::AABB(0, 0, jniWrapper->width(), jniWrapper->height()),
                         artboard->bounds());
         artboard->draw(renderer);
         renderer->restore();

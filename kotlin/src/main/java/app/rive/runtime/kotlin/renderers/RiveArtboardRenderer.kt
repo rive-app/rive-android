@@ -1,11 +1,9 @@
-package app.rive.runtime.kotlin
+package app.rive.runtime.kotlin.renderers
 
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
-import app.rive.runtime.kotlin.renderers.Renderer
-
 
 enum class PointerEvents {
     POINTER_DOWN, POINTER_UP, POINTER_MOVE

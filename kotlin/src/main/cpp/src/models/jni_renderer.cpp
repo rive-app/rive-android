@@ -1,10 +1,3 @@
-#include <thread>
-#include <pthread.h>
-#include <EGL/egl.h>
-#include <android/native_window.h>
-#include <GLES3/gl3.h>
-#include <jni.h>
-
 #include "models/jni_renderer.hpp"
 
 #include "GrBackendSurface.h"
@@ -19,14 +12,14 @@ using namespace std::chrono_literals;
 
 namespace rive_android
 {
-JNIRenderer::JNIRenderer(jobject ktObject,
+JNIRenderer::JNIRenderer(jobject ktRenderer,
                          bool trace /* = false */,
                          const RendererType rendererType /* = RendererType::Skia */) :
+    m_worker(RefWorker::CurrentOrFallback(rendererType)),
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
-    m_worker(EGLWorker::CurrentOrSkia(rendererType)),
-    m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktObject)),
+    m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktRenderer)),
     m_tracer(getTracer(trace))
 {}
 
@@ -34,7 +27,7 @@ JNIRenderer::~JNIRenderer()
 {
     // Delete the worker thread objects. And since the worker has captured our "this" pointer,
     // wait for it to finish processing our work before continuing the destruction process.
-    m_worker->runAndWait([=](EGLThreadState* threadState) {
+    m_worker->runAndWait([=](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->destroy(threadState);
@@ -52,33 +45,23 @@ JNIRenderer::~JNIRenderer()
         delete m_tracer;
     }
 
-    if (m_window != nullptr)
-    {
-        ANativeWindow_release(m_window);
-    }
+    releaseSurface();
 }
 
-void JNIRenderer::setWindow(ANativeWindow* window)
+void JNIRenderer::setSurface(SurfaceVariant surface)
 {
-    if (m_window != nullptr)
-    {
-        ANativeWindow_release(m_window);
-    }
-    m_window = window;
-    if (m_window != nullptr)
-    {
-        ANativeWindow_acquire(m_window);
-    }
-    m_worker->run([=](EGLThreadState* threadState) {
+    releaseSurface();
+    acquireSurface(surface);
+    m_worker->run([=](DrawableThreadState* threadState) {
         m_workerThreadID = std::this_thread::get_id();
         if (m_workerImpl)
         {
             m_workerImpl->destroy(threadState);
             m_workerImpl.reset();
         }
-        if (m_window)
+        if (m_surface.index() > 0)
         {
-            m_workerImpl = WorkerImpl::Make(m_window, threadState, m_worker->rendererType());
+            m_workerImpl = WorkerImpl::Make(m_surface, threadState, m_worker->rendererType());
         }
     });
 }
@@ -95,7 +78,7 @@ rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
 
 void JNIRenderer::start()
 {
-    m_worker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         auto now = std::chrono::steady_clock::now();
@@ -106,7 +89,7 @@ void JNIRenderer::start()
 
 void JNIRenderer::stop()
 {
-    m_worker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->stop();
@@ -120,7 +103,7 @@ void JNIRenderer::doFrame()
         return;
     }
 
-    m_worker->run([=](EGLThreadState* threadState) {
+    m_worker->run([=](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         auto now = std::chrono::high_resolution_clock::now();

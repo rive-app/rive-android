@@ -13,15 +13,15 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Oz")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
-if(EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
+if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
     set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-cpp")
     set(PLS_DIR "${PACKAGES_DIR}/submodules/pls")
-else()
+else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
     set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/runtime")
     set(PLS_DIR "${PACKAGES_DIR}/pls")
-endif()
+endif ()
 
 message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 
@@ -61,9 +61,9 @@ execute_process(
         OUTPUT_VARIABLE SCRIPT_OUTPUT
 )
 
-if(NOT SCRIPT_RESULT EQUAL "0")
+if (NOT SCRIPT_RESULT EQUAL "0")
     message(FATAL_ERROR "Script returned with error: '${SCRIPT_OUTPUT}' - '${SCRIPT_RESULT}'")
-endif()
+endif ()
 include_directories(
         include
         $ENV{RIVE_RUNTIME_DIR}/include
@@ -109,7 +109,6 @@ find_library(log-lib log)
 find_library(android-lib android)
 find_library(egl-lib EGL)
 find_library(gles-lib GLESv3)
-find_library(gles-fdsalib GLESv3fdas)
 
 target_link_libraries(rive-android
         rive-lib
@@ -123,5 +122,5 @@ target_link_libraries(rive-android
         ${android-lib}
         ${egl-lib}
         ${gles-lib}
-        # ${gles-fdsalib}
+        jnigraphics
         )

@@ -35,12 +35,9 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
 
-    // TODO: this will be a cppDraw call after we remove our old renderer.
-    private external fun cppDrawSkia(
-        cppPointer: Long, rendererPointer: Long
-    )
+    private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
-    private external fun cppDrawSkiaAligned(
+    private external fun cppDrawAligned(
         cppPointer: Long, rendererPointer: Long,
         fit: Fit, alignment: Alignment,
     )
@@ -175,7 +172,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      * Whenever components are added to an artboard, for example when an artboard is first loaded, they are considered dirty.
      * Whenever animations change properties of components, move a shape or change a color, they are marked as dirty.
      *
-     * Before any changes to components will be visible in the next rendered frame, the artbaord needs to be [advance]d.
+     * Before any changes to components will be visible in the next rendered frame, the artboard needs to be [advance]d.
      *
      * [elapsedTime] is currently not taken into account.
      */
@@ -187,7 +184,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      * Draw the the artboard to the [renderer].
      */
     fun drawSkia(rendererAddress: Long) {
-        synchronized(lock) { cppDrawSkia(cppPointer, rendererAddress) }
+        synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
     }
 
     /**
@@ -195,7 +192,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      * Also align the artboard to the render surface
      */
     fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
-        synchronized(lock) { cppDrawSkiaAligned(cppPointer, rendererAddress, fit, alignment) }
+        synchronized(lock) { cppDrawAligned(cppPointer, rendererAddress, fit, alignment) }
     }
 
     /**

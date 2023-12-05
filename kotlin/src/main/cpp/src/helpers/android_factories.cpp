@@ -1,22 +1,24 @@
 /*
  * Copyright 2023 Rive
  */
+#include <vector>
 
 #include "helpers/android_factories.hpp"
-
-#include "helpers/egl_worker.hpp"
+#include "helpers/canvas_render_objects.hpp"
+#include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
 #include "helpers/thread_state_pls.hpp"
+
 #include "rive/math/math_types.hpp"
 #include "rive/pls/pls_image.hpp"
 #include "rive/pls/gl/pls_render_buffer_gl_impl.hpp"
 #include "rive/pls/gl/pls_render_context_gl_impl.hpp"
 
-#include <vector>
-
 using namespace rive;
 using namespace rive::pls;
 
+namespace rive_android
+{
 bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
                     bool premultiply,
                     uint32_t* width,
@@ -141,7 +143,7 @@ class AndroidPLSRenderBuffer : public PLSRenderBufferGLImpl
 public:
     AndroidPLSRenderBuffer(RenderBufferType type, RenderBufferFlags flags, size_t sizeInBytes) :
         PLSRenderBufferGLImpl(type, flags, sizeInBytes),
-        m_glWorker(rive_android::EGLWorker::RiveWorker())
+        m_glWorker(rive_android::RefWorker::RiveWorker())
     {
         if (std::this_thread::get_id() != m_glWorker->threadID())
         {
@@ -149,8 +151,8 @@ public:
             // Keep this class alive until the worker thread finishes initializing it.
             rcp<AndroidPLSRenderBuffer> thisRef = ref_rcp(this);
             m_bufferCreationWorkID =
-                m_glWorker->run([thisRef](rive_android::EGLThreadState* threadState) {
-                    auto plsState = static_cast<rive_android::PLSThreadState*>(threadState);
+                m_glWorker->run([thisRef](rive_android::DrawableThreadState* threadState) {
+                    auto plsState = reinterpret_cast<rive_android::PLSThreadState*>(threadState);
                     auto* glImpl =
                         plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
                     thisRef->init(ref_rcp(glImpl->state()));
@@ -158,7 +160,8 @@ public:
         }
         else
         {
-            auto plsState = static_cast<rive_android::PLSThreadState*>(m_glWorker->threadState());
+            auto plsState =
+                reinterpret_cast<rive_android::PLSThreadState*>(m_glWorker->threadState());
             auto* glImpl = plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
             init(ref_rcp(glImpl->state()));
             m_bufferCreationWorkID = rive_android::WorkerThread::kWorkIDAlwaysFinished;
@@ -175,7 +178,7 @@ public:
             // and then marshal them off to the GL thread for deletion.
             std::array<GLuint, pls::kBufferRingSize> buffersToDelete = detachBuffers();
             rcp<GLState> glState = ref_rcp(state());
-            m_glWorker->run([buffersToDelete, glState](rive_android::EGLThreadState* threadState) {
+            m_glWorker->run([buffersToDelete, glState](rive_android::DrawableThreadState*) {
                 for (GLuint bufferID : buffersToDelete)
                 {
                     if (bufferID != 0)
@@ -212,7 +215,7 @@ public:
             assert(sideBufferData != nullptr);
             // Keep this class alive until the worker thread finishes updating the buffer.
             rcp<AndroidPLSRenderBuffer> thisRef = ref_rcp(this);
-            m_glWorker->run([sideBufferData, thisRef](rive_android::EGLThreadState* threadState) {
+            m_glWorker->run([sideBufferData, thisRef](rive_android::DrawableThreadState*) {
                 void* ptr = thisRef->PLSRenderBufferGLImpl::onMap();
                 memcpy(ptr, sideBufferData, thisRef->sizeInBytes());
                 thisRef->PLSRenderBufferGLImpl::onUnmap();
@@ -227,9 +230,9 @@ public:
     }
 
 protected:
-    const rcp<rive_android::EGLWorker> m_glWorker;
+    const rcp<rive_android::RefWorker> m_glWorker;
     std::unique_ptr<uint8_t[]> m_offThreadBufferDataMirror;
-    rive_android::EGLWorker::WorkID m_bufferCreationWorkID;
+    rive_android::RefWorker::WorkID m_bufferCreationWorkID;
 };
 
 rcp<RenderBuffer> AndroidPLSFactory::makeRenderBuffer(RenderBufferType type,
@@ -243,18 +246,19 @@ class AndroidPLSImage : public PLSImage
 {
 public:
     AndroidPLSImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr) :
-        PLSImage(width, height), m_glWorker(rive_android::EGLWorker::RiveWorker())
+        PLSImage(width, height), m_glWorker(rive_android::RefWorker::RiveWorker())
     {
         // Create the texture on the worker thread where the GL context is current.
         const uint8_t* imageDataRGBA = imageDataRGBAPtr.release();
-        m_textureCreationWorkID = m_glWorker->run([this, imageDataRGBA](
-                                                      rive_android::EGLThreadState* threadState) {
-            auto plsState = static_cast<rive_android::PLSThreadState*>(threadState);
-            uint32_t mipLevelCount = math::msb(m_Height | m_Width);
-            auto* glImpl = plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
-            resetTexture(glImpl->makeImageTexture(m_Width, m_Height, mipLevelCount, imageDataRGBA));
-            delete[] imageDataRGBA;
-        });
+        m_textureCreationWorkID =
+            m_glWorker->run([this, imageDataRGBA](rive_android::DrawableThreadState* threadState) {
+                auto plsState = reinterpret_cast<rive_android::PLSThreadState*>(threadState);
+                uint32_t mipLevelCount = math::msb(m_Height | m_Width);
+                auto* glImpl = plsState->plsContext()->static_impl_cast<PLSRenderContextGLImpl>();
+                resetTexture(
+                    glImpl->makeImageTexture(m_Width, m_Height, mipLevelCount, imageDataRGBA));
+                delete[] imageDataRGBA;
+            });
     }
 
     ~AndroidPLSImage() override
@@ -267,13 +271,13 @@ public:
         if (texture != nullptr)
         {
             // Delete the texture on the worker thread where the GL context is current.
-            m_glWorker->run([texture](rive_android::EGLThreadState*) { texture->unref(); });
+            m_glWorker->run([texture](rive_android::DrawableThreadState*) { texture->unref(); });
         }
     }
 
 private:
-    const rcp<rive_android::EGLWorker> m_glWorker;
-    rive_android::EGLWorker::WorkID m_textureCreationWorkID;
+    const rcp<rive_android::RefWorker> m_glWorker;
+    rive_android::RefWorker::WorkID m_textureCreationWorkID;
 };
 
 rcp<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
@@ -289,3 +293,72 @@ rcp<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes
     memcpy(bytes.get(), pixels.data(), pixels.size());
     return make_rcp<AndroidPLSImage>(width, height, std::move(bytes));
 }
+
+/** AndroidCanvasFactory */
+rive::rcp<rive::RenderBuffer> AndroidCanvasFactory::makeRenderBuffer(rive::RenderBufferType type,
+                                                                     rive::RenderBufferFlags flags,
+                                                                     size_t sizeInBytes)
+{
+    {
+        return rive::make_rcp<rive::DataRenderBuffer>(type, flags, sizeInBytes);
+    }
+}
+
+rive::rcp<rive::RenderImage> AndroidCanvasFactory::decodeImage(
+    rive::Span<const uint8_t> encodedBytes)
+{
+    uint32_t width, height;
+    std::vector<uint8_t> pixels;
+    bool isOpaque;
+    if (!JNIDecodeImage(encodedBytes, false /*premultiply*/, &width, &height, &pixels, &isOpaque))
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<uint8_t[]> bytes(new uint8_t[pixels.size()]);
+    memcpy(bytes.get(), pixels.data(), pixels.size());
+    return make_rcp<CanvasRenderImage>(width, height, std::move(bytes));
+}
+
+rive::rcp<rive::RenderShader> AndroidCanvasFactory::makeLinearGradient(
+    float sx,
+    float sy,
+    float ex,
+    float ey,
+    const rive::ColorInt colors[], // [count]
+    const float stops[],           // [count]
+    size_t count)
+{
+    return rive::rcp<rive::RenderShader>(
+        new LinearGradientCanvasShader(sx, sy, ex, ey, colors, stops, count));
+}
+
+rive::rcp<rive::RenderShader> AndroidCanvasFactory::makeRadialGradient(
+    float cx,
+    float cy,
+    float radius,
+    const rive::ColorInt colors[], // [count]
+    const float stops[],           // [count]
+    size_t count)
+{
+    return rive::rcp<rive::RenderShader>(
+        new RadialGradientCanvasShader(cx, cy, radius, colors, stops, count));
+}
+
+std::unique_ptr<rive::RenderPath> AndroidCanvasFactory::makeRenderPath(rive::RawPath& rawPath,
+                                                                       rive::FillRule fillRule)
+{
+    return std::make_unique<CanvasRenderPath>(rawPath, fillRule);
+}
+
+std::unique_ptr<rive::RenderPath> AndroidCanvasFactory::makeEmptyRenderPath()
+{
+    return std::make_unique<CanvasRenderPath>();
+}
+
+std::unique_ptr<rive::RenderPaint> AndroidCanvasFactory::makeRenderPaint()
+{
+    return std::make_unique<CanvasRenderPaint>();
+}
+
+} // namespace rive_android

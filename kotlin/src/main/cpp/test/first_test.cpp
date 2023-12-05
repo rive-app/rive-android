@@ -1,7 +1,7 @@
 // 010-TestCase.cpp
 // And write tests in the same file:
 #include <catch2/catch_test_macros.hpp>
-#include "helpers/egl_worker.hpp"
+#include "helpers/worker_ref.hpp"
 
 using namespace rive_android;
 
@@ -15,7 +15,7 @@ TEST_CASE("Factorial of 0 is 1 (fail)", "[single-file]") { REQUIRE(Factorial(0) 
 
 TEST_CASE("Factorials of 1 and higher are computed (pass)", "[single-file]")
 {
-    rive::rcp<EGLWorker> worker = EGLWorker::CurrentOrSkia();
+    rive::rcp<RefWorker> worker = RefWorker::CurrentOrFallback(RendererType::Skia);
     printf("AM I ALIVE?!\n");
     // worker->run([=](EGLThreadState* ts) { printf("I am alive!?\n"); });
     REQUIRE(Factorial(1) == 1);

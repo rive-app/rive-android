@@ -32,7 +32,8 @@ enum class RendererType
 {
     None = -1,
     Skia = 0,
-    Rive = 1
+    Rive = 1,
+    Canvas = 2
 };
 
 extern JavaVM* g_JVM;

@@ -7,7 +7,6 @@ import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.Observable
-import app.rive.runtime.kotlin.PointerEvents
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
@@ -26,6 +25,7 @@ import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger

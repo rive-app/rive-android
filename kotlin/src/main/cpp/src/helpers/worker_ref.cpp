@@ -1,5 +1,4 @@
-#include "helpers/egl_worker.hpp"
-
+#include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
 #include "helpers/thread_state_pls.hpp"
 #include <thread>
@@ -8,22 +7,25 @@ using namespace rive;
 
 namespace rive_android
 {
-static std::mutex s_eglWorkerMutex;
+static std::mutex s_refWorkerMutex;
 
-rcp<EGLWorker> EGLWorker::RiveWorker()
+static std::unique_ptr<RefWorker> s_skiaWorker;
+static std::unique_ptr<RefWorker> s_canvasWorker;
+
+rcp<RefWorker> RefWorker::RiveWorker()
 {
     static enum class RiveRendererSupport { unknown, no, yes } s_isSupported;
-    static std::unique_ptr<EGLWorker> s_riveWorker;
+    static std::unique_ptr<RefWorker> s_riveWorker;
 
-    std::lock_guard lock(s_eglWorkerMutex);
+    std::lock_guard lock(s_refWorkerMutex);
 
     if (s_isSupported == RiveRendererSupport::unknown)
     {
         assert(s_riveWorker == nullptr);
-        LOGI("Creating a new EGLWorker with Rive");
-        std::unique_ptr<EGLWorker> candidateWorker(new EGLWorker(RendererType::Rive));
+        LOGI("Creating *Rive* RefWorker");
+        std::unique_ptr<RefWorker> candidateWorker(new RefWorker(RendererType::Rive));
         // Check if PLS is supported.
-        candidateWorker->runAndWait([](rive_android::EGLThreadState* threadState) {
+        candidateWorker->runAndWait([](rive_android::DrawableThreadState* threadState) {
             PLSThreadState* plsThreadState = static_cast<PLSThreadState*>(threadState);
             s_isSupported = plsThreadState->plsContext() != nullptr ? RiveRendererSupport::yes
                                                                     : RiveRendererSupport::no;
@@ -47,71 +49,71 @@ rcp<EGLWorker> EGLWorker::RiveWorker()
     return rcp(s_riveWorker.get());
 }
 
-static std::unique_ptr<EGLWorker> s_skiaWorker;
-
-rcp<EGLWorker> EGLWorker::SkiaWorker()
+rcp<RefWorker> RefWorker::SkiaWorker()
 {
-    std::lock_guard lock(s_eglWorkerMutex);
+    std::lock_guard lock(s_refWorkerMutex);
     if (s_skiaWorker == nullptr)
     {
-        LOGI("Creating a new EGLWorker with Skia");
-        s_skiaWorker = std::unique_ptr<EGLWorker>(new EGLWorker(RendererType::Skia));
+        LOGI("Creating *Skia* RefWorker");
+        s_skiaWorker = std::unique_ptr<RefWorker>(new RefWorker(RendererType::Skia));
     }
     ++s_skiaWorker->m_externalRefCount; // Increment the external ref count.
     return rcp(s_skiaWorker.get());
 }
 
-rcp<EGLWorker> EGLWorker::CurrentOrSkia(RendererType rendererType)
+rcp<RefWorker> RefWorker::CanvasWorker()
 {
-    rcp<EGLWorker> currentOrSkia;
+    std::lock_guard lock(s_refWorkerMutex);
+    if (s_canvasWorker == nullptr)
+    {
+        LOGI("Creating *Canvas* RefWorker");
+        s_canvasWorker = std::unique_ptr<RefWorker>(new RefWorker(RendererType::Canvas));
+    }
+    ++s_canvasWorker->m_externalRefCount; // Increment the external ref count.
+    return rcp(s_canvasWorker.get());
+}
+
+rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
+{
+    // N.B. if fallback changes, `GetFactory()` also needs to change.
+    rcp<RefWorker> currentOrFallback;
     switch (rendererType)
     {
         case RendererType::None:
             assert(false);
             break;
         case RendererType::Rive:
-            currentOrSkia = RiveWorker();
+            currentOrFallback = RiveWorker();
             break;
         case RendererType::Skia:
-            currentOrSkia = SkiaWorker();
+            currentOrFallback = SkiaWorker();
+            break;
+        case RendererType::Canvas:
+            currentOrFallback = CanvasWorker();
             break;
     }
-    if (currentOrSkia == nullptr)
+    if (currentOrFallback == nullptr)
     {
-        currentOrSkia = SkiaWorker();
+        currentOrFallback = SkiaWorker();
     }
-    return currentOrSkia;
+    return currentOrFallback;
 }
 
-static const char* renderer_name(RendererType rendererType)
+RefWorker::~RefWorker()
 {
-    switch (rendererType)
-    {
-        case RendererType::None:
-            assert(false);
-            return "";
-        case RendererType::Rive:
-            return "Rive";
-        case RendererType::Skia:
-            return "Skia";
-    }
-}
-
-EGLWorker::~EGLWorker()
-{
-    LOGI("Deleting the EGLWorker with %s", renderer_name(rendererType()));
+    LOGI("Deleting the RefWorker with %s", RendererName(rendererType()));
     terminateThread();
 }
 
-void EGLWorker::ref()
+void RefWorker::ref()
 {
-    std::lock_guard lock(s_eglWorkerMutex);
+    std::lock_guard lock(s_refWorkerMutex);
     ++m_externalRefCount;
 }
 
-void EGLWorker::unref()
+void RefWorker::unref()
 {
-    std::lock_guard lock(s_eglWorkerMutex);
+    std::lock_guard lock(s_refWorkerMutex);
     assert(m_externalRefCount > 0);
     if (--m_externalRefCount == 0)
     {
@@ -119,18 +121,21 @@ void EGLWorker::unref()
     }
 }
 
-void EGLWorker::externalRefCountDidReachZero()
+void RefWorker::externalRefCountDidReachZero()
 {
     switch (rendererType())
     {
         case RendererType::None:
+        {
             assert(false);
             break;
+        }
         case RendererType::Rive:
+        {
             // Release the Rive worker's GPU resources, but keep the GL context alive. We have
             // simple way to release GPU resources here instead, without having to pay the hefty
             // price of destroying and re-creating the entire GL context.
-            run([](rive_android::EGLThreadState* threadState) {
+            run([](rive_android::DrawableThreadState* threadState) {
                 PLSThreadState* plsThreadState = static_cast<PLSThreadState*>(threadState);
                 rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
                 if (plsContext != nullptr)
@@ -140,11 +145,19 @@ void EGLWorker::externalRefCountDidReachZero()
                 }
             });
             break;
+        }
         case RendererType::Skia:
         {
             // Delete the entire Skia context.
             assert(s_skiaWorker.get() == this);
             s_skiaWorker = nullptr;
+            break;
+        }
+        case RendererType::Canvas:
+        {
+            // Delete the entire Skia context.
+            assert(s_canvasWorker.get() == this);
+            s_canvasWorker = nullptr;
             break;
         }
     }
