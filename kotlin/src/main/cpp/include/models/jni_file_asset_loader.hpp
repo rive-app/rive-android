@@ -18,7 +18,7 @@ public:
     JNIFileAssetLoader(jobject, JNIEnv*);
     ~JNIFileAssetLoader();
 
-    bool loadContents(rive::FileAsset&, rive::Span<const uint8_t>) override;
+    bool loadContents(rive::FileAsset&, rive::Span<const uint8_t>, rive::Factory*) override;
 
     void setRendererType(RendererType type)
     {

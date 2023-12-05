@@ -20,7 +20,9 @@ JNIFileAssetLoader::~JNIFileAssetLoader()
     m_ktLoadContentsFn = nullptr;
 }
 
-bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset, rive::Span<const uint8_t> inBandBytes)
+bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
+                                      rive::Span<const uint8_t> inBandBytes,
+                                      rive::Factory* factory)
 {
     JNIEnv* env = GetJNIEnv();
     jclass fileAssetClass = env->FindClass("app/rive/runtime/kotlin/core/FileAsset");
