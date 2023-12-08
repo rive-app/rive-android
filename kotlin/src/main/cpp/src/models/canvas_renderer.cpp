@@ -116,12 +116,12 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     env->DeleteLocalRef(vertexModeClass);
 
     /** Set up the vertices */
-    const float* vertices = rive::DataRenderBuffer::Cast(vertices_f32.get())->f32s();
+    const float* vertices = static_cast<rive::DataRenderBuffer*>(vertices_f32.get())->f32s();
     jfloatArray verticesArray = env->NewFloatArray(vertexCount * 2);
     env->SetFloatArrayRegion(verticesArray, 0, vertexCount * 2, vertices);
 
     /** Set up the uvs */
-    const float* uvs = rive::DataRenderBuffer::Cast(uvCoords_f32.get())->f32s();
+    const float* uvs = static_cast<rive::DataRenderBuffer*>(uvCoords_f32.get())->f32s();
     std::vector<float> scaledUVs(vertexCount * 2);
     for (int i = 0; i < vertexCount; i++)
     {
@@ -133,7 +133,7 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     env->SetFloatArrayRegion(uvsArray, 0, vertexCount * 2, scaledUVs.data());
 
     /** Set up the indices */
-    const uint16_t* indices = rive::DataRenderBuffer::Cast(indices_u16.get())->u16s();
+    const uint16_t* indices = static_cast<rive::DataRenderBuffer*>(indices_u16.get())->u16s();
     jshortArray indicesArray = env->NewShortArray(indexCount);
     env->SetShortArrayRegion(indicesArray, 0, indexCount, reinterpret_cast<const jshort*>(indices));
     uint32_t* no_colors = nullptr;
