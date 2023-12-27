@@ -62,12 +62,12 @@ public:
                                                      const float stops[],           // [count]
                                                      size_t count) override;
 
-    std::unique_ptr<rive::RenderPath> makeRenderPath(rive::RawPath& rawPath,
-                                                     rive::FillRule fillRule) override;
+    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath& rawPath,
+                                               rive::FillRule fillRule) override;
 
-    std::unique_ptr<rive::RenderPath> makeEmptyRenderPath() override;
+    rive::rcp<rive::RenderPath> makeEmptyRenderPath() override;
 
-    std::unique_ptr<rive::RenderPaint> makeRenderPaint() override;
+    rive::rcp<rive::RenderPaint> makeRenderPaint() override;
 };
 } // namespace rive_android
 #endif // RIVE_ANDROID_FACTORIES_HPP

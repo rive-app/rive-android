@@ -345,20 +345,20 @@ rive::rcp<rive::RenderShader> AndroidCanvasFactory::makeRadialGradient(
         new RadialGradientCanvasShader(cx, cy, radius, colors, stops, count));
 }
 
-std::unique_ptr<rive::RenderPath> AndroidCanvasFactory::makeRenderPath(rive::RawPath& rawPath,
-                                                                       rive::FillRule fillRule)
+rive::rcp<rive::RenderPath> AndroidCanvasFactory::makeRenderPath(rive::RawPath& rawPath,
+                                                                 rive::FillRule fillRule)
 {
-    return std::make_unique<CanvasRenderPath>(rawPath, fillRule);
+    return rive::make_rcp<CanvasRenderPath>(rawPath, fillRule);
 }
 
-std::unique_ptr<rive::RenderPath> AndroidCanvasFactory::makeEmptyRenderPath()
+rive::rcp<rive::RenderPath> AndroidCanvasFactory::makeEmptyRenderPath()
 {
-    return std::make_unique<CanvasRenderPath>();
+    return rive::make_rcp<CanvasRenderPath>();
 }
 
-std::unique_ptr<rive::RenderPaint> AndroidCanvasFactory::makeRenderPaint()
+rive::rcp<rive::RenderPaint> AndroidCanvasFactory::makeRenderPaint()
 {
-    return std::make_unique<CanvasRenderPaint>();
+    return rive::make_rcp<CanvasRenderPaint>();
 }
 
 } // namespace rive_android
