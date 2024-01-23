@@ -142,14 +142,6 @@ void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
     plsContext->flush();
-    if (m_plsRenderTarget->drawFramebufferID() != 0)
-    {
-        int w = SizeTTOInt(m_plsRenderTarget->width());
-        int h = SizeTTOInt(m_plsRenderTarget->height());
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_plsRenderTarget->sideFramebufferID());
-        glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    }
 }
 
 rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }

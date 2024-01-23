@@ -170,15 +170,7 @@ public:
         auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
         int width = ANativeWindow_getWidth(window);
         int height = ANativeWindow_getHeight(window);
-        m_plsRenderTarget = plsContextImpl->wrapGLRenderTarget(0, width, height);
-        if (m_plsRenderTarget == nullptr)
-        {
-            m_plsRenderTarget = plsContextImpl->makeOffscreenRenderTarget(width, height);
-        }
-        if (m_plsRenderTarget == nullptr)
-        {
-            return;
-        }
+        m_plsRenderTarget = rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0);
         m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
         *success = true;
     }
