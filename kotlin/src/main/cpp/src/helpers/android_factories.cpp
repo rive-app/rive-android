@@ -39,6 +39,7 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     if (!method)
     {
         LOGE("can't find static method decodeToPixels");
+        env->DeleteLocalRef(cls);
         return false;
     }
 
@@ -46,6 +47,7 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     if (!encoded)
     {
         LOGE("failed to allocate NewByteArray");
+        env->DeleteLocalRef(cls);
         return false;
     }
 
@@ -63,6 +65,7 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     if (arrayCount < 2)
     {
         LOGE("bad array length (unexpected)");
+        env->DeleteLocalRef(cls);
         return false;
     }
 
@@ -73,11 +76,13 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     if (pixelCount == 0)
     {
         LOGE("don't support empty images (zero dimension)");
+        env->DeleteLocalRef(cls);
         return false;
     }
     if (2 + pixelCount < arrayCount)
     {
         LOGE("not enough elements in pixel array");
+        env->DeleteLocalRef(cls);
         return false;
     }
 
@@ -114,6 +119,7 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     }
     *isOpaque = rawIsOpaque;
     env->ReleaseIntArrayElements(jpixels, rawPixels, 0);
+    env->DeleteLocalRef(cls);
     return true;
 }
 
@@ -307,17 +313,7 @@ rive::rcp<rive::RenderBuffer> AndroidCanvasFactory::makeRenderBuffer(rive::Rende
 rive::rcp<rive::RenderImage> AndroidCanvasFactory::decodeImage(
     rive::Span<const uint8_t> encodedBytes)
 {
-    uint32_t width, height;
-    std::vector<uint8_t> pixels;
-    bool isOpaque;
-    if (!JNIDecodeImage(encodedBytes, false /*premultiply*/, &width, &height, &pixels, &isOpaque))
-    {
-        return nullptr;
-    }
-
-    std::unique_ptr<uint8_t[]> bytes(new uint8_t[pixels.size()]);
-    memcpy(bytes.get(), pixels.data(), pixels.size());
-    return make_rcp<CanvasRenderImage>(width, height, std::move(bytes));
+    return make_rcp<CanvasRenderImage>(encodedBytes);
 }
 
 rive::rcp<rive::RenderShader> AndroidCanvasFactory::makeLinearGradient(

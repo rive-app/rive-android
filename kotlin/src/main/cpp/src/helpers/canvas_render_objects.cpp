@@ -456,7 +456,7 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
             modeId = GetLuminosity();
             break;
         default:
-            modeId = GetClear();
+            modeId = GetSrcOver();
             break;
     }
     JNIEnv* env = GetJNIEnv();
@@ -475,50 +475,22 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
 }
 
 /* CanvasRenderImage */
-CanvasRenderImage::CanvasRenderImage(int width,
-                                     int height,
-                                     std::unique_ptr<const uint8_t[]> imageDataRGBAPtr)
+CanvasRenderImage::CanvasRenderImage(rive::Span<const uint8_t> encodedBytes)
 {
-    m_Width = width;
-    m_Height = height;
-    // Create the texture on the worker thread where the GL context is current.
-    const uint8_t* imageDataRGBA = imageDataRGBAPtr.get();
-
     JNIEnv* env = GetJNIEnv();
-    jobject bitmap = CreateKtBitmap(env, width, height);
+
+    jobject bitmap = CreateKtBitmapFrom(env, encodedBytes);
     if (bitmap == nullptr)
     {
-        LOGE("CreateBitmap failed: returned nullptr.");
+        LOGE("CanvasRenderImage() - Failed to create a Bitmap.");
         return;
     }
 
-    void* pixels = nullptr;
-    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0)
-    {
-        LOGE("AndroidBitmap_lockPixels() failed.");
-        return;
-    }
-
-    const uint8_t* rgbaLine = imageDataRGBA;
-    uint32_t* line = (uint32_t*)pixels;
-    for (int y = 0; y < height; y++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            uint8_t r = rgbaLine[4 * x];
-            uint8_t g = rgbaLine[4 * x + 1];
-            uint8_t b = rgbaLine[4 * x + 2];
-            uint8_t a = rgbaLine[4 * x + 3];
-
-            line[x] = (a << 24) | (b << 16) | (g << 8) | r;
-        }
-        line = line + width;
-        rgbaLine += width * 4; // 4 bytes per pixel.
-    }
-
-    AndroidBitmap_unlockPixels(env, bitmap);
+    m_Width = env->CallIntMethod(bitmap, GetBitmapWidthMethodId());
+    m_Height = env->CallIntMethod(bitmap, GetBitmapHeightMethodId());
 
     m_ktBitmap = env->NewGlobalRef(bitmap);
+    env->DeleteLocalRef(bitmap);
     m_ktPaint = env->NewGlobalRef(CanvasRenderPaint::CreateKtPaint());
     env->CallVoidMethod(m_ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
 }

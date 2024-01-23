@@ -139,32 +139,40 @@ private:
     jobject m_ktBitmap = nullptr;
     jobject m_ktPaint = nullptr;
 
-    static jobject CreateKtBitmap(JNIEnv* env, int width, int height)
+    static jobject CreateKtBitmapFrom(JNIEnv* env, rive::Span<const uint8_t>& encodedBytes)
     {
-        jobject argb8888 =
-            env->GetStaticObjectField(GetAndroidBitmapConfigClass(), GetARGB8888Field());
-        if (argb8888 == nullptr)
+        jbyteArray byteArray = env->NewByteArray(encodedBytes.size());
+        if (byteArray == nullptr)
         {
-            LOGE("GetStaticObjectField() Bitmap.Config.ARGB_8888 failed.");
+            LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
             return nullptr;
         }
 
-        jobject bitmap = env->CallStaticObjectMethod(GetAndroidBitmapClass(),
-                                                     GetCreateBitmapStaticMethodId(),
-                                                     width,
-                                                     height,
-                                                     argb8888);
-        env->DeleteLocalRef(argb8888);
+        env->SetByteArrayRegion(byteArray,
+                                0,
+                                encodedBytes.size(),
+                                reinterpret_cast<const jbyte*>(encodedBytes.data()));
+
+        jclass bitmapFactoryClass = GetAndroidBitmapFactoryClass();
+        jmethodID decodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
+
+        jobject bitmap = env->CallStaticObjectMethod(bitmapFactoryClass,
+                                                     decodeByteArrayMethodID,
+                                                     byteArray,
+                                                     0,
+                                                     SizeTTOInt(encodedBytes.size()));
+        env->DeleteLocalRef(byteArray);
+        env->DeleteLocalRef(bitmapFactoryClass);
         if (bitmap == nullptr)
         {
-            LOGE("Bitmap constructor failed.");
+            LOGE("CreateKtBitmapFrom() - decodeByteArray() failed.");
+            return nullptr;
         }
-
         return bitmap;
     }
 
 public:
-    CanvasRenderImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr);
+    CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);
 
     ~CanvasRenderImage();
 

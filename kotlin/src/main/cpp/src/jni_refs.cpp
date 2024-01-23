@@ -572,6 +572,7 @@ jmethodID GetBitmapSetLocalMatrixMethodId()
 
 jclass GetAndroidBitmapClass() { return GetClass("android/graphics/Bitmap"); }
 jclass GetAndroidBitmapConfigClass() { return GetClass("android/graphics/Bitmap$Config"); }
+jclass GetAndroidBitmapFactoryClass() { return GetClass("android/graphics/BitmapFactory"); }
 jmethodID GetCreateBitmapStaticMethodId()
 {
     /**
@@ -583,6 +584,18 @@ jmethodID GetCreateBitmapStaticMethodId()
     return GetStaticMethodId(GetAndroidBitmapClass(),
                              "createBitmap",
                              "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+}
+jmethodID GetDecodeByteArrayStaticMethodId()
+{
+    /**
+     * Kotlin signature:
+     * static Bitmap decodeByteArray (byte[] data,
+     *   int offset,
+     *   int length)
+     */
+    return GetStaticMethodId(GetAndroidBitmapFactoryClass(),
+                             "decodeByteArray",
+                             "([BII)Landroid/graphics/Bitmap;");
 }
 jmethodID GetBitmapWidthMethodId()
 {
