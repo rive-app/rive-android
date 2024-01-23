@@ -1,6 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "rive/assets/file_asset.hpp"
+#include "rive/simple_array.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus
@@ -40,9 +41,11 @@ extern "C"
         rive::Factory* fileFactory = GetFactory(rendererType);
         jbyte* byte_array = env->GetByteArrayElements(assetBytes, NULL);
         size_t length = JIntToSizeT(env->GetArrayLength(assetBytes));
-        bool res = fileAsset->decode(
-            rive::Span<const uint8_t>(reinterpret_cast<uint8_t*>(byte_array), length),
-            fileFactory);
+
+        // Turn into a SimpleArray so audio files can steal the bytes if they
+        // want/need to.
+        rive::SimpleArray<uint8_t> bytesToDecode(reinterpret_cast<uint8_t*>(byte_array), length);
+        bool res = fileAsset->decode(bytesToDecode, fileFactory);
         env->ReleaseByteArrayElements(assetBytes, byte_array, JNI_ABORT);
         return res;
     }
