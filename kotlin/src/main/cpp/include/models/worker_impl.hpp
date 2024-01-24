@@ -150,30 +150,7 @@ protected:
 class PLSWorkerImpl : public EGLWorkerImpl
 {
 public:
-    PLSWorkerImpl(struct ANativeWindow* window, DrawableThreadState* threadState, bool* success) :
-        EGLWorkerImpl(window, threadState, success)
-    {
-        if (!success)
-        {
-            return;
-        }
-
-        auto eglThreadState = static_cast<EGLThreadState*>(threadState);
-
-        eglThreadState->makeCurrent(m_eglSurface);
-        rive::pls::PLSRenderContext* plsContext =
-            PLSWorkerImpl::PlsThreadState(eglThreadState)->plsContext();
-        if (plsContext == nullptr)
-        {
-            return; // PLS was not supported.
-        }
-        auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
-        int width = ANativeWindow_getWidth(window);
-        int height = ANativeWindow_getHeight(window);
-        m_plsRenderTarget = rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0);
-        m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
-        *success = true;
-    }
+    PLSWorkerImpl(struct ANativeWindow*, DrawableThreadState*, bool* success);
 
     void destroy(DrawableThreadState* threadState) override;
 

@@ -1,5 +1,7 @@
 #include "models/worker_impl.hpp"
 
+#include "rive/pls/gl/pls_render_target_gl.hpp"
+
 namespace rive_android
 {
 
@@ -119,6 +121,33 @@ void SkiaWorkerImpl::flush(DrawableThreadState* threadState) const
 rive::Renderer* SkiaWorkerImpl::renderer() const { return m_skRenderer.get(); }
 
 /* PLSWorkerImpl */
+PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
+                             DrawableThreadState* threadState,
+                             bool* success) :
+    EGLWorkerImpl(window, threadState, success)
+{
+    if (!success)
+    {
+        return;
+    }
+
+    auto eglThreadState = static_cast<EGLThreadState*>(threadState);
+
+    eglThreadState->makeCurrent(m_eglSurface);
+    rive::pls::PLSRenderContext* plsContext =
+        PLSWorkerImpl::PlsThreadState(eglThreadState)->plsContext();
+    if (plsContext == nullptr)
+    {
+        return; // PLS was not supported.
+    }
+    auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
+    int width = ANativeWindow_getWidth(window);
+    int height = ANativeWindow_getHeight(window);
+    m_plsRenderTarget = rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0);
+    m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
+    *success = true;
+}
+
 void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 {
     m_plsRenderer.reset();
