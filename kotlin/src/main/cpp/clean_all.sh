@@ -39,10 +39,8 @@ rm -rf ./build/android
 popd
 
 # PLS
-pushd "$RIVE_RUNTIME_DIR"/../pls/out
-if [[ -e Makefile ]]; then
-  make clean
-fi
+pushd "$RIVE_RUNTIME_DIR"/../pls
+rm -rf ./out
 rm -rf ./android
 rm -rf ./dependencies
 rm -rf ./obj
