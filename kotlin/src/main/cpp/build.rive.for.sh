@@ -121,6 +121,7 @@ export MAKE_SKIA_FILE="make_skia_android.sh"
 
 API=21
 SKIA_ARCH=
+NCPU=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 
 # Cleans the build for the specified architecture
 cleanFor() {
@@ -155,8 +156,8 @@ buildFor() {
 
     # Build librive_pls_renderer (internally builds librive)
     pushd "$RIVE_RUNTIME_DIR"/../pls/out
-    premake5 --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
-    make config=$CONFIG -j20 rive rive_pls_renderer
+    premake5 --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --with_rive_audio=system --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
+    make config=$CONFIG -j"$NCPU" rive rive_pls_renderer
     popd
 
     # Build librive_skia_renderer (internally builds librive)
