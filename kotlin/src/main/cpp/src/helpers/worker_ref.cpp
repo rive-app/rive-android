@@ -140,8 +140,8 @@ void RefWorker::externalRefCountDidReachZero()
                 rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
                 if (plsContext != nullptr)
                 {
-                    LOGI("Releasing GPU resources on the Rive renderer");
-                    plsContext->resetGPUResources();
+                    LOGI("Releasing resources on the Rive renderer");
+                    plsContext->releaseResources();
                 }
             });
             break;
