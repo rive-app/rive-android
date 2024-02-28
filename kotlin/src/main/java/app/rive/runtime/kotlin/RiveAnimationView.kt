@@ -765,13 +765,25 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     /**
      * Overrides the current asset loader.
+     * It increases the [assetLoader] ref count by one, but its ownership is still
+     * in the hands of the caller.
      *
      * A RiveView creates a [FallbackAssetLoader] by default.
      */
     fun setAssetLoader(assetLoader: FileAssetLoader?) {
-        if (assetLoader != rendererAttributes.assetLoader) {
-            rendererAttributes.assetLoader?.release()
-            rendererAttributes.assetLoader = assetLoader
+        if (assetLoader == rendererAttributes.assetLoader) {
+            return
+        }
+
+        val currentAssetLoader = rendererAttributes.assetLoader
+        rendererAttributes.assetLoader = assetLoader
+
+        currentAssetLoader?.release()
+        assetLoader?.acquire()
+
+        (lifecycleObserver as? RiveViewLifecycleObserver)?.let { depObserver ->
+            currentAssetLoader?.let { old -> depObserver.remove(old) }
+            assetLoader?.let { new -> depObserver.insert(new) }
         }
     }
 
@@ -788,7 +800,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun createObserver(): LifecycleObserver {
         return RiveViewLifecycleObserver(
-            dependencies = listOfNotNull(controller, rendererAttributes.assetLoader)
+            dependencies = listOfNotNull(controller, rendererAttributes.assetLoader).toMutableList()
         )
     }
 
@@ -993,7 +1005,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
  * updated within [RiveAnimationView.onAttachedToWindow]. If there is a new [LifecycleOwner]
  * [onCreate], [onStart], and [onResume] will be called again when it is registered.
  */
-class RiveViewLifecycleObserver(private val dependencies: List<RefCount>) :
+class RiveViewLifecycleObserver(private val dependencies: MutableList<RefCount>) :
     DefaultLifecycleObserver {
     override fun onCreate(owner: LifecycleOwner) {}
 
@@ -1015,6 +1027,14 @@ class RiveViewLifecycleObserver(private val dependencies: List<RefCount>) :
     override fun onDestroy(owner: LifecycleOwner) {
         dependencies.forEach { it.release() }
         owner.lifecycle.removeObserver(this)
+    }
+
+    fun remove(dependency: RefCount): Boolean {
+        return dependencies.remove(dependency)
+    }
+
+    fun insert(dependency: RefCount) {
+        dependencies.add(dependency)
     }
 }
 
