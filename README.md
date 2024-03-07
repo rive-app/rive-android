@@ -65,7 +65,6 @@ The example showcases a number of ways to manipulate Rives, including:
 - Utilizing a low-level API to build a render loop for more control over scenes
 - ...and more!
 
-
 ### Awesome Rive
 
 For even more examples and resources on using Rive at runtime or in other tools, checkout the [awesome-rive](https://github.com/rive-app/awesome-rive) repo.
@@ -134,14 +133,13 @@ android {
 }
 ```
 
-### Breaking Changes 
+### Breaking Changes
 
 #### **9.0.0**
 
 - State Machine Inputs aren't processed on the UI thread anymore, but they are queued and processed
-by the worker thread on the `advance()` following `RiveAnimationView.[fireState()/setNumberState()/setBooleanState()]`
+  by the worker thread on the `advance()` following `RiveAnimationView.[fireState()/setNumberState()/setBooleanState()]`
 - `RiveArtboardRenderer`
   - Constructor is simplified and now takes fewer parameters
   - Deprecated APIs from `RiveArtboardRenderer` are now accessible via `RiveAnimationView` or `RiveAnimationView.controller`
 - `RiveFileController.hasPlayingAnimations` is now `isAdvancing`
-
