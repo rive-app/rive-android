@@ -143,7 +143,11 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
     int width = ANativeWindow_getWidth(window);
     int height = ANativeWindow_getHeight(window);
-    m_plsRenderTarget = rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0);
+    GLint sampleCount;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glGetIntegerv(GL_SAMPLES, &sampleCount);
+    m_plsRenderTarget =
+        rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
     m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
     *success = true;
 }
