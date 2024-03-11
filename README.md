@@ -22,7 +22,7 @@ the [Maven](https://search.maven.org/artifact/app.rive/rive-android) repository.
 - 👨‍💻 [Contributing](#contributing)
 - ❓ [Issues](#issues)
 
-## Rive Overview
+## Rive overview
 
 [Rive](https://rive.app) is a real-time interactive design and animation tool that helps teams
 create and run interactive animations anywhere. Designers and developers use our collaborative
@@ -35,14 +35,14 @@ open-source runtime libraries allow them to load their animations into apps, gam
 
 🛠 [Learning Rive](https://rive.app/learn-rive/)
 
-## Getting Started
+## Getting started
 
 Follow along with the link below for a quick start in getting Rive Android integrated into your
 multi-platform applications.
 
 [Getting Started with Rive in Android](https://help.rive.app/runtimes/overview/android)
 
-## Supported Versions
+## Supported versions
 
 Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version
 is **33**.
@@ -69,13 +69,13 @@ The example showcases a number of ways to manipulate Rives, including:
 
 For even more examples and resources on using Rive at runtime or in other tools, checkout the [awesome-rive](https://github.com/rive-app/awesome-rive) repo.
 
-## Experimental Features
+## Experimental features
 
 The Rive renderer is available _experimentally_ in `7.0.0`.
 
-Read more about the Rive Renderer [here](https://rive.app/renderer).
+Read more about the Rive Renderer [here](https://rive.app/renderer). Additional information on [choosing a renderer](https://help.rive.app/runtimes/renderer) for Rive's runtimes.
 
-Please note that we don't recommend it for production builds yet as it's not fully compatible with the current Rive feature set (i.e., rendering images isn't supported yet). You might also encounter incompatibilities with specific devices - for example, the new renderer won't work on emulators just yet but only on physical devices.
+You may encounter incompatibilities with specific devices - for example, the new renderer won't work on emulators just yet but only on physical devices.
 
 Your feedback is greatly appreciated during this stage and we'd love to hear from you!
 
@@ -107,7 +107,7 @@ life better? Log an issue in our [issues](https://github.com/rive-app/rive-andro
 can also browse older issues and discussion threads there to see solutions that may have worked for
 common problems.
 
-### Known Issues
+### Known issues
 
 After `rive-android:6.0.0`, CMake is building the library, and you might run into the following error when `rive-android` is used alongside other native libraries:
 
@@ -133,7 +133,7 @@ android {
 }
 ```
 
-### Breaking Changes
+### Breaking changes
 
 #### **9.0.0**
 
