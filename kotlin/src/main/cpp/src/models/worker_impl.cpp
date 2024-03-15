@@ -163,18 +163,19 @@ void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
-    rive::pls::PLSRenderContext::FrameDescriptor frameDescriptor;
-    frameDescriptor.renderTarget = m_plsRenderTarget;
-    frameDescriptor.loadAction = rive::pls::LoadAction::clear;
-    frameDescriptor.clearColor = 0;
-    plsContext->beginFrame(std::move(frameDescriptor));
+    plsContext->beginFrame({
+        .renderTargetWidth = m_plsRenderTarget->width(),
+        .renderTargetHeight = m_plsRenderTarget->height(),
+        .loadAction = rive::pls::LoadAction::clear,
+        .clearColor = 0,
+    });
 }
 
 void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
-    plsContext->flush();
+    plsContext->flush({.renderTarget = m_plsRenderTarget.get()});
 }
 
 rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
