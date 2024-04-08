@@ -48,7 +48,7 @@ public:
     }
 
 private:
-    RefWorker(const RendererType rendererType) :
+    explicit RefWorker(const RendererType rendererType) :
         WorkerThread(RendererName(rendererType), Affinity::None, rendererType)
     {}
 

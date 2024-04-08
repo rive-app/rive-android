@@ -45,12 +45,12 @@ JNIRenderer::~JNIRenderer()
         delete m_tracer;
     }
 
-    releaseSurface();
+    releaseSurface(m_surface);
 }
 
 void JNIRenderer::setSurface(SurfaceVariant surface)
 {
-    releaseSurface();
+    SurfaceVariant oldSurface = m_surface;
     acquireSurface(surface);
     m_worker->run([=](DrawableThreadState* threadState) {
         m_workerThreadID = std::this_thread::get_id();
@@ -58,6 +58,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         {
             m_workerImpl->destroy(threadState);
             m_workerImpl.reset();
+            releaseSurface(oldSurface);
         }
         if (m_surface.index() > 0)
         {

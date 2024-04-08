@@ -16,9 +16,9 @@ namespace rive_android
 class JNIRenderer
 {
 public:
-    JNIRenderer(jobject ktRenderer,
-                bool trace = false,
-                const RendererType rendererType = RendererType::Skia);
+    explicit JNIRenderer(jobject ktRenderer,
+                         bool trace = false,
+                         const RendererType rendererType = RendererType::Skia);
 
     ~JNIRenderer();
 
@@ -92,26 +92,30 @@ private:
         if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_acquire(*window);
-            m_surface = *window;
+            m_surface = std::forward<ANativeWindow*>(*window);
         }
         else if (jobject* ktSurface = std::get_if<jobject>(&surface))
         {
             m_surface = GetJNIEnv()->NewGlobalRef(*ktSurface);
         }
+        else
+        {
+            auto empty = std::get<std::monostate>(surface);
+            m_surface = std::forward<std::monostate>(empty);
+        }
     }
 
-    void releaseSurface()
+    void releaseSurface(SurfaceVariant surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&m_surface))
+        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_release(*window);
         }
-        else if (jobject* surface = std::get_if<jobject>(&m_surface))
+        else if (jobject* ktSurface = std::get_if<jobject>(&surface))
         {
-            GetJNIEnv()->DeleteGlobalRef(*surface);
+            GetJNIEnv()->DeleteGlobalRef(*ktSurface);
         }
-        // Reset to the empty value.
-        m_surface = std::monostate{};
+        // Nothing to do if it's not one of these two types.
     }
 };
 } // namespace rive_android
