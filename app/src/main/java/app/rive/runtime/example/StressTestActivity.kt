@@ -57,7 +57,6 @@ class StressTestView(context: Context) : RiveTextureView(context) {
         val renderer = object : Renderer() {
 
             override fun draw() {
-                val step = animationInstance.effectiveDurationInSeconds / instanceCount
                 artboard.let {
                     save()
                     align(Fit.CONTAIN, Alignment.CENTER, RectF(0f, 0f, width, height), it.bounds)
@@ -69,13 +68,6 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                         translate((cols - 1) * -.5f * 125f, 0f)
                         for (i in 1..cols) {
                             it.drawSkia(cppPointer)
-                            // Draw each Marty at a slightly different animation offset to make sure
-                            // the renderer can't cache things. This loop will advance the animation
-                            // until it loops back around to the original point we started at before
-                            // drawing.
-                            animationInstance.advance(step)
-                            animationInstance.apply()
-                            artboard.advance(step)
                             translate(125f, 0f)
                         }
                         restore()
