@@ -27,7 +27,7 @@ JNIRenderer::~JNIRenderer()
 {
     // Delete the worker thread objects. And since the worker has captured our "this" pointer,
     // wait for it to finish processing our work before continuing the destruction process.
-    m_worker->runAndWait([=](DrawableThreadState* threadState) {
+    m_worker->runAndWait([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->destroy(threadState);
@@ -45,14 +45,14 @@ JNIRenderer::~JNIRenderer()
         delete m_tracer;
     }
 
-    releaseSurface(m_surface);
+    releaseSurface(&m_surface);
 }
 
 void JNIRenderer::setSurface(SurfaceVariant surface)
 {
-    SurfaceVariant oldSurface = m_surface;
+    SurfaceVariant* oldSurface = &m_surface;
     acquireSurface(surface);
-    m_worker->run([=](DrawableThreadState* threadState) {
+    m_worker->run([this, oldSurface](DrawableThreadState* threadState) {
         m_workerThreadID = std::this_thread::get_id();
         if (m_workerImpl)
         {
@@ -79,7 +79,7 @@ rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
 
 void JNIRenderer::start()
 {
-    m_worker->run([=](DrawableThreadState* threadState) {
+    m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         auto now = std::chrono::steady_clock::now();
@@ -90,7 +90,7 @@ void JNIRenderer::start()
 
 void JNIRenderer::stop()
 {
-    m_worker->run([=](DrawableThreadState* threadState) {
+    m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         m_workerImpl->stop();
@@ -104,7 +104,7 @@ void JNIRenderer::doFrame()
         return;
     }
 
-    m_worker->run([=](DrawableThreadState* threadState) {
+    m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
         auto now = std::chrono::high_resolution_clock::now();

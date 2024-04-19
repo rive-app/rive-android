@@ -143,7 +143,6 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     {
         return; // PLS was not supported.
     }
-    auto plsContextImpl = plsContext->static_impl_cast<rive::pls::PLSRenderContextGLImpl>();
     int width = ANativeWindow_getWidth(window);
     int height = ANativeWindow_getHeight(window);
     GLint sampleCount;

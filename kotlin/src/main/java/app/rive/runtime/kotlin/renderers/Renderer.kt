@@ -59,6 +59,7 @@ abstract class Renderer(
     open fun make() {
         if (!hasCppObject) {
             cppPointer = constructor(trace, type.value)
+            refs.incrementAndGet()
         }
     }
 

@@ -22,6 +22,30 @@ bool JNIDecodeImage(rive::Span<const uint8_t> encodedBytes,
                     std::vector<uint8_t>* pixels,
                     bool* isOpaque);
 
+// Forward declare template specialization.
+template <typename AssetType> rive::rcp<AssetType> decode(rive::Span<const uint8_t>, RendererType);
+
+template <typename AssetType>
+rive::rcp<AssetType> decodeAsset(JNIEnv* env, jbyteArray byteArray, jint rendererTypeIdx)
+{
+    jsize count = env->GetArrayLength(byteArray);
+    jbyte* buffer = env->GetByteArrayElements(byteArray, nullptr);
+    rive::Span<const uint8_t> data(reinterpret_cast<const uint8_t*>(buffer), count);
+
+    RendererType rendererType = static_cast<RendererType>(rendererTypeIdx);
+    rive::rcp<AssetType> asset = decode<AssetType>(data, rendererType);
+
+    env->ReleaseByteArrayElements(byteArray, buffer, JNI_ABORT);
+
+    return asset;
+}
+
+template <typename AssetType> void releaseAsset(jlong address)
+{
+    AssetType* asset = reinterpret_cast<AssetType*>(address);
+    rive::safe_unref(asset);
+}
+
 class AndroidSkiaFactory : public rive::SkiaFactory
 {
 public:

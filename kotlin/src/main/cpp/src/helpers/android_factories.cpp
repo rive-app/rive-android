@@ -123,6 +123,19 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     return true;
 }
 
+template <>
+rive::rcp<rive::RenderImage> decode(rive::Span<const uint8_t> data, RendererType rendererType)
+{
+    rive::Factory* factory = GetFactory(rendererType);
+    return factory->decodeImage(data);
+}
+
+template <> rive::rcp<rive::Font> decode(rive::Span<const uint8_t> data, RendererType rendererType)
+{
+    rive::Factory* factory = GetFactory(rendererType);
+    return factory->decodeFont(data);
+}
+
 std::vector<uint8_t> AndroidSkiaFactory::platformDecode(Span<const uint8_t> encodedBytes,
                                                         SkiaFactory::ImageInfo* info)
 {

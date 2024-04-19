@@ -87,12 +87,12 @@ private:
 
     void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
 
-    void acquireSurface(SurfaceVariant surface)
+    void acquireSurface(SurfaceVariant& surface)
     {
         if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_acquire(*window);
-            m_surface = std::forward<ANativeWindow*>(*window);
+            m_surface = *window;
         }
         else if (jobject* ktSurface = std::get_if<jobject>(&surface))
         {
@@ -100,18 +100,17 @@ private:
         }
         else
         {
-            auto empty = std::get<std::monostate>(surface);
-            m_surface = std::forward<std::monostate>(empty);
+            m_surface = surface;
         }
     }
 
-    void releaseSurface(SurfaceVariant surface)
+    void releaseSurface(SurfaceVariant* surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
+        if (ANativeWindow** window = std::get_if<ANativeWindow*>(surface))
         {
             ANativeWindow_release(*window);
         }
-        else if (jobject* ktSurface = std::get_if<jobject>(&surface))
+        else if (jobject* ktSurface = std::get_if<jobject>(surface))
         {
             GetJNIEnv()->DeleteGlobalRef(*ktSurface);
         }

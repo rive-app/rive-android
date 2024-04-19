@@ -7,12 +7,12 @@ enum class Alignment {
 
     companion object {
         fun fromIndex(index: Int): Alignment {
-            val maxIndex = Alignment.values().size
+            val maxIndex = entries.size
             if (index < 0 || index > maxIndex) {
                 throw IndexOutOfBoundsException("Invalid Alignment index value $index. It must be between 0 and $maxIndex")
             }
 
-            return Alignment.values()[index]
+            return entries[index]
         }
     }
 }

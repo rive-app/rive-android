@@ -33,6 +33,7 @@ class File(
             rendererType.value,
             fileAssetLoader?.cppPointer ?: NULL_POINTER
         )
+        refs.incrementAndGet()
     }
 
     val lock = ReentrantLock()

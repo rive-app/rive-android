@@ -15,6 +15,7 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
     init {
         // Make the corresponding C++ object.
         cppPointer = constructor()
+        refs.incrementAndGet()
         assert(cppPointer != NULL_POINTER)
     }
 

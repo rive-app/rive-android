@@ -1,7 +1,9 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "rive/assets/file_asset.hpp"
+#include "helpers/android_factories.hpp"
+#include "rive/assets/image_asset.hpp"
 #include "rive/simple_array.hpp"
+#include "rive/assets/font_asset.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus
@@ -69,6 +71,84 @@ extern "C"
         }
         cdnUrl += uuid;
         return env->NewStringUTF(cdnUrl.c_str());
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppSetRenderImage(JNIEnv* env,
+                                                                   jobject thisObj,
+                                                                   jlong imageAssetAddress,
+                                                                   jlong renderImageAddress)
+    {
+        rive::ImageAsset* imageAsset = reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
+        rive::RenderImage* renderImage = reinterpret_cast<rive::RenderImage*>(renderImageAddress);
+        imageAsset->renderImage(rive::ref_rcp(renderImage));
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppGetRenderImage(JNIEnv* env,
+                                                                   jobject thisObj,
+                                                                   jlong imageAssetAddress)
+    {
+        rive::ImageAsset* imageAsset = reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
+        return reinterpret_cast<jlong>(imageAsset->renderImage());
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_FontAsset_cppSetFont(JNIEnv* env,
+                                                           jobject thisObj,
+                                                           jlong fontAssetAddress,
+                                                           jlong fontAddress)
+    {
+        rive::FontAsset* fontAsset = reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
+        rive::Font* font = reinterpret_cast<rive::Font*>(fontAddress);
+        fontAsset->font(rive::ref_rcp(font));
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_FontAsset_cppGetFont(JNIEnv* env,
+                                                           jobject thisObj,
+                                                           jlong fontAssetAddress)
+    {
+        rive::FontAsset* fontAsset = reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
+        return reinterpret_cast<jlong>(fontAsset->font().get());
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveRenderImage_cppDelete(JNIEnv* env,
+                                                                jobject imgClass,
+                                                                jlong address)
+    {
+        releaseAsset<rive::RenderImage>(address);
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveRenderImage_00024Companion_cppMakeImage(
+        JNIEnv* env,
+        jobject,
+        jbyteArray byteArray,
+        jint rendererTypeIdx)
+    {
+        auto asset = decodeAsset<rive::RenderImage>(env, byteArray, rendererTypeIdx);
+        // Calling `[release()]` transfers ownership of this object to the caller.
+        return reinterpret_cast<jlong>(asset.release());
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RiveFont_cppDelete(JNIEnv* env,
+                                                                                jobject imgClass,
+                                                                                jlong address)
+    {
+        releaseAsset<rive::Font>(address);
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveFont_00024Companion_cppMakeFont(JNIEnv* env,
+                                                                          jobject,
+                                                                          jbyteArray byteArray,
+                                                                          jint rendererTypeIdx)
+    {
+        auto asset = decodeAsset<rive::Font>(env, byteArray, rendererTypeIdx);
+        // Calling `[release()]` transfers ownership of this object to the caller.
+        return reinterpret_cast<jlong>(asset.release());
     }
 
 #ifdef __cplusplus

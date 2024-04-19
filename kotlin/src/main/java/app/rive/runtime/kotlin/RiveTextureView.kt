@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.SurfaceTexture
 import android.util.AttributeSet
-import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
@@ -20,7 +19,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     companion object {
         const val TAG = "RiveTextureView"
     }
-    // TODO:    private external fun cppGetAverageFps(rendererAddress: Long): Float
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -32,17 +30,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     private lateinit var viewSurface: Surface
     protected abstract fun createRenderer(): Renderer
     protected abstract fun createObserver(): LifecycleObserver
-
-    private val refreshPeriodNanos: Long by lazy {
-        val msInNS: Long = 1000000
-        val sInNS = 1000 * msInNS
-        // Deprecated in API 30: keep this instead of having two separate paths.
-        @Suppress("DEPRECATION")
-        val refreshRateHz = activity.windowManager.defaultDisplay.refreshRate
-        Log.i("RiveSurfaceHolder", String.format("Refresh rate: %.1f Hz", refreshRateHz))
-        (sInNS / refreshRateHz).toLong()
-    }
-
     protected inline fun <reified T> getContextAsType(): T? {
         var ctx = context
         while (ctx is ContextWrapper) {

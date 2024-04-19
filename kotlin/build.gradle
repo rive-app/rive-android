@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 33
+        targetSdkVersion 34
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -38,7 +38,7 @@ android {
         dokkaSourceSets {
             named("main") {
                 noAndroidSdkLink.set(false)
-                outputDirectory.set(buildDir.resolve("dokka"))
+                outputDirectory.set(layout.buildDirectory.resolve("dokka"))
                 reportUndocumented.set(true)
             }
         }
@@ -64,6 +64,7 @@ dependencies {
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    implementation "org.jetbrains.kotlin:kotlin-reflect:1.9.22"
 }
 
 // Commenting this out, this only really helps when you're doing local dev, but it means our git actions need abd!

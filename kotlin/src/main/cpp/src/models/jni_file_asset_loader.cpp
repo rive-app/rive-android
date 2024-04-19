@@ -22,35 +22,16 @@ JNIFileAssetLoader::~JNIFileAssetLoader()
 
 bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
                                       rive::Span<const uint8_t> inBandBytes,
-                                      rive::Factory* factory)
+                                      rive::Factory* /* unused atm */)
 {
     JNIEnv* env = GetJNIEnv();
-    jclass fileAssetClass = env->FindClass("app/rive/runtime/kotlin/core/FileAsset");
-    if (!fileAssetClass)
-    {
-        LOGE("JNIFileAssetLoader::loadContents() failed to find FileAsset class");
-        return false;
-    }
-
-    jmethodID fileAssetConstructor = env->GetMethodID(fileAssetClass, "<init>", "(JI)V");
-    if (!fileAssetConstructor)
-    {
-        LOGE("JNIFileAssetLoader::loadContents() failed to find FileAsset constructor");
-        env->DeleteLocalRef(fileAssetClass);
-        return false;
-    }
-
     // Renderer type must be set.
     // If not set, FileAsset constructor will throw on RendererType::None value being -1
     assert(m_rendererType != RendererType::None);
-    jobject ktFileAsset = env->NewObject(fileAssetClass,
-                                         fileAssetConstructor,
-                                         reinterpret_cast<jlong>(&asset),
-                                         static_cast<int>(m_rendererType));
+    jobject ktFileAsset = JNIFileAssetLoader::MakeKtAsset(env, asset, m_rendererType);
     if (!ktFileAsset)
     {
         LOGE("JNIFileAssetLoader::loadContents() failed to create FileAsset");
-        env->DeleteLocalRef(fileAssetClass);
         return false;
     }
 
@@ -59,7 +40,6 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
     if (!byteArray)
     {
         LOGE("JNIFileAssetLoader::loadContents() failed to allocate NewByteArray");
-        env->DeleteLocalRef(fileAssetClass);
         return false;
     }
     env->SetByteArrayRegion(byteArray,
@@ -71,7 +51,6 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
 
     env->DeleteLocalRef(byteArray);
     env->DeleteLocalRef(ktFileAsset);
-    env->DeleteLocalRef(fileAssetClass);
     return result;
 }
 } // namespace rive_android

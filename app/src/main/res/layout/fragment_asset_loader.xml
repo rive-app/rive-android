@@ -5,7 +5,6 @@
     android:id="@+id/fragmentLoaderContainer"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="#57A5E0"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="16dp"

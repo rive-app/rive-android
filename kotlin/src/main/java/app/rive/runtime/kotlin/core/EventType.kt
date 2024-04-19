@@ -8,7 +8,7 @@ enum class EventType(val value: Short) {
     GeneralEvent(128);
 
     companion object {
-        private val map = EventType.values().associateBy(EventType::value)
+        private val map = entries.associateBy(EventType::value)
         fun fromInt(type: Short) = map[type]
     }
 }

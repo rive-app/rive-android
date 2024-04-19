@@ -5,12 +5,12 @@ enum class Fit {
 
     companion object {
         fun fromIndex(index: Int): Fit {
-            val maxIndex = Fit.values().size
+            val maxIndex = entries.size
             if (index < 0 || index > maxIndex) {
                 throw IndexOutOfBoundsException("Invalid Fit index value $index. It must be between 0 and $maxIndex")
             }
 
-            return Fit.values()[index]
+            return entries[index]
         }
     }
 }

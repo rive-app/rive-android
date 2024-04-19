@@ -5,12 +5,12 @@ enum class Loop {
 
     companion object {
         fun fromIndex(index: Int): Loop {
-            val maxIndex = Loop.values().size
+            val maxIndex = entries.size
             if (index < 0 || index > maxIndex) {
                 throw IndexOutOfBoundsException("Invalid Loop index value $index. It must be between 0 and $maxIndex")
             }
 
-            return Loop.values()[index]
+            return entries[index]
         }
     }
 }
