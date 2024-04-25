@@ -64,6 +64,8 @@
         <activity android:name=".AssetLoaderActivity" />
         <activity android:name=".StressTestActivity" />
         <activity android:name=".FontLoadActivity" />
+        <activity android:name=".AudioAssetActivity" />
+        <activity android:name=".AudioExternalAssetActivity" />
         <!-- For testing 👇 -->
         <activity android:name=".SingleActivity" />
         <activity android:name=".EmptyActivity" />

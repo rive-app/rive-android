@@ -24,6 +24,11 @@ class RiveAssetsTest {
         .openRawResource(R.raw.font)
         .use { it.readBytes() }
 
+    private val audioBytes = appContext
+        .resources
+        .openRawResource(R.raw.table)
+        .use { it.readBytes() }
+
 
     @Test(expected = IllegalArgumentException::class)
     fun invalidImageBytes() {
@@ -88,22 +93,22 @@ class RiveAssetsTest {
 
     @Test
     fun makeFont() {
-        val renderImage = RiveFont.make(fontBytes)
-        assertTrue(renderImage.hasCppObject)
+        val font = RiveFont.make(fontBytes)
+        assertTrue(font.hasCppObject)
 
         // Clean up & validate
-        renderImage.release()
-        assertFalse(renderImage.hasCppObject)
+        font.release()
+        assertFalse(font.hasCppObject)
     }
 
     @Test
     fun makeFontWithRendererType() {
-        val renderImage = RiveFont.make(fontBytes, rendererType = RendererType.Canvas)
-        assertTrue(renderImage.hasCppObject)
+        val font = RiveFont.make(fontBytes, rendererType = RendererType.Canvas)
+        assertTrue(font.hasCppObject)
 
         // Clean up & validate
-        renderImage.release()
-        assertFalse(renderImage.hasCppObject)
+        font.release()
+        assertFalse(font.hasCppObject)
     }
 
     @Test
@@ -135,5 +140,56 @@ class RiveAssetsTest {
         myLoader.release()
         file.release()
         customFont.release()
+    }
+
+    @Test
+    fun makeAudio() {
+        val audio = RiveAudio.make(audioBytes)
+        assertTrue(audio.hasCppObject)
+
+        // Clean up & validate
+        audio.release()
+        assertFalse(audio.hasCppObject)
+    }
+
+    @Test
+    fun makeAudioWithRendererType() {
+        val audio = RiveAudio.make(audioBytes, rendererType = RendererType.Canvas)
+        assertTrue(audio.hasCppObject)
+
+        // Clean up & validate
+        audio.release()
+        assertFalse(audio.hasCppObject)
+    }
+
+
+    @Test
+    fun setAudio() {
+        var audioAsset: AudioAsset? = null
+        val customAudio = RiveAudio.make(audioBytes)
+        val myLoader = object : ContextAssetLoader(appContext) {
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
+                if (asset is AudioAsset) {
+                    audioAsset = asset
+                    asset.audio = customAudio
+                    return true
+                }
+                return false
+            }
+
+        }
+        val file = File(
+            appContext.resources.openRawResource(R.raw.audio_test).readBytes(),
+            fileAssetLoader = myLoader,
+        )
+        assertEquals(1, file.firstArtboard.animationCount)
+        assertNotNull(audioAsset)
+        assert(audioAsset!!.audio.cppPointer == customAudio.cppPointer)
+
+
+        /* Clean things up */
+        myLoader.release()
+        file.release()
+        customAudio.release()
     }
 }

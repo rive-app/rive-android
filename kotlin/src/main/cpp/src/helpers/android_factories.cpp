@@ -136,6 +136,13 @@ template <> rive::rcp<rive::Font> decode(rive::Span<const uint8_t> data, Rendere
     return factory->decodeFont(data);
 }
 
+template <>
+rive::rcp<rive::AudioSource> decode(rive::Span<const uint8_t> data, RendererType rendererType)
+{
+    rive::Factory* factory = GetFactory(rendererType);
+    return factory->decodeAudio(data);
+}
+
 std::vector<uint8_t> AndroidSkiaFactory::platformDecode(Span<const uint8_t> encodedBytes,
                                                         SkiaFactory::ImageInfo* info)
 {
