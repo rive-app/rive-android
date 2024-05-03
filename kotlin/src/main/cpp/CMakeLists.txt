@@ -35,7 +35,7 @@ message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
 add_definitions(-DSK_GL)
 add_definitions(-DRIVE_GLES)
 # Provide this manually so Android Studio plays nicely with C++.
-add_definitions(-DWITH_RIVE_AUDIO)
+add_definitions(-DWITH_RIVE_AUDIO -DMA_NO_RESOURCE_MANAGER)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(SKIA_DIR_NAME "skia_debug")
