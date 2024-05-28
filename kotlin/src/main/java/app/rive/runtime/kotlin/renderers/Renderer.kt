@@ -143,7 +143,9 @@ abstract class Renderer(
     @CallSuper
     fun stop() {
         stopThread()
-        Choreographer.getInstance().removeFrameCallback(this)
+        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+            Choreographer.getInstance().removeFrameCallback(this@Renderer)
+        }
     }
 
     private fun destroySurface() {

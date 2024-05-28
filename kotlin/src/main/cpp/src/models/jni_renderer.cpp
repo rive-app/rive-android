@@ -50,21 +50,28 @@ JNIRenderer::~JNIRenderer()
 
 void JNIRenderer::setSurface(SurfaceVariant surface)
 {
-    SurfaceVariant* oldSurface = &m_surface;
+    SurfaceVariant oldSurface = m_surface;
     acquireSurface(surface);
-    m_worker->run([this, oldSurface](DrawableThreadState* threadState) {
-        m_workerThreadID = std::this_thread::get_id();
-        if (m_workerImpl)
-        {
-            m_workerImpl->destroy(threadState);
-            m_workerImpl.reset();
-            releaseSurface(oldSurface);
-        }
-        if (m_surface.index() > 0)
-        {
-            m_workerImpl = WorkerImpl::Make(m_surface, threadState, m_worker->rendererType());
-        }
-    });
+    m_worker->run(
+        [this,
+         /**
+          * Explicitly capture `oldSurface` here to ensure that the lambda has the right
+          * value.Since our inner functions require a non-const pointer, make this lambda mutable
+          *
+          */
+         oldSurface](DrawableThreadState* threadState) mutable {
+            m_workerThreadID = std::this_thread::get_id();
+            if (m_workerImpl)
+            {
+                m_workerImpl->destroy(threadState);
+                m_workerImpl.reset();
+                releaseSurface(&oldSurface);
+            }
+            if (m_surface.index() > 0)
+            {
+                m_workerImpl = WorkerImpl::Make(m_surface, threadState, m_worker->rendererType());
+            }
+        });
 }
 
 rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
