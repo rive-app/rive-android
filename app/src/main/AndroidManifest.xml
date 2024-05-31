@@ -43,6 +43,7 @@
         <activity android:name=".RiveFragmentActivity" />
         <activity android:name=".LowLevelActivity" />
         <activity android:name=".SimpleStateMachineActivity" />
+        <activity android:name=".NestedInputActivity" />
         <activity android:name=".HttpActivity" />
         <activity android:name=".ButtonActivity" />
         <activity android:name=".BlendActivity" />

@@ -608,6 +608,29 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
+     * Fire the [SMITrigger] input called [inputName] on the nested artboard represented at [path]
+     */
+    fun fireStateAtPath(inputName: String, path: String) {
+        controller.fireStateAtPath(inputName, path)
+    }
+
+    /**
+     * Update the state of the [SMIBoolean] input called [inputName] on the nested artboard represented at [path]
+     * to [value]
+     */
+    fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
+        controller.setBooleanStateAtPath(inputName, value, path)
+    }
+
+    /**
+     * Update the state of the [SMINumber] input called [inputName] on the nested artboard represented at [path]
+     * to [value]
+     */
+    fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
+        controller.setNumberStateAtPath(inputName, value, path)
+    }
+
+    /**
      * Update multiple states at once supplying one or more [inputs]
      */
     fun setMultipleStates(vararg inputs: ChangedInput) {
@@ -1102,4 +1125,4 @@ sealed class ResourceType {
  * Wraps the data necessary for grabbing an input with [name] with [value]
  * [value] is necessary when wrapping [SMINumber] and [SMIBoolean] inputs.
  */
-data class ChangedInput(val stateMachineName: String, val name: String, val value: Any? = null)
+data class ChangedInput(val stateMachineName: String, val name: String, val value: Any? = null, val nestedArtboardPath: String? = null)

@@ -4,6 +4,7 @@ import android.graphics.RectF
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
+import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
 import java.util.concurrent.locks.ReentrantLock
 
@@ -31,6 +32,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppStateMachineByName(cppPointer: Long, name: String): Long
     private external fun cppStateMachineCount(cppPointer: Long): Int
     private external fun cppStateMachineNameByIndex(cppPointer: Long, index: Int): String
+
+    private external fun cppInputByNameAtPath(cppPointer: Long, name: String, path: String): Long
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
@@ -139,6 +142,19 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
+     * Get the input instance with a given [name] on the nested artboard represented at [path].
+     */
+    @Throws(RiveException::class)
+    fun input(name: String, path: String): SMIInput {
+        val stateMachineInputPointer = cppInputByNameAtPath(cppPointer, name, path)
+        if (stateMachineInputPointer == NULL_POINTER) {
+            throw StateMachineInputException("No StateMachineInput found with name $name in nested artboard $path.")
+        }
+        val input = SMIInput(stateMachineInputPointer)
+        return convertInput(input)
+    }
+
+    /**
      * Get a [RiveTextValueRun] with a given [name] in the [Artboard].
      */
     @Throws(RiveException::class)
@@ -212,4 +228,14 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      */
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
+
+    private fun convertInput(input: SMIInput): SMIInput {
+        val convertedInput = when {
+            input.isBoolean -> SMIBoolean(input.cppPointer)
+            input.isTrigger -> SMITrigger(input.cppPointer)
+            input.isNumber -> SMINumber(input.cppPointer)
+            else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
+        }
+        return convertedInput
+    }
 }

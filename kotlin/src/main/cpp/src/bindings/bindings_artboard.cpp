@@ -119,6 +119,17 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppInputByNameAtPath(JNIEnv* env,
+                                                                    jobject thisObj,
+                                                                    jlong ref,
+                                                                    jstring name,
+                                                                    jstring path)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return (jlong)artboard->input(JStringToString(env, name), JStringToString(env, path));
+    }
+
+    JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRun(JNIEnv* env,
                                                                    jobject thisObj,
                                                                    jlong ref,

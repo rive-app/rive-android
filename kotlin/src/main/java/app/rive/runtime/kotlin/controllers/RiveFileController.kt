@@ -496,8 +496,8 @@ class RiveFileController(
      * It also tries to start the thread if it's not started, which will internally cause advance
      * to happen at least once.
      */
-    private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null) {
-        queueInputs(ChangedInput(stateMachineName, inputName, value))
+    private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null, path: String? = null) {
+        queueInputs(ChangedInput(stateMachineName, inputName, value, path))
     }
 
     internal fun queueInputs(vararg inputs: ChangedInput) {
@@ -519,29 +519,52 @@ class RiveFileController(
         // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
         while (changedInputs.isNotEmpty()) {
             val input = changedInputs.remove()
-            val stateMachines = getOrCreateStateMachines(input.stateMachineName)
-            stateMachines.forEach { stateMachineInstance ->
-                playableSet.add(stateMachineInstance)
-                when (val smiInput = stateMachineInstance.input(input.name)) {
-                    is SMITrigger -> smiInput.fire()
-                    is SMIBoolean -> smiInput.value = input.value as Boolean
-                    is SMINumber -> smiInput.value = input.value as Float
+            if (input.nestedArtboardPath == null) {
+                val stateMachines = getOrCreateStateMachines(input.stateMachineName)
+                stateMachines.forEach { stateMachineInstance ->
+                    playableSet.add(stateMachineInstance)
+                    when (val smiInput = stateMachineInstance.input(input.name)) {
+                        is SMITrigger -> smiInput.fire()
+                        is SMIBoolean -> smiInput.value = input.value as Boolean
+                        is SMINumber -> smiInput.value = input.value as Float
+                    }
+                }
+            } else {
+                val smiInput = activeArtboard?.input(input.name, input.nestedArtboardPath)
+                if (smiInput is SMITrigger) {
+                    smiInput.fire()
+                } else if (smiInput is SMIBoolean) {
+                    smiInput.value = input.value as Boolean
+                } else if (smiInput is SMINumber) {
+                    smiInput.value = input.value as Float
                 }
             }
         }
         playableSet.forEach { play(it, settleStateMachineState = false) }
     }
 
-    fun fireState(stateMachineName: String, inputName: String) {
-        queueInput(stateMachineName, inputName)
+    fun fireState(stateMachineName: String, inputName: String, path: String? = null) {
+        queueInput(stateMachineName, inputName, path)
     }
 
-    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        queueInput(stateMachineName, inputName, value)
+    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean, path: String? = null) {
+        queueInput(stateMachineName, inputName, value, path)
     }
 
-    fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        queueInput(stateMachineName, inputName, value)
+    fun setNumberState(stateMachineName: String, inputName: String, value: Float, path: String? = null) {
+        queueInput(stateMachineName, inputName, value, path)
+    }
+
+    fun fireStateAtPath(inputName: String, path: String) {
+        queueInput("", inputName, path)
+    }
+
+    fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
+        queueInput("", inputName, value, path)
+    }
+
+    fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
+        queueInput("", inputName, value, path)
     }
 
     /**
