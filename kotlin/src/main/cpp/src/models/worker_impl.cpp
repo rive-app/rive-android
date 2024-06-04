@@ -53,12 +53,18 @@ void WorkerImpl::start(jobject ktRenderer, std::chrono::high_resolution_clock::t
     m_ktAdvanceCallback = env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
     m_lastFrameTime = frameTime;
     m_isStarted = true;
-    rive::AudioEngine::RuntimeEngine()->start();
+    if (auto engine = rive::AudioEngine::RuntimeEngine(false))
+    {
+        engine->start();
+    }
 }
 
 void WorkerImpl::stop()
 {
-    rive::AudioEngine::RuntimeEngine()->stop();
+    if (auto engine = rive::AudioEngine::RuntimeEngine(false))
+    {
+        engine->stop();
+    }
     auto env = GetJNIEnv();
     if (m_ktRendererClass != nullptr)
     {

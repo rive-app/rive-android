@@ -65,7 +65,6 @@ jobs:
           wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-alpha15/premake-5.0.0-alpha15-linux.tar.gz
           tar -xf premake-5.0.0-alpha15-linux.tar.gz
           sudo mv premake5 /usr/local/bin
-          pip3 install ply
 
       - name: Build Android
         env:
