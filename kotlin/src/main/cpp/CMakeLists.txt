@@ -8,8 +8,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 #set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fno-exceptions -fno-rtti")
-set(CMAKE_CXX_FLAGS_RELEASE "-Oz")
+set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fno-exceptions -fno-rtti -DYOGA_EXPORT=")
+set(CMAKE_CXX_FLAGS_RELEASE "-Oz -DYOGA_EXPORT=")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
@@ -92,6 +92,7 @@ set(static_libs
         rive
         rive_harfbuzz
         rive_sheenbidi
+        rive_yoga
         rive_skia_renderer
         rive_pls_renderer
         skia
@@ -116,6 +117,7 @@ target_link_libraries(rive-android
         rive-lib
         rive_harfbuzz-lib
         rive_sheenbidi-lib
+        rive_yoga-lib
         rive_skia_renderer-lib
         rive_pls_renderer-lib
         skia-lib

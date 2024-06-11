@@ -159,7 +159,7 @@ buildFor() {
     python3 -m venv build_env
     source build_env/bin/activate
     pip3 install ply
-    premake5 --out=out/android/"$SKIA_ARCH"/"$CONFIG" --config="$CONFIG" --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --with_rive_audio=system --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
+    premake5 --out=out/android/"$SKIA_ARCH"/"$CONFIG" --config="$CONFIG" --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --with_rive_audio=system --with_rive_layout --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
     make -C out/android/"$SKIA_ARCH"/"$CONFIG" -j20 rive_pls_renderer
     deactivate
     popd
@@ -176,6 +176,7 @@ buildFor() {
     cp "$RIVE_RUNTIME_DIR"/build/android/"$SKIA_ARCH"/bin/"${CONFIG}"/librive.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_harfbuzz.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_sheenbidi.a "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_yoga.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR/../pls/out/android/"$SKIA_ARCH"/"$CONFIG"/librive_pls_renderer.a" "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
