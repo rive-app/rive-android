@@ -29,7 +29,7 @@ jobs:
       - name: Get Renderer ref
         id: renderer-ref
         run: echo "REF_VALUE=$(cat .rive_renderer)" >> $GITHUB_OUTPUT
-      
+
       - name: Rive Renderer Repo
         uses: actions/checkout@v4
         with:
@@ -124,8 +124,12 @@ jobs:
       - name: Publish to MavenCentral
         run: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          UAT_OSSRH_USERNAME: ${{ secrets.UAT_OSSRH_USERNAME }}
+          UAT_OSSRH_PASSWORD: ${{ secrets.UAT_OSSRH_PASSWORD }}
+          # TODO: remove these after UAT is confirmed working
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }} 
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          # ====
           SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
