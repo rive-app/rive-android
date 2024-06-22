@@ -16,7 +16,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
@@ -837,7 +837,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Calling addObserver again will trigger a onCreate/onStart/onResume again.
      */
     private fun validateLifecycleOwner() {
-        val currentLifecycleOwner = ViewTreeLifecycleOwner.get(this)
+        val currentLifecycleOwner = this.findViewTreeLifecycleOwner()
         currentLifecycleOwner?.let {
             if (it != lifecycleOwner) {
                 lifecycleOwner?.lifecycle?.removeObserver(lifecycleObserver)

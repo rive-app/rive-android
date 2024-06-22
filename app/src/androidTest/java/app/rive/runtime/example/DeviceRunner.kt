@@ -8,17 +8,14 @@ import org.junit.runners.model.Statement
 annotation class OnDevice
 
 class RunOnDevice(testClass: Class<*>) : BlockJUnit4ClassRunner(testClass) {
-    @Throws(InitializationError::class)
-    constructor(testClass: Class<*>, notifier: RunNotifier) : this(testClass)
-
     override fun methodBlock(method: FrameworkMethod): Statement {
         return object : Statement() {
-            @Throws(Throwable::class)
+            @Throws(Exception::class)
             override fun evaluate() {
                 // Check whether this is an emulator. If it is skip the test.
                 assumeFalse(TestUtils.isProbablyRunningOnEmulator)
                 // Continue with the usual test
-                method.invokeExplosively(testClass.javaClass.newInstance())
+                method.invokeExplosively(testClass.javaClass.getDeclaredConstructor().newInstance())
             }
         }
     }
