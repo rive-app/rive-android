@@ -1028,7 +1028,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
  * updated within [RiveAnimationView.onAttachedToWindow]. If there is a new [LifecycleOwner]
  * [onCreate], [onStart], and [onResume] will be called again when it is registered.
  */
-class RiveViewLifecycleObserver(private val dependencies: MutableList<RefCount>) :
+open class RiveViewLifecycleObserver(protected val dependencies: MutableList<RefCount>) :
     DefaultLifecycleObserver {
     override fun onCreate(owner: LifecycleOwner) {}
 
