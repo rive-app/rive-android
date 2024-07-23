@@ -655,6 +655,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
+     * Get the active [Artboard]'s volume.
+     */
+    fun getVolume(): Float? = controller.getVolume()
+
+    /**
+     * Set the active [Artboard]'s volume to [value].
+     */
+    fun setVolume(value: Float) = controller.setVolume(value)
+
+    /**
      * Check if the animation is currently playing
      */
     val isPlaying: Boolean

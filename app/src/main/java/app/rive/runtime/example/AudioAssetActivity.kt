@@ -41,6 +41,9 @@ class AudioExternalAssetActivity : AppCompatActivity() {
             .setAssetLoader(audioDecoder)
             .setResource(R.raw.ping_pong_audio_demo)
             .build()
+
+        riveView.setVolume(0.75f) // Set the volume for the active artboard
+
         binding.main.addView(riveView)
     }
 

@@ -129,6 +129,22 @@ extern "C"
         return (jlong)artboard->input(JStringToString(env, name), JStringToString(env, path));
     }
 
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetVolume(JNIEnv* env, jobject thisObj, jlong ref)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return artboard->volume();
+    }
+
+    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Artboard_cppSetVolume(JNIEnv* env,
+                                                                                   jobject thisObj,
+                                                                                   jlong ref,
+                                                                                   jfloat volume)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        artboard->volume(volume);
+    }
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRun(JNIEnv* env,
                                                                    jobject thisObj,

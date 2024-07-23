@@ -121,6 +121,7 @@ class RiveFileController(
                 field?.release()
                 field = value
                 field?.acquire()
+                userSetVolume?.let { activeArtboard?.volume = it }
             }
         }
 
@@ -582,6 +583,21 @@ class RiveFileController(
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
         activeArtboard?.textRun(textRunName)?.text = textValue
+    }
+
+    private var userSetVolume: Float? = null; // Default value
+
+    /**
+     * Get the active [Artboard]'s volume.
+     */
+    fun getVolume(): Float? = activeArtboard?.volume
+
+    /**
+     * Set the active [Artboard]'s volume to [value].
+     */
+    fun setVolume(value: Float) {
+        userSetVolume = value;
+        activeArtboard?.volume = value;
     }
 
     private fun animations(animationName: String): List<LinearAnimationInstance> {

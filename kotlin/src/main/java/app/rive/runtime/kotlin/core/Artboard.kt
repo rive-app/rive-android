@@ -35,6 +35,9 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     private external fun cppInputByNameAtPath(cppPointer: Long, name: String, path: String): Long
 
+    private external fun cppGetVolume(cppPointer: Long): Float
+    private external fun cppSetVolume(cppPointer: Long, volume: Float)
+
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
 
@@ -167,6 +170,13 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         dependencies.add(run)
         return run
     }
+
+    /**
+     * Get and set the volume of the [Artboard].
+     */
+    var volume: Float
+        get() = cppGetVolume(cppPointer)
+        internal set(value) = cppSetVolume(cppPointer, value )
 
     /**
      * Get the number of animations stored inside the [Artboard].
