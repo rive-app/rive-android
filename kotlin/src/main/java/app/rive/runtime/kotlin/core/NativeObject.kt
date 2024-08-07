@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
+    private var disposeStackTrace: Sequence<StackTraceElement>? = null
+
     companion object {
         /** Static const value for an empty pointer. */
         const val NULL_POINTER = 0L
@@ -39,12 +41,14 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
         @Throws(RiveException::class)
         get() {
             if (!hasCppObject) {
-                // we are not using the objects toString, because that could itself call native methods
-                throw RiveException(
-                    "C++ object for ${this.javaClass.name}@${
-                        this.hashCode()
-                    } does not exist. See MEMORY_MANAGEMENT.md for more information."
+                val nativeObjectName = this.javaClass.simpleName
+                val riveException = RiveException(
+                    "Accessing disposed C++ object $nativeObjectName. "
                 )
+
+                riveException.stackTrace = buildCombinedStackTrace().toTypedArray()
+
+                throw riveException
             }
             return unsafeCppPointer
         }
@@ -54,6 +58,32 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
     // Up to the implementer (interfaces cannot have external functions)
     open fun cppDelete(pointer: Long) {}
+
+
+    /**
+     * Builds a combined stack trace incorporating the disposal stack trace and the current access trace.
+     * This helps diagnosing issues with invalid memory access.
+     *
+     * @return A list of [StackTraceElement] combining `dispose()` Stack Trace (if available)
+     *              with the current one.
+     */
+    private fun buildCombinedStackTrace(): List<StackTraceElement> {
+        val combinedTrace = mutableListOf<StackTraceElement>()
+
+        // Append the disposal stack trace if available
+        disposeStackTrace?.also { trace ->
+            combinedTrace += StackTraceElement("Dispose_Trace", "Start", null, -1)
+            combinedTrace += trace
+            combinedTrace += StackTraceElement("Current_Trace", "Start", null, -1)
+        }
+
+        // Append the current stack trace
+        combinedTrace += Helpers.getCurrentStackTrace()
+            .drop(1) // Remove call to buildCombinedStackTrace()
+
+        return combinedTrace
+    }
+
 
     /**
      * Increments the references for this counter.
@@ -97,6 +127,8 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     @Synchronized
     private fun dispose() {
         require(refs.get() == 0)
+
+        disposeStackTrace = Helpers.getCurrentStackTrace()
 
         dependencies.apply {
             // Release all dependencies and clear the collection.

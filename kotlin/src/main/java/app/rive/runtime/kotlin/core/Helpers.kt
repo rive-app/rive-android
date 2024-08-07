@@ -28,12 +28,23 @@ object Helpers {
         )
     }
 
-    @Suppress("DIVISION_BY_ZERO", "unused")
-    fun printStackTrace() {
-        try {
-            1 / 0
-        } catch (e: Exception) {
-            e.printStackTrace()
+    /**
+     * Retrieves the current stack trace of the thread and optionally trims elements related to stack trace retrieval.
+     *
+     * @param trim If true, trims the stack trace to remove methods related to stack trace retrieval itself; otherwise, returns the full stack trace.
+     * @return A sequence of [StackTraceElement] representing the current stack trace of the thread.
+     */
+    fun getCurrentStackTrace(trim: Boolean = true): Sequence<StackTraceElement> {
+        val stackTrace = Thread.currentThread().stackTrace.asSequence()
+
+        return if (trim) {
+            stackTrace
+                // Drop all Stack elements until we find this Helper class
+                .dropWhile { it.className != javaClass.name }
+                // Then remove all stack elements of this Helper class
+                .dropWhile { it.className == javaClass.name }
+        } else {
+            stackTrace
         }
     }
 }

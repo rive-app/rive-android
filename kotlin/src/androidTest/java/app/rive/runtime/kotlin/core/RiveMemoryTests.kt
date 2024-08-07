@@ -4,7 +4,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -281,6 +286,74 @@ class RiveMemoryTests {
             mockView.mockDetach()
             // Check artboard has been disposed.
             assertEquals(0, artboard.refCount)
+        }
+    }
+
+    @Test
+    fun acquireDisposedObject() {
+        appContext.resources.openRawResource(R.raw.flux_capacitor).use { res ->
+            val file = File(res.readBytes())
+            assertEquals(1, file.firstArtboard.animationCount)
+            file.release()
+            val exception = assertThrows(IllegalArgumentException::class.java) {
+                file.acquire()
+            }
+
+            assertTrue(
+                "Exception message should include 'Failed requirement.'",
+                exception.message?.contains("Failed requirement.") == true
+            )
+            assertTrue(
+                "StackTrace should contain 'acquire'",
+                exception.stackTrace.first().methodName.contains("acquire")
+            )
+
+        }
+    }
+
+    @Test
+    fun accessDisposedPointer() {
+        appContext.resources.openRawResource(R.raw.flux_capacitor).use { res ->
+            val file = File(res.readBytes())
+            assertEquals(1, file.firstArtboard.animationCount)
+            file.release()
+            val exception = assertThrows(RiveException::class.java) {
+                file.cppPointer
+            }
+            assertTrue(
+                "Exception message should include 'Accessing disposed C++ object File'",
+                exception.message?.contains("Accessing disposed C++ object File") == true
+            )
+
+            val expectedDisposeStack = sequenceOf(
+                Pair("Dispose_Trace", "Start"),
+                Pair("app.rive.runtime.kotlin.core.NativeObject", "dispose"),
+                Pair("app.rive.runtime.kotlin.core.NativeObject", "release"),
+                Pair("app.rive.runtime.kotlin.core.File", "release"),
+            )
+
+            val exceptionStack = exception.stackTrace
+
+            expectedDisposeStack.forEachIndexed { idx, (className, methodName) ->
+                val stackTraceElement = exceptionStack[idx]
+                assertTrue(
+                    "Stack Trace class name mismatch - ${stackTraceElement.className} does not match $className",
+                    stackTraceElement.className == className
+                )
+                assertTrue(
+                    "Stack Trace method name mismatch - ${stackTraceElement.methodName} does not match $methodName",
+                    stackTraceElement.methodName == methodName
+                )
+            }
+
+            val cppPointerStack = exceptionStack
+                .dropWhile { it.className != "Current_Trace" }
+                .drop(1) // Skip also "Current_Trace"
+            assertTrue(
+                "Stack Trace did not match",
+                cppPointerStack.first().className == "app.rive.runtime.kotlin.core.NativeObject"
+                        && cppPointerStack.first().methodName == "getCppPointer"
+            )
         }
     }
 }
