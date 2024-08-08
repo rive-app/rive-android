@@ -128,3 +128,5 @@ target_link_libraries(rive-android
         ${gles-lib}
         jnigraphics
         )
+
+target_link_options(rive-android PRIVATE "-Wl,-z,max-page-size=16384")
