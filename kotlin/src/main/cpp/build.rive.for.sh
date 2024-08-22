@@ -159,7 +159,7 @@ buildFor() {
     python3 -m venv build_env
     source build_env/bin/activate
     pip3 install ply
-    premake5 --out=out/android/"$SKIA_ARCH"/"$CONFIG" --config="$CONFIG" --scripts="$RIVE_RUNTIME_DIR"/build --with_rive_text --with_rive_audio=system --with_rive_layout --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
+    premake5 --file=premake5_pls_renderer.lua --out=out/android/"$SKIA_ARCH"/"$CONFIG" --config="$CONFIG" --scripts="$RIVE_RUNTIME_DIR"/build --no-rive-decoders --os=android --arch="$SKIA_ARCH" gmake2
     make -C out/android/"$SKIA_ARCH"/"$CONFIG" -j20 rive_pls_renderer
     deactivate
     popd
