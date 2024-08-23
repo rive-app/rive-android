@@ -137,7 +137,7 @@ cleanFor() {
     fi
     popd
     # PLS
-    pushd "$RIVE_RUNTIME_DIR"/../pls/out
+    pushd "$RIVE_RUNTIME_DIR"/pls/out
     make config=$CONFIG clean
     popd
     # rive_skia_renderer
@@ -155,7 +155,7 @@ buildFor() {
     popd
 
     # Build librive_pls_renderer.
-    pushd "$RIVE_RUNTIME_DIR"/../pls
+    pushd "$RIVE_RUNTIME_DIR"/pls
     python3 -m venv build_env
     source build_env/bin/activate
     pip3 install ply
@@ -178,7 +178,7 @@ buildFor() {
     cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_sheenbidi.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/dependencies/android/cache/"$SKIA_ARCH"/bin/"${CONFIG}"/librive_yoga.a "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/renderer/build/android/"$SKIA_ARCH"/bin/${CONFIG}/librive_skia_renderer.a "$BUILD_DIR"
-    cp "$RIVE_RUNTIME_DIR/../pls/out/android/"$SKIA_ARCH"/"$CONFIG"/librive_pls_renderer.a" "$BUILD_DIR"
+    cp "$RIVE_RUNTIME_DIR/pls/out/android/"$SKIA_ARCH"/"$CONFIG"/librive_pls_renderer.a" "$BUILD_DIR"
     cp "$RIVE_RUNTIME_DIR"/skia/dependencies/"$SKIA_DIR_NAME"/out/"${CONFIG}"/"$SKIA_ARCH"/libskia.a "$BUILD_DIR"
 
     if ! ${ONLY_DEPS}; then
