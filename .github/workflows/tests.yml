@@ -25,7 +25,7 @@ jobs:
           submodules: true
           repository: ${{ secrets.RIVE_RENDERER_REPO }}
           token: ${{ secrets.PAT_GITHUB }}
-          path: ./submodules/pls
+          path: ./submodules/renderer
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1

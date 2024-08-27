@@ -20,8 +20,8 @@
 
 #include "models/dimensions_helper.hpp"
 
-#include "rive/pls/pls_render_context.hpp"
-#include "rive/pls/pls_renderer.hpp"
+#include "rive/renderer/render_context.hpp"
+#include "rive/renderer/rive_renderer.hpp"
 
 #include "canvas_renderer.hpp"
 
@@ -161,9 +161,9 @@ public:
     rive::Renderer* renderer() const override;
 
 private:
-    rive::rcp<rive::pls::PLSRenderTargetGL> m_plsRenderTarget;
+    rive::rcp<rive::gpu::PLSRenderTargetGL> m_plsRenderTarget;
 
-    std::unique_ptr<rive::pls::PLSRenderer> m_plsRenderer;
+    std::unique_ptr<rive::gpu::RiveRenderer> m_plsRenderer;
 
     // Cast away [threadState] to the the thread state expected by this implementation.
     static PLSThreadState* PlsThreadState(DrawableThreadState* threadState)

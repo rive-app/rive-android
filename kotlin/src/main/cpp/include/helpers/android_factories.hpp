@@ -8,7 +8,7 @@
 #include "skia_factory.hpp"
 #include "helpers/general.hpp"
 
-#include "rive/pls/pls_factory.hpp"
+#include "rive/renderer/rive_render_factory.hpp"
 #include "utils/factory_utils.hpp"
 #include <vector>
 #include <jni.h>
@@ -53,7 +53,7 @@ public:
                                         rive::SkiaFactory::ImageInfo* info) override;
 };
 
-class AndroidPLSFactory : public rive::pls::PLSFactory
+class AndroidRiveRenderFactory : public rive::gpu::RiveRenderFactory
 {
 public:
     rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType,

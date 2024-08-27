@@ -16,7 +16,7 @@ namespace rive_android
 /**
  * Global factories that are used to instantiate render objects (paths, buffers, textures, etc.)
  */
-static AndroidPLSFactory g_RiveFactory;
+static AndroidRiveRenderFactory g_RiveFactory;
 static AndroidSkiaFactory g_SkiaFactory;
 static AndroidCanvasFactory g_CanvasFactory;
 

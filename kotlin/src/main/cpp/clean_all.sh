@@ -39,7 +39,7 @@ rm -rf ./build/android
 popd
 
 # PLS
-pushd "$RIVE_RUNTIME_DIR"/pls
+pushd "$RIVE_RUNTIME_DIR"/renderer
 rm -rf ./out
 rm -rf ./android
 rm -rf ./dependencies

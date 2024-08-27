@@ -1,6 +1,6 @@
 #include "models/worker_impl.hpp"
 
-#include "rive/pls/gl/pls_render_target_gl.hpp"
+#include "rive/renderer/gl/render_target_gl.hpp"
 #include "rive/audio/audio_engine.hpp"
 
 namespace rive_android
@@ -143,7 +143,7 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     auto eglThreadState = static_cast<EGLThreadState*>(threadState);
 
     eglThreadState->makeCurrent(m_eglSurface);
-    rive::pls::PLSRenderContext* plsContext =
+    rive::gpu::PLSRenderContext* plsContext =
         PLSWorkerImpl::PlsThreadState(eglThreadState)->plsContext();
     if (plsContext == nullptr)
     {
@@ -155,8 +155,8 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glGetIntegerv(GL_SAMPLES, &sampleCount);
     m_plsRenderTarget =
-        rive::make_rcp<rive::pls::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
-    m_plsRenderer = std::make_unique<rive::pls::PLSRenderer>(plsContext);
+        rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
+    m_plsRenderer = std::make_unique<rive::gpu::RiveRenderer>(plsContext);
     *success = true;
 }
 
@@ -170,11 +170,11 @@ void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
+    rive::gpu::PLSRenderContext* plsContext = plsThreadState->plsContext();
     plsContext->beginFrame({
         .renderTargetWidth = m_plsRenderTarget->width(),
         .renderTargetHeight = m_plsRenderTarget->height(),
-        .loadAction = rive::pls::LoadAction::clear,
+        .loadAction = rive::gpu::LoadAction::clear,
         .clearColor = 0,
     });
 }
@@ -182,7 +182,7 @@ void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
+    rive::gpu::PLSRenderContext* plsContext = plsThreadState->plsContext();
     plsContext->flush({.renderTarget = m_plsRenderTarget.get()});
 }
 

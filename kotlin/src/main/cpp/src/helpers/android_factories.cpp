@@ -10,12 +10,12 @@
 #include "helpers/thread_state_pls.hpp"
 
 #include "rive/math/math_types.hpp"
-#include "rive/pls/pls_image.hpp"
-#include "rive/pls/gl/pls_render_buffer_gl_impl.hpp"
-#include "rive/pls/gl/pls_render_context_gl_impl.hpp"
+#include "rive/renderer/image.hpp"
+#include "rive/renderer/gl/render_buffer_gl_impl.hpp"
+#include "rive/renderer/gl/render_context_gl_impl.hpp"
 
 using namespace rive;
-using namespace rive::pls;
+using namespace rive::gpu;
 
 namespace rive_android
 {
@@ -202,7 +202,7 @@ public:
             m_glWorker->waitUntilComplete(m_bufferCreationWorkID);
             // We aren't on the GL thread. Intercept the buffers before ~PLSRenderBufferGLImpl(),
             // and then marshal them off to the GL thread for deletion.
-            std::array<GLuint, pls::kBufferRingSize> buffersToDelete = detachBuffers();
+            std::array<GLuint, gpu::kBufferRingSize> buffersToDelete = detachBuffers();
             rcp<GLState> glState = ref_rcp(state());
             m_glWorker->run([buffersToDelete, glState](rive_android::DrawableThreadState*) {
                 for (GLuint bufferID : buffersToDelete)
@@ -261,9 +261,9 @@ protected:
     rive_android::RefWorker::WorkID m_bufferCreationWorkID;
 };
 
-rcp<RenderBuffer> AndroidPLSFactory::makeRenderBuffer(RenderBufferType type,
-                                                      RenderBufferFlags flags,
-                                                      size_t sizeInBytes)
+rcp<RenderBuffer> AndroidRiveRenderFactory::makeRenderBuffer(RenderBufferType type,
+                                                             RenderBufferFlags flags,
+                                                             size_t sizeInBytes)
 {
     return make_rcp<AndroidPLSRenderBuffer>(type, flags, sizeInBytes);
 }
@@ -306,7 +306,7 @@ private:
     rive_android::RefWorker::WorkID m_textureCreationWorkID;
 };
 
-rcp<RenderImage> AndroidPLSFactory::decodeImage(Span<const uint8_t> encodedBytes)
+rcp<RenderImage> AndroidRiveRenderFactory::decodeImage(Span<const uint8_t> encodedBytes)
 {
     uint32_t width, height;
     std::vector<uint8_t> pixels;

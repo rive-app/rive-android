@@ -26,7 +26,7 @@ PLSThreadState::PLSThreadState()
     eglMakeCurrent(m_display, m_backgroundSurface, m_backgroundSurface, m_context);
     m_currentSurface = m_backgroundSurface;
 
-    m_plsContext = rive::pls::PLSRenderContextGLImpl::MakeContext();
+    m_plsContext = rive::gpu::PLSRenderContextGLImpl::MakeContext();
 }
 
 PLSThreadState::~PLSThreadState()

@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "thread_state_egl.hpp"
-#include "rive/pls/gl/pls_render_context_gl_impl.hpp"
+#include "rive/renderer/gl/render_context_gl_impl.hpp"
 
 namespace rive_android
 {
@@ -17,14 +17,14 @@ public:
     PLSThreadState();
     ~PLSThreadState();
 
-    rive::pls::PLSRenderContext* plsContext() const { return m_plsContext.get(); }
+    rive::gpu::PLSRenderContext* plsContext() const { return m_plsContext.get(); }
 
     void destroySurface(EGLSurface eglSurface) override;
 
     void makeCurrent(EGLSurface eglSurface) override;
 
 private:
-    std::unique_ptr<rive::pls::PLSRenderContext> m_plsContext;
+    std::unique_ptr<rive::gpu::PLSRenderContext> m_plsContext;
 
     // 1x1 Pbuffer surface that allows us to make the GL context current without a window surface.
     EGLSurface m_backgroundSurface;

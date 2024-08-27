@@ -43,7 +43,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp
 		-DSK_GL \
 		-Iinclude \
 		-I$(RIVE_RUNTIME_DIR)/include \
-		-I$(RIVE_RUNTIME_DIR)/../pls/include \
+		-I$(RIVE_RUNTIME_DIR)/../renderer/include \
 		-I$(RIVE_RUNTIME_DIR)/renderer/library/include \
 		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/ \
 		-I${RIVE_RUNTIME_DIR}/skia/dependencies/$(SKIA_DIR_NAME)/include/core \

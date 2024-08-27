@@ -137,7 +137,7 @@ void RefWorker::externalRefCountDidReachZero()
             // price of destroying and re-creating the entire GL context.
             run([](rive_android::DrawableThreadState* threadState) {
                 PLSThreadState* plsThreadState = static_cast<PLSThreadState*>(threadState);
-                rive::pls::PLSRenderContext* plsContext = plsThreadState->plsContext();
+                rive::gpu::PLSRenderContext* plsContext = plsThreadState->plsContext();
                 if (plsContext != nullptr)
                 {
                     LOGI("Releasing resources on the Rive renderer");
