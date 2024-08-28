@@ -161,7 +161,7 @@ public:
     rive::Renderer* renderer() const override;
 
 private:
-    rive::rcp<rive::gpu::PLSRenderTargetGL> m_plsRenderTarget;
+    rive::rcp<rive::gpu::RenderTargetGL> m_plsRenderTarget;
 
     std::unique_ptr<rive::gpu::RiveRenderer> m_plsRenderer;
 

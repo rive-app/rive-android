@@ -143,7 +143,7 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     auto eglThreadState = static_cast<EGLThreadState*>(threadState);
 
     eglThreadState->makeCurrent(m_eglSurface);
-    rive::gpu::PLSRenderContext* plsContext =
+    rive::gpu::RenderContext* plsContext =
         PLSWorkerImpl::PlsThreadState(eglThreadState)->plsContext();
     if (plsContext == nullptr)
     {
@@ -170,7 +170,7 @@ void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::gpu::PLSRenderContext* plsContext = plsThreadState->plsContext();
+    rive::gpu::RenderContext* plsContext = plsThreadState->plsContext();
     plsContext->beginFrame({
         .renderTargetWidth = m_plsRenderTarget->width(),
         .renderTargetHeight = m_plsRenderTarget->height(),
@@ -182,7 +182,7 @@ void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::gpu::PLSRenderContext* plsContext = plsThreadState->plsContext();
+    rive::gpu::RenderContext* plsContext = plsThreadState->plsContext();
     plsContext->flush({.renderTarget = m_plsRenderTarget.get()});
 }
 
