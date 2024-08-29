@@ -26,13 +26,13 @@ PLSThreadState::PLSThreadState()
     eglMakeCurrent(m_display, m_backgroundSurface, m_backgroundSurface, m_context);
     m_currentSurface = m_backgroundSurface;
 
-    m_plsContext = rive::gpu::RenderContextGLImpl::MakeContext();
+    m_renderContext = rive::gpu::RenderContextGLImpl::MakeContext();
 }
 
 PLSThreadState::~PLSThreadState()
 {
     assert(m_currentSurface == m_backgroundSurface);
-    m_plsContext.reset();
+    m_renderContext.reset();
 
     eglDestroySurface(m_display, m_backgroundSurface);
     EGL_ERR_CHECK();

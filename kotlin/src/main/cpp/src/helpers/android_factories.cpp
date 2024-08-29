@@ -10,7 +10,7 @@
 #include "helpers/thread_state_pls.hpp"
 
 #include "rive/math/math_types.hpp"
-#include "rive/renderer/image.hpp"
+#include "rive/renderer/rive_render_image.hpp"
 #include "rive/renderer/gl/render_buffer_gl_impl.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 
@@ -179,16 +179,18 @@ public:
             m_bufferCreationWorkID =
                 m_glWorker->run([thisRef](rive_android::DrawableThreadState* threadState) {
                     auto plsState = reinterpret_cast<rive_android::PLSThreadState*>(threadState);
-                    auto* glImpl = plsState->plsContext()->static_impl_cast<RenderContextGLImpl>();
-                    thisRef->init(ref_rcp(glImpl->state()));
+                    auto* renderContextImpl =
+                        plsState->renderContext()->static_impl_cast<RenderContextGLImpl>();
+                    thisRef->init(ref_rcp(renderContextImpl->state()));
                 });
         }
         else
         {
             auto plsState =
                 reinterpret_cast<rive_android::PLSThreadState*>(m_glWorker->threadState());
-            auto* glImpl = plsState->plsContext()->static_impl_cast<RenderContextGLImpl>();
-            init(ref_rcp(glImpl->state()));
+            auto* renderContextImpl =
+                plsState->renderContext()->static_impl_cast<RenderContextGLImpl>();
+            init(ref_rcp(renderContextImpl->state()));
             m_bufferCreationWorkID = rive_android::WorkerThread::kWorkIDAlwaysFinished;
         }
     }
@@ -267,11 +269,11 @@ rcp<RenderBuffer> AndroidRiveRenderFactory::makeRenderBuffer(RenderBufferType ty
     return make_rcp<AndroidPLSRenderBuffer>(type, flags, sizeInBytes);
 }
 
-class AndroidImage : public Image
+class AndroidImage : public RiveRenderImage
 {
 public:
     AndroidImage(int width, int height, std::unique_ptr<const uint8_t[]> imageDataRGBAPtr) :
-        Image(width, height), m_glWorker(rive_android::RefWorker::RiveWorker())
+        RiveRenderImage(width, height), m_glWorker(rive_android::RefWorker::RiveWorker())
     {
         // Create the texture on the worker thread where the GL context is current.
         const uint8_t* imageDataRGBA = imageDataRGBAPtr.release();
@@ -279,9 +281,12 @@ public:
             m_glWorker->run([this, imageDataRGBA](rive_android::DrawableThreadState* threadState) {
                 auto plsState = reinterpret_cast<rive_android::PLSThreadState*>(threadState);
                 uint32_t mipLevelCount = math::msb(m_Height | m_Width);
-                auto* glImpl = plsState->plsContext()->static_impl_cast<RenderContextGLImpl>();
-                resetTexture(
-                    glImpl->makeImageTexture(m_Width, m_Height, mipLevelCount, imageDataRGBA));
+                auto* renderContextImpl =
+                    plsState->renderContext()->static_impl_cast<RenderContextGLImpl>();
+                resetTexture(renderContextImpl->makeImageTexture(m_Width,
+                                                                 m_Height,
+                                                                 mipLevelCount,
+                                                                 imageDataRGBA));
                 delete[] imageDataRGBA;
             });
     }

@@ -27,8 +27,8 @@ rcp<RefWorker> RefWorker::RiveWorker()
         // Check if PLS is supported.
         candidateWorker->runAndWait([](rive_android::DrawableThreadState* threadState) {
             PLSThreadState* plsThreadState = static_cast<PLSThreadState*>(threadState);
-            s_isSupported = plsThreadState->plsContext() != nullptr ? RiveRendererSupport::yes
-                                                                    : RiveRendererSupport::no;
+            s_isSupported = plsThreadState->renderContext() != nullptr ? RiveRendererSupport::yes
+                                                                       : RiveRendererSupport::no;
         });
         assert(s_isSupported != RiveRendererSupport::unknown);
         if (s_isSupported == RiveRendererSupport::yes)
@@ -137,11 +137,11 @@ void RefWorker::externalRefCountDidReachZero()
             // price of destroying and re-creating the entire GL context.
             run([](rive_android::DrawableThreadState* threadState) {
                 PLSThreadState* plsThreadState = static_cast<PLSThreadState*>(threadState);
-                rive::gpu::RenderContext* plsContext = plsThreadState->plsContext();
-                if (plsContext != nullptr)
+                rive::gpu::RenderContext* renderContext = plsThreadState->renderContext();
+                if (renderContext != nullptr)
                 {
                     LOGI("Releasing resources on the Rive renderer");
-                    plsContext->releaseResources();
+                    renderContext->releaseResources();
                 }
             });
             break;

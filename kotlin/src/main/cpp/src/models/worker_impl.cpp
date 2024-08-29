@@ -143,9 +143,9 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     auto eglThreadState = static_cast<EGLThreadState*>(threadState);
 
     eglThreadState->makeCurrent(m_eglSurface);
-    rive::gpu::RenderContext* plsContext =
-        PLSWorkerImpl::PlsThreadState(eglThreadState)->plsContext();
-    if (plsContext == nullptr)
+    rive::gpu::RenderContext* renderContext =
+        PLSWorkerImpl::PlsThreadState(eglThreadState)->renderContext();
+    if (renderContext == nullptr)
     {
         return; // PLS was not supported.
     }
@@ -154,26 +154,26 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     GLint sampleCount;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glGetIntegerv(GL_SAMPLES, &sampleCount);
-    m_plsRenderTarget =
+    m_renderTarget =
         rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
-    m_plsRenderer = std::make_unique<rive::gpu::RiveRenderer>(plsContext);
+    m_plsRenderer = std::make_unique<rive::gpu::RiveRenderer>(renderContext);
     *success = true;
 }
 
 void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 {
     m_plsRenderer.reset();
-    m_plsRenderTarget.reset();
+    m_renderTarget.reset();
     EGLWorkerImpl::destroy(threadState);
 }
 
 void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::gpu::RenderContext* plsContext = plsThreadState->plsContext();
-    plsContext->beginFrame({
-        .renderTargetWidth = m_plsRenderTarget->width(),
-        .renderTargetHeight = m_plsRenderTarget->height(),
+    rive::gpu::RenderContext* renderContext = plsThreadState->renderContext();
+    renderContext->beginFrame({
+        .renderTargetWidth = m_renderTarget->width(),
+        .renderTargetHeight = m_renderTarget->height(),
         .loadAction = rive::gpu::LoadAction::clear,
         .clearColor = 0,
     });
@@ -182,8 +182,8 @@ void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
 void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
-    rive::gpu::RenderContext* plsContext = plsThreadState->plsContext();
-    plsContext->flush({.renderTarget = m_plsRenderTarget.get()});
+    rive::gpu::RenderContext* renderContext = plsThreadState->renderContext();
+    renderContext->flush({.renderTarget = m_renderTarget.get()});
 }
 
 rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
