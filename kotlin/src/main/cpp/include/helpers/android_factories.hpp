@@ -53,7 +53,7 @@ public:
                                         rive::SkiaFactory::ImageInfo* info) override;
 };
 
-class AndroidRiveRenderFactory : public rive::gpu::RiveRenderFactory
+class AndroidRiveRenderFactory : public rive::RiveRenderFactory
 {
 public:
     rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType,

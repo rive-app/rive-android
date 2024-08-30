@@ -156,7 +156,7 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     glGetIntegerv(GL_SAMPLES, &sampleCount);
     m_renderTarget =
         rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
-    m_plsRenderer = std::make_unique<rive::gpu::RiveRenderer>(renderContext);
+    m_plsRenderer = std::make_unique<rive::RiveRenderer>(renderContext);
     *success = true;
 }
 

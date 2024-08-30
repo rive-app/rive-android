@@ -9,13 +9,13 @@ or just see how things work under the hood, read on below.
 
 This is the main module of our android library, you can find a useful `RiveAnimationView`
 or `RiveArtboardRenderer` in the `app.rive.runtime.kotlin` namespace.
-The underlying [C++ runtime](https://github.com/rive-app/rive-cpp) is mapped to objects in
+The underlying [C++ runtime](https://github.com/rive-app/rive-runtime) is mapped to objects in
 the `app.rive.runtime.kotlin.core` namespace. These allow more fine grained control for more complex
 animation loops. Our high level views are simply built on top of this.
 
 #### `/cpp` && `/submodules`
 
-This runtime is built on top of our [C++ runtime](https://github.com/rive-app/rive-cpp). This is
+This runtime is built on top of our [C++ runtime](https://github.com/rive-app/rive-runtime). This is
 included as a submodule in `/submodules`. The `/cpp` folder contains the C++ side of our Android bindings and is located at `/kotlin/src/main/cpp`
 
 ### `/app`
@@ -42,9 +42,9 @@ run the test suite:
 
 ### Building `.so` files
 
-The runtime here should be updated to point to the latest `rive-cpp` submodule when that runtime has
+The runtime here should be updated to point to the latest `rive-runtime` submodule when that runtime has
 new commits merged in. This ensures the `rive-android` project is up-to-date with its underlying
-native code layer to pull in latest patches, features, and more. In most cases, when new `rive-cpp`
+native code layer to pull in latest patches, features, and more. In most cases, when new `rive-runtime`
 changes are introduced, we need to build new `.so` files for different architectures.
 
 #### Pre-requisites
@@ -59,7 +59,7 @@ for [different architectures](https://developer.android.com/ndk/guides/abis). <b
 The current NDK version we're using is stored in [.ndk_version](./kotlin/src/main/cpp/.ndk_version). Rive is
 constantly making use of the latest clang features, so please ensure your NDK is up to
 date. ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version)) <br />
-Make sure you're rebuilding the native libraries when pulling in the latest changes from `rive-cpp`:
+Make sure you're rebuilding the native libraries when pulling in the latest changes from `rive-runtime`:
 
 ```bash
 cd kotlin/src/main/cpp/

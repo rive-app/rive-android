@@ -163,7 +163,7 @@ public:
 private:
     rive::rcp<rive::gpu::RenderTargetGL> m_renderTarget;
 
-    std::unique_ptr<rive::gpu::RiveRenderer> m_plsRenderer;
+    std::unique_ptr<rive::RiveRenderer> m_plsRenderer;
 
     // Cast away [threadState] to the the thread state expected by this implementation.
     static PLSThreadState* PlsThreadState(DrawableThreadState* threadState)
