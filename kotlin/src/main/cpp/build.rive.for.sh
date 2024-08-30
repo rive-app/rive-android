@@ -95,8 +95,8 @@ TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/$HOST_TAG"
 
 if [ -z "${RIVE_RUNTIME_DIR}" ]; then
     echo "RIVE_RUNTIME_DIR is not set"
-    if [ -d "$PWD/../../../../submodules/rive-runtime" ]; then
-        export RIVE_RUNTIME_DIR="$PWD/../../../../submodules/rive-runtime"
+    if [ -d "$PWD/../../../../submodules/rive-cpp" ]; then
+        export RIVE_RUNTIME_DIR="$PWD/../../../../submodules/rive-cpp"
     else
         export RIVE_RUNTIME_DIR="$PWD/../../../../../runtime"
     fi

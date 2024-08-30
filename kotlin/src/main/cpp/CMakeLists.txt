@@ -13,10 +13,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Oz -DYOGA_EXPORT=")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
-if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-runtime")
+if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-cpp")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
-    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-runtime")
-    set(PLS_DIR "${PACKAGES_DIR}/submodules/rive-runtime/renderer")
+    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-cpp")
+    set(PLS_DIR "${PACKAGES_DIR}/submodules/rive-cpp/renderer")
 else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
     set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/runtime")
