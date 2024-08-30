@@ -11,8 +11,8 @@ RUNTIME_ANDROID_HOME=$PWD/../../../..
 
 if [ -z "${RIVE_RUNTIME_DIR}" ]; then
   echo "RIVE_RUNTIME_DIR is not set"
-  if [ -d "${RUNTIME_ANDROID_HOME}/submodules/rive-cpp" ]; then
-    export RIVE_RUNTIME_DIR="$RUNTIME_ANDROID_HOME/submodules/rive-cpp"
+  if [ -d "${RUNTIME_ANDROID_HOME}/submodules/rive-runtime" ]; then
+    export RIVE_RUNTIME_DIR="$RUNTIME_ANDROID_HOME/submodules/rive-runtime"
   else
     export RIVE_RUNTIME_DIR="$RUNTIME_ANDROID_HOME/../runtime"
   fi
