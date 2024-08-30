@@ -69,7 +69,7 @@ jobs:
           ls
       - name: Build rive for ${{ matrix.arch }}
         run: |
-          cd cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
+          cd kotlin/src/main/cpp && ./build.rive.for.sh -c -a ${{ matrix.arch }}
         env:
           NDK_PATH: ${{github.workspace}}/android-ndk-r25b
       # NOTE: this is sneaky, we are adding multiple files from the matrix jobs into the same artifact
