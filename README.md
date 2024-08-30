@@ -40,7 +40,7 @@ open-source runtime libraries allow them to load their animations into apps, gam
 Follow along with the link below for a quick start in getting Rive Android integrated into your
 multi-platform applications.
 
-[Getting Started with Rive in Android](https://help.rive.app/runtimes/overview/android)
+[Getting Started with Rive in Android](https://rive.app/community/doc/android/docxb0vASIwp)
 
 ## Supported versions
 
