@@ -12,7 +12,7 @@ import app.rive.runtime.kotlin.RiveAnimationView
  * Dynamically change a Rive Text Run value. In this example the run is named: "name"
  * For the run to be discoverable at runtime, the name as to be set in the editor.
  *
- * See: https://help.rive.app/runtimes/text
+ * See: https://rive.app/community/doc/text/docn2E6y1lXo
  */
 class DynamicTextActivity : AppCompatActivity(), TextWatcher {
     private val animationView by lazy(LazyThreadSafetyMode.NONE) {

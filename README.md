@@ -31,21 +31,29 @@ open-source runtime libraries allow them to load their animations into apps, gam
 
 🏡 [Homepage](https://rive.app/)
 
-📘 [General help docs](https://help.rive.app/)
+📘 [Rive docs](https://rive.app/community/doc/introduction/docvphVOrBbl)
 
-🛠 [Learning Rive](https://rive.app/learn-rive/)
+🛠 [Rive Forums](https://rive.app/community/forums/home)
 
 ## Getting started
 
-Follow along with the link below for a quick start in getting Rive Android integrated into your
-multi-platform applications.
+To get started with Rive Android, check out the following resources:
 
-[Getting Started with Rive in Android](https://help.rive.app/runtimes/overview/android)
+- [Getting Started with Rive in Android](https://rive.app/community/doc/android/docxb0vASIwp)
+
+For more information, see the Runtime sections of the Rive help documentation:
+
+- [Animation Playback](https://rive.app/community/doc/animation-playback/docDKKxsr7ko)
+- [Layout](https://rive.app/community/doc/layout/docBl81zd1GB)
+- [State Machines](https://rive.app/community/doc/state-machines/docxeznG7iiK)
+- [Rive Text](https://rive.app/community/doc/text/docn2E6y1lXo)
+- [Rive Events](https://rive.app/community/doc/rive-events/docbOnaeffgr)
+- [Loading Assets](https://rive.app/community/doc/loading-assets/doct4wVHGPgC)
 
 ## Supported versions
 
 Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version
-is **33**.
+is **34**.
 
 ## Examples
 
@@ -73,9 +81,7 @@ For even more examples and resources on using Rive at runtime or in other tools,
 
 The Rive renderer is available _experimentally_ in `7.0.0`.
 
-Read more about the Rive Renderer [here](https://rive.app/renderer). Additional information on [choosing a renderer](https://help.rive.app/runtimes/renderer) for Rive's runtimes.
-
-You may encounter incompatibilities with specific devices - for example, the new renderer won't work on emulators just yet but only on physical devices.
+Read more about the Rive Renderer [here](https://rive.app/renderer). Additional information on [choosing a renderer](https://rive.app/community/doc/overview/docD20dU9Rod) for Rive's runtimes.
 
 Your feedback is greatly appreciated during this stage and we'd love to hear from you!
 
