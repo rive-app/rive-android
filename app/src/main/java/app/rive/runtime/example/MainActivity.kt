@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_rive_font_load_simple, FontLoadActivity::class.java),
         Pair(R.id.go_audio_simple, AudioAssetActivity::class.java),
         Pair(R.id.go_audio_external, AudioExternalAssetActivity::class.java),
+        Pair(R.id.go_font_fallback, FontFallback::class.java),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

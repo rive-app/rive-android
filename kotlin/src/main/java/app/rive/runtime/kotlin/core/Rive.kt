@@ -2,6 +2,9 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import app.rive.runtime.kotlin.fonts.FontHelper
+import app.rive.runtime.kotlin.fonts.Fonts
+import app.rive.runtime.kotlin.fonts.NativeFontHelper
 import com.getkeepsafe.relinker.ReLinker
 
 object Rive {
@@ -10,7 +13,7 @@ object Rive {
         fit: Fit, alignment: Alignment,
         availableBounds: RectF,
         artboardBounds: RectF,
-        requiredBounds: RectF
+        requiredBounds: RectF,
     )
 
     private const val RiveAndroid = "rive-android"
@@ -61,7 +64,7 @@ object Rive {
         fit: Fit,
         alignment: Alignment,
         availableBounds: RectF,
-        artboardBounds: RectF
+        artboardBounds: RectF,
     ): RectF {
         val requiredBounds = RectF()
         cppCalculateRequiredBounds(
@@ -72,5 +75,27 @@ object Rive {
             requiredBounds
         )
         return requiredBounds
+    }
+
+    /**
+     * Set a fallback font for the Rive runtime.
+     *
+     * @param byteArray The [ByteArray] bytes for a font file.
+     * @return A [boolean] indicating whether the font was successfully registered
+     */
+    fun setFallbackFont(byteArray: ByteArray): Boolean =
+        NativeFontHelper.cppRegisterFallbackFont(byteArray)
+
+    /**
+     * Set a fallback font for the Rive runtime.
+     * @param opts The [Fonts.FontOpts] specifying the desired font
+     *             characteristics. If not provided, default options are used.
+     * @return A [boolean] indicating whether the font was successfully registered
+     */
+    fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean {
+        FontHelper.getFallbackFontBytes(opts)?.let { bytes ->
+            return NativeFontHelper.cppRegisterFallbackFont(bytes)
+        }
+        return false
     }
 }

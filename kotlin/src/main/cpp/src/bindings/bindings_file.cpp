@@ -17,7 +17,6 @@ extern "C"
                                                                           jint type,
                                                                           jlong fileAssetLoader)
     {
-        SetSDKVersion();
         RendererType rendererType = static_cast<RendererType>(type);
         rive::FileAssetLoader* assetLoader =
             reinterpret_cast<rive::FileAssetLoader*>(fileAssetLoader);

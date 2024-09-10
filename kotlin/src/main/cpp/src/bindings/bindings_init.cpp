@@ -1,5 +1,6 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "helpers/font_helper.hpp"
 #include "models/dimensions_helper.hpp"
 #include <jni.h>
 
@@ -47,6 +48,8 @@ extern "C"
 #endif
         // pretty much considered the entrypoint.
         env->GetJavaVM(&::g_JVM);
+        SetSDKVersion();
+        rive::Font::gFallbackProc = FontHelper::findFontFallback;
     }
 
 #ifdef __cplusplus

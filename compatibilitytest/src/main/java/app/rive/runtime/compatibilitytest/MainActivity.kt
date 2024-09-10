@@ -7,31 +7,32 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.contextaware.withContextAvailable
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.withContext
-import kotlin.concurrent.thread
 
+typealias RiveSetupFunction = (riveView: RiveAnimationView) -> Unit
 
-data class AnimationTest(val name: String, val resource: Int, val width: Int, val height: Int);
+data class AnimationTest(
+    val name: String,
+    val resource: Int,
+    val width: Int,
+    val height: Int,
+    // Optional function to perform actions on the view before draw.
+    val setup: RiveSetupFunction? = null,
+);
 data class RendererSetup(val name: String, val type: RendererType);
 
 val tests = listOf(
     AnimationTest("mesh", R.raw.dwarf, 860, 540),
     AnimationTest("text", R.raw.text, 860, 540),
     AnimationTest("vector", R.raw.vector, 860, 540),
+    AnimationTest("fallback fonts", R.raw.fallback_fonts, 860, 540) {
+        it.setTextRunValue("Name", "txt")
+    },
 )
 val rendererSetups = listOf(
     RendererSetup("skia", RendererType.Skia),
@@ -41,7 +42,7 @@ val rendererSetups = listOf(
 
 // Storage Permissions
 private const val REQUEST_EXTERNAL_STORAGE = 1
-private val PERMISSIONS_STORAGE = arrayOf<String>(
+private val PERMISSIONS_STORAGE = arrayOf(
     android.Manifest.permission.READ_EXTERNAL_STORAGE,
     android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 )
@@ -55,7 +56,7 @@ class MainActivity : AppCompatActivity() {
 
         val buttonLayout = findViewById<LinearLayout>(R.id.buttonContainer);
         rendererSetups.forEach { setup ->
-            var label = TextView(this)
+            val label = TextView(this)
             label.text = "Check - ${setup.name}"
             buttonLayout.addView(label);
 
@@ -82,8 +83,8 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun addButton(buttonLayout: LinearLayout, setup: RendererSetup, test: AnimationTest) {
-        var that = this;
-        var button = Button(this)
+        val that = this;
+        val button = Button(this)
         button.text = "${setup.name} - ${test.name}"
         button.setOnClickListener {
             that.setView(setup, test)
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
             this.setResource(test.resource)
         }
 
+
         val view = CallbackRiveAnimationView(builder)
         view.drawCallback = {
             Log.d("BitmapExtractor", "Draw callback called for  ${test.name}")
@@ -109,6 +111,8 @@ class MainActivity : AppCompatActivity() {
         val displayLayout = findViewById<LinearLayout>(R.id.viewContainer);
         displayLayout.removeAllViews()
         displayLayout.addView(view)
+        // Setup the text after it's been added and init'd
+        test.setup?.invoke(view)
     }
 }
 
