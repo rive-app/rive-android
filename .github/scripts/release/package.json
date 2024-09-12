@@ -1,6 +1,6 @@
 {
   "name": "rive-android-release-stub",
-  "version": "9.7.0",
+  "version": "9.7.1",
   "description": "",
   "scripts": {
     "release": "release-it"
