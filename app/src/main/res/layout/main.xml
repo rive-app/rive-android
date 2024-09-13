@@ -128,6 +128,15 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
+                android:id="@+id/go_nested_text_run"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Nested Text Runs"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
                 android:id="@+id/go_button"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="fill_parent"

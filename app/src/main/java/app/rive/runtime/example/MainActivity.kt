@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_http, HttpActivity::class.java),
         Pair(R.id.go_simple_state_machine, SimpleStateMachineActivity::class.java),
         Pair(R.id.go_nested_input, NestedInputActivity::class.java),
+        Pair(R.id.go_nested_text_run, NestedTextRunActivity::class.java),
         Pair(R.id.go_button, ButtonActivity::class.java),
         Pair(R.id.go_blend, BlendActivity::class.java),
         Pair(R.id.go_metrics, MetricsActivity::class.java),

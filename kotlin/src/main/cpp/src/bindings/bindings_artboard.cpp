@@ -155,6 +155,83 @@ extern "C"
         return (jlong)artboard->find<rive::TextValueRun>(JStringToString(env, name));
     }
 
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppFindValueOfTextValueRun(JNIEnv* env,
+                                                                          jobject thisObj,
+                                                                          jlong ref,
+                                                                          jstring name)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        auto run = artboard->find<rive::TextValueRun>(JStringToString(env, name));
+        if (run == nullptr)
+        {
+            return nullptr;
+        }
+        return env->NewStringUTF(run->text().c_str());
+    }
+
+    JNIEXPORT jboolean JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetValueOfTextValueRun(JNIEnv* env,
+                                                                         jobject thisObj,
+                                                                         jlong ref,
+                                                                         jstring name,
+                                                                         jstring newText)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        auto run = artboard->find<rive::TextValueRun>(JStringToString(env, name));
+        if (run == nullptr)
+        {
+            return JNI_FALSE;
+        }
+        run->text(JStringToString(env, newText));
+        return JNI_TRUE;
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRunAtPath(JNIEnv* env,
+                                                                         jobject thisObj,
+                                                                         jlong ref,
+                                                                         jstring name,
+                                                                         jstring path)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return (jlong)artboard->getTextRun(JStringToString(env, name), JStringToString(env, path));
+    }
+
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppFindValueOfTextValueRunAtPath(JNIEnv* env,
+                                                                                jobject thisObj,
+                                                                                jlong ref,
+                                                                                jstring name,
+                                                                                jstring path)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        auto run = artboard->getTextRun(JStringToString(env, name), JStringToString(env, path));
+        if (run == nullptr)
+        {
+            return nullptr;
+        }
+        return env->NewStringUTF(run->text().c_str());
+    }
+
+    JNIEXPORT jboolean JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetValueOfTextValueRunAtPath(JNIEnv* env,
+                                                                               jobject thisObj,
+                                                                               jlong ref,
+                                                                               jstring name,
+                                                                               jstring newText,
+                                                                               jstring path)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        auto run = artboard->getTextRun(JStringToString(env, name), JStringToString(env, path));
+        if (run == nullptr)
+        {
+            return JNI_FALSE;
+        }
+        run->text(JStringToString(env, newText));
+        return JNI_TRUE;
+    }
+
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(JNIEnv* env,
                                                           jobject thisObj,

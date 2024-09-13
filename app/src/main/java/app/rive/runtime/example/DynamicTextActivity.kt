@@ -38,7 +38,7 @@ class DynamicTextActivity : AppCompatActivity(), TextWatcher {
         textRun?.text?.let { Log.i("text-value-run", "Run before change: $it") }
 
         // or you can get the current value with:
-        // animationView.getTextRunValue("name")
+        // animationView.getTextRunValue("name").let { Log.i("text-value-run", "Run before change: $it") }
     }
 
     override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {

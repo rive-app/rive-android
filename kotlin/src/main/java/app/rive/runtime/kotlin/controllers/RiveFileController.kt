@@ -531,13 +531,18 @@ class RiveFileController(
                     }
                 }
             } else {
-                val smiInput = activeArtboard?.input(input.name, input.nestedArtboardPath)
-                if (smiInput is SMITrigger) {
-                    smiInput.fire()
-                } else if (smiInput is SMIBoolean) {
-                    smiInput.value = input.value as Boolean
-                } else if (smiInput is SMINumber) {
-                    smiInput.value = input.value as Float
+                when (val smiInput = activeArtboard?.input(input.name, input.nestedArtboardPath)) {
+                    is SMITrigger -> {
+                        smiInput.fire()
+                    }
+
+                    is SMIBoolean -> {
+                        smiInput.value = input.value as Boolean
+                    }
+
+                    is SMINumber -> {
+                        smiInput.value = input.value as Float
+                    }
                 }
             }
         }
@@ -571,10 +576,16 @@ class RiveFileController(
     /**
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
      */
-    fun getTextRunValue(textRunName: String): String? = try {
-        activeArtboard?.textRun(textRunName)?.text
-    } catch (e: RiveException) {
-        null
+    fun getTextRunValue(textRunName: String): String? {
+        return activeArtboard?.getTextRunValue(textRunName)
+    }
+
+    /**
+     * Get the text value for a text run named [textRunName] on the nested artboard
+     * represented at [path].
+     */
+    fun getTextRunValue(textRunName: String, path: String): String? {
+        return activeArtboard?.getTextRunValue(textRunName, path)
     }
 
     /**
@@ -582,7 +593,22 @@ class RiveFileController(
      * @throws RiveException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
-        activeArtboard?.textRun(textRunName)?.text = textValue
+        activeArtboard?.setTextRunValue(textRunName, textValue)
+        stateMachines.forEach {
+            play(it, settleStateMachineState = false)
+        }
+    }
+
+    /**
+     * Set the text value for a text run named [textRunName] to [textValue] on the nested artboard
+     * represented at [path].
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(textRunName: String, textValue: String, path: String) {
+        activeArtboard?.setTextRunValue(textRunName, textValue, path)
+        stateMachines.forEach {
+            play(it, settleStateMachineState = false)
+        }
     }
 
     private var userSetVolume: Float? = null; // Default value

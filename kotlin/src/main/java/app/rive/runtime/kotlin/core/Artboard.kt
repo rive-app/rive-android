@@ -40,6 +40,12 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
+    private external fun cppFindValueOfTextValueRun(cppPointer: Long, name: String): String?
+    private external fun cppSetValueOfTextValueRun(cppPointer: Long, name: String, newText: String): Boolean
+    private external fun cppFindTextValueRunAtPath(cppPointer: Long, name: String, path: String): Long
+    private external fun cppFindValueOfTextValueRunAtPath(cppPointer: Long, name: String, path: String): String?
+    private external fun cppSetValueOfTextValueRunAtPath(cppPointer: Long, name: String, newText: String, path: String): Boolean
+
 
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
@@ -159,6 +165,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Get a [RiveTextValueRun] with a given [name] in the [Artboard].
+     * @return The text value run.
+     * @throws RiveException if the text run does not exist.
      */
     @Throws(RiveException::class)
     fun textRun(name: String): RiveTextValueRun {
@@ -169,6 +177,62 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         val run = RiveTextValueRun(textRunPointer)
         dependencies.add(run)
         return run
+    }
+
+    /**
+     * Get the text value for a text run named [name].
+     * @return The text value of the run, or null if the run is not found.
+     */
+    fun getTextRunValue(name: String): String? {
+        return cppFindValueOfTextValueRun(cppPointer, name)
+    }
+
+    /**
+     * Set the text value for a text run named [name] to [textValue].
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(name: String, textValue: String) {
+        val successCheck = cppSetValueOfTextValueRun(cppPointer, name, textValue)
+        if (!successCheck) {
+            throw TextValueRunException("Could not set text run. No Rive TextValueRun found with name \"$name.\"")
+        }
+    }
+
+    /**
+     * Get a [RiveTextValueRun] with a given [name] on the nested artboard represented at [path].
+     * @return The text value run.
+     * @throws RiveException if the text run does not exist.
+     */
+    @Throws(RiveException::class)
+    fun textRun(name: String, path: String): RiveTextValueRun {
+        val textRunPointer = cppFindTextValueRunAtPath(cppPointer, name, path)
+        if (textRunPointer == NULL_POINTER) {
+            throw TextValueRunException("No Rive TextValueRun found with name \"$name.\" in nested artboard $path")
+        }
+        val run = RiveTextValueRun(textRunPointer)
+        dependencies.add(run)
+        return run
+    }
+
+    /**
+     * Get the text value for a text run named [name] on the nested artboard
+     * represented at [path].
+     * @return The text value of the run, or null if the run is not found.
+     */
+    fun getTextRunValue(name: String, path: String): String? {
+        return cppFindValueOfTextValueRunAtPath(cppPointer, name, path)
+    }
+
+    /**
+     * Set the text value for a text run named [name] to [textValue] on the nested artboard
+     * represented at [path].
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(name: String, textValue: String, path: String) {
+        val successCheck = cppSetValueOfTextValueRunAtPath(cppPointer, name, textValue, path)
+        if (!successCheck) {
+            throw TextValueRunException("Could not set text run value at path. No Rive TextValueRun found with name \"$name.\" in nested artboard \"$path.\"")
+        }
     }
 
     /**

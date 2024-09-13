@@ -640,11 +640,18 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
      */
-    fun getTextRunValue(textRunName: String): String? = try {
-        controller.getTextRunValue(textRunName)
-    } catch (e: RiveException) {
-        null
+    fun getTextRunValue(textRunName: String): String? {
+        return controller.getTextRunValue(textRunName)
     }
+
+    /**
+     * Get the text value for a text run named [textRunName] on the nested artboard
+     * represented at [path].
+     */
+    fun getTextRunValue(textRunName: String, path: String): String? {
+        return controller.getTextRunValue(textRunName, path)
+    }
+
 
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard
@@ -652,6 +659,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
         controller.setTextRunValue(textRunName, textValue)
+    }
+
+    /**
+     * Set the text value for a text run named [textRunName] to [textValue] on the nested artboard
+     * represented at [path].
+     * @throws RiveException if the text run does not exist.
+     */
+    fun setTextRunValue(textRunName: String, textValue: String, path: String) {
+        controller.setTextRunValue(textRunName, textValue,  path)
     }
 
     /**
