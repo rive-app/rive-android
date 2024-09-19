@@ -92,6 +92,34 @@ class RiveAssetsTest {
     }
 
     @Test
+    fun imageAssetWidthAndHeightValidation() {
+        var imageAsset: ImageAsset? = null
+        val myLoader = object : ContextAssetLoader(appContext) {
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
+                if (asset is ImageAsset) {
+                    imageAsset = asset
+                    return true
+                }
+                return false
+            }
+
+        }
+        val file = File(
+            appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
+            fileAssetLoader = myLoader,
+            rendererType = RendererType.Skia,
+        )
+        assertEquals(1, file.firstArtboard.animationCount)
+        assertNotNull(imageAsset)
+        assert(imageAsset!!.width == 1280.0f)
+        assert(imageAsset!!.height == 720.0f)
+
+        /* Clean things up */
+        myLoader.release()
+        file.release()
+    }
+
+    @Test
     fun makeFont() {
         val font = RiveFont.make(fontBytes)
         assertTrue(font.hasCppObject)

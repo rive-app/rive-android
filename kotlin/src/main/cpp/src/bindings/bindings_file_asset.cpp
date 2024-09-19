@@ -95,6 +95,24 @@ extern "C"
         return reinterpret_cast<jlong>(imageAsset->renderImage());
     }
 
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetWidth(JNIEnv* env,
+                                                                    jobject thisObj,
+                                                                    jlong address)
+    {
+        auto image = reinterpret_cast<rive::ImageAsset*>(address);
+        return image->width();
+    }
+
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetHeight(JNIEnv* env,
+                                                                     jobject thisObj,
+                                                                     jlong address)
+    {
+        auto image = reinterpret_cast<rive::ImageAsset*>(address);
+        return image->height();
+    }
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_RiveRenderImage_00024Companion_cppMakeImage(
         JNIEnv* env,

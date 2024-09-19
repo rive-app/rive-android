@@ -26,6 +26,8 @@ sealed class FileAsset(address: Long, rendererTypeIdx: Int) : NativeObject(addre
 class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rendererTypeIdx) {
     private external fun cppSetRenderImage(cppAsset: Long, cppRenderImage: Long)
     private external fun cppGetRenderImage(cppAsset: Long): Long
+    private external fun cppImageAssetWidth(cppPointer: Long): Float
+    private external fun cppImageAssetHeight(cppPointer: Long): Float
 
     /**
      * The [RiveRenderImage] object associated with this [ImageAsset].
@@ -42,6 +44,17 @@ class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
         @VisibleForTesting
         get() = RiveRenderImage(cppGetRenderImage(cppPointer))
 
+    /**
+     * The width of the image in pixels.
+     */
+    val width: Float
+        get() = cppImageAssetWidth(cppPointer)
+
+    /**
+     * The height of the image in pixels.
+     */
+    val height: Float
+        get() = cppImageAssetHeight(cppPointer)
 }
 
 /**
