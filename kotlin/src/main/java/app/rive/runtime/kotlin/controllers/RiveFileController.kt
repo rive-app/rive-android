@@ -550,27 +550,27 @@ class RiveFileController(
     }
 
     fun fireState(stateMachineName: String, inputName: String, path: String? = null) {
-        queueInput(stateMachineName, inputName, path)
+        queueInput(stateMachineName = stateMachineName, inputName = inputName, path = path)
     }
 
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean, path: String? = null) {
-        queueInput(stateMachineName, inputName, value, path)
+        queueInput(stateMachineName = stateMachineName, inputName = inputName, value = value, path = path)
     }
 
     fun setNumberState(stateMachineName: String, inputName: String, value: Float, path: String? = null) {
-        queueInput(stateMachineName, inputName, value, path)
+        queueInput(stateMachineName = stateMachineName, inputName = inputName, value = value, path = path)
     }
 
     fun fireStateAtPath(inputName: String, path: String) {
-        queueInput("", inputName, path)
+        queueInput(stateMachineName = "", inputName = inputName, path = path)
     }
 
     fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
-        queueInput("", inputName, value, path)
+        queueInput(stateMachineName = "", inputName = inputName, value = value, path = path)
     }
 
     fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
-        queueInput("", inputName, value, path)
+        queueInput(stateMachineName = "", inputName = inputName, value = value, path = path)
     }
 
     /**
@@ -611,7 +611,7 @@ class RiveFileController(
         }
     }
 
-    private var userSetVolume: Float? = null; // Default value
+    private var userSetVolume: Float? = null // Default value
 
     /**
      * Get the active [Artboard]'s volume.
@@ -622,8 +622,8 @@ class RiveFileController(
      * Set the active [Artboard]'s volume to [value].
      */
     fun setVolume(value: Float) {
-        userSetVolume = value;
-        activeArtboard?.volume = value;
+        userSetVolume = value
+        activeArtboard?.volume = value
     }
 
     private fun animations(animationName: String): List<LinearAnimationInstance> {
