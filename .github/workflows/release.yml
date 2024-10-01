@@ -52,6 +52,12 @@ jobs:
           unzip -q android-ndk-r25b-linux.zip
           echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
 
+      - name: Configure venv
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+          
       - name: Installing pre-requisites
         run: |
           set -x
