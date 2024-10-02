@@ -167,7 +167,7 @@ class FontHelper {
          */
         fun getFontFile(font: Fonts.Font): File? = SystemFontsParser.SYSTEM_FONTS_PATHS
             .asSequence()
-            .map { basePath -> File(basePath, font.name) }
+            .map { basePath -> File(basePath, font.name.trim()) }
             .firstOrNull { it.exists() }
 
         /**
@@ -284,17 +284,17 @@ class SystemFontsParser {
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 when (tag) {
                     "family" -> {
                         parser.getAttributeValue(null, "name")?.let { name ->
-                            readFamily(name, parser)?.let {
+                            readFamily(name.trim(), parser)?.let {
                                 familiesMap[name] = it
                             }
                         } ?: run {
                             // null name - possibly a legacy family?
                             readLegacyFamily(parser)?.let { (family, aliases) ->
-                                val familyName = family.name!!
+                                val familyName = family.name!!.trim()
                                 familiesMap[familyName] = family
                                 aliases.forEach { alias ->
                                     remapAlias(alias, familiesMap)?.let { remapped ->
@@ -350,7 +350,7 @@ class SystemFontsParser {
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 when (tag) {
                     "font" -> {
                         val font = readFont(parser)
@@ -387,7 +387,7 @@ class SystemFontsParser {
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 when (tag) {
                     "fileset" -> {
                         filesList.addAll(
@@ -510,14 +510,14 @@ class SystemFontsParser {
 
             while (keepReading(parser)) {
                 if (parser.eventType == XmlPullParser.TEXT) {
-                    filenameBuilder.append(parser.text)
+                    filenameBuilder.append(parser.text.trim())
                 }
                 if (parser.eventType != XmlPullParser.START_TAG) {
                     continue
                 }
 
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 if (tag == "axis") {
                     axes.add(readAxis(parser))
                 } else {
@@ -530,7 +530,7 @@ class SystemFontsParser {
 
         private fun readText(parser: XmlPullParser): String {
             return if (parser.next() == XmlPullParser.TEXT) {
-                val result = parser.text
+                val result = parser.text.trim()
                 parser.nextTag()
                 return result
             } else ""
@@ -541,7 +541,7 @@ class SystemFontsParser {
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 if (tag != "name") continue
 
                 val nameset = readText(parser)
@@ -556,7 +556,7 @@ class SystemFontsParser {
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name
+                val tag = parser.name.trim()
                 if (tag != "file") continue
 
                 val variant = parser.getAttributeValue(null, "variant")
@@ -591,7 +591,7 @@ class SystemFontsParser {
 
             skip(parser) // move past empty tag.
 
-            return Fonts.Alias(name, to, weight)
+            return Fonts.Alias(name.trim(), to, weight)
         }
 
 

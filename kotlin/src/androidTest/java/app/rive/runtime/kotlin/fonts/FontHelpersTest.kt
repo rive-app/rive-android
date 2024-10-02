@@ -13,6 +13,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.ByteArrayInputStream
+import java.nio.charset.Charset
 
 
 @RunWith(AndroidJUnit4::class)
@@ -584,6 +586,32 @@ class FontHelpersTest {
                 assertFalse(fonts.containsKey(Fonts.Weight.BOLD))
             }
         }
+    }
+
+    @Test
+    fun xmlWhitespace() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="21">
+    <family name="sans-serif">
+        <font weight="700" style="normal">Roboto-Regular.ttf
+            <axis tag="ital" stylevalue="0" />
+            <axis tag="wdth" stylevalue="100" />
+            <axis tag="wght" stylevalue="700" />
+        </font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(Charset.forName("UTF-16").encode(systemFontXml).array())
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+        val font = result["sans-serif"]?.fonts?.get(Fonts.Weight.BOLD)?.first()
+        assertNotNull(font)
+        val fontFile = FontHelper.getFontFile(font!!)
+        assertNotNull(fontFile)
     }
 
     @Test

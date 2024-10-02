@@ -25,7 +25,7 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
-          
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -66,7 +66,6 @@ jobs:
           wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-beta2/premake-5.0.0-beta2-linux.tar.gz
           tar -xf premake-5.0.0-beta2-linux.tar.gz
           sudo mv premake5 /usr/local/bin
-          pip3 install ply
 
       # Base64 decodes and pipes the GPG key content into the secret file
       - name: Prepare environment
@@ -120,7 +119,7 @@ jobs:
           UAT_OSSRH_USERNAME: ${{ secrets.UAT_OSSRH_USERNAME }}
           UAT_OSSRH_PASSWORD: ${{ secrets.UAT_OSSRH_PASSWORD }}
           # TODO: remove these after UAT is confirmed working
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }} 
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
           # ====
           SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
