@@ -445,7 +445,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animationNames]
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller.pause(animationNames, areStateMachines)
+        controller.pause(animationNames = animationNames, areStateMachines = areStateMachines)
     }
 
 
@@ -456,7 +456,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [animationName] Animation
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
-        controller.pause(animationName, isStateMachine)
+        controller.pause(animationName = animationName, isStateMachine = isStateMachine)
     }
 
     /**
@@ -482,7 +482,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
-        controller.stopAnimations(animationNames, areStateMachines)
+        controller.stopAnimations(
+            animationNames = animationNames,
+            areStateMachines = areStateMachines
+        )
     }
 
     /**
@@ -494,7 +497,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation.
      */
     fun stop(animationName: String, isStateMachine: Boolean = false) {
-        controller.stopAnimations(animationName, isStateMachine)
+        controller.stopAnimations(animationName = animationName, isStateMachine = isStateMachine)
     }
 
     /**
@@ -521,7 +524,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             this.loop = loop
         }
-        controller.play(loop, direction, settleInitialState)
+        controller.play(loop = loop, direction = direction, settleInitialState = settleInitialState)
     }
 
     /**
@@ -541,11 +544,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.loop = loop
         }
         controller.play(
-            animationNames,
-            loop,
-            direction,
-            areStateMachines,
-            settleInitialState
+            animationNames = animationNames,
+            loop = loop,
+            direction = direction,
+            areStateMachines = areStateMachines,
+            settleInitialState = settleInitialState
         )
     }
 
@@ -567,11 +570,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.loop = loop
         }
         controller.play(
-            animationName,
-            loop,
-            direction,
-            isStateMachine,
-            settleInitialState
+            animationName = animationName,
+            loop = loop,
+            direction = direction,
+            isStateMachine = isStateMachine,
+            settleInitialState = settleInitialState
         )
     }
 
@@ -588,7 +591,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Fire the [SMITrigger] input called [inputName] on all active matching state machines
      */
     fun fireState(stateMachineName: String, inputName: String) {
-        controller.fireState(stateMachineName, inputName)
+        controller.fireState(stateMachineName = stateMachineName, inputName = inputName)
     }
 
     /**
@@ -596,7 +599,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
-        controller.setBooleanState(stateMachineName, inputName, value)
+        controller.setBooleanState(
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value
+        )
     }
 
     /**
@@ -604,14 +611,18 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
-        controller.setNumberState(stateMachineName, inputName, value)
+        controller.setNumberState(
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value
+        )
     }
 
     /**
      * Fire the [SMITrigger] input called [inputName] on the nested artboard represented at [path]
      */
     fun fireStateAtPath(inputName: String, path: String) {
-        controller.fireStateAtPath(inputName, path)
+        controller.fireStateAtPath(inputName = inputName, path = path)
     }
 
     /**
@@ -619,7 +630,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
-        controller.setBooleanStateAtPath(inputName, value, path)
+        controller.setBooleanStateAtPath(inputName = inputName, value = value, path = path)
     }
 
     /**
@@ -627,7 +638,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * to [value]
      */
     fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
-        controller.setNumberStateAtPath(inputName, value, path)
+        controller.setNumberStateAtPath(inputName = inputName, value = value, path = path)
     }
 
     /**
@@ -641,7 +652,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
      */
     fun getTextRunValue(textRunName: String): String? {
-        return controller.getTextRunValue(textRunName)
+        return controller.getTextRunValue(textRunName = textRunName)
     }
 
     /**
@@ -649,7 +660,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * represented at [path].
      */
     fun getTextRunValue(textRunName: String, path: String): String? {
-        return controller.getTextRunValue(textRunName, path)
+        return controller.getTextRunValue(textRunName = textRunName, path = path)
     }
 
 
@@ -658,7 +669,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @throws RiveException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
-        controller.setTextRunValue(textRunName, textValue)
+        controller.setTextRunValue(textRunName = textRunName, textValue = textValue)
     }
 
     /**
@@ -667,7 +678,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @throws RiveException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String, path: String) {
-        controller.setTextRunValue(textRunName, textValue,  path)
+        controller.setTextRunValue(textRunName = textRunName, textValue = textValue, path = path)
     }
 
     /**
@@ -1151,4 +1162,9 @@ sealed class ResourceType {
  * Wraps the data necessary for grabbing an input with [name] with [value]
  * [value] is necessary when wrapping [SMINumber] and [SMIBoolean] inputs.
  */
-data class ChangedInput(val stateMachineName: String, val name: String, val value: Any? = null, val nestedArtboardPath: String? = null)
+data class ChangedInput(
+    val stateMachineName: String,
+    val name: String,
+    val value: Any? = null,
+    val nestedArtboardPath: String? = null
+)

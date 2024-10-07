@@ -6,6 +6,7 @@ import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -204,6 +205,26 @@ class RiveStateMachineStateResolutionTest {
 
             assertEquals("StateResolution", observer.states[1].stateMachineName)
             assertEquals("Jump 2", observer.states[1].stateName)
+        }
+    }
+
+    @Test
+    fun settleInitialStateFalseDoesNotThrow() {
+        // See PR: https://github.com/rive-app/rive/pull/8289
+        // Some method overloading passed the wrong parameter. This test just makes sure the correct
+        // value is set.
+        UiThreadStatement.runOnUiThread {
+            val observer = TestUtils.Observer()
+            mockView.registerListener(observer)
+            mockView.setRiveResource(
+                R.raw.state_machine_state_resolution,
+                stateMachineName = "StateResolution",
+                autoplay = false
+            )
+            assertNotNull(mockView.controller.activeArtboard)
+            mockView.play(
+                settleInitialState = false,
+            )
         }
     }
 

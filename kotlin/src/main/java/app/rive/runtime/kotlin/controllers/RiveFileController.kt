@@ -285,7 +285,7 @@ class RiveFileController(
                             resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
                         if (!stillPlaying) {
-                            pause(stateMachineInstance)
+                            pause(stateMachine = stateMachineInstance)
                         }
                     }
                 }
@@ -389,7 +389,13 @@ class RiveFileController(
         settleInitialState: Boolean = true,
     ) {
         animationNames.forEach {
-            playAnimation(it, loop, direction, areStateMachines, settleInitialState)
+            playAnimation(
+                animationName = it,
+                loop = loop,
+                direction = direction,
+                isStateMachine = areStateMachines,
+                settleInitialState = settleInitialState
+            )
         }
     }
 
@@ -400,7 +406,13 @@ class RiveFileController(
         isStateMachine: Boolean = false,
         settleInitialState: Boolean = true,
     ) {
-        playAnimation(animationName, loop, direction, isStateMachine, settleInitialState)
+        playAnimation(
+            animationName = animationName,
+            loop = loop,
+            direction = direction,
+            isStateMachine = isStateMachine,
+            settleInitialState = settleInitialState
+        )
     }
 
     /**
@@ -415,23 +427,28 @@ class RiveFileController(
         activeArtboard?.let { activeArtboard ->
             if (pausedAnimations.isNotEmpty() || pausedStateMachines.isNotEmpty()) {
                 animations.forEach {
-                    play(it, direction = direction, loop = loop)
+                    play(animationInstance = it, direction = direction, loop = loop)
                 }
                 stateMachines.forEach {
-                    play(it, settleInitialState)
+                    play(stateMachineInstance = it, settleStateMachineState = settleInitialState)
                 }
             } else {
                 val animationNames = activeArtboard.animationNames
                 if (animationNames.isNotEmpty()) {
-                    playAnimation(animationNames.first(), loop, direction)
+                    playAnimation(
+                        animationName = animationNames.first(),
+                        loop = loop,
+                        direction = direction
+                    )
                 }
                 val stateMachineNames = activeArtboard.stateMachineNames
                 if (stateMachineNames.isNotEmpty()) {
                     return playAnimation(
-                        stateMachineNames.first(),
-                        loop,
-                        direction,
-                        settleInitialState
+                        animationName = stateMachineNames.first(),
+                        loop = loop,
+                        direction = direction,
+                        isStateMachine = true,
+                        settleInitialState = settleInitialState
                     )
                 }
             }
@@ -454,9 +471,9 @@ class RiveFileController(
 
     fun pause(animationName: String, isStateMachine: Boolean = false) {
         if (isStateMachine) {
-            stateMachines(animationName).forEach { pause(it) }
+            stateMachines(animationName).forEach { pause(stateMachine = it) }
         } else {
-            animations(animationName).forEach { pause(it) }
+            animations(animationName).forEach { pause(animation = it) }
         }
     }
 
@@ -497,8 +514,20 @@ class RiveFileController(
      * It also tries to start the thread if it's not started, which will internally cause advance
      * to happen at least once.
      */
-    private fun queueInput(stateMachineName: String, inputName: String, value: Any? = null, path: String? = null) {
-        queueInputs(ChangedInput(stateMachineName, inputName, value, path))
+    private fun queueInput(
+        stateMachineName: String,
+        inputName: String,
+        value: Any? = null,
+        path: String? = null
+    ) {
+        queueInputs(
+            ChangedInput(
+                stateMachineName = stateMachineName,
+                name = inputName,
+                value = value,
+                nestedArtboardPath = path
+            )
+        )
     }
 
     internal fun queueInputs(vararg inputs: ChangedInput) {
@@ -553,12 +582,32 @@ class RiveFileController(
         queueInput(stateMachineName = stateMachineName, inputName = inputName, path = path)
     }
 
-    fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean, path: String? = null) {
-        queueInput(stateMachineName = stateMachineName, inputName = inputName, value = value, path = path)
+    fun setBooleanState(
+        stateMachineName: String,
+        inputName: String,
+        value: Boolean,
+        path: String? = null
+    ) {
+        queueInput(
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value,
+            path = path
+        )
     }
 
-    fun setNumberState(stateMachineName: String, inputName: String, value: Float, path: String? = null) {
-        queueInput(stateMachineName = stateMachineName, inputName = inputName, value = value, path = path)
+    fun setNumberState(
+        stateMachineName: String,
+        inputName: String,
+        value: Float,
+        path: String? = null
+    ) {
+        queueInput(
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value,
+            path = path
+        )
     }
 
     fun fireStateAtPath(inputName: String, path: String) {
