@@ -25,8 +25,8 @@ public:
         mRunningMean = ((mN - 1) * mRunningMean + x) / mN;
         if (mN > 1)
         {
-            mRunningVar =
-                ((mN - 2) * mRunningVar) / (mN - 1) + (x - prevMean) * (x - prevMean) / mN;
+            mRunningVar = ((mN - 2) * mRunningVar) / (mN - 1) +
+                          (x - prevMean) * (x - prevMean) / mN;
         }
         if (mN == mNumToAvg)
             restart();

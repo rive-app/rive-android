@@ -38,9 +38,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_LayerState_cppIsEntryState(JNIEnv* env,
-                                                                 jobject thisObj,
-                                                                 jlong ref)
+    Java_app_rive_runtime_kotlin_core_LayerState_cppIsEntryState(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
 
         rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
@@ -48,9 +49,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_LayerState_cppIsAnimationState(JNIEnv* env,
-                                                                     jobject thisObj,
-                                                                     jlong ref)
+    Java_app_rive_runtime_kotlin_core_LayerState_cppIsAnimationState(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
 
         rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
@@ -58,9 +60,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendState(JNIEnv* env,
-                                                                 jobject thisObj,
-                                                                 jlong ref)
+    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendState(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
 
         rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
@@ -68,9 +71,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendState1D(JNIEnv* env,
-                                                                   jobject thisObj,
-                                                                   jlong ref)
+    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendState1D(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
 
         rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
@@ -78,9 +82,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendStateDirect(JNIEnv* env,
-                                                                       jobject thisObj,
-                                                                       jlong ref)
+    Java_app_rive_runtime_kotlin_core_LayerState_cppIsBlendStateDirect(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
 
         rive::LayerState* layerState = reinterpret_cast<rive::LayerState*>(ref);
@@ -101,7 +106,8 @@ extern "C"
         else
         {
             // urgh this animation state is using forward declarations...
-            return env->NewStringUTF(animationState->animation()->name().c_str());
+            return env->NewStringUTF(
+                animationState->animation()->name().c_str());
         }
     }
 

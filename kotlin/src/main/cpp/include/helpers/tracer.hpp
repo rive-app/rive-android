@@ -37,10 +37,10 @@ public:
         void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
         if (lib != NULL)
         {
-            ATrace_beginSection =
-                reinterpret_cast<fp_ATrace_beginSection>(dlsym(lib, "ATrace_beginSection"));
-            ATrace_endSection =
-                reinterpret_cast<fp_ATrace_endSection>(dlsym(lib, "ATrace_endSection"));
+            ATrace_beginSection = reinterpret_cast<fp_ATrace_beginSection>(
+                dlsym(lib, "ATrace_beginSection"));
+            ATrace_endSection = reinterpret_cast<fp_ATrace_endSection>(
+                dlsym(lib, "ATrace_endSection"));
         }
         else
         {
@@ -48,7 +48,10 @@ public:
         }
     }
     ~Tracer() {}
-    void beginSection(const char* sectionName) override { ATrace_beginSection(sectionName); };
+    void beginSection(const char* sectionName) override
+    {
+        ATrace_beginSection(sectionName);
+    };
     void endSection() override { ATrace_endSection(); };
 
 private:

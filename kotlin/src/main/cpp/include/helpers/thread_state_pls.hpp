@@ -17,7 +17,10 @@ public:
     PLSThreadState();
     ~PLSThreadState();
 
-    rive::gpu::RenderContext* renderContext() const { return m_renderContext.get(); }
+    rive::gpu::RenderContext* renderContext() const
+    {
+        return m_renderContext.get();
+    }
 
     void destroySurface(EGLSurface eglSurface) override;
 
@@ -26,7 +29,8 @@ public:
 private:
     std::unique_ptr<rive::gpu::RenderContext> m_renderContext;
 
-    // 1x1 Pbuffer surface that allows us to make the GL context current without a window surface.
+    // 1x1 Pbuffer surface that allows us to make the GL context current without
+    // a window surface.
     EGLSurface m_backgroundSurface;
 };
 } // namespace rive_android

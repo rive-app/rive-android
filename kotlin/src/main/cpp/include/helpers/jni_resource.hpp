@@ -30,7 +30,8 @@ public:
     JniResource(T res, JNIEnv* env) : resource(res), env(env) {}
 
     // Move constructor to transfer ownership
-    JniResource(JniResource&& other) noexcept : resource(other.resource), env(other.env)
+    JniResource(JniResource&& other) noexcept :
+        resource(other.resource), env(other.env)
     {
         other.resource = nullptr;
     }
@@ -67,7 +68,9 @@ template <typename T> JniResource<T> FindClass(JNIEnv* env, const char* name)
 template <typename T>
 JniResource<T> GetStaticObjectField(JNIEnv* env, jclass clazz, jfieldID fieldID)
 {
-    return MakeJniResource(static_cast<T>(env->GetStaticObjectField(clazz, fieldID)), env);
+    return MakeJniResource(
+        static_cast<T>(env->GetStaticObjectField(clazz, fieldID)),
+        env);
 }
 
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv*, jbyteArray);

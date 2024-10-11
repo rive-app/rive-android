@@ -16,7 +16,8 @@ static bool config_has_attribute(EGLDisplay display,
                                  EGLint value)
 {
     EGLint outValue = 0;
-    EGLBoolean result = eglGetConfigAttrib(display, config, attribute, &outValue);
+    EGLBoolean result =
+        eglGetConfigAttrib(display, config, attribute, &outValue);
     EGL_ERR_CHECK();
     return result && (outValue == value);
 }
@@ -83,14 +84,19 @@ EGLThreadState::EGLThreadState()
         return config_has_attribute(m_display, m_config, EGL_DEPTH_SIZE, 0);
     };
 
-    const auto configIter =
-        std::find_if(supportedConfigs.cbegin(), supportedConfigs.cend(), configMatches);
+    const auto configIter = std::find_if(supportedConfigs.cbegin(),
+                                         supportedConfigs.cend(),
+                                         configMatches);
 
-    m_config = (configIter != supportedConfigs.cend()) ? *configIter : supportedConfigs[0];
+    m_config = (configIter != supportedConfigs.cend()) ? *configIter
+                                                       : supportedConfigs[0];
 
-    const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION,
+                                        2,
+                                        EGL_NONE};
 
-    m_context = eglCreateContext(m_display, m_config, nullptr, contextAttributes);
+    m_context =
+        eglCreateContext(m_display, m_config, nullptr, contextAttributes);
     if (m_context == EGL_NO_CONTEXT)
     {
         LOGE("eglCreateContext() failed.");

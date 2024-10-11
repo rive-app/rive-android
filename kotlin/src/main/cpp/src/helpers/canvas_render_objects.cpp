@@ -13,13 +13,15 @@ namespace rive_android
     JNIEnv* env = GetJNIEnv();
     jclass pathClass = GetPathClass();
     jmethodID pathConstructor = GetPathInitMethodId();
-    jobject ktPath = env->NewGlobalRef(env->NewObject(pathClass, pathConstructor));
+    jobject ktPath =
+        env->NewGlobalRef(env->NewObject(pathClass, pathConstructor));
 
     env->DeleteLocalRef(pathClass);
     return ktPath;
 }
 
-CanvasRenderPath::CanvasRenderPath() : m_FillRule(rive::FillRule::nonZero), m_ktPath(CreatePath())
+CanvasRenderPath::CanvasRenderPath() :
+    m_FillRule(rive::FillRule::nonZero), m_ktPath(CreatePath())
 {}
 CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
     m_FillRule(rule), m_ktPath(CreatePath())
@@ -57,7 +59,14 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
                 auto cp0 = pointsData[0];
                 auto cp1 = pointsData[1];
                 auto to = pointsData[2];
-                env->CallVoidMethod(m_ktPath, cubicToFn, cp0.x, cp0.y, cp1.x, cp1.y, to.x, to.y);
+                env->CallVoidMethod(m_ktPath,
+                                    cubicToFn,
+                                    cp0.x,
+                                    cp0.y,
+                                    cp1.x,
+                                    cp1.y,
+                                    to.x,
+                                    to.y);
                 pointsData += 3;
                 break;
             }
@@ -72,11 +81,18 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
     }
 }
 
-CanvasRenderPath::~CanvasRenderPath() { GetJNIEnv()->DeleteGlobalRef(m_ktPath); }
+CanvasRenderPath::~CanvasRenderPath()
+{
+    GetJNIEnv()->DeleteGlobalRef(m_ktPath);
+}
 
-void CanvasRenderPath::rewind() { GetJNIEnv()->CallVoidMethod(m_ktPath, GetResetMethodId()); }
+void CanvasRenderPath::rewind()
+{
+    GetJNIEnv()->CallVoidMethod(m_ktPath, GetResetMethodId());
+}
 
-void CanvasRenderPath::addRenderPath(rive::RenderPath* path, const rive::Mat2D& transform)
+void CanvasRenderPath::addRenderPath(rive::RenderPath* path,
+                                     const rive::Mat2D& transform)
 {
     JNIEnv* env = GetJNIEnv();
     jclass matrixClass = GetMatrixClass();
@@ -117,12 +133,21 @@ void CanvasRenderPath::lineTo(float x, float y)
     GetJNIEnv()->CallVoidMethod(m_ktPath, GetLineToMethodId(), x, y);
 }
 
-void CanvasRenderPath::cubicTo(float ox, float oy, float ix, float iy, float x, float y)
+void CanvasRenderPath::cubicTo(float ox,
+                               float oy,
+                               float ix,
+                               float iy,
+                               float x,
+                               float y)
 {
-    GetJNIEnv()->CallVoidMethod(m_ktPath, GetCubicToMethodId(), ox, oy, ix, iy, x, y);
+    GetJNIEnv()
+        ->CallVoidMethod(m_ktPath, GetCubicToMethodId(), ox, oy, ix, iy, x, y);
 }
 
-void CanvasRenderPath::close() { GetJNIEnv()->CallVoidMethod(m_ktPath, GetCloseMethodId()); }
+void CanvasRenderPath::close()
+{
+    GetJNIEnv()->CallVoidMethod(m_ktPath, GetCloseMethodId());
+}
 
 void CanvasRenderPath::fillRule(rive::FillRule value)
 {
@@ -149,13 +174,14 @@ void CanvasRenderPath::fillRule(rive::FillRule value)
 }
 
 /** LinearGradientCanvasShader */
-LinearGradientCanvasShader::LinearGradientCanvasShader(float sx,
-                                                       float sy,
-                                                       float ex,
-                                                       float ey,
-                                                       const rive::ColorInt colors[], // [count]
-                                                       const float stops[],           // [count]
-                                                       size_t count)
+LinearGradientCanvasShader::LinearGradientCanvasShader(
+    float sx,
+    float sy,
+    float ex,
+    float ey,
+    const rive::ColorInt colors[], // [count]
+    const float stops[],           // [count]
+    size_t count)
 {
     JNIEnv* env = GetJNIEnv();
 
@@ -166,18 +192,20 @@ LinearGradientCanvasShader::LinearGradientCanvasShader(float sx,
     env->SetFloatArrayRegion(jstops, 0, intCount, stops);
 
     jclass tileModeClass = GetTileModeClass();
-    jobject clampObject = env->GetStaticObjectField(tileModeClass, GetClampId());
+    jobject clampObject =
+        env->GetStaticObjectField(tileModeClass, GetClampId());
     jclass linearGradientClass = GetLinearGradientClass();
 
-    m_KtShader = env->NewGlobalRef(env->NewObject(linearGradientClass,
-                                                  GetLinearGradientInitMethodId(),
-                                                  sx,
-                                                  sy,
-                                                  ex,
-                                                  ey,
-                                                  jcolors,
-                                                  jstops,
-                                                  clampObject));
+    m_KtShader =
+        env->NewGlobalRef(env->NewObject(linearGradientClass,
+                                         GetLinearGradientInitMethodId(),
+                                         sx,
+                                         sy,
+                                         ex,
+                                         ey,
+                                         jcolors,
+                                         jstops,
+                                         clampObject));
 
     env->DeleteLocalRef(jcolors);
     env->DeleteLocalRef(jstops);
@@ -187,12 +215,13 @@ LinearGradientCanvasShader::LinearGradientCanvasShader(float sx,
 }
 
 /** RadialGradientCanvasShader */
-RadialGradientCanvasShader::RadialGradientCanvasShader(float cx,
-                                                       float cy,
-                                                       float radius,
-                                                       const rive::ColorInt colors[], // [count]
-                                                       const float stops[],           // [count]
-                                                       size_t count)
+RadialGradientCanvasShader::RadialGradientCanvasShader(
+    float cx,
+    float cy,
+    float radius,
+    const rive::ColorInt colors[], // [count]
+    const float stops[],           // [count]
+    size_t count)
 {
     JNIEnv* env = GetJNIEnv();
 
@@ -203,17 +232,19 @@ RadialGradientCanvasShader::RadialGradientCanvasShader(float cx,
     env->SetFloatArrayRegion(jstops, 0, intCount, stops);
 
     jclass tileModeClass = GetTileModeClass();
-    jobject clampObject = env->GetStaticObjectField(tileModeClass, GetClampId());
+    jobject clampObject =
+        env->GetStaticObjectField(tileModeClass, GetClampId());
     jclass radialGradientClass = GetRadialGradientClass();
 
-    m_KtShader = env->NewGlobalRef(env->NewObject(radialGradientClass,
-                                                  GetRadialGradientInitMethodId(),
-                                                  cx,
-                                                  cy,
-                                                  radius,
-                                                  jcolors,
-                                                  jstops,
-                                                  clampObject));
+    m_KtShader =
+        env->NewGlobalRef(env->NewObject(radialGradientClass,
+                                         GetRadialGradientInitMethodId(),
+                                         cx,
+                                         cy,
+                                         radius,
+                                         jcolors,
+                                         jstops,
+                                         clampObject));
 
     env->DeleteLocalRef(jcolors);
     env->DeleteLocalRef(jstops);
@@ -230,14 +261,29 @@ CanvasRenderPaint::CanvasRenderPaint()
     env->CallVoidMethod(m_ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
 }
 
-CanvasRenderPaint::~CanvasRenderPaint() { GetJNIEnv()->DeleteGlobalRef(m_ktPaint); }
-void CanvasRenderPaint::style(rive::RenderPaintStyle style) { SetStyle(m_ktPaint, style); }
+CanvasRenderPaint::~CanvasRenderPaint()
+{
+    GetJNIEnv()->DeleteGlobalRef(m_ktPaint);
+}
+void CanvasRenderPaint::style(rive::RenderPaintStyle style)
+{
+    SetStyle(m_ktPaint, style);
+}
 
-void CanvasRenderPaint::thickness(float value) { SetThickness(m_ktPaint, value); }
+void CanvasRenderPaint::thickness(float value)
+{
+    SetThickness(m_ktPaint, value);
+}
 
-void CanvasRenderPaint::join(rive::StrokeJoin join) { SetJoin(m_ktPaint, join); }
+void CanvasRenderPaint::join(rive::StrokeJoin join)
+{
+    SetJoin(m_ktPaint, join);
+}
 
-void CanvasRenderPaint::color(rive::ColorInt value) { SetColor(m_ktPaint, value); }
+void CanvasRenderPaint::color(rive::ColorInt value)
+{
+    SetColor(m_ktPaint, value);
+}
 
 void CanvasRenderPaint::cap(rive::StrokeCap cap) { SetCap(m_ktPaint, cap); }
 
@@ -245,19 +291,26 @@ void CanvasRenderPaint::shader(rive::rcp<rive::RenderShader> shader)
 {
     // `shader` can also be a `nullptr`.
     jobject shaderObject =
-        shader == nullptr ? nullptr : reinterpret_cast<CanvasShader*>(shader.get())->ktShader();
+        shader == nullptr
+            ? nullptr
+            : reinterpret_cast<CanvasShader*>(shader.get())->ktShader();
     SetShader(m_ktPaint, shaderObject);
 }
 
-void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_ktPaint, blendMode); }
+void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
+{
+    SetBlendMode(m_ktPaint, blendMode);
+}
 
-/* static */ void CanvasRenderPaint::SetStyle(jobject paint, rive::RenderPaintStyle style)
+/* static */ void CanvasRenderPaint::SetStyle(jobject paint,
+                                              rive::RenderPaintStyle style)
 {
     JNIEnv* env = GetJNIEnv();
     jclass styleClass = GetStyleClass();
-    jobject staticObject = (style == rive::RenderPaintStyle::stroke)
-                               ? env->GetStaticObjectField(styleClass, GetStrokeId())
-                               : env->GetStaticObjectField(styleClass, GetFillId());
+    jobject staticObject =
+        (style == rive::RenderPaintStyle::stroke)
+            ? env->GetStaticObjectField(styleClass, GetStrokeId())
+            : env->GetStaticObjectField(styleClass, GetFillId());
 
     env->CallVoidMethod(paint, GetSetStyleMethodId(), staticObject);
     env->DeleteLocalRef(styleClass);
@@ -269,7 +322,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
     GetJNIEnv()->CallVoidMethod(paint, GetSetStrokeWidthMethodId(), value);
 }
 
-/* static */ void CanvasRenderPaint::SetJoin(jobject paint, rive::StrokeJoin value)
+/* static */ void CanvasRenderPaint::SetJoin(jobject paint,
+                                             rive::StrokeJoin value)
 {
     jfieldID joinId;
     switch (value)
@@ -294,12 +348,14 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
     env->DeleteLocalRef(staticObject);
 }
 
-/* static */ void CanvasRenderPaint::SetColor(jobject paint, rive::ColorInt value)
+/* static */ void CanvasRenderPaint::SetColor(jobject paint,
+                                              rive::ColorInt value)
 {
     GetJNIEnv()->CallVoidMethod(paint, GetSetColorMethodId(), (int)value);
 }
 
-/* static */ void CanvasRenderPaint::SetCap(jobject paint, rive::StrokeCap value)
+/* static */ void CanvasRenderPaint::SetCap(jobject paint,
+                                            rive::StrokeCap value)
 {
     jfieldID capId;
     switch (value)
@@ -340,7 +396,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
     return paint;
 }
 
-/* static */ void CanvasRenderPaint::porterDuffBlendMode(jobject paint, rive::BlendMode value)
+/* static */ void CanvasRenderPaint::porterDuffBlendMode(jobject paint,
+                                                         rive::BlendMode value)
 {
     jfieldID modeId;
     switch (value)
@@ -397,7 +454,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
     env->DeleteLocalRef(porterDuffClass);
 }
 
-/* static */ void CanvasRenderPaint::SetBlendMode(jobject paint, rive::BlendMode value)
+/* static */ void CanvasRenderPaint::SetBlendMode(jobject paint,
+                                                  rive::BlendMode value)
 {
     if (g_sdkVersion < 29)
     {
@@ -461,9 +519,12 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode) { SetBlendMode(m_kt
     }
     JNIEnv* env = GetJNIEnv();
     jclass blendModeClass = GetBlendModeClass();
-    jobject blendModeStaticObject = env->GetStaticObjectField(blendModeClass, modeId);
+    jobject blendModeStaticObject =
+        env->GetStaticObjectField(blendModeClass, modeId);
 
-    env->CallVoidMethod(paint, GetSetBlendModeMethodId(), blendModeStaticObject);
+    env->CallVoidMethod(paint,
+                        GetSetBlendModeMethodId(),
+                        blendModeStaticObject);
 
     env->DeleteLocalRef(blendModeClass);
     env->DeleteLocalRef(blendModeStaticObject);

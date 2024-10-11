@@ -23,14 +23,18 @@ bool JNIDecodeImage(rive::Span<const uint8_t> encodedBytes,
                     bool* isOpaque);
 
 // Forward declare template specialization.
-template <typename AssetType> rive::rcp<AssetType> decode(rive::Span<const uint8_t>, RendererType);
+template <typename AssetType>
+rive::rcp<AssetType> decode(rive::Span<const uint8_t>, RendererType);
 
 template <typename AssetType>
-rive::rcp<AssetType> decodeAsset(JNIEnv* env, jbyteArray byteArray, jint rendererTypeIdx)
+rive::rcp<AssetType> decodeAsset(JNIEnv* env,
+                                 jbyteArray byteArray,
+                                 jint rendererTypeIdx)
 {
     jsize count = env->GetArrayLength(byteArray);
     jbyte* buffer = env->GetByteArrayElements(byteArray, nullptr);
-    rive::Span<const uint8_t> data(reinterpret_cast<const uint8_t*>(buffer), count);
+    rive::Span<const uint8_t> data(reinterpret_cast<const uint8_t*>(buffer),
+                                   count);
 
     RendererType rendererType = static_cast<RendererType>(rendererTypeIdx);
     rive::rcp<AssetType> asset = decode<AssetType>(data, rendererType);
@@ -49,8 +53,9 @@ template <typename AssetType> void releaseAsset(jlong address)
 class AndroidSkiaFactory : public rive::SkiaFactory
 {
 public:
-    std::vector<uint8_t> platformDecode(rive::Span<const uint8_t> encodedBytes,
-                                        rive::SkiaFactory::ImageInfo* info) override;
+    std::vector<uint8_t> platformDecode(
+        rive::Span<const uint8_t> encodedBytes,
+        rive::SkiaFactory::ImageInfo* info) override;
 };
 
 class AndroidRiveRenderFactory : public rive::RiveRenderFactory
@@ -60,34 +65,40 @@ public:
                                                    rive::RenderBufferFlags,
                                                    size_t) override;
 
-    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t>) override;
+    rive::rcp<rive::RenderImage> decodeImage(
+        rive::Span<const uint8_t>) override;
 };
 class AndroidCanvasFactory : public rive::Factory
 {
 public:
-    rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType type,
-                                                   rive::RenderBufferFlags flags,
-                                                   size_t sizeInBytes) override;
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(
+        rive::RenderBufferType type,
+        rive::RenderBufferFlags flags,
+        size_t sizeInBytes) override;
 
-    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t> encodedBytes) override;
+    rive::rcp<rive::RenderImage> decodeImage(
+        rive::Span<const uint8_t> encodedBytes) override;
 
-    rive::rcp<rive::RenderShader> makeLinearGradient(float sx,
-                                                     float sy,
-                                                     float ex,
-                                                     float ey,
-                                                     const rive::ColorInt colors[], // [count]
-                                                     const float stops[],           // [count]
-                                                     size_t count) override;
+    rive::rcp<rive::RenderShader> makeLinearGradient(
+        float sx,
+        float sy,
+        float ex,
+        float ey,
+        const rive::ColorInt colors[], // [count]
+        const float stops[],           // [count]
+        size_t count) override;
 
-    rive::rcp<rive::RenderShader> makeRadialGradient(float cx,
-                                                     float cy,
-                                                     float radius,
-                                                     const rive::ColorInt colors[], // [count]
-                                                     const float stops[],           // [count]
-                                                     size_t count) override;
+    rive::rcp<rive::RenderShader> makeRadialGradient(
+        float cx,
+        float cy,
+        float radius,
+        const rive::ColorInt colors[], // [count]
+        const float stops[],           // [count]
+        size_t count) override;
 
-    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath& rawPath,
-                                               rive::FillRule fillRule) override;
+    rive::rcp<rive::RenderPath> makeRenderPath(
+        rive::RawPath& rawPath,
+        rive::FillRule fillRule) override;
 
     rive::rcp<rive::RenderPath> makeEmptyRenderPath() override;
 

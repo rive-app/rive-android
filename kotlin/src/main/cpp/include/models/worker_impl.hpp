@@ -47,7 +47,8 @@ public:
         assert(!m_isStarted);
     }
 
-    void start(jobject ktRenderer, std::chrono::high_resolution_clock::time_point);
+    void start(jobject ktRenderer,
+               std::chrono::high_resolution_clock::time_point);
 
     void stop();
 
@@ -102,7 +103,9 @@ public:
     virtual void clear(DrawableThreadState*) const = 0;
 
 protected:
-    EGLWorkerImpl(struct ANativeWindow* window, DrawableThreadState* threadState, bool* success)
+    EGLWorkerImpl(struct ANativeWindow* window,
+                  DrawableThreadState* threadState,
+                  bool* success)
     {
         *success = false;
         auto eglThreadState = static_cast<EGLThreadState*>(threadState);
@@ -118,7 +121,9 @@ protected:
 class SkiaWorkerImpl : public EGLWorkerImpl
 {
 public:
-    SkiaWorkerImpl(struct ANativeWindow* window, DrawableThreadState* threadState, bool* success) :
+    SkiaWorkerImpl(struct ANativeWindow* window,
+                   DrawableThreadState* threadState,
+                   bool* success) :
         EGLWorkerImpl(window, threadState, success)
     {
         if (!success)
@@ -131,7 +136,8 @@ public:
                                               ANativeWindow_getHeight(window));
         if (m_skSurface == nullptr)
             return;
-        m_skRenderer = std::make_unique<rive::SkiaRenderer>(m_skSurface->getCanvas());
+        m_skRenderer =
+            std::make_unique<rive::SkiaRenderer>(m_skSurface->getCanvas());
     }
 
     void destroy(DrawableThreadState* threadState) override;
@@ -165,10 +171,12 @@ private:
 
     std::unique_ptr<rive::RiveRenderer> m_plsRenderer;
 
-    // Cast away [threadState] to the the thread state expected by this implementation.
+    // Cast away [threadState] to the the thread state expected by this
+    // implementation.
     static PLSThreadState* PlsThreadState(DrawableThreadState* threadState)
     {
-        // Quite hacky, but this is a way to sort this out in C++ without RTTI...
+        // Quite hacky, but this is a way to sort this out in C++ without
+        // RTTI...
         return static_cast<PLSThreadState*>(threadState);
     }
 };

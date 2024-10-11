@@ -40,7 +40,8 @@ public:
     {
         if (rendererType() == RendererType::Canvas)
         {
-            auto renderer = static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
+            auto renderer =
+                static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
             return renderer->width();
         }
         else if (auto window = std::get_if<ANativeWindow*>(&m_surface))
@@ -53,7 +54,8 @@ public:
     {
         if (rendererType() == RendererType::Canvas)
         {
-            auto renderer = static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
+            auto renderer =
+                static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
             return renderer->height();
         }
         else if (auto window = std::get_if<ANativeWindow*>(&m_surface))

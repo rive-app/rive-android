@@ -36,10 +36,10 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
     }
 
     // Get the Companion field ID
-    jfieldID fontCompanionField =
-        env->GetStaticFieldID(fontHelperClass.get(),
-                              "Companion",
-                              "Lapp/rive/runtime/kotlin/fonts/FontHelper$Companion;");
+    jfieldID fontCompanionField = env->GetStaticFieldID(
+        fontHelperClass.get(),
+        "Companion",
+        "Lapp/rive/runtime/kotlin/fonts/FontHelper$Companion;");
     if (!fontCompanionField)
     {
         LOGE("FontHelper Companion field not found");
@@ -57,7 +57,8 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
 
     // Find the Companion class
     JniResource<jclass> fontHelperCompanionClass =
-        FindClass<jclass>(env, "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
+        FindClass<jclass>(env,
+                          "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
     if (!fontHelperCompanionClass)
     {
         LOGE("FontHelper Companion class not found");
@@ -77,8 +78,9 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
 
     // Call the method
     JniResource<jbyteArray> fontBytes = JniResource<jbyteArray>(
-        static_cast<jbyteArray>(
-            env->CallObjectMethod(companionObject, getFontBytesMethodId, nullptr)),
+        static_cast<jbyteArray>(env->CallObjectMethod(companionObject,
+                                                      getFontBytesMethodId,
+                                                      nullptr)),
         env);
     if (!fontBytes)
     {
@@ -89,7 +91,8 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
     return ByteArrayToUint8Vec(env, fontBytes);
 }
 
-rive::rcp<rive::Font> FontHelper::findFontFallback(rive::Span<const rive::Unichar> missing)
+rive::rcp<rive::Font> FontHelper::findFontFallback(
+    rive::Span<const rive::Unichar> missing)
 {
     for (const rive::rcp<rive::Font>& font : fallbackFonts)
     {

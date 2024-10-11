@@ -43,7 +43,9 @@ SkiaThreadState::~SkiaThreadState()
     }
 }
 
-sk_sp<SkSurface> SkiaThreadState::createSkiaSurface(EGLSurface eglSurface, int width, int height)
+sk_sp<SkSurface> SkiaThreadState::createSkiaSurface(EGLSurface eglSurface,
+                                                    int width,
+                                                    int height)
 {
     // Width/Height getters return negative values on error.
     // Probably a race condition with surfaces being reclaimed by the OS before
@@ -73,14 +75,15 @@ sk_sp<SkSurface> SkiaThreadState::createSkiaSurface(EGLSurface eglSurface, int w
     GrBackendRenderTarget backendRenderTarget(width, height, 1, 8, fbInfo);
     static SkSurfaceProps surfaceProps(0, kUnknown_SkPixelGeometry);
 
-    auto skSurface = SkSurface::MakeFromBackendRenderTarget(m_skContext.get(),
-                                                            backendRenderTarget,
-                                                            kBottomLeft_GrSurfaceOrigin,
-                                                            kRGBA_8888_SkColorType,
-                                                            nullptr,
-                                                            &surfaceProps,
-                                                            nullptr,
-                                                            nullptr);
+    auto skSurface =
+        SkSurface::MakeFromBackendRenderTarget(m_skContext.get(),
+                                               backendRenderTarget,
+                                               kBottomLeft_GrSurfaceOrigin,
+                                               kRGBA_8888_SkColorType,
+                                               nullptr,
+                                               &surfaceProps,
+                                               nullptr,
+                                               nullptr);
 
     if (!skSurface)
     {

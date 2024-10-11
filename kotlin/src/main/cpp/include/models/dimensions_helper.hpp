@@ -25,7 +25,10 @@ private:
 
     void clipPath(rive::RenderPath* path) override {}
 
-    void drawImage(const rive::RenderImage* image, rive::BlendMode value, float opacity) override {}
+    void drawImage(const rive::RenderImage* image,
+                   rive::BlendMode value,
+                   float opacity) override
+    {}
 
     void drawImageMesh(const rive::RenderImage* image,
                        rive::rcp<rive::RenderBuffer> vertices_f32,
@@ -38,7 +41,9 @@ private:
     {}
 
 public:
-    DimensionsHelper() : m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f) {}
+    DimensionsHelper() :
+        m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f)
+    {}
     ~DimensionsHelper(){};
 
     float width() const { return m_Width; }

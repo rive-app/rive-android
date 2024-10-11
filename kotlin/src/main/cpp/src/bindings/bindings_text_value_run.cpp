@@ -20,10 +20,11 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveTextValueRun_cppSetText(JNIEnv* env,
-                                                                  jobject thisObj,
-                                                                  jlong ref,
-                                                                  jstring name)
+    Java_app_rive_runtime_kotlin_core_RiveTextValueRun_cppSetText(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref,
+        jstring name)
     {
         rive::TextValueRun* run = reinterpret_cast<rive::TextValueRun*>(ref);
         run->text(JStringToString(env, name));

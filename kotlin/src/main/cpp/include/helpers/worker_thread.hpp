@@ -37,10 +37,16 @@ public:
     constexpr static WorkID kWorkIDAlwaysFinished = 0;
 
     // A worker object that starts a background thread to perform its tasks.
-    WorkerThread(const char* name, Affinity affinity, const RendererType rendererType) :
-        m_RendererType(rendererType), mName(name), mAffinity(affinity), mWorkMutex{}
+    WorkerThread(const char* name,
+                 Affinity affinity,
+                 const RendererType rendererType) :
+        m_RendererType(rendererType),
+        mName(name),
+        mAffinity(affinity),
+        mWorkMutex{}
     {
-        // Don't launch the worker thread until all of our objects are fully initialized.
+        // Don't launch the worker thread until all of our objects are fully
+        // initialized.
         mThread = std::thread([this]() { threadMain(); });
     }
 
@@ -58,7 +64,8 @@ public:
 
     WorkID run(Work&& work)
     {
-        assert(work != nullptr); // Clients can't push the null termination token.
+        assert(work !=
+               nullptr); // Clients can't push the null termination token.
         uint64_t pushedWorkID;
         {
             std::lock_guard workLock(mWorkMutex);
@@ -111,7 +118,8 @@ protected:
     const RendererType m_RendererType;
 
 private:
-    static std::unique_ptr<DrawableThreadState> MakeThreadState(const RendererType type);
+    static std::unique_ptr<DrawableThreadState> MakeThreadState(
+        const RendererType type);
 
     void threadMain()
     {
@@ -133,7 +141,8 @@ private:
 
             if (!work)
             {
-                // A null function is a special token that tells the thread to terminate.
+                // A null function is a special token that tells the thread to
+                // terminate.
                 break;
             }
 

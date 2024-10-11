@@ -10,8 +10,9 @@
 
 // Print only on debug builds.
 #if defined(DEBUG) || defined(LOG)
-// CMake builds print out a lot of gibberish with this macro - comment it out for now.
-// #define LOG_TAG (std::string(__FILE__ ":") + std::to_string(__LINE__)).c_str()
+// CMake builds print out a lot of gibberish with this macro - comment it out
+// for now. #define LOG_TAG (std::string(__FILE__ ":") +
+// std::to_string(__LINE__)).c_str()
 #define LOG_TAG "rive-android-jni"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
@@ -40,7 +41,10 @@ extern JavaVM* g_JVM;
 extern long g_sdkVersion;
 void SetSDKVersion();
 void LogReferenceTables();
-long Import(uint8_t*, jint, RendererType = RendererType::Skia, rive::FileAssetLoader* = nullptr);
+long Import(uint8_t*,
+            jint,
+            RendererType = RendererType::Skia,
+            rive::FileAssetLoader* = nullptr);
 
 rive::Alignment GetAlignment(JNIEnv*, jobject);
 rive::Fit GetFit(JNIEnv*, jobject);

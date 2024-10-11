@@ -13,25 +13,31 @@ extern "C"
     using namespace rive_android;
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_constructor(JNIEnv* env, jobject ktObject)
+    Java_app_rive_runtime_kotlin_core_FileAssetLoader_constructor(
+        JNIEnv* env,
+        jobject ktObject)
     {
-        JNIFileAssetLoader* fileAssetLoader = new JNIFileAssetLoader(ktObject, env);
+        JNIFileAssetLoader* fileAssetLoader =
+            new JNIFileAssetLoader(ktObject, env);
         return (jlong)fileAssetLoader;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppDelete(JNIEnv*,
-                                                                                       jobject,
-                                                                                       jlong ref)
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppDelete(JNIEnv*,
+                                                                jobject,
+                                                                jlong ref)
     {
-        JNIFileAssetLoader* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
+        JNIFileAssetLoader* fileAssetLoader =
+            reinterpret_cast<JNIFileAssetLoader*>(ref);
         delete fileAssetLoader;
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppSetRendererType(JNIEnv*,
-                                                                         jobject,
-                                                                         jlong resolverAddress,
-                                                                         jint type)
+    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppSetRendererType(
+        JNIEnv*,
+        jobject,
+        jlong resolverAddress,
+        jint type)
     {
         JNIFileAssetLoader* fileAssetLoader =
             reinterpret_cast<JNIFileAssetLoader*>(resolverAddress);

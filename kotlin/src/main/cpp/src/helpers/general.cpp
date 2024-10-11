@@ -14,7 +14,8 @@
 namespace rive_android
 {
 /**
- * Global factories that are used to instantiate render objects (paths, buffers, textures, etc.)
+ * Global factories that are used to instantiate render objects (paths, buffers,
+ * textures, etc.)
  */
 static AndroidRiveRenderFactory g_RiveFactory;
 static AndroidSkiaFactory g_SkiaFactory;
@@ -57,7 +58,8 @@ void DetachThread()
 void LogReferenceTables()
 {
     jclass vm_class = GetJNIEnv()->FindClass("dalvik/system/VMDebug");
-    jmethodID dump_mid = GetJNIEnv()->GetStaticMethodID(vm_class, "dumpReferenceTables", "()V");
+    jmethodID dump_mid =
+        GetJNIEnv()->GetStaticMethodID(vm_class, "dumpReferenceTables", "()V");
     GetJNIEnv()->CallStaticVoidMethod(vm_class, dump_mid);
 }
 
@@ -70,7 +72,9 @@ void SetSDKVersion()
 
 rive::Fit GetFit(JNIEnv* env, jobject jfit)
 {
-    jstring fitValue = (jstring)env->CallObjectMethod(jfit, rive_android::GetFitNameMethodId());
+    jstring fitValue =
+        (jstring)env->CallObjectMethod(jfit,
+                                       rive_android::GetFitNameMethodId());
     const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
 
     rive::Fit fit = rive::Fit::none;
@@ -109,9 +113,11 @@ rive::Fit GetFit(JNIEnv* env, jobject jfit)
 
 rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 {
-    jstring alignmentValue =
-        (jstring)env->CallObjectMethod(jalignment, rive_android::GetAlignmentNameMethodId());
-    const char* alignmentValueNative = env->GetStringUTFChars(alignmentValue, 0);
+    jstring alignmentValue = (jstring)env->CallObjectMethod(
+        jalignment,
+        rive_android::GetAlignmentNameMethodId());
+    const char* alignmentValueNative =
+        env->GetStringUTFChars(alignmentValue, 0);
 
     rive::Alignment alignment = rive::Alignment::center;
     if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
@@ -157,7 +163,8 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 
 rive::Factory* GetFactory(RendererType rendererType)
 {
-    if (rendererType == RendererType::Rive && RefWorker::RiveWorker() != nullptr)
+    if (rendererType == RendererType::Rive &&
+        RefWorker::RiveWorker() != nullptr)
     {
         return static_cast<rive::Factory*>(&g_RiveFactory);
     }
@@ -176,18 +183,20 @@ long Import(uint8_t* bytes,
 {
     rive::ImportResult result;
     rive::Factory* fileFactory = GetFactory(rendererType);
-    rive::File* file = rive::File::import(rive::Span<const uint8_t>(bytes, length),
-                                          fileFactory,
-                                          &result,
-                                          assetLoader)
-                           .release();
+    rive::File* file =
+        rive::File::import(rive::Span<const uint8_t>(bytes, length),
+                           fileFactory,
+                           &result,
+                           assetLoader)
+            .release();
     if (result == rive::ImportResult::success)
     {
         return (long)file;
     }
     else if (result == rive::ImportResult::unsupportedVersion)
     {
-        return ThrowUnsupportedRuntimeVersionException("Unsupported Rive File Version.");
+        return ThrowUnsupportedRuntimeVersionException(
+            "Unsupported Rive File Version.");
     }
     else if (result == rive::ImportResult::malformed)
     {
@@ -211,7 +220,10 @@ std::string JStringToString(JNIEnv* env, jstring jStr)
     return str;
 }
 
-int SizeTTOInt(size_t sizeT) { return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT); }
+int SizeTTOInt(size_t sizeT)
+{
+    return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT);
+}
 
 size_t JIntToSizeT(jint jintValue)
 {

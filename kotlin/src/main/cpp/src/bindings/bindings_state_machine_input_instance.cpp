@@ -11,9 +11,10 @@ extern "C"
 {
 #endif
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_SMIInput_cppName(JNIEnv* env,
-                                                                                 jobject thisObj,
-                                                                                 jlong ref)
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppName(JNIEnv* env,
+                                                       jobject thisObj,
+                                                       jlong ref)
     {
 
         rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
@@ -21,7 +22,9 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(JNIEnv* env, jobject thisObj, jlong ref)
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(JNIEnv* env,
+                                                            jobject thisObj,
+                                                            jlong ref)
     {
 
         rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
@@ -29,7 +32,9 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(JNIEnv* env, jobject thisObj, jlong ref)
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(JNIEnv* env,
+                                                           jobject thisObj,
+                                                           jlong ref)
     {
 
         rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
@@ -37,7 +42,9 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(JNIEnv* env, jobject thisObj, jlong ref)
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(JNIEnv* env,
+                                                            jobject thisObj,
+                                                            jlong ref)
     {
 
         rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
@@ -45,7 +52,9 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(JNIEnv* env, jobject thisObj, jlong ref)
+    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(JNIEnv* env,
+                                                          jobject thisObj,
+                                                          jlong ref)
     {
 
         rive::SMIBool* input = reinterpret_cast<rive::SMIBool*>(ref);
@@ -63,28 +72,31 @@ extern "C"
         input->value(newValue);
     }
 
-    JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(JNIEnv* env,
-                                                                                  jobject thisObj,
-                                                                                  jlong ref)
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(JNIEnv* env,
+                                                         jobject thisObj,
+                                                         jlong ref)
     {
 
         rive::SMINumber* input = reinterpret_cast<rive::SMINumber*>(ref);
         return input->value();
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(JNIEnv* env,
-                                                                                   jobject thisObj,
-                                                                                   jlong ref,
-                                                                                   jfloat newValue)
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(JNIEnv* env,
+                                                            jobject thisObj,
+                                                            jlong ref,
+                                                            jfloat newValue)
     {
 
         rive::SMINumber* input = reinterpret_cast<rive::SMINumber*>(ref);
         input->value(newValue);
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(JNIEnv* env,
-                                                                                jobject thisObj,
-                                                                                jlong ref)
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(JNIEnv* env,
+                                                         jobject thisObj,
+                                                         jlong ref)
     {
 
         rive::SMITrigger* input = reinterpret_cast<rive::SMITrigger*>(ref);

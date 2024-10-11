@@ -10,9 +10,10 @@ extern "C"
 {
 #endif
     JNIEXPORT float JNICALL
-    Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(JNIEnv*,
-                                                                  jobject,
-                                                                  jlong rendererAddr)
+    Java_app_rive_runtime_kotlin_RiveTextureView_cppGetAverageFps(
+        JNIEnv*,
+        jobject,
+        jlong rendererAddr)
     {
         return reinterpret_cast<JNIRenderer*>(rendererAddr)->averageFps();
     }

@@ -4,7 +4,8 @@
 
 namespace rive_android
 {
-std::unique_ptr<DrawableThreadState> WorkerThread::MakeThreadState(const RendererType type)
+std::unique_ptr<DrawableThreadState> WorkerThread::MakeThreadState(
+    const RendererType type)
 {
     switch (type)
     {

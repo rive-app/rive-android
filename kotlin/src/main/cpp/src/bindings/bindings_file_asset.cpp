@@ -14,32 +14,39 @@ extern "C"
 
     using namespace rive_android;
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_FileAsset_cppName(JNIEnv* env,
-                                                                                  jobject thisObj,
-                                                                                  jlong address)
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_FileAsset_cppName(JNIEnv* env,
+                                                        jobject thisObj,
+                                                        jlong address)
     {
-        rive::FileAsset* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
+        rive::FileAsset* fileAsset =
+            reinterpret_cast<rive::FileAsset*>(address);
         return env->NewStringUTF(fileAsset->name().c_str());
     }
 
     JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAsset_cppUniqueFilename(JNIEnv* env,
-                                                                  jobject thisObj,
-                                                                  jlong address)
+    Java_app_rive_runtime_kotlin_core_FileAsset_cppUniqueFilename(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong address)
     {
-        rive::FileAsset* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
+        rive::FileAsset* fileAsset =
+            reinterpret_cast<rive::FileAsset*>(address);
         return env->NewStringUTF(fileAsset->uniqueFilename().c_str());
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAsset_cppDecode(JNIEnv* env,
-                                                          jobject thisObj,
-                                                          jlong address,
-                                                          jbyteArray assetBytes,
-                                                          jint rendererTypeIndex)
+    Java_app_rive_runtime_kotlin_core_FileAsset_cppDecode(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong address,
+        jbyteArray assetBytes,
+        jint rendererTypeIndex)
     {
-        rive::FileAsset* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
-        RendererType rendererType = static_cast<RendererType>(rendererTypeIndex);
+        rive::FileAsset* fileAsset =
+            reinterpret_cast<rive::FileAsset*>(address);
+        RendererType rendererType =
+            static_cast<RendererType>(rendererTypeIndex);
 
         rive::Factory* fileFactory = GetFactory(rendererType);
         jbyte* byte_array = env->GetByteArrayElements(assetBytes, NULL);
@@ -47,17 +54,21 @@ extern "C"
 
         // Turn into a SimpleArray so audio files can steal the bytes if they
         // want/need to.
-        rive::SimpleArray<uint8_t> bytesToDecode(reinterpret_cast<uint8_t*>(byte_array), length);
+        rive::SimpleArray<uint8_t> bytesToDecode(
+            reinterpret_cast<uint8_t*>(byte_array),
+            length);
         bool res = fileAsset->decode(bytesToDecode, fileFactory);
         env->ReleaseByteArrayElements(assetBytes, byte_array, JNI_ABORT);
         return res;
     }
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_FileAsset_cppCDNUrl(JNIEnv* env,
-                                                                                    jobject thisObj,
-                                                                                    jlong address)
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_FileAsset_cppCDNUrl(JNIEnv* env,
+                                                          jobject thisObj,
+                                                          jlong address)
     {
-        rive::FileAsset* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
+        rive::FileAsset* fileAsset =
+            reinterpret_cast<rive::FileAsset*>(address);
         std::string uuid = fileAsset->cdnUuidStr();
         if (uuid.empty())
         {
@@ -76,38 +87,45 @@ extern "C"
 
     /** == Images ==  */
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_ImageAsset_cppSetRenderImage(JNIEnv* env,
-                                                                   jobject thisObj,
-                                                                   jlong imageAssetAddress,
-                                                                   jlong renderImageAddress)
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppSetRenderImage(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong imageAssetAddress,
+        jlong renderImageAddress)
     {
-        rive::ImageAsset* imageAsset = reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
-        rive::RenderImage* renderImage = reinterpret_cast<rive::RenderImage*>(renderImageAddress);
+        rive::ImageAsset* imageAsset =
+            reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
+        rive::RenderImage* renderImage =
+            reinterpret_cast<rive::RenderImage*>(renderImageAddress);
         imageAsset->renderImage(rive::ref_rcp(renderImage));
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_ImageAsset_cppGetRenderImage(JNIEnv* env,
-                                                                   jobject thisObj,
-                                                                   jlong imageAssetAddress)
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppGetRenderImage(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong imageAssetAddress)
     {
-        rive::ImageAsset* imageAsset = reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
+        rive::ImageAsset* imageAsset =
+            reinterpret_cast<rive::ImageAsset*>(imageAssetAddress);
         return reinterpret_cast<jlong>(imageAsset->renderImage());
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetWidth(JNIEnv* env,
-                                                                    jobject thisObj,
-                                                                    jlong address)
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetWidth(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong address)
     {
         auto image = reinterpret_cast<rive::ImageAsset*>(address);
         return image->width();
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetHeight(JNIEnv* env,
-                                                                     jobject thisObj,
-                                                                     jlong address)
+    Java_app_rive_runtime_kotlin_core_ImageAsset_cppImageAssetHeight(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong address)
     {
         auto image = reinterpret_cast<rive::ImageAsset*>(address);
         return image->height();
@@ -120,54 +138,64 @@ extern "C"
         jbyteArray byteArray,
         jint rendererTypeIdx)
     {
-        auto asset = decodeAsset<rive::RenderImage>(env, byteArray, rendererTypeIdx);
-        // Calling `[release()]` transfers ownership of this object to the caller.
+        auto asset =
+            decodeAsset<rive::RenderImage>(env, byteArray, rendererTypeIdx);
+        // Calling `[release()]` transfers ownership of this object to the
+        // caller.
         return reinterpret_cast<jlong>(asset.release());
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveRenderImage_cppDelete(JNIEnv* env,
-                                                                jobject imgClass,
-                                                                jlong address)
+    Java_app_rive_runtime_kotlin_core_RiveRenderImage_cppDelete(
+        JNIEnv* env,
+        jobject imgClass,
+        jlong address)
     {
         releaseAsset<rive::RenderImage>(address);
     }
 
     /** == Fonts ==  */
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_FontAsset_cppSetFont(JNIEnv* env,
-                                                           jobject thisObj,
-                                                           jlong fontAssetAddress,
-                                                           jlong fontAddress)
+    Java_app_rive_runtime_kotlin_core_FontAsset_cppSetFont(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong fontAssetAddress,
+        jlong fontAddress)
     {
-        rive::FontAsset* fontAsset = reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
+        rive::FontAsset* fontAsset =
+            reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
         rive::Font* font = reinterpret_cast<rive::Font*>(fontAddress);
         fontAsset->font(rive::ref_rcp(font));
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_FontAsset_cppGetFont(JNIEnv* env,
-                                                           jobject thisObj,
-                                                           jlong fontAssetAddress)
+    Java_app_rive_runtime_kotlin_core_FontAsset_cppGetFont(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong fontAssetAddress)
     {
-        rive::FontAsset* fontAsset = reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
+        rive::FontAsset* fontAsset =
+            reinterpret_cast<rive::FontAsset*>(fontAssetAddress);
         return reinterpret_cast<jlong>(fontAsset->font().get());
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveFont_00024Companion_cppMakeFont(JNIEnv* env,
-                                                                          jobject,
-                                                                          jbyteArray byteArray,
-                                                                          jint rendererTypeIdx)
+    Java_app_rive_runtime_kotlin_core_RiveFont_00024Companion_cppMakeFont(
+        JNIEnv* env,
+        jobject,
+        jbyteArray byteArray,
+        jint rendererTypeIdx)
     {
         auto asset = decodeAsset<rive::Font>(env, byteArray, rendererTypeIdx);
-        // Calling `[release()]` transfers ownership of this object to the caller.
+        // Calling `[release()]` transfers ownership of this object to the
+        // caller.
         return reinterpret_cast<jlong>(asset.release());
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RiveFont_cppDelete(JNIEnv* env,
-                                                                                jobject imgClass,
-                                                                                jlong address)
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveFont_cppDelete(JNIEnv* env,
+                                                         jobject imgClass,
+                                                         jlong address)
     {
         releaseAsset<rive::Font>(address);
     }
@@ -179,8 +207,10 @@ extern "C"
                                                              jlong assetAddress,
                                                              jlong audioAddress)
     {
-        rive::AudioAsset* asset = reinterpret_cast<rive::AudioAsset*>(assetAddress);
-        rive::AudioSource* source = reinterpret_cast<rive::AudioSource*>(audioAddress);
+        rive::AudioAsset* asset =
+            reinterpret_cast<rive::AudioAsset*>(assetAddress);
+        rive::AudioSource* source =
+            reinterpret_cast<rive::AudioSource*>(audioAddress);
         asset->audioSource(rive::ref_rcp(source));
     }
 
@@ -189,24 +219,29 @@ extern "C"
                                                              jobject thisObj,
                                                              jlong assetAddress)
     {
-        rive::AudioAsset* asset = reinterpret_cast<rive::AudioAsset*>(assetAddress);
+        rive::AudioAsset* asset =
+            reinterpret_cast<rive::AudioAsset*>(assetAddress);
         return reinterpret_cast<jlong>(asset->audioSource().get());
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveAudio_00024Companion_cppMakeAudio(JNIEnv* env,
-                                                                            jobject,
-                                                                            jbyteArray byteArray,
-                                                                            jint rendererTypeIdx)
+    Java_app_rive_runtime_kotlin_core_RiveAudio_00024Companion_cppMakeAudio(
+        JNIEnv* env,
+        jobject,
+        jbyteArray byteArray,
+        jint rendererTypeIdx)
     {
-        auto asset = decodeAsset<rive::AudioSource>(env, byteArray, rendererTypeIdx);
-        // Calling `[release()]` transfers ownership of this object to the caller.
+        auto asset =
+            decodeAsset<rive::AudioSource>(env, byteArray, rendererTypeIdx);
+        // Calling `[release()]` transfers ownership of this object to the
+        // caller.
         return reinterpret_cast<jlong>(asset.release());
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_RiveAudio_cppDelete(JNIEnv* env,
-                                                                                 jobject imgClass,
-                                                                                 jlong address)
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveAudio_cppDelete(JNIEnv* env,
+                                                          jobject imgClass,
+                                                          jlong address)
     {
         releaseAsset<rive::AudioSource>(address);
     }

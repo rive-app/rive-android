@@ -11,17 +11,23 @@ extern "C"
     using namespace rive_android;
 
     JNIEXPORT jbyteArray JNICALL
-    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppGetSystemFontBytes(JNIEnv* env, jobject)
+    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppGetSystemFontBytes(
+        JNIEnv* env,
+        jobject)
     {
         std::vector<uint8_t> bytes = FontHelper::getSystemFontBytes();
         auto len = SizeTTOInt(bytes.size());
         if (len == 0)
         {
-            LOGE("cppGetSystemFontBytes - getSystemFontBytes() returned no data");
+            LOGE("cppGetSystemFontBytes - getSystemFontBytes() returned no "
+                 "data");
             return {};
         }
         jbyteArray byteArray = env->NewByteArray(len);
-        env->SetByteArrayRegion(byteArray, 0, len, reinterpret_cast<const jbyte*>(bytes.data()));
+        env->SetByteArrayRegion(byteArray,
+                                0,
+                                len,
+                                reinterpret_cast<const jbyte*>(bytes.data()));
 
         return byteArray;
     }
@@ -36,9 +42,10 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppHasGlyph(JNIEnv* env,
-                                                                    jobject,
-                                                                    jstring ktString)
+    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppHasGlyph(
+        JNIEnv* env,
+        jobject,
+        jstring ktString)
     {
         const char* utf8Chars = env->GetStringUTFChars(ktString, NULL);
         if (!utf8Chars)

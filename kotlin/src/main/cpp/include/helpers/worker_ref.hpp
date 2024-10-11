@@ -10,8 +10,8 @@ namespace rive_android
 class RefWorker : public WorkerThread
 {
 public:
-    // Returns the current worker of the requested renderer type, or the current Skia worker if the
-    // requested type is not supported.
+    // Returns the current worker of the requested renderer type, or the current
+    // Skia worker if the requested type is not supported.
     static rive::rcp<RefWorker> CurrentOrFallback(RendererType);
 
     // Returns the Rive renderer worker, or null if it is not supported.
@@ -25,9 +25,9 @@ public:
 
     ~RefWorker();
 
-    // These methods work with rive::rcp<> for tracking _external_ references. They don't
-    // necessarily delete this object when the external ref count goes to zero, and they may have
-    // other side effects as well.
+    // These methods work with rive::rcp<> for tracking _external_ references.
+    // They don't necessarily delete this object when the external ref count
+    // goes to zero, and they may have other side effects as well.
     void ref();
     void unref();
 

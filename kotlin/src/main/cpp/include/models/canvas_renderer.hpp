@@ -21,7 +21,9 @@ protected:
 private:
     static jobject GetCanvas(jobject ktSurface)
     {
-        return GetJNIEnv()->CallObjectMethod(ktSurface, GetSurfaceLockCanvasMethodId(), nullptr);
+        return GetJNIEnv()->CallObjectMethod(ktSurface,
+                                             GetSurfaceLockCanvasMethodId(),
+                                             nullptr);
     }
 
     static void Clear(jobject ktCanvas)
@@ -29,7 +31,8 @@ private:
         JNIEnv* env = GetJNIEnv();
 
         jclass porterDuffModeClass = GetPorterDuffClass();
-        jobject clearMode = env->GetStaticObjectField(porterDuffModeClass, GetPdClear());
+        jobject clearMode =
+            env->GetStaticObjectField(porterDuffModeClass, GetPdClear());
         env->DeleteLocalRef(porterDuffModeClass);
         if (clearMode == nullptr)
         {
@@ -51,7 +54,9 @@ public:
     void transform(const rive::Mat2D& transform) override;
     void clipPath(rive::RenderPath* path) override;
     void drawPath(rive::RenderPath* path, rive::RenderPaint* paint) override;
-    void drawImage(const rive::RenderImage*, rive::BlendMode, float opacity) override;
+    void drawImage(const rive::RenderImage*,
+                   rive::BlendMode,
+                   float opacity) override;
     void drawImageMesh(const rive::RenderImage*,
                        rive::rcp<rive::RenderBuffer> vertices_f32,
                        rive::rcp<rive::RenderBuffer> uvCoords_f32,
@@ -78,7 +83,9 @@ public:
     void unlockAndPost(jobject ktSurface)
     {
         JNIEnv* env = GetJNIEnv();
-        env->CallVoidMethod(ktSurface, GetSurfaceUnlockCanvasAndPostMethodId(), m_ktCanvas);
+        env->CallVoidMethod(ktSurface,
+                            GetSurfaceUnlockCanvasAndPostMethodId(),
+                            m_ktCanvas);
 
         m_width = -1;
         m_height = -1;

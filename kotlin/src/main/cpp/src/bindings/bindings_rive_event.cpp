@@ -36,12 +36,13 @@ extern "C"
 
     jobject GetProperties(JNIEnv* env, rive::Event* event)
     {
-        jmethodID putMethod =
-            env->GetMethodID(GetHashMapClass(),
-                             "put",
-                             "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+        jmethodID putMethod = env->GetMethodID(
+            GetHashMapClass(),
+            "put",
+            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
 
-        jobject propertiesObject = env->NewObject(GetHashMapClass(), GetHashMapConstructorId());
+        jobject propertiesObject =
+            env->NewObject(GetHashMapClass(), GetHashMapConstructorId());
 
         if (event == nullptr)
         {
@@ -60,11 +61,16 @@ extern "C"
                         case rive::CustomPropertyBoolean::typeKey:
                         {
                             jboolean jValueBoolean =
-                                child->as<rive::CustomPropertyBoolean>()->propertyValue();
-                            jobject booleanValue = env->NewObject(GetBooleanClass(),
-                                                                  GetBooleanConstructor(),
-                                                                  jValueBoolean);
-                            env->CallObjectMethod(propertiesObject, putMethod, jKey, booleanValue);
+                                child->as<rive::CustomPropertyBoolean>()
+                                    ->propertyValue();
+                            jobject booleanValue =
+                                env->NewObject(GetBooleanClass(),
+                                               GetBooleanConstructor(),
+                                               jValueBoolean);
+                            env->CallObjectMethod(propertiesObject,
+                                                  putMethod,
+                                                  jKey,
+                                                  booleanValue);
 
                             env->DeleteLocalRef(booleanValue);
                             break;
@@ -73,8 +79,13 @@ extern "C"
                         {
 
                             jstring jValueString = env->NewStringUTF(
-                                child->as<rive::CustomPropertyString>()->propertyValue().c_str());
-                            env->CallObjectMethod(propertiesObject, putMethod, jKey, jValueString);
+                                child->as<rive::CustomPropertyString>()
+                                    ->propertyValue()
+                                    .c_str());
+                            env->CallObjectMethod(propertiesObject,
+                                                  putMethod,
+                                                  jKey,
+                                                  jValueString);
 
                             env->DeleteLocalRef(jValueString);
                             break;
@@ -83,10 +94,16 @@ extern "C"
                         {
 
                             jfloat jValueFloat =
-                                child->as<rive::CustomPropertyNumber>()->propertyValue();
+                                child->as<rive::CustomPropertyNumber>()
+                                    ->propertyValue();
                             jobject floatValue =
-                                env->NewObject(GetFloatClass(), GetFloatConstructor(), jValueFloat);
-                            env->CallObjectMethod(propertiesObject, putMethod, jKey, floatValue);
+                                env->NewObject(GetFloatClass(),
+                                               GetFloatConstructor(),
+                                               jValueFloat);
+                            env->CallObjectMethod(propertiesObject,
+                                                  putMethod,
+                                                  jKey,
+                                                  floatValue);
 
                             env->DeleteLocalRef(floatValue);
                             break;
@@ -116,9 +133,10 @@ extern "C"
     }
 
     JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveOpenURLEvent_cppTarget(JNIEnv* env,
-                                                                 jobject thisObj,
-                                                                 jlong ref)
+    Java_app_rive_runtime_kotlin_core_RiveOpenURLEvent_cppTarget(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
     {
         rive::Event* event = reinterpret_cast<rive::Event*>(ref);
         if (event->is<rive::OpenUrlEvent>())
@@ -135,17 +153,19 @@ extern "C"
         return env->NewStringUTF("_blank");
     }
 
-    JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_RiveEvent_cppName(JNIEnv* env,
-                                                                                  jobject thisObj,
-                                                                                  jlong ref)
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveEvent_cppName(JNIEnv* env,
+                                                        jobject thisObj,
+                                                        jlong ref)
     {
         rive::Event* event = reinterpret_cast<rive::Event*>(ref);
         return env->NewStringUTF(event->name().c_str());
     }
 
-    JNIEXPORT jshort JNICALL Java_app_rive_runtime_kotlin_core_RiveEvent_cppType(JNIEnv* env,
-                                                                                 jobject thisObj,
-                                                                                 jlong ref)
+    JNIEXPORT jshort JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveEvent_cppType(JNIEnv* env,
+                                                        jobject thisObj,
+                                                        jlong ref)
     {
         rive::Event* event = reinterpret_cast<rive::Event*>(ref);
         return event->coreType();
@@ -161,16 +181,17 @@ extern "C"
         return GetProperties(env, event);
     }
 
-    JNIEXPORT jobject JNICALL Java_app_rive_runtime_kotlin_core_RiveEvent_cppData(JNIEnv* env,
-                                                                                  jobject thisObj,
-                                                                                  jlong ref)
+    JNIEXPORT jobject JNICALL
+    Java_app_rive_runtime_kotlin_core_RiveEvent_cppData(JNIEnv* env,
+                                                        jobject thisObj,
+                                                        jlong ref)
     {
         jclass hashMapClass = GetHashMapClass();
         jmethodID hashMapConstructor = GetHashMapConstructorId();
-        jmethodID putMethod =
-            env->GetMethodID(hashMapClass,
-                             "put",
-                             "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+        jmethodID putMethod = env->GetMethodID(
+            hashMapClass,
+            "put",
+            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
         jobject eventObject = env->NewObject(hashMapClass, hashMapConstructor);
 
         rive::Event* event = reinterpret_cast<rive::Event*>(ref);
@@ -189,9 +210,13 @@ extern "C"
         {
             auto urlEvent = event->as<rive::OpenUrlEvent>();
             auto url = urlEvent->url().c_str();
-            jobject type =
-                env->NewObject(GetShortClass(), GetShortConstructor(), event->coreType());
-            env->CallObjectMethod(eventObject, putMethod, env->NewStringUTF("type"), type);
+            jobject type = env->NewObject(GetShortClass(),
+                                          GetShortConstructor(),
+                                          event->coreType());
+            env->CallObjectMethod(eventObject,
+                                  putMethod,
+                                  env->NewStringUTF("type"),
+                                  type);
             env->CallObjectMethod(eventObject,
                                   putMethod,
                                   env->NewStringUTF("url"),

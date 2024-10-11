@@ -53,7 +53,9 @@ void CanvasRenderer::clipPath(rive::RenderPath* path)
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
     CanvasRenderPath* canvasPath = static_cast<CanvasRenderPath*>(path);
-    GetJNIEnv()->CallBooleanMethod(m_ktCanvas, GetCanvasClipPathMethodId(), canvasPath->ktPath());
+    GetJNIEnv()->CallBooleanMethod(m_ktCanvas,
+                                   GetCanvasClipPathMethodId(),
+                                   canvasPath->ktPath());
 }
 void CanvasRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* paint)
 {
@@ -73,7 +75,8 @@ void CanvasRenderer::drawImage(const rive::RenderImage* image,
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
 
-    const CanvasRenderImage* canvasImage = static_cast<const CanvasRenderImage*>(image);
+    const CanvasRenderImage* canvasImage =
+        static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
     CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));
@@ -99,7 +102,8 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
-    const CanvasRenderImage* canvasImage = static_cast<const CanvasRenderImage*>(image);
+    const CanvasRenderImage* canvasImage =
+        static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
     CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));
@@ -108,20 +112,24 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     JNIEnv* env = GetJNIEnv();
     env->CallVoidMethod(ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
 
-    jobject ktShader = CanvasRenderImage::CreateKtBitmapShader(canvasImage->ktBitmap());
+    jobject ktShader =
+        CanvasRenderImage::CreateKtBitmapShader(canvasImage->ktBitmap());
     CanvasRenderPaint::SetShader(ktPaint, ktShader);
 
     jclass vertexModeClass = GetAndroidCanvasVertexModeClass();
-    jobject trianglesMode = env->GetStaticObjectField(vertexModeClass, GetVertexModeTrianglesId());
+    jobject trianglesMode =
+        env->GetStaticObjectField(vertexModeClass, GetVertexModeTrianglesId());
     env->DeleteLocalRef(vertexModeClass);
 
     /** Set up the vertices */
-    const float* vertices = static_cast<rive::DataRenderBuffer*>(vertices_f32.get())->f32s();
+    const float* vertices =
+        static_cast<rive::DataRenderBuffer*>(vertices_f32.get())->f32s();
     jfloatArray verticesArray = env->NewFloatArray(vertexCount * 2);
     env->SetFloatArrayRegion(verticesArray, 0, vertexCount * 2, vertices);
 
     /** Set up the uvs */
-    const float* uvs = static_cast<rive::DataRenderBuffer*>(uvCoords_f32.get())->f32s();
+    const float* uvs =
+        static_cast<rive::DataRenderBuffer*>(uvCoords_f32.get())->f32s();
     std::vector<float> scaledUVs(vertexCount * 2);
     for (int i = 0; i < vertexCount; i++)
     {
@@ -133,9 +141,13 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     env->SetFloatArrayRegion(uvsArray, 0, vertexCount * 2, scaledUVs.data());
 
     /** Set up the indices */
-    const uint16_t* indices = static_cast<rive::DataRenderBuffer*>(indices_u16.get())->u16s();
+    const uint16_t* indices =
+        static_cast<rive::DataRenderBuffer*>(indices_u16.get())->u16s();
     jshortArray indicesArray = env->NewShortArray(indexCount);
-    env->SetShortArrayRegion(indicesArray, 0, indexCount, reinterpret_cast<const jshort*>(indices));
+    env->SetShortArrayRegion(indicesArray,
+                             0,
+                             indexCount,
+                             reinterpret_cast<const jshort*>(indices));
     uint32_t* no_colors = nullptr;
 
     env->CallVoidMethod(m_ktCanvas,

@@ -19,13 +19,15 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
         case RendererType::Rive:
         {
             ANativeWindow* window = std::get<ANativeWindow*>(surface);
-            impl = std::make_unique<PLSWorkerImpl>(window, threadState, &success);
+            impl =
+                std::make_unique<PLSWorkerImpl>(window, threadState, &success);
             break;
         }
         case RendererType::Skia:
         {
             ANativeWindow* window = std::get<ANativeWindow*>(surface);
-            impl = std::make_unique<SkiaWorkerImpl>(window, threadState, &success);
+            impl =
+                std::make_unique<SkiaWorkerImpl>(window, threadState, &success);
             break;
         }
         case RendererType::Canvas:
@@ -44,13 +46,16 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
     return impl;
 }
 
-void WorkerImpl::start(jobject ktRenderer, std::chrono::high_resolution_clock::time_point frameTime)
+void WorkerImpl::start(jobject ktRenderer,
+                       std::chrono::high_resolution_clock::time_point frameTime)
 {
     auto env = GetJNIEnv();
     jclass ktClass = env->GetObjectClass(ktRenderer);
-    m_ktRendererClass = reinterpret_cast<jclass>(env->NewWeakGlobalRef(ktClass));
+    m_ktRendererClass =
+        reinterpret_cast<jclass>(env->NewWeakGlobalRef(ktClass));
     m_ktDrawCallback = env->GetMethodID(m_ktRendererClass, "draw", "()V");
-    m_ktAdvanceCallback = env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
+    m_ktAdvanceCallback =
+        env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
     m_lastFrameTime = frameTime;
     m_isStarted = true;
     if (auto engine = rive::AudioEngine::RuntimeEngine(false))
@@ -76,17 +81,19 @@ void WorkerImpl::stop()
     m_isStarted = false;
 }
 
-void WorkerImpl::doFrame(ITracer* tracer,
-                         DrawableThreadState* threadState,
-                         jobject ktRenderer,
-                         std::chrono::high_resolution_clock::time_point frameTime)
+void WorkerImpl::doFrame(
+    ITracer* tracer,
+    DrawableThreadState* threadState,
+    jobject ktRenderer,
+    std::chrono::high_resolution_clock::time_point frameTime)
 {
     if (!m_isStarted)
     {
         return;
     }
 
-    float fElapsedMs = std::chrono::duration<float>(frameTime - m_lastFrameTime).count();
+    float fElapsedMs =
+        std::chrono::duration<float>(frameTime - m_lastFrameTime).count();
     m_lastFrameTime = frameTime;
 
     auto env = GetJNIEnv();
@@ -155,7 +162,10 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glGetIntegerv(GL_SAMPLES, &sampleCount);
     m_renderTarget =
-        rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sampleCount);
+        rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width,
+                                                             height,
+                                                             0,
+                                                             sampleCount);
     m_plsRenderer = std::make_unique<rive::RiveRenderer>(renderContext);
     *success = true;
 }
