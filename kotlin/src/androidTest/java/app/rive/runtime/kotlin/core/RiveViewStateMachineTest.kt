@@ -89,6 +89,7 @@ class RiveViewStateMachineTest {
             assert(mockView.artboardRenderer != null)
             // Let the state machine animation run its course.
             mockView.artboardRenderer!!.advance(1.01f)
+            mockView.artboardRenderer!!.advance(0.0f)
             assert(!mockView.isPlaying)
         }
     }
@@ -110,6 +111,27 @@ class RiveViewStateMachineTest {
             mView.mockAttach()
             assertTrue(controller.isActive)
             assertEquals("State Machine 2", controller.stateMachines.first().name)
+        }
+    }
+
+    @Test
+    fun nestedStateMachinesContinuePlaying() {
+        UiThreadStatement.runOnUiThread {
+            // The main state machine's controller is not advancing, however, nested artboards
+            // need to continue playing
+            val mView = mockView as TestUtils.MockRiveAnimationView
+            val controller = mView.controller
+            mView.setRiveResource(R.raw.nested_settle)
+            mView.play("State Machine 1", isStateMachine = true)
+            assertEquals(1, controller.stateMachines.size)
+
+            mView.artboardRenderer?.advance(0.5f);
+            assert(mView.isPlaying)
+            mView.artboardRenderer?.advance(0.5f);
+            assert(mView.isPlaying)
+            // The nested artboard should now be settled
+            mView.artboardRenderer?.advance(0.01f);
+            assert(!mView.isPlaying) // Playing is false
         }
     }
 

@@ -287,6 +287,7 @@ class RiveListenerTest {
 
             // animation came to an end inside this time period, this still means no state change
             renderer.advance(1.0f)
+            renderer.advance(0.01f)
             assertEquals(false, view.isPlaying)
             assertEquals(0, observer.states.size)
 

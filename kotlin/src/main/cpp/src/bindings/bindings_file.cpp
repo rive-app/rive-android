@@ -39,7 +39,12 @@ extern "C"
     {
         auto file = reinterpret_cast<rive::File*>(ref);
         // Creates a new Artboard instance.
-        return (jlong)file->artboardNamed(JStringToString(env, name)).release();
+        auto artboard = file->artboardNamed(JStringToString(env, name));
+        if (artboard != nullptr)
+        {
+            artboard->advance(0.0);
+        }
+        return (jlong)artboard.release();
     }
 
     JNIEXPORT void JNICALL
@@ -70,7 +75,12 @@ extern "C"
     {
         auto file = reinterpret_cast<rive::File*>(ref);
         // Creates a new Artboard instance.
-        return (jlong)file->artboardAt(index).release();
+        auto artboard = file->artboardAt(index);
+        if (artboard != nullptr)
+        {
+            artboard->advance(0.0);
+        }
+        return (jlong)artboard.release();
     }
 
     JNIEXPORT

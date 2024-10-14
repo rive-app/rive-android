@@ -279,17 +279,26 @@ class RiveFileController(
                     }
                 }
 
+                val stateMachinesToPause = mutableListOf<StateMachineInstance>()
                 stateMachines.forEach { stateMachineInstance ->
                     if (playingStateMachines.contains(stateMachineInstance)) {
                         val stillPlaying =
                             resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
                         if (!stillPlaying) {
-                            pause(stateMachine = stateMachineInstance)
+                            stateMachinesToPause.add(stateMachineInstance)
                         }
                     }
                 }
-                ab.advance(elapsed)
+
+                // Only pause the state machines once the artboard has also settled, as nested
+                // artboards may still be advancing. This is to tie into the current logic of
+                // pausing only when current animations/machines are empty. In the future
+                // this can be simplified.
+                // Resolves: https://github.com/rive-app/rive-android/issues/338
+                if (!ab.advance(elapsed)) {
+                    stateMachinesToPause.forEach { pause(stateMachine = it) }
+                }
                 notifyAdvance(elapsed)
             }
         }
