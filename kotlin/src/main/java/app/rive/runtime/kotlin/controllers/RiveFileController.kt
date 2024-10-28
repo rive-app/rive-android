@@ -527,7 +527,7 @@ class RiveFileController(
         stateMachineName: String,
         inputName: String,
         value: Any? = null,
-        path: String? = null
+        path: String? = null,
     ) {
         queueInputs(
             ChangedInput(
@@ -595,7 +595,7 @@ class RiveFileController(
         stateMachineName: String,
         inputName: String,
         value: Boolean,
-        path: String? = null
+        path: String? = null,
     ) {
         queueInput(
             stateMachineName = stateMachineName,
@@ -609,7 +609,7 @@ class RiveFileController(
         stateMachineName: String,
         inputName: String,
         value: Float,
-        path: String? = null
+        path: String? = null,
     ) {
         queueInput(
             stateMachineName = stateMachineName,
@@ -736,7 +736,7 @@ class RiveFileController(
 
     private fun resolveStateMachineAdvance(
         stateMachineInstance: StateMachineInstance,
-        elapsed: Float
+        elapsed: Float,
     ): Boolean {
         if (eventListeners.isNotEmpty()) {
             stateMachineInstance.eventsReported.forEach {
@@ -754,7 +754,7 @@ class RiveFileController(
 
     internal fun play(
         stateMachineInstance: StateMachineInstance,
-        settleStateMachineState: Boolean = true
+        settleStateMachineState: Boolean = true,
     ) {
         if (!stateMachineList.contains(stateMachineInstance)) {
             stateMachineList.add(stateMachineInstance)
@@ -778,7 +778,7 @@ class RiveFileController(
     internal fun play(
         animationInstance: LinearAnimationInstance,
         loop: Loop,
-        direction: Direction
+        direction: Direction,
     ) {
         // If a loop mode was specified, use it, otherwise fall back to a predefined default loop,
         // otherwise just use what the animation is configured to be.
@@ -869,18 +869,33 @@ class RiveFileController(
     }
 
     // == Listeners ==
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    internal var listeners = HashSet<Listener>()
+    private var _listeners: MutableSet<Listener> = Collections.synchronizedSet(HashSet<Listener>())
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    internal var eventListeners = HashSet<RiveEventListener>()
+    val listeners: HashSet<Listener>
+        get() {
+            return synchronized(_listeners) { _listeners.toHashSet() }
+        }
+
+    private var _eventListeners: MutableSet<RiveEventListener> =
+        Collections.synchronizedSet(HashSet<RiveEventListener>())
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    val eventListeners: HashSet<RiveEventListener>
+        get() {
+            return synchronized(_eventListeners) { _eventListeners.toHashSet() }
+        }
 
     override fun registerListener(listener: Listener) {
-        listeners.add(listener)
+        synchronized(startStopLock) {
+            _listeners.add(listener)
+        }
     }
 
     override fun unregisterListener(listener: Listener) {
-        listeners.remove(listener)
+        synchronized(startStopLock) {
+            _listeners.remove(listener)
+        }
     }
 
     /**
@@ -889,14 +904,18 @@ class RiveFileController(
      * Remove with: [removeEventListener]
      */
     fun addEventListener(listener: RiveEventListener) {
-        eventListeners.add(listener)
+        synchronized(startStopLock) {
+            _eventListeners.add(listener)
+        }
     }
 
     /**
      * Removes the [listener]
      */
     fun removeEventListener(listener: RiveEventListener) {
-        eventListeners.remove(listener)
+        synchronized(startStopLock) {
+            _eventListeners.remove(listener)
+        }
     }
 
     private fun notifyPlay(playableInstance: PlayableInstance) {
