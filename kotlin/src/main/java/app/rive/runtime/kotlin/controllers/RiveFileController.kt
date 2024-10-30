@@ -28,6 +28,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
@@ -82,16 +83,62 @@ class RiveFileController(
      */
     var isActive = false
 
+    /**
+     * Whether this [activeArtboard] requires resizing or not.
+     * If this is true, the artboard will be resized in the next draw call.
+     */
+    internal var requireArtboardResize = AtomicBoolean(false);
+
     var fit: Fit = Fit.CONTAIN
         set(value) {
             field = value
-            onStart?.invoke()
+            requireArtboardResize.set(true);
+            synchronized(startStopLock) {
+                onStart?.invoke()
+            }
         }
     var alignment: Alignment = Alignment.CENTER
         set(value) {
             field = value
-            onStart?.invoke()
+            synchronized(startStopLock) {
+                onStart?.invoke()
+            }
         }
+
+    /**
+     * The scale factor to use for Fit.LAYOUT.
+     * If null, it will use a density determined by Rive (automatic).
+     * See [RiveFileController.layoutScaleFactorAutomatic] for more details.
+     */
+    var layoutScaleFactor: Float? = null
+        set(value) {
+            field = value
+            requireArtboardResize.set(true);
+            synchronized(startStopLock) {
+                onStart?.invoke()
+            }
+        }
+
+    /**
+     * The automatic scale factor set by Rive. This value will only be used if
+     * [layoutScaleFactor] is not set (null).
+     */
+    var layoutScaleFactorAutomatic: Float = 1.0f
+        internal set(value) {
+            field = value
+            requireArtboardResize.set(true);
+            synchronized(startStopLock) {
+                onStart?.invoke()
+            }
+        }
+
+    /**
+     * The active scale factor to use for Fit.LAYOUT.
+     * If the user has set a scale factor, it will use that.    
+     * Otherwise, it will use the automatic scale factor set by Rive.
+     */
+    internal val layoutScaleFactorActive: Float
+        get() = layoutScaleFactor ?: layoutScaleFactorAutomatic
 
     var file: File? = file
         set(value) {
@@ -839,11 +886,12 @@ class RiveFileController(
     fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
         /// TODO: once we start composing artboards we may need x,y offsets here...
         val artboardEventLocation = Helpers.convertToArtboardSpace(
-            targetBounds,
-            PointF(x, y),
-            fit,
-            alignment,
-            activeArtboard?.bounds ?: RectF()
+            touchBounds = targetBounds,
+            touchLocation = PointF(x, y),
+            fit = fit,
+            alignment = alignment,
+            artboardBounds = activeArtboard?.bounds ?: RectF(),
+            scaleFactor = layoutScaleFactorActive
         )
         stateMachines.forEach {
 

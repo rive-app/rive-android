@@ -39,7 +39,8 @@ abstract class Renderer(
         fit: Fit,
         alignment: Alignment,
         targetBounds: RectF,
-        srcBounds: RectF
+        srcBounds: RectF,
+        scaleFactor: Float
     )
 
     private external fun cppTransform(
@@ -180,13 +181,14 @@ abstract class Renderer(
         get() = cppAvgFps(cppPointer)
 
 
-    fun align(fit: Fit, alignment: Alignment, targetBounds: RectF, sourceBounds: RectF) {
+    fun align(fit: Fit, alignment: Alignment, targetBounds: RectF, sourceBounds: RectF, scaleFactor: Float = 1.0f) {
         cppAlign(
             cppPointer,
             fit,
             alignment,
             targetBounds,
-            sourceBounds
+            sourceBounds,
+            scaleFactor
         )
     }
 

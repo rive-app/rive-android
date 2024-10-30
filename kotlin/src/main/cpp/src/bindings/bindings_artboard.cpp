@@ -290,6 +290,59 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppResetArtboardSize(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        artboard->width(artboard->originalWidth());
+        artboard->height(artboard->originalHeight());
+    }
+
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardWidth(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return artboard->width();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetArtboardWidth(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref,
+        jfloat value)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        artboard->width(value);
+    }
+
+    JNIEXPORT jfloat JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardHeight(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        return artboard->height();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetArtboardHeight(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref,
+        jfloat value)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        artboard->height(value);
+    }
+
+    JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(JNIEnv* env,
                                                        jobject,
                                                        jlong artboardRef,
@@ -308,7 +361,8 @@ extern "C"
         jlong artboardRef,
         jlong rendererRef,
         jobject ktFit,
-        jobject ktAlignment)
+        jobject ktAlignment,
+        jfloat scaleFactor)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(artboardRef);
         auto jniWrapper = reinterpret_cast<JNIRenderer*>(rendererRef);
@@ -322,7 +376,8 @@ extern "C"
             fit,
             alignment,
             rive::AABB(0, 0, jniWrapper->width(), jniWrapper->height()),
-            artboard->bounds());
+            artboard->bounds(),
+            scaleFactor);
         artboard->draw(renderer);
         renderer->restore();
     }

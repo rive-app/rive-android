@@ -112,6 +112,29 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
 
     /**
+     * The scale factor to use for Fit.LAYOUT.
+     * If null, it will use a density determined by Rive (automatic).
+     * See [layoutScaleFactorAutomatic] for more details.
+     */
+    var layoutScaleFactor: Float?
+        get() = controller.layoutScaleFactor
+        set(value) {
+            // Not replacing with controller b/c it's currently calling `start()`
+            controller.layoutScaleFactor = value
+        }
+
+    /**
+     * The automatic scale factor set by Rive. This value will only be used if
+     * [layoutScaleFactor] is not set (null).
+     */
+    var layoutScaleFactorAutomatic: Float
+        get() = controller.layoutScaleFactorAutomatic
+        internal set(value) {
+            // Not replacing with controller b/c it's currently calling `start()`
+            controller.layoutScaleFactorAutomatic = value
+        }
+
+    /**
      * Getter for the loaded [Rive file][File].
      */
     val file: File?
@@ -951,7 +974,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-
         if (renderer == null) {
             Log.w(TAG, "onMeasure(): Renderer not instantiated yet.")
             return
@@ -968,13 +990,19 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             else -> MeasureSpec.getSize(heightMeasureSpec)
         }
 
+        // Rive automatically sets to the current density. If [layoutScaleFactor] is not
+        // set by the user, this value will be used.
+        controller.layoutScaleFactorAutomatic = resources.displayMetrics.density
+        controller.requireArtboardResize.set(true); // artboard requires resizing depending on Fit
+
         bounds.set(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat())
         // Lets work out how much space our artboard is going to actually use.
         val usedBounds = Rive.calculateRequiredBounds(
             controller.fit,
             controller.alignment,
             bounds,
-            controller.artboardBounds
+            controller.artboardBounds,
+            controller.layoutScaleFactorActive
         )
 
         //Measure Width

@@ -41,10 +41,30 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppAdvance(cppPointer: Long, elapsedTime: Float): Boolean
     private external fun cppFindTextValueRun(cppPointer: Long, name: String): Long
     private external fun cppFindValueOfTextValueRun(cppPointer: Long, name: String): String?
-    private external fun cppSetValueOfTextValueRun(cppPointer: Long, name: String, newText: String): Boolean
-    private external fun cppFindTextValueRunAtPath(cppPointer: Long, name: String, path: String): Long
-    private external fun cppFindValueOfTextValueRunAtPath(cppPointer: Long, name: String, path: String): String?
-    private external fun cppSetValueOfTextValueRunAtPath(cppPointer: Long, name: String, newText: String, path: String): Boolean
+    private external fun cppSetValueOfTextValueRun(
+        cppPointer: Long,
+        name: String,
+        newText: String
+    ): Boolean
+
+    private external fun cppFindTextValueRunAtPath(
+        cppPointer: Long,
+        name: String,
+        path: String
+    ): Long
+
+    private external fun cppFindValueOfTextValueRunAtPath(
+        cppPointer: Long,
+        name: String,
+        path: String
+    ): String?
+
+    private external fun cppSetValueOfTextValueRunAtPath(
+        cppPointer: Long,
+        name: String,
+        newText: String,
+        path: String
+    ): Boolean
 
 
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
@@ -52,9 +72,17 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppDrawAligned(
         cppPointer: Long, rendererPointer: Long,
         fit: Fit, alignment: Alignment,
+        scaleFactor: Float
     )
 
     private external fun cppBounds(cppPointer: Long): RectF
+
+    private external fun cppResetArtboardSize(cppPointer: Long)
+
+    private external fun cppGetArtboardWidth(cppPointer: Long): Float
+    private external fun cppSetArtboardWidth(cppPointer: Long, width: Float)
+    private external fun cppGetArtboardHeight(cppPointer: Long): Float
+    private external fun cppSetArtboardHeight(cppPointer: Long, height: Float)
 
     external override fun cppDelete(pointer: Long)
 
@@ -240,7 +268,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      */
     var volume: Float
         get() = cppGetVolume(cppPointer)
-        internal set(value) = cppSetVolume(cppPointer, value )
+        internal set(value) = cppSetVolume(cppPointer, value)
 
     /**
      * Get the number of animations stored inside the [Artboard].
@@ -273,16 +301,54 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     /**
      * Draw the the artboard to the [renderer].
      */
+    @Deprecated(
+        "Use draw(rendererAddress) instead",
+        ReplaceWith("draw(rendererAddress)")
+    )
     fun drawSkia(rendererAddress: Long) {
+        draw(rendererAddress);
+    }
+
+    /**
+     * Draw the the artboard to the [renderer].
+     */
+    fun draw(rendererAddress: Long) {
         synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
     }
 
     /**
      * Draw the the artboard to the [renderer].
-     * Also align the artboard to the render surface
+     * Also align the artboard to the render surface.
      */
-    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment) {
-        synchronized(lock) { cppDrawAligned(cppPointer, rendererAddress, fit, alignment) }
+    @Deprecated(
+        "Use draw(rendererAddress, fit, alignment, scaleFactor) instead",
+        ReplaceWith("draw(rendererAddress, fit, alignment, scaleFactor)")
+    )
+    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
+        draw(rendererAddress, fit, alignment, scaleFactor)
+    }
+
+    /**
+     * Draw the the artboard to the [renderer].
+     * Also align the artboard to the render surface.
+     */
+    fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
+        synchronized(lock) {
+            cppDrawAligned(
+                cppPointer,
+                rendererAddress,
+                fit,
+                alignment,
+                scaleFactor
+            )
+        }
+    }
+
+    /**
+     * Reset the artboard size to its defaults.
+     */
+    fun resetArtboardSize() {
+        cppResetArtboardSize(cppPointer)
     }
 
     /**
@@ -290,6 +356,20 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      */
     val bounds: RectF
         get() = cppBounds(cppPointer)
+
+    /**
+     * The width of the artboard.
+     */
+    var width: Float
+        get() = cppGetArtboardWidth(cppPointer)
+        set(value) = cppSetArtboardWidth(cppPointer, value)
+
+    /**
+     * The height of the artboard.
+     */
+    var height: Float
+        get() = cppGetArtboardHeight(cppPointer)
+        set(value) = cppSetArtboardHeight(cppPointer, value)
 
     /**
      * Get the names of the animations in the artboard.

@@ -17,7 +17,8 @@ extern "C"
         jobject touchSpacePointF,
         jobject jfit,
         jobject jalignment,
-        jobject artboardSpaceRectF)
+        jobject artboardSpaceRectF,
+        jfloat scaleFactor)
     {
         auto fit = ::GetFit(env, jfit);
         auto alignment = ::GetAlignment(env, jalignment);
@@ -31,7 +32,8 @@ extern "C"
         rive::Mat2D forward = rive::computeAlignment(fit,
                                                      alignment,
                                                      touchSpaceBounds,
-                                                     artboardSpaceBounds);
+                                                     artboardSpaceBounds,
+                                                     scaleFactor);
         rive::Mat2D inverse = forward.invertOrIdentity();
 
         auto touchLocation =

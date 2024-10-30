@@ -17,6 +17,11 @@ class LayoutActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.layout)
 
+        // FIT BUTTONS
+
+        findViewById<Button>(R.id.fit_layout).setOnClickListener {
+            animationView.fit = Fit.LAYOUT
+        }
         findViewById<Button>(R.id.fit_fill).setOnClickListener {
             animationView.fit = Fit.FILL
         }
@@ -39,6 +44,43 @@ class LayoutActivity : AppCompatActivity() {
             animationView.fit = Fit.SCALE_DOWN
         }
 
+        // SCALE BUTTONS
+
+        findViewById<Button>(R.id.scale_up).setOnClickListener {
+            if (animationView.fit != Fit.LAYOUT) {
+                return@setOnClickListener;
+            }
+
+            if (animationView.layoutScaleFactor == null) {
+                // Auto layout scale factor is enabled
+                // Reset the view to the current auto value
+                animationView.layoutScaleFactor = animationView.layoutScaleFactorAutomatic
+            }
+
+            animationView.layoutScaleFactor = animationView.layoutScaleFactor?.plus(1);
+
+        }
+        findViewById<Button>(R.id.scale_down).setOnClickListener {
+            if (animationView.fit != Fit.LAYOUT) {
+                return@setOnClickListener;
+            }
+
+            if (animationView.layoutScaleFactor == null) {
+                // Auto layout scale factor is enabled
+                // Reset the view to the current auto value
+                animationView.layoutScaleFactor = animationView.layoutScaleFactorAutomatic
+            }
+
+            if (animationView.layoutScaleFactor!! > 1) {
+                animationView.layoutScaleFactor = animationView.layoutScaleFactor?.minus(1);
+            }
+        }
+        findViewById<Button>(R.id.scale_auto).setOnClickListener {
+            // Setting to -1 will use the device density as determined by Rive
+            animationView.layoutScaleFactor = null;
+        }
+
+        // ALIGNMENT BUTTONS
 
         findViewById<Button>(R.id.alignment_top_left).setOnClickListener {
             animationView.alignment = Alignment.TOP_LEFT

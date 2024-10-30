@@ -54,7 +54,8 @@ public:
     rive::AABB computeDimensions(rive::Fit fit,
                                  rive::Alignment alignment,
                                  const rive::AABB& frame,
-                                 const rive::AABB& content);
+                                 const rive::AABB& content,
+                                 float scaleFactor);
 };
 } // namespace rive_android
 #endif

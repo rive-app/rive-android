@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.renderers
 
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
+import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 
@@ -17,6 +18,7 @@ open class RiveArtboardRenderer(
 
     private val fit get() = controller.fit
     private val alignment get() = controller.alignment
+    private val scaleFactor get() = controller.layoutScaleFactorActive
 
     init {
         controller.also {
@@ -28,16 +30,35 @@ open class RiveArtboardRenderer(
         }
     }
 
+
+    @WorkerThread
+    private fun resizeArtboard() {
+        if (fit == Fit.LAYOUT) {
+            val newWidth = width / scaleFactor
+            val newHeight = height / scaleFactor
+            controller.activeArtboard?.apply {
+                width = newWidth
+                height = newHeight
+            }
+        } else {
+            controller.activeArtboard?.resetArtboardSize()
+        }
+    }
+
+
     /// Note: This is happening in the render thread
     /// be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        if (!hasCppObject) {
-            return
+        if (!hasCppObject || !controller.isActive) {
+            return // exit early
         }
-        if (controller.isActive) {
-            controller.activeArtboard?.drawSkia(cppPointer, fit, alignment)
+
+        if (controller.requireArtboardResize.getAndSet(false)) {
+            resizeArtboard()
         }
+
+        controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
     }
 
     /// Note: This is happening in the render thread

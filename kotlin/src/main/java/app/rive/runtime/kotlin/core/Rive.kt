@@ -14,6 +14,7 @@ object Rive {
         availableBounds: RectF,
         artboardBounds: RectF,
         requiredBounds: RectF,
+        scaleFactor: Float
     )
 
     private const val RiveAndroid = "rive-android"
@@ -65,6 +66,7 @@ object Rive {
         alignment: Alignment,
         availableBounds: RectF,
         artboardBounds: RectF,
+        scaleFactor: Float = 1.0f,
     ): RectF {
         val requiredBounds = RectF()
         cppCalculateRequiredBounds(
@@ -72,7 +74,8 @@ object Rive {
             alignment,
             availableBounds,
             artboardBounds,
-            requiredBounds
+            requiredBounds,
+            scaleFactor
         )
         return requiredBounds
     }

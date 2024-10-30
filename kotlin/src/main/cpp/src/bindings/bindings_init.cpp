@@ -24,7 +24,8 @@ extern "C"
         jobject jalignment,
         jobject availableBoundsRectF,
         jobject artboardBoundsRectF,
-        jobject requiredBoundsRectF)
+        jobject requiredBoundsRectF,
+        jlong scaleFactor)
     {
         auto fit = ::GetFit(env, jfit);
         auto alignment = ::GetAlignment(env, jalignment);
@@ -36,7 +37,8 @@ extern "C"
         auto required = helper.computeDimensions(fit,
                                                  alignment,
                                                  availableBounds,
-                                                 artboardBounds);
+                                                 artboardBounds,
+                                                 scaleFactor);
         AABBToRectF(env, required, requiredBoundsRectF);
     }
 

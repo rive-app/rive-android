@@ -140,7 +140,8 @@ extern "C"
         jobject ktFit,
         jobject ktAlignment,
         jobject targetBoundsRectF,
-        jobject sourceBoundsRectF)
+        jobject sourceBoundsRectF,
+        jfloat scaleFactor)
     {
         JNIRenderer* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
         rive::Fit fit = GetFit(env, ktFit);
@@ -150,7 +151,8 @@ extern "C"
         jniWrapper->getRendererOnWorkerThread()->align(fit,
                                                        alignment,
                                                        targetBounds,
-                                                       sourceBounds);
+                                                       sourceBounds,
+                                                       scaleFactor);
     }
 
     JNIEXPORT void JNICALL

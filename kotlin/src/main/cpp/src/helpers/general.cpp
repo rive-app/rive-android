@@ -106,6 +106,10 @@ rive::Fit GetFit(JNIEnv* env, jobject jfit)
     {
         fit = rive::Fit::scaleDown;
     }
+    else if (strcmp(fitValueNative, "LAYOUT") == 0)
+    {
+        fit = rive::Fit::layout;
+    }
     env->ReleaseStringUTFChars(fitValue, fitValueNative);
     env->DeleteLocalRef(fitValue);
     return fit;

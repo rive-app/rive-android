@@ -13,6 +13,7 @@ import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
+import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.renderers.Renderer
 
 
@@ -40,15 +41,15 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
     // Objects that the renderer needs for drawing
     private lateinit var artboard: Artboard
-    private lateinit var animationInstance: LinearAnimationInstance
+    private lateinit var stateMachine: StateMachineInstance
 
     private fun setupFile(renderer: Renderer) {
-        val resource = resources.openRawResource(R.raw.basketball)
+        val resource = resources.openRawResource(R.raw.layout_test)
         // Keep a reference to the file to keep resources around.
         file = File(resource.readBytes())
         resource.close()
         artboard = file.firstArtboard
-        animationInstance = artboard.firstAnimation
+        stateMachine = artboard.firstStateMachine
 
         // This will be deleted with its dependents.
         renderer.dependencies.add(file)
@@ -68,18 +69,22 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
     override fun createRenderer(): Renderer {
         val renderer = object : Renderer() {
+            val scaleFactor = resources.displayMetrics.density
 
             override fun draw() {
                 synchronized(file.lock) {
                     artboard.let {
+                        artboard.width = width / scaleFactor;
+                        artboard.height = height / scaleFactor;
                         save()
                         align(
-                            Fit.COVER,
+                            Fit.LAYOUT,
                             Alignment.CENTER,
                             RectF(0.0f, 0.0f, width, height),
-                            it.bounds
+                            it.bounds,
+                            scaleFactor = scaleFactor,
                         )
-                        it.drawSkia(cppPointer)
+                        it.draw(cppPointer)
                         restore()
                     }
                 }
@@ -87,8 +92,7 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
 
             override fun advance(elapsed: Float) {
                 synchronized(file.lock) {
-                    animationInstance.advance(elapsed)
-                    animationInstance.apply()
+                    stateMachine.advance(elapsed)
                     artboard.advance(elapsed)
                 }
             }

@@ -67,7 +67,7 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                         save()
                         translate((cols - 1) * -.5f * 125f, 0f)
                         for (i in 1..cols) {
-                            it.drawSkia(cppPointer)
+                            it.draw(cppPointer)
                             translate(125f, 0f)
                         }
                         restore()

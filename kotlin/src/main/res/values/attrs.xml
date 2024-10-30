@@ -14,6 +14,7 @@
             <enum name="FIT_HEIGHT" value="4" />
             <enum name="NONE" value="5" />
             <enum name="SCALE_DOWN" value="6" />
+            <enum name="LAYOUT" value="7" />
         </attr>
         <attr name="riveAlignment" format="enum">
             <enum name="TOP_LEFT" value="0" />
