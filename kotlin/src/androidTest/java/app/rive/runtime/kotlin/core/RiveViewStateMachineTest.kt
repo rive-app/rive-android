@@ -75,6 +75,10 @@ class RiveViewStateMachineTest {
             // state machine four's has transitions that happen instantly, so we do not stick on
             // a state that's playing an animation
             mockView.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
+            assertEquals(true, mockView.isPlaying)
+            assertEquals(1, mockView.stateMachines.size)
+            assertEquals(1, mockView.playingStateMachines.size)
+            mockView.artboardRenderer?.advance(0.016f);
             assertEquals(false, mockView.isPlaying)
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(0, mockView.playingStateMachines.size)
@@ -89,7 +93,8 @@ class RiveViewStateMachineTest {
             assert(mockView.artboardRenderer != null)
             // Let the state machine animation run its course.
             mockView.artboardRenderer!!.advance(1.01f)
-            mockView.artboardRenderer!!.advance(0.0f)
+            // Must advance by non 0 to truly complete.
+            mockView.artboardRenderer!!.advance(0.01f)
             assert(!mockView.isPlaying)
         }
     }

@@ -343,7 +343,10 @@ class RiveFileController(
                 // pausing only when current animations/machines are empty. In the future
                 // this can be simplified.
                 // Resolves: https://github.com/rive-app/rive-android/issues/338
-                if (!ab.advance(elapsed)) {
+                if (!ab.advance(elapsed) && elapsed > 0.0) {
+                    // Only remove the state machines if the elapsed time was
+                    // greater than 0. 0 elapsed time causes no changes so it's
+                    // no-op advance.
                     stateMachinesToPause.forEach { pause(stateMachine = it) }
                 }
                 notifyAdvance(elapsed)

@@ -333,7 +333,7 @@ class RiveListenerTest {
             assertEquals(0, observer.states.size)
 
             view.fireState("State Machine 1", "change")
-
+            view.artboardRenderer?.advance(0.016f);
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
 
@@ -353,7 +353,7 @@ class RiveListenerTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend mix")
-
+            view.artboardRenderer?.advance(0.016f);
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")

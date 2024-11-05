@@ -18,7 +18,7 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return stateMachineInstance->advance(elapsedTime);
+        return stateMachineInstance->advance(elapsedTime, true);
     }
 
     JNIEXPORT jint JNICALL
