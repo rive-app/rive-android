@@ -7,7 +7,6 @@ import org.xmlpull.v1.XmlPullParser
 import java.io.File
 import java.io.InputStream
 
-
 class Fonts {
     data class Font(
         val weight: Weight,
@@ -255,7 +254,6 @@ class FontHelper {
 
 class SystemFontsParser {
     companion object {
-        private const val TAG = "SystemFontsParser"
         internal const val FONTS_XML_PATH = "/system/etc/fonts.xml"
         internal const val SYSTEM_FONTS_XML_PATH = "/system/etc/system_fonts.xml"
         internal const val FALLBACK_FONTS_XML_PATH = "/system/etc/system_fallback.xml"

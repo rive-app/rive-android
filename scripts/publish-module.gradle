@@ -63,9 +63,9 @@ afterEvaluate {
                             email = 'max@rive.app'
                         }
                         developer {
-                            id = 'mjohnsullivan'
-                            name = 'Matt Sullivan'
-                            email = 'matt@rive.app'
+                            id = 'erikuggeldahl'
+                            name = 'Erik Uggeldahl'
+                            email = 'erik@rive.app'
                         }
                     }
 

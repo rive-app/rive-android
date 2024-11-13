@@ -20,8 +20,8 @@ sealed class FileAsset(address: Long, rendererTypeIdx: Int) : NativeObject(addre
 
 
 /**
- * A thin Kotlin wrapper for the underlying C++ [ImageAsset].
- * Helpful to distinguish between various [FileAsset] subclasses.
+ * A thin Kotlin wrapper for the underlying C++ image asset. Helpful to distinguish between various
+ * [FileAsset] subclasses.
  */
 class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rendererTypeIdx) {
     private external fun cppSetRenderImage(cppAsset: Long, cppRenderImage: Long)
@@ -29,9 +29,7 @@ class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
     private external fun cppImageAssetWidth(cppPointer: Long): Float
     private external fun cppImageAssetHeight(cppPointer: Long): Float
 
-    /**
-     * The [RiveRenderImage] object associated with this [ImageAsset].
-     */
+    /** The [RiveRenderImage] object associated with this [ImageAsset]. */
     var image: RiveRenderImage
         set(value) {
             cppSetRenderImage(cppPointer, value.cppPointer)
@@ -39,36 +37,30 @@ class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
         /**
          * This isn't safe to use outside tests.
          *
-         * @return a light wrapper for a C++ address.
+         * @return A light wrapper around a C++ address.
          */
         @VisibleForTesting
         get() = RiveRenderImage(cppGetRenderImage(cppPointer))
 
-    /**
-     * The width of the image in pixels.
-     */
+    /** @return The width of the image in pixels. */
     val width: Float
         get() = cppImageAssetWidth(cppPointer)
 
-    /**
-     * The height of the image in pixels.
-     */
+    /** @return The height of the image in pixels. */
     val height: Float
         get() = cppImageAssetHeight(cppPointer)
 }
 
 /**
- * A thin Kotlin wrapper for the underlying C++ [FontAsset].
- * Helpful to distinguish between various [FileAsset] subclasses.
+ * A thin Kotlin wrapper for the underlying C++ font asset. Helpful to distinguish between various
+ * [FileAsset] subclasses.
  */
 class FontAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rendererTypeIdx) {
 
     private external fun cppSetFont(cppAsset: Long, cppFont: Long)
     private external fun cppGetFont(cppAsset: Long): Long
 
-    /**
-     * The [RiveFont] object associated with this [FontAsset].
-     */
+    /** The [RiveFont] object associated with this [FontAsset]. */
     var font: RiveFont
         set(value) {
             cppSetFont(cppPointer, value.cppPointer)
@@ -76,7 +68,7 @@ class FontAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, render
         /**
          * This isn't safe to use outside tests.
          *
-         * @return a light wrapper for a C++ address.
+         * @return A light wrapper around a C++ address.
          */
         @VisibleForTesting
         get() = RiveFont(cppGetFont(cppPointer))
@@ -84,17 +76,15 @@ class FontAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, render
 }
 
 /**
- * A thin Kotlin wrapper for the underlying C++ [AudioAsset].
- * Helpful to distinguish between various [FileAsset] subclasses.
+ * A thin Kotlin wrapper for the underlying C++ audio asset. Helpful to distinguish between various
+ * [FileAsset] subclasses.
  */
 class AudioAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rendererTypeIdx) {
 
     private external fun cppSetAudio(cppAsset: Long, cppAudio: Long)
     private external fun cppGetAudio(cppAsset: Long): Long
 
-    /**
-     * The [RiveAudio] object associated with this [AudioAsset].
-     */
+    /** The [RiveAudio] object associated with this [AudioAsset]. */
     var audio: RiveAudio
         set(value) {
             cppSetAudio(cppPointer, value.cppPointer)
@@ -102,16 +92,14 @@ class AudioAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
         /**
          * This isn't safe to use outside tests.
          *
-         * @return a light wrapper for a C++ address.
+         * @return A light wrapper around a C++ address.
          */
         @VisibleForTesting
         get() = RiveAudio(cppGetAudio(cppPointer))
 
 }
 
-/**
- * A native C++ object representing a Rive Image.
- */
+/** A native C++ object representing a Rive image. */
 class RiveRenderImage internal constructor(address: Long) : NativeObject(address) {
     external override fun cppDelete(pointer: Long)
 
@@ -119,14 +107,13 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
         private external fun cppMakeImage(bytes: ByteArray, rendererTypeIdx: Int): Long
 
         /**
-         * It creates a [RiveRenderImage] for the caller decoding [bytes].
-         * The caller is in charge of the ownership of this [NativeObject]. It can be freed calling
-         * [release]
+         * It creates a [RiveRenderImage] for the caller decoding [bytes]. The caller is in charge
+         * of the ownership of this [NativeObject]. It can be freed calling [release]
          *
-         * @param bytes encoded bytes for an image.
-         * @param rendererType the renderer for this image. This needs to match the renderer for
-         *  the View using this.
-         * @return
+         * @param bytes Encoded bytes for an image.
+         * @param rendererType The renderer for this image. This needs to match the renderer for the
+         *    View using this.
+         * @return The constructed [RiveRenderImage] object.
          */
         fun make(
             bytes: ByteArray,
@@ -138,9 +125,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
     }
 }
 
-/**
- * A native C++ object representing a Rive Font.
- */
+/** A native C++ object representing a Rive font. */
 class RiveFont internal constructor(address: Long) : NativeObject(address) {
     external override fun cppDelete(pointer: Long)
 
@@ -148,14 +133,13 @@ class RiveFont internal constructor(address: Long) : NativeObject(address) {
         private external fun cppMakeFont(bytes: ByteArray, rendererTypeIdx: Int): Long
 
         /**
-         * It creates a [RiveFont] for the caller decoding [bytes].
-         * The caller is in charge of the ownership of this [NativeObject]. It can be freed calling
-         * [release]
+         * It creates a [RiveFont] for the caller decoding [bytes]. The caller is in charge of the
+         * ownership of this [NativeObject]. It can be freed calling [release]
          *
-         * @param bytes encoded bytes for a font.
-         * @param rendererType the renderer decoding this font. This needs to match the renderer for
-         *  the View using this.
-         * @return
+         * @param bytes Encoded bytes for a font.
+         * @param rendererType The renderer decoding this font. This needs to match the renderer for
+         *    the View using this.
+         * @return The constructed [RiveFont] object.
          */
         fun make(
             bytes: ByteArray,
@@ -167,9 +151,7 @@ class RiveFont internal constructor(address: Long) : NativeObject(address) {
     }
 }
 
-/**
- * A native C++ object representing a Rive Audio Source.
- */
+/** A native C++ object representing a Rive audio asset. */
 class RiveAudio internal constructor(address: Long) : NativeObject(address) {
     external override fun cppDelete(pointer: Long)
 
@@ -177,16 +159,14 @@ class RiveAudio internal constructor(address: Long) : NativeObject(address) {
         private external fun cppMakeAudio(bytes: ByteArray, rendererTypeIdx: Int): Long
 
         /**
-         * It creates a [RiveAudio] for the caller decoding [bytes].
-         * The caller is in charge of the ownership of this [NativeObject]. It can be freed calling
-         * [release]
+         * Creates a [RiveAudio] for the caller decoding [bytes]. The caller is in charge of the
+         * ownership of this [NativeObject]. It can be freed calling [release]
          *
-         * @param bytes encoded bytes for an audio file.
-         * @param rendererType the renderer decoding this object. This needs to match the renderer for
-         *  the View using this.
-         * @return a [RiveAudio] object.
+         * @param bytes Encoded bytes for an audio file.
+         * @param rendererType The renderer decoding this object. This needs to match the renderer
+         *    for the View using this.
+         * @return The constructed [RiveAudio] object.
          */
-
         fun make(
             bytes: ByteArray,
             rendererType: RendererType = Rive.defaultRendererType

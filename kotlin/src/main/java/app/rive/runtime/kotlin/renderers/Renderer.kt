@@ -20,9 +20,8 @@ abstract class Renderer(
     val trace: Boolean = false
 ) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
-    // From NativeObject.
+    // From NativeObject
     external override fun cppDelete(pointer: Long)
-    //
 
     private external fun cppStart(rendererPointer: Long)
     private external fun cppStop(rendererPointer: Long)
@@ -65,10 +64,9 @@ abstract class Renderer(
     }
 
     /**
-     * Helper function to reassign the renderer type.
-     * This might be necessary if `constructor()` couldn't build the Renderer with `type`
-     * but had to fall back on a different value (e.g. PLS isn't available on emulators and
-     * the Renderer defaults back to Skia)
+     * Helper function to reassign the renderer type. This might be necessary if [constructor]
+     * couldn't build the renderer with [type] but had to fall back to a different value
+     * (e.g. the Rive Renderer isn't available on emulators and it defaults back to Skia).
      */
     private fun setRendererType(newType: Int) {
         if (newType != type.value) {
@@ -87,17 +85,16 @@ abstract class Renderer(
     abstract fun advance(elapsed: Float)
 
     /**
-     * Starts the Renderer & registers for frameCallbacks
+     * Starts the renderer and registers for frameCallbacks.
      *
-     * Goal:
-     * When we trigger start, doFrame gets called once per frame
-     *   - until we stop
-     *   - or the animation finishes
+     * Goal: When we trigger [start], [doFrame] gets called once per frame until we stop or the
+     * animation finishes.
      *
      * Gotchas:
-     * - scheduleFrame triggers callbacks to "doFrame" which in turn schedule more frames
-     * - if we call scheduleFrame multiple times we enter multiple parallel animations loops
-     * - to avoid this we check isPlaying & deregister frameCallbacks when stop is called by users
+     * - [scheduleFrame] triggers callbacks to [doFrame] which in turn schedules more frames
+     * - If we call [scheduleFrame] multiple times we enter multiple parallel animations loops
+     * - To avoid this we check [isPlaying] and deregister
+     *   [FrameCallbacks][Choreographer.FrameCallback] when stop is called by users
      */
     fun start() {
         if (isPlaying) return
@@ -116,15 +113,15 @@ abstract class Renderer(
     }
 
     /**
-     * Marks the animation as stopped
+     * Marks the animation as stopped.
      *
-     * lets the underlying renderer know we are intending to stop animating.
-     * we will also not draw on the next drawCycle & stop scheduling frameCallbacks
+     * Lets the underlying renderer know we are intending to stop animating. We
+     * will also not draw on the next draw cycle, and we will stop scheduling
+     * [FrameCallbacks][Choreographer.FrameCallback].
      *
-     * NOTE: safe to call from the animation thread.
-     * e.g inside .draw() / .advance(elapsed: Float) callbacks
+     * Note: Safe to call from the animation thread. e.g inside [draw]/[advance] callbacks.
      *
-     * NOTE: if you can, call stop() instead to avoid running multiple callback loops
+     * Note: If you can, call [stop] instead to avoid running multiple callback loops.
      */
     @CallSuper
     internal fun stopThread() {
@@ -136,10 +133,11 @@ abstract class Renderer(
     }
 
     /**
-     * Calls stop, and removes any pending frameCallbacks from the Choreographer
+     * Calls [stopThread] and removes any pending [FrameCallbacks][Choreographer.FrameCallback] from
+     * the Choreographer.
      *
-     * NOTE: this is NOT safe to call from the animation thread.
-     * e.g inside .draw() / .advance(elapsed: Float) callbacks
+     * Note: this is **not** safe to call from the animation thread. e.g inside [draw]/[advance]
+     * callbacks.
      */
     @CallSuper
     fun stop() {
@@ -161,7 +159,6 @@ abstract class Renderer(
         }
     }
 
-
     fun save() {
         cppSave(cppPointer)
     }
@@ -169,7 +166,6 @@ abstract class Renderer(
     fun restore() {
         cppRestore(cppPointer)
     }
-
 
     val width: Float
         get() = cppWidth(cppPointer).toFloat()
@@ -180,8 +176,13 @@ abstract class Renderer(
     val averageFps: Float
         get() = cppAvgFps(cppPointer)
 
-
-    fun align(fit: Fit, alignment: Alignment, targetBounds: RectF, sourceBounds: RectF, scaleFactor: Float = 1.0f) {
+    fun align(
+        fit: Fit,
+        alignment: Alignment,
+        targetBounds: RectF,
+        sourceBounds: RectF,
+        scaleFactor: Float = 1.0f
+    ) {
         cppAlign(
             cppPointer,
             fit,
@@ -213,26 +214,26 @@ abstract class Renderer(
     }
 
     /**
-     * Trigger a delete of the underlying C++ object.
+     * Trigger a deletion of the underlying C++ object.
      *
-     * [cppDelete] call will delete the underlying object.
-     * This will internally trigger a call to [disposeDependencies]
+     * [cppDelete] call will delete the underlying object. This will internally trigger a call to
+     * [disposeDependencies].
      */
     @CallSuper
     open fun delete() {
         destroySurface()
-        // Queues the cpp Renderer for deletion
+        // Queues the C++ renderer for deletion
         cppDelete(cppPointer)
         cppPointer = NULL_POINTER
     }
 
     /**
-     * Deletes all this renderer's dependents.
+     * Deletes all of this renderer's dependents.
      *
      * Called internally by the JNI within ~JNIRenderer()
      *
-     * N.B. this function is marked as `protected` instead of `private` because
-     * otherwise it's inaccessible from JNI on API < 24
+     * Note: This function is marked as `protected` instead of `private` because otherwise it's
+     * inaccessible from JNI on API < 24.
      */
     protected open fun disposeDependencies() {
         dependencies.forEach { it.release() }

@@ -32,7 +32,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if [ -z "$HOST_TAG" ]; then
-    echo "Unkown host tag for OS: $OSTYPE"
+    echo "Unknown host tag for OS: $OSTYPE"
     exit 1
 fi
 

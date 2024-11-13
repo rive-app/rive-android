@@ -1,8 +1,6 @@
 package app.rive.runtime.kotlin.core
 
-/**
- * [SMIBoolean]s is a boolean state machine input
- */
+/** A boolean state machine input. */
 class SMIBoolean(unsafeCppPointer: Long) :
     SMIInput(unsafeCppPointer) {
     private external fun cppValue(cppPointer: Long): Boolean

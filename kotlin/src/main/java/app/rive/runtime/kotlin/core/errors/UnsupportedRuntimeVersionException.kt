@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core.errors
 
 /**
- * A Custom Exception signifying the current file does not support this runtime version.
+ * A custom exception signifying the current file does not support this runtime version.
  *
- * Any issue should be described in the [message].
+ * @param message A description of the issue.
  */
 class UnsupportedRuntimeVersionException(message: String) : RiveException(message)

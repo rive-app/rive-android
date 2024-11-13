@@ -31,3 +31,5 @@ build.nexus.sh
 .classpath
 kotlin/src/main/jniLibs/*
 kotlin/.cxx
+# Notification of missing NDK
+kotlin/src/main/cpp/rive_build_x86.log

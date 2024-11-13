@@ -84,7 +84,7 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
         src/bindings/*.cpp
         src/helpers/*.cpp
         src/models/*.cpp
-        )
+)
 
 add_library(rive-android SHARED ${SOURCES})
 
@@ -96,14 +96,14 @@ set(static_libs
         rive_skia_renderer
         rive_pls_renderer
         skia
-        )
+)
 
 foreach (X IN LISTS static_libs)
     add_library(${X}-lib STATIC IMPORTED)
     set_target_properties(${X}-lib
             PROPERTIES IMPORTED_LOCATION
             ${CMAKE_CURRENT_SOURCE_DIR}/build/${CONFIG}/${CMAKE_ANDROID_ARCH_ABI}/lib${X}.a
-            )
+    )
 endforeach ()
 
 target_include_directories(rive-android PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -127,4 +127,4 @@ target_link_libraries(rive-android
         ${egl-lib}
         ${gles-lib}
         jnigraphics
-        )
+)

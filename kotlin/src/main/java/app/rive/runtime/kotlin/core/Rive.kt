@@ -17,11 +17,12 @@ object Rive {
         scaleFactor: Float
     )
 
-    private const val RiveAndroid = "rive-android"
+    private const val RIVE_ANDROID = "rive-android"
 
     /**
      * Public getter for the default renderer type.
-     * This can be customized via [Rive.init]
+     *
+     * This can be customized via [Rive.init].
      */
     var defaultRendererType: RendererType = RendererType.Skia
         private set
@@ -29,21 +30,19 @@ object Rive {
     /**
      * Initialises Rive.
      *
-     * This loads the c++ libraries required to use Rive objects and then makes sure we
-     * initialize our cpp environment.
-     *
-     * Specify the default renderer to be used when initializing [File] or [RiveAnimationView]
-     * by providing a [defaultRenderer] value. This defaults to [RendererType.Skia]
+     * This loads the C++ libraries required to use Rive objects and then makes sure to initialize
+     * the C++ environment.
      *
      * To handle loading .so files for the rive-android lib yourself, use [initializeCppEnvironment]
      * instead.
+     *
+     * @param defaultRenderer The default renderer to use when initializing [File] or
+     *    [RiveAnimationView]. Defaults to [RendererType.Skia].
      */
     fun init(context: Context, defaultRenderer: RendererType = RendererType.Skia) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
-        ReLinker
-            // .log { Log.d("ReLinkerLogs", "(${Thread.currentThread().id}) $it") }
-            .loadLibrary(context, RiveAndroid)
+        ReLinker.loadLibrary(context, RIVE_ANDROID)
         defaultRendererType = defaultRenderer
         initializeCppEnvironment()
     }
@@ -51,8 +50,8 @@ object Rive {
     /**
      * Initialises the JNI Bindings.
      *
-     * We update the c++ environment with a pointer to the JavaVM so that
-     * it can interact with Java objects.
+     * We update the C++ environment with a pointer to the JavaVM so that it can interact with JVM
+     * objects.
      *
      * Normally done as part of init, and only required if you are avoiding calling [init].
      */
@@ -84,16 +83,17 @@ object Rive {
      * Set a fallback font for the Rive runtime.
      *
      * @param byteArray The [ByteArray] bytes for a font file.
-     * @return A [boolean] indicating whether the font was successfully registered
+     * @return Whether the font was successfully registered.
      */
     fun setFallbackFont(byteArray: ByteArray): Boolean =
         NativeFontHelper.cppRegisterFallbackFont(byteArray)
 
     /**
      * Set a fallback font for the Rive runtime.
-     * @param opts The [Fonts.FontOpts] specifying the desired font
-     *             characteristics. If not provided, default options are used.
-     * @return A [boolean] indicating whether the font was successfully registered
+     *
+     * @param opts The [Fonts.FontOpts] specifying the desired font characteristics. If not
+     *    provided, default options are used.
+     * @return Whether the font was successfully registered.
      */
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean {
         FontHelper.getFallbackFontBytes(opts)?.let { bytes ->

@@ -37,9 +37,7 @@ import java.util.concurrent.locks.ReentrantLock
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 annotation class ControllerStateManagement
 
-/**
- * Keeps track of the State of a given Controller so that it can be saved and restored.
- */
+/** Keeps track of the state of a given controller so that it can be saved and restored. */
 @ControllerStateManagement
 class ControllerState internal constructor(
     val file: File,
@@ -71,21 +69,22 @@ class RiveFileController(
     }
 
     /**
-     * How many objects are referencing this Controller.
-     * When [refs] > 0 the object will be kept alive with its references
-     * When [refs] reaches 0 it will [release] the file, if any.
+     * The number of objects referencing this controller.
+     *
+     * When [refs] > 0 the object will be kept alive with its references. When [refs] reaches 0 it
+     * will [release] the file, if any.
      */
     override var refs = AtomicInteger(1)
 
     /**
-     * Whether this controller is active or not
-     * If this is false, it will prevent advancing or drawing.
+     * Whether this controller is active or not. If this is false, it will prevent advancing or
+     * drawing.
      */
     var isActive = false
 
     /**
-     * Whether this [activeArtboard] requires resizing or not.
-     * If this is true, the artboard will be resized in the next draw call.
+     * Whether this [activeArtboard] requires resizing or not. If this is true, the artboard will be
+     * resized in the next draw call.
      */
     internal var requireArtboardResize = AtomicBoolean(false);
 
@@ -106,9 +105,8 @@ class RiveFileController(
         }
 
     /**
-     * The scale factor to use for Fit.LAYOUT.
-     * If null, it will use a density determined by Rive (automatic).
-     * See [RiveFileController.layoutScaleFactorAutomatic] for more details.
+     * The scale factor to use for Fit.LAYOUT. If null, it will use a density determined by Rive
+     * (automatic). See [RiveFileController.layoutScaleFactorAutomatic] for more details.
      */
     var layoutScaleFactor: Float? = null
         set(value) {
@@ -120,8 +118,8 @@ class RiveFileController(
         }
 
     /**
-     * The automatic scale factor set by Rive. This value will only be used if
-     * [layoutScaleFactor] is not set (null).
+     * The automatic scale factor set by Rive. This value will only be used if [layoutScaleFactor]
+     * is not set (null).
      */
     var layoutScaleFactorAutomatic: Float = 1.0f
         internal set(value) {
@@ -133,9 +131,8 @@ class RiveFileController(
         }
 
     /**
-     * The active scale factor to use for Fit.LAYOUT.
-     * If the user has set a scale factor, it will use that.    
-     * Otherwise, it will use the automatic scale factor set by Rive.
+     * The active scale factor to use for Fit.LAYOUT. If the user has set a scale factor, it will
+     * use that. Otherwise, it will use the automatic scale factor set by Rive.
      */
     internal val layoutScaleFactorActive: Float
         get() = layoutScaleFactor ?: layoutScaleFactorAutomatic
@@ -172,7 +169,7 @@ class RiveFileController(
             }
         }
 
-    // warning: `toList()` access is not thread-safe, use animations instead
+    // Warning: `toList()` access is not thread-safe, use animations instead
     private var animationList =
         Collections.synchronizedList(mutableListOf<LinearAnimationInstance>())
     val animations: List<LinearAnimationInstance>
@@ -183,7 +180,7 @@ class RiveFileController(
         }
 
 
-    // warning: `toList()` access is not thread-safe, use stateMachines instead
+    // Warning: `toList()` access is not thread-safe, use stateMachines instead
     private var stateMachineList =
         Collections.synchronizedList(mutableListOf<StateMachineInstance>())
     val stateMachines: List<StateMachineInstance>
@@ -193,7 +190,7 @@ class RiveFileController(
             }
         }
 
-    // warning: toHashSet access is not thread-safe, use playingAnimations instead
+    // Warning: toHashSet access is not thread-safe, use playingAnimations instead
     private var playingAnimationSet =
         Collections.synchronizedSet(HashSet<LinearAnimationInstance>())
     val playingAnimations: HashSet<LinearAnimationInstance>
@@ -203,7 +200,7 @@ class RiveFileController(
             }
         }
 
-    // warning: toHashSet access is not thread-safe, use playingStateMachines instead
+    // Warning: toHashSet access is not thread-safe, use playingStateMachines instead
     private var playingStateMachineSet =
         Collections.synchronizedSet(HashSet<StateMachineInstance>())
     val playingStateMachines: HashSet<StateMachineInstance>
@@ -225,9 +222,7 @@ class RiveFileController(
 
     private val changedInputs = ConcurrentLinkedQueue<ChangedInput>()
 
-    /**
-     * Lock to prevent race conditions on starting and stopping the rendering thread.
-     */
+    /** Lock to prevent race conditions on starting and stopping the rendering thread. */
     internal val startStopLock = ReentrantLock()
 
     val isAdvancing: Boolean
@@ -240,11 +235,11 @@ class RiveFileController(
 
 
     /**
-     * Get a copy of the State of this Controller and acquire a reference to the File to prevent
-     * it being released from memory.
+     * Get a copy of the state of this controller and acquire a reference to the file to prevent it
+     * being released from memory.
      *
-     * Returns a [ControllerState] object with everything the controller was using.
-     * If the controller is pointing to stale data, it'll return null
+     * Returns a [ControllerState] object with everything the controller was using. If the
+     * controller is pointing to stale data, it will return null.
      */
     @ControllerStateManagement
     fun saveControllerState(): ControllerState? {
@@ -276,7 +271,7 @@ class RiveFileController(
      * Restore a copy of the state to this Controller.
      *
      * It also [release()]s any resources currently associated with this Controller in favor of the
-     * ones stored on the [state]
+     * ones stored on the [state].
      */
     @ControllerStateManagement
     fun restoreControllerState(state: ControllerState) {
@@ -299,8 +294,8 @@ class RiveFileController(
     /**
      * Note: This is happening in the render thread: this function is synchronized with a
      * ReentrantLock stored on the [File] because this is a critical section with the UI thread.
-     * When advancing or performing operations around an animations data structure, be conscious
-     * of thread safety.
+     * When advancing or performing operations around an animations data structure, be conscious of
+     * thread safety.
      */
     @WorkerThread
     fun advance(elapsed: Float) {
@@ -355,9 +350,9 @@ class RiveFileController(
     }
 
     /**
-     * Assigns the [file] to this Controller and instances the artboard provided via
-     * [artboardName]. If none is provided, it instantiates the first (i.e. default) artboard.
-     * If this controller is set to [autoplay] it will also start playing.
+     * Assigns the [file] to this Controller and instances the artboard provided via [artboardName].
+     * If none is provided, it instantiates the first (i.e. default) artboard. If this controller is
+     * set to [autoplay] it will also start playing.
      */
     fun setRiveFile(file: File, artboardName: String? = null) {
         if (file == this.file) {
@@ -369,9 +364,9 @@ class RiveFileController(
     }
 
     /**
-     * Instances the artboard with the specified [name]. If none is provided, it instantiates
-     * the first (i.e. default) artboard.
-     * If this controller is set to [autoplay] it will also start playing.
+     * Instances the artboard with the specified [name]. If none is provided, it instantiates the
+     * first (i.e. default) artboard. If this controller is set to [autoplay] it will also start
+     * playing.
      */
     fun selectArtboard(name: String? = null) {
         file?.let {
@@ -400,9 +395,8 @@ class RiveFileController(
     }
 
     /**
-     * Use the parameters in [rendererAttributes] to initialize [activeArtboard] and any animation/state machine
-     * specified by [rendererAttributes] animationName or stateMachine name.
-     *
+     * Use the parameters in [rendererAttributes] to initialize [activeArtboard] and any
+     * animation/state machine specified by [rendererAttributes] animationName or stateMachine name.
      */
     internal fun setupScene(rendererAttributes: RiveAnimationView.RendererAttributes) {
         val mFile = file
@@ -475,8 +469,8 @@ class RiveFileController(
     }
 
     /**
-     * Restarts paused animations if there are any.
-     * Otherwise, it starts playing the first animation (timeline or state machine) in the Artboard.
+     * Restarts paused animations if there are any. Otherwise, it starts playing the first animation
+     * (timeline or state machine) in the Artboard.
      */
     fun play(
         loop: Loop = Loop.AUTO,
@@ -536,9 +530,7 @@ class RiveFileController(
         }
     }
 
-    /**
-     * called [stopAnimations] to avoid conflicting with [stop]
-     */
+    /** Named [stopAnimations] to avoid conflicting with [stop]. */
     fun stopAnimations() {
         // Check whether we need to go through the synchronized `animations` getter
         if (animationList.isNotEmpty()) {
@@ -569,9 +561,9 @@ class RiveFileController(
     }
 
     /**
-     * Queues an input with [inputName] so that it can be processed on the next advance.
-     * It also tries to start the thread if it's not started, which will internally cause advance
-     * to happen at least once.
+     * Queues an input with [inputName] so that it can be processed on the next advance. It also
+     * tries to start the thread if it's not started, which will internally cause advance to happen
+     * at least once.
      */
     private fun queueInput(
         stateMachineName: String,
@@ -689,8 +681,8 @@ class RiveFileController(
     }
 
     /**
-     * Get the text value for a text run named [textRunName] on the nested artboard
-     * represented at [path].
+     * Get the text value for a text run named [textRunName] on the nested artboard represented at
+     * [path].
      */
     fun getTextRunValue(textRunName: String, path: String): String? {
         return activeArtboard?.getTextRunValue(textRunName, path)
@@ -698,7 +690,8 @@ class RiveFileController(
 
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
-     * @throws RiveException if the text run does not exist.
+     *
+     * @throws TextValueRunException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
         activeArtboard?.setTextRunValue(textRunName, textValue)
@@ -710,7 +703,8 @@ class RiveFileController(
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the nested artboard
      * represented at [path].
-     * @throws RiveException if the text run does not exist.
+     *
+     * @throws TextValueRunException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String, path: String) {
         activeArtboard?.setTextRunValue(textRunName, textValue, path)
@@ -721,14 +715,10 @@ class RiveFileController(
 
     private var userSetVolume: Float? = null // Default value
 
-    /**
-     * Get the active [Artboard]'s volume.
-     */
+    /** Get the active [Artboard]'s volume. */
     fun getVolume(): Float? = activeArtboard?.volume
 
-    /**
-     * Set the active [Artboard]'s volume to [value].
-     */
+    /** Set the active [Artboard]'s volume to [value]. */
     fun setVolume(value: Float) {
         userSetVolume = value
         activeArtboard?.volume = value
@@ -952,7 +942,7 @@ class RiveFileController(
     /**
      * Adds a [RiveEventListener] to get notified on [RiveEvent]s
      *
-     * Remove with: [removeEventListener]
+     * Remove with: [removeEventListener].
      */
     fun addEventListener(listener: RiveEventListener) {
         synchronized(startStopLock) {
@@ -960,9 +950,7 @@ class RiveFileController(
         }
     }
 
-    /**
-     * Removes the [listener]
-     */
+    /** Removes the [listener]. */
     fun removeEventListener(listener: RiveEventListener) {
         synchronized(startStopLock) {
             _eventListeners.remove(listener)
@@ -999,7 +987,7 @@ class RiveFileController(
     }
 
     /**
-     * We want to clear out all references to objects with potentially stale native counterparts
+     * We want to clear out all references to objects with potentially stale native counterparts.
      */
     internal fun reset() {
         playingAnimationSet.clear()
@@ -1011,9 +999,12 @@ class RiveFileController(
     }
 
     /**
-     * Release a reference associated with this Controller.
-     * If [refs] == 0, then give up all resources and [release] the file
+     * Release a reference associated with this Controller. If [refs] == 0, then give up all
+     * resources and [release] the file.
+     *
+     * @throws IllegalStateException If [refs] is 0
      */
+    @Throws(IllegalStateException::class)
     override fun release(): Int {
         val count = super.release()
         require(count >= 0)
@@ -1026,7 +1017,6 @@ class RiveFileController(
         return count
     }
 
-    /* LISTENER INTERFACE */
     interface Listener {
         fun notifyPlay(animation: PlayableInstance)
         fun notifyPause(animation: PlayableInstance)

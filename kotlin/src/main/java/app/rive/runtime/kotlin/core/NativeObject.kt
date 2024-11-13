@@ -3,10 +3,9 @@ package app.rive.runtime.kotlin.core
 import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.concurrent.atomic.AtomicInteger
 
-
 /**
- * NativeObject is a Kotlin object that's backed by a C++ counterpart via the JNI.
- * It keeps track of the current pointer value in its local variable [unsafeCppPointer].
+ * NativeObject is a Kotlin object that's backed by a C++ counterpart via the JNI. It keeps track of
+ * the current pointer value in its local variable [unsafeCppPointer].
  *
  * [unsafeCppPointer] is accessible via the [cppPointer] getter/setter.
  */
@@ -19,9 +18,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
         const val NULL_POINTER = 0L
     }
 
-    /**
-     * Whether this objects underlying pointer is still valid.
-     */
+    /** Whether this objects underlying pointer is still valid. */
     val hasCppObject get() = unsafeCppPointer != NULL_POINTER
 
     final override var refs = AtomicInteger(
@@ -61,11 +58,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
 
     /**
-     * Builds a combined stack trace incorporating the disposal stack trace and the current access trace.
-     * This helps diagnosing issues with invalid memory access.
+     * Builds a combined stack trace incorporating the disposal stack trace and the current access
+     * trace. This helps diagnosing issues with invalid memory access.
      *
-     * @return A list of [StackTraceElement] combining `dispose()` Stack Trace (if available)
-     *              with the current one.
+     * @return A list of [StackTraceElement] combining `dispose()` Stack Trace (if available) with
+     *    the current one.
      */
     private fun buildCombinedStackTrace(): List<StackTraceElement> {
         val combinedTrace = mutableListOf<StackTraceElement>()
@@ -86,9 +83,11 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
 
     /**
-     * Increments the references for this counter.
+     * Increments the references for this counter. Cannot be used for initialization - use
+     * [refs].[incrementAndGet][AtomicInteger.incrementAndGet] instead.
      *
-     * @throws IllegalArgumentException if refs already is 0.
+     * @return The new reference count.
+     * @throws IllegalStateException if refs already is 0.
      */
     @Throws(IllegalArgumentException::class)
     @Synchronized
@@ -101,7 +100,8 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     /**
      * Decrements the reference counter.
      *
-     * @throws IllegalArgumentException if refs already is 0.
+     * @return The new reference count.
+     * @throws IllegalStateException if [refs] is already 0.
      */
     @Throws(IllegalArgumentException::class)
     @Synchronized
@@ -118,10 +118,10 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     /**
      * Disposes of this reference and potentially any of the dependents.
      *
-     * Uses [refs] to keep track of how many objects are using this NativeObject.
-     * When refs == 0 the object will be disposed.
+     * Uses [refs] to keep track of how many objects are using this NativeObject. When refs == 0 the
+     * object will be disposed.
      *
-     * @throws IllegalArgumentException if refs is != 0
+     * @throws IllegalStateException if [refs] is not 0.
      */
     @Throws(IllegalArgumentException::class)
     @Synchronized

@@ -5,7 +5,7 @@ package app.rive.runtime.kotlin.core
  *
  * These instances allow modification of Rive text runs.
  *
- * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
+ * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
 open class RiveTextValueRun(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
     private external fun cppText(cppPointer: Long): String

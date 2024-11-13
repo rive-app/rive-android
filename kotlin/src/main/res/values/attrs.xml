@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="CustomRiveView">
+        <!-- When true, the animation will play as soon as its available.
+        Set it to false to control the playback programmatically.
+        Defaults to true. -->
         <attr name="riveAutoPlay" format="boolean" />
         <attr name="riveTraceAnimations" format="boolean" />
+        <!-- The artboard to use. Defaults to the first artboard in the file. -->
         <attr name="riveArtboard" format="string" />
         <attr name="riveAnimation" format="string" />
         <attr name="riveStateMachine" format="string" />
+        <!-- How the animation should be resized to fit its container. -->
         <attr name="riveFit" format="enum">
             <enum name="FILL" value="0" />
             <enum name="CONTAIN" value="1" />
@@ -16,6 +21,7 @@
             <enum name="SCALE_DOWN" value="6" />
             <enum name="LAYOUT" value="7" />
         </attr>
+        <!-- How the animation should be aligned to its container. -->
         <attr name="riveAlignment" format="enum">
             <enum name="TOP_LEFT" value="0" />
             <enum name="TOP_CENTER" value="1" />
@@ -27,6 +33,8 @@
             <enum name="BOTTOM_CENTER" value="7" />
             <enum name="BOTTOM_RIGHT" value="8" />
         </attr>
+        <!-- Whether the animation should loop, play once, or ping-pong back and forth.
+        Defaults to the value in the Rive file. -->
         <attr name="riveLoop" format="enum">
             <enum name="ONESHOT" value="0" />
             <enum name="LOOP" value="1" />
@@ -39,7 +47,11 @@
             <enum name="Rive" value="1" />
             <enum name="Canvas" value="2" />
         </attr>
+        <!-- The local Rive file to load. -->
         <attr name="riveResource" format="reference" />
+        <!-- Load a remote Rive file from a URL over HTTP. Requires internet permissions.
+        See: https://rive.app/community/doc/android/docxb0vASIwp#internet-permissions
+        Overwritten if riveResource is supplied. -->
         <attr name="riveUrl" format="string" />
         <attr name="riveAssetLoaderClass" format="string" />
         <attr name="riveShouldLoadCDNAssets" format="boolean" />

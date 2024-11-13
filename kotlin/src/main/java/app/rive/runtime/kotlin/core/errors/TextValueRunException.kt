@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core.errors
 
 /**
- * A Custom Exception signifying a problem with a text value run.
+ * A custom exception signifying a problem with a text value run.
  *
- * Any issue should be described in the [message].
+ * @param message A description of the issue.
  */
 class TextValueRunException(message: String) : RiveException(message)

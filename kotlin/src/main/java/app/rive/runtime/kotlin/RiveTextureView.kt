@@ -16,10 +16,6 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
     TextureView.SurfaceTextureListener {
 
-    companion object {
-        const val TAG = "RiveTextureView"
-    }
-
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
         getContextAsType<Activity>()!!

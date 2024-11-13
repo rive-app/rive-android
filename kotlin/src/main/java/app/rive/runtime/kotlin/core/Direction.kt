@@ -6,7 +6,7 @@ enum class Direction(val value: Int) {
     AUTO(0);
 
     companion object {
-        private val map = values().associateBy(Direction::value)
+        private val map = entries.associateBy(Direction::value)
         fun fromInt(type: Int) = map[type]
     }
 }

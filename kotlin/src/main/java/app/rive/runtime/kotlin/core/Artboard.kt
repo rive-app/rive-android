@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin.core
 
 import android.graphics.RectF
 import app.rive.runtime.kotlin.core.errors.AnimationException
-import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
@@ -11,13 +10,11 @@ import java.util.concurrent.locks.ReentrantLock
 /**
  * [Artboard]s as designed in the Rive animation editor.
  *
- * This object has a counterpart in c++, which implements a lot of functionality.
- * The [unsafeCppPointer] keeps track of this relationship.
+ * [Artboard]s provide access to available [animation]s, and some basic properties. You can [draw]
+ * artboards using a [Renderer][app.rive.runtime.kotlin.renderers.Renderer] that is tied to a
+ * canvas.
  *
- * [Artboard]s provide access to available [Animation]s, and some basic properties.
- * You can [draw] artboards using a [Renderer] that is tied to a canvas.
- *
- * The constructor uses a [unsafeCppPointer] to point to its c++ counterpart object.
+ * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
 class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     NativeObject(unsafeCppPointer) {
@@ -86,19 +83,19 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     external override fun cppDelete(pointer: Long)
 
-    /**
-     * Get the [name] of the Artboard.
-     */
+    /** Get the [name] of the Artboard. */
     val name: String
         get() = cppName(cppPointer)
 
     /**
-     * Get the first [Animation] of the [Artboard].
+     * Get the first [animation][LinearAnimationInstance] of the [Artboard].
      *
      * If you use more than one animation, it is preferred to use the [animation] functions.
+     *
+     * @throws AnimationException if the animation does not exist.
      */
     val firstAnimation: LinearAnimationInstance
-        @Throws(RiveException::class)
+        @Throws(AnimationException::class)
         get() {
             return animation(0)
         }
@@ -107,8 +104,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      * Get the animation at a given [index] in the [Artboard].
      *
      * This starts at 0.
+     *
+     * @throws AnimationException If the animation does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(AnimationException::class)
     fun animation(index: Int): LinearAnimationInstance {
         val animationPointer = cppAnimationByIndex(cppPointer, index)
         if (animationPointer == NULL_POINTER) {
@@ -121,8 +120,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Get the animation with a given [name] in the [Artboard].
+     *
+     * @throws AnimationException If the animation does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(AnimationException::class)
     fun animation(name: String): LinearAnimationInstance {
         val animationPointer = cppAnimationByName(cppPointer, name)
         if (animationPointer == NULL_POINTER) {
@@ -137,23 +138,27 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
-     * Get the first [StateMachine] of the [Artboard].
+     * Get the first [state machine][StateMachineInstance] of the artboard.
      *
      * If you use more than one animation, it is preferred to use the [stateMachine] functions.
+     *
+     * @throws StateMachineException If the state machine does not exist.
      */
     val firstStateMachine: StateMachineInstance
-        @Throws(RiveException::class)
+        @Throws(StateMachineException::class)
         get() {
             return stateMachine(0)
         }
 
 
     /**
-     * Get the animation at a given [index] in the [Artboard].
+     * Get the animation at a given [index] in the artboard.
      *
      * This starts at 0.
+     *
+     * @throws StateMachineException If the state machine does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineException::class)
     fun stateMachine(index: Int): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
         if (stateMachinePointer == NULL_POINTER) {
@@ -165,9 +170,11 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
-     * Get the animation with a given [name] in the [Artboard].
+     * Get the animation with a given [name] in the artboard.
+     *
+     * @throws StateMachineException If the state machine does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineException::class)
     fun stateMachine(name: String): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByName(cppPointer, name)
         if (stateMachinePointer == NULL_POINTER) {
@@ -180,23 +187,26 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Get the input instance with a given [name] on the nested artboard represented at [path].
+     *
+     * @throws StateMachineInputException If the input does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineInputException::class)
     fun input(name: String, path: String): SMIInput {
         val stateMachineInputPointer = cppInputByNameAtPath(cppPointer, name, path)
         if (stateMachineInputPointer == NULL_POINTER) {
-            throw StateMachineInputException("No StateMachineInput found with name $name in nested artboard $path.")
+            throw StateMachineInputException("No StateMachineInput found with name \"$name\" in nested artboard $path.")
         }
         val input = SMIInput(stateMachineInputPointer)
         return convertInput(input)
     }
 
     /**
-     * Get a [RiveTextValueRun] with a given [name] in the [Artboard].
+     * Get a [RiveTextValueRun] with a given [name] in the artboard.
+     *
      * @return The text value run.
-     * @throws RiveException if the text run does not exist.
+     * @throws TextValueRunException If the text run does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(TextValueRunException::class)
     fun textRun(name: String): RiveTextValueRun {
         val textRunPointer = cppFindTextValueRun(cppPointer, name)
         if (textRunPointer == NULL_POINTER) {
@@ -209,6 +219,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Get the text value for a text run named [name].
+     *
      * @return The text value of the run, or null if the run is not found.
      */
     fun getTextRunValue(name: String): String? {
@@ -217,8 +228,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Set the text value for a text run named [name] to [textValue].
-     * @throws RiveException if the text run does not exist.
+     *
+     * @throws TextValueRunException If the text run does not exist.
      */
+    @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String) {
         val successCheck = cppSetValueOfTextValueRun(cppPointer, name, textValue)
         if (!successCheck) {
@@ -228,10 +241,11 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /**
      * Get a [RiveTextValueRun] with a given [name] on the nested artboard represented at [path].
+     *
      * @return The text value run.
-     * @throws RiveException if the text run does not exist.
+     * @throws TextValueRunException If the text run does not exist.
      */
-    @Throws(RiveException::class)
+    @Throws(TextValueRunException::class)
     fun textRun(name: String, path: String): RiveTextValueRun {
         val textRunPointer = cppFindTextValueRunAtPath(cppPointer, name, path)
         if (textRunPointer == NULL_POINTER) {
@@ -243,8 +257,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
-     * Get the text value for a text run named [name] on the nested artboard
-     * represented at [path].
+     * Get the text value for a text run named [name] on the nested artboard represented at [path].
+     *
      * @return The text value of the run, or null if the run is not found.
      */
     fun getTextRunValue(name: String, path: String): String? {
@@ -254,8 +268,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     /**
      * Set the text value for a text run named [name] to [textValue] on the nested artboard
      * represented at [path].
-     * @throws RiveException if the text run does not exist.
+     *
+     * @throws TextValueRunException If the text run does not exist.
      */
+    @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String, path: String) {
         val successCheck = cppSetValueOfTextValueRunAtPath(cppPointer, name, textValue, path)
         if (!successCheck) {
@@ -263,34 +279,32 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         }
     }
 
-    /**
-     * Get and set the volume of the [Artboard].
-     */
+    /** Get and set the volume of the artboard. */
     var volume: Float
         get() = cppGetVolume(cppPointer)
         internal set(value) = cppSetVolume(cppPointer, value)
 
-    /**
-     * Get the number of animations stored inside the [Artboard].
-     */
+    /** @return The number of animations stored inside the artboard. */
     val animationCount: Int
         get() = cppAnimationCount(cppPointer)
 
-    /**
-     * Get the number of state machines stored inside the [Artboard].
-     */
+    /** @return The number of state machines stored inside the artboard. */
     val stateMachineCount: Int
         get() = cppStateMachineCount(cppPointer)
 
     /**
-     * Advancing the artboard updates the layout for all dirty components contained in the [Artboard]
-     * updates the positions forces all components in the [Artboard] to be laid out.
+     * Advancing the artboard:
+     * - Updates the layout for all dirty components contained in the artboard
+     * - Updates the positions
+     * - Forces all components in the artboard to be laid out
      *
-     * Components are all the shapes, bones and groups of an [Artboard].
-     * Whenever components are added to an artboard, for example when an artboard is first loaded, they are considered dirty.
-     * Whenever animations change properties of components, move a shape or change a color, they are marked as dirty.
+     * Components are all the shapes, bones and groups of an artboard. Whenever components are added
+     * to an artboard, for example when an artboard is first loaded, they are considered dirty.
+     * Whenever animations change properties of components, move a shape, or change a color, they
+     * are marked as dirty.
      *
-     * Before any changes to components will be visible in the next rendered frame, the artboard needs to be [advance]d.
+     * Before any changes to components will be visible in the next rendered frame, the artboard
+     * needs to be [advanced][advance].
      *
      * [elapsedTime] is currently not taken into account.
      */
@@ -298,27 +312,25 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
-    /**
-     * Draw the the artboard to the [renderer].
-     */
+
+    /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     @Deprecated(
         "Use draw(rendererAddress) instead",
         ReplaceWith("draw(rendererAddress)")
     )
+
     fun drawSkia(rendererAddress: Long) {
-        draw(rendererAddress);
+        draw(rendererAddress)
     }
 
-    /**
-     * Draw the the artboard to the [renderer].
-     */
+    /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     fun draw(rendererAddress: Long) {
         synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
     }
 
     /**
-     * Draw the the artboard to the [renderer].
-     * Also align the artboard to the render surface.
+     * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
+     * align the artboard to the render surface.
      */
     @Deprecated(
         "Use draw(rendererAddress, fit, alignment, scaleFactor) instead",
@@ -329,8 +341,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
-     * Draw the the artboard to the [renderer].
-     * Also align the artboard to the render surface.
+     * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
+     * align the artboard to the render surface.
      */
     fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
         synchronized(lock) {
@@ -344,42 +356,30 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         }
     }
 
-    /**
-     * Reset the artboard size to its defaults.
-     */
+    /** Reset the artboard size to its defaults. */
     fun resetArtboardSize() {
         cppResetArtboardSize(cppPointer)
     }
 
-    /**
-     * Get the bounds of Artboard as defined in the rive editor.
-     */
+    /** @return The bounds of artboard as defined in the Rive Editor. */
     val bounds: RectF
         get() = cppBounds(cppPointer)
 
-    /**
-     * The width of the artboard.
-     */
+    /** The width of the artboard. */
     var width: Float
         get() = cppGetArtboardWidth(cppPointer)
         set(value) = cppSetArtboardWidth(cppPointer, value)
 
-    /**
-     * The height of the artboard.
-     */
+    /** The height of the artboard. */
     var height: Float
         get() = cppGetArtboardHeight(cppPointer)
         set(value) = cppSetArtboardHeight(cppPointer, value)
 
-    /**
-     * Get the names of the animations in the artboard.
-     */
+    /** @return The names of all animations in the artboard. */
     val animationNames: List<String>
         get() = (0 until animationCount).map { cppAnimationNameByIndex(cppPointer, it) }
 
-    /**
-     * Get the names of the stateMachines in the artboard.
-     */
+    /** @return The names of all stateMachines in the artboard. */
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
 

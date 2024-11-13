@@ -31,7 +31,7 @@ JNIEnv* GetJNIEnv()
     int getEnvStat = g_JVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED)
     {
-        LOGW("JVM::GetEnv - Not Attached.");
+        LOGW("GetJNIEnv - Not Attached.");
         if (g_JVM->AttachCurrentThread((JNIEnv**)&g_env, NULL) != 0)
         {
             LOGE("Failed to attach current thread.");
@@ -43,10 +43,11 @@ JNIEnv* GetJNIEnv()
     }
     else if (getEnvStat == JNI_EVERSION)
     {
-        LOGE("JVM::GetEnv: unsupported version %d", getEnvStat);
+        LOGE("GetJNIEnv: unsupported version %d", getEnvStat);
     }
     return g_env;
 }
+
 void DetachThread()
 {
     if (g_JVM->DetachCurrentThread() != JNI_OK)

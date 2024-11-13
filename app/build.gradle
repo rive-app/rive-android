@@ -1,8 +1,10 @@
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
+apply plugin: "com.android.application"
+apply plugin: "kotlin-android"
 
 android {
     compileSdk 34
+    namespace "app.rive.runtime.example"
+    ndkVersion "25.1.8937393"
 
     defaultConfig {
         applicationId "app.rive.runtime.example"
@@ -22,18 +24,18 @@ android {
             debuggable true
             minifyEnabled false
             shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         release {
             minifyEnabled true
             shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         preview {
             debuggable true
             minifyEnabled false
             shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             getIsDefault().set(true)
             signingConfig signingConfigs.debug
         }
@@ -47,49 +49,46 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
 
-
     buildFeatures {
         viewBinding true
         compose true
     }
-    namespace 'app.rive.runtime.example'
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.10'
+        kotlinCompilerExtensionVersion "1.5.10"
     }
     packagingOptions {
         resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    ndkVersion '25.1.8937393'
 }
 
 dependencies {
-    implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'androidx.core:core-ktx:1.13.1'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.fragment:fragment-ktx:1.8.3'
-    implementation 'androidx.activity:activity:1.9.2'
-    debugImplementation project(path: ':kotlin')
-    releaseImplementation project(path: ':kotlin')
-    previewImplementation 'app.rive:rive-android:+'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.6'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.activity:activity-compose:1.9.2'
-    implementation "androidx.compose.ui:ui:$compose_version"
+    implementation "androidx.activity:activity-compose:1.9.2"
+    implementation "androidx.activity:activity:1.9.2"
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.compose.material3:material3:1.3.0"
     implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
-    implementation 'androidx.compose.material3:material3:1.3.0'
-    implementation 'androidx.startup:startup-runtime:1.2.0'
-    implementation 'com.android.volley:volley:1.2.1'
+    implementation "androidx.compose.ui:ui:$compose_version"
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+    implementation "androidx.core:core-ktx:1.13.1"
+    implementation "androidx.fragment:fragment-ktx:1.8.3"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.6"
+    implementation "androidx.startup:startup-runtime:1.2.0"
+    implementation "com.android.volley:volley:1.2.1"
+    implementation "com.google.android.material:material:1.12.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    debugImplementation project(path: ":kotlin")
+    releaseImplementation project(path: ":kotlin")
+    previewImplementation "app.rive:rive-android:+"
 
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
-    androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.7.2'
-    androidTestImplementation project(path: ':kotlin')
-    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.7.2"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation project(path: ":kotlin")
     debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
-    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.14'
+    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
+    debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
 }

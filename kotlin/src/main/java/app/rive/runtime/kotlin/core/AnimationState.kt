@@ -1,9 +1,9 @@
 package app.rive.runtime.kotlin.core
 
 /**
- * [AnimationState]s are a baseclass for state machine layer states.
+ * [AnimationState]s are a base class for state machine layer states.
  *
- * The constructor uses an [unsafeCppPointer] to point to its c++ counterpart object.
+ * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
 class AnimationState(unsafeCppPointer: Long) : LayerState(unsafeCppPointer) {
 

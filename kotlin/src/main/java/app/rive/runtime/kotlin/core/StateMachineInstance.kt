@@ -1,7 +1,6 @@
 package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.RiveEventException
-import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 import java.util.concurrent.locks.ReentrantLock
 
@@ -9,11 +8,11 @@ import java.util.concurrent.locks.ReentrantLock
 /**
  * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
  *
- * This object has a counterpart in c++, which implements a lot of functionality.
- * The [unsafeCppPointer] keeps track of this relationship.
+ * This object has a counterpart in C++, which implements a lot of functionality. The
+ * [unsafeCppPointer] keeps track of this relationship.
  *
- * Use this to keep track of a [StateMachine]s current state and progress. And to help [apply] changes
- * that the [StateMachine] makes to components in an [Artboard].
+ * Use this to keep track of a [StateMachine]s current state and progress, and to help [apply]
+ * changes that the [StateMachine] makes to components in an [Artboard].
  */
 class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     PlayableInstance,
@@ -33,22 +32,19 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
 
     external override fun cppDelete(pointer: Long)
 
-    /**
-     * Return the name given to an animation
-     */
+    /** @return The name given to an animation. */
     override val name: String
         get() = cppName(cppPointer)
 
-    /**
-     * Return the number of layers configured for the state machine.
-     */
+    /** @return The number of layers configured for the state machine. */
     val layerCount: Int
         get() = cppLayerCount(cppPointer)
 
     /**
-     * Advance the state machine by the [elapsedTime] in seconds.
+     * Advance the state machine.
      *
-     * Returns true if the state machine will continue to animate after this advance.
+     * @param elapsed The time in seconds to advance by.
+     * @return `true` if the state machine will continue to animate after this advance.
      */
     fun advance(elapsed: Float): Boolean {
         synchronized(lock) { return cppAdvance(cppPointer, elapsed) }
@@ -66,21 +62,15 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
         synchronized(lock) { return cppPointerMove(cppPointer, x, y) }
     }
 
-    /**
-     * Return the number of inputs configured for the state machine.
-     */
+    /** @return The number of inputs configured for the state machine. */
     val inputCount: Int
         get() = cppInputCount(cppPointer)
 
-    /**
-     * Return the number of states changed in the last advance.
-     */
+    /** @return The number of states changed in the last advance. */
     private val stateChangedCount: Int
         get() = cppStateChangedCount(cppPointer)
 
-    /**
-     * Return the number of events fired in the last advance.
-     */
+    /** @return The number of events fired in the last advance. */
     private val reportedEventCount: Int
         get() = cppReportedEventCount(cppPointer)
 
@@ -95,11 +85,13 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     }
 
     /**
-     * Get the input instance at a given [index] in the [StateMachine].
+     * Get the input instance at a given [index] in the state machine.
      *
      * This starts at 0.
+     *
+     * @throws StateMachineInputException If no [SMIInput] is found at the given [index].
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineInputException::class)
     fun input(index: Int): SMIInput {
         val stateMachineInputPointer = cppSMIInputByIndex(cppPointer, index)
         if (stateMachineInputPointer == NULL_POINTER) {
@@ -110,9 +102,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     }
 
     /**
-     * Get the input with a given [name] in the [StateMachine].
+     * Get the input with a given [name] in the state machine.
+     *
+     * @throws StateMachineInputException If no [SMIInput] is found with the given [name].
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineInputException::class)
     fun input(name: String): SMIInput {
         for (i in 0 until inputCount) {
             val output = input(i)
@@ -123,15 +117,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
         throw StateMachineInputException("No StateMachineInput found with name $name.")
     }
 
-    /**
-     * Get the stateMachineInputs in the state machine.
-     */
+    /** @return All inputs in the state machine. */
     val inputs: List<SMIInput>
         get() = (0 until inputCount).map { input(it) }
 
-    /**
-     * Get the names of the stateMachineInputs in the state machine.
-     */
+    /** @return The names of all inputs in the state machine. */
     val inputNames: List<String>
         get() = (0 until inputCount).map { input(it).name }
 
@@ -162,12 +152,13 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
         return convertedState
     }
 
-
     /**
      * Get a specific state changed in the last advance.
-     * @throws RiveException if no [LayerState] is found at the given [index]
+     *
+     * @param index The index of the state.
+     * @throws StateMachineInputException If no [LayerState] is found at the given [index].
      */
-    @Throws(RiveException::class)
+    @Throws(StateMachineInputException::class)
     fun stateChanged(index: Int): LayerState {
         val stateChanged = cppStateChangedByIndex(cppPointer, index)
         if (stateChanged == 0L) {
@@ -179,9 +170,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
 
     /**
      * Get a specific event fired in the last advance.
-     * @throws RiveException if no event is found at the given [index]
+     *
+     * @param index The index of the event.
+     * @throws RiveEventException If no event is found at the given [index].
      */
-    @Throws(RiveException::class)
+    @Throws(RiveEventException::class)
     fun eventAt(index: Int): RiveEvent {
         val eventReport = cppReportedEventAt(cppPointer, index)
         if (eventReport.unsafeCppPointer == NULL_POINTER) {
@@ -191,13 +184,12 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
         return eventReport.event
     }
 
-    /**
-     * Get the layer states changed in the last advance.
-     */
+    /** @return All layer states changed in the last advance. */
     val statesChanged: List<LayerState>
         get() = (0 until stateChangedCount).map { stateChanged(it) }
 
 
+    /** @return All events fired in the last advance. */
     val eventsReported: List<RiveEvent>
         get() = (0 until reportedEventCount).map { eventAt(it) }
 }

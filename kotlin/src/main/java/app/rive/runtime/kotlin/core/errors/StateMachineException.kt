@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core.errors
 
 /**
- * A Custom Exception signifying a problem with the State Machine name supplied.
+ * A custom exception signifying a problem with the supplied state machine name.
  *
- * Any issue should be described in the [message].
+ * @param message A description of the issue.
  */
 class StateMachineException(message: String) : RiveException(message)

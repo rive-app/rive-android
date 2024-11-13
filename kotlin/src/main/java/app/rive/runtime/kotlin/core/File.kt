@@ -7,14 +7,14 @@ import java.util.concurrent.locks.ReentrantLock
 /**
  * [File]s are created in the rive editor.
  *
- * This object has a counterpart in c++, which implements a lot of functionality.
- * The [unsafeCppPointer] keeps track of this relationship.
+ * This object has a counterpart in C++, which implements a lot of functionality. The base class's
+ * [cppPointer] keeps track of this relationship.
  *
  * You can export these .riv files and load them up. [File]s can contain multiple artboards.
  *
- * If the given file cannot be loaded this will throw a [RiveException].
- * The Rive [File] format is evolving, and while we attempt to keep backwards (and forwards) compatibility
- * where possible, there are times when this is not possible.
+ * If the given file cannot be loaded this will throw a [RiveException]. The Rive [File] format is
+ * evolving, and while we attempt to keep backwards (and forwards) compatibility where possible,
+ * there are times when this is not possible.
  *
  * The rive editor will always let you download your file in the latest runtime format.
  */
@@ -52,9 +52,7 @@ class File(
 
     external override fun cppDelete(pointer: Long)
 
-    /**
-     * Get the first (i.e. the default) artboard in the file.
-     */
+    /** Get the first (i.e. the default) artboard in the file. */
     val firstArtboard: Artboard
         @Throws(RiveException::class)
         get() = artboard(0)
@@ -97,15 +95,11 @@ class File(
         return ab
     }
 
-    /**
-     * Get the number of artboards in the file.
-     */
+    /** Get the number of artboards in the file. */
     val artboardCount: Int
         get() = cppArtboardCount(cppPointer)
 
-    /**
-     * Get the names of the artboards in the file.
-     */
+    /** Get the names of the artboards in the file. */
     val artboardNames: List<String>
         get() = (0 until artboardCount).map {
             val name = cppArtboardNameByIndex(cppPointer, it)

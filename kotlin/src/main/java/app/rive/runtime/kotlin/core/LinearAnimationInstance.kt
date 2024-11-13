@@ -3,18 +3,17 @@ package app.rive.runtime.kotlin.core
 import java.util.concurrent.locks.ReentrantLock
 
 /**
- * The [LinearAnimationInstance] is a helper to wrap common operations to play an [animation].
+ * The [LinearAnimationInstance] is a helper to wrap common operations to play an animation.
  *
- * This object has a counterpart in c++, which implements a lot of functionality.
- * The [unsafeCppPointer] keeps track of this relationship.
+ * Use this to keep track of an animation's current state and progress. You may also [apply] changes
+ * that the animation makes to components in an [Artboard].
  *
- * Use this to keep track of an animation current state and progress. And to help [apply] changes
- * that the [animation] makes to components in an [Artboard].
+ * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
 class LinearAnimationInstance(
     unsafeCppPointer: Long,
     private val lock: ReentrantLock,
-    var mix: Float = 1.0f
+    var mix: Float = 1.0f,
 ) :
     PlayableInstance, NativeObject(unsafeCppPointer) {
 
@@ -35,10 +34,11 @@ class LinearAnimationInstance(
     external override fun cppDelete(pointer: Long)
 
     /**
-     * Advance the animation by the [elapsedTime] in seconds.
+     * Advance the animation.
      *
-     * Returns the [Loop] type associated with the current animation if this advance looped,
-     *      otherwise it returns null.
+     * @param elapsedTime The time in seconds to advance by.
+     * @return The [Loop] type associated with the current animation if this advance caused a loop,
+     *    otherwise null.
      */
     fun advance(elapsedTime: Float): Loop? {
         synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
@@ -46,10 +46,10 @@ class LinearAnimationInstance(
 
 
     /**
-     * Applies the animation instance's current set of transformations to an [artboard].
+     * Applies the animation instance's current set of transformations to an [Artboard].
      *
-     * The [mix] (a value between 0 and 1) is the strength at which the animation is mixed with
-     * other animations applied to the [artboard].
+     * Uses the [mix] property (a value between 0 and 1) to set the strength at which the animation
+     * is mixed with other animations applied to the [Artboard].
      */
     fun apply() {
         synchronized(lock) { cppApply(cppPointer, mix) }
@@ -58,7 +58,7 @@ class LinearAnimationInstance(
     /**
      * Applies and advances the animation instance in a single step.
      *
-     * Returns true if the animation will continue to animate after this advance.
+     * @return `true` if the animation will continue to animate after this advance.
      */
     fun apply(elapsed: Float): Boolean {
         synchronized(lock) { cppApply(cppPointer, mix) }
@@ -66,44 +66,37 @@ class LinearAnimationInstance(
         return loopType != Loop.ONESHOT
     }
 
-    /**
-     * Returns the current point in time at which this instance has advance
-     * to.
-     */
+    /** The elapsed time that this instance has played to. */
     val time: Float
         get() {
             return cppGetTime(cppPointer)
         }
 
-    /**
-     * Sets the animation's point in time to [time]
-     */
+    /** Seeks the animation to [time]. */
     fun time(time: Float) {
         synchronized(lock) { cppSetTime(cppPointer, time) }
     }
 
     /**
-     * Configure the [Direction] of the animation instance
-     * [Direction.FORWARDS] or [Direction.BACKWARDS]
+     * Configure the animation to play [forwards][Direction.FORWARDS] or
+     * [backwards][Direction.BACKWARDS].
      */
     var direction: Direction
         get() {
-            val intDirection = cppGetDirection(cppPointer)
-            return Direction.fromInt(intDirection) ?: throw IndexOutOfBoundsException()
+            val direction = Direction.fromInt(cppGetDirection(cppPointer))
+            check(direction != null)
+            return direction
         }
         set(direction) = synchronized(lock) { cppSetDirection(cppPointer, direction.value) }
 
     /**
-     * Get the duration of an animation in frames, this does not take [workStart]
-     * and [workEnd] into account
+     * The duration of an animation in frames. This does not take [workStart] and [workEnd] into
+     * account.
      */
     val duration: Int
         get() = cppDuration(cppPointer)
 
-    /**
-     * Get the duration of an animation in frames, taking [workStart]
-     * and [workEnd] into account
-     */
+    /** The duration of this animation in frames, taking [workStart] and [workEnd] into account. */
     val effectiveDuration: Int
         get() {
             if (workStart == -1) {
@@ -112,43 +105,36 @@ class LinearAnimationInstance(
             return workEnd - workStart
         }
 
-    /**
-     * Get the duration of an animation in seconds, taking [workStart]
-     * and [workEnd] into account
-     */
+    /** The duration of an animation in seconds, taking [workStart] and [workEnd] into account. */
     val effectiveDurationInSeconds: Float
         get() = effectiveDuration.toFloat() / fps
 
 
-    /**
-     * Return the fps configured for the animation
-     */
+    /** Return the frames per second (FPS) configured for this animation. */
     val fps: Int
         get() = cppFps(cppPointer)
 
     /**
-     * Return the offset in frames to the beginning of an animations work area.
-     * Animations will start playing from here.
+     * The offset in frames to the beginning of an animations work area. Animations will start
+     * playing from here.
      */
     val workStart: Int
         get() = cppWorkStart(cppPointer)
 
     /**
-     * Return the offset in frames to the end of an animations work area.
-     * Animations will will loop, pingpong and stop once this is reached.
+     * The offset in frames to the end of an animations work area. Animations will execute their
+     * loop behavior once this is reached.
      */
     val workEnd: Int
         get() = cppWorkEnd(cppPointer)
 
-    /**
-     * Return the name given to an animation
-     */
+    /** The name given to this animation. */
     override val name: String
         get() = cppName(cppPointer)
 
     /**
-     * Return the offset in frames to the beginning of an animations.
-     * Animations will start playing from here.
+     * The offset in seconds to the beginning of the animation. Animations will start playing from
+     * here.
      */
     val startTime: Float
         get() {
@@ -159,9 +145,7 @@ class LinearAnimationInstance(
             }
         }
 
-    /**
-     * Return the offset in frames to the end of an animation.
-     */
+    /** The offset in seconds to the end of the animation. */
     val endTime: Float
         get() {
             return if (workEnd == -1) {
@@ -172,8 +156,8 @@ class LinearAnimationInstance(
         }
 
     /**
-     * Configure the [Loop] mode configured against an animation. can be either
-     * [Loop.LOOP], [Loop.ONESHOT], [Loop.PINGPONG] or [Loop.AUTO]
+     * Configure the [Loop] mode for this animation. Can be either [Loop.LOOP], [Loop.ONESHOT],
+     * [Loop.PINGPONG] or [Loop.AUTO].
      */
     var loop: Loop
         get() {

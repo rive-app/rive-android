@@ -48,7 +48,7 @@ class FontHelpersTest {
     fun systemFontMatch() {
         val font = FontHelper.getFallbackFont()
         assertNotNull(font)
-        assertEquals(font, Fonts.Font.DEFAULT)
+        assertEquals(Fonts.Font.DEFAULT, font)
 
         val notFound =
             FontHelper.getFallbackFont(
@@ -61,8 +61,8 @@ class FontHelpersTest {
                 Fonts.FontOpts(familyName = "arial", style = "italic")
             )
         assertNotNull(withAlias)
-        assertEquals(withAlias?.name, "Roboto-Italic.ttf")
-        assertEquals(withAlias?.weight, Fonts.Weight.NORMAL)
+        assertEquals("Roboto-Italic.ttf", withAlias?.name)
+        assertEquals(Fonts.Weight.NORMAL, withAlias?.weight)
     }
 
     @Test

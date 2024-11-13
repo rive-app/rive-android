@@ -30,7 +30,6 @@ open class RiveArtboardRenderer(
         }
     }
 
-
     @WorkerThread
     private fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
@@ -45,9 +44,8 @@ open class RiveArtboardRenderer(
         }
     }
 
-
-    /// Note: This is happening in the render thread
-    /// be aware of thread safety!
+    // Note: This is happening in the render thread.
+    // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
         if (!hasCppObject || !controller.isActive) {
@@ -61,8 +59,8 @@ open class RiveArtboardRenderer(
         controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
     }
 
-    /// Note: This is happening in the render thread
-    /// be aware of thread safety!
+    // Note: This is happening in the render thread.
+    // Be aware of thread safety!
     @WorkerThread
     override fun advance(elapsed: Float) {
         if (!hasCppObject) {

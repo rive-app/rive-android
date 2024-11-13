@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core.errors
 
 /**
- * A Custom Exception signifying a problem with some Rive components.
+ * A custom exception signifying a problem with some Rive components.
  *
- * Any issue should be described in the [message].
+ * @param message A description of the issue.
  */
 open class RiveException(message: String) : Exception(message)

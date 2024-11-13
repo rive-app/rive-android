@@ -17,10 +17,6 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 class ViewPagerActivity : AppCompatActivity() {
     private lateinit var binding: ViewPagerBinding
 
-    companion object {
-        const val TAG = "ViewPagerActivity"
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

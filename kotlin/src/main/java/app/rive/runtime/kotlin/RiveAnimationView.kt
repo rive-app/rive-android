@@ -14,6 +14,7 @@ import androidx.annotation.CallSuper
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
@@ -23,6 +24,7 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.*
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.core.errors.TextValueRunException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RendererMetrics
@@ -40,38 +42,26 @@ import kotlin.math.min
 
 
 /**
- * This view aims to provide the most straightforward way to get rive animations into your application.
+ * This view aims to provide the most straightforward way to get Rive graphics into your
+ * application.
  *
- * Simply add the view to your activities, and you are be good to to!
+ * Simply add the view to your activity and you are good to go!
  *
- * Very simple animations can be configured completely from a layout file. We also also expose a
- * thin api layer to allow more control over how animations are playing.
+ * Very simple animations can be configured completely from a layout file. We also expose a thin API
+ * layer to allow more control over how animations are played.
  *
- * All of this is built upon the core [rive animation wrappers][app.rive.runtime.kotlin.core],
- * which are designed to expose our c++ rive animation runtimes directly, and can be used
- * directly for the most flexibility.
- *
- *
- * Xml attrs [AttributeSet] can be used to set initial values for many
- * - Provide the [resource][R.styleable.RiveAnimationView_riveResource] to load as a rive file, this can be done later with [setRiveResource], [setRiveBytes], or [setRiveFile].
- * - Alternatively, provide the [url][R.styleable.RiveAnimationView_riveUrl] to load as a rive file over HTTP.
- * - Determine the [artboard][R.styleable.RiveAnimationView_riveArtboard] to use, this defaults to the first artboard in the file.
- * - Enable or disable [autoplay][R.styleable.RiveAnimationView_riveAutoPlay] to start the animation as soon as its available, or leave it to false to control its playback later. defaults to enabled.
- * - Configure [alignment][R.styleable.RiveAnimationView_riveAlignment] to specify how the animation should be aligned to its container.
- * - Configure [fit][R.styleable.RiveAnimationView_riveFit] to specify how and if the animation should be resized to fit its container.
- * - Configure [loop mode][R.styleable.RiveAnimationView_riveLoop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
+ * All of this is built upon the C++ wrappers under the `app.rive.runtime.kotlin.core` namespace
+ * which can be used directly for the most flexibility.
  */
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
-    RiveTextureView(context, attrs),
-    Observable<RiveFileController.Listener> {
+    RiveTextureView(context, attrs), Observable<RiveFileController.Listener> {
     companion object {
-        // Static Tag for Logging.
         const val TAG = "RiveAnimationView"
 
         // Default attribute values.
-        const val alignmentIndexDefault = 4 /* Alignment.CENTER */
-        const val fitIndexDefault = 1       /* Fit.CONTAIN */
-        const val loopIndexDefault = 3      /* Loop.AUTO */
+        val alignmentIndexDefault = Alignment.CENTER.ordinal
+        val fitIndexDefault = Fit.CONTAIN.ordinal
+        val loopIndexDefault = Loop.AUTO.ordinal
         const val traceAnimationsDefault = false
         const val shouldLoadCDNAssetsDefault = true
         val rendererIndexDefault = Rive.defaultRendererType.value
@@ -112,9 +102,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
 
     /**
-     * The scale factor to use for Fit.LAYOUT.
-     * If null, it will use a density determined by Rive (automatic).
-     * See [layoutScaleFactorAutomatic] for more details.
+     * The scale factor to use for [Fit.LAYOUT]. If `null`, it will use a density determined by Rive
+     * (automatic).
+     *
+     * @see layoutScaleFactorAutomatic
      */
     var layoutScaleFactor: Float?
         get() = controller.layoutScaleFactor
@@ -124,8 +115,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         }
 
     /**
-     * The automatic scale factor set by Rive. This value will only be used if
-     * [layoutScaleFactor] is not set (null).
+     * The automatic scale factor set by Rive. This value will only be used if [layoutScaleFactor]
+     * is `null`.
      */
     var layoutScaleFactorAutomatic: Float
         get() = controller.layoutScaleFactorAutomatic
@@ -134,21 +125,17 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             controller.layoutScaleFactorAutomatic = value
         }
 
-    /**
-     * Getter for the loaded [Rive file][File].
-     */
+    /** Getter for the loaded [Rive file][File]. */
     val file: File?
         get() = controller.file
 
-    /**
-     * Helper for determining performance metrics.
-     */
+    /** Helper for determining performance metrics. */
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
     private val bounds = RectF()
 
     /**
-     * Getter/Setter for the currently loaded artboard Name
-     * Setting a new name, will load the new artboard & depending on [autoplay] play them
+     * Getter/Setter for the currently loaded artboard name. Setting a new name will load the new
+     * artboard and, depending on [autoplay], play them.
      */
     var artboardName: String?
         get() = controller.activeArtboard?.name
@@ -156,46 +143,34 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             controller.selectArtboard(name)
         }
 
-    /**
-     * Getter/Setter for [autoplay].
-     */
+    /** Getter/Setter for [autoplay]. */
     var autoplay: Boolean
         get() = controller.autoplay
         set(value) {
             controller.autoplay = value
         }
 
-    /**
-     * Get the currently loaded [animation instances][LinearAnimationInstance].
-     */
+    /** Get the currently loaded [animation instances][LinearAnimationInstance]. */
     val animations: List<LinearAnimationInstance>
         get() = controller.animations
 
-    /**
-     * Get the currently loaded [state machine instances][StateMachineInstance].
-     */
+    /** Get the currently loaded [state machine instances][StateMachineInstance]. */
     val stateMachines: List<StateMachineInstance>
         get() = controller.stateMachines
 
-    /**
-     * Get the currently playing [animation instances][LinearAnimationInstance].
-     */
+    /** Get the currently playing [animation instances][LinearAnimationInstance]. */
     val playingAnimations: HashSet<LinearAnimationInstance>
         get() = controller.playingAnimations
 
-    /**
-     * Get the currently playing [state machine instances][StateMachineInstance].
-     */
+    /** Get the currently playing [state machine instances][StateMachineInstance]. */
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = controller.playingStateMachines
 
-    /**
-     * The current [LifecycleOwner]. At the time of creation it will be the [Activity].
-     */
+    /** The current [LifecycleOwner]. At the time of creation it will be the [Activity]. */
     private var lifecycleOwner: LifecycleOwner? = getContextAsType<LifecycleOwner>()
 
     /**
-     * Tracks the renderer attributes that need to be applied when this [View] within its lifecycle.
+     * Tracks the renderer attributes that need to be applied to this [View] within its lifecycle.
      */
     class RendererAttributes(
         alignmentIndex: Int = alignmentIndexDefault,
@@ -212,8 +187,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     ) {
         companion object {
             /**
-             * When a [name] is provided, it tries to build a [FileAssetLoader].
-             * [name] needs to be a full class name, including the package (e.g. `java.lang.Thread`)
+             * When a [name] is provided, it tries to build a [FileAssetLoader]. [name] needs to be
+             * a full class name, including the package (e.g. `java.lang.Thread`)
              *
              * This function expects that the classname provided is either a [FileAssetLoader], for
              * which the class has a constructor with no parameters, or a [ContextAssetLoader],
@@ -223,10 +198,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 return if (!name.isNullOrEmpty()) {
                     try {
                         val kClass = Class.forName(name).kotlin
-                        val maybeContextAssetLoader =
-                            kClass.constructors.find {
-                                it.parameters.size == 1 && it.parameters.first().type.classifier == Context::class
-                            }?.call(context.applicationContext)
+                        val maybeContextAssetLoader = kClass.constructors.find {
+                            it.parameters.size == 1 && it.parameters.first().type.classifier == Context::class
+                        }?.call(context.applicationContext)
                         if (maybeContextAssetLoader != null) {
                             return maybeContextAssetLoader as ContextAssetLoader
                         }
@@ -292,9 +266,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     init {
         context.theme.obtainStyledAttributes(
-            attrs,
-            R.styleable.RiveAnimationView,
-            0, 0
+            attrs, R.styleable.RiveAnimationView, 0, 0
         ).apply {
             try {
                 val resId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
@@ -315,28 +287,25 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
                 rendererAttributes = RendererAttributes(
                     alignmentIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveAlignment,
-                        alignmentIndexDefault
+                        R.styleable.RiveAnimationView_riveAlignment, alignmentIndexDefault
                     ),
                     fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, fitIndexDefault),
                     loopIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveLoop,
-                        loopIndexDefault
+                        R.styleable.RiveAnimationView_riveLoop, loopIndexDefault
                     ),
-                    autoplay =
-                    getBoolean(R.styleable.RiveAnimationView_riveAutoPlay, defaultAutoplay),
-                    riveTraceAnimations =
-                    getBoolean(
-                        R.styleable.RiveAnimationView_riveTraceAnimations,
-                        traceAnimationsDefault
+                    autoplay = getBoolean(
+                        R.styleable.RiveAnimationView_riveAutoPlay,
+                        defaultAutoplay
+                    ),
+                    riveTraceAnimations = getBoolean(
+                        R.styleable.RiveAnimationView_riveTraceAnimations, traceAnimationsDefault
                     ),
                     artboardName = getString(R.styleable.RiveAnimationView_riveArtboard),
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
                     resource = resourceFromValue,
                     rendererIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveRenderer,
-                        rendererIndexDefault
+                        R.styleable.RiveAnimationView_riveRenderer, rendererIndexDefault
                     ),
                     assetLoader = FallbackAssetLoader(
                         context = context.applicationContext,
@@ -351,8 +320,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 )
                 /**
                  * Attach the observer to give us lifecycle hooks
-                 * N.B. we're attaching in the constructor because the View can be created without
-                 * getting ever attached (e.g. in RecyclerViews) - we need to register the Observer
+                 *
+                 * N.B.: We're attaching in the constructor because the View can be created without
+                 * ever getting attached (e.g. in RecyclerViews) - we need to register the Observer
                  * right away. [lifecycleOwner] at this point is going to be the wrapping Activity.
                  */
                 lifecycleOwner?.lifecycle?.addObserver(lifecycleObserver)
@@ -397,9 +367,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onSurfaceTextureAvailable(
-        surfaceTexture: SurfaceTexture,
-        width: Int,
-        height: Int
+        surfaceTexture: SurfaceTexture, width: Int, height: Int
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
@@ -451,9 +419,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         queue.add(stringRequest)
     }
 
-    /**
-     * Pauses all playing [animation instance][LinearAnimationInstance].
-     */
+    /** Pauses all playing [animation instances][LinearAnimationInstance]. */
     fun pause() {
         artboardRenderer?.stop()
         controller.pause()
@@ -464,8 +430,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Pauses any [animation instances][LinearAnimationInstance] with any of the provided
      * [names][animationNames].
      *
-     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animationNames]
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can be running the same
+     * [animationNames].
      */
     fun pause(animationNames: List<String>, areStateMachines: Boolean = false) {
         controller.pause(animationNames = animationNames, areStateMachines = areStateMachines)
@@ -475,8 +441,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Pauses any [animation instances][LinearAnimationInstance] called [animationName].
      *
-     * Advanced: Multiple [animation instances][LinearAnimationInstance] can running the same
-     * [animationName] Animation
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can be running the same
+     * [animationName] Animation.
      */
     fun pause(animationName: String, isStateMachine: Boolean = false) {
         controller.pause(animationName = animationName, isStateMachine = isStateMachine)
@@ -485,9 +451,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Stops all [animation instances][LinearAnimationInstance].
      *
-     * Animations Instances will be disposed of completely.
-     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
-     * for the animation in the file.
+     * Animations instances will be disposed of completely. Subsequent plays will create new
+     * [animation instances][LinearAnimationInstance] for the animation in the file.
      */
     fun stop() {
         controller.stopAnimations()
@@ -498,24 +463,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Stops any [animation instances][LinearAnimationInstance] with any of the provided
      * [names][animationNames].
      *
-     * Animations Instances will be disposed of completely.
-     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
-     * for the animations in the file.
+     * Animations instances will be disposed of completely. Subsequent plays will create new
+     * [animation instances][LinearAnimationInstance] for the animations in the file.
      *
-     * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation
+     * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation.
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
         controller.stopAnimations(
-            animationNames = animationNames,
-            areStateMachines = areStateMachines
+            animationNames = animationNames, areStateMachines = areStateMachines
         )
     }
 
     /**
      * Stops any [animation instances][LinearAnimationInstance] called [animationName].
      *
-     * Animations Instances will be disposed of completely.
-     * Subsequent plays will create new [animation instances][LinearAnimationInstance]
+     * Animations instances will be disposed of completely. Subsequent plays will create new
+     * [animation instances][LinearAnimationInstance]
      *
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation.
      */
@@ -524,20 +487,20 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Restarts paused animations.
-     * If no animations were playing it plays the first in the [File].
+     * Restarts paused animations. If no animations were playing it plays the first in the [File].
      *
-     * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured loop mode.
-     * Already playing animation instances will be updated to this loop mode if provided.
+     * @experimental Optionally provide a [loop mode][Loop] to overwrite the animations configured
+     *    loop mode. Already playing animation instances will be updated to this loop mode if
+     *    provided.
+     * @experimental Optionally provide a [direction][Direction] to set the direction an animation
+     *    is playing in. Already playing animation instances will be updated to this direction
+     *    immediately. Backwards animations will start from the end.
+     * @experimental Optionally provide a [settleInitialState][Boolean] to inform the state machine
+     *    to settle its state on initialization by determining its starting state based of the
+     *    initial input values.
      *
-     * @experimental Optionally provide a [direction][Direction] to set the direction an animation is playing in.
-     * Already playing animation instances will be updated to this direction immediately.
-     * Backwards animations will start from the end.
-     *
-     * @experimental Optionally provide a [settleInitialState][Boolean] to inform the state machine to settle its
-     * state on initialization by determining its starting state based of the initial input values.
-     *
-     * For any animation without an [animation instance][LinearAnimationInstance] one will be created and played.
+     * For any animation without an [animation instance][LinearAnimationInstance] one will be
+     * created and played.
      */
     fun play(
         loop: Loop = Loop.AUTO,
@@ -551,10 +514,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Plays any [animation instances][LinearAnimationInstance] with any of the
-     * provided [names][animationNames].
+     * Plays any [animation instances][LinearAnimationInstance] with any of the provided
+     * [names][animationNames].
      *
-     * see [play] for more details on options
+     * @see play
      */
     fun play(
         animationNames: List<String>,
@@ -578,7 +541,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Plays any [animation instances][LinearAnimationInstance] called [animationName].
      *
-     * see [play] for more details on options
+     * @see play
      */
     fun play(
         animationName: String,
@@ -602,71 +565,83 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Reset the view by resetting the current artboard, before any animations have been applied
+     * Reset the view by resetting the current artboard before any animations have been applied.
      *
-     * Note: this will respect [autoplay]
+     * Note: This will respect [autoplay].
      */
     fun reset() {
         artboardRenderer?.reset()
     }
 
     /**
-     * Fire the [SMITrigger] input called [inputName] on all active matching state machines
+     * Fire an [SMITrigger] input.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The trigger input name.
      */
     fun fireState(stateMachineName: String, inputName: String) {
         controller.fireState(stateMachineName = stateMachineName, inputName = inputName)
     }
 
     /**
-     * Update the state of the [SMIBoolean] input called [inputName] on all active matching state machines
-     * to [value]
+     * Update the state of an [SMIBoolean] input.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The boolean input name.
+     * @param value The new value.
      */
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
         controller.setBooleanState(
-            stateMachineName = stateMachineName,
-            inputName = inputName,
-            value = value
+            stateMachineName = stateMachineName, inputName = inputName, value = value
         )
     }
 
     /**
-     * Update the state of the [SMINumber] input called [inputName] on all active matching state machines
-     * to [value]
+     * Update the state of an [SMINumber] input.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The number input name.
+     * @param value The new value.
      */
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
         controller.setNumberState(
-            stateMachineName = stateMachineName,
-            inputName = inputName,
-            value = value
+            stateMachineName = stateMachineName, inputName = inputName, value = value
         )
     }
 
     /**
-     * Fire the [SMITrigger] input called [inputName] on the nested artboard represented at [path]
+     * Fire an [SMITrigger] input.
+     *
+     * @param inputName The trigger name.
+     * @param path The path to the nested artboard.
      */
     fun fireStateAtPath(inputName: String, path: String) {
         controller.fireStateAtPath(inputName = inputName, path = path)
     }
 
     /**
-     * Update the state of the [SMIBoolean] input called [inputName] on the nested artboard represented at [path]
-     * to [value]
+     * Update the state of an [SMIBoolean] input.
+     *
+     * @param inputName The boolean input name.
+     * @param value The new value.
+     * @param path The path to the nested artboard.
      */
     fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
         controller.setBooleanStateAtPath(inputName = inputName, value = value, path = path)
     }
 
     /**
-     * Update the state of the [SMINumber] input called [inputName] on the nested artboard represented at [path]
-     * to [value]
+     * Update the state of an [SMINumber] input.
+     *
+     * @param inputName The number input name.
+     * @param value The new value.
+     * @param path The path to the nested artboard.
      */
     fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
         controller.setNumberStateAtPath(inputName = inputName, value = value, path = path)
     }
 
-    /**
-     * Update multiple states at once supplying one or more [inputs]
-     */
+    /** Update multiple states at once supplying one or more [inputs]. */
     fun setMultipleStates(vararg inputs: ChangedInput) {
         controller.queueInputs(*inputs)
     }
@@ -679,8 +654,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Get the text value for a text run named [textRunName] on the nested artboard
-     * represented at [path].
+     * Get the text value for a text run named [textRunName] on the nested artboard represented at
+     * [path].
      */
     fun getTextRunValue(textRunName: String, path: String): String? {
         return controller.getTextRunValue(textRunName = textRunName, path = path)
@@ -688,8 +663,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
 
     /**
-     * Set the text value for a text run named [textRunName] to [textValue] on the active artboard
-     * @throws RiveException if the text run does not exist.
+     * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
+     *
+     * @throws TextValueRunException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String) {
         controller.setTextRunValue(textRunName = textRunName, textValue = textValue)
@@ -698,39 +674,39 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the nested artboard
      * represented at [path].
-     * @throws RiveException if the text run does not exist.
+     *
+     * @throws TextValueRunException if the text run does not exist.
      */
     fun setTextRunValue(textRunName: String, textValue: String, path: String) {
         controller.setTextRunValue(textRunName = textRunName, textValue = textValue, path = path)
     }
 
-    /**
-     * Get the active [Artboard]'s volume.
-     */
+    /** Get the active [Artboard]'s volume. */
     fun getVolume(): Float? = controller.getVolume()
 
-    /**
-     * Set the active [Artboard]'s volume to [value].
-     */
+    /** Set the active [Artboard]'s volume to [value]. */
     fun setVolume(value: Float) = controller.setVolume(value)
 
-    /**
-     * Check if the animation is currently playing
-     */
+    /** Check if the animation is currently playing. */
     val isPlaying: Boolean
         get() = renderer?.isPlaying == true
 
     /**
-     * Load the [resource Id][resId] as a rive file and load it into the view.
+     * Load the [resource ID][resId] as a Rive file into the view.
      *
-     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
-     * - Enable [autoplay] to start the animation without further prompts.
-     * - Configure [alignment] to specify how the animation should be aligned to its container.
-     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
-     *
-     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     * @param resId The resource ID to load.
+     * @param artboardName Optionally provide an named artboard to use. Defaults to the first
+     *    artboard in the file.
+     * @param animationName Optionally provide an named animation to load. If not supplied, playing
+     *    will default to the first animation.
+     * @param stateMachineName Optionally provide a named state machine to load.
+     * @param autoplay Enable autoplay to start the animation automatically.
+     * @param fit Configure how the animation should be resized to fit its container.
+     * @param alignment Configure how the animation should be aligned to its container.
+     * @param loop Configure if animations should loop, play once, or ping-pong back and forth.
+     *    Defaults to the setup in the Rive file.
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the
+     *    file.
      */
     fun setRiveResource(
         @RawRes resId: Int,
@@ -738,9 +714,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.AUTO,
+        fit: Fit = Fit.fromIndex(fitIndexDefault),
+        alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
+        loop: Loop = Loop.fromIndex(loopIndexDefault),
     ) {
         rendererAttributes.apply {
             this.artboardName = artboardName
@@ -760,16 +736,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Create a view file from a byte array and load it into the view
+     * Create a Rive file from a byte array and load it into the view.
      *
-     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
-     * - Enable [autoplay] to start the animation without further prompts.
-     * - Configure [alignment] to specify how the animation should be aligned to its container.
-     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
-     *
-     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     * @param bytes The byte array to load as a Rive file.
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the
+     *    file.
+     * @see setRiveResource
      */
     fun setRiveBytes(
         bytes: ByteArray,
@@ -777,9 +749,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.AUTO,
+        fit: Fit = Fit.fromIndex(fitIndexDefault),
+        alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
+        loop: Loop = Loop.fromIndex(loopIndexDefault),
     ) {
         rendererAttributes.apply {
             this.artboardName = artboardName
@@ -792,7 +764,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.resource = makeMaybeResource(bytes)
         }
 
-
         loadFileFromResource {
             controller.file = it
             controller.setupScene(rendererAttributes)
@@ -800,18 +771,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Set up this View to use the specified Rive [file]. The [file] has been initialized outside
-     * this scope and the user passing it in is responsible for cleaning up its resources.
+     * Set this view to use the specified Rive [file]. The file must be initialized outside this
+     * scope and the caller is responsible for cleaning up its resources.
      *
-     * - Optionally provide an [artboardName] to use, or the first artboard in the file.
-     * - Optionally provide an [animationName] to load by default, playing without any suggested animations names will simply play the first animation
-     * - Optionally provide a [stateMachineName] to load by default.
-     * - Enable [autoplay] to start the animation without further prompts.
-     * - Configure [fit] to specify how and if the animation should be resized to fit its container.
-     * - Configure [alignment] to specify how the animation should be aligned to its container.
-     * - Configure [loop] to configure if animations should loop, play once, or ping-pong back and forth. Defaults to the setup in the rive file.
-     *
-     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the file.
+     * @param file The Rive file to load.
+     * @throws [RiveException] if [artboardName] or [animationName] are set and do not exist in the
+     *    file.
+     * @see setRiveResource
      */
     fun setRiveFile(
         file: File,
@@ -819,14 +785,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        loop: Loop = Loop.AUTO,
+        fit: Fit = Fit.fromIndex(fitIndexDefault),
+        alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
+        loop: Loop = Loop.fromIndex(loopIndexDefault),
     ) {
         if (file.rendererType != rendererAttributes.rendererType) {
             throw RiveException(
-                "Incompatible Renderer types: file initialized with ${file.rendererType.name}" +
-                        " but View is set up for ${rendererAttributes.rendererType.name}"
+                "Incompatible Renderer types: file initialized with ${file.rendererType.name}" + " but View is set up for ${rendererAttributes.rendererType.name}"
             )
         }
         rendererAttributes.apply {
@@ -840,18 +805,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.resource = makeMaybeResource(file)
         }
 
-
         controller.file = file
         controller.setupScene(rendererAttributes)
 
     }
 
     /**
-     * Overrides the current asset loader.
-     * It increases the [assetLoader] ref count by one, but its ownership is still
-     * in the hands of the caller.
+     * Overrides the current asset loader. It increases the [assetLoader] ref count by one, but its
+     * ownership is still in the hands of the caller.
      *
-     * A RiveView creates a [FallbackAssetLoader] by default.
+     * A RiveAnimationView creates a [FallbackAssetLoader] by default.
      */
     fun setAssetLoader(assetLoader: FileAssetLoader?) {
         if (assetLoader == rendererAttributes.assetLoader) {
@@ -888,15 +851,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Ensure that the current [lifecycleOwner] is still valid in this View's tree.
-     * Upon creation, the original [lifecycleOwner] is going to be the [Activity] containing this
-     * [RiveAnimationView]. If the [View] is added within a different [LifecycleOwner] this needs
-     * to be validated again.
-     * This could arise when adding the [View] to a [Fragment].
-     * If the [lifecycleOwner] has changed, this is swapped out.
+     * Ensure that the current [lifecycleOwner] is still valid in this View's tree. Upon creation,
+     * the original [lifecycleOwner] is going to be the [Activity][android.app.Activity] containing
+     * this [RiveAnimationView]. If the [View] is added within a different [LifecycleOwner]
+     * this needs to be validated again. This could arise when adding the [View] to a
+     * [Fragment][android.app.Fragment]. If the [lifecycleOwner] has changed, this is swapped out.
      * Calling addObserver again will trigger a onCreate/onStart/onResume again.
      */
     private fun validateLifecycleOwner() {
+
         val currentLifecycleOwner = this.findViewTreeLifecycleOwner()
         currentLifecycleOwner?.let {
             if (it != lifecycleOwner) {
@@ -951,15 +914,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             frameMetricsListener = RendererMetrics(activity).also {
                 activity.window.addOnFrameMetricsAvailableListener(
-                    it,
-                    Handler(Looper.getMainLooper())
+                    it, Handler(Looper.getMainLooper())
                 )
             }
         } else {
-            Log.w(
-                TAG,
-                "FrameMetrics is available with Android SDK 24 (Nougat) and higher"
-            )
+            Log.w(TAG, "FrameMetrics is available with Android SDK 24 (Nougat) and higher")
         }
     }
 
@@ -993,7 +952,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Rive automatically sets to the current density. If [layoutScaleFactor] is not
         // set by the user, this value will be used.
         controller.layoutScaleFactorAutomatic = resources.displayMetrics.density
-        controller.requireArtboardResize.set(true); // artboard requires resizing depending on Fit
+        controller.requireArtboardResize.set(true) // artboard requires resizing depending on Fit
 
         bounds.set(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat())
         // Lets work out how much space our artboard is going to actually use.
@@ -1009,15 +968,13 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val width: Int = when (widthMode) {
             MeasureSpec.EXACTLY -> providedWidth
             MeasureSpec.AT_MOST -> min(usedBounds.width().toInt(), providedWidth)
-            else ->
-                usedBounds.width().toInt()
+            else -> usedBounds.width().toInt()
         }
 
         val height: Int = when (heightMode) {
             MeasureSpec.EXACTLY -> providedHeight
             MeasureSpec.AT_MOST -> min(usedBounds.height().toInt(), providedHeight)
-            else ->
-                usedBounds.height().toInt()
+            else -> usedBounds.height().toInt()
         }
         setMeasuredDimension(width, height)
     }
@@ -1031,17 +988,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     /**
-     * Adds a [RiveEventListener] to get notified on [RiveEvent]s
+     * Adds a [RiveEventListener][RiveFileController.RiveEventListener] to get notified on
+     * [RiveEvent]s
      *
-     * Remove with: [removeEventListener]
+     * Remove with: [removeEventListener].
      */
     fun addEventListener(listener: RiveFileController.RiveEventListener) {
         controller.addEventListener(listener)
     }
 
-    /**
-     * Removes the [listener]
-     */
+    /** Removes the [listener]. */
     fun removeEventListener(listener: RiveFileController.RiveEventListener) {
         controller.removeEventListener(listener)
     }
@@ -1052,27 +1008,19 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         event.apply {
             when (action) {
                 MotionEvent.ACTION_MOVE -> controller.pointerEvent(
-                    PointerEvents.POINTER_MOVE,
-                    x,
-                    y
+                    PointerEvents.POINTER_MOVE, x, y
                 )
 
                 MotionEvent.ACTION_CANCEL -> controller.pointerEvent(
-                    PointerEvents.POINTER_UP,
-                    x,
-                    y
+                    PointerEvents.POINTER_UP, x, y
                 )
 
                 MotionEvent.ACTION_DOWN -> controller.pointerEvent(
-                    PointerEvents.POINTER_DOWN,
-                    x,
-                    y
+                    PointerEvents.POINTER_DOWN, x, y
                 )
 
                 MotionEvent.ACTION_UP -> controller.pointerEvent(
-                    PointerEvents.POINTER_UP,
-                    x,
-                    y
+                    PointerEvents.POINTER_UP, x, y
                 )
 
                 else -> {
@@ -1085,11 +1033,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 }
 
 /**
- * The [DefaultLifecycleObserver] tied to a [RiveAnimationView].
- * Created within RiveAnimationView() to make sure things are properly cleaned up when the View
- * is destroyed.
+ * The [DefaultLifecycleObserver] tied to a [RiveAnimationView]. Created within RiveAnimationView()
+ * to make sure things are properly cleaned up when the View is destroyed.
  *
- * N.B. since the [RiveAnimationView] can change [LifecycleOwner] during its lifetime, this is
+ * Note: Since the [RiveAnimationView] can change [LifecycleOwner] during its lifetime, this is
  * updated within [RiveAnimationView.onAttachedToWindow]. If there is a new [LifecycleOwner]
  * [onCreate], [onStart], and [onResume] will be called again when it is registered.
  */
@@ -1106,10 +1053,10 @@ open class RiveViewLifecycleObserver(protected val dependencies: MutableList<Ref
     override fun onStop(owner: LifecycleOwner) {}
 
     /**
-     * [DefaultLifecycleObserver] [onDestroy()] is called when the [LifecycleOwner]'s [onDestroy()] method
-     * is called.
-     * This typically happens when the [Activity] or [Fragment] is in the process of being permanently
-     * destroyed.
+     * [DefaultLifecycleObserver.onDestroy] is called when the [LifecycleOwner]'s
+     * [ON_DESTROY][Lifecycle.Event.ON_DESTROY] event is thrown. This typically happens when the
+     * [Activity][android.app.Activity] or [Fragment][android.app.Fragment] is in the process of
+     * being permanently destroyed.
      */
     @CallSuper
     override fun onDestroy(owner: LifecycleOwner) {
@@ -1126,7 +1073,7 @@ open class RiveViewLifecycleObserver(protected val dependencies: MutableList<Ref
     }
 }
 
-// Custom Volley request to download and create rive files over http
+// Custom Volley request to download and create Rive files over HTTP
 class RiveFileRequest(
     url: String,
     private val rendererType: RendererType,
@@ -1140,12 +1087,11 @@ class RiveFileRequest(
     override fun parseNetworkResponse(response: NetworkResponse?): Response<File> {
         return try {
             val bytes = response?.data ?: ByteArray(0)
-            val file =
-                File(
-                    bytes = bytes,
-                    rendererType = rendererType,
-                    fileAssetLoader = assetLoader,
-                )
+            val file = File(
+                bytes = bytes,
+                rendererType = rendererType,
+                fileAssetLoader = assetLoader,
+            )
             Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
         } catch (e: UnsupportedEncodingException) {
             Response.error(ParseError(e))
@@ -1169,7 +1115,7 @@ sealed class ResourceType {
         /**
          * Factory function for making a [ResourceType].
          *
-         * @throws [value] is an unknown type.
+         * @throws IllegalArgumentException If [value] is an unknown type.
          */
         fun makeMaybeResource(value: Any?): ResourceType? {
             return when (value) {
@@ -1187,8 +1133,8 @@ sealed class ResourceType {
 }
 
 /**
- * Wraps the data necessary for grabbing an input with [name] with [value]
- * [value] is necessary when wrapping [SMINumber] and [SMIBoolean] inputs.
+ * Wraps the data necessary for grabbing an input with [name] with [value] [value] is necessary when
+ * wrapping [SMINumber] and [SMIBoolean] inputs.
  */
 data class ChangedInput(
     val stateMachineName: String,

@@ -1,8 +1,6 @@
 package app.rive.runtime.kotlin.core
 
-/**
- * [SMINumber]s represents a boolean input for State Machines
- */
+/** A floating point number state machine input. */
 class SMINumber(unsafeCppPointer: Long) :
     SMIInput(unsafeCppPointer) {
     private external fun cppValue(cppPointer: Long): Float
