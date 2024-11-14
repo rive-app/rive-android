@@ -34,7 +34,10 @@ extern "C"
             jclass ktRendererClass = env->GetObjectClass(ktRenderer);
             jmethodID setRendererType =
                 env->GetMethodID(ktRendererClass, "setRendererType", "(I)V");
-            env->CallVoidMethod(ktRenderer, setRendererType, actualType);
+            JNIExceptionHandler::CallVoidMethod(env,
+                                                ktRenderer,
+                                                setRendererType,
+                                                actualType);
             env->DeleteLocalRef(ktRendererClass);
         }
         return (jlong)renderer;

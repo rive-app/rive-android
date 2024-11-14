@@ -40,9 +40,15 @@ void CanvasRenderer::transform(const rive::Mat2D& transform)
                              1};
     jfloatArray matrixArray = env->NewFloatArray(9);
     env->SetFloatArrayRegion(matrixArray, 0, 9, squareMatrix);
-    env->CallVoidMethod(matrix, GetMatrixSetValuesMethodId(), matrixArray);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        matrix,
+                                        GetMatrixSetValuesMethodId(),
+                                        matrixArray);
 
-    env->CallVoidMethod(m_ktCanvas, GetCanvasConcatMatrixMethodId(), matrix);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktCanvas,
+                                        GetCanvasConcatMatrixMethodId(),
+                                        matrix);
 
     env->DeleteLocalRef(matrixClass);
     env->DeleteLocalRef(matrixArray);
@@ -110,7 +116,10 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     CanvasRenderPaint::SetBlendMode(ktPaint, blendMode);
 
     JNIEnv* env = GetJNIEnv();
-    env->CallVoidMethod(ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        ktPaint,
+                                        GetSetAntiAliasMethodId(),
+                                        JNI_TRUE);
 
     jobject ktShader =
         CanvasRenderImage::CreateKtBitmapShader(canvasImage->ktBitmap());
@@ -150,20 +159,22 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
                              reinterpret_cast<const jshort*>(indices));
     uint32_t* no_colors = nullptr;
 
-    env->CallVoidMethod(m_ktCanvas,
-                        GetCanvasDrawVerticesMethodId(),
-                        trianglesMode,   // Canvas.VertexMode mode,
-                        vertexCount * 2, // int vertexCount,
-                        verticesArray,   // float[] verts,
-                        0,               // int vertOffset,
-                        uvsArray,        // float[] texs,
-                        0,               // int texOffset,
-                        no_colors,       // int[] colors,
-                        0,               // int colorOffset,
-                        indicesArray,    // short[] indices,
-                        0,               // int indexOffset,
-                        indexCount,      // int indexCount,
-                        ktPaint          // Paint paint
+    JNIExceptionHandler::CallVoidMethod(
+        env,
+        m_ktCanvas,
+        GetCanvasDrawVerticesMethodId(),
+        trianglesMode,   // Canvas.VertexMode mode,
+        vertexCount * 2, // int vertexCount,
+        verticesArray,   // float[] verts,
+        0,               // int vertOffset,
+        uvsArray,        // float[] texs,
+        0,               // int texOffset,
+        no_colors,       // int[] colors,
+        0,               // int colorOffset,
+        indicesArray,    // short[] indices,
+        0,               // int indexOffset,
+        indexCount,      // int indexCount,
+        ktPaint          // Paint paint
     );
 
     env->DeleteLocalRef(verticesArray);

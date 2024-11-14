@@ -1,6 +1,6 @@
-#include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "helpers/font_helper.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
 
 namespace rive_android
@@ -28,8 +28,8 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
     JNIEnv* env = GetJNIEnv();
     // Find the FontHelper class
     JniResource<jclass> fontHelperClass =
-        FindClass<jclass>(env, "app/rive/runtime/kotlin/fonts/FontHelper");
-    if (!fontHelperClass)
+        FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper");
+    if (!fontHelperClass.get())
     {
         LOGE("FontHelper class not found");
         return {};
@@ -48,8 +48,8 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
 
     // Get the Companion object
     JniResource<jobject> companionObject =
-        GetStaticObjectField<jobject>(env, fontHelperClass, fontCompanionField);
-    if (!companionObject)
+        GetStaticObjectField(env, fontHelperClass.get(), fontCompanionField);
+    if (!companionObject.get())
     {
         LOGE("Could not get FontHelper Companion object");
         return {};
@@ -57,9 +57,8 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
 
     // Find the Companion class
     JniResource<jclass> fontHelperCompanionClass =
-        FindClass<jclass>(env,
-                          "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
-    if (!fontHelperCompanionClass)
+        FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
+    if (!fontHelperCompanionClass.get())
     {
         LOGE("FontHelper Companion class not found");
         return {};
@@ -78,17 +77,19 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
 
     // Call the method
     JniResource<jbyteArray> fontBytes = JniResource<jbyteArray>(
-        static_cast<jbyteArray>(env->CallObjectMethod(companionObject,
-                                                      getFontBytesMethodId,
-                                                      nullptr)),
+        static_cast<jbyteArray>(
+            JNIExceptionHandler::CallObjectMethod(env,
+                                                  companionObject.get(),
+                                                  getFontBytesMethodId,
+                                                  nullptr)),
         env);
-    if (!fontBytes)
+    if (!fontBytes.get())
     {
         LOGE("FontHelper couldn't load fallback font from the system");
         return {};
     }
 
-    return ByteArrayToUint8Vec(env, fontBytes);
+    return ByteArrayToUint8Vec(env, fontBytes.get());
 }
 
 rive::rcp<rive::Font> FontHelper::findFontFallback(

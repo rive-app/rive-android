@@ -414,7 +414,7 @@ class SystemFontsParser {
 
             if (filesList.isEmpty()) return null
             val familyName =
-                if (namesList.isEmpty()) filesList.first().name else namesList.removeFirst()
+                if (namesList.isEmpty()) filesList.first().name else namesList.removeAt(0)
             if (familyName.isEmpty()) return null
 
             return fromFileFonts(

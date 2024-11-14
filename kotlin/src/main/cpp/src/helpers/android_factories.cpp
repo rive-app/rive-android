@@ -7,6 +7,7 @@
 #include "helpers/canvas_render_objects.hpp"
 #include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "helpers/thread_state_pls.hpp"
 
 #include "rive/math/math_types.hpp"
@@ -56,7 +57,8 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
                             0,
                             rive_android::SizeTTOInt(encodedBytes.size()),
                             (jbyte*)encodedBytes.data());
-    auto jpixels = (jintArray)env->CallStaticObjectMethod(cls, method, encoded);
+    auto jpixels = (jintArray)
+        JNIExceptionHandler::CallStaticObjectMethod(env, cls, method, encoded);
     env->DeleteLocalRef(encoded); // no longer need encoded
 
     // At ths point, we have the decode results. Now we just need to convert

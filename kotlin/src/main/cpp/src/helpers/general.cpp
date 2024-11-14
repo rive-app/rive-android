@@ -2,6 +2,7 @@
 #include "helpers/android_factories.hpp"
 #include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "rive/file.hpp"
 
 #if defined(DEBUG) || defined(LOG)
@@ -73,9 +74,10 @@ void SetSDKVersion()
 
 rive::Fit GetFit(JNIEnv* env, jobject jfit)
 {
-    jstring fitValue =
-        (jstring)env->CallObjectMethod(jfit,
-                                       rive_android::GetFitNameMethodId());
+    jstring fitValue = (jstring)JNIExceptionHandler::CallObjectMethod(
+        env,
+        jfit,
+        rive_android::GetFitNameMethodId());
     const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
 
     rive::Fit fit = rive::Fit::none;
@@ -118,7 +120,8 @@ rive::Fit GetFit(JNIEnv* env, jobject jfit)
 
 rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
 {
-    jstring alignmentValue = (jstring)env->CallObjectMethod(
+    jstring alignmentValue = (jstring)JNIExceptionHandler::CallObjectMethod(
+        env,
         jalignment,
         rive_android::GetAlignmentNameMethodId());
     const char* alignmentValueNative =

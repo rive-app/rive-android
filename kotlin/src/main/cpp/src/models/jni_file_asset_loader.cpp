@@ -1,4 +1,5 @@
 #include "models/jni_file_asset_loader.hpp"
+#include "helpers/jni_exception_handler.hpp"
 
 namespace rive_android
 {
@@ -52,10 +53,12 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
                             0,
                             rive_android::SizeTTOInt(inBandBytes.size()),
                             (jbyte*)inBandBytes.data());
-    jboolean result = env->CallBooleanMethod(m_ktFileAssetLoader,
-                                             m_ktLoadContentsFn,
-                                             ktFileAsset,
-                                             byteArray);
+    jboolean result =
+        JNIExceptionHandler::CallBooleanMethod(env,
+                                               m_ktFileAssetLoader,
+                                               m_ktLoadContentsFn,
+                                               ktFileAsset,
+                                               byteArray);
 
     env->DeleteLocalRef(byteArray);
     env->DeleteLocalRef(ktFileAsset);

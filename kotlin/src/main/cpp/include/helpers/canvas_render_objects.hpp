@@ -140,40 +140,7 @@ private:
     jobject m_ktBitmap = nullptr;
     jobject m_ktPaint = nullptr;
 
-    static jobject CreateKtBitmapFrom(JNIEnv* env,
-                                      rive::Span<const uint8_t>& encodedBytes)
-    {
-        jbyteArray byteArray = env->NewByteArray(encodedBytes.size());
-        if (byteArray == nullptr)
-        {
-            LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
-            return nullptr;
-        }
-
-        env->SetByteArrayRegion(
-            byteArray,
-            0,
-            encodedBytes.size(),
-            reinterpret_cast<const jbyte*>(encodedBytes.data()));
-
-        jclass bitmapFactoryClass = GetAndroidBitmapFactoryClass();
-        jmethodID decodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
-
-        jobject bitmap =
-            env->CallStaticObjectMethod(bitmapFactoryClass,
-                                        decodeByteArrayMethodID,
-                                        byteArray,
-                                        0,
-                                        SizeTTOInt(encodedBytes.size()));
-        env->DeleteLocalRef(byteArray);
-        env->DeleteLocalRef(bitmapFactoryClass);
-        if (bitmap == nullptr)
-        {
-            LOGE("CreateKtBitmapFrom() - decodeByteArray() failed.");
-            return nullptr;
-        }
-        return bitmap;
-    }
+    static jobject CreateKtBitmapFrom(JNIEnv*, rive::Span<const uint8_t>&);
 
 public:
     CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);

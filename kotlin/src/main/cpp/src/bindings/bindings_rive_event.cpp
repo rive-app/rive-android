@@ -4,6 +4,7 @@
 
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "rive/event.hpp"
 #include "rive/open_url_event.hpp"
 #include "rive/custom_property_boolean.hpp"
@@ -67,10 +68,12 @@ extern "C"
                                 env->NewObject(GetBooleanClass(),
                                                GetBooleanConstructor(),
                                                jValueBoolean);
-                            env->CallObjectMethod(propertiesObject,
-                                                  putMethod,
-                                                  jKey,
-                                                  booleanValue);
+                            JNIExceptionHandler::CallObjectMethod(
+                                env,
+                                propertiesObject,
+                                putMethod,
+                                jKey,
+                                booleanValue);
 
                             env->DeleteLocalRef(booleanValue);
                             break;
@@ -82,10 +85,12 @@ extern "C"
                                 child->as<rive::CustomPropertyString>()
                                     ->propertyValue()
                                     .c_str());
-                            env->CallObjectMethod(propertiesObject,
-                                                  putMethod,
-                                                  jKey,
-                                                  jValueString);
+                            JNIExceptionHandler::CallObjectMethod(
+                                env,
+                                propertiesObject,
+                                putMethod,
+                                jKey,
+                                jValueString);
 
                             env->DeleteLocalRef(jValueString);
                             break;
@@ -100,10 +105,12 @@ extern "C"
                                 env->NewObject(GetFloatClass(),
                                                GetFloatConstructor(),
                                                jValueFloat);
-                            env->CallObjectMethod(propertiesObject,
-                                                  putMethod,
-                                                  jKey,
-                                                  floatValue);
+                            JNIExceptionHandler::CallObjectMethod(
+                                env,
+                                propertiesObject,
+                                putMethod,
+                                jKey,
+                                floatValue);
 
                             env->DeleteLocalRef(floatValue);
                             break;
@@ -201,10 +208,12 @@ extern "C"
             return eventObject;
         }
 
-        env->CallObjectMethod(eventObject,
-                              putMethod,
-                              env->NewStringUTF("name"),
-                              env->NewStringUTF(event->name().c_str()));
+        JNIExceptionHandler::CallObjectMethod(
+            env,
+            eventObject,
+            putMethod,
+            env->NewStringUTF("name"),
+            env->NewStringUTF(event->name().c_str()));
 
         if (event->is<rive::OpenUrlEvent>())
         {
@@ -213,28 +222,33 @@ extern "C"
             jobject type = env->NewObject(GetShortClass(),
                                           GetShortConstructor(),
                                           event->coreType());
-            env->CallObjectMethod(eventObject,
-                                  putMethod,
-                                  env->NewStringUTF("type"),
-                                  type);
-            env->CallObjectMethod(eventObject,
-                                  putMethod,
-                                  env->NewStringUTF("url"),
-                                  env->NewStringUTF(url));
+            JNIExceptionHandler::CallObjectMethod(env,
+                                                  eventObject,
+                                                  putMethod,
+                                                  env->NewStringUTF("type"),
+                                                  type);
+            JNIExceptionHandler::CallObjectMethod(env,
+                                                  eventObject,
+                                                  putMethod,
+                                                  env->NewStringUTF("url"),
+                                                  env->NewStringUTF(url));
             const char* target = GetTargetValue(urlEvent);
             if (target != nullptr)
             {
-                env->CallObjectMethod(eventObject,
-                                      putMethod,
-                                      env->NewStringUTF("target"),
-                                      env->NewStringUTF(target));
+                JNIExceptionHandler::CallObjectMethod(
+                    env,
+                    eventObject,
+                    putMethod,
+                    env->NewStringUTF("target"),
+                    env->NewStringUTF(target));
             }
         }
 
-        env->CallObjectMethod(eventObject,
-                              putMethod,
-                              env->NewStringUTF("properties"),
-                              GetProperties(env, event));
+        JNIExceptionHandler::CallObjectMethod(env,
+                                              eventObject,
+                                              putMethod,
+                                              env->NewStringUTF("properties"),
+                                              GetProperties(env, event));
         return eventObject;
     }
 

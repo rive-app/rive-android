@@ -7,6 +7,7 @@
 #include <jni.h>
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "rive/renderer.hpp"
 
 namespace rive_android
@@ -41,10 +42,11 @@ private:
         }
 
         // canvas.drawColor(Color.TRANSPARENT, PortDuff.Mode.Clear)
-        env->CallVoidMethod(ktCanvas,
-                            GetCanvasDrawColorMethodId(),
-                            0x0 /* Color.TRANSPARENT */,
-                            clearMode);
+        JNIExceptionHandler::CallVoidMethod(env,
+                                            ktCanvas,
+                                            GetCanvasDrawColorMethodId(),
+                                            0x0 /* Color.TRANSPARENT */,
+                                            clearMode);
     }
 
 public:
@@ -75,17 +77,24 @@ public:
         assert(m_ktCanvas == nullptr);
         JNIEnv* env = GetJNIEnv();
         m_ktCanvas = env->NewGlobalRef(GetCanvas(ktSurface));
-        m_width = env->CallIntMethod(m_ktCanvas, GetCanvasWidthMethodId());
-        m_height = env->CallIntMethod(m_ktCanvas, GetCanvasHeightMethodId());
+        m_width = JNIExceptionHandler::CallIntMethod(env,
+                                                     m_ktCanvas,
+                                                     GetCanvasWidthMethodId());
+        m_height =
+            JNIExceptionHandler::CallIntMethod(env,
+                                               m_ktCanvas,
+                                               GetCanvasHeightMethodId());
         Clear(m_ktCanvas);
     }
 
     void unlockAndPost(jobject ktSurface)
     {
         JNIEnv* env = GetJNIEnv();
-        env->CallVoidMethod(ktSurface,
-                            GetSurfaceUnlockCanvasAndPostMethodId(),
-                            m_ktCanvas);
+        JNIExceptionHandler::CallVoidMethod(
+            env,
+            ktSurface,
+            GetSurfaceUnlockCanvasAndPostMethodId(),
+            m_ktCanvas);
 
         m_width = -1;
         m_height = -1;

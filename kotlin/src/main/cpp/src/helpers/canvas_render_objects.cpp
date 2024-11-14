@@ -3,6 +3,7 @@
 #include <android/bitmap.h>
 
 #include "helpers/canvas_render_objects.hpp"
+#include "helpers/jni_exception_handler.hpp"
 
 namespace rive_android
 {
@@ -43,14 +44,22 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
             case rive::PathVerb::move:
             {
                 rive::Vec2D point = pointsData[0];
-                env->CallVoidMethod(m_ktPath, moveToFn, point.x, point.y);
+                JNIExceptionHandler::CallVoidMethod(env,
+                                                    m_ktPath,
+                                                    moveToFn,
+                                                    point.x,
+                                                    point.y);
                 pointsData += 1;
                 break;
             }
             case rive::PathVerb::line:
             {
                 rive::Vec2D point = pointsData[0];
-                env->CallVoidMethod(m_ktPath, lineToFn, point.x, point.y);
+                JNIExceptionHandler::CallVoidMethod(env,
+                                                    m_ktPath,
+                                                    lineToFn,
+                                                    point.x,
+                                                    point.y);
                 pointsData += 1;
                 break;
             }
@@ -59,20 +68,21 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
                 auto cp0 = pointsData[0];
                 auto cp1 = pointsData[1];
                 auto to = pointsData[2];
-                env->CallVoidMethod(m_ktPath,
-                                    cubicToFn,
-                                    cp0.x,
-                                    cp0.y,
-                                    cp1.x,
-                                    cp1.y,
-                                    to.x,
-                                    to.y);
+                JNIExceptionHandler::CallVoidMethod(env,
+                                                    m_ktPath,
+                                                    cubicToFn,
+                                                    cp0.x,
+                                                    cp0.y,
+                                                    cp1.x,
+                                                    cp1.y,
+                                                    to.x,
+                                                    to.y);
                 pointsData += 3;
                 break;
             }
             case rive::PathVerb::close:
             {
-                env->CallVoidMethod(m_ktPath, closeFn);
+                JNIExceptionHandler::CallVoidMethod(env, m_ktPath, closeFn);
                 break;
             }
             default:
@@ -111,12 +121,17 @@ void CanvasRenderPath::addRenderPath(rive::RenderPath* path,
     jfloatArray matrixArray = env->NewFloatArray(9);
     env->SetFloatArrayRegion(matrixArray, 0, 9, squareMatrix);
 
-    env->CallVoidMethod(matrix, GetMatrixSetValuesMethodId(), matrixArray);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        matrix,
+                                        GetMatrixSetValuesMethodId(),
+                                        matrixArray);
 
-    env->CallVoidMethod(m_ktPath,
-                        GetAddPathMethodId(),
-                        reinterpret_cast<CanvasRenderPath*>(path)->m_ktPath,
-                        matrix);
+    JNIExceptionHandler::CallVoidMethod(
+        env,
+        m_ktPath,
+        GetAddPathMethodId(),
+        reinterpret_cast<CanvasRenderPath*>(path)->m_ktPath,
+        matrix);
 
     env->DeleteLocalRef(matrixClass);
     env->DeleteLocalRef(matrix);
@@ -167,7 +182,10 @@ void CanvasRenderPath::fillRule(rive::FillRule value)
     jclass fillTypeClass = GetFillTypeClass();
     jobject fillId = env->GetStaticObjectField(fillTypeClass, fillTypeId);
 
-    env->CallVoidMethod(m_ktPath, GetSetFillTypeMethodId(), fillId);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPath,
+                                        GetSetFillTypeMethodId(),
+                                        fillId);
 
     env->DeleteLocalRef(fillTypeClass);
     env->DeleteLocalRef(fillId);
@@ -258,7 +276,10 @@ CanvasRenderPaint::CanvasRenderPaint()
 {
     JNIEnv* env = GetJNIEnv();
     m_ktPaint = env->NewGlobalRef(CreateKtPaint());
-    env->CallVoidMethod(m_ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetAntiAliasMethodId(),
+                                        JNI_TRUE);
 }
 
 CanvasRenderPaint::~CanvasRenderPaint()
@@ -312,7 +333,10 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
             ? env->GetStaticObjectField(styleClass, GetStrokeId())
             : env->GetStaticObjectField(styleClass, GetFillId());
 
-    env->CallVoidMethod(paint, GetSetStyleMethodId(), staticObject);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        paint,
+                                        GetSetStyleMethodId(),
+                                        staticObject);
     env->DeleteLocalRef(styleClass);
     env->DeleteLocalRef(staticObject);
 }
@@ -342,7 +366,10 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     JNIEnv* env = GetJNIEnv();
     jclass joinClass = GetJoinClass();
     jobject staticObject = env->GetStaticObjectField(joinClass, joinId);
-    env->CallVoidMethod(paint, GetSetStrokeJoinMethodId(), staticObject);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        paint,
+                                        GetSetStrokeJoinMethodId(),
+                                        staticObject);
 
     env->DeleteLocalRef(joinClass);
     env->DeleteLocalRef(staticObject);
@@ -376,7 +403,10 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     JNIEnv* env = GetJNIEnv();
     jclass capClass = GetCapClass();
     jobject staticObject = env->GetStaticObjectField(capClass, capId);
-    env->CallVoidMethod(paint, GetSetStrokeCapMethodId(), staticObject);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        paint,
+                                        GetSetStrokeCapMethodId(),
+                                        staticObject);
 
     env->DeleteLocalRef(capClass);
     env->DeleteLocalRef(staticObject);
@@ -445,7 +475,10 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
                                             porterDuffMode);
 
     jobject extraXferModeObject =
-        env->CallObjectMethod(paint, GetSetXfermodeMethodId(), xferModeObject);
+        JNIExceptionHandler::CallObjectMethod(env,
+                                              paint,
+                                              GetSetXfermodeMethodId(),
+                                              xferModeObject);
 
     env->DeleteLocalRef(extraXferModeObject);
     env->DeleteLocalRef(xferModeObject);
@@ -522,9 +555,10 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     jobject blendModeStaticObject =
         env->GetStaticObjectField(blendModeClass, modeId);
 
-    env->CallVoidMethod(paint,
-                        GetSetBlendModeMethodId(),
-                        blendModeStaticObject);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        paint,
+                                        GetSetBlendModeMethodId(),
+                                        blendModeStaticObject);
 
     env->DeleteLocalRef(blendModeClass);
     env->DeleteLocalRef(blendModeStaticObject);
@@ -536,6 +570,43 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
 }
 
 /* CanvasRenderImage */
+/* static */ jobject CanvasRenderImage::CreateKtBitmapFrom(
+    JNIEnv* env,
+    rive::Span<const uint8_t>& encodedBytes)
+{
+    jbyteArray byteArray = env->NewByteArray(encodedBytes.size());
+    if (byteArray == nullptr)
+    {
+        LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
+        return nullptr;
+    }
+
+    env->SetByteArrayRegion(
+        byteArray,
+        0,
+        encodedBytes.size(),
+        reinterpret_cast<const jbyte*>(encodedBytes.data()));
+
+    jclass bitmapFactoryClass = GetAndroidBitmapFactoryClass();
+    jmethodID decodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
+
+    jobject bitmap = JNIExceptionHandler::CallStaticObjectMethod(
+        env,
+        bitmapFactoryClass,
+        decodeByteArrayMethodID,
+        byteArray,
+        0,
+        SizeTTOInt(encodedBytes.size()));
+    env->DeleteLocalRef(byteArray);
+    env->DeleteLocalRef(bitmapFactoryClass);
+    if (bitmap == nullptr)
+    {
+        LOGE("CreateKtBitmapFrom() - decodeByteArray() failed.");
+        return nullptr;
+    }
+    return bitmap;
+}
+
 CanvasRenderImage::CanvasRenderImage(rive::Span<const uint8_t> encodedBytes)
 {
     JNIEnv* env = GetJNIEnv();
@@ -547,13 +618,20 @@ CanvasRenderImage::CanvasRenderImage(rive::Span<const uint8_t> encodedBytes)
         return;
     }
 
-    m_Width = env->CallIntMethod(bitmap, GetBitmapWidthMethodId());
-    m_Height = env->CallIntMethod(bitmap, GetBitmapHeightMethodId());
+    m_Width = JNIExceptionHandler::CallIntMethod(env,
+                                                 bitmap,
+                                                 GetBitmapWidthMethodId());
+    m_Height = JNIExceptionHandler::CallIntMethod(env,
+                                                  bitmap,
+                                                  GetBitmapHeightMethodId());
 
     m_ktBitmap = env->NewGlobalRef(bitmap);
     env->DeleteLocalRef(bitmap);
     m_ktPaint = env->NewGlobalRef(CanvasRenderPaint::CreateKtPaint());
-    env->CallVoidMethod(m_ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetAntiAliasMethodId(),
+                                        JNI_TRUE);
 }
 
 CanvasRenderImage::~CanvasRenderImage()

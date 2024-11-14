@@ -3,7 +3,6 @@
 
 #include <jni.h>
 #include <vector>
-#include "rive/math/aabb.hpp"
 
 namespace rive_android
 {
@@ -34,6 +33,7 @@ public:
         resource(other.resource), env(other.env)
     {
         other.resource = nullptr;
+        other.env = nullptr;
     }
 
     /**
@@ -41,7 +41,7 @@ public:
      *  deletes the JNI reference using the appropriate JNI method to prevent
      *  memory leaks.
      */
-    ~JniResource()
+    ~JniResource() noexcept
     {
         if (resource)
         {
@@ -49,7 +49,24 @@ public:
         }
     }
 
-    operator T() const { return resource; }
+    JniResource& operator=(JniResource&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (resource)
+            {
+                // Cleanup the current resource if needed.
+                env->DeleteLocalRef(resource);
+            }
+            resource = other.resource;
+            env = other.env;
+            other.resource = nullptr;
+            other.env = nullptr;
+        }
+        return *this;
+    }
+
+    explicit operator T() const { return resource; }
 
     T get() const { return resource; }
 };
@@ -60,18 +77,20 @@ template <typename T> JniResource<T> MakeJniResource(T res, JNIEnv* env)
     return JniResource<T>(res, env);
 }
 
-template <typename T> JniResource<T> FindClass(JNIEnv* env, const char* name)
-{
-    return MakeJniResource(env->FindClass(name), env);
-}
+JniResource<jclass> FindClass(JNIEnv*, const char*);
 
-template <typename T>
-JniResource<T> GetStaticObjectField(JNIEnv* env, jclass clazz, jfieldID fieldID)
-{
-    return MakeJniResource(
-        static_cast<T>(env->GetStaticObjectField(clazz, fieldID)),
-        env);
-}
+JniResource<jobject> GetStaticObjectField(JNIEnv*, jclass, jfieldID);
+
+JniResource<jobject> GetObjectFromMethod(JNIEnv*, jobject, jmethodID, ...);
+
+JniResource<jobject> GetObjectArrayElement(JNIEnv*, jobjectArray, jsize);
+
+JniResource<jobject> MakeObject(JNIEnv* env,
+                                jclass clazz,
+                                jmethodID initMid,
+                                ...);
+
+JniResource<jstring> MakeJString(JNIEnv*, const char*);
 
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv*, jbyteArray);
 

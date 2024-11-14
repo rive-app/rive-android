@@ -5,7 +5,6 @@
 #define RIVE_ANDROID_FONT_HELPER_HPP
 
 #include <vector>
-#include "helpers/general.hpp"
 #include "rive/text/font_hb.hpp"
 
 namespace rive_android

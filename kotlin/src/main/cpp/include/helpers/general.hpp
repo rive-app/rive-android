@@ -1,12 +1,12 @@
 #ifndef _RIVE_ANDROID_GENERAL_HPP_
 #define _RIVE_ANDROID_GENERAL_HPP_
 
-#include "rive/layout.hpp"
-#include "rive/factory.hpp"
-#include "rive/file_asset_loader.hpp"
 #include <jni.h>
 #include <string>
 #include <android/log.h>
+
+#include "rive/factory.hpp"
+#include "rive/file_asset_loader.hpp"
 
 // Print only on debug builds.
 #if defined(DEBUG) || defined(LOG)

@@ -52,15 +52,12 @@ extern "C"
         {
             return false;
         }
-        jsize len = env->GetStringLength(ktString);
 
         std::vector<rive::Unichar> unichars;
         const uint8_t* ptr = (const uint8_t*)utf8Chars;
-        uint32_t n = 0;
         while (*ptr)
         {
             unichars.push_back(rive::UTF::NextUTF8(&ptr));
-            n += 1;
         }
 
         rive::rcp<rive::Font> fallback = FontHelper::findFontFallback(unichars);

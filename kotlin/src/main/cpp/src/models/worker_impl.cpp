@@ -1,3 +1,4 @@
+#include "helpers/jni_exception_handler.hpp"
 #include "models/worker_impl.hpp"
 
 #include "rive/renderer/gl/render_target_gl.hpp"
@@ -97,13 +98,16 @@ void WorkerImpl::doFrame(
     m_lastFrameTime = frameTime;
 
     auto env = GetJNIEnv();
-    env->CallVoidMethod(ktRenderer, m_ktAdvanceCallback, fElapsedMs);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        ktRenderer,
+                                        m_ktAdvanceCallback,
+                                        fElapsedMs);
 
     tracer->beginSection("draw()");
 
     prepareForDraw(threadState);
     // Kotlin callback.
-    env->CallVoidMethod(ktRenderer, m_ktDrawCallback);
+    JNIExceptionHandler::CallVoidMethod(env, ktRenderer, m_ktDrawCallback);
 
     tracer->beginSection("flush()");
     flush(threadState);

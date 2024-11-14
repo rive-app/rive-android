@@ -10,22 +10,12 @@
 #include <skia_renderer.hpp>
 
 #include "jni_refs.hpp"
-
-#include "helpers/general.hpp"
-#include "helpers/thread_state_egl.hpp"
-#include "helpers/thread_state_pls.hpp"
-#include "helpers/thread_state_skia.hpp"
-#include "helpers/worker_ref.hpp"
-#include "helpers/worker_thread.hpp"
-
-#include "models/dimensions_helper.hpp"
-
-#include "rive/renderer/render_context.hpp"
-#include "rive/renderer/rive_renderer.hpp"
-
 #include "canvas_renderer.hpp"
 
-#include "SkSurface.h"
+#include "helpers/thread_state_pls.hpp"
+#include "helpers/thread_state_skia.hpp"
+
+#include "rive/renderer/rive_renderer.hpp"
 
 // Either ANativeWindow* or a Kotlin Surface.
 // std::monostate holds an 'empty' variant.

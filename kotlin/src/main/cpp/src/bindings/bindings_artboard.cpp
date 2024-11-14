@@ -1,12 +1,11 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
+#include <jni.h>
+#include <stdio.h>
+
 #include "models/jni_renderer.hpp"
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/text/text_value_run.hpp"
-#include <jni.h>
-#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C"

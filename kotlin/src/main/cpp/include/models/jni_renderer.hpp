@@ -4,12 +4,8 @@
 #include <GLES3/gl3.h>
 #include <jni.h>
 
-#include "helpers/tracer.hpp"
-#include "helpers/thread_state_egl.hpp"
-#include "helpers/worker_ref.hpp"
 #include "models/worker_impl.hpp"
-
-#include "rive/renderer.hpp"
+#include "helpers/worker_ref.hpp"
 
 namespace rive_android
 {
