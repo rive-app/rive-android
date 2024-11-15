@@ -311,6 +311,10 @@ class RiveListenerTest {
 
             // as before lets advance beyond the end of the animation, in this case change to exit!
             renderer.advance(1.0f)
+            // will return true because there was a change of state with this last advance
+            assertEquals(true, view.isPlaying)
+            renderer.advance(0.1f)
+
             assertEquals(false, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "ExitState")
