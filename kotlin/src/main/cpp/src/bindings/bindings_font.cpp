@@ -59,8 +59,12 @@ extern "C"
         {
             unichars.push_back(rive::UTF::NextUTF8(&ptr));
         }
-
-        rive::rcp<rive::Font> fallback = FontHelper::findFontFallback(unichars);
+        if (unichars.empty())
+        {
+            return false;
+        }
+        rive::rcp<rive::Font> fallback =
+            FontHelper::findFontFallback(unichars[0], 0);
 
         return fallback != nullptr;
     }

@@ -92,9 +92,13 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
     return ByteArrayToUint8Vec(env, fontBytes.get());
 }
 
-rive::rcp<rive::Font> FontHelper::findFontFallback(
-    rive::Span<const rive::Unichar> missing)
+rive::rcp<rive::Font> FontHelper::findFontFallback(const rive::Unichar missing,
+                                                   const uint32_t fallbackIndex)
 {
+    if (fallbackIndex > 0)
+    {
+        return nullptr;
+    }
     for (const rive::rcp<rive::Font>& font : fallbackFonts)
     {
         bool found = font->hasGlyph(missing);

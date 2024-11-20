@@ -20,8 +20,8 @@ public:
 
     static std::vector<uint8_t> getSystemFontBytes();
 
-    static rive::rcp<rive::Font> findFontFallback(
-        rive::Span<const rive::Unichar> missing);
+    static rive::rcp<rive::Font> findFontFallback(const rive::Unichar missing,
+                                                  const uint32_t fallbackIndex);
 };
 
 } // namespace rive_android

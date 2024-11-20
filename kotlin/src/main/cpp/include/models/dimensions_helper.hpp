@@ -44,7 +44,9 @@ public:
     DimensionsHelper() :
         m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f)
     {}
-    ~DimensionsHelper(){};
+    // clang-format off
+    ~DimensionsHelper() {};
+    // clang-format on
 
     float width() const { return m_Width; }
     float height() const { return m_Height; }
