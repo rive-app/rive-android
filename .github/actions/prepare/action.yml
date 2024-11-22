@@ -30,6 +30,7 @@ runs:
       uses: android-actions/setup-android@v3
 
     - name: Install NDK & tools
+      shell: bash
       # Starts from: pwd => /home/runner/work/rive/rive
       # ANDROID_HOME => /usr/local/lib/android/sdk
       run: |
@@ -41,12 +42,14 @@ runs:
         echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
 
     - name: Configure venv
+      shell: bash
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
         echo PATH=$PATH >> $GITHUB_ENV
 
     - name: Installing pre-requisites
+      shell: bash
       run: |
         set -x
         # Install some dependencies & premake5
@@ -57,6 +60,7 @@ runs:
 
     # Base64 decodes and pipes the GPG key content into the secret file
     - name: Prepare environment
+      shell: bash
       env:
         GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
         SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}

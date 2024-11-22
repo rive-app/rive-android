@@ -22,27 +22,32 @@ runs:
   using: "composite"
   steps:
     - name: Install dependencies
+      shell: bash
       run: npm ci
       working-directory: ./.github/scripts/release
     - name: Git config
+      shell: bash
       run: |
         git config --local user.email 'hello@rive.app'
         git config --local user.name ${{ github.actor }}
 
     - if: ${{ inputs.major == true }}
       name: Major Release - Bump version number, update changelog, push and tag
+      shell: bash
       run: npm run release -- major --ci
       working-directory: ./.github/scripts/release
       env:
         GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
     - if: ${{inputs.major == false && inputs.minor == true}}
       name: Minor release - Bump version number, update changelog, push and tag
+      shell: bash
       run: npm run release -- minor --ci
       working-directory: ./.github/scripts/release
       env:
         GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
     - if: ${{inputs.major == false && inputs.minor == false}}
       name: Build release - Bump version number, update changelog, push and tag
+      shell: bash
       run: npm run release -- --ci
       working-directory: ./.github/scripts/release
       env:

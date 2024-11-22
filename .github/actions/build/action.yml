@@ -7,6 +7,7 @@ runs:
   using: "composite"
   steps:
     - name: Build Android
+      shell: bash
       env:
         # ANDROID_SDK_ROOT has been in the env by 'setup-android' action in prepare.yml
         #   and is => /usr/local/lib/android/sdk
