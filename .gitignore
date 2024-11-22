@@ -21,7 +21,7 @@ kotlin/src/main/cpp/test/Catch2
 .gradle
 local.properties
 .idea
-build
+app/build
 captures
 build.pixel.sh
 build.nexus.sh

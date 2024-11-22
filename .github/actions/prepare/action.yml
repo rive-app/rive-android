@@ -1,0 +1,72 @@
+# This is a GitHub Composite Action that prepares the Android environment for the build.
+# This includes:
+# - Checking out the code
+# - Configuring AWS credentials
+# - Updating Java
+# - Setting up the Android SDK
+# - Installing the NDK & build tools
+# - Configuring the Python virtual environment
+# - Installing build dependencies
+# - Setting the signing key
+
+name: Prepare
+description: Prepare the Android environment for the build
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        token: ${{ secrets.PAT_GITHUB }}
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-region: us-west-2
+        role-to-assume: ${{ secrets.ACTIONS_ROLE }}
+
+    - name: Update Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "zulu"
+        java-version: "17"
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install NDK & tools
+      # Starts from: pwd => /home/runner/work/rive/rive
+      # ANDROID_HOME => /usr/local/lib/android/sdk
+      run: |
+        set -x 
+        echo "y" | sdkmanager --install 'build-tools;34.0.0' platform-tools --sdk_root=${ANDROID_SDK_ROOT}
+        cd ${ANDROID_HOME} 
+        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+        unzip -q android-ndk-r25b-linux.zip
+        echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
+
+    - name: Configure venv
+      run: |
+        python3 -m venv .venv
+        source .venv/bin/activate
+        echo PATH=$PATH >> $GITHUB_ENV
+
+    - name: Installing pre-requisites
+      run: |
+        set -x
+        # Install some dependencies & premake5
+        sudo apt update && sudo apt-get -y install clang libgl1-mesa-dev libvorbis-dev libvpx-dev ninja-build python3-pip
+        wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-beta2/premake-5.0.0-beta2-linux.tar.gz
+        tar -xf premake-5.0.0-beta2-linux.tar.gz
+        sudo mv premake5 /usr/local/bin
+
+    # Base64 decodes and pipes the GPG key content into the secret file
+    - name: Prepare environment
+      env:
+        GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
+        SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+      run: |
+        git fetch --unshallow
+        sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"

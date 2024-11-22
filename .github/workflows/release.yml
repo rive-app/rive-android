@@ -57,7 +57,7 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
-          
+
       - name: Installing pre-requisites
         run: |
           set -x
@@ -76,7 +76,7 @@ jobs:
           git fetch --unshallow
           sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"
 
-      # Run release it
+      # Run "release-it", the Node tool that bumps our version number, updates the changelog, and tags the release
       - name: Install dependencies
         run: npm ci
         working-directory: ./.github/scripts/release

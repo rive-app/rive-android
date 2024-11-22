@@ -1,0 +1,14 @@
+# This is a GitHub Composite Action that builds the Android library artifacts.
+
+name: Build
+description: Build the Android library artifacts
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Android
+      env:
+        # ANDROID_SDK_ROOT has been in the env by 'setup-android' action in prepare.yml
+        #   and is => /usr/local/lib/android/sdk
+        NDK_PATH: ${{ env.ANDROID_SDK_ROOT }}/android-ndk-r25b
+      run: ./gradlew kotlin:assembleRelease

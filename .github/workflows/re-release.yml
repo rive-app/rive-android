@@ -1,0 +1,26 @@
+# Note: The steps below are the same as release.yml, but without bumping the version number.
+# It is to be used in the event of a failed release, where we want to attempt publishing again without changing the Git tag and version file.
+# Uses GitHub Composite Actions. See the steps in .github/actions for more details.
+# Note: We may want to consider GitHub Reusable Workflows instead of Composite Actions in the future.
+# See https://docs.github.com/en/actions/sharing-automations/avoiding-duplication for the differences.
+# Notably the logging visibility may improve by switching.
+
+name: Re-Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Release build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Prepare
+        uses: ./.github/actions/prepare
+      - name: Build
+        uses: ./.github/actions/build
+      - name: Deploy
+        uses: ./.github/actions/deploy
