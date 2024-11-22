@@ -16,6 +16,12 @@ inputs:
   UAT-OSSRH-password:
     description: "The UAT OSS Repository Hosting password"
     required: true
+  signing-key-id:
+    description: "The signing key ID"
+    required: true
+  signing-password:
+    description: "The signing password"
+    required: true
   signing-secret-key-ring-file:
     description: "The path to the secret key ring file"
     required: true
@@ -36,7 +42,7 @@ runs:
         OSSRH_USERNAME: ${{ inputs.OSSRH-username }}
         OSSRH_PASSWORD: ${{ inputs.OSSRH-password }}
         # ====
-        SIGNING_KEY_ID: ${{ inputs.SIGNING_KEY_ID }}
-        SIGNING_PASSWORD: ${{ inputs.SIGNING_PASSWORD }}
+        SIGNING_KEY_ID: ${{ inputs.signing-key-id }}
+        SIGNING_PASSWORD: ${{ inputs.signing-password }}
         SIGNING_SECRET_KEY_RING_FILE: ${{ inputs.signing-secret-key-ring-file }}
         SONATYPE_STAGING_PROFILE_ID: ${{ inputs.Sonatype-staging-profile-id }}

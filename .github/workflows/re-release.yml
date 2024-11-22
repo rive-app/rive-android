@@ -39,5 +39,7 @@ jobs:
           OSSRH-password: ${{ secrets.OSSRH_PASSWORD }}
           UAT-OSSRH-username: ${{ secrets.UAT_OSSRH_USERNAME }}
           UAT-OSSRH-password: ${{ secrets.UAT_OSSRH_PASSWORD }}
+          signing-key-id: ${{ secrets.SIGNING_KEY_ID }}
+          signing-password: ${{ secrets.SIGNING_PASSWORD }}
           signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
           Sonatype-staging-profile-id: ${{ secrets.SONATYPE_STAGING_PROFILE_ID }}
