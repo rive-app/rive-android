@@ -11,6 +11,17 @@
 name: Prepare
 description: Prepare the Android environment for the build
 
+inputs:
+  actions-role:
+    description: "The role to assume for AWS actions"
+    required: true
+  GPG-key-contents:
+    description: "The GPG key contents"
+    required: true
+  signing-secret-key-ring-file:
+    description: "The path to the secret key ring file"
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -18,9 +29,9 @@ runs:
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-region: us-west-2
-        role-to-assume: ${{ secrets.ACTIONS_ROLE }}
+        role-to-assume: ${{ inputs.actions-role }}
 
-    - name: Update Java
+    - name: Install Java
       uses: actions/setup-java@v4
       with:
         distribution: "zulu"
@@ -62,8 +73,8 @@ runs:
     - name: Prepare environment
       shell: bash
       env:
-        GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
-        SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+        GPG_KEY_CONTENTS: ${{ inputs.GPG-key-contents }}
+        SIGNING_SECRET_KEY_RING_FILE: ${{ inputs.signing-secret-key-ring-file }}
       run: |
         git fetch --unshallow
         sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"

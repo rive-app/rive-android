@@ -17,6 +17,9 @@ inputs:
     description: "Minor"
     type: boolean
     default: false
+  Rive-repo-PAT:
+    description: "The GitHub Personal Access Token for the Rive repository"
+    required: true
 
 runs:
   using: "composite"
@@ -37,18 +40,18 @@ runs:
       run: npm run release -- major --ci
       working-directory: ./.github/scripts/release
       env:
-        GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
+        GITHUB_TOKEN: ${{ inputs.Rive-repo-PAT }}
     - if: ${{inputs.major == false && inputs.minor == true}}
       name: Minor release - Bump version number, update changelog, push and tag
       shell: bash
       run: npm run release -- minor --ci
       working-directory: ./.github/scripts/release
       env:
-        GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
+        GITHUB_TOKEN: ${{ inputs.Rive-repo-PAT }}
     - if: ${{inputs.major == false && inputs.minor == false}}
       name: Build release - Bump version number, update changelog, push and tag
       shell: bash
       run: npm run release -- --ci
       working-directory: ./.github/scripts/release
       env:
-        GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
+        GITHUB_TOKEN: ${{ inputs.Rive-repo-PAT }}
