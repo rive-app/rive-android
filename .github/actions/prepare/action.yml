@@ -1,6 +1,5 @@
 # This is a GitHub Composite Action that prepares the Android environment for the build.
 # This includes:
-# - Checking out the code
 # - Configuring AWS credentials
 # - Updating Java
 # - Setting up the Android SDK
@@ -15,12 +14,6 @@ description: Prepare the Android environment for the build
 runs:
   using: "composite"
   steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        submodules: true
-        token: ${{ secrets.PAT_GITHUB }}
-
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
