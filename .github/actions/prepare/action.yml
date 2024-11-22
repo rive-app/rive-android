@@ -1,6 +1,5 @@
 # This is a GitHub Composite Action that prepares the Android environment for the build.
 # This includes:
-# - Checking out the code
 # - Configuring AWS credentials
 # - Updating Java
 # - Setting up the Android SDK
@@ -12,22 +11,27 @@
 name: Prepare
 description: Prepare the Android environment for the build
 
+inputs:
+  actions-role:
+    description: "The role to assume for AWS actions"
+    required: true
+  GPG-key-contents:
+    description: "The GPG key contents"
+    required: true
+  signing-secret-key-ring-file:
+    description: "The path to the secret key ring file"
+    required: true
+
 runs:
   using: "composite"
   steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        submodules: true
-        token: ${{ secrets.PAT_GITHUB }}
-
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-region: us-west-2
-        role-to-assume: ${{ secrets.ACTIONS_ROLE }}
+        role-to-assume: ${{ inputs.actions-role }}
 
-    - name: Update Java
+    - name: Install Java
       uses: actions/setup-java@v4
       with:
         distribution: "zulu"
@@ -37,6 +41,7 @@ runs:
       uses: android-actions/setup-android@v3
 
     - name: Install NDK & tools
+      shell: bash
       # Starts from: pwd => /home/runner/work/rive/rive
       # ANDROID_HOME => /usr/local/lib/android/sdk
       run: |
@@ -48,12 +53,14 @@ runs:
         echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
 
     - name: Configure venv
+      shell: bash
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
         echo PATH=$PATH >> $GITHUB_ENV
 
     - name: Installing pre-requisites
+      shell: bash
       run: |
         set -x
         # Install some dependencies & premake5
@@ -64,9 +71,10 @@ runs:
 
     # Base64 decodes and pipes the GPG key content into the secret file
     - name: Prepare environment
+      shell: bash
       env:
-        GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
-        SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+        GPG_KEY_CONTENTS: ${{ inputs.GPG-key-contents }}
+        SIGNING_SECRET_KEY_RING_FILE: ${{ inputs.signing-secret-key-ring-file }}
       run: |
         git fetch --unshallow
         sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"

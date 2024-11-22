@@ -4,6 +4,7 @@
 # Note: We may want to consider GitHub Reusable Workflows instead of Composite Actions in the future.
 # See https://docs.github.com/en/actions/sharing-automations/avoiding-duplication for the differences.
 # Notably the logging visibility may improve by switching.
+# Reusable workflows can also view secrets rather than requiring them as inputs.
 
 name: Re-Release
 
@@ -18,9 +19,27 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_GITHUB }}
       - name: Prepare
         uses: ./.github/actions/prepare
+        with:
+          actions-role: ${{ secrets.ACTIONS_ROLE }}
+          GPG-key-contents: ${{ secrets.GPG_KEY_CONTENTS }}
+          signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
       - name: Build
         uses: ./.github/actions/build
       - name: Deploy
         uses: ./.github/actions/deploy
+        with:
+          OSSRH-username: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH-password: ${{ secrets.OSSRH_PASSWORD }}
+          UAT-OSSRH-username: ${{ secrets.UAT_OSSRH_USERNAME }}
+          UAT-OSSRH-password: ${{ secrets.UAT_OSSRH_PASSWORD }}
+          signing-key-id: ${{ secrets.SIGNING_KEY_ID }}
+          signing-password: ${{ secrets.SIGNING_PASSWORD }}
+          signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+          Sonatype-staging-profile-id: ${{ secrets.SONATYPE_STAGING_PROFILE_ID }}
