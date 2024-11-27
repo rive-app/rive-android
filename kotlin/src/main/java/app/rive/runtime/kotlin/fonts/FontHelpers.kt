@@ -285,21 +285,22 @@ class SystemFontsParser {
                 val tag = parser.name.trim()
                 when (tag) {
                     "family" -> {
-                        parser.getAttributeValue(null, "name")?.let { name ->
-                            readFamily(name.trim(), parser)?.let {
-                                familiesMap[name] = it
-                            }
-                        } ?: run {
+                        getOptionalAttribute(parser, "name")
+                            ?.trim()
+                            ?.let { name ->
+                                readFamily(name, parser)?.let { familiesMap[name] = it }
+                            } ?: run {
                             // null name - possibly a legacy family?
-                            readLegacyFamily(parser)?.let { (family, aliases) ->
-                                val familyName = family.name!!.trim()
-                                familiesMap[familyName] = family
-                                aliases.forEach { alias ->
-                                    remapAlias(alias, familiesMap)?.let { remapped ->
-                                        familiesMap[alias.name] = remapped
+                            readLegacyFamily(parser)
+                                ?.let { (family, aliases) ->
+                                    val familyName = family.name!!
+                                    familiesMap[familyName] = family
+                                    aliases.forEach { alias ->
+                                        remapAlias(alias, familiesMap)?.let { remapped ->
+                                            familiesMap[alias.name] = remapped
+                                        }
                                     }
                                 }
-                            }
                         }
                     }
 
@@ -338,9 +339,10 @@ class SystemFontsParser {
         }
 
         private fun readFamily(familyName: String, parser: XmlPullParser): Fonts.Family? {
-            val lang = parser.getAttributeValue(null, "lang")
-            val variant = parser.getAttributeValue(null, "variant")
-            val ignore = parser.getAttributeValue(null, "ignore")
+            val lang = getOptionalAttribute(parser, "lang")
+            val variant = getOptionalAttribute(parser, "variant")
+            val ignore = getOptionalAttribute(parser, "ignore")
+
             // Certain families support multiple fonts with the same weight but different styles
             // e.g. "normal" vs "italic"
             val fonts = mutableMapOf<Fonts.Weight, MutableList<Fonts.Font>>()
@@ -352,11 +354,7 @@ class SystemFontsParser {
                 when (tag) {
                     "font" -> {
                         val font = readFont(parser)
-                        if (!fonts.contains(font.weight)) {
-                            fonts[font.weight] = mutableListOf()
-                        }
-                        fonts[font.weight]?.add(font)
-
+                        fonts.getOrPut(font.weight) { mutableListOf() }.add(font)
                     }
 
                     else -> skip(parser)
@@ -379,14 +377,13 @@ class SystemFontsParser {
             val namesList = mutableListOf<String>()
             val filesList = mutableListOf<Fonts.FileFont>()
             val fontList = mutableListOf<Fonts.Font>()
-            val familyVariant = parser.getAttributeValue(null, "variant")
-            val familyLang = parser.getAttributeValue(null, "lang")
+            val familyVariant = getOptionalAttribute(parser, "variant")
+            val familyLang = getOptionalAttribute(parser, "lang")
 
             while (keepReading(parser)) {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
 
-                val tag = parser.name.trim()
-                when (tag) {
+                when (parser.name.trim()) {
                     "fileset" -> {
                         filesList.addAll(
                             readFileset(parser)
@@ -413,6 +410,7 @@ class SystemFontsParser {
             }
 
             if (filesList.isEmpty()) return null
+
             val familyName =
                 if (namesList.isEmpty()) filesList.first().name else namesList.removeAt(0)
             if (familyName.isEmpty()) return null
@@ -420,7 +418,8 @@ class SystemFontsParser {
             return fromFileFonts(
                 filesList,
                 namesList,
-                familyName
+                familyName = familyName,
+                familyLang = familyLang,
             )
         }
 
@@ -440,6 +439,7 @@ class SystemFontsParser {
             filesList: List<Fonts.FileFont>,
             namesList: List<String>,
             familyName: String,
+            familyLang: String?,
         ): Pair<Fonts.Family, List<Fonts.Alias>> {
             val fontsMap: MutableMap<Fonts.Weight, MutableList<Fonts.Font>> = mutableMapOf()
 
@@ -463,7 +463,7 @@ class SystemFontsParser {
                     name = familyName,
                     fonts = fontsMap,
                     variant = variant,
-                    lang = lang,
+                    lang = lang ?: familyLang,
                 ),
                 aliases,
             )
@@ -499,9 +499,12 @@ class SystemFontsParser {
 
         private fun readFont(parser: XmlPullParser): Fonts.Font {
             parser.require(XmlPullParser.START_TAG, null, "font")
-            val weightStr = parser.getAttributeValue(null, "weight")
-            val weight = Fonts.Weight.fromString(weightStr)
-            val style = parser.getAttributeValue(null, "style")
+            val weight = Fonts.Weight.fromString(
+                getOptionalAttribute(parser, "weight", "${Fonts.Weight.NORMAL.weight}")
+            )
+            // Make sure a style is defined - this could be empty, but it's required by
+            //   the `Fonts.Font` constructor
+            val style = getOptionalAttribute(parser, "style") ?: Fonts.Font.STYLE_NORMAL
 
             val filenameBuilder = StringBuilder()
             val axes = mutableListOf<Fonts.Axis>()
@@ -523,7 +526,12 @@ class SystemFontsParser {
                 }
             }
 
-            return Fonts.Font(weight, style, filenameBuilder.toString())
+            return Fonts.Font(
+                weight,
+                style,
+                filenameBuilder.toString(),
+                axis = if (axes.isNotEmpty()) axes else null
+            )
         }
 
         private fun readText(parser: XmlPullParser): String {
@@ -557,10 +565,10 @@ class SystemFontsParser {
                 val tag = parser.name.trim()
                 if (tag != "file") continue
 
-                val variant = parser.getAttributeValue(null, "variant")
-                val lang = parser.getAttributeValue(null, "lang")
+                val variant = getOptionalAttribute(parser, "variant")
+                val lang = getOptionalAttribute(parser, "lang")
 
-                val filesetName = readText(parser)
+                val filesetName = readText(parser).trim()
                 if (filesetName.isNotEmpty()) {
                     filesetList.add(
                         Fonts.FileFont(filesetName, variant, lang)
@@ -572,26 +580,35 @@ class SystemFontsParser {
         }
 
         private fun readAxis(parser: XmlPullParser): Fonts.Axis {
-            val tagStr = parser.getAttributeValue(null, "tag")
-            val styleValueStr = parser.getAttributeValue(null, "stylevalue")
+            val tagStr = getRequiredAttribute(parser, "tag")
+            val styleValueStr = getRequiredAttribute(parser, "stylevalue")
             skip(parser) // ignore empty axis tag
-            return Fonts.Axis(tagStr, styleValueStr)
+            return Fonts.Axis(tag = tagStr, styleValue = styleValueStr)
         }
 
         private fun readAlias(parser: XmlPullParser): Fonts.Alias {
-            val name = parser.getAttributeValue(null, "name")
-            val to = parser.getAttributeValue(null, "to")
-            val weight: Fonts.Weight? = parser
-                .getAttributeValue(null, "weight")
-                ?.let { weightStr ->
-                    Fonts.Weight.fromString(weightStr)
-                }
+            val name = getRequiredAttribute(parser, "name")
+            val to = getRequiredAttribute(parser, "to")
+            val weight: Fonts.Weight? = getOptionalAttribute(parser, "weight")
+                ?.let { weightStr -> Fonts.Weight.fromString(weightStr) }
 
             skip(parser) // move past empty tag.
 
             return Fonts.Alias(name.trim(), to, weight)
         }
 
+        private fun getRequiredAttribute(parser: XmlPullParser, name: String): String {
+            return parser.getAttributeValue(null, name)
+                ?: throw IllegalArgumentException("Missing required attribute: $name")
+        }
+
+        private fun getOptionalAttribute(
+            parser: XmlPullParser,
+            name: String,
+            default: String? = null,
+        ): String? {
+            return parser.getAttributeValue(null, name) ?: default
+        }
 
         private fun skip(parser: XmlPullParser) {
             var depth = 1

@@ -615,6 +615,242 @@ class FontHelpersTest {
     }
 
     @Test
+    fun legacyFontNoStyle() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="23">
+    <family>
+        <font supportedAxes="wght,ital">Roboto-Regular.ttf
+            <axis tag="wdth" stylevalue="100" />
+        </font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(Charset.forName("UTF-16").encode(systemFontXml).array())
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+        val font = result["Roboto-Regular.ttf"]?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(font)
+        val fontFile = FontHelper.getFontFile(font!!)
+        assertNotNull(fontFile)
+    }
+
+    @Test
+    fun familyWithNoOptionalAttributes() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+    <family>
+        <font weight="400">Roboto-Regular.ttf</font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val family = result["Roboto-Regular.ttf"]
+        assertNotNull(family)
+        assertNull(family?.lang)
+        assertNull(family?.variant)
+
+        val font = family?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(font)
+        assertEquals("Roboto-Regular.ttf", font?.name)
+    }
+
+    @Test
+    fun familyWithMissingLang() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+    <family variant="compact">
+        <font weight="400" style="normal">Roboto-Regular.ttf</font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val family = result["Roboto-Regular.ttf"]
+        assertNotNull(family)
+        assertNull(family?.lang)
+        assertEquals("compact", family?.variant)
+
+        val font = family?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(font)
+        assertEquals("Roboto-Regular.ttf", font?.name)
+    }
+
+    @Test
+    fun familyWithLangAndVariant() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="23">
+    <family name="Roboto" lang="en" variant="compact">
+        <font weight="400" style="normal">Roboto-Regular.ttf</font>
+        <font weight="700" style="bold">Roboto-Bold.ttf</font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val family = result["Roboto"]
+        assertNotNull(family)
+        assertEquals("en", family?.lang)
+        assertEquals("compact", family?.variant)
+
+        val regularFont = family?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(regularFont)
+        assertEquals("Roboto-Regular.ttf", regularFont?.name)
+
+        val boldFont = family?.fonts?.get(Fonts.Weight.BOLD)?.first()
+        assertNotNull(boldFont)
+        assertEquals("Roboto-Bold.ttf", boldFont?.name)
+    }
+
+    @Test
+    fun familyWithNoFonts() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+    <family name="Roboto" lang="en" variant="compact">
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(0, result.size) // Family should not be included
+    }
+
+    @Test
+    fun familyIsIgnored() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+    <family name="Roboto" lang="en" variant="compact" ignore="true">
+        <font weight="400" style="normal">Roboto-Regular.ttf</font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(0, result.size) // Family should not be included
+    }
+
+    @Test
+    fun fontWithAxis() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="23">
+    <family>
+        <font weight="400" style="normal">Roboto-Regular.ttf
+            <axis tag="wdth" stylevalue="100" />
+            <axis tag="wght" stylevalue="400" />
+        </font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val font = result["Roboto-Regular.ttf"]?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(font)
+        assertEquals("Roboto-Regular.ttf", font?.name)
+
+        val axes = font?.axis
+        assertNotNull(axes)
+        assertEquals(2, axes!!.size)
+        assertTrue(axes.any { it.tag == "wdth" && it.styleValue == "100" })
+        assertTrue(axes.any { it.tag == "wght" && it.styleValue == "400" })
+    }
+
+    @Test
+    fun filesetWithLangAndVariant() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="23">
+    <family lang="en">
+        <fileset>
+            <file variant="regular">Roboto-Regular.ttf</file>
+            <file variant="bold">Roboto-Bold.ttf</file>
+        </fileset>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val family = result["Roboto-Regular.ttf"]
+        assertNotNull(family)
+        assertEquals("en", family?.lang)
+
+        val files = family?.fonts
+        val fileValues = files!!.values.flatten()
+        assertTrue(fileValues.any { font -> font.name == "Roboto-Regular.ttf" })
+        assertTrue(fileValues.any { font -> font.name == "Roboto-Bold.ttf" })
+    }
+
+    @Test
+    fun axisParsing() {
+        val systemFontXml = """
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="23">
+    <family>
+        <font>Roboto-Regular.ttf
+            <axis tag="wdth" stylevalue="100" />
+            <axis tag="wght" stylevalue="400" />
+        </font>
+    </family>
+</familyset>
+""".trimIndent()
+
+        val inputStream =
+            ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
+
+        val result = SystemFontsParser.parseFontsXML(inputStream)
+        assertEquals(1, result.size)
+
+        val font = result["Roboto-Regular.ttf"]?.fonts?.get(Fonts.Weight.NORMAL)?.first()
+        assertNotNull(font)
+
+        val axes = font?.axis
+        assertNotNull(axes)
+        assertEquals(2, axes!!.size)
+        assertTrue(axes.any { it.tag == "wdth" && it.styleValue == "100" })
+        assertTrue(axes.any { it.tag == "wght" && it.styleValue == "400" })
+    }
+
+    @Test
     fun nativeFallbackFontRegistration() {
         val families = FontHelper.getSystemFonts().values
         val allFonts = families.flatMap { family -> family.fonts.values.flatten() }
