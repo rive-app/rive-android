@@ -136,7 +136,7 @@ cleanFor() {
         rm archive_contents
     fi
     popd
-    # PLS
+    # Rive Renderer
     pushd "$RIVE_RUNTIME_DIR"/renderer/out
     make config=$CONFIG clean
     popd

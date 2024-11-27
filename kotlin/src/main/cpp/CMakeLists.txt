@@ -16,11 +16,11 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-runtime")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
     set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-runtime")
-    set(PLS_DIR "${PACKAGES_DIR}/submodules/rive-runtime/renderer")
+    set(RIVE_RENDERER_DIR "${PACKAGES_DIR}/submodules/rive-runtime/renderer")
 else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
     set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/runtime")
-    set(PLS_DIR "${PACKAGES_DIR}/runtime/renderer")
+    set(RIVE_RENDERER_DIR "${PACKAGES_DIR}/runtime/renderer")
 endif ()
 
 message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
@@ -69,7 +69,7 @@ endif ()
 include_directories(
         include
         $ENV{RIVE_RUNTIME_DIR}/include
-        ${PLS_DIR}/include
+        ${RIVE_RENDERER_DIR}/include
         $ENV{RIVE_RUNTIME_DIR}/renderer/library/include
         $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/
         $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/core
