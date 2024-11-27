@@ -6,24 +6,26 @@
 namespace rive_android
 {
 
-std::vector<rive::rcp<rive::Font>> FontHelper::fallbackFonts;
+/* static */ std::vector<rive::rcp<rive::Font>> FontHelper::s_fallbackFonts;
+/* static */ std::unordered_map<const rive::Font*, rive::rcp<rive::Font>>
+    FontHelper::s_fallbackFontsCache;
 
-bool FontHelper::registerFallbackFont(jbyteArray byteArray)
+/* static */ bool FontHelper::RegisterFallbackFont(jbyteArray byteArray)
 {
     std::vector<uint8_t> bytes = ByteArrayToUint8Vec(GetJNIEnv(), byteArray);
 
     rive::rcp<rive::Font> fallback = HBFont::Decode(bytes);
     if (!fallback)
     {
-        LOGE("registerFallbackFont - failed to decode byte fonts");
+        LOGE("RegisterFallbackFont - failed to decode byte fonts");
         return false;
     }
 
-    fallbackFonts.push_back(fallback);
+    s_fallbackFonts.push_back(fallback);
     return true;
 }
 
-std::vector<uint8_t> FontHelper::getSystemFontBytes()
+/* static */ std::vector<uint8_t> FontHelper::GetSystemFontBytes()
 {
     JNIEnv* env = GetJNIEnv();
     // Find the FontHelper class
@@ -92,38 +94,151 @@ std::vector<uint8_t> FontHelper::getSystemFontBytes()
     return ByteArrayToUint8Vec(env, fontBytes.get());
 }
 
-rive::rcp<rive::Font> FontHelper::findFontFallback(const rive::Unichar missing,
-                                                   const uint32_t fallbackIndex)
+/* static */ std::vector<std::vector<uint8_t>> FontHelper::pick_fonts(
+    uint16_t weight)
 {
-    if (fallbackIndex > 0)
+    JNIEnv* env = GetJNIEnv();
+    JniResource<jclass> pickerClass =
+        FindClass(env, "app/rive/runtime/kotlin/fonts/FontFallbackStrategy");
+
+    // Get the Companion field ID
+    jfieldID fontCompanionField = env->GetStaticFieldID(
+        pickerClass.get(),
+        "Companion",
+        "Lapp/rive/runtime/kotlin/fonts/FontFallbackStrategy$Companion;");
+
+    // Get the Companion object
+    JniResource<jobject> companionObject =
+        GetStaticObjectField(env, pickerClass.get(), fontCompanionField);
+
+    // Find the Companion class
+    JniResource<jclass> pickerCompanionClass = FindClass(
+        env,
+        "app/rive/runtime/kotlin/fonts/FontFallbackStrategy$Companion");
+
+    jmethodID pickFontMid = env->GetMethodID(pickerCompanionClass.get(),
+                                             "pickFont",
+                                             "(I)Ljava/util/List;");
+
+    // Call the static pickFont method
+    JniResource<jobject> fontListObj =
+        GetObjectFromMethod(env, companionObject.get(), pickFontMid, weight);
+
+    // Convert Java List<ByteArray> to std::vector<std::vector<uint8_t>>
+    std::vector<std::vector<uint8_t>> result;
+
+    // Get the List class and methods
+    JniResource<jclass> listClass = GetObjectClass(env, fontListObj.get());
+    jmethodID listSizeMethod = env->GetMethodID(listClass.get(), "size", "()I");
+    jmethodID listGetMethod =
+        env->GetMethodID(listClass.get(), "get", "(I)Ljava/lang/Object;");
+
+    jint listSize = JNIExceptionHandler::CallIntMethod(env,
+                                                       fontListObj.get(),
+                                                       listSizeMethod);
+    for (jint i = 0; i < listSize; ++i)
     {
+        JniResource<jobject> byteArrayObj =
+            GetObjectFromMethod(env, fontListObj.get(), listGetMethod, i);
+
+        // Convert ByteArray to std::vector<uint8_t>
+        jbyteArray byteArray = reinterpret_cast<jbyteArray>(byteArrayObj.get());
+        jsize arrayLength = env->GetArrayLength(byteArray);
+        std::vector<uint8_t> byteVector(arrayLength);
+        env->GetByteArrayRegion(byteArray,
+                                0,
+                                arrayLength,
+                                reinterpret_cast<jbyte*>(byteVector.data()));
+
+        result.push_back(std::move(byteVector));
+    }
+
+    return result;
+}
+
+/**
+ * Finds a fallback font that can be used for a missing character.
+ *
+ * This function attempts to find a font that can be used as a fallback when the
+ * provided `riveFont` does not contain the requested character (`missing`). The
+ * steps for determining the appropriate fallback are as follows:
+ *
+ * 1. If the font has already been processed and cached, it returns the cached
+ * fallback font.
+ * 2. The function then attempts to find fallback fonts based on the desired
+ * weight of the provided font (`riveFont`). This'll check whether a
+ * `FontFallbackStrategy` has been set in Kotlin and, if so, it'll use that to
+ * find a suitable match.
+ * 3. If `FontFallbackStrategy` is not defined or didn't yield a suitable font,
+ * it will iterate over a list of registered fallback fonts: if this list
+ * contains a match, it is cached and returned.
+ * 4. Finally, if no registered fallback fonts contain the missing character,
+ * the function attempts to load the default system fallback font.
+ *
+ */
+/* static */ rive::rcp<rive::Font> FontHelper::FindFontFallback(
+    const rive::Unichar missing,
+    const uint32_t fallbackIndex,
+    const rive::Font* riveFont)
+{
+    if (!riveFont)
+    {
+        LOGE("No font provided for missing characters");
         return nullptr;
     }
-    for (const rive::rcp<rive::Font>& font : fallbackFonts)
+
+    uint16_t desiredWeight = riveFont->getWeight();
+    if (auto search = s_fallbackFontsCache.find(riveFont);
+        search != s_fallbackFontsCache.end())
     {
-        bool found = font->hasGlyph(missing);
-        if (font->hasGlyph(missing))
+        return search->second;
+    }
+
+    auto pickedFonts = pick_fonts(desiredWeight);
+    for (const auto& fontBytes : pickedFonts)
+    {
+        rive::rcp<rive::Font> candidate = HBFont::Decode(fontBytes);
+        if (candidate->hasGlyph(missing))
         {
-            return font;
+            s_fallbackFontsCache[riveFont] = candidate;
+            return candidate;
+        }
+    }
+
+    // Use the old path - just try to find a match for this glyph.
+    for (const rive::rcp<rive::Font>& fFont : s_fallbackFonts)
+    {
+        if (fFont->hasGlyph(missing))
+        {
+            s_fallbackFontsCache[riveFont] = fFont;
+            return fFont;
         }
     }
 
     // Nothing in the registered fallbacks? Grab one from the system
-    std::vector<uint8_t> fontBytes = FontHelper::getSystemFontBytes();
+    std::vector<uint8_t> fontBytes = FontHelper::GetSystemFontBytes();
     if (fontBytes.empty())
     {
-        LOGW("findFontFallback - No fonts found on the system");
+        LOGW("FindFontFallback - No system font found");
         return nullptr;
     }
 
     rive::rcp<rive::Font> systemFont = HBFont::Decode(fontBytes);
     if (!systemFont)
     {
-        LOGE("findFontFallback - failed to decode font bytes");
+        LOGE("FindFontFallback - failed to decode system font bytes");
         return nullptr;
     }
 
-    return systemFont->hasGlyph(missing) ? systemFont : nullptr;
+    if (!systemFont->hasGlyph(missing))
+    {
+        LOGE("FindFontFallback - no fallback found");
+        return nullptr;
+    }
+
+    LOGD("FindFontFallback - found a system fallback");
+    s_fallbackFontsCache[riveFont] = systemFont;
+    return systemFont;
 }
 
 } // namespace rive_android

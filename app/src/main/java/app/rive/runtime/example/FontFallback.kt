@@ -6,10 +6,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import app.rive.runtime.example.databinding.ActivityFontFallbackBinding
-import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.fonts.FontBytes
+import app.rive.runtime.kotlin.fonts.FontFallbackStrategy
+import app.rive.runtime.kotlin.fonts.FontHelper
 import app.rive.runtime.kotlin.fonts.Fonts
 
-class FontFallback : AppCompatActivity() {
+class FontFallback : AppCompatActivity(), FontFallbackStrategy {
 
     private lateinit var binding: ActivityFontFallbackBinding
 
@@ -26,26 +28,54 @@ class FontFallback : AppCompatActivity() {
             insets
         }
 
-        updateTextRun()
-        setFallbackFont()
+        updateTextRuns()
+        updateThaiText()
+
+        FontFallbackStrategy.stylePicker = this
     }
 
-    // Updates the text using the system fallback font.
-    private fun updateTextRun() {
-        // The riv file consists of two text runs "Hello, world"
-        //  and contains only those characters.
-        // Using anything different without a fallback font, will result in an empty glyph.
-        // For example, try changing the text to something else than 'txt'
-        binding.riveViewRoboto.setTextRunValue("Name", "txt")
-    }
-
-    // Uses Thai characters after having set the fallback font.
-    private fun setFallbackFont() {
-        Rive.setFallbackFont(
-            Fonts.FontOpts("NotoSansThai-Regular.ttf")
+    // This class is a `FontFallbackStrategy` and this override picks fonts based on weight.
+    override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+        var fontMatch = Fonts.FontOpts(
+            familyName = "serif",
         )
+        when {
+            // 'Invert' the weights to make the fallback chars more prominent.
+            weight.weight < 400 -> fontMatch =
+                Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(900))
+            weight.weight > 400 -> fontMatch =
+                Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(100))
+        }
+        val fonts = listOf(
+            fontMatch,
+            // Tag a Thai font along so our second view can draw the glyphs
+            Fonts.FontOpts("NotoSansThai-Regular.ttf")        )
+        return fonts.mapNotNull { FontHelper.getFallbackFontBytes(it) }
+    }
 
-        val thaiText = "โลก"
-        binding.riveViewBidi.setTextRunValue("Name", thaiText)
+    /**
+     * The Rive file displayed here contains four blocks of text each with three different runs
+     * Also, the Rive file only exported the glyphs that have been specified in the file, and
+     * each line is made of three runs: | ABC | DEF | GHI |     * Modifying these runs with glyphs that are not part of the { ABCDEFGHI } set will require
+     * a fallback.
+     */
+    private fun updateTextRuns() {
+        binding.riveViewStylePicker.setTextRunValue("ultralight_start", "aBc ")
+        binding.riveViewStylePicker.setTextRunValue("ultralight_mid", "DeF")
+        binding.riveViewStylePicker.setTextRunValue("ultralight_end", " gHi")
+
+        binding.riveViewStylePicker.setTextRunValue("regular_mid", " def ")
+
+        binding.riveViewStylePicker.setTextRunValue("bold_start", "PQR ")
+        binding.riveViewStylePicker.setTextRunValue("bold_end", "XYZ")
+
+        binding.riveViewStylePicker.setTextRunValue("black_mid", " def ")
+    }
+
+    private fun updateThaiText() {
+        val thaiHelloText = "สวัสดี "
+        val thaiWorldText = " โลก"
+        binding.riveViewThai.setTextRunValue("regular_start", thaiHelloText)
+        binding.riveViewThai.setTextRunValue("regular_end", thaiWorldText)
     }
 }

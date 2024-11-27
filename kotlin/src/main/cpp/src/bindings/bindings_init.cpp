@@ -25,7 +25,7 @@ extern "C"
         jobject availableBoundsRectF,
         jobject artboardBoundsRectF,
         jobject requiredBoundsRectF,
-        jlong scaleFactor)
+        jfloat scaleFactor)
     {
         auto fit = ::GetFit(env, jfit);
         auto alignment = ::GetAlignment(env, jalignment);
@@ -56,7 +56,7 @@ extern "C"
         // pretty much considered the entrypoint.
         env->GetJavaVM(&::g_JVM);
         SetSDKVersion();
-        rive::Font::gFallbackProc = FontHelper::findFontFallback;
+        rive::Font::gFallbackProc = FontHelper::FindFontFallback;
     }
 
 #ifdef __cplusplus

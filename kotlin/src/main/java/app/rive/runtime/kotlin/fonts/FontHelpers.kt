@@ -2,7 +2,6 @@ package app.rive.runtime.kotlin.fonts
 
 import android.util.Log
 import android.util.Xml
-import androidx.annotation.VisibleForTesting
 import org.xmlpull.v1.XmlPullParser
 import java.io.File
 import java.io.InputStream
@@ -17,13 +16,6 @@ class Fonts {
         companion object {
             const val STYLE_NORMAL = "normal"
             const val STYLE_ITALIC = "italic"
-
-            val DEFAULT = Font(
-                weight = Weight.NORMAL,
-                style = STYLE_NORMAL,
-                name = "Roboto-Regular.ttf"
-            )
-
         }
     }
 
@@ -629,11 +621,5 @@ class SystemFontsParser {
 }
 
 object NativeFontHelper {
-    @VisibleForTesting
-    external fun cppGetSystemFontBytes(): ByteArray
-
-    @VisibleForTesting
-    external fun cppHasGlyph(queryString: String): Boolean
-
     external fun cppRegisterFallbackFont(fontBytes: ByteArray): Boolean
 }

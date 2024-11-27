@@ -2,11 +2,14 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import androidx.annotation.VisibleForTesting
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.controllers.RiveFileController
+import app.rive.runtime.kotlin.fonts.FontBytes
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration
 
@@ -149,7 +152,7 @@ class TestUtils {
         var stops = mutableListOf<PlayableInstance>()
         var loops = mutableListOf<PlayableInstance>()
         var states = mutableListOf<StateChanged>()
-        var elapsed: Float = 0f;
+        var elapsed: Float = 0f
 
         override fun notifyPlay(animation: PlayableInstance) {
             plays.add(animation)
@@ -175,4 +178,11 @@ class TestUtils {
             this.elapsed = 0.016f;
         }
     }
+}
+
+
+object NativeFontTestHelper {
+    external fun cppGetSystemFontBytes(): ByteArray
+    external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Boolean
+    external fun cppCleanupFallbacks()
 }

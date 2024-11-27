@@ -9,6 +9,11 @@ JniResource<jclass> FindClass(JNIEnv* env, const char* name)
     return MakeJniResource(env->FindClass(name), env);
 }
 
+JniResource<jclass> GetObjectClass(JNIEnv* env, jobject obj)
+{
+    return MakeJniResource(env->GetObjectClass(obj), env);
+}
+
 JniResource<jobject> GetStaticObjectField(JNIEnv* env,
                                           jclass clazz,
                                           jfieldID fieldID)

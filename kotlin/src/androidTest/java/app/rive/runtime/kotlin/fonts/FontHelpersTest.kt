@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.fonts
 
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.core.NativeFontTestHelper
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
@@ -16,15 +17,15 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.nio.charset.Charset
 
-
 @RunWith(AndroidJUnit4::class)
 class FontHelpersTest {
 
-    private lateinit var instrumentationContext: Context
+    private lateinit var context: Context
 
     @Before
     fun setup() {
-        instrumentationContext = TestUtils().context // Load library.
+        context = TestUtils().context // Load library.
+        NativeFontTestHelper.cppCleanupFallbacks() // Reset the fallback state.
     }
 
     @Test
@@ -46,9 +47,13 @@ class FontHelpersTest {
 
     @Test
     fun systemFontMatch() {
-        val font = FontHelper.getFallbackFont()
-        assertNotNull(font)
-        assertEquals(Fonts.Font.DEFAULT, font)
+        val defaultFont = FontHelper.getFallbackFont()
+        assertNotNull(defaultFont)
+        val sansSerifFont = FontHelper.getFallbackFont(
+            Fonts.FontOpts(familyName = "sans-serif")
+        )
+        assertNotNull(sansSerifFont)
+        assertEquals(sansSerifFont, defaultFont)
 
         val notFound =
             FontHelper.getFallbackFont(
@@ -61,8 +66,15 @@ class FontHelpersTest {
                 Fonts.FontOpts(familyName = "arial", style = "italic")
             )
         assertNotNull(withAlias)
-        assertEquals("Roboto-Italic.ttf", withAlias?.name)
-        assertEquals(Fonts.Weight.NORMAL, withAlias?.weight)
+
+        assertEquals(Fonts.Weight.NORMAL, withAlias!!.weight)
+
+        // (umberto) The font name could be device-dependent
+        assert(withAlias.name.isNotEmpty() == true)
+
+        // (umberto) Is this also device-dependent? Could some devices not have an arial/italic combo?
+        //      let's keep it for now - we can remove this check if this becomes flaky
+        assertEquals("italic", withAlias.style)
     }
 
     @Test
@@ -105,7 +117,7 @@ class FontHelpersTest {
 
     @Test
     fun parseFonts() {
-        val fontResource = instrumentationContext.resources.openRawResource(R.raw.fonts)
+        val fontResource = context.resources.openRawResource(R.raw.fonts)
         fontResource.use {
             val systemFonts = SystemFontsParser.parseFontsXML(it)
             assertTrue(systemFonts.isNotEmpty())
@@ -251,7 +263,7 @@ class FontHelpersTest {
     fun parseFontsFallbacks() {
         // The main font file contains a number of fallback fonts that have no explicit family name
         // Our parser uses the name of the first available font as their family name.
-        val fontResource = instrumentationContext.resources.openRawResource(R.raw.fonts)
+        val fontResource = context.resources.openRawResource(R.raw.fonts)
         fontResource.use {
             val systemFonts = SystemFontsParser.parseFontsXML(it)
             assertTrue(systemFonts.isNotEmpty())
@@ -339,7 +351,7 @@ class FontHelpersTest {
 
     @Test
     fun findMatch() {
-        val fontResource = instrumentationContext.resources.openRawResource(R.raw.fonts)
+        val fontResource = context.resources.openRawResource(R.raw.fonts)
         fontResource.use {
             val systemFonts = SystemFontsParser.parseFontsXML(it)
             assertTrue(systemFonts.isNotEmpty())
@@ -376,7 +388,7 @@ class FontHelpersTest {
 
     @Test
     fun parseBackupFonts() {
-        val fontResource = instrumentationContext.resources.openRawResource(R.raw.system_fonts)
+        val fontResource = context.resources.openRawResource(R.raw.system_fonts)
         fontResource.use {
             val systemFonts = SystemFontsParser.parseFontsXML(it)
             assertTrue(systemFonts.isNotEmpty())
@@ -420,7 +432,7 @@ class FontHelpersTest {
 
     @Test
     fun parseFallbackFonts() {
-        val fontResource = instrumentationContext.resources.openRawResource(R.raw.fallback_fonts)
+        val fontResource = context.resources.openRawResource(R.raw.fallback_fonts)
         fontResource.use {
             val systemFonts = SystemFontsParser.parseFontsXML(it)
             assertTrue(systemFonts.isNotEmpty())
@@ -878,10 +890,26 @@ class FontHelpersTest {
         assertTrue(
             Rive.setFallbackFont(fontBytes!!)
         )
+
         // Noto Thai doesn't have Korean glyphs...
-        assertFalse(NativeFontHelper.cppHasGlyph("우호관계의"))
+        "우호관계의".codePoints().toArray().forEach { codePoint ->
+            assertFalse(
+                NativeFontTestHelper.cppFindFontFallback(
+                    codePoint,
+                    byteArrayOf() // just a placeholder...
+                )
+            )
+        }
+
         // ...but has Thai glyphs
-        assertTrue(NativeFontHelper.cppHasGlyph("ทุกคนมีสิทธิที่จะได้"))
+        "ทุกคนมีสิทธิที่จะได้".codePoints().toArray().forEach { codePoint ->
+            assertTrue(
+                NativeFontTestHelper.cppFindFontFallback(
+                    codePoint,
+                    byteArrayOf() // just a placeholder...
+                )
+            )
+        }
     }
 
     @Test
@@ -893,15 +921,31 @@ class FontHelpersTest {
                 Fonts.FontOpts("NotoSansThai-Regular.ttf")
             )
         )
+
         // Noto Thai doesn't have Korean glyphs...
-        assertFalse(NativeFontHelper.cppHasGlyph("우호관계의"))
+        "우호관계의".codePoints().toArray().forEach { codePoint ->
+            assertFalse(
+                NativeFontTestHelper.cppFindFontFallback(
+                    codePoint,
+                    byteArrayOf() // just a placeholder...
+                )
+            )
+        }
+
         // ...but has Thai glyphs
-        assertTrue(NativeFontHelper.cppHasGlyph("ทุกคนมีสิทธิที่จะได้"))
+        "ทุกคนมีสิทธิที่จะได้".codePoints().toArray().forEach { codePoint ->
+            assertTrue(
+                NativeFontTestHelper.cppFindFontFallback(
+                    codePoint,
+                    byteArrayOf() // just a placeholder...
+                )
+            )
+        }
     }
 
     @Test
     fun nativeSystemsFontHelper() {
-        val fontByteArray = NativeFontHelper.cppGetSystemFontBytes()
+        val fontByteArray = NativeFontTestHelper.cppGetSystemFontBytes()
         assert(fontByteArray.isNotEmpty())
     }
 }

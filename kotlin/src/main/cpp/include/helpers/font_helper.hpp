@@ -5,6 +5,8 @@
 #define RIVE_ANDROID_FONT_HELPER_HPP
 
 #include <vector>
+#include <unordered_map>
+#include "helpers/general.hpp"
 #include "rive/text/font_hb.hpp"
 
 namespace rive_android
@@ -13,15 +15,21 @@ namespace rive_android
 class FontHelper
 {
 private:
-    static std::vector<rive::rcp<rive::Font>> fallbackFonts;
+    static std::unordered_map<const rive::Font*, rive::rcp<rive::Font>>
+        s_fallbackFontsCache;
+
+    static std::vector<std::vector<uint8_t>> pick_fonts(uint16_t weight);
 
 public:
-    static bool registerFallbackFont(jbyteArray);
+    static std::vector<rive::rcp<rive::Font>> s_fallbackFonts;
 
-    static std::vector<uint8_t> getSystemFontBytes();
+    static bool RegisterFallbackFont(jbyteArray);
 
-    static rive::rcp<rive::Font> findFontFallback(const rive::Unichar missing,
-                                                  const uint32_t fallbackIndex);
+    static std::vector<uint8_t> GetSystemFontBytes();
+
+    static rive::rcp<rive::Font> FindFontFallback(const rive::Unichar missing,
+                                                  const uint32_t fallbackIndex,
+                                                  const rive::Font*);
 };
 
 } // namespace rive_android

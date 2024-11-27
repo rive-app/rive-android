@@ -79,6 +79,8 @@ template <typename T> JniResource<T> MakeJniResource(T res, JNIEnv* env)
 
 JniResource<jclass> FindClass(JNIEnv*, const char*);
 
+JniResource<jclass> GetObjectClass(JNIEnv*, jobject);
+
 JniResource<jobject> GetStaticObjectField(JNIEnv*, jclass, jfieldID);
 
 JniResource<jobject> GetObjectFromMethod(JNIEnv*, jobject, jmethodID, ...);
