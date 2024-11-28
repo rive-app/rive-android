@@ -24,7 +24,6 @@ import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
-import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -56,13 +55,25 @@ class ControllerState internal constructor(
 
 typealias OnStartCallback = () -> Unit
 
-class RiveFileController(
+class RiveFileController internal constructor(
     var loop: Loop = Loop.AUTO,
     var autoplay: Boolean = true,
     file: File? = null,
     activeArtboard: Artboard? = null,
     var onStart: OnStartCallback? = null,
+
+    @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal val changedInputs: ConcurrentLinkedQueue<ChangedInput> = ConcurrentLinkedQueue()
 ) : Observable<RiveFileController.Listener>, RefCount {
+
+    // The "primary" constructor as the actual primary is internal to expose the queue for testing.
+    constructor(
+        loop: Loop = Loop.AUTO,
+        autoplay: Boolean = true,
+        file: File? = null,
+        activeArtboard: Artboard? = null,
+        onStart: OnStartCallback? = null,
+    ) : this(loop, autoplay, file, activeArtboard, onStart, ConcurrentLinkedQueue())
 
     companion object {
         const val TAG = "RiveFileController"
@@ -219,8 +230,6 @@ class RiveFileController(
         get() {
             return stateMachines subtract playingStateMachines
         }
-
-    private val changedInputs = ConcurrentLinkedQueue<ChangedInput>()
 
     /** Lock to prevent race conditions on starting and stopping the rendering thread. */
     internal val startStopLock = ReentrantLock()
@@ -599,7 +608,9 @@ class RiveFileController(
         val playableSet = mutableSetOf<StateMachineInstance>()
         // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
         while (changedInputs.isNotEmpty()) {
-            val input = changedInputs.remove()
+            // There is a small chance that the queue will be emptied by another thread before removing.
+            // Null checking the removed item protects against that scenario.
+            val input = changedInputs.poll() ?: break
             if (input.nestedArtboardPath == null) {
                 val stateMachines = getOrCreateStateMachines(input.stateMachineName)
                 stateMachines.forEach { stateMachineInstance ->
