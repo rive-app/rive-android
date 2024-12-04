@@ -33,3 +33,6 @@ kotlin/src/main/jniLibs/*
 kotlin/.cxx
 # Notification of missing NDK
 kotlin/src/main/cpp/rive_build_x86.log
+
+# Kotlin 2.0 output
+.kotlin/sessions

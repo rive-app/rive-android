@@ -1,6 +1,8 @@
-apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
-apply plugin: "org.jetbrains.dokka"
+plugins {
+    id "com.android.library"
+    id "kotlin-android"
+    id "org.jetbrains.dokka"
+}
 
 android {
     compileSdk 35
@@ -33,10 +35,6 @@ android {
         }
     }
 
-    testOptions {
-        unitTests.includeAndroidResources = true
-    }
-
     dokkaGfm {
         dokkaSourceSets {
             named("main") {
@@ -48,34 +46,16 @@ android {
     }
 }
 
-configurations.configureEach {
-    resolutionStrategy.force "junit:junit:4.13.2"
-}
-
 dependencies {
-    implementation "com.android.volley:volley:1.2.1"
-    implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation "androidx.core:core-ktx:1.15.0"
-    implementation "androidx.appcompat:appcompat:1.7.0"
-    implementation "com.getkeepsafe.relinker:relinker:1.4.5"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
     implementation "androidx.startup:startup-runtime:1.2.0"
+    implementation "com.android.volley:volley:1.2.1"
+    // Required until minSdk >= 23
+    // https://github.com/KeepSafe/ReLinker?tab=readme-ov-file#who-needs-relinker
+    implementation "com.getkeepsafe.relinker:relinker:1.4.5"
 
-    testImplementation "junit:junit:4.13.2"
-    testImplementation "androidx.test:core-ktx:1.6.1"
-
-    androidTestImplementation "androidx.test.ext:junit:1.2.1"
-    androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
+    androidTestImplementation "androidx.test.ext:junit-ktx:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
 }
-
-// Commenting this out, this only really helps when you're doing local dev, but it means our git actions need abd!
-// static def getDeviceAbi() {
-//     return "adb shell getprop ro.product.cpu.abi".execute().text.trim()
-// }
-
-// task buildJNI(type: Exec) {
-//     workingDir "../cpp"
-//     commandLine "./build.rive.for.sh", "-a", getDeviceAbi()
-// }
 
 apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
