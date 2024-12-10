@@ -6,7 +6,7 @@ plugins {
 
 android {
     compileSdk 35
-    ndkVersion "25.1.8937393"
+    ndkVersion "27.2.12479018"
     namespace "app.rive.runtime.kotlin"
 
     defaultConfig {
@@ -19,7 +19,11 @@ android {
             cmake {
                 abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
                 arguments "-DCMAKE_VERBOSE_MAKEFILE=1", "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON",
-                        "-DANDROID_CPP_FEATURES=no-exceptions no-rtti", "-DANDROID_STL=c++_shared"
+                        "-DANDROID_CPP_FEATURES=no-exceptions no-rtti", "-DANDROID_STL=c++_shared",
+                        // Support for 16kb page sizes, necessary for NDK r27
+                        // Can remove when upgrading to r28+
+                        // https://developer.android.com/guide/practices/page-sizes#compile-r27
+                        "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
             }
         }
     }
