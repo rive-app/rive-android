@@ -60,6 +60,7 @@ dependencies {
 
     androidTestImplementation "androidx.test.ext:junit-ktx:1.2.1"
     androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "org.jetbrains.kotlin:kotlin-test-junit:2.1.0"
 }
 
 apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"

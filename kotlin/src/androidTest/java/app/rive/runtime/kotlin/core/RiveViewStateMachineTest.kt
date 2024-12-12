@@ -6,6 +6,7 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -31,7 +32,7 @@ class RiveViewStateMachineTest {
             mockView.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
             mockView.play(listOf("one", "two"), areStateMachines = true)
 
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(listOf("New Artboard"), mockView.file?.artboardNames)
             assertEquals(
                 listOf("one", "two"),
@@ -44,10 +45,10 @@ class RiveViewStateMachineTest {
     fun viewDefaultsNoAutoplay() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_state_machines, autoplay = false)
-            assertEquals(false, mockView.isPlaying)
+            assertFalse(mockView.isPlaying)
             mockView.artboardName = "New Artboard"
             assertEquals(
-                listOf<String>(),
+                emptyList<String>(),
                 mockView.stateMachines.map { it.name }.toList()
             )
         }
@@ -57,7 +58,7 @@ class RiveViewStateMachineTest {
     fun viewPause() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "one")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(0, mockView.animations.size)
             assertEquals(0, mockView.playingAnimations.size)
             assertEquals(1, mockView.stateMachines.size)
@@ -72,14 +73,14 @@ class RiveViewStateMachineTest {
     @Test
     fun viewPlayStateWithNoDuration() {
         UiThreadStatement.runOnUiThread {
-            // state machine four's has transitions that happen instantly, so we do not stick on
-            // a state that's playing an animation
+            // State machine four has transitions that happen instantly
+            // which when auto-played will settle immediately.
             mockView.setRiveResource(R.raw.multiple_state_machines, stateMachineName = "four")
-            assertEquals(true, mockView.isPlaying)
+            assertTrue(mockView.isPlaying)
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(1, mockView.playingStateMachines.size)
-            mockView.artboardRenderer?.advance(0.016f);
-            assertEquals(false, mockView.isPlaying)
+            mockView.artboardRenderer?.advance(0.016f)
+            assertFalse(mockView.isPlaying)
             assertEquals(1, mockView.stateMachines.size)
             assertEquals(0, mockView.playingStateMachines.size)
         }
@@ -89,31 +90,33 @@ class RiveViewStateMachineTest {
     fun viewStateMachinesPause() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-            assert(mockView.isPlaying)
-            assert(mockView.artboardRenderer != null)
+            assertTrue(mockView.isPlaying)
+            assertNotNull(mockView.artboardRenderer)
             // Let the state machine animation run its course.
             mockView.artboardRenderer!!.advance(1.01f)
             // Must advance by non 0 to truly complete.
             mockView.artboardRenderer!!.advance(0.01f)
-            assert(!mockView.isPlaying)
+            assertFalse(mockView.isPlaying)
         }
     }
 
     @Test
     fun viewStateMachinePlayBeforeAttach() {
         UiThreadStatement.runOnUiThread {
-            val mView = mockView as TestUtils.MockRiveAnimationView
-            val controller = mView.controller
-            mView.setRiveResource(R.raw.what_a_state)
-            mView.play("State Machine 2", isStateMachine = true)
+            val view = mockView as TestUtils.MockRiveAnimationView
+            val controller = view.controller
+            view.setRiveResource(R.raw.what_a_state)
+
+            view.play("State Machine 2", isStateMachine = true)
             assertEquals(1, controller.stateMachines.size)
+
             // Scroll away: remove the view.
-            mView.mockDetach()
+            view.mockDetach()
             assertFalse(controller.isActive)
             assertNull(controller.file)
 
             // Scroll back, re-add the view.
-            mView.mockAttach()
+            view.mockAttach()
             assertTrue(controller.isActive)
             assertEquals("State Machine 2", controller.stateMachines.first().name)
         }
@@ -123,20 +126,20 @@ class RiveViewStateMachineTest {
     fun nestedStateMachinesContinuePlaying() {
         UiThreadStatement.runOnUiThread {
             // The main state machine's controller is not advancing, however, nested artboards
-            // need to continue playing
-            val mView = mockView as TestUtils.MockRiveAnimationView
-            val controller = mView.controller
-            mView.setRiveResource(R.raw.nested_settle)
-            mView.play("State Machine 1", isStateMachine = true)
-            assertEquals(1, controller.stateMachines.size)
+            // need to continue playing.
+            mockView.setRiveResource(R.raw.nested_settle)
 
-            mView.artboardRenderer?.advance(0.5f);
-            assert(mView.isPlaying)
-            mView.artboardRenderer?.advance(0.5f);
-            assert(mView.isPlaying)
+            mockView.play("State Machine 1", isStateMachine = true)
+            assertEquals(1, mockView.controller.stateMachines.size)
+
+            mockView.artboardRenderer?.advance(0.5f)
+            assertTrue(mockView.isPlaying)
+            mockView.artboardRenderer?.advance(0.5f)
+            assertTrue(mockView.isPlaying)
+
             // The nested artboard should now be settled
-            mView.artboardRenderer?.advance(0.01f);
-            assert(!mView.isPlaying) // Playing is false
+            mockView.artboardRenderer?.advance(0.01f)
+            assertFalse(mockView.isPlaying)
         }
     }
 
@@ -144,17 +147,14 @@ class RiveViewStateMachineTest {
     @Ignore("We're not stopping state machines when all layers are stopped atm.")
     fun viewStateMachinesInstancesRemoveOnStop() {
         UiThreadStatement.runOnUiThread {
-
             val view = RiveAnimationView(appContext)
             view.setRiveResource(R.raw.what_a_state, stateMachineName = "State Machine 2")
-
-            assert(view.artboardRenderer != null)
-            val renderer = view.artboardRenderer!!
             assertEquals(1, view.stateMachines.size)
+
+            val renderer = view.artboardRenderer!!
             renderer.advance(2f)
-            assertEquals(false, view.isPlaying)
+            assertFalse(view.isPlaying)
             assertEquals(0, view.stateMachines.size)
         }
     }
-
 }

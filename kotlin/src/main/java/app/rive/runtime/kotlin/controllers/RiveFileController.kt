@@ -342,17 +342,13 @@ class RiveFileController internal constructor(
                     }
                 }
 
-                // Only pause the state machines once the artboard has also settled, as nested
-                // artboards may still be advancing. This is to tie into the current logic of
-                // pausing only when current animations/machines are empty. In the future
-                // this can be simplified.
-                // Resolves: https://github.com/rive-app/rive-android/issues/338
-                if (!ab.advance(elapsed) && elapsed > 0.0) {
-                    // Only remove the state machines if the elapsed time was
-                    // greater than 0. 0 elapsed time causes no changes so it's
-                    // no-op advance.
+                // Only remove the state machines if the elapsed time was
+                // greater than 0. 0 elapsed time causes no changes so it's
+                // no-op advance.
+                if (elapsed > 0.0) {
                     stateMachinesToPause.forEach { pause(stateMachine = it) }
                 }
+
                 notifyAdvance(elapsed)
             }
         }
