@@ -181,6 +181,13 @@ namespace rive_android
     const uint32_t fallbackIndex,
     const rive::Font* riveFont)
 {
+    if (fallbackIndex > 0)
+    {
+        // Cannot attempt more than once on Android, otherwise it will keep
+        // trying and risk a stack overflow.
+        return nullptr;
+    }
+
     if (!riveFont)
     {
         LOGE("No font provided for missing characters");
