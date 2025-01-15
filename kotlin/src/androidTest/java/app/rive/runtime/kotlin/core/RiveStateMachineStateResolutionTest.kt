@@ -170,7 +170,7 @@ class RiveStateMachineStateResolutionTest {
             mockView.artboardRenderer!!.advance(0f)
 
             assertEquals("StateResolution", observer.states[0].stateMachineName)
-            assertEquals("Choice 2", observer.states[0].stateName)
+            assertEquals("Jump 2", observer.states[0].stateName)
         }
     }
 
