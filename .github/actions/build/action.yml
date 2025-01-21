@@ -11,5 +11,5 @@ runs:
       env:
         # ANDROID_SDK_ROOT has been in the env by 'setup-android' action in prepare.yml
         #   and is => /usr/local/lib/android/sdk
-        NDK_PATH: ${{ env.ANDROID_SDK_ROOT }}/android-ndk-r25b
+        NDK_PATH: ${{ env.ANDROID_SDK_ROOT }}/android-ndk-r27c
       run: ./gradlew kotlin:assembleRelease

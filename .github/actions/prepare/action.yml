@@ -48,8 +48,8 @@ runs:
         set -x 
         echo "y" | sdkmanager --install 'build-tools;34.0.0' platform-tools --sdk_root=${ANDROID_SDK_ROOT}
         cd ${ANDROID_HOME} 
-        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-        unzip -q android-ndk-r25b-linux.zip
+        wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+        unzip -q android-ndk-r27c-linux.zip
         echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
 
     - name: Configure venv
