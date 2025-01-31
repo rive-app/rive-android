@@ -24,7 +24,7 @@ object Rive {
      *
      * This can be customized via [Rive.init].
      */
-    var defaultRendererType: RendererType = RendererType.Skia
+    var defaultRendererType: RendererType = RendererType.Rive
         private set
 
     /**
@@ -39,7 +39,7 @@ object Rive {
      * @param defaultRenderer The default renderer to use when initializing [File] or
      *    [RiveAnimationView]. Defaults to [RendererType.Skia].
      */
-    fun init(context: Context, defaultRenderer: RendererType = RendererType.Skia) {
+    fun init(context: Context, defaultRenderer: RendererType = RendererType.Rive) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
         ReLinker.loadLibrary(context, RIVE_ANDROID)

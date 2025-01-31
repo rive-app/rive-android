@@ -2,9 +2,8 @@ package app.rive.runtime.kotlin.core
 
 
 enum class RendererType(val value: Int) {
-    Skia(0),
-    Rive(1),
-    Canvas(2);
+    Rive(0),
+    Canvas(1);
 
     companion object {
         fun fromIndex(index: Int): RendererType {

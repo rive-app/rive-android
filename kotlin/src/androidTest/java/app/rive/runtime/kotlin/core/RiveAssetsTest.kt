@@ -78,7 +78,7 @@ class RiveAssetsTest {
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
             fileAssetLoader = myLoader,
-            rendererType = RendererType.Skia,
+            rendererType = RendererType.Rive,
         )
         assertEquals(1, file.firstArtboard.animationCount)
         assertNotNull(imageAsset)
@@ -107,7 +107,7 @@ class RiveAssetsTest {
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
             fileAssetLoader = myLoader,
-            rendererType = RendererType.Skia,
+            rendererType = RendererType.Rive,
         )
         assertEquals(1, file.firstArtboard.animationCount)
         assertNotNull(imageAsset)
@@ -157,7 +157,7 @@ class RiveAssetsTest {
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
             fileAssetLoader = myLoader,
-            rendererType = RendererType.Skia,
+            rendererType = RendererType.Rive,
         )
         assertEquals(1, file.firstArtboard.animationCount)
         assertNotNull(fontAsset)

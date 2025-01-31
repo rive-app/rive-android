@@ -12,15 +12,12 @@ set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fno-exceptions -fno-rtti -DYOGA_EXPORT=")
 set(CMAKE_CXX_FLAGS_RELEASE "-Oz -DYOGA_EXPORT=")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# Define RIVE_RUNTIME_DIR as an env variable so that `build.rive.for.sh` can also use it.
 if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-runtime")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
-    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/submodules/rive-runtime")
-    set(RIVE_RENDERER_DIR "${PACKAGES_DIR}/submodules/rive-runtime/renderer")
+    set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/submodules/rive-runtime")
 else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
-    set(ENV{RIVE_RUNTIME_DIR} "${PACKAGES_DIR}/runtime")
-    set(RIVE_RENDERER_DIR "${PACKAGES_DIR}/runtime/renderer")
+    set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/runtime")
 endif ()
 
 message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
@@ -38,8 +35,6 @@ add_definitions(-DRIVE_GLES)
 add_definitions(-DWITH_RIVE_AUDIO -DMA_NO_RESOURCE_MANAGER)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(SKIA_DIR_NAME "skia_debug")
-    set(DEBUG_FLAG "-d")
     set(CONFIG "debug")
     add_definitions(-DDEBUG)
 endif ()
@@ -47,36 +42,41 @@ endif ()
 if (CMAKE_BUILD_TYPE STREQUAL "Release" OR
         CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR
         CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-    set(SKIA_DIR_NAME "skia")
     set(CONFIG "release")
     add_definitions(-DNDEBUG)
 endif ()
 
-message("Skia location: ${SKIA_DIR_NAME}")
+if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+    set(RIVE_ARCH "arm64")
+elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    set(RIVE_ARCH "arm")
+elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+    set(RIVE_ARCH "x64")
+elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "i686")
+    set(RIVE_ARCH "x86")
+else ()
+    set(RIVE_ARCH "${CMAKE_ANDROID_ARCH_ABI}")
+endif ()
+
+# Promote our ${ANDROID_NDK} to an environment var so premake uses the same one.
+set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
 # Build dependencies.
 execute_process(
-        COMMAND bash ./build.rive.for.sh -a ${CMAKE_ANDROID_ARCH_ABI} -b ${DEBUG_FLAG}
-        OUTPUT_FILE ${CMAKE_SOURCE_DIR}/rive_build_${CMAKE_ANDROID_ARCH_ABI}.log
+        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=system -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
+        ECHO_OUTPUT_VARIABLE
 )
-
 if (NOT SCRIPT_RESULT EQUAL "0")
     message(FATAL_ERROR "Script returned with error: '${SCRIPT_OUTPUT}' - '${SCRIPT_RESULT}'")
 endif ()
+
 include_directories(
         include
-        $ENV{RIVE_RUNTIME_DIR}/include
-        ${RIVE_RENDERER_DIR}/include
-        $ENV{RIVE_RUNTIME_DIR}/renderer/library/include
-        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/
-        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/core
-        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/effects
-        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/gpu
-        $ENV{RIVE_RUNTIME_DIR}/skia/dependencies/${SKIA_DIR_NAME}/include/config
-        $ENV{RIVE_RUNTIME_DIR}/skia/renderer/include
+        ${RIVE_RUNTIME_DIR}/include
+        ${RIVE_RUNTIME_DIR}/renderer/include
 )
 
 file(GLOB SOURCES CONFIGURE_DEPENDS
@@ -93,16 +93,14 @@ set(static_libs
         rive_harfbuzz
         rive_sheenbidi
         rive_yoga
-        rive_skia_renderer
         rive_pls_renderer
-        skia
 )
 
 foreach (X IN LISTS static_libs)
     add_library(${X}-lib STATIC IMPORTED)
     set_target_properties(${X}-lib
             PROPERTIES IMPORTED_LOCATION
-            ${CMAKE_CURRENT_SOURCE_DIR}/build/${CONFIG}/${CMAKE_ANDROID_ARCH_ABI}/lib${X}.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/out/android_${RIVE_ARCH}_${CONFIG}/lib${X}.a
     )
 endforeach ()
 
@@ -118,9 +116,7 @@ target_link_libraries(rive-android
         rive_harfbuzz-lib
         rive_sheenbidi-lib
         rive_yoga-lib
-        rive_skia_renderer-lib
         rive_pls_renderer-lib
-        skia-lib
 
         ${log-lib}
         ${android-lib}

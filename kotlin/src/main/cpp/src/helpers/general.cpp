@@ -19,7 +19,6 @@ namespace rive_android
  * textures, etc.)
  */
 static AndroidRiveRenderFactory g_RiveFactory;
-static AndroidSkiaFactory g_SkiaFactory;
 static AndroidCanvasFactory g_CanvasFactory;
 
 JavaVM* g_JVM;
@@ -176,12 +175,8 @@ rive::Factory* GetFactory(RendererType rendererType)
     {
         return static_cast<rive::Factory*>(&g_RiveFactory);
     }
-    else if (rendererType == RendererType::Canvas)
-    {
-        return static_cast<rive::Factory*>(&g_CanvasFactory);
-    }
-    // Current fallback is Skia.
-    return static_cast<rive::Factory*>(&g_SkiaFactory);
+    // Current fallback is Canvas.
+    return static_cast<rive::Factory*>(&g_CanvasFactory);
 }
 
 long Import(uint8_t* bytes,

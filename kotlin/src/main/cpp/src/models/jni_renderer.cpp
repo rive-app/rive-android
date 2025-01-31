@@ -1,13 +1,5 @@
 #include "models/jni_renderer.hpp"
 
-#include "GrBackendSurface.h"
-#include "GrDirectContext.h"
-#include "SkCanvas.h"
-#include "SkSurface.h"
-#include "SkImageInfo.h"
-#include "gl/GrGLInterface.h"
-#include "gl/GrGLAssembleInterface.h"
-
 using namespace std::chrono_literals;
 
 namespace rive_android
@@ -15,7 +7,7 @@ namespace rive_android
 JNIRenderer::JNIRenderer(
     jobject ktRenderer,
     bool trace /* = false */,
-    const RendererType rendererType /* = RendererType::Skia */) :
+    const RendererType rendererType /* = RendererType::Canvas */) :
     m_worker(RefWorker::CurrentOrFallback(rendererType)),
     // Grab a Global Ref to prevent Garbage Collection to clean up the object
     //  from under us since the destructor will be called from the render thread

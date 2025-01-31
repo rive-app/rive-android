@@ -150,31 +150,6 @@ rive::rcp<rive::AudioSource> decode(rive::Span<const uint8_t> data,
     return factory->decodeAudio(data);
 }
 
-std::vector<uint8_t> AndroidSkiaFactory::platformDecode(
-    Span<const uint8_t> encodedBytes,
-    SkiaFactory::ImageInfo* info)
-{
-    uint32_t width, height;
-    std::vector<uint8_t> pixels;
-    bool isOpaque;
-    if (!JNIDecodeImage(encodedBytes,
-                        true /*premultiply*/,
-                        &width,
-                        &height,
-                        &pixels,
-                        &isOpaque))
-    {
-        return pixels;
-    }
-
-    info->rowBytes = width * 4; // we're snug
-    info->width = width;
-    info->height = height;
-    info->colorType = ColorType::rgba;
-    info->alphaType = isOpaque ? AlphaType::opaque : AlphaType::premul;
-    return pixels;
-}
-
 // RenderBufferGLImpl specialization that can take advantage EGLWorker and be
 // used on or off the GL thread.
 class AndroidPLSRenderBuffer : public RenderBufferGLImpl

@@ -5,7 +5,6 @@
 #define RIVE_ANDROID_FACTORIES_HPP
 
 #include "jni_refs.hpp"
-#include "skia_factory.hpp"
 #include "helpers/general.hpp"
 
 #include "rive/renderer/rive_render_factory.hpp"
@@ -49,14 +48,6 @@ template <typename AssetType> void releaseAsset(jlong address)
     AssetType* asset = reinterpret_cast<AssetType*>(address);
     rive::safe_unref(asset);
 }
-
-class AndroidSkiaFactory : public rive::SkiaFactory
-{
-public:
-    std::vector<uint8_t> platformDecode(
-        rive::Span<const uint8_t> encodedBytes,
-        rive::SkiaFactory::ImageInfo* info) override;
-};
 
 class AndroidRiveRenderFactory : public rive::RiveRenderFactory
 {

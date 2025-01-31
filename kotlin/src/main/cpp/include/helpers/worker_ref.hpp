@@ -11,14 +11,11 @@ class RefWorker : public WorkerThread
 {
 public:
     // Returns the current worker of the requested renderer type, or the current
-    // Skia worker if the requested type is not supported.
+    // Canvas worker if the requested type is not supported.
     static rive::rcp<RefWorker> CurrentOrFallback(RendererType);
 
     // Returns the Rive renderer worker, or null if it is not supported.
     static rive::rcp<RefWorker> RiveWorker();
-
-    // Returns the current Skia renderer worker.
-    static rive::rcp<RefWorker> SkiaWorker();
 
     // Returns the current Canvas renderer worker.
     static rive::rcp<RefWorker> CanvasWorker();
@@ -42,8 +39,6 @@ public:
                 return "Canvas";
             case RendererType::Rive:
                 return "Rive";
-            case RendererType::Skia:
-                return "Skia";
         }
     }
 

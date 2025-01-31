@@ -43,17 +43,17 @@ class RiveFileLoadTest {
 
     @Test
     fun loadFileWithRendererType() {
-        val skiaFile =
+        val file =
             File(appContext.resources.openRawResource(R.raw.off_road_car_blog).readBytes())
-        assertEquals(5, skiaFile.firstArtboard.animationCount)
-        assertEquals(RendererType.Skia, skiaFile.rendererType)
+        assertEquals(5, file.firstArtboard.animationCount)
+        assertEquals(RendererType.Rive, file.rendererType)
 
         val customRendererFile = File(
             appContext.resources.openRawResource(R.raw.off_road_car_blog).readBytes(),
-            RendererType.Rive
+            RendererType.Canvas
         )
         assertEquals(5, customRendererFile.firstArtboard.animationCount)
-        assertEquals(RendererType.Rive, customRendererFile.rendererType)
+        assertEquals(RendererType.Canvas, customRendererFile.rendererType)
         customRendererFile.release()
     }
 
@@ -71,7 +71,7 @@ class RiveFileLoadTest {
         val file = File(
             appContext.resources.openRawResource(R.raw.walle).readBytes(),
             fileAssetLoader = myLoader,
-            rendererType = RendererType.Skia,
+            rendererType = RendererType.Rive,
         )
         assertEquals(1, file.firstArtboard.animationCount)
 
@@ -96,7 +96,7 @@ class RiveFileLoadTest {
         val file = File(
             appContext.resources.openRawResource(R.raw.cdn_image).readBytes(),
             fileAssetLoader = myCDNLoader,
-            rendererType = RendererType.Skia,
+            rendererType = RendererType.Rive,
         )
 
         assertEquals(1, assetStore.size)

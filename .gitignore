@@ -11,6 +11,7 @@ kotlin/src/main/cpp/*.o
 kotlin/src/main/cpp/*.so
 kotlin/src/main/cpp/build
 kotlin/src/main/cpp/deps
+kotlin/src/main/cpp/dependencies
 kotlin/src/main/cpp/Toolchains
 kotlin/src/main/cpp/test/build
 kotlin/src/main/cpp/test/build_catch_tests

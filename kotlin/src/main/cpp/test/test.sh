@@ -14,28 +14,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
   HOST_TAG=darwin-x86_64
 fi
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  EXPECTED_NDK_VERSION=$(tr <../.ndk_version -d " \t\n\r")
-else
-  EXPECTED_NDK_VERSION=$(tr <../.ndk_version.bots -d " \t\n\r")
-fi
-
 # NDK_PATH must be set
 if [[ -z ${NDK_PATH+x} ]]; then
   echo "NDK_PATH is unset, should be somewhere like /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
-  exit 1
-# Check NDK version
-elif [[ ${NDK_PATH} != *${EXPECTED_NDK_VERSION}* ]]; then
-  echo "Wrong NDK version"
-  echo "Expected: /Users/<username>/Library/Android/sdk/ndk/${EXPECTED_NDK_VERSION}"
-  echo "          For bot builds, Google's NDK distros,"
-  echo "          we are currently using: https://github.com/android/ndk/wiki, you should be able to get android-ndk-r27c-darwin"
-  echo "          For human builds"
-  echo "              - Open Android Studio"
-  echo "              - Settings > Search for SDK Tools"
-  echo "              - check "Show Package Details" at the bottom"
-  echo "              - select 27.2.12479018 in NDK (Side by Side)"
-  echo "Found ${NDK_PATH}"
   exit 1
 fi
 

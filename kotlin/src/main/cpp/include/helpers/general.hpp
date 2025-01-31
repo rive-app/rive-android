@@ -32,9 +32,8 @@ namespace rive_android
 enum class RendererType
 {
     None = -1,
-    Skia = 0,
-    Rive = 1,
-    Canvas = 2
+    Rive = 0,
+    Canvas = 1
 };
 
 extern JavaVM* g_JVM;
@@ -43,7 +42,7 @@ void SetSDKVersion();
 void LogReferenceTables();
 long Import(uint8_t*,
             jint,
-            RendererType = RendererType::Skia,
+            RendererType = RendererType::Rive,
             rive::FileAssetLoader* = nullptr);
 
 rive::Alignment GetAlignment(JNIEnv*, jobject);

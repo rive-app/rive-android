@@ -14,7 +14,7 @@ class JNIRenderer
 public:
     explicit JNIRenderer(jobject ktRenderer,
                          bool trace = false,
-                         const RendererType rendererType = RendererType::Skia);
+                         const RendererType rendererType = RendererType::Rive);
 
     ~JNIRenderer();
 

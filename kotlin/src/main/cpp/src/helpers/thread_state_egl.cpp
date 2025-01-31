@@ -3,11 +3,6 @@
 
 #include "helpers/thread_state_egl.hpp"
 
-#include "GrDirectContext.h"
-#include "gl/GrGLInterface.h"
-#include "gl/GrGLAssembleInterface.h"
-#include "SkSurface.h"
-
 namespace rive_android
 {
 static bool config_has_attribute(EGLDisplay display,

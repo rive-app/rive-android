@@ -35,7 +35,6 @@ val tests = listOf(
     },
 )
 val rendererSetups = listOf(
-    RendererSetup("skia", RendererType.Skia),
     RendererSetup("canvas", RendererType.Canvas),
     RendererSetup("rive", RendererType.Rive)
 )

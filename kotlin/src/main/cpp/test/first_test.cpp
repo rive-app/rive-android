@@ -19,7 +19,7 @@ TEST_CASE("Factorial of 0 is 1 (fail)", "[single-file]")
 TEST_CASE("Factorials of 1 and higher are computed (pass)", "[single-file]")
 {
     rive::rcp<RefWorker> worker =
-        RefWorker::CurrentOrFallback(RendererType::Skia);
+        RefWorker::CurrentOrFallback(RendererType::Rive);
     printf("AM I ALIVE?!\n");
     // worker->run([=](EGLThreadState* ts) { printf("I am alive!?\n"); });
     REQUIRE(Factorial(1) == 1);

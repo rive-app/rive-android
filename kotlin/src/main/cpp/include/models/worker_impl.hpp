@@ -7,13 +7,10 @@
 
 #include <variant>
 
-#include <skia_renderer.hpp>
-
 #include "jni_refs.hpp"
 #include "canvas_renderer.hpp"
 
 #include "helpers/thread_state_pls.hpp"
-#include "helpers/thread_state_skia.hpp"
 
 #include "rive/renderer/rive_renderer.hpp"
 
@@ -106,41 +103,6 @@ protected:
     }
 
     void* m_eglSurface = EGL_NO_SURFACE;
-};
-
-class SkiaWorkerImpl : public EGLWorkerImpl
-{
-public:
-    SkiaWorkerImpl(struct ANativeWindow* window,
-                   DrawableThreadState* threadState,
-                   bool* success) :
-        EGLWorkerImpl(window, threadState, success)
-    {
-        if (!success)
-        {
-            return;
-        }
-        m_skSurface = static_cast<SkiaThreadState*>(threadState)
-                          ->createSkiaSurface(m_eglSurface,
-                                              ANativeWindow_getWidth(window),
-                                              ANativeWindow_getHeight(window));
-        if (m_skSurface == nullptr)
-            return;
-        m_skRenderer =
-            std::make_unique<rive::SkiaRenderer>(m_skSurface->getCanvas());
-    }
-
-    void destroy(DrawableThreadState* threadState) override;
-
-    void clear(DrawableThreadState* threadState) const override;
-
-    void flush(DrawableThreadState* threadState) const override;
-
-    rive::Renderer* renderer() const override;
-
-protected:
-    sk_sp<SkSurface> m_skSurface;
-    std::unique_ptr<rive::SkiaRenderer> m_skRenderer;
 };
 
 class PLSWorkerImpl : public EGLWorkerImpl

@@ -24,13 +24,6 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
                 std::make_unique<PLSWorkerImpl>(window, threadState, &success);
             break;
         }
-        case RendererType::Skia:
-        {
-            ANativeWindow* window = std::get<ANativeWindow*>(surface);
-            impl =
-                std::make_unique<SkiaWorkerImpl>(window, threadState, &success);
-            break;
-        }
         case RendererType::Canvas:
         {
             jobject ktSurface = std::get<jobject>(surface);
@@ -119,26 +112,6 @@ void WorkerImpl::doFrame(
     tracer->endSection(); // swapBuffers
     tracer->endSection(); // draw()
 }
-
-/* SkiaWorkerImpl */
-void SkiaWorkerImpl::destroy(DrawableThreadState* threadState)
-{
-    m_skRenderer.reset();
-    m_skSurface.reset();
-    EGLWorkerImpl::destroy(threadState);
-}
-
-void SkiaWorkerImpl::clear(DrawableThreadState*) const
-{
-    m_skSurface->getCanvas()->clear(uint32_t((0x00000000)));
-}
-
-void SkiaWorkerImpl::flush(DrawableThreadState* threadState) const
-{
-    m_skSurface->flushAndSubmit();
-}
-
-rive::Renderer* SkiaWorkerImpl::renderer() const { return m_skRenderer.get(); }
 
 /* PLSWorkerImpl */
 PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,

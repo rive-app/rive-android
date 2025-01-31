@@ -9,7 +9,6 @@ namespace rive_android
 {
 static std::mutex s_refWorkerMutex;
 
-static std::unique_ptr<RefWorker> s_skiaWorker;
 static std::unique_ptr<RefWorker> s_canvasWorker;
 
 rcp<RefWorker> RefWorker::RiveWorker()
@@ -42,7 +41,7 @@ rcp<RefWorker> RefWorker::RiveWorker()
         }
         else
         {
-            LOGI("Rive renderer is not supported. Falling back on Skia.");
+            LOGI("Rive renderer is not supported. Falling back on Canvas.");
         }
     }
 
@@ -51,19 +50,6 @@ rcp<RefWorker> RefWorker::RiveWorker()
         ++s_riveWorker->m_externalRefCount; // Increment the external ref count.
     }
     return rcp(s_riveWorker.get());
-}
-
-rcp<RefWorker> RefWorker::SkiaWorker()
-{
-    std::lock_guard lock(s_refWorkerMutex);
-    if (s_skiaWorker == nullptr)
-    {
-        LOGI("Creating *Skia* RefWorker");
-        s_skiaWorker =
-            std::unique_ptr<RefWorker>(new RefWorker(RendererType::Skia));
-    }
-    ++s_skiaWorker->m_externalRefCount; // Increment the external ref count.
-    return rcp(s_skiaWorker.get());
 }
 
 rcp<RefWorker> RefWorker::CanvasWorker()
@@ -91,16 +77,13 @@ rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
         case RendererType::Rive:
             currentOrFallback = RiveWorker();
             break;
-        case RendererType::Skia:
-            currentOrFallback = SkiaWorker();
-            break;
         case RendererType::Canvas:
             currentOrFallback = CanvasWorker();
             break;
     }
     if (currentOrFallback == nullptr)
     {
-        currentOrFallback = SkiaWorker();
+        currentOrFallback = CanvasWorker();
     }
     return currentOrFallback;
 }
@@ -155,16 +138,9 @@ void RefWorker::externalRefCountDidReachZero()
             });
             break;
         }
-        case RendererType::Skia:
-        {
-            // Delete the entire Skia context.
-            assert(s_skiaWorker.get() == this);
-            s_skiaWorker = nullptr;
-            break;
-        }
         case RendererType::Canvas:
         {
-            // Delete the entire Skia context.
+            // Delete the entire Canvas context.
             assert(s_canvasWorker.get() == this);
             s_canvasWorker = nullptr;
             break;

@@ -312,32 +312,9 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
         synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
     }
 
-
-    /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
-    @Deprecated(
-        "Use draw(rendererAddress) instead",
-        ReplaceWith("draw(rendererAddress)")
-    )
-
-    fun drawSkia(rendererAddress: Long) {
-        draw(rendererAddress)
-    }
-
     /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     fun draw(rendererAddress: Long) {
         synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
-    }
-
-    /**
-     * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
-     * align the artboard to the render surface.
-     */
-    @Deprecated(
-        "Use draw(rendererAddress, fit, alignment, scaleFactor) instead",
-        ReplaceWith("draw(rendererAddress, fit, alignment, scaleFactor)")
-    )
-    fun drawSkia(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
-        draw(rendererAddress, fit, alignment, scaleFactor)
     }
 
     /**

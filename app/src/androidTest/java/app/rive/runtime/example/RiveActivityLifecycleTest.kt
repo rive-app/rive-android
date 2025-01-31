@@ -14,7 +14,12 @@ import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.errors.RiveException
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,8 +42,8 @@ class RiveActivityLifecycleTest {
             assertTrue(controller.isActive)
             assertNotNull(controller.file)
             assertNotNull(controller.activeArtboard)
-            // Defaults to Skia.
-            assertEquals(RendererType.Skia, riveView.rendererAttributes.rendererType)
+            // Defaults to Rive Renderer.
+            assertEquals(RendererType.Rive, riveView.rendererAttributes.rendererType)
             assertEquals(riveView.rendererAttributes.rendererType, controller.file?.rendererType)
         }
         // Close it down.
@@ -55,7 +60,7 @@ class RiveActivityLifecycleTest {
         val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
-        var assetLoader : FileAssetLoader? = null
+        var assetLoader: FileAssetLoader? = null
         // Start the Activity.
         activityScenario.onActivity {
             riveView = it.findViewById(R.id.rive_single)
@@ -101,15 +106,15 @@ class RiveActivityLifecycleTest {
             assertTrue(controller.isActive)
             assertNotNull(controller.file)
             assertNotNull(controller.activeArtboard)
-            // Defaults to Skia.
-            assertEquals(RendererType.Skia, riveView.rendererAttributes.rendererType)
+            // Defaults to Rive Renderer.
+            assertEquals(RendererType.Rive, riveView.rendererAttributes.rendererType)
             assertEquals(riveView.rendererAttributes.rendererType, controller.file?.rendererType)
             // Set wrong file type throws!
             val customRendererFile = File(
                 it.resources.openRawResource(R.raw.off_road_car_blog).readBytes(),
-                RendererType.Rive
+                RendererType.Canvas
             )
-            assertEquals(RendererType.Rive, customRendererFile.rendererType)
+            assertEquals(RendererType.Canvas, customRendererFile.rendererType)
             val wrongFileTypeException = assertThrows(RiveException::class.java) {
                 // Boom!
                 riveView.setRiveFile(customRendererFile)
