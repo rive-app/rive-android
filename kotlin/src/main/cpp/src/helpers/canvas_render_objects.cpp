@@ -24,13 +24,13 @@ namespace rive_android
 CanvasRenderPath::CanvasRenderPath() :
     m_FillRule(rive::FillRule::nonZero), m_ktPath(CreatePath())
 {}
-CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
-    m_FillRule(rule), m_ktPath(CreatePath())
+
+static void addRawPathToCanvasPath(jobject ktPath, const rive::RawPath& path)
 {
     JNIEnv* env = GetJNIEnv();
-    rive::Span<rive::Vec2D> points = path.points();
-    rive::Vec2D* pointsData = points.data();
-    rive::Span<rive::PathVerb> pathVerbs = path.verbs();
+    auto points = path.points();
+    auto pointsData = points.data();
+    auto pathVerbs = path.verbs();
 
     // Let's cache these...
     auto moveToFn = GetMoveToMethodId();
@@ -43,9 +43,9 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
         {
             case rive::PathVerb::move:
             {
-                rive::Vec2D point = pointsData[0];
+                auto point = pointsData[0];
                 JNIExceptionHandler::CallVoidMethod(env,
-                                                    m_ktPath,
+                                                    ktPath,
                                                     moveToFn,
                                                     point.x,
                                                     point.y);
@@ -54,9 +54,9 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
             }
             case rive::PathVerb::line:
             {
-                rive::Vec2D point = pointsData[0];
+                auto point = pointsData[0];
                 JNIExceptionHandler::CallVoidMethod(env,
-                                                    m_ktPath,
+                                                    ktPath,
                                                     lineToFn,
                                                     point.x,
                                                     point.y);
@@ -69,7 +69,7 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
                 auto cp1 = pointsData[1];
                 auto to = pointsData[2];
                 JNIExceptionHandler::CallVoidMethod(env,
-                                                    m_ktPath,
+                                                    ktPath,
                                                     cubicToFn,
                                                     cp0.x,
                                                     cp0.y,
@@ -82,13 +82,19 @@ CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
             }
             case rive::PathVerb::close:
             {
-                JNIExceptionHandler::CallVoidMethod(env, m_ktPath, closeFn);
+                JNIExceptionHandler::CallVoidMethod(env, ktPath, closeFn);
                 break;
             }
             default:
                 break;
         }
     }
+}
+
+CanvasRenderPath::CanvasRenderPath(rive::RawPath& path, rive::FillRule rule) :
+    m_FillRule(rule), m_ktPath(CreatePath())
+{
+    addRawPathToCanvasPath(m_ktPath, path);
 }
 
 CanvasRenderPath::~CanvasRenderPath()
@@ -99,6 +105,11 @@ CanvasRenderPath::~CanvasRenderPath()
 void CanvasRenderPath::rewind()
 {
     GetJNIEnv()->CallVoidMethod(m_ktPath, GetResetMethodId());
+}
+
+void CanvasRenderPath::addRawPath(const rive::RawPath& path)
+{
+    addRawPathToCanvasPath(m_ktPath, path);
 }
 
 void CanvasRenderPath::addRenderPath(rive::RenderPath* path,
@@ -174,6 +185,7 @@ void CanvasRenderPath::fillRule(rive::FillRule value)
             fillTypeId = GetEvenOddId();
             break;
         case rive::FillRule::nonZero:
+        case rive::FillRule::clockwise:
             fillTypeId = GetNonZeroId();
             break;
     }

@@ -30,6 +30,7 @@ public:
     void rewind() override;
 
     void addRenderPath(rive::RenderPath*, const rive::Mat2D&) override;
+    void addRawPath(const rive::RawPath& path) override;
 
     void moveTo(float x, float y) override;
 
