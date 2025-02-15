@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin
 import android.content.Context
 import androidx.startup.Initializer
 import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.core.RiveInitialized
 
 /**
  * Initializes Rive; needs to be done at startup.
@@ -37,9 +38,9 @@ import app.rive.runtime.kotlin.core.Rive
  * In fact, if you want to provide a custom renderer type you'll need to init Rive manually.
  */
 
-class RiveInitializer : Initializer<Unit> {
-    override fun create(context: Context) {
-        return Rive.init(context)
+class RiveInitializer : Initializer<RiveInitialized> {
+    override fun create(context: Context): RiveInitialized {
+        return RiveInitialized(Rive.init(context))
     }
 
     override fun dependencies(): List<Class<out Initializer<*>>> {
