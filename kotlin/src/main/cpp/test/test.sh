@@ -30,7 +30,9 @@ mkdir -p build
 pushd build
 
 "${ANDROID_HOME}"/cmake/3.22.1/bin/cmake \
-  -H/Users/umbertosonnino/Projects/rive/packages/runtime_android/cpp \
+  -G Ninja \
+  -S "${PWD}"/../../ \
+  -B"${CMAKE_BUILD_TREE}" \
   -DCMAKE_SYSTEM_NAME=Android \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DCMAKE_SYSTEM_VERSION=21 \
@@ -44,8 +46,6 @@ pushd build
   -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="${LIB_OUTPUT}" \
   -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="${LIB_OUTPUT}" \
   -DCMAKE_BUILD_TYPE=Debug \
-  -B"${CMAKE_BUILD_TREE}" \
-  -GNinja \
   -DCMAKE_VERBOSE_MAKEFILE=1 \
   -DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON \
   -DANDROID_CPP_FEATURES="no-exceptions no-rtti" \
@@ -61,7 +61,9 @@ TEST_BUILD=build_catch_tests
 mkdir -p ${TEST_BUILD}
 
 "${ANDROID_HOME}"/cmake/3.22.1/bin/cmake \
-  -H. \
+  -G Ninja \
+  -S . \
+  -B"${TEST_BUILD}" \
   -DCMAKE_SYSTEM_NAME=Android \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DCMAKE_SYSTEM_VERSION=21 \
@@ -75,8 +77,6 @@ mkdir -p ${TEST_BUILD}
   -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="${TEST_BUILD}" \
   -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="${TEST_BUILD}" \
   -DCMAKE_BUILD_TYPE=Debug \
-  -B"${TEST_BUILD}" \
-  -GNinja \
   -DCMAKE_VERBOSE_MAKEFILE=1 \
   -DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON \
   -DANDROID_CPP_FEATURES="no-exceptions no-rtti" \
