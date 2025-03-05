@@ -66,7 +66,7 @@ abstract class Renderer(
     /**
      * Helper function to reassign the renderer type. This might be necessary if [constructor]
      * couldn't build the renderer with [type] but had to fall back to a different value
-     * (e.g. the Rive Renderer isn't available on emulators and it defaults back to Skia).
+     * (e.g. the Rive Renderer isn't available on emulators and it defaults back to Canvas).
      */
     private fun setRendererType(newType: Int) {
         if (newType != type.value) {

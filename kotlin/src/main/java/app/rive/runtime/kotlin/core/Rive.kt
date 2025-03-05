@@ -37,8 +37,8 @@ object Rive {
      * instead.
      *
      * @param defaultRenderer The default renderer to use when initializing [File] or
-     *    [RiveAnimationView]. Defaults to [RendererType.Skia].
-     * @return `true` if initialized, `false` if some error occurred.
+     *    [app.rive.runtime.kotlin.RiveAnimationView][RiveAnimationView]. Defaults to
+     *    [RendererType.Rive].
      */
     fun init(context: Context, defaultRenderer: RendererType = RendererType.Rive): Boolean {
         val loaded = NativeLoader.loadLibrary(context, RIVE_ANDROID)
