@@ -195,25 +195,26 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
              * for which the constructor has a single parameter of type [Context].
              */
             fun assetLoaderFrom(name: String?, context: Context): FileAssetLoader? {
-                return if (!name.isNullOrEmpty()) {
-                    try {
-                        val kClass = Class.forName(name).kotlin
-                        val maybeContextAssetLoader = kClass.constructors.find {
-                            it.parameters.size == 1 && it.parameters.first().type.classifier == Context::class
-                        }?.call(context.applicationContext)
-                        if (maybeContextAssetLoader != null) {
-                            return maybeContextAssetLoader as ContextAssetLoader
-                        }
-                        val maybeNoArgConstructor =
-                            kClass.constructors.find { it.parameters.isEmpty() }
-                        // Returns null if it doesn't exist.
-                        return maybeNoArgConstructor?.call() as FileAssetLoader?
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to initialize AssetLoader from name: $name")
-                        e.printStackTrace()
-                        null
+                if (name.isNullOrEmpty()) return null
+
+                return try {
+                    val clazz = Class.forName(name)
+                    val contextConstructor = clazz.constructors.find {
+                        it.parameterTypes.size == 1 && it.parameterTypes[0] == Context::class.java
                     }
-                } else {
+                    contextConstructor?.newInstance(context.applicationContext)?.let {
+                        if (it is ContextAssetLoader) return it
+                    }
+
+                    val noArgConstructor = clazz.constructors.find { it.parameterTypes.isEmpty() }
+                    noArgConstructor?.newInstance()?.let {
+                        if (it is FileAssetLoader) return it
+                    }
+
+                    Log.e(TAG, "Failed to initialize AssetLoader: No suitable constructor in $name")
+                    null
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to initialize AssetLoader from name: $name", e)
                     null
                 }
             }
@@ -319,7 +320,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     autoplay = rendererAttributes.autoplay,
                 )
                 /**
-                 * Attach the observer to give us lifecycle hooks
+                 * Attach the observer to give us lifecycle hooks.
                  *
                  * N.B.: We're attaching in the constructor because the View can be created without
                  * ever getting attached (e.g. in RecyclerViews) - we need to register the Observer
@@ -478,7 +479,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Stops any [animation instances][LinearAnimationInstance] called [animationName].
      *
      * Animations instances will be disposed of completely. Subsequent plays will create new
-     * [animation instances][LinearAnimationInstance]
+     * [animation instances][LinearAnimationInstance].
      *
      * Advanced: Multiple [animation instances][LinearAnimationInstance] can run the same animation.
      */
@@ -989,7 +990,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     /**
      * Adds a [RiveEventListener][RiveFileController.RiveEventListener] to get notified on
-     * [RiveEvent]s
+     * [RiveEvent]s.
      *
      * Remove with: [removeEventListener].
      */

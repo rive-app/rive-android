@@ -1,4 +1,3 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
 apply plugin: "io.github.gradle-nexus.publish-plugin"
 apply plugin: "com.palantir.git-version"
 
@@ -12,7 +11,9 @@ ext {
 buildscript {
     ext {
         gradle_version = "8.7.2"
-        kotlin_version = "2.0.21"
+        // Sticking with Kotlin 1.9.x for now for maximum compatibility.
+        // Not all projects use 2.x+ yet, and forcing an upgrade can increase client DEX sizes.
+        kotlin_version = "1.9.25"
         dokkaVersion = "1.4.30"
         compose_version = "1.7.5"
     }
@@ -32,10 +33,7 @@ buildscript {
         classpath("io.github.gradle-nexus:publish-plugin:1.3.0")
         classpath("com.palantir.gradle.gitversion:gradle-git-version:3.1.0")
         classpath("org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.0.21")
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
     }
-
 }
 
 allprojects {
