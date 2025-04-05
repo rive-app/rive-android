@@ -334,7 +334,7 @@ rcp<RenderImage> AndroidRiveRenderFactory::decodeImage(
     std::vector<uint8_t> pixels;
     bool isOpaque;
     if (!JNIDecodeImage(encodedBytes,
-                        false /*premultiply*/,
+                        true /*premultiply*/,
                         &width,
                         &height,
                         &pixels,
