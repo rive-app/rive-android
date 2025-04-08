@@ -201,17 +201,13 @@ public:
             // We aren't on the GL thread. Intercept the buffers before
             // ~RenderBufferGLImpl(), and then marshal them off to the GL thread
             // for deletion.
-            std::array<GLuint, gpu::kBufferRingSize> buffersToDelete =
-                detachBuffers();
+            GLuint bufferToDelete = detachBuffer();
             rcp<GLState> glState = ref_rcp(state());
             m_glWorker->run(
-                [buffersToDelete, glState](rive_android::DrawableThreadState*) {
-                    for (GLuint bufferID : buffersToDelete)
+                [bufferToDelete, glState](rive_android::DrawableThreadState*) {
+                    if (bufferToDelete != 0)
                     {
-                        if (bufferID != 0)
-                        {
-                            glState->deleteBuffer(bufferID);
-                        }
+                        glState->deleteBuffer(bufferToDelete);
                     }
                 });
         }
