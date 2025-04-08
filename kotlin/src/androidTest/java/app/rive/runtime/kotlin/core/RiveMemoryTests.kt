@@ -1,8 +1,14 @@
 package app.rive.runtime.kotlin.core
 
+import android.content.Context
+import android.graphics.SurfaceTexture
+import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.renderers.Renderer
+import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +18,10 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.Phaser
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.locks.ReentrantLock
 
 
 @RunWith(AndroidJUnit4::class)
@@ -355,5 +365,132 @@ class RiveMemoryTests {
                         && cppPointerStack.first().methodName == "getCppPointer"
             )
         }
+    }
+
+    /**
+     * This test is designed to ensure that the file being replaced while rendering does not cause a
+     * crash. It uses a Phaser to synchronize the main thread and the render thread.
+     *
+     * The test creates two files and sets the first one to the view. It then waits for the render
+     * thread to draw its artboard before attempting to replace the file with the second one. The
+     * test ensures that the render thread can complete its render without crashing.
+     *
+     * Originally this caused a crash when accessing the C++ pointer, but this is now handled by
+     * using synchronization blocks on the file lock, ensuring the render thread finishes drawing
+     * before the main thread releases the file.
+     *
+     * The phaser has three phases:
+     * 1. Initial sync: The main thread waits for the render thread to start drawing.
+     * 2. Post-release: The render thread waits for the main thread to release the file.
+     * 3. Post-draw: The main thread waits for the render thread to finish drawing, allowing the
+     *    test to conclude.
+     */
+    @Test
+    fun fileReplacedWhileRendering() {
+        val initialSync = 0
+        val postRelease = 1
+        val postDraw = 2
+
+        // Allows override of the draw method to synchronize with the main thread
+        class PhasedArtboard(
+            unsafeCppPointer: Long,
+            lock: ReentrantLock,
+            private val phaser: Phaser,
+        ) : Artboard(unsafeCppPointer, lock) {
+            override fun draw(
+                cppPointer: Long,
+                fit: Fit,
+                alignment: Alignment,
+                scaleFactor: Float
+            ) {
+                // Initial sync spot with main
+                phaser.arrive()
+                phaser.awaitAdvance(initialSync)
+
+                // Awaiting main to release the file
+                phaser.arrive()
+                // Try/catch rather than assertion so that the test fails with its original error
+                // if this doesn't timeout.
+                try {
+                    phaser.awaitAdvanceInterruptibly(postRelease, 200L, TimeUnit.MILLISECONDS)
+                } catch (_: TimeoutException) {
+                    // This is expected, as the main thread cannot set the file while the render
+                    // thread is drawing, due to the synchronization on the lock.
+                }
+
+                // Only now do we draw, at which point the file would have been replaced
+                super.draw(cppPointer, fit, alignment, scaleFactor)
+                // Arrive at postDraw - we're done
+                phaser.arrive()
+            }
+        }
+
+        // Simple mock to ensure we're creating a PhasedArtboard
+        class PhasedFile(bytes: ByteArray, private val phaser: Phaser) : File(bytes) {
+            override fun artboard(index: Int): Artboard {
+                val artboardPointer = cppArtboardByIndex(cppPointer, index)
+                val ab = PhasedArtboard(artboardPointer, lock, phaser)
+                dependencies.add(ab)
+                return ab
+            }
+        }
+
+        // Mock for manual rendering and render thread setup
+        class MockAnimationView(appContext: Context) : RiveAnimationView(appContext) {
+            init {
+                // Simulate immediate attachment
+                super.onAttachedToWindow()
+
+                // Required to setup the JNIRenderer's WorkerImpl
+                // This will create warnings and errors in the logs, but they can be ignored.
+                val surface = Surface(SurfaceTexture(0))
+                renderer?.setSurface(surface)
+            }
+
+            // Fills the role of the Choreographer, allowing for manual frame advance
+            fun render() = artboardRenderer?.doFrame(0)
+
+            override fun createRenderer(): Renderer =
+                object : RiveArtboardRenderer(controller = controller) {
+                    // Because doFrame calls scheduleFrame to recurse, we want it to no-op
+                    override fun scheduleFrame() {}
+                }
+        }
+
+        // A synchronizing primitive to ensure that the main thread and the render thread are in
+        // lockstep
+        val phaser = Phaser(2)
+
+        // File bytes are arbitrary
+        val (file1, file2) = appContext.resources.openRawResource(R.raw.flux_capacitor).use { res ->
+            val fileBytes = res.readBytes()
+            val file1 = PhasedFile(fileBytes, phaser)
+            val file2 = PhasedFile(fileBytes, phaser)
+            Pair(file1, file2)
+        }
+
+        // Create subclasses of the view and renderer which are more unit-test friendly,
+        // substituting lifecycle, surface, and rendering operations.
+        val view = MockAnimationView(appContext)
+
+        view.setRiveFile(file1)
+        // Account for the acquisition in the File's constructor
+        file1.release()
+
+        // Start the render thread
+        view.render()
+
+        // Initial sync - wait for render thread to arrive
+        phaser.arrive()
+        phaser.awaitAdvance(initialSync)
+
+        // Setting file2 will release file1
+        view.setRiveFile(file2)
+        // Arrive at postRelease
+        phaser.arrive()
+
+        // Arrive and wait for postDraw
+        phaser.arrive()
+        phaser.awaitAdvance(postDraw)
     }
 }

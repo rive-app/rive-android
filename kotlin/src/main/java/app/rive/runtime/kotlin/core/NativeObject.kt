@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.core
 
+import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -40,7 +41,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
             if (!hasCppObject) {
                 val nativeObjectName = this.javaClass.simpleName
                 val riveException = RiveException(
-                    "Accessing disposed C++ object $nativeObjectName. "
+                    "Accessing disposed C++ object $nativeObjectName."
                 )
 
                 riveException.stackTrace = buildCombinedStackTrace().toTypedArray()

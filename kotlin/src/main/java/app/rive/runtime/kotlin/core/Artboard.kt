@@ -1,6 +1,8 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.RectF
+import androidx.annotation.OpenForTesting
+import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
@@ -16,6 +18,7 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
+@OpenForTesting
 class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
@@ -313,14 +316,14 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
-    fun draw(rendererAddress: Long) {
-        synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
-    }
+    @WorkerThread
+    fun draw(rendererAddress: Long) = synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
 
     /**
      * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
      * align the artboard to the render surface.
      */
+    @WorkerThread
     fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
         synchronized(lock) {
             cppDrawAligned(

@@ -808,7 +808,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         controller.file = file
         controller.setupScene(rendererAttributes)
-
     }
 
     /**

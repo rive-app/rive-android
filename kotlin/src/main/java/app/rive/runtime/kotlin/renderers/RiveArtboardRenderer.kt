@@ -44,22 +44,22 @@ open class RiveArtboardRenderer(
         }
     }
 
-    // Note: This is happening in the render thread.
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        if (!hasCppObject || !controller.isActive) {
-            return // exit early
-        }
+        synchronized(controller.file?.lock ?: this) {
+            if (!hasCppObject || !controller.isActive) {
+                return // exit early
+            }
 
-        if (controller.requireArtboardResize.getAndSet(false)) {
-            resizeArtboard()
-        }
+            if (controller.requireArtboardResize.getAndSet(false)) {
+                resizeArtboard()
+            }
 
-        controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
+            controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
+        }
     }
 
-    // Note: This is happening in the render thread.
     // Be aware of thread safety!
     @WorkerThread
     override fun advance(elapsed: Float) {

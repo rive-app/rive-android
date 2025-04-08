@@ -947,7 +947,7 @@ class RiveFileController internal constructor(
     }
 
     /**
-     * Adds a [RiveEventListener] to get notified on [RiveEvent]s
+     * Adds a [RiveEventListener] to get notified on [RiveEvent]s.
      *
      * Remove with: [removeEventListener].
      */

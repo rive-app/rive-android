@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import androidx.annotation.OpenForTesting
+import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
 import java.util.concurrent.locks.ReentrantLock
@@ -18,6 +20,7 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * The rive editor will always let you download your file in the latest runtime format.
  */
+@OpenForTesting
 class File(
     bytes: ByteArray,
     val rendererType: RendererType = Rive.defaultRendererType,
@@ -46,7 +49,9 @@ class File(
     ): Long
 
     private external fun cppArtboardByName(cppPointer: Long, name: String): Long
-    private external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    protected external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
     private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String
     private external fun cppArtboardCount(cppPointer: Long): Int
 
