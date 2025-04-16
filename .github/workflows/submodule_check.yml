@@ -1,14 +1,17 @@
 name: Check Rive-Android sub modules
 
 on:
-  # lets check it when we push to master (we've just done something in android, its a good time to see about this)
+  # Let's check it when we push to master (we've just done something in rive-android, its a good time to see about this)
   push:
     branches:
       - master
   
+  # 8am UTC every day
   schedule:
-    # 8am UTC every day
     - cron: '0 8 * * *'
+
+  # Allow for manual pulling if there's some urgency
+  workflow_dispatch:
 
 
 jobs:
