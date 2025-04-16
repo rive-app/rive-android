@@ -5,6 +5,7 @@
         Set it to false to control the playback programmatically.
         Defaults to true. -->
         <attr name="riveAutoPlay" format="boolean" />
+        <attr name="riveAutoBind" format="boolean" />
         <attr name="riveTraceAnimations" format="boolean" />
         <!-- The artboard to use. Defaults to the first artboard in the file. -->
         <attr name="riveArtboard" format="string" />
@@ -59,6 +60,7 @@
     <declare-styleable name="RiveAnimationView">
         <!-- Inherit attributes from CustomRiveView -->
         <attr name="riveAutoPlay" />
+        <attr name="riveAutoBind" />
         <attr name="riveTraceAnimations" />
         <attr name="riveArtboard" />
         <attr name="riveAnimation" />

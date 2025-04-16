@@ -7,6 +7,7 @@ import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
+import app.rive.runtime.kotlin.core.errors.ViewModelException
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -83,6 +84,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppSetArtboardWidth(cppPointer: Long, width: Float)
     private external fun cppGetArtboardHeight(cppPointer: Long): Float
     private external fun cppSetArtboardHeight(cppPointer: Long, height: Float)
+
+    private external fun cppSetViewModelInstance(cppPointer: Long, instancePointer: Long)
 
     external override fun cppDelete(pointer: Long)
 
@@ -294,6 +297,35 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     /** @return The number of state machines stored inside the artboard. */
     val stateMachineCount: Int
         get() = cppStateMachineCount(cppPointer)
+
+    /**
+     * The [ViewModelInstance] assigned to this artboard. Once assigned, modifications to the
+     * properties of the instance will be reflected in the bindings of this artboard.
+     *
+     * Assigning null will do nothing.
+     *
+     * You should only use assign this property if your file does not contain a state machine. If it
+     * does, prefer [StateMachineInstance.viewModelInstance] instead, as it will set the view model
+     * for both the state machine and the artboard.
+     */
+    var viewModelInstance: ViewModelInstance? = null
+        set(value) {
+            value?.let {
+                cppSetViewModelInstance(cppPointer, it.cppPointer)
+                field = value
+            }
+        }
+
+    /**
+     * @throws ViewModelException If the instance contained by [transfer] has already been assigned
+     *    or disposed.
+     */
+    @Throws(ViewModelException::class)
+    fun receiveViewModelInstance(transfer: ViewModelInstance.Transfer): ViewModelInstance =
+        transfer.end().also {
+            dependencies.add(it)
+            viewModelInstance = it
+        }
 
     /**
      * Advancing the artboard:

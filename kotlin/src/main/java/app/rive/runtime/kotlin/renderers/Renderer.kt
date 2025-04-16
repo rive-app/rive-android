@@ -230,10 +230,7 @@ abstract class Renderer(
     /**
      * Deletes all of this renderer's dependents.
      *
-     * Called internally by the JNI within ~JNIRenderer()
-     *
-     * Note: This function is marked as `protected` instead of `private` because otherwise it's
-     * inaccessible from JNI on API < 24.
+     * Called internally by the JNIRenderer within ~JNIRenderer()
      */
     protected open fun disposeDependencies() {
         dependencies.forEach { it.release() }

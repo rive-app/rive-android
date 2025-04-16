@@ -1,6 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "rive/animation/state_machine_instance.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 #include <jni.h>
 
 #ifdef __cplusplus
@@ -158,6 +159,19 @@ extern "C"
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
         stateMachineInstance->pointerUp(rive::Vec2D(x, y));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSetViewModelInstance(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong viewModelInstanceRef)
+    {
+        auto stateMachine = reinterpret_cast<rive::StateMachineInstance*>(ref);
+        auto instance = reinterpret_cast<rive::ViewModelInstanceRuntime*>(
+            viewModelInstanceRef);
+        stateMachine->bindViewModelInstance(instance->instance());
     }
 
     JNIEXPORT void JNICALL

@@ -9,7 +9,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
-import android.view.*
+import android.view.MotionEvent
+import android.view.View
+import android.view.Window
 import androidx.annotation.CallSuper
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
@@ -22,7 +24,24 @@ import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.controllers.RiveFileController
-import app.rive.runtime.kotlin.core.*
+import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.core.Artboard
+import app.rive.runtime.kotlin.core.ContextAssetLoader
+import app.rive.runtime.kotlin.core.Direction
+import app.rive.runtime.kotlin.core.FallbackAssetLoader
+import app.rive.runtime.kotlin.core.File
+import app.rive.runtime.kotlin.core.FileAssetLoader
+import app.rive.runtime.kotlin.core.Fit
+import app.rive.runtime.kotlin.core.LinearAnimationInstance
+import app.rive.runtime.kotlin.core.Loop
+import app.rive.runtime.kotlin.core.RefCount
+import app.rive.runtime.kotlin.core.RendererType
+import app.rive.runtime.kotlin.core.Rive
+import app.rive.runtime.kotlin.core.RiveEvent
+import app.rive.runtime.kotlin.core.SMIBoolean
+import app.rive.runtime.kotlin.core.SMINumber
+import app.rive.runtime.kotlin.core.SMITrigger
+import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
 import app.rive.runtime.kotlin.renderers.PointerEvents
@@ -37,7 +56,6 @@ import com.android.volley.toolbox.HttpHeaderParser
 import com.android.volley.toolbox.Volley
 import java.io.IOException
 import java.io.UnsupportedEncodingException
-import java.util.*
 import kotlin.math.min
 
 
@@ -178,6 +196,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loopIndex: Int = loopIndexDefault,
         rendererIndex: Int = rendererIndexDefault,
         var autoplay: Boolean,
+        var autoBind: Boolean = false,
         var riveTraceAnimations: Boolean = false,
         var artboardName: String?,
         var animationName: String?,
@@ -233,6 +252,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         internal var loop: Loop? = null
         internal var rendererType: RendererType? = null
         internal var autoplay: Boolean? = null
+        internal var autoBind: Boolean = false
         internal var traceAnimations: Boolean? = null
         internal var artboardName: String? = null
         internal var animationName: String? = null
@@ -248,6 +268,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         fun setLoop(value: Loop) = apply { loop = value }
         fun setRendererType(value: RendererType) = apply { rendererType = value }
         fun setAutoplay(value: Boolean) = apply { autoplay = value }
+        fun setAutoBind(value: Boolean) = apply { autoBind = value }
         fun setTraceAnimations(value: Boolean) = apply { traceAnimations = value }
         fun setArtboardName(value: String) = apply { artboardName = value }
         fun setAnimationName(value: String) = apply { animationName = value }
@@ -297,6 +318,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     autoplay = getBoolean(
                         R.styleable.RiveAnimationView_riveAutoPlay,
                         defaultAutoplay
+                    ),
+                    autoBind = getBoolean(
+                        R.styleable.RiveAnimationView_riveAutoBind, false
                     ),
                     riveTraceAnimations = getBoolean(
                         R.styleable.RiveAnimationView_riveTraceAnimations, traceAnimationsDefault
@@ -349,6 +373,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         rendererAttributes.apply {
             rendererType = builder.rendererType ?: RendererType.fromIndex(rendererIndexDefault)
             autoplay = builder.autoplay ?: defaultAutoplay
+            autoBind = builder.autoBind
             riveTraceAnimations = builder.traceAnimations ?: traceAnimationsDefault
             artboardName = builder.artboardName
             animationName = builder.animationName
@@ -715,6 +740,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
+        autoBind: Boolean = false,
         fit: Fit = Fit.fromIndex(fitIndexDefault),
         alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
         loop: Loop = Loop.fromIndex(loopIndexDefault),
@@ -724,6 +750,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = animationName
             this.stateMachineName = stateMachineName
             this.autoplay = autoplay
+            this.autoBind = autoBind
             this.fit = fit
             this.alignment = alignment
             this.loop = loop
@@ -750,6 +777,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
+        autoBind: Boolean = false,
         fit: Fit = Fit.fromIndex(fitIndexDefault),
         alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
         loop: Loop = Loop.fromIndex(loopIndexDefault),
@@ -759,6 +787,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = animationName
             this.stateMachineName = stateMachineName
             this.autoplay = autoplay
+            this.autoBind = autoBind
             this.fit = fit
             this.alignment = alignment
             this.loop = loop
@@ -786,6 +815,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         animationName: String? = null,
         stateMachineName: String? = null,
         autoplay: Boolean = controller.autoplay,
+        autoBind: Boolean = false,
         fit: Fit = Fit.fromIndex(fitIndexDefault),
         alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
         loop: Loop = Loop.fromIndex(loopIndexDefault),
@@ -800,6 +830,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             this.animationName = animationName
             this.stateMachineName = stateMachineName
             this.autoplay = autoplay
+            this.autoBind = autoBind
             this.fit = fit
             this.alignment = alignment
             this.loop = loop

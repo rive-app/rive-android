@@ -69,6 +69,15 @@ public:
     explicit operator T() const { return resource; }
 
     T get() const { return resource; }
+
+    // Use when the JNI resource should no longer be managed by this object,
+    // such as when you'd like to return it to Kotlin.
+    T release() noexcept
+    {
+        T toRelease = resource;
+        resource = nullptr;
+        return toRelease;
+    }
 };
 
 // Helper function templates to simplify usage
@@ -93,6 +102,7 @@ JniResource<jobject> MakeObject(JNIEnv* env,
                                 ...);
 
 JniResource<jstring> MakeJString(JNIEnv*, const char*);
+JniResource<jstring> MakeJString(JNIEnv*, const std::string&);
 
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv*, jbyteArray);
 

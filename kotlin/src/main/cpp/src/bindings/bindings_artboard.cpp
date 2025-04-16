@@ -5,6 +5,7 @@
 #include "rive/artboard.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/state_machine_instance.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 #include "rive/text/text_value_run.hpp"
 
 #ifdef __cplusplus
@@ -339,6 +340,20 @@ extern "C"
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         artboard->height(value);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetViewModelInstance(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong viewModelInstanceRef)
+    {
+        auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
+        auto instance = reinterpret_cast<rive::ViewModelInstanceRuntime*>(
+            viewModelInstanceRef);
+
+        artboard->bindViewModelInstance(instance->instance());
     }
 
     JNIEXPORT void JNICALL

@@ -332,11 +332,11 @@ class RiveMemoryTests {
             }
             assertTrue(
                 "Exception message should include 'Accessing disposed C++ object File'",
-                exception.message?.contains("Accessing disposed C++ object File") == true
+                exception.message!!.contains("Accessing disposed C++ object File")
             )
 
             val expectedDisposeStack = sequenceOf(
-                Pair("Dispose_Trace", "Start"),
+                Pair("--- Stack Trace for NativeObject Dispose ---", ""),
                 Pair("app.rive.runtime.kotlin.core.NativeObject", "dispose"),
                 Pair("app.rive.runtime.kotlin.core.NativeObject", "release"),
                 Pair("app.rive.runtime.kotlin.core.File", "release"),
@@ -346,23 +346,29 @@ class RiveMemoryTests {
 
             expectedDisposeStack.forEachIndexed { idx, (className, methodName) ->
                 val stackTraceElement = exceptionStack[idx]
-                assertTrue(
+                assertEquals(
                     "Stack Trace class name mismatch - ${stackTraceElement.className} does not match $className",
-                    stackTraceElement.className == className
+                    className,
+                    stackTraceElement.className
                 )
-                assertTrue(
+                assertEquals(
                     "Stack Trace method name mismatch - ${stackTraceElement.methodName} does not match $methodName",
-                    stackTraceElement.methodName == methodName
+                    methodName,
+                    stackTraceElement.methodName
                 )
             }
 
             val cppPointerStack = exceptionStack
-                .dropWhile { it.className != "Current_Trace" }
-                .drop(1) // Skip also "Current_Trace"
-            assertTrue(
+                .dropWhile { it.className != "--- Current Stack Trace ---" }
+                .drop(1) // Skip also "--- Current Stack Trace ---"
+            assertEquals(
+                "Stack Trace did not match", "app.rive.runtime.kotlin.core.NativeObject",
+                cppPointerStack.first().className
+            )
+            assertEquals(
                 "Stack Trace did not match",
-                cppPointerStack.first().className == "app.rive.runtime.kotlin.core.NativeObject"
-                        && cppPointerStack.first().methodName == "getCppPointer"
+                "getCppPointer",
+                cppPointerStack.first().methodName
             )
         }
     }

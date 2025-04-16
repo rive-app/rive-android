@@ -114,7 +114,7 @@ namespace rive_android
     jmethodID midInit = env->GetMethodID(throwableClass.get(),
                                          "<init>",
                                          "(Ljava/lang/String;)V");
-    JniResource<jstring> newMessage = MakeJString(env, errorMsg.c_str());
+    JniResource<jstring> newMessage = MakeJString(env, errorMsg);
 
     // Finally throw with the aggregated message.
     JniResource<jobject> newException =

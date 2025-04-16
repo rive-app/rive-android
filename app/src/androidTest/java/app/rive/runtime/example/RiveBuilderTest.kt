@@ -14,7 +14,11 @@ import app.rive.runtime.kotlin.core.FileAssetLoader
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.RendererType
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.milliseconds
@@ -124,6 +128,7 @@ class RiveBuilderTest {
                 .setFit(Fit.FIT_HEIGHT)
                 .setLoop(Loop.PINGPONG)
                 .setAutoplay(false)
+                .setAutoBind(true)
                 .setTraceAnimations(true)
                 .setArtboardName("artboard2")
                 .setAnimationName("artboard2animation1")
@@ -133,6 +138,7 @@ class RiveBuilderTest {
             controller = riveView.controller
             assertTrue(controller.isActive)
             assertFalse(controller.autoplay)
+            assertNotNull(controller.activeArtboard?.viewModelInstance)
             assertEquals(Alignment.BOTTOM_CENTER, controller.alignment)
             assertEquals(Fit.FIT_HEIGHT, controller.fit)
             assertEquals(Loop.PINGPONG, controller.loop)

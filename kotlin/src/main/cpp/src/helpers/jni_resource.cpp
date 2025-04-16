@@ -58,6 +58,11 @@ JniResource<jstring> MakeJString(JNIEnv* env, const char* str)
     return MakeJniResource(env->NewStringUTF(str), env);
 }
 
+JniResource<jstring> MakeJString(JNIEnv* env, const std::string& str)
+{
+    return MakeJString(env, str.c_str());
+}
+
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv* env, jbyteArray byteArray)
 {
     jsize length = env->GetArrayLength(byteArray);

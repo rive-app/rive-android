@@ -349,6 +349,10 @@ class RiveFileController internal constructor(
                     stateMachinesToPause.forEach { pause(stateMachine = it) }
                 }
 
+                // Poll the assigned view model instances for changes.
+                playingStateMachines.mapNotNull { it.viewModelInstance }
+                    .forEach { it.pollChanges() }
+
                 notifyAdvance(elapsed)
             }
         }
@@ -418,7 +422,21 @@ class RiveFileController internal constructor(
 
         val abName = rendererAttributes.artboardName
 
-        this.activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
+        activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
+
+        if (rendererAttributes.autoBind && activeArtboard != null) {
+            val activeArtboard = activeArtboard!!
+            val defaultInstance =
+                mFile.defaultViewModelForArtboard(activeArtboard).createDefaultInstance()
+            activeArtboard.viewModelInstance = defaultInstance
+
+            // Since state machines aren't created until play(),
+            // we need to check if they need to be created now.
+            val stateMachineName = rendererAttributes.stateMachineName
+                ?: activeArtboard.stateMachineNames.firstOrNull()
+            stateMachineName?.let { getOrCreateStateMachines(it) }
+            stateMachines.forEach { it.viewModelInstance = defaultInstance }
+        }
 
         if (autoplay) {
             val animName = rendererAttributes.animationName

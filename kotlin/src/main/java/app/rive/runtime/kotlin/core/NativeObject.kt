@@ -12,6 +12,10 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
+    /**
+     * A cache of the stack trace at the time that this object was disposed. Appended to the stack
+     * trace to diagnose when attempting to use this object after it has been disposed.
+     */
     private var disposeStackTrace: Sequence<StackTraceElement>? = null
 
     companion object {
@@ -70,18 +74,21 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
         // Append the disposal stack trace if available
         disposeStackTrace?.also { trace ->
-            combinedTrace += StackTraceElement("Dispose_Trace", "Start", null, -1)
+            combinedTrace += StackTraceElement(
+                "--- Stack Trace for NativeObject Dispose ---",
+                "", null, -1
+            )
             combinedTrace += trace
-            combinedTrace += StackTraceElement("Current_Trace", "Start", null, -1)
+            combinedTrace += StackTraceElement("--- Current Stack Trace ---", "", null, -1)
         }
 
         // Append the current stack trace
-        combinedTrace += Helpers.getCurrentStackTrace()
-            .drop(1) // Remove call to buildCombinedStackTrace()
+        combinedTrace += Thread.currentThread().stackTrace.asSequence()
+            .dropWhile { it.className != NativeObject::class.java.name } // Drop system methods
+            .drop(1) // Drop buildCombinedStackTrace()
 
         return combinedTrace
     }
-
 
     /**
      * Increments the references for this counter. Cannot be used for initialization - use
@@ -129,7 +136,9 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     private fun dispose() {
         require(refs.get() == 0)
 
-        disposeStackTrace = Helpers.getCurrentStackTrace()
+        disposeStackTrace =
+            Thread.currentThread().stackTrace.asSequence()
+                .dropWhile { it.className != NativeObject::class.java.name } // Drop system methods
 
         dependencies.apply {
             // Release all dependencies and clear the collection.

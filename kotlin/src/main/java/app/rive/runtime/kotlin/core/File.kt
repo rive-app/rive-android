@@ -4,6 +4,7 @@ import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
+import app.rive.runtime.kotlin.core.errors.ViewModelException
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -54,6 +55,14 @@ class File(
     protected external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
     private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String
     private external fun cppArtboardCount(cppPointer: Long): Int
+    private external fun cppEnums(cppPointer: Long): List<Enum>
+    private external fun cppViewModelCount(cppPointer: Long): Int
+    private external fun cppViewModelByIndex(cppPointer: Long, viewModelIdx: Int): Long
+    private external fun cppViewModelByName(cppPointer: Long, viewModelName: String): Long
+    private external fun cppDefaultViewModelForArtboard(
+        cppPointer: Long,
+        artboardPointer: Long
+    ): Long
 
     external override fun cppDelete(pointer: Long)
 
@@ -100,7 +109,7 @@ class File(
         return ab
     }
 
-    /** Get the number of artboards in the file. */
+    /** Get the number of artboards in the file. Useful for index-based iteration. */
     val artboardCount: Int
         get() = cppArtboardCount(cppPointer)
 
@@ -111,8 +120,68 @@ class File(
             name
         }
 
+    /** The available [enums][Enum] in the file. */
+    val enums: List<Enum>
+        get() = cppEnums(cppPointer)
+
+    /** The number of [ViewModel]s in the file. Useful for index-based iteration. */
+    val viewModelCount: Int
+        get() = cppViewModelCount(cppPointer)
+
+    /**
+     * Get the [ViewModel] definition from the file.
+     *
+     * @param viewModelIdx The Rive file 0-based index of the ViewModel.
+     * @return The [ViewModel] definition.
+     * @throws ViewModelException If the ViewModel is not found.
+     */
+    fun getViewModelByIndex(viewModelIdx: Int): ViewModel {
+        val vmPointer = cppViewModelByIndex(cppPointer, viewModelIdx)
+        if (vmPointer == NULL_POINTER) {
+            throw ViewModelException("No ViewModel found at index $viewModelIdx.")
+        }
+        return ViewModel(vmPointer).also { dependencies.add(it) }
+    }
+
+    /**
+     * Get the [ViewModel] definition from the file.
+     *
+     * @param viewModelName The Rive file name of the ViewModel.
+     * @return The [ViewModel] definition.
+     * @throws ViewModelException If the ViewModel is not found.
+     */
+    fun getViewModelByName(viewModelName: String): ViewModel {
+        val vmPointer = cppViewModelByName(cppPointer, viewModelName)
+        if (vmPointer == NULL_POINTER) {
+            throw ViewModelException("No ViewModel found with name $viewModelName.")
+        }
+        return ViewModel(vmPointer).also { dependencies.add(it) }
+    }
+
+    /**
+     * Get the default [ViewModel] for an [Artboard]. Usually this will be the ViewModel intended
+     * for use with this artboard.
+     *
+     * @param artboard The artboard to get the default ViewModel for.
+     * @return The default ViewModel for the artboard.
+     * @throws ViewModelException If the default ViewModel is not found.
+     */
+    fun defaultViewModelForArtboard(artboard: Artboard): ViewModel {
+        val vmPointer = cppDefaultViewModelForArtboard(cppPointer, artboard.cppPointer)
+        if (vmPointer == NULL_POINTER) {
+            throw ViewModelException("No default ViewModel found for artboard ${artboard.name}.")
+        }
+        return ViewModel(vmPointer).also { dependencies.add(it) }
+    }
+
     override fun release(): Int {
         // `super.release()` is already @Synchronized, but wrap this in its own lock.
         synchronized(lock) { return super.release() }
     }
+
+    /** The name and values of an enum, whether system or user defined. */
+    data class Enum(
+        val name: String,
+        val values: List<String>,
+    )
 }

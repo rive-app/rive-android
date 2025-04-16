@@ -80,7 +80,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
         when (visibility) {
-            View.VISIBLE -> renderer?.start()
+            VISIBLE -> renderer?.start()
             else -> renderer?.stop()
         }
     }

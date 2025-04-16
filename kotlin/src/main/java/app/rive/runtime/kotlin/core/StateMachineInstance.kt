@@ -2,17 +2,18 @@ package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.errors.RiveEventException
 import app.rive.runtime.kotlin.core.errors.StateMachineInputException
+import app.rive.runtime.kotlin.core.errors.ViewModelException
 import java.util.concurrent.locks.ReentrantLock
 
 
 /**
- * The [StateMachineInstance] is a helper to wrap common operations to play a [StateMachine].
+ * The [StateMachineInstance] is a helper to wrap common operations to play a state machine.
  *
  * This object has a counterpart in C++, which implements a lot of functionality. The
  * [unsafeCppPointer] keeps track of this relationship.
  *
- * Use this to keep track of a [StateMachine]s current state and progress, and to help [apply]
- * changes that the [StateMachine] makes to components in an [Artboard].
+ * Use this to keep track of a state machine's current state and progress, and to help [apply]
+ * changes that the state machine makes to components in an [Artboard].
  */
 class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     PlayableInstance,
@@ -29,16 +30,41 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     private external fun cppPointerDown(cppPointer: Long, x: Float, y: Float)
     private external fun cppPointerUp(cppPointer: Long, x: Float, y: Float)
     private external fun cppPointerMove(cppPointer: Long, x: Float, y: Float)
+    private external fun cppSetViewModelInstance(cppPointer: Long, viewModel: Long)
 
     external override fun cppDelete(pointer: Long)
 
-    /** @return The name given to an animation. */
+    /** @return The name of state machine. */
     override val name: String
         get() = cppName(cppPointer)
 
     /** @return The number of layers configured for the state machine. */
     val layerCount: Int
         get() = cppLayerCount(cppPointer)
+
+    /**
+     * The [ViewModelInstance] assigned to this artboard. Once assigned, modifications to the.
+     * properties of the instance will be reflected in the bindings of this state machine.
+     *
+     * Assigning will apply to both the [StateMachineInstance] and the parent [Artboard]. Assigning
+     * null will do nothing.
+     */
+    var viewModelInstance: ViewModelInstance? = null
+        set(value) {
+            value?.let { cppSetViewModelInstance(cppPointer, it.cppPointer) }
+            field = value
+        }
+
+    /**
+     * @throws ViewModelException If the instance contained by [transfer] has already been assigned
+     *    or disposed.
+     */
+    @Throws(ViewModelException::class)
+    fun receiveViewModelInstance(transfer: ViewModelInstance.Transfer): ViewModelInstance =
+        transfer.end().also {
+            dependencies.add(it)
+            viewModelInstance = it
+        }
 
     /**
      * Advance the state machine.
@@ -193,5 +219,3 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     val eventsReported: List<RiveEvent>
         get() = (0 until reportedEventCount).map { eventAt(it) }
 }
-
-
