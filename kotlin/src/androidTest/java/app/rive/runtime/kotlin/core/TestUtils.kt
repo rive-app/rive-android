@@ -183,6 +183,6 @@ class TestUtils {
 
 object NativeFontTestHelper {
     external fun cppGetSystemFontBytes(): ByteArray
-    external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Boolean
+    external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Int
     external fun cppCleanupFallbacks()
 }

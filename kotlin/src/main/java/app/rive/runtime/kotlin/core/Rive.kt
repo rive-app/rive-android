@@ -86,6 +86,7 @@ object Rive {
      * @param byteArray The [ByteArray] bytes for a font file.
      * @return Whether the font was successfully registered.
      */
+    @Deprecated("Prefer defining a `FontFallbackStrategy` instead", level = DeprecationLevel.WARNING)
     fun setFallbackFont(byteArray: ByteArray): Boolean =
         NativeFontHelper.cppRegisterFallbackFont(byteArray)
 
@@ -96,6 +97,7 @@ object Rive {
      *    provided, default options are used.
      * @return Whether the font was successfully registered.
      */
+    @Deprecated("Prefer defining a `FontFallbackStrategy` instead", level = DeprecationLevel.WARNING)
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean {
         FontHelper.getFallbackFontBytes(opts)?.let { bytes ->
             return NativeFontHelper.cppRegisterFallbackFont(bytes)

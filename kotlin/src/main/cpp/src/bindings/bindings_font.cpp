@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <mutex>
 
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
@@ -18,6 +19,14 @@ extern "C"
         jbyteArray fontByteArray)
     {
         return FontHelper::RegisterFallbackFont(fontByteArray);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_fonts_FontFallbackStrategy_00024Companion_cppResetFontCache(
+        JNIEnv* env,
+        jobject)
+    {
+        FontHelper::resetCache();
     }
 #ifdef __cplusplus
 }

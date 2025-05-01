@@ -22,6 +22,7 @@ extern "C"
         jobject)
     {
         FontHelper::s_fallbackFonts.clear();
+        FontHelper::resetCache();
     }
 
     JNIEXPORT jbyteArray JNICALL
@@ -46,7 +47,7 @@ extern "C"
         return byteArray;
     }
 
-    JNIEXPORT jboolean JNICALL
+    JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppFindFontFallback(
         JNIEnv*,
         jobject,
@@ -58,11 +59,32 @@ extern "C"
             ByteArrayToUint8Vec(GetJNIEnv(), fontBytes);
         rive::rcp<rive::Font> aFont = HBFont::Decode(bytes);
 
-        auto font =
-            FontHelper::FindFontFallback(missingCodePoint, 0, aFont.get());
+        // Try to find a font with the missing code point
+        int fallbackIndex = 0;
+        rive::rcp<rive::Font> fontWithGlyph =
+            FontHelper::FindFontFallback(missingCodePoint,
+                                         fallbackIndex,
+                                         aFont.get());
+
+        // Search through fallbacks until we find one with the glyph or run out
+        // of options
+        while (fontWithGlyph != nullptr &&
+               !fontWithGlyph->hasGlyph(missingCodePoint))
+        {
+            fallbackIndex++;
+            fontWithGlyph = FontHelper::FindFontFallback(missingCodePoint,
+                                                         fallbackIndex,
+                                                         aFont.get());
+        }
+
+        LOGI("Font fallback search result: %s",
+             fontWithGlyph != nullptr ? "FOUND" : "NOT FOUND");
 
         aFont->ref(); // Kept alive for testing.
-        return font != nullptr;
+        // Use this convention for testing:
+        // return -1 if we didn't find a fallback
+        // return fallbackIndex to signal which index found the match
+        return fontWithGlyph != nullptr ? fallbackIndex : -1;
     }
 
 #ifdef __cplusplus

@@ -5,10 +5,10 @@
 
 namespace rive_android
 {
-
 /* static */ std::vector<rive::rcp<rive::Font>> FontHelper::s_fallbackFonts;
-/* static */ std::unordered_map<const rive::Font*, rive::rcp<rive::Font>>
-    FontHelper::s_fallbackFontsCache;
+/* static */ std::unordered_map<uint16_t, std::vector<rive::rcp<rive::Font>>>
+    FontHelper::s_pickFontCache;
+/* static */ std::mutex FontHelper::s_fallbackFontsMutex;
 
 /* static */ bool FontHelper::RegisterFallbackFont(jbyteArray byteArray)
 {
@@ -24,7 +24,6 @@ namespace rive_android
     s_fallbackFonts.push_back(fallback);
     return true;
 }
-
 /* static */ std::vector<uint8_t> FontHelper::GetSystemFontBytes()
 {
     JNIEnv* env = GetJNIEnv();
@@ -94,9 +93,17 @@ namespace rive_android
     return ByteArrayToUint8Vec(env, fontBytes.get());
 }
 
-/* static */ std::vector<std::vector<uint8_t>> FontHelper::pick_fonts(
-    uint16_t weight)
+/* static */ const std::vector<rive::rcp<rive::Font>>& FontHelper::pick_fonts(
+    const uint16_t weight)
 {
+    // Check if weight exists in cache first
+    auto cacheIt = s_pickFontCache.find(weight);
+    if (cacheIt != s_pickFontCache.end())
+    {
+        return cacheIt->second;
+    }
+
+    // Original JNI implementation for cache misses
     JNIEnv* env = GetJNIEnv();
     JniResource<jclass> pickerClass =
         FindClass(env, "app/rive/runtime/kotlin/fonts/FontFallbackStrategy");
@@ -124,9 +131,7 @@ namespace rive_android
     JniResource<jobject> fontListObj =
         GetObjectFromMethod(env, companionObject.get(), pickFontMid, weight);
 
-    // Convert Java List<ByteArray> to std::vector<std::vector<uint8_t>>
-    std::vector<std::vector<uint8_t>> result;
-
+    // Convert Java List<ByteArray> to std::vector<_>
     // Get the List class and methods
     JniResource<jclass> listClass = GetObjectClass(env, fontListObj.get());
     jmethodID listSizeMethod = env->GetMethodID(listClass.get(), "size", "()I");
@@ -136,6 +141,10 @@ namespace rive_android
     jint listSize = JNIExceptionHandler::CallIntMethod(env,
                                                        fontListObj.get(),
                                                        listSizeMethod);
+
+    std::vector<rive::rcp<rive::Font>> decodedFonts;
+    decodedFonts.reserve(listSize);
+
     for (jint i = 0; i < listSize; ++i)
     {
         JniResource<jobject> byteArrayObj =
@@ -150,66 +159,91 @@ namespace rive_android
                                 arrayLength,
                                 reinterpret_cast<jbyte*>(byteVector.data()));
 
-        result.push_back(std::move(byteVector));
+        // Decode once and cache - that saves us from a few other future copies
+        rive::rcp<rive::Font> decodedFont = HBFont::Decode(byteVector);
+        if (decodedFont)
+        {
+            decodedFonts.push_back(std::move(decodedFont));
+        }
+        else
+        {
+            LOGE("Failed to decode fallback font at index %d for weight %d",
+                 i,
+                 weight);
+        }
     }
 
-    return result;
+    auto [iter, _] = s_pickFontCache.emplace(weight, std::move(decodedFonts));
+
+    return iter->second;
 }
 
 /**
- * Finds a fallback font that can be used for a missing character.
+ * Finds and returns a potential fallback font when `riveFont` lacks the
+ * `missing` character.
  *
- * This function attempts to find a font that can be used as a fallback when the
- * provided `riveFont` does not contain the requested character (`missing`). The
- * steps for determining the appropriate fallback are as follows:
+ * This function implements the fallback strategy used when the text shaper
+ * encounters a glyph missing in the currently selected font for a text run.
  *
- * 1. If the font has already been processed and cached, it returns the cached
- * fallback font.
- * 2. The function then attempts to find fallback fonts based on the desired
- * weight of the provided font (`riveFont`). This'll check whether a
- * `FontFallbackStrategy` has been set in Kotlin and, if so, it'll use that to
- * find a suitable match.
- * 3. If `FontFallbackStrategy` is not defined or didn't yield a suitable font,
- * it will iterate over a list of registered fallback fonts: if this list
- * contains a match, it is cached and returned.
- * 4. Finally, if no registered fallback fonts contain the missing character,
- * the function attempts to load the default system fallback font.
+ * Execution Scope: This function is expected to be called from the render
+ * thread.
  *
+ * Fallback Strategy:
+ *
+ * 1.  **Weight-Matched Selection:** Uses the weight from `riveFont` (captured
+ * on the first attempt where `fallbackIndex == 0`) to retrieve an ordered list
+ * of potential fallback fonts via `pick_fonts()`. This internal helper
+ * interacts with the Kotlin `FontFallbackStrategy.pickFont()` API and will
+ * cache decoded fonts (`HBFont`). If `fallbackIndex` is within the bounds of
+ * the retrieved list, the font at that index is returned directly. The caller
+ * (i.e. the shaper) is attempts shaping the run with the returned font. If it
+ * can't, it'll call this function again with an incremented `fallbackIndex`.
+ *
+ * 2.  **Registered Fallback Search (Deprecated):** If the weight-matched list
+ * is exhausted (`fallbackIndex` is out of bounds), iterates through all
+ * globally registered fallback fonts (`s_fallbackFonts`). Returns the first
+ * registered fallback font that contains the `missing` glyph (checked via
+ * `hasGlyph`).
+ *
+ * 3.  **System Font Fallback:** If no registered fallback contains the glyph,
+ * attempts to load a default system font as a last resort using
+ * `GetSystemFontBytes()`. If the system font is successfully decoded and
+ * contains the `missing` glyph, it is returned.
+ *
+ * Thread Safety: Access to shared fallback resources and internal state is
+ * protected by a mutex (`s_fallbackFontsMutex`). State Preservation: The
+ * `desiredWeight` for step 1 is stored statically and updated only when
+ * `fallbackIndex` is 0 to ensure consistency across multiple fallback attempts
+ * for the same missing glyph sequence.
+ *
+ * @param missing The Unicode character code that needs a fallback font.
+ * @param fallbackIndex The zero-based index indicating the current attempt
+ * number.
+ * @param riveFont The font that failed to shape the character.
+ * @return A reference-counted pointer (`rcp`) to a suitable fallback Font, or
+ *         `nullptr` if no suitable fallback could be found.
  */
 /* static */ rive::rcp<rive::Font> FontHelper::FindFontFallback(
     const rive::Unichar missing,
     const uint32_t fallbackIndex,
     const rive::Font* riveFont)
 {
-    if (fallbackIndex > 0)
+    // Let's lock this down for thread-safety.
+    std::lock_guard<std::mutex> lock(s_fallbackFontsMutex);
+
+    // Keep a global variable here so we look for a valid match against the
+    // original font weight.
+    static uint16_t desiredWeight = 400;
+    if (fallbackIndex == 0)
     {
-        // Cannot attempt more than once on Android, otherwise it will keep
-        // trying and risk a stack overflow.
-        return nullptr;
+        desiredWeight = riveFont->getWeight();
     }
 
-    if (!riveFont)
+    const std::vector<rive::rcp<rive::Font>>& pickedFonts =
+        pick_fonts(desiredWeight);
+    if (fallbackIndex < pickedFonts.size())
     {
-        LOGE("No font provided for missing characters");
-        return nullptr;
-    }
-
-    uint16_t desiredWeight = riveFont->getWeight();
-    if (auto search = s_fallbackFontsCache.find(riveFont);
-        search != s_fallbackFontsCache.end())
-    {
-        return search->second;
-    }
-
-    auto pickedFonts = pick_fonts(desiredWeight);
-    for (const auto& fontBytes : pickedFonts)
-    {
-        rive::rcp<rive::Font> candidate = HBFont::Decode(fontBytes);
-        if (candidate->hasGlyph(missing))
-        {
-            s_fallbackFontsCache[riveFont] = candidate;
-            return candidate;
-        }
+        return pickedFonts[fallbackIndex];
     }
 
     // Use the old path - just try to find a match for this glyph.
@@ -217,7 +251,6 @@ namespace rive_android
     {
         if (fFont->hasGlyph(missing))
         {
-            s_fallbackFontsCache[riveFont] = fFont;
             return fFont;
         }
     }
@@ -244,7 +277,6 @@ namespace rive_android
     }
 
     LOGD("FindFontFallback - found a system fallback");
-    s_fallbackFontsCache[riveFont] = systemFont;
     return systemFont;
 }
 

@@ -28,17 +28,18 @@ class FontPickerTest {
 
     @Test
     fun noStylePicker() {
+        FontFallbackStrategy.stylePicker = null
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
             val fontBytes = it.readBytes()
-            assertTrue(
+            assert(
                 // System default has 'u' glyph...
-                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), fontBytes)
+                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), fontBytes) >= 0
             )
 
-            assertFalse(
+            assert(
                 // ...but not other Unicode (e.g. Thai) characters
-                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes)
+                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) < 0
             )
 
             // Setting a fallback can now find the character
@@ -47,8 +48,8 @@ class FontPickerTest {
                     Fonts.FontOpts("NotoSansThai-Regular.ttf")
                 )
             )
-            assertTrue(
-                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes)
+            assert(
+                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0
             )
         }
     }
@@ -67,8 +68,8 @@ class FontPickerTest {
 
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
-            assertTrue(
-                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), it.readBytes())
+            assert(
+                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), it.readBytes()) >= 0
             )
             assertTrue(isPickerCalled)
         }
@@ -104,20 +105,28 @@ class FontPickerTest {
     @Test
     fun withUnavailableChars() {
         var pickerCalls = 0
+        var pickerWeight = 0;
+
+        // Font with the needed characters
+        val fontBytes = context
+            .resources
+            .openRawResource(R.raw.inter_24pt_regular_abcdef)
+            .use { it.readBytes() }
+
         // Define a style picker..
         FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 pickerCalls++
-                assertEquals(200, weight.weight) // ultralight font
-                return listOf(byteArrayOf(1, 2, 3))
+                pickerWeight = 200
+                return listOf(fontBytes)
             }
         }
-        val file = context
+        val riveFile = context
             .resources
             .openRawResource(R.raw.style_fallback_fonts)
             .use { File(it.readBytes()) }
 
-        file.firstArtboard.let { artboard ->
+        riveFile.firstArtboard.let { artboard ->
 
             artboard.setTextRunValue(
                 "ultralight_start",
@@ -125,21 +134,29 @@ class FontPickerTest {
             )
             artboard.advance(0f) // shape text & pick fallback.
             assertEquals(1, pickerCalls) // Picker should have been called.
+            assertEquals(200, pickerWeight) // ultralight font
         }
 
-        file.release()
-        assertFalse(file.hasCppObject) // Cleaned up.
+        riveFile.release()
+        assertFalse(riveFile.hasCppObject) // Cleaned up.
     }
 
     @Test
     fun withUnavailableIsCached() {
         var pickerCalls = 0
+
+        // Font with the needed characters
+        val fontBytes = context
+            .resources
+            .openRawResource(R.raw.inter_24pt_regular_abcdef)
+            .use { it.readBytes() }
+
         // Define a style picker..
         FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 pickerCalls++
                 assertEquals(200, weight.weight) // ultralight font
-                return listOf(byteArrayOf(1, 2, 3))
+                return listOf(fontBytes)
             }
         }
         val file = context
@@ -157,6 +174,96 @@ class FontPickerTest {
             artboard.advance(0f) // shape text & pick fallback.
             assertEquals(1, pickerCalls)
         }
+
+        file.release()
+        assertFalse(file.hasCppObject) // Cleaned up.
+    }
+
+    @Test
+    fun withMultiLanguageTextRunCached() {
+        var pickerCalls = 0
+
+        val fontList = listOf(
+            Fonts.FontOpts(lang = "ko"),
+            Fonts.FontOpts(lang = "und-Arab"),
+            Fonts.FontOpts(lang = "und-Deva"),
+            Fonts.FontOpts("NotoSansCJK-Regular.ttc"),
+            Fonts.FontOpts("NotoNaskhArabic-Regular.ttf"),
+            Fonts.FontOpts("NotoSansDevanagari-VF.ttf"),
+        ).mapNotNull {
+            FontHelper.getFallbackFontBytes(it)
+        }
+
+        // Define a style picker..
+        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                pickerCalls++
+                return fontList
+            }
+        }
+        val file = context
+            .resources
+            .openRawResource(R.raw.style_fallback_fonts)
+            .use { File(it.readBytes()) }
+
+        file.firstArtboard.let { artboard ->
+            artboard.setTextRunValue(
+                "ultralight_start", "म अ 错 ا" // All types of different languages
+            )
+            artboard.advance(0f) // shape text & pick fallback.
+
+            // Cached at the JNI level.
+            assertEquals(1, pickerCalls)
+        }
+
+        file.release()
+        assertFalse(file.hasCppObject) // Cleaned up.
+    }
+
+    @Test
+    fun fallbackIndexMatches() {
+        val file = context
+            .resources
+            .openRawResource(R.raw.style_fallback_fonts)
+            .use { File(it.readBytes()) }
+        var pickerCalls = 0
+
+        val fontList = listOf(
+            Fonts.FontOpts(lang = "und-Deva"),
+            Fonts.FontOpts("NotoSansCJK-Regular.ttc"),
+            Fonts.FontOpts(lang = "und-Arab"),
+        ).mapNotNull {
+            FontHelper.getFallbackFontBytes(it)
+        }
+
+        // Define a style picker..
+        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                pickerCalls++
+                return fontList
+            }
+        }
+
+        /**
+         * A bit of an odd test here:
+         *  we query our fallback function to get back the index in the Strategy stack found
+         *  a match against the character in the "म错ا" string
+         *  1. Devangari
+         *  2. Chinese
+         *  3. Arabic
+         */
+        "म错ا".codePoints().toArray().forEachIndexed { index, codePoint ->
+            assertEquals(
+                index,
+                NativeFontTestHelper.cppFindFontFallback(
+                    codePoint,
+                    byteArrayOf() // just a placeholder...
+                )
+            )
+        }
+
+        // Cached at the JNI level.
+        assertEquals(1, pickerCalls)
 
         file.release()
         assertFalse(file.hasCppObject) // Cleaned up.
