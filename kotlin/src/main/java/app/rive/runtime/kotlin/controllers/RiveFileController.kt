@@ -8,6 +8,7 @@ import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.Observable
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.core.AdvanceResult
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Direction
@@ -63,7 +64,7 @@ class RiveFileController internal constructor(
     var onStart: OnStartCallback? = null,
 
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    internal val changedInputs: ConcurrentLinkedQueue<ChangedInput> = ConcurrentLinkedQueue()
+    internal val changedInputs: ConcurrentLinkedQueue<ChangedInput> = ConcurrentLinkedQueue(),
 ) : Observable<RiveFileController.Listener>, RefCount {
 
     // The "primary" constructor as the actual primary is internal to expose the queue for testing.
@@ -317,17 +318,36 @@ class RiveFileController internal constructor(
 
                 // animations could change, lets cut a list.
                 // order of animations is important.....
+                var shouldArtboardAdvance = false
                 animations.forEach { animationInstance ->
                     if (playingAnimations.contains(animationInstance)) {
-                        val looped = animationInstance.advance(elapsed)
+                        val advanceResult = animationInstance.advanceAndGetResult(elapsed)
                         animationInstance.apply()
 
-                        if (looped == Loop.ONESHOT) {
-                            stop(animationInstance)
-                        } else if (looped != null) {
-                            notifyLoop(animationInstance)
+                        when (advanceResult) {
+                            AdvanceResult.ONESHOT -> {
+                                stop(animationInstance)
+                            }
+
+                            AdvanceResult.LOOP, AdvanceResult.PINGPONG -> {
+                                notifyLoop(animationInstance)
+                            }
+
+                            AdvanceResult.ADVANCED -> {
+                                // The controller needs to explicitly call `artboard.advance()`
+                                // only if there are no State Machines playing. That is because
+                                // `StateMachineInstance`s call `advanceAndApply()` that will
+                                // internally advance the artboard.
+                                shouldArtboardAdvance = playingStateMachines.isEmpty()
+                            }
+
+                            AdvanceResult.NONE -> Unit // NOP
                         }
                     }
+                }
+
+                if (shouldArtboardAdvance) {
+                    ab.advance(elapsed)
                 }
 
                 val stateMachinesToPause = mutableListOf<StateMachineInstance>()

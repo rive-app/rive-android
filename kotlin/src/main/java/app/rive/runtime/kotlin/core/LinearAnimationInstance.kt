@@ -18,6 +18,7 @@ class LinearAnimationInstance(
     PlayableInstance, NativeObject(unsafeCppPointer) {
 
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
+    private external fun cppAdvanceAndGetResult(pointer: Long, elapsedTime: Float): AdvanceResult
     private external fun cppApply(pointer: Long, mix: Float)
     private external fun cppGetTime(pointer: Long): Float
     private external fun cppSetTime(pointer: Long, time: Float)
@@ -40,8 +41,22 @@ class LinearAnimationInstance(
      * @return The [Loop] type associated with the current animation if this advance caused a loop,
      *    otherwise null.
      */
+    @Deprecated(
+        "Use advanceAndGetResult instead.",
+        ReplaceWith("advanceAndGetResult(elapsedTime)")
+    )
     fun advance(elapsedTime: Float): Loop? {
         synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
+    }
+
+    /**
+     * Advance the animation and return the result.
+     *
+     * @param elapsedTime The time in seconds to advance by.
+     * @return An [AdvanceResult] enum value indicating the outcome of the advance step
+     */
+    fun advanceAndGetResult(elapsedTime: Float): AdvanceResult {
+        synchronized(lock) { return cppAdvanceAndGetResult(cppPointer, elapsedTime) }
     }
 
 
@@ -62,8 +77,11 @@ class LinearAnimationInstance(
      */
     fun apply(elapsed: Float): Boolean {
         synchronized(lock) { cppApply(cppPointer, mix) }
-        val loopType = cppAdvance(cppPointer, elapsed)
-        return loopType != Loop.ONESHOT
+        val result = advanceAndGetResult(elapsed)
+        return when (result) {
+            AdvanceResult.ADVANCED, AdvanceResult.LOOP, AdvanceResult.PINGPONG -> true
+            AdvanceResult.ONESHOT, AdvanceResult.NONE -> false
+        }
     }
 
     /** The elapsed time that this instance has played to. */

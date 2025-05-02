@@ -31,6 +31,13 @@ extern jfieldID GetOneShotLoopField();
 extern jfieldID GetLoopLoopField();
 extern jfieldID GetPingPongLoopField();
 
+extern jclass GetAdvanceResultClass();
+extern jfieldID GetAdvanceResultAdvancedField();
+extern jfieldID GetAdvanceResultOneShotField();
+extern jfieldID GetAdvanceResultLoopField();
+extern jfieldID GetAdvanceResultPingPongField();
+extern jfieldID GetAdvanceResultNoneField();
+
 extern jclass GetRiveEventReportClass();
 extern jmethodID GetRiveEventReportConstructorId();
 

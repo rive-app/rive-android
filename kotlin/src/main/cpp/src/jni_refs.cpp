@@ -124,6 +124,42 @@ jfieldID GetPingPongLoopField()
                             "Lapp/rive/runtime/kotlin/core/Loop;");
 }
 
+jclass GetAdvanceResultClass()
+{
+    return GetClass("app/rive/runtime/kotlin/core/AdvanceResult");
+}
+
+jfieldID GetAdvanceResultAdvancedField()
+{
+    return GetStaticFieldId(GetAdvanceResultClass(),
+                            "ADVANCED",
+                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
+}
+jfieldID GetAdvanceResultOneShotField()
+{
+    return GetStaticFieldId(GetAdvanceResultClass(),
+                            "ONESHOT",
+                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
+}
+jfieldID GetAdvanceResultLoopField()
+{
+    return GetStaticFieldId(GetAdvanceResultClass(),
+                            "LOOP",
+                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
+}
+jfieldID GetAdvanceResultPingPongField()
+{
+    return GetStaticFieldId(GetAdvanceResultClass(),
+                            "PINGPONG",
+                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
+}
+jfieldID GetAdvanceResultNoneField()
+{
+    return GetStaticFieldId(GetAdvanceResultClass(),
+                            "NONE",
+                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
+}
+
 jclass GetRiveEventReportClass()
 {
     return GetClass("app/rive/runtime/kotlin/core/RiveEventReport");

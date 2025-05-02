@@ -2,14 +2,12 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
-import androidx.annotation.VisibleForTesting
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.fonts.FontBytes
+import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration
 

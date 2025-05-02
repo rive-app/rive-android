@@ -51,6 +51,62 @@ extern "C"
         return loopValue;
     }
 
+    JNIEXPORT jobject JNICALL
+    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvanceAndGetResult(
+        JNIEnv* env,
+        jobject thisObj,
+        jlong ref,
+        jfloat elapsedTime)
+    {
+        auto animationInstance =
+            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
+
+        bool keepGoing = animationInstance->advance(elapsedTime);
+        bool didLoop = animationInstance->didLoop();
+
+        jfieldID resultFieldId = nullptr;
+
+        if (didLoop)
+        {
+            rive::Loop loopType = animationInstance->loop();
+            switch (loopType)
+            {
+                case rive::Loop::oneShot:
+                    resultFieldId = GetAdvanceResultOneShotField();
+                    break;
+                case rive::Loop::loop:
+                    resultFieldId = GetAdvanceResultLoopField();
+                    break;
+                case rive::Loop::pingPong:
+                    resultFieldId = GetAdvanceResultPingPongField();
+                    break;
+                default:
+                    // This should not happen: if we looped, we should get a
+                    // loop result.
+                    assert(
+                        false); // N.B. asserts are compiled out in release mode
+                    resultFieldId = GetAdvanceResultNoneField();
+                    break;
+            }
+        }
+        else if (keepGoing)
+        {
+            resultFieldId = GetAdvanceResultAdvancedField();
+        }
+        else
+        {
+            resultFieldId = GetAdvanceResultNoneField();
+        }
+
+        jclass jAdvanceResultClass = GetAdvanceResultClass();
+
+        jobject advanceResultValue =
+            env->GetStaticObjectField(jAdvanceResultClass, resultFieldId);
+        env->DeleteLocalRef(jAdvanceResultClass);
+
+        return advanceResultValue;
+    }
+
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppApply(
         JNIEnv* env,
