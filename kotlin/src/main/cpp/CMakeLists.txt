@@ -94,6 +94,7 @@ set(static_libs
         rive_sheenbidi
         rive_yoga
         rive_pls_renderer
+        miniaudio
 )
 
 foreach (X IN LISTS static_libs)
@@ -115,6 +116,7 @@ target_link_libraries(rive-android
         rive-lib
         rive_harfbuzz-lib
         rive_sheenbidi-lib
+        miniaudio-lib
         rive_yoga-lib
         rive_pls_renderer-lib
 

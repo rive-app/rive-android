@@ -11,5 +11,12 @@ dofile(RIVE_RUNTIME_DIR .. '/premake5_v2.lua')
 project('rive_cpp_runtime')
 do
     kind('StaticLib')
-    links({ 'rive', 'rive_pls_renderer', 'rive_harfbuzz', 'rive_sheenbidi', 'rive_yoga' })
+    links({
+        'rive',
+        'rive_pls_renderer',
+        'rive_harfbuzz',
+        'rive_sheenbidi',
+        'rive_yoga',
+        'miniaudio',
+    })
 end
