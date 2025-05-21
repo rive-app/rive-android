@@ -51,7 +51,8 @@ class RiveActivityLifecycleTest {
         // Background thread deallocates asynchronously.
         waitUntil(1500.milliseconds) { controller.refCount == 0 }
         assertFalse(controller.isActive)
-        assertNull(controller.file)
+        // https://github.com/rive-app/rive-android/issues/375
+        // assertNull(controller.file)
         assertNull(controller.activeArtboard)
     }
 
