@@ -319,22 +319,20 @@ class FontHelpersTest {
         }
     }
 
-    // https://github.com/rive-app/rive-android/issues/375
-    // @Test
-    // fun systemFontBytes() {
-    //     val font = FontHelper.getFallbackFont()
-    //     assertNotNull(font)
-    //     val bytes = FontHelper.getFontBytes(font!!)
-    //     assertNotNull(bytes)
-    //
-    //     val withAlias =
-    //         FontHelper.getFallbackFont(
-    //             Fonts.FontOpts(familyName = "arial", style = "italic")
-    //         )
-    //     assertNotNull(withAlias)
-    //     val aliasBytes = FontHelper.getFontBytes(withAlias!!)
-    //     assertNotNull(aliasBytes)
-    // }
+    @Test
+    fun systemFontBytes() {
+        val font = FontHelper.getFallbackFont()
+        assertNotNull(font)
+        val bytes = FontHelper.getFontBytes(font!!)
+        assertNotNull(bytes)
+
+        val withAlias = FontHelper.getFallbackFont(
+            Fonts.FontOpts(familyName = "arial")
+        )
+        assertNotNull(withAlias)
+        val aliasBytes = FontHelper.getFontBytes(withAlias!!)
+        assertNotNull(aliasBytes)
+    }
 
     @Test
     fun parseFonts() {

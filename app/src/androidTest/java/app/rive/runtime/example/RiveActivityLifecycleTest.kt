@@ -49,10 +49,11 @@ class RiveActivityLifecycleTest {
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
+        waitUntil(1500.milliseconds) {
+            controller.refCount == 0 && !controller.isActive && controller.file == null && controller.activeArtboard == null
+        }
         assertFalse(controller.isActive)
-        // https://github.com/rive-app/rive-android/issues/375
-        // assertNull(controller.file)
+        assertNull(controller.file)
         assertNull(controller.activeArtboard)
     }
 
@@ -82,7 +83,7 @@ class RiveActivityLifecycleTest {
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
+        waitUntil(1500.milliseconds) { controller.refCount == 0 && !controller.isActive && controller.file == null && controller.activeArtboard == null }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
@@ -129,7 +130,7 @@ class RiveActivityLifecycleTest {
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
+        waitUntil(1500.milliseconds) { controller.refCount == 0 && !controller.isActive && controller.file == null && controller.activeArtboard == null }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
