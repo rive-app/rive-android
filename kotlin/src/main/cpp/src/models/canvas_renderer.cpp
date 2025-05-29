@@ -75,6 +75,7 @@ void CanvasRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* paint)
                                 canvasPaint->ktPaint());
 }
 void CanvasRenderer::drawImage(const rive::RenderImage* image,
+                               const rive::ImageSampler options,
                                rive::BlendMode blendMode,
                                float opacity)
 {
@@ -98,6 +99,7 @@ void CanvasRenderer::drawImage(const rive::RenderImage* image,
 }
 
 void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
+                                   const rive::ImageSampler options,
                                    rive::rcp<rive::RenderBuffer> vertices_f32,
                                    rive::rcp<rive::RenderBuffer> uvCoords_f32,
                                    rive::rcp<rive::RenderBuffer> indices_u16,

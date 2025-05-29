@@ -26,11 +26,13 @@ private:
     void clipPath(rive::RenderPath* path) override {}
 
     void drawImage(const rive::RenderImage* image,
+                   const rive::ImageSampler options,
                    rive::BlendMode value,
                    float opacity) override
     {}
 
     void drawImageMesh(const rive::RenderImage* image,
+                       const rive::ImageSampler options,
                        rive::rcp<rive::RenderBuffer> vertices_f32,
                        rive::rcp<rive::RenderBuffer> uvCoords_f32,
                        rive::rcp<rive::RenderBuffer> indices_u16,
