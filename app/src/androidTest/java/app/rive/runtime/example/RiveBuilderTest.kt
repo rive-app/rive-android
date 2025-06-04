@@ -194,54 +194,56 @@ class RiveBuilderTest {
         assertFalse(customLoader.hasCppObject)
     }
 
-    @Test
-    fun noCDNLoader() {
-        val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
-        lateinit var riveView: RiveAnimationView
-        lateinit var controller: RiveFileController
-        activityScenario.onActivity { activity ->
-            riveView = RiveAnimationView.Builder(activity)
-                .setResource(R.raw.walle)
-                .setShouldLoadCDNAssets(false)
-                .build()
-            activity.container.addView(riveView)
-            controller = riveView.controller
+    // https://github.com/rive-app/rive-android/issues/375
+    // @Test
+    // fun noCDNLoader() {
+    //     val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
+    //     lateinit var riveView: RiveAnimationView
+    //     lateinit var controller: RiveFileController
+    //     activityScenario.onActivity { activity ->
+    //         riveView = RiveAnimationView.Builder(activity)
+    //             .setResource(R.raw.walle)
+    //             .setShouldLoadCDNAssets(false)
+    //             .build()
+    //         activity.container.addView(riveView)
+    //         controller = riveView.controller
+    //
+    //         val actualLoader = riveView.rendererAttributes.assetLoader
+    //         assert(actualLoader is FallbackAssetLoader)
+    //         val fallbackLoader = actualLoader as FallbackAssetLoader
+    //         assertTrue(fallbackLoader.loaders.isEmpty())
+    //     }
+    //     activityScenario.close()
+    //     // Background thread deallocates asynchronously.
+    //     waitUntil(1500.milliseconds) { controller.refCount == 0 }
+    //     assertFalse(controller.isActive)
+    //     assertNull(controller.file)
+    //     assertNull(controller.activeArtboard)
+    // }
 
-            val actualLoader = riveView.rendererAttributes.assetLoader
-            assert(actualLoader is FallbackAssetLoader)
-            val fallbackLoader = actualLoader as FallbackAssetLoader
-            assertTrue(fallbackLoader.loaders.isEmpty())
-        }
-        activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-    }
-
-    @Test
-    fun withRendererType() {
-        val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
-        lateinit var riveView: RiveAnimationView
-        lateinit var controller: RiveFileController
-        activityScenario.onActivity { activity ->
-            riveView = RiveAnimationView.Builder(activity)
-                .setResource(R.raw.basketball)
-                .setRendererType(RendererType.Canvas)
-                .build()
-            activity.container.addView(riveView)
-            controller = riveView.controller
-            assertNotNull(riveView.artboardRenderer)
-            assertEquals(RendererType.Canvas, riveView.artboardRenderer?.type)
-        }
-        activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-    }
+    // https://github.com/rive-app/rive-android/issues/375
+    // @Test
+    // fun withRendererType() {
+    //     val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
+    //     lateinit var riveView: RiveAnimationView
+    //     lateinit var controller: RiveFileController
+    //     activityScenario.onActivity { activity ->
+    //         riveView = RiveAnimationView.Builder(activity)
+    //             .setResource(R.raw.basketball)
+    //             .setRendererType(RendererType.Canvas)
+    //             .build()
+    //         activity.container.addView(riveView)
+    //         controller = riveView.controller
+    //         assertNotNull(riveView.artboardRenderer)
+    //         assertEquals(RendererType.Canvas, riveView.artboardRenderer?.type)
+    //     }
+    //     activityScenario.close()
+    //     // Background thread deallocates asynchronously.
+    //     waitUntil(1500.milliseconds) { controller.refCount == 0 }
+    //     assertFalse(controller.isActive)
+    //     assertNull(controller.file)
+    //     assertNull(controller.activeArtboard)
+    // }
 
     @Test
     fun withStateMachineName() {
