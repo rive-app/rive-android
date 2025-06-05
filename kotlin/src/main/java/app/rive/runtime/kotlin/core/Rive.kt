@@ -2,6 +2,8 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import app.rive.runtime.kotlin.core.Rive.init
+import app.rive.runtime.kotlin.core.Rive.initializeCppEnvironment
 import app.rive.runtime.kotlin.fonts.FontHelper
 import app.rive.runtime.kotlin.fonts.Fonts
 import app.rive.runtime.kotlin.fonts.NativeFontHelper
@@ -43,7 +45,14 @@ object Rive {
     fun init(context: Context, defaultRenderer: RendererType = RendererType.Rive) {
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
-        ReLinker.loadLibrary(context, RIVE_ANDROID)
+        ReLinker
+            /**
+             * `recursively` allows resolving dependent .so files, e.g. the C++ standard library,
+             * when the Rive library .so is separated into another folder, such as /data/data/,
+             * rather than the original /data/apk/
+             */
+            .recursively()
+            .loadLibrary(context, RIVE_ANDROID)
         defaultRendererType = defaultRenderer
         initializeCppEnvironment()
     }
@@ -86,7 +95,10 @@ object Rive {
      * @param byteArray The [ByteArray] bytes for a font file.
      * @return Whether the font was successfully registered.
      */
-    @Deprecated("Prefer defining a `FontFallbackStrategy` instead", level = DeprecationLevel.WARNING)
+    @Deprecated(
+        "Prefer defining a `FontFallbackStrategy` instead",
+        level = DeprecationLevel.WARNING
+    )
     fun setFallbackFont(byteArray: ByteArray): Boolean =
         NativeFontHelper.cppRegisterFallbackFont(byteArray)
 
@@ -97,7 +109,10 @@ object Rive {
      *    provided, default options are used.
      * @return Whether the font was successfully registered.
      */
-    @Deprecated("Prefer defining a `FontFallbackStrategy` instead", level = DeprecationLevel.WARNING)
+    @Deprecated(
+        "Prefer defining a `FontFallbackStrategy` instead",
+        level = DeprecationLevel.WARNING
+    )
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean {
         FontHelper.getFallbackFontBytes(opts)?.let { bytes ->
             return NativeFontHelper.cppRegisterFallbackFont(bytes)
