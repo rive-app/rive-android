@@ -1,7 +1,27 @@
 package app.rive.runtime.kotlin.core
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.errors.ArtboardException
 import app.rive.runtime.kotlin.core.errors.RiveException
@@ -13,9 +33,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-
 
 @RunWith(AndroidJUnit4::class)
 class RiveViewTest {
@@ -624,6 +645,92 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multiple_animations, autoplay = false)
             // Cleaned everything up after setting a new file.
             assertFalse(mockView.controller.isAdvancing)
+        }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class TouchPassThroughComposeTest {
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun initRive() {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            Rive.init(context)
+        }
+
+        const val BUTTON_TAG = "test_button"
+    }
+
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    /**
+     * When touch‑pass‑through is disabled (the default), the overlaid RiveAnimationView should
+     * consume the tap and the button underneath should not increment.
+     */
+    @Test
+    fun buttonNotClickedWhenPassThroughOff() {
+        composeRule.setContent {
+            TouchPassThroughDemo(passThrough = false)
+        }
+
+        // Base case
+        composeRule.onNodeWithText("Click Count: 0").assertExists()
+
+        // Tap the button - Rive view is on top
+        composeRule.onNodeWithTag(BUTTON_TAG).performTouchInput { click() }
+
+        // Counter should remain at 0
+        composeRule.onNodeWithText("Click Count: 0").assertExists()
+    }
+
+    /**
+     * When touch‑pass‑through is enabled, taps should reach the button and increment its counter.
+     */
+    @Test
+    fun buttonClickedWhenPassThroughOn() {
+        composeRule.setContent {
+            TouchPassThroughDemo(passThrough = true)
+        }
+
+        // Tap the button
+        composeRule.onNodeWithTag(BUTTON_TAG).performTouchInput { click() }
+
+        // Counter should have incremented to 1
+        composeRule.onNodeWithText("Click Count: 1").assertExists()
+    }
+
+
+    // Local composable for these tests
+    @Composable
+    private fun TouchPassThroughDemo(passThrough: Boolean) {
+        var clickCount by remember { mutableStateOf(0) }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Button(
+                onClick = { clickCount++ },
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    disabledElevation = 0.dp,
+                ),
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.Center)
+                    .testTag(BUTTON_TAG)
+            ) {
+                Text("Click Count: $clickCount")
+            }
+
+            AndroidView(
+                factory = { context ->
+                    RiveAnimationView(context).apply {
+                        setRiveResource(R.raw.touchpassthrough, fit = Fit.FILL)
+                        touchPassThrough = passThrough
+                    }
+                },
+                modifier = Modifier.matchParentSize()
+            )
         }
     }
 }

@@ -188,6 +188,12 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     private var lifecycleOwner: LifecycleOwner? = getContextAsType<LifecycleOwner>()
 
     /**
+     * Whether the view should absorb touch events. By default the view will not allow any touch
+     * events to views behind it. Set to `true` to allow for this behavior.
+     */
+    open var touchPassThrough: Boolean = false
+
+    /**
      * Tracks the renderer attributes that need to be applied to this [View] within its lifecycle.
      */
     class RendererAttributes(
@@ -259,6 +265,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         internal var stateMachineName: String? = null
         internal var assetLoader: FileAssetLoader? = null
         internal var shouldLoadCDNAssets: Boolean = shouldLoadCDNAssetsDefault
+        internal var touchPassThrough: Boolean = false
 
         internal var resource: Any? = null
         internal var resourceType: ResourceType? = null
@@ -280,6 +287,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         fun setAssetLoader(value: FileAssetLoader) = apply { assetLoader = value }
         fun setShouldLoadCDNAssets(value: Boolean) = apply { shouldLoadCDNAssets = value }
+        fun setTouchPassThrough(value: Boolean) = apply { touchPassThrough = value }
 
         fun build(): RiveAnimationView {
             return RiveAnimationView(this)
@@ -305,6 +313,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 val shouldLoadCDNAssets = getBoolean(
                     R.styleable.RiveAnimationView_riveShouldLoadCDNAssets,
                     shouldLoadCDNAssetsDefault
+                )
+
+                touchPassThrough = getBoolean(
+                    R.styleable.RiveAnimationView_riveTouchPassThrough,
+                    false
                 )
 
                 rendererAttributes = RendererAttributes(
@@ -384,6 +397,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             alignment = builder.alignment ?: this.alignment
             fit = builder.fit ?: this.fit
             loop = builder.loop ?: this.loop
+            touchPassThrough = builder.touchPassThrough
         }
     }
 
@@ -1059,7 +1073,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 }
             }
         }
-        return true
+        // Returning true absorbs the event, so we take the inverse of the pass through var.
+        return !touchPassThrough
     }
 }
 

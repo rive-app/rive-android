@@ -290,6 +290,15 @@
                 android:text="Font Fallback"
                 android:textColor="@color/textColorPrimary" />
 
+            <Button
+                android:id="@+id/go_touch_passthrough"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Touch Passthrough"
+                android:textColor="@color/textColorPrimary" />
+
         </LinearLayout>
 
     </ScrollView>

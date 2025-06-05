@@ -55,6 +55,7 @@
         <attr name="riveUrl" format="string" />
         <attr name="riveAssetLoaderClass" format="string" />
         <attr name="riveShouldLoadCDNAssets" format="boolean" />
+        <attr name="riveTouchPassThrough" format="boolean" />
     </declare-styleable>
 
     <declare-styleable name="RiveAnimationView">
@@ -73,5 +74,6 @@
         <attr name="riveRenderer" />
         <attr name="riveAssetLoaderClass" />
         <attr name="riveShouldLoadCDNAssets" />
+        <attr name="riveTouchPassThrough" />
     </declare-styleable>
 </resources>

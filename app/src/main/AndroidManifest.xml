@@ -71,6 +71,9 @@
         <activity android:name=".FontLoadActivity" />
         <activity android:name=".AudioAssetActivity" />
         <activity android:name=".AudioExternalAssetActivity" />
+        <activity
+            android:name=".TouchPassthroughActivity"
+            android:exported="true" />
         <!-- For testing 👇 -->
         <activity android:name=".SingleActivity" />
         <activity android:name=".EmptyActivity" />

@@ -2,13 +2,21 @@ plugins {
     id "com.android.library"
     id "kotlin-android"
     id "org.jetbrains.dokka"
-    id "org.jetbrains.kotlin.plugin.allopen" version "2.1.20"
+    id "org.jetbrains.kotlin.plugin.allopen" version "$kotlin_version"
 }
 
 android {
     compileSdk 35
     ndkVersion "27.2.12479018"
     namespace "app.rive.runtime.kotlin"
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = compose_compiler_version
+    }
 
     defaultConfig {
         minSdkVersion 21
@@ -59,10 +67,27 @@ dependencies {
     // https://github.com/KeepSafe/ReLinker?tab=readme-ov-file#who-needs-relinker
     implementation "com.getkeepsafe.relinker:relinker:1.4.5"
 
+    def composeBom = platform("androidx.compose:compose-bom:$compose_bom_version")
+
+    compileOnly(composeBom)
+    // Allow clients to use their own Compose version
+    // This will change to implementation when we ship Compose support
+    compileOnly("androidx.compose.runtime:runtime")
+
+    // Used by Compose previews and UI tests
+    debugImplementation(composeBom)
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    androidTestImplementation(composeBom)
+    androidTestImplementation "androidx.compose.foundation:foundation-layout"
+    androidTestImplementation "androidx.compose.material3:material3"
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4"
     androidTestImplementation "androidx.test.ext:junit-ktx:1.2.1"
     androidTestImplementation "androidx.test:runner:1.6.2"
-    androidTestImplementation "org.jetbrains.kotlin:kotlin-test-junit:2.1.0"
-    androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1"
+    //noinspection GradleDependency Match with Kotlin version
+    androidTestImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    //noinspection GradleDependency Last version that supports Kotlin 1.9.x
+    androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1"
 }
 
 allOpen {
