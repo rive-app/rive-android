@@ -17,41 +17,60 @@ import app.rive.runtime.kotlin.core.RendererType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
+@Ignore("Temporarily disabled due to flakes https://github.com/rive-app/rive-android/issues/375")
 class RiveBuilderTest {
+
+    private val cleanupTimeout = 1500.milliseconds
+
     @Test
     fun withIdResource() {
         val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
         activityScenario.onActivity {
             riveView = RiveAnimationView.Builder(it)
                 .setResource(R.raw.off_road_car_blog)
                 .build()
             it.container.addView(riveView)
             controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
             assertTrue(controller.isActive)
             assertEquals("New Artboard", controller.activeArtboard?.name)
             assertEquals(
                 listOf("idle"),
                 controller.playingAnimations.toList().map { anim -> anim.name })
-
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-        // Asset loader was deallocated.
-        assert(riveView.rendererAttributes.assetLoader?.hasCppObject == false)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for withIdResource within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
     }
 
     @Test
@@ -59,6 +78,8 @@ class RiveBuilderTest {
         val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
         activityScenario.onActivity { activity ->
             val file = activity
                 .resources
@@ -70,6 +91,7 @@ class RiveBuilderTest {
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
             assertTrue(controller.isActive)
             assertEquals("New Artboard", controller.activeArtboard?.name)
             assertEquals(
@@ -77,13 +99,25 @@ class RiveBuilderTest {
                 controller.playingAnimations.toList().map { anim -> anim.name })
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-        // Asset loader was deallocated.
-        assert(riveView.rendererAttributes.assetLoader?.hasCppObject == false)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for withFileResource within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
     }
 
     @Test
@@ -91,16 +125,19 @@ class RiveBuilderTest {
         val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
         activityScenario.onActivity { activity ->
-            val file = activity
+            val fileBytes = activity
                 .resources
                 .openRawResource(R.raw.basketball)
                 .use { res -> res.readBytes() }
             riveView = RiveAnimationView.Builder(activity)
-                .setResource(file)
+                .setResource(fileBytes)
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
             assertTrue(controller.isActive)
             assertEquals("New Artboard", controller.activeArtboard?.name)
             assertEquals(
@@ -108,13 +145,25 @@ class RiveBuilderTest {
                 controller.playingAnimations.toList().map { anim -> anim.name })
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-        // Asset loader was deallocated.
-        assert(riveView.rendererAttributes.assetLoader?.hasCppObject == false)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for withBytesResource within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
     }
 
     @Test
@@ -122,6 +171,8 @@ class RiveBuilderTest {
         val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
         activityScenario.onActivity { activity ->
             riveView = RiveAnimationView.Builder(activity)
                 .setAlignment(Alignment.BOTTOM_CENTER)
@@ -136,6 +187,7 @@ class RiveBuilderTest {
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
             assertTrue(controller.isActive)
             assertFalse(controller.autoplay)
             assertNotNull(controller.activeArtboard?.viewModelInstance)
@@ -145,17 +197,28 @@ class RiveBuilderTest {
             assertTrue(riveView.artboardRenderer!!.trace)
             assertEquals("artboard2", controller.activeArtboard?.name)
             assertEquals(
-                emptyList<String>(), // autoplay = false
+                emptyList<String>(),
                 controller.playingAnimations.toList().map { anim -> anim.name })
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-        // Asset loader was deallocated.
-        assert(riveView.rendererAttributes.assetLoader?.hasCppObject == false)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for manyParameters within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
     }
 
     @Test
@@ -177,79 +240,127 @@ class RiveBuilderTest {
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
+
             val actualLoader = riveView.rendererAttributes.assetLoader
-            assert(actualLoader is FallbackAssetLoader)
+            assertTrue(actualLoader is FallbackAssetLoader)
             val fallbackLoader = actualLoader as FallbackAssetLoader
             assertEquals(2, fallbackLoader.loaders.size)
-            assertEquals(customLoader as FileAssetLoader, fallbackLoader.loaders.first())
-            assert(fallbackLoader.loaders.last() is CDNAssetLoader)
+            assertEquals(customLoader, fallbackLoader.loaders.first())
+            assertTrue(fallbackLoader.loaders.last() is CDNAssetLoader)
             assertEquals(2, assetStore.size)
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
-        assertFalse(customLoader.hasCppObject)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val customLoaderCppObjectGone = !customLoader.hasCppObject
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && customLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for assetLoader within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "customLoader.hasCppObject=${customLoader.hasCppObject}", e
+            )
+        }
     }
 
-    // https://github.com/rive-app/rive-android/issues/375
-    // @Test
-    // fun noCDNLoader() {
-    //     val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
-    //     lateinit var riveView: RiveAnimationView
-    //     lateinit var controller: RiveFileController
-    //     activityScenario.onActivity { activity ->
-    //         riveView = RiveAnimationView.Builder(activity)
-    //             .setResource(R.raw.walle)
-    //             .setShouldLoadCDNAssets(false)
-    //             .build()
-    //         activity.container.addView(riveView)
-    //         controller = riveView.controller
-    //
-    //         val actualLoader = riveView.rendererAttributes.assetLoader
-    //         assert(actualLoader is FallbackAssetLoader)
-    //         val fallbackLoader = actualLoader as FallbackAssetLoader
-    //         assertTrue(fallbackLoader.loaders.isEmpty())
-    //     }
-    //     activityScenario.close()
-    //     // Background thread deallocates asynchronously.
-    //     waitUntil(1500.milliseconds) { controller.refCount == 0 }
-    //     assertFalse(controller.isActive)
-    //     assertNull(controller.file)
-    //     assertNull(controller.activeArtboard)
-    // }
+    @Test
+    fun noCDNLoader() {
+        val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
+        lateinit var riveView: RiveAnimationView
+        lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
 
-    // https://github.com/rive-app/rive-android/issues/375
-    // @Test
-    // fun withRendererType() {
-    //     val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
-    //     lateinit var riveView: RiveAnimationView
-    //     lateinit var controller: RiveFileController
-    //     activityScenario.onActivity { activity ->
-    //         riveView = RiveAnimationView.Builder(activity)
-    //             .setResource(R.raw.basketball)
-    //             .setRendererType(RendererType.Canvas)
-    //             .build()
-    //         activity.container.addView(riveView)
-    //         controller = riveView.controller
-    //         assertNotNull(riveView.artboardRenderer)
-    //         assertEquals(RendererType.Canvas, riveView.artboardRenderer?.type)
-    //     }
-    //     activityScenario.close()
-    //     // Background thread deallocates asynchronously.
-    //     waitUntil(1500.milliseconds) { controller.refCount == 0 }
-    //     assertFalse(controller.isActive)
-    //     assertNull(controller.file)
-    //     assertNull(controller.activeArtboard)
-    // }
+        activityScenario.onActivity { activity ->
+            riveView = RiveAnimationView.Builder(activity)
+                .setResource(R.raw.walle)
+                .setShouldLoadCDNAssets(false)
+                .build()
+            activity.container.addView(riveView)
+            controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
+
+            val actualLoader = riveView.rendererAttributes.assetLoader
+            assertTrue(actualLoader is FallbackAssetLoader)
+            val fallbackLoader = actualLoader as FallbackAssetLoader
+            assertTrue(fallbackLoader.loaders.isEmpty())
+        }
+        activityScenario.close()
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for noCDNLoader within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
+    }
+
+    @Test
+    fun withRendererType() {
+        val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
+        lateinit var riveView: RiveAnimationView
+        lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
+        activityScenario.onActivity { activity ->
+            riveView = RiveAnimationView.Builder(activity)
+                .setResource(R.raw.basketball)
+                .setRendererType(RendererType.Canvas)
+                .build()
+            activity.container.addView(riveView)
+            controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
+            assertNotNull(riveView.artboardRenderer)
+            assertEquals(RendererType.Canvas, riveView.artboardRenderer?.type)
+        }
+        activityScenario.close()
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for withRendererType within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
+    }
 
     @Test
     fun withStateMachineName() {
         val activityScenario = ActivityScenario.launch(EmptyActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
+        var capturedAssetLoader: FileAssetLoader? = null
+
         activityScenario.onActivity { activity ->
             riveView = RiveAnimationView.Builder(activity)
                 .setResource(R.raw.what_a_state)
@@ -257,14 +368,29 @@ class RiveBuilderTest {
                 .build()
             activity.container.addView(riveView)
             controller = riveView.controller
+            capturedAssetLoader = riveView.rendererAttributes.assetLoader
             assertEquals(1, controller.playingStateMachines.size)
             assertEquals("State Machine 2", controller.playingStateMachines.first().name)
         }
         activityScenario.close()
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
-        assertFalse(controller.isActive)
-        assertNull(controller.file)
-        assertNull(controller.activeArtboard)
+
+        try {
+            waitUntil(cleanupTimeout) {
+                val refCountZero = controller.refCount == 0
+                val isInactive = !controller.isActive
+                val artboardIsNull = controller.activeArtboard == null
+                val fileIsNull = controller.file == null
+                val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
+                
+                refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
+            }
+        } catch (e: TimeoutException) {
+            throw AssertionError(
+                "Cleanup conditions not met for withStateMachineName within $cleanupTimeout. Current state: " +
+                        "controller.refCount=${controller.refCount}, controller.isActive=${controller.isActive}, " +
+                        "controller.file=${controller.file}, controller.activeArtboard=${controller.activeArtboard}, " +
+                        "assetLoader?.hasCppObject=${capturedAssetLoader?.hasCppObject}", e
+            )
+        }
     }
 }

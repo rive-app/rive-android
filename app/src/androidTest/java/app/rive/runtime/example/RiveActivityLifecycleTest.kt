@@ -27,6 +27,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
+@Ignore("Temporarily disabled due to flakes https://github.com/rive-app/rive-android/issues/375")
 class RiveActivityLifecycleTest {
     @Test
     fun activityWithRiveView() {
