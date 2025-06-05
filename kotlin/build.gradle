@@ -60,7 +60,7 @@ android {
 }
 
 dependencies {
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.9.1"
     implementation "androidx.startup:startup-runtime:1.2.0"
     implementation "com.android.volley:volley:1.2.1"
     // Required until minSdk >= 23
