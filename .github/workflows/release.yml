@@ -89,20 +89,14 @@ jobs:
         name: Major Release - Bump version number, update changelog, push and tag
         run: npm run release -- major --ci
         working-directory: ./.github/scripts/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
       - if: ${{inputs.major == false && inputs.minor == true}}
         name: Minor release - Bump version number, update changelog, push and tag
         run: npm run release -- minor --ci
         working-directory: ./.github/scripts/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
       - if: ${{inputs.major == false && inputs.minor == false}}
         name: Build release - Bump version number, update changelog, push and tag
         run: npm run release -- --ci
         working-directory: ./.github/scripts/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RIVE_REPO_PAT }}
 
       # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
