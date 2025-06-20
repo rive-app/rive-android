@@ -14,6 +14,9 @@ class Fonts {
         val style: String,
         val name: String,  // TTF file name
         val axis: List<Axis>? = null,  // Optional axis for variable fonts
+        val ttcIndex: Int = 0,
+        val postScriptName: String? = null,
+        val fallbackFor: String? = null,
     ) {
         companion object {
             const val STYLE_NORMAL = "normal"
@@ -91,10 +94,15 @@ class FontHelper {
         private const val TAG = "FontHelper"
 
         // Thread-safe atomic reference for the font cache
-        private val fontCache = AtomicReference<Map<String, Fonts.Family>>(null)
+        private val familiesMapCache = AtomicReference<Map<String, Fonts.Family>>(null)
+        private val familiesListCache = AtomicReference<List<Fonts.Family>>(null)
 
         /**
          * Retrieves a map of all system fonts available.
+         *
+         * **DEPRECATED**: Use [getSystemFontList] instead for more reliable handling
+         *  of unnamed font families. This method can lose data when multiple unnamed
+         *  families have fonts with the same filename as their first font.
          *
          * This function attempts to find a valid XML configuration file from a set of
          * possible paths and parses it to a map of font families.
@@ -102,12 +110,35 @@ class FontHelper {
          * @return A [Map]<String, Fonts.Family> representing all the available font
          *         families, or an empty map if no valid XML is found.
          */
+        @Deprecated(
+            message = "Use getSystemFontList() instead. Map approach can lose unnamed families with colliding first font names.",
+            replaceWith = ReplaceWith("getSystemFontList()"),
+            level = DeprecationLevel.WARNING
+        )
         fun getSystemFonts(): Map<String, Fonts.Family> {
             // Return cached fonts if available
-            fontCache.get()?.let { return it }
+            familiesMapCache.get()?.let { return it }
 
             return synchronized(this) {
-                fontCache.get() ?: loadFonts()
+                familiesMapCache.get() ?: loadFonts()
+            }
+        }
+
+        /**
+         * Retrieves a list of all system fonts available.
+         *
+         * This is the preferred method for accessing system fonts as it preserves
+         * all font families, including multiple unnamed families that might have
+         * the same first font filename. The Map-based approach ([getSystemFonts])
+         * can lose data due to key collisions in such cases.
+         *
+         * @return A [List]<Fonts.Family> representing all the available font
+         *         families, or an empty list if no valid XML is found.
+         */
+        fun getSystemFontList(): List<Fonts.Family> {
+            familiesListCache.get()?.let { return it }
+            return synchronized(this) {
+                familiesListCache.get() ?: loadFontList()
             }
         }
 
@@ -124,7 +155,7 @@ class FontHelper {
          *
          * It uses the first file that exists in this sequence.
          *
-         * If a valid file is found, it is parsed using [SystemFontsParser.parseFontsXML].
+         * If a valid file is found, it is parsed using [SystemFontsParser.parseFontsXMLMap].
          * If parsing fails or no configuration file is found at any of the expected paths,
          * an error or warning is logged, and an empty map is processed.
          *
@@ -151,7 +182,7 @@ class FontHelper {
 
             val loadedFonts = validPath?.inputStream()?.use { stream ->
                 try {
-                    SystemFontsParser.parseFontsXML(stream)
+                    SystemFontsParser.parseFontsXMLMap(stream)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing fonts XML: ${e.message}", e)
                     emptyMap()
@@ -165,7 +196,37 @@ class FontHelper {
             val existingFonts = filterNonExistingFonts(loadedFonts)
 
             // Update the cache atomically
-            fontCache.set(existingFonts)
+            familiesMapCache.set(existingFonts)
+
+            return existingFonts
+        }
+
+        internal fun loadFontList(): List<Fonts.Family> {
+            val validPath = sequenceOf(
+                SystemFontsParser.FONTS_XML_PATH,
+                SystemFontsParser.SYSTEM_FONTS_XML_PATH,
+                SystemFontsParser.FALLBACK_FONTS_XML_PATH
+            )
+                .map { pathStr -> File(pathStr) }
+                .firstOrNull { it.exists() }
+
+            val loadedFonts = validPath?.inputStream()?.use { stream ->
+                try {
+                    SystemFontsParser.parseFontsXML(stream)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing fonts XML: ${e.message}", e)
+                    emptyList()
+                }
+            } ?: run {
+                Log.w(TAG, "No valid system font XML file found at expected paths.")
+                emptyList()
+            }
+
+            // Filter out fonts that don't exist on the file system
+            val existingFonts = filterNonExistingFonts(loadedFonts)
+
+            // Update the cache atomically
+            familiesListCache.set(existingFonts)
 
             return existingFonts
         }
@@ -198,7 +259,7 @@ class FontHelper {
          *         if no suitable fonts are found.
          */
         fun getFallbackFonts(opts: Fonts.FontOpts = Fonts.FontOpts.DEFAULT): List<Fonts.Font> {
-            val fontFamilies = getSystemFonts()
+            val fontFamilies = getSystemFontList()
             if (fontFamilies.isEmpty()) {
                 Log.e(TAG, "getFallbackFonts: no system font found")
                 return emptyList()
@@ -259,54 +320,84 @@ class FontHelper {
             opts: Fonts.FontOpts = Fonts.FontOpts.DEFAULT,
         ): List<Fonts.Font> {
             val familyName = opts.familyName
-            val lang = opts.lang
-            val weight = opts.weight
-            val style = opts.style
+            val lang = opts.lang // lang from opts used for initial filtering
 
-            val matchingFamilies = fontFamilies
+            val matchingFamiliesSequence = fontFamilies
                 .asSequence()
-                .filter { (key, value) ->
-                    (familyName == null || key.equals(familyName, ignoreCase = true)) &&
-                            (lang == null || value.lang == lang)
+                .filter { (_, family) -> // Value is Fonts.Family
+                    (familyName == null || family.name.equals(familyName, ignoreCase = true)) &&
+                            (lang == null || family.lang == lang) // Filter by lang here
                 }
-                .map { it.value }
+                .map { it.value } // Get the Family object
 
+            // Pass opts.lang for sorting, and opts.weight, opts.style for final font filtering
+            return processMatchingFamilies(
+                matchingFamiliesSequence = matchingFamiliesSequence,
+                requestedLang = opts.lang, // This is the lang used for sorting priority
+                requestedWeight = opts.weight,
+                requestedStyle = opts.style
+            )
+        }
+
+        internal fun findMatches(
+            fontFamiliesList: List<Fonts.Family>,
+            opts: Fonts.FontOpts = Fonts.FontOpts.DEFAULT,
+        ): List<Fonts.Font> {
+            val familyName = opts.familyName
+            val lang = opts.lang // lang from opts used for initial filtering
+
+            val matchingFamiliesSequence = fontFamiliesList
+                .asSequence() // Work with a sequence for consistency
+                .filter { family ->
+                    (familyName == null || family.name.equals(familyName, ignoreCase = true)) &&
+                            (lang == null || family.lang == lang) // Filter by lang here
+                }
+
+            // Pass opts.lang for sorting, and opts.weight, opts.style for final font filtering
+            return processMatchingFamilies(
+                matchingFamiliesSequence = matchingFamiliesSequence,
+                requestedLang = opts.lang, // This is the lang used for sorting priority
+                requestedWeight = opts.weight,
+                requestedStyle = opts.style
+            )
+        }
+
+        private fun processMatchingFamilies(
+            matchingFamiliesSequence: Sequence<Fonts.Family>, // Accept a sequence
+            requestedLang: String?, // Pass only the lang from opts needed for sorting
+            requestedWeight: Fonts.Weight?,
+            requestedStyle: String?,
+        ): List<Fonts.Font> {
             // = Separate named from unnamed families =
+            // Convert sequence to list for partitioning if not already a list
             val (namedFamilies, unnamedFamilies) =
-                matchingFamilies.partition { family ->
-                    // A family is considered "named" if it has a name that doesn't match any of its font filenames
-                    val familyName = family.name
-                    if (familyName.isNullOrBlank()) {
-                        false
-                    } else {
-                        family.fonts.values.flatten().none { font -> familyName == font.name }
-                    }
-                }
+                matchingFamiliesSequence.toList()
+                    .partition { family -> !family.name.isNullOrBlank() }
 
-            // Sort families to prioritize by language match using `sortedByDescending { it.lang == lang }`.
-            // When no language is requested (`lang == null`), it makes sure that generic families
-            // (i.e. `it.lang == null`) are processed before language-specific ones. When a
-            // specific `lang` is requested, this sort won't affect the ordering of the
-            // already-filtered lists.
-            val sortedNamedFamilies = namedFamilies.sortedByDescending { it.lang == lang }
-            val sortedUnnamedFamilies = unnamedFamilies.sortedByDescending { it.lang == lang }
+            // Sort families to prioritize by language match.
+            // When no language is requested (requestedLang == null), it makes sure that generic families
+            // (i.e. family.lang == null) are processed before language-specific ones.
+            // When a specific lang is requested, this sort ensures those matching families come first.
+            val sortedNamedFamilies = namedFamilies.sortedByDescending { it.lang == requestedLang }
+            val sortedUnnamedFamilies =
+                unnamedFamilies.sortedByDescending { it.lang == requestedLang }
 
             val resultFonts =
                 LinkedHashSet<Fonts.Font>() // Preserve insertion order, ensures uniqueness
+
             filterFamilies(
                 families = sortedNamedFamilies,
-                weight = weight,
-                style = style,
+                weight = requestedWeight,
+                style = requestedStyle,
                 resultSet = resultFonts
             )
             filterFamilies(
                 families = sortedUnnamedFamilies,
-                weight = weight,
-                style = style,
+                weight = requestedWeight,
+                style = requestedStyle,
                 resultSet = resultFonts
             )
 
-            // Combine the results with named fonts first
             return resultFonts.toList()
         }
 
@@ -344,26 +435,35 @@ class FontHelper {
         ): Map<String, Fonts.Family> {
             if (fontFamilies.isEmpty()) return fontFamilies
 
-            val filtered = mutableMapOf<String, Fonts.Family>()
-            fontFamilies.forEach { (familyName, family) ->
-                val existingFonts = family
-                    .fonts
+            val familiesList = fontFamilies.values.toList()
+            val filteredList = filterNonExistingFonts(familiesList)
+
+            // Rebuild map using same key logic as original
+            return filteredList.associateBy { family ->
+                if (family.name.isNullOrEmpty()) {
+                    family.fonts.values.flatten().first().name
+                } else {
+                    family.name
+                }
+            }
+        }
+
+        private fun filterNonExistingFonts(fontFamilies: List<Fonts.Family>): List<Fonts.Family> {
+            if (fontFamilies.isEmpty()) return fontFamilies
+
+            return fontFamilies.mapNotNull { family ->
+                val existingFonts = family.fonts
                     .mapValues { (_, fontList) ->
                         fontList.filter { font -> getFontFile(font) != null }
                     }
-                    .filterValues { it.isNotEmpty() } // Keep only non-empty lists.
+                    .filterValues { it.isNotEmpty() }
 
                 if (existingFonts.isNotEmpty()) {
-                    filtered[familyName] = Fonts.Family(
-                        familyName,
-                        family.variant,
-                        family.lang,
-                        existingFonts,
-                    )
+                    Fonts.Family(family.name, family.variant, family.lang, existingFonts)
+                } else {
+                    null
                 }
             }
-
-            return filtered
         }
 
         /**
@@ -387,7 +487,8 @@ class FontHelper {
 
         @VisibleForTesting
         fun resetForTesting() {
-            fontCache.set(null)
+            familiesMapCache.set(null)
+            familiesListCache.set(null)
         }
     }
 }
@@ -406,7 +507,17 @@ class SystemFontsParser {
             "/system/product/fonts/",
         )
 
-        internal fun parseFontsXML(xmlFileStream: InputStream): Map<String, Fonts.Family> {
+        internal fun parseFontsXMLMap(xmlFileStream: InputStream): Map<String, Fonts.Family> {
+            val parser = Xml.newPullParser().apply {
+                setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+                setInput(xmlFileStream, null)
+                nextTag()
+            }
+
+            return readRootElementMap(parser)
+        }
+
+        internal fun parseFontsXML(xmlFileStream: InputStream): List<Fonts.Family> {
             val parser = Xml.newPullParser().apply {
                 setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
                 setInput(xmlFileStream, null)
@@ -416,7 +527,7 @@ class SystemFontsParser {
             return readRootElement(parser)
         }
 
-        private fun readRootElement(parser: XmlPullParser): Map<String, Fonts.Family> {
+        private fun readRootElementMap(parser: XmlPullParser): Map<String, Fonts.Family> {
             parser.require(XmlPullParser.START_TAG, null, null) // Any start tag
             val rootTagName = parser.name
 
@@ -433,7 +544,13 @@ class SystemFontsParser {
 
                 when (parser.name.trim()) {
                     "family" -> readFamilyEntry(parser, aliases)?.let { family ->
-                        familiesMap[family.name!!] = family
+                        val mapKey = if (family.name.isNullOrEmpty()) {
+                            // For unnamed families, use first font name as key
+                            family.fonts.values.flatten().first().name
+                        } else {
+                            family.name
+                        }
+                        familiesMap[mapKey] = family
                     }
 
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
@@ -448,12 +565,14 @@ class SystemFontsParser {
             aliases.forEach { alias ->
                 // Only add alias if it doesn't overwrite an existing family AND the target exists
                 if (!familiesMap.containsKey(alias.name)) {
-                    remapAlias(alias, familiesMap)?.let { remappedFamily ->
-                        familiesMap[alias.name] = remappedFamily
-                    } ?: Log.w(
-                        TAG,
-                        "Could not remap alias '${alias.name}' because target '${alias.original}' not found."
-                    )
+                    familiesMap[alias.original]?.let { ogFamily ->
+                        remapAlias(alias, ogFamily)?.let {
+                            familiesMap[alias.name] = it
+                        } ?: Log.w(
+                            TAG,
+                            "Could not remap alias '${alias.name}' because target '${alias.original}' not found."
+                        )
+                    }
                 } else {
                     Log.w(
                         TAG,
@@ -471,10 +590,12 @@ class SystemFontsParser {
                 while (iterator.hasNext()) {
                     val alias = iterator.next()
                     if (!familiesMap.containsKey(alias.name)) {
-                        remapAlias(alias, familiesMap)?.let {
-                            familiesMap[alias.name] = it
-                            iterator.remove()
-                            progress = true
+                        familiesMap[alias.original]?.let { ogFamily ->
+                            remapAlias(alias, ogFamily)?.let {
+                                familiesMap[alias.name] = it
+                                iterator.remove()
+                                progress = true
+                            }
                         }
                     } else {
                         iterator.remove()
@@ -483,6 +604,77 @@ class SystemFontsParser {
             }
 
             return familiesMap
+        }
+
+        private fun readRootElement(parser: XmlPullParser): List<Fonts.Family> {
+            parser.require(XmlPullParser.START_TAG, null, null) // Any start tag
+            val rootTagName = parser.name
+
+            // Check if it's a known root tag, otherwise log a warning but proceed
+            if (rootTagName != "familyset" && rootTagName != "fonts-modification" && rootTagName != "config") {
+                Log.w(TAG, "Unexpected root tag '$rootTagName' in font XML")
+            }
+
+            val familiesList = mutableListOf<Fonts.Family>()
+            val aliases = mutableListOf<Fonts.Alias>()
+
+            while (parser.next() != XmlPullParser.END_TAG) {
+                if (parser.eventType != XmlPullParser.START_TAG) continue
+
+                when (parser.name.trim()) {
+                    "family" -> readFamilyEntry(parser, aliases)?.let { familiesList.add(it) }
+                    "alias" -> readAlias(parser)?.let { aliases.add(it) }
+                    "familyset" -> {
+                        familiesList.addAll(
+                            readNestedFamiliesList(parser, aliases)
+                        )
+                    }
+
+                    else -> skip(parser)
+                }
+            }
+
+            val familyNames = familiesList.map { it.name }.toMutableSet()
+            aliases.forEach { alias ->
+                // Only add alias if it doesn't overwrite an existing family AND the target exists
+                if (!familyNames.contains(alias.name)) {
+                    familiesList.find { it.name == alias.original }?.let { ogFamily ->
+                        remapAlias(alias, ogFamily)?.let {
+                            familyNames.add(alias.name)
+                            familiesList.add(it)
+                        }
+                            ?: Log.w(
+                                TAG,
+                                "Could not remap alias '${alias.name}' because target '${alias.original}' not found."
+                            )
+                    }
+                }
+            }
+
+            // Resolve nested aliases
+            var unresolvedAliases = aliases.toMutableList()
+            var progress = true
+            while (progress && unresolvedAliases.isNotEmpty()) {
+                progress = false
+                val iterator = unresolvedAliases.iterator()
+                while (iterator.hasNext()) {
+                    val alias = iterator.next()
+                    if (!familyNames.contains(alias.name)) {
+                        familiesList.find { it.name == alias.original }?.let { ogFamily ->
+                            remapAlias(alias, ogFamily)?.let {
+                                familyNames.add(alias.name)
+                                familiesList.add(it)
+                                iterator.remove()
+                                progress = true
+                            }
+                        }
+                    } else {
+                        iterator.remove()
+                    }
+                }
+            }
+
+            return familiesList
         }
 
         private fun readNestedFamilies(
@@ -495,13 +687,38 @@ class SystemFontsParser {
                 if (parser.eventType != XmlPullParser.START_TAG) continue
                 when (parser.name.trim()) {
                     "family" -> readFamilyEntry(parser, aliases)?.let { family ->
-                        familiesMap[family.name!!] = family
+                        val mapKey = if (family.name.isNullOrEmpty()) {
+                            family.fonts.values.flatten().first().name
+                        } else {
+                            family.name
+                        }
+                        familiesMap[mapKey] = family
                     }
 
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
                     else -> skip(parser)
                 }
             }
+        }
+
+        private fun readNestedFamiliesList(
+            parser: XmlPullParser,
+            aliases: MutableList<Fonts.Alias>,
+        ): List<Fonts.Family> {
+            parser.require(XmlPullParser.START_TAG, null, "familyset")
+            val families = mutableListOf<Fonts.Family>()
+            while (parser.next() != XmlPullParser.END_TAG) {
+                if (parser.eventType != XmlPullParser.START_TAG) continue
+                when (parser.name.trim()) {
+                    "family" -> readFamilyEntry(parser, aliases)?.let {
+                        families.add(it)
+                    }
+
+                    "alias" -> readAlias(parser)?.let { aliases.add(it) }
+                    else -> skip(parser)
+                }
+            }
+            return families
         }
 
         private fun readFamilyEntry(
@@ -565,11 +782,8 @@ class SystemFontsParser {
 
         private fun remapAlias(
             alias: Fonts.Alias,
-            families: Map<String, Fonts.Family>,
+            ogFamily: Fonts.Family,
         ): Fonts.Family? {
-            val familyName = alias.original
-            val ogFamily = families[familyName] ?: return null
-
             val weight = alias.weight
             if (weight == null) {
                 return Fonts.Family(
@@ -683,17 +897,8 @@ class SystemFontsParser {
             }
 
             if (fontList.isNotEmpty()) {
-                val familyName = if (namesList.isNotEmpty()) namesList.removeAt(0) else {
-                    val derivedFamilyName = fontList.firstOrNull()?.name?.trim()
-                    if (derivedFamilyName.isNullOrBlank()) {
-                        Log.e(
-                            TAG,
-                            "Could not derive family name from first font filename. Skipping family."
-                        )
-                        return null
-                    }
-                    derivedFamilyName
-                }
+                // Use an empty name for unnamed families.
+                val familyName = if (namesList.isNotEmpty()) namesList.removeAt(0) else ""
                 return fromFontList(
                     familyName,
                     fontList,
@@ -704,24 +909,12 @@ class SystemFontsParser {
 
             if (filesList.isEmpty()) return null
 
-            if (namesList.isEmpty()) {
-                // No <nameset> was found, use the full name instead
-                val derivedFamilyName = filesList.first().name.trim()
-                if (derivedFamilyName.isBlank()) {
-                    Log.e(
-                        TAG,
-                        "Legacy family's first file name '${filesList.first().name}' isn't a valid family name"
-                    )
-                    return null
-                }
-                namesList.add(derivedFamilyName)
-            }
 
-            val familyName = namesList.removeAt(0).trim()
-            if (familyName.isEmpty()) {
-                Log.e(TAG, "Legacy family's primary name from <nameset> is empty.")
-                return null
+            if (namesList.isEmpty()) {
+                namesList.add("")
             }
+            val familyName = namesList.removeAt(0).trim()
+
 
             return fromFileFonts(
                 filesList,
@@ -867,6 +1060,12 @@ class SystemFontsParser {
                 parser, "style", Fonts.Font.STYLE_NORMAL
             ) ?: Fonts.Font.STYLE_NORMAL
 
+            val ttcIndex = getOptionalAttribute(parser, "index")?.toIntOrNull() ?: 0
+            val postScriptName =
+                getOptionalAttribute(parser, "postScriptName")?.takeUnless { it.isBlank() }
+            val fallbackFor =
+                getOptionalAttribute(parser, "fallbackFor")?.takeUnless { it.isBlank() }
+
             val filenameBuilder = StringBuilder()
             val axes = mutableListOf<Fonts.Axis>()
 
@@ -892,7 +1091,10 @@ class SystemFontsParser {
                 weight = weight,
                 style = style,
                 name = filename,
-                axis = axes.takeUnless { it.isEmpty() }
+                axis = axes.takeUnless { it.isEmpty() },
+                ttcIndex = ttcIndex,
+                postScriptName = postScriptName,
+                fallbackFor = fallbackFor
             )
         }
 

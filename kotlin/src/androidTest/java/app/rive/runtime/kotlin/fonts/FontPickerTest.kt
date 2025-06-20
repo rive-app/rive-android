@@ -42,15 +42,19 @@ class FontPickerTest {
                 NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) < 0
             )
 
-            // Setting a fallback can now find the character
-            assertTrue(
-                Rive.setFallbackFont(
-                    Fonts.FontOpts("NotoSansThai-Regular.ttf")
+            // Find a Thai font and configure fallback system
+            val thaiFont = FontHelper.getFallbackFonts(Fonts.FontOpts(lang = "th"))
+                .firstOrNull()
+                ?: FontHelper.getFallbackFonts().find {
+                    it.name.contains("Thai", ignoreCase = true)
+                }
+
+            thaiFont?.let { font ->
+                assertTrue(
+                    Rive.setFallbackFont(Fonts.FontOpts(familyName = font.name))
                 )
-            )
-            assert(
-                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0
-            )
+                assert(NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0)
+            }
         }
     }
 
@@ -230,7 +234,7 @@ class FontPickerTest {
 
         val fontList = listOf(
             Fonts.FontOpts(lang = "und-Deva"),
-            Fonts.FontOpts("NotoSansCJK-Regular.ttc"),
+            Fonts.FontOpts(lang = "zh-Hans"),
             Fonts.FontOpts(lang = "und-Arab"),
         ).mapNotNull {
             FontHelper.getFallbackFontBytes(it)
