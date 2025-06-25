@@ -248,6 +248,7 @@ class FontPickerTest {
             }
         }
 
+        val limitedFontBytes = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
         /**
          * A bit of an odd test here:
          *  we query our fallback function to get back the index in the Strategy stack found
@@ -261,7 +262,7 @@ class FontPickerTest {
                 index,
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    byteArrayOf() // just a placeholder...
+                    limitedFontBytes // just a placeholder...
                 )
             )
         }

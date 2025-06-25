@@ -1187,13 +1187,16 @@ class FontHelpersTest {
             Rive.setFallbackFont(fontBytes!!)
         )
 
+        val limitedFontBytes =
+            context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
+
         // Noto Thai doesn't have Korean glyphs...
         "우호관계의".forEach { char ->
             val codePoint = char.code
             assert(
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    byteArrayOf() // just a placeholder...
+                    limitedFontBytes // just a placeholder...
                 ) < 0
             )
         }
@@ -1204,7 +1207,7 @@ class FontHelpersTest {
             assert(
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    byteArrayOf() // just a placeholder...
+                    limitedFontBytes // just a placeholder...
                 ) >= 0
             )
         }
@@ -1225,13 +1228,16 @@ class FontHelpersTest {
             Rive.setFallbackFont(thaiFontBytes!!)
         )
 
+        val limitedFontBytes =
+            context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
+
         // Noto Thai doesn't have Korean glyphs...
         "우호관계의".forEach { char ->
             val codePoint = char.code
             assert(
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    byteArrayOf() // just a placeholder...
+                    limitedFontBytes // just a placeholder...
                 ) < 0
             )
         }
@@ -1242,7 +1248,7 @@ class FontHelpersTest {
             assert(
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    byteArrayOf() // just a placeholder...
+                    limitedFontBytes // just a placeholder...
                 ) >= 0
             )
         }
