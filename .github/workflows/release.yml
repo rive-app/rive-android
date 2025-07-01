@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write # allows release-it to pick up GITHUB_TOKEN
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -89,14 +89,20 @@ jobs:
         name: Major Release - Bump version number, update changelog, push and tag
         run: npm run release -- major --ci
         working-directory: ./.github/scripts/release
-      - if: ${{inputs.major == false && inputs.minor == true}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - if: ${{ inputs.major == false && inputs.minor == true }}
         name: Minor release - Bump version number, update changelog, push and tag
         run: npm run release -- minor --ci
         working-directory: ./.github/scripts/release
-      - if: ${{inputs.major == false && inputs.minor == false}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - if: ${{ inputs.major == false && inputs.minor == false }}
         name: Build release - Bump version number, update changelog, push and tag
         run: npm run release -- --ci
         working-directory: ./.github/scripts/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
