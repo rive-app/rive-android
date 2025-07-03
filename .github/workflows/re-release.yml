@@ -30,16 +30,17 @@ jobs:
           actions-role: ${{ secrets.ACTIONS_ROLE }}
           GPG-key-contents: ${{ secrets.GPG_KEY_CONTENTS }}
           signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Deploy
         uses: ./.github/actions/deploy
         with:
-          OSSRH-username: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH-password: ${{ secrets.OSSRH_PASSWORD }}
-          UAT-OSSRH-username: ${{ secrets.UAT_OSSRH_USERNAME }}
-          UAT-OSSRH-password: ${{ secrets.UAT_OSSRH_PASSWORD }}
+          # Secrets have been updated with the correct <username, password> pair for Central Portal
+          mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
+          mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
+          # ====
           signing-key-id: ${{ secrets.SIGNING_KEY_ID }}
           signing-password: ${{ secrets.SIGNING_PASSWORD }}
           signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
-          Sonatype-staging-profile-id: ${{ secrets.SONATYPE_STAGING_PROFILE_ID }}

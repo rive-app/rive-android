@@ -4,17 +4,11 @@ name: Deploy
 description: Deploy the Android library artifacts to Maven Central
 
 inputs:
-  OSSRH-username:
-    description: "The OSS Repository Hosting username"
+  mavenCentralUsername:
+    description: "The Maven Central Portal token username"
     required: true
-  OSSRH-password:
-    description: "The OSS Repository Hosting password"
-    required: true
-  UAT-OSSRH-username:
-    description: "The UAT OSS Repository Hosting username"
-    required: true
-  UAT-OSSRH-password:
-    description: "The UAT OSS Repository Hosting password"
+  mavenCentralPassword:
+    description: "The Maven Central Portal token password"
     required: true
   signing-key-id:
     description: "The signing key ID"
@@ -25,22 +19,16 @@ inputs:
   signing-secret-key-ring-file:
     description: "The path to the secret key ring file"
     required: true
-  Sonatype-staging-profile-id:
-    description: "The Sonatype staging profile ID"
-    required: true
 
 runs:
   using: "composite"
   steps:
     - name: Publish to MavenCentral
       shell: bash
-      run: ./gradlew publishAllPublicationsToSonatypeRepository --max-workers 1 closeAndReleaseSonatypeStagingRepository
+      run: ./gradlew publishToMavenCentral
       env:
-        UAT_OSSRH_USERNAME: ${{ inputs.UAT-OSSRH-username }}
-        UAT_OSSRH_PASSWORD: ${{ inputs.UAT-OSSRH-password }}
-        # TODO: remove these after UAT is confirmed working
-        OSSRH_USERNAME: ${{ inputs.OSSRH-username }}
-        OSSRH_PASSWORD: ${{ inputs.OSSRH-password }}
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ inputs.OSSRH-username }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ inputs.OSSRH-password }}
         # ====
         SIGNING_KEY_ID: ${{ inputs.signing-key-id }}
         SIGNING_PASSWORD: ${{ inputs.signing-password }}
