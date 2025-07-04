@@ -16,8 +16,8 @@ inputs:
   signing-password:
     description: "The signing password"
     required: true
-  signing-secret-key-ring-file:
-    description: "The path to the secret key ring file"
+  signing-key-contents:
+    description: "The private GPG key"
     required: true
 
 runs:
@@ -27,10 +27,9 @@ runs:
       shell: bash
       run: ./gradlew publishToMavenCentral
       env:
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ inputs.OSSRH-username }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ inputs.OSSRH-password }}
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ inputs.mavenCentralUsername }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ inputs.mavenCentralPassword }}
         # ====
-        SIGNING_KEY_ID: ${{ inputs.signing-key-id }}
-        SIGNING_PASSWORD: ${{ inputs.signing-password }}
-        SIGNING_SECRET_KEY_RING_FILE: ${{ inputs.signing-secret-key-ring-file }}
-        SONATYPE_STAGING_PROFILE_ID: ${{ inputs.Sonatype-staging-profile-id }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ inputs.signing-key-contents }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ inputs.signing-key-id }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ inputs.signing-password }}

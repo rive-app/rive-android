@@ -43,4 +43,4 @@ jobs:
           # ====
           signing-key-id: ${{ secrets.SIGNING_KEY_ID }}
           signing-password: ${{ secrets.SIGNING_PASSWORD }}
-          signing-secret-key-ring-file: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+          signing-key-contents: ${{ secrets.GPG_KEY_CONTENTS }}
