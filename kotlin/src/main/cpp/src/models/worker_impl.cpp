@@ -52,18 +52,24 @@ void WorkerImpl::start(jobject ktRenderer,
         env->GetMethodID(m_ktRendererClass, "advance", "(F)V");
     m_lastFrameTime = frameTime;
     m_isStarted = true;
+    // Conditional from CMake on whether to include miniaudio
+#ifdef WITH_AUDIO
     if (auto engine = rive::AudioEngine::RuntimeEngine(false))
     {
         engine->start();
     }
+#endif
 }
 
 void WorkerImpl::stop()
 {
+    // Conditional from CMake on whether to include miniaudio
+#ifdef WITH_RIVE_AUDIO
     if (auto engine = rive::AudioEngine::RuntimeEngine(false))
     {
         engine->stop();
     }
+#endif
     auto env = GetJNIEnv();
     if (m_ktRendererClass != nullptr)
     {

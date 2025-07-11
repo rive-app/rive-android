@@ -1,59 +1,76 @@
-![Build Status](https://github.com/rive-app/rive-android/actions/workflows/release.yml/badge.svg)
-![Test Status](https://github.com/rive-app/rive-android/actions/workflows/tests.yml/badge.svg)
-![Discord badge](https://img.shields.io/discord/532365473602600965)
-![Twitter handle](https://img.shields.io/twitter/follow/rive_app.svg?style=social&label=Follow)
+[![Build Status](https://github.com/rive-app/rive-android/actions/workflows/release.yml/badge.svg?style=flat-square)](https://github.com/rive-app/rive-android/releases)
+[![Discord Badge](https://img.shields.io/discord/532365473602600965)](https://discord.gg/dpRpR7jH)
+[![Twitter Handle](https://img.shields.io/twitter/follow/rive_app.svg?style=social&label=Follow)](https://x.com/rive_app)
 
 # Rive Android
 
-![Rive hero image](https://cdn.rive.app/rive_logo_dark_bg.png)
+[![Rive hero image](https://cdn.rive.app/rive_logo_dark_bg.png)](https://rive.app)
 
-An Android runtime library for [Rive](https://rive.app).
+The [Rive](https://rive.app) runtime for Android.
 
-The library is distributed through
-the [Maven](https://search.maven.org/artifact/app.rive/rive-android) repository.
+This library is distributed through [Maven](https://central.sonatype.com/artifact/app.rive/rive-android).
 
-## Table of contents
+## Table of Contents
 
 - ⭐️ [Rive Overview](#rive-overview)
 - 🚀 [Getting Started & API docs](#getting-started)
 - 🔍 [Supported Versions](#supported-versions)
-- 🧪 [Experimental Features](#experimental-features)
 - 📚 [Examples](#examples)
 - 👨‍💻 [Contributing](#contributing)
-- ❓ [Issues](#issues)
+- ❓ [Filing Issues](#issues)
+- 🧰 [Troubleshooting](#troubleshooting)
 
-## Rive overview
+## Rive Overview
 
-[Rive](https://rive.app) is a real-time interactive design and animation tool that helps teams
-create and run interactive animations anywhere. Designers and developers use our collaborative
-editor to create motion graphics that respond to different states and user inputs. Our lightweight
-open-source runtime libraries allow them to load their animations into apps, games, and websites.
+[Rive](https://rive.app) is a real-time, collaborative design and animation tool that helps teams create and run interactive, animated graphics anywhere. Designers and developers work together in the editor to create a Rive file that responds to different states and user inputs. Our lightweight open-source runtime libraries allow them to load this file into apps, games, and websites.
 
-🏡 [Homepage](https://rive.app/)
+📘 [Rive Docs](https://rive.app/docs/) | 🛠 [Rive Community](https://community.rive.app/)
 
-📘 [Rive docs](https://rive.app/community/doc/introduction/docvphVOrBbl)
+## Getting Started
 
-🛠 [Rive Forums](https://rive.app/community/forums/home)
+To get started with Rive Android, check the [Android section](https://rive.app/docs/runtimes/android/android) of the runtime docs.
 
-## Getting started
+For more information, see the [Runtime](https://rive.app/docs/runtimes/getting-started) sections, such as:
 
-To get started with Rive Android, check out the following resources:
+- [Artboards](https://rive.app/docs/runtimes/artboards)
+- [Layout](https://rive.app/docs/runtimes/layout)
+- [State Machines](https://rive.app/docs/runtimes/state-machines)
+- [Data Binding](https://rive.app/docs/runtimes/data-binding)
+- [Loading Assets](https://rive.app/docs/runtimes/loading-assets)
 
-- [Getting Started with Rive in Android](https://rive.app/community/doc/android/docxb0vASIwp)
+## Supported Versions
 
-For more information, see the Runtime sections of the Rive help documentation:
+Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version is **35**.
 
-- [Animation Playback](https://rive.app/community/doc/animation-playback/docDKKxsr7ko)
-- [Layout](https://rive.app/community/doc/layout/docBl81zd1GB)
-- [State Machines](https://rive.app/community/doc/state-machines/docxeznG7iiK)
-- [Rive Text](https://rive.app/community/doc/text/docn2E6y1lXo)
-- [Rive Events](https://rive.app/community/doc/rive-events/docbOnaeffgr)
-- [Loading Assets](https://rive.app/community/doc/loading-assets/doct4wVHGPgC)
+## Building
 
-## Supported versions
+The build system begins with Gradle, but also includes CMake and Premake at lower levels.
 
-Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version
-is **34**.
+To build the Rive Android library from the Gradle CLI, use the following:
+
+`./gradlew :kotlin:assembleRelease`
+
+This will produce `kotlin/build/outputs/aar/kotlin-release.aar`, which is equivalent to the Android Archive (AAR) file published on Maven.
+
+### Build Options
+
+For advanced use cases, you may want to consider building from source for variants that we do not publish.
+
+#### Building Particular Architectures
+
+You may want to produce an AAR with only particular application binary interfaces (ABIs) included. By default we produce for all four common variants: `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`. To choose one, use the following:
+
+`./gradlew :kotlin:assembleRelease -PabiFilters=arm64-v8a`
+
+You can also build for multiple with a comma separated list:
+
+`./gradlew :kotlin:assembleRelease -PabiFilters="arm64-v8a,armeabi-v7a"`
+
+#### No Audio Engine
+
+Rive Android includes an audio engine by default by linking miniaudio. This allows for playback of audio assets from Rive files. If you do not need this functionality and your goal is to minimize binary size, you can exclude it and save 600kb with the following:
+
+`./gradlew :kotlin:assembleRelease -PnoAudio`
 
 ## Examples
 
@@ -63,59 +80,31 @@ To run the example app set the `app` build variant to `preview`. In Android Stud
 
 The `preview` build variant makes use of the hosted Rive dependency. If you're looking to contribute, set the build variant to `debug` and see `CONTRIBUTING.md` for more information. Building this variant will require additional configuration and setup.
 
-The example showcases a number of ways to manipulate Rives, including:
+The example showcases a number of ways to manipulate Rive files, including:
 
-- How to include Rive files into the project and reference them
+- How to include Rive files in a project and reference them
 - Setting layout and loop mode options
-- Displaying single or multiple animations / artboards on one component
+- Displaying single or multiple artboards in one component
 - Setting up and manipulating a state machine via inputs
 - Handling events
-- Utilizing a low-level API to build a render loop for more control over scenes
-- ...and more!
+- Using a low-level API to build a render loop for more control over scenes
+- ... and more!
 
-### Awesome Rive
+### Community Examples
 
-For even more examples and resources on using Rive at runtime or in other tools, checkout the [awesome-rive](https://github.com/rive-app/awesome-rive) repo.
-
-## Experimental features
-
-The Rive renderer is available _experimentally_ in `7.0.0`.
-
-Read more about the Rive Renderer [here](https://rive.app/renderer). Additional information on [choosing a renderer](https://rive.app/community/doc/overview/docD20dU9Rod) for Rive's runtimes.
-
-Your feedback is greatly appreciated during this stage and we'd love to hear from you!
-
-To use the new Rive renderer you can specify the parameter in XML:
-
-```xml
-<app.rive.runtime.kotlin.RiveAnimationView
-  app:riveRenderer="Rive"
-  … />
-```
-
-Alternatively, specify the renderer when initializing Rive:
-
-```kotlin
-Rive.init(applicationContext, defaultRenderer = RendererType.Rive)
-```
-
-This default value can still be overriden via XML.
+For even more examples and resources on using Rive at runtime or in other tools, checkout the [Awesome Rive](https://github.com/rive-app/awesome-rive) repo or check out our [community](https://community.rive.app/).
 
 ## Contributing
 
-We love contributions! Check out our [contributing docs](./CONTRIBUTING.md) to get more details into
-how to run this project, the examples, and more all locally.
+We love contributions! Check out our [contributing docs](./CONTRIBUTING.md) to get more details into how to run this project locally.
 
-## Issues
+## Filing Issues
 
-Have an issue with using the runtime, or want to suggest a feature/API to help make your development
-life better? Log an issue in our [issues](https://github.com/rive-app/rive-android/issues) tab! You
-can also browse older issues and discussion threads there to see solutions that may have worked for
-common problems.
+Have an issue with using the runtime, or want to suggest a feature or API to help make your development life better? Log an issue in our [issues](https://github.com/rive-app/rive-android/issues) tab! You can also browse older issues and discussion threads there to see solutions that may have worked for common problems.
 
-### Known issues
+## Troubleshooting
 
-After `rive-android:6.0.0`, CMake is building the library, and you might run into the following error when `rive-android` is used alongside other native libraries:
+Rive Android uses CMake to build the library. You might run into the following error when Rive Android is used alongside other native libraries:
 
 ```shell
 Execution failed for task ':app:mergeDebugNativeLibs'.
@@ -124,7 +113,7 @@ Execution failed for task ':app:mergeDebugNativeLibs'.
 …
 ```
 
-You can fix this by adding this in your `build.gradle`:
+This is due to both dependencies attempting to include their version of the C++ standard library. You can fix this by prioritizing one by adding this in your `build.gradle`:
 
 ```gradle
 android {
@@ -138,14 +127,3 @@ android {
   …
 }
 ```
-
-### Breaking changes
-
-#### **9.0.0**
-
-- State Machine Inputs aren't processed on the UI thread anymore, but they are queued and processed
-  by the worker thread on the `advance()` following `RiveAnimationView.[fireState()/setNumberState()/setBooleanState()]`
-- `RiveArtboardRenderer`
-  - Constructor is simplified and now takes fewer parameters
-  - Deprecated APIs from `RiveArtboardRenderer` are now accessible via `RiveAnimationView` or `RiveAnimationView.controller`
-- `RiveFileController.hasPlayingAnimations` is now `isAdvancing`
