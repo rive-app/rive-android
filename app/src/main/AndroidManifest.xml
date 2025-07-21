@@ -36,7 +36,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SimpleActivity" />
+        <activity
+            android:name=".ComposeActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
+        <activity
+            android:name=".SimpleActivity"
+            android:exported="true" />
         <activity android:name=".EventsActivity" />
         <activity android:name=".InteractiveSamplesActivity" />
         <activity android:name=".MultipleArtboardsActivity" />
@@ -60,7 +66,7 @@
         <activity android:name=".ViewStubActivity" />
         <activity android:name=".ViewPagerActivity" />
         <activity
-            android:name=".ComposeActivity"
+            android:name=".LegacyComposeActivity"
             android:exported="false"
             android:label="@string/title_activity_compose"
             android:theme="@style/AppTheme" />
@@ -75,7 +81,9 @@
             android:name=".TouchPassthroughActivity"
             android:exported="true" />
         <!-- For testing 👇 -->
-        <activity android:name=".SingleActivity" />
+        <activity
+            android:name=".SingleActivity"
+            android:exported="true" />
         <activity android:name=".EmptyActivity" />
     </application>
 

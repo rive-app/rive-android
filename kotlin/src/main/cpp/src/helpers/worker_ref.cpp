@@ -22,6 +22,7 @@ rcp<RefWorker> RefWorker::RiveWorker()
     {
         assert(s_riveWorker == nullptr);
         LOGI("Creating *Rive* RefWorker");
+
         std::unique_ptr<RefWorker> candidateWorker(
             new RefWorker(RendererType::Rive));
         // Check if PLS is supported.

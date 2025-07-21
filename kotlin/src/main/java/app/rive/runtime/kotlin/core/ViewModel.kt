@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType.entries
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 
 /**
@@ -133,7 +132,11 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
         LIST(5),
         ENUM(6),
         TRIGGER(7),
-        VIEW_MODEL(8);
+        VIEW_MODEL(8),
+        INTEGER(9),
+        SYMBOL_LIST_INDEX(10),
+        ASSET_IMAGE(11),
+        ARTBOARD(12);
 
         companion object {
             private val map = entries.associateBy(PropertyDataType::value)

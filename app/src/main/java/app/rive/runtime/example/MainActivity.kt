@@ -9,6 +9,7 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 @ControllerStateManagement
 class MainActivity : AppCompatActivity() {
     private val buttonsData = listOf(
+        Pair(R.id.go_compose, ComposeActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),
         Pair(R.id.go_events, EventsActivity::class.java),
         Pair(R.id.go_interactive_samples, InteractiveSamplesActivity::class.java),
@@ -30,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_viewpager, ViewPagerActivity::class.java),
         Pair(R.id.go_meshes, MeshesActivity::class.java),
         Pair(R.id.go_viewstub, ViewStubActivity::class.java),
-        Pair(R.id.go_compose, ComposeActivity::class.java),
+        Pair(R.id.go_compose_legacy, LegacyComposeActivity::class.java),
         Pair(R.id.go_frame, FrameActivity::class.java),
         Pair(R.id.go_dynamic_text, DynamicTextActivity::class.java),
         Pair(R.id.go_assets_loader, AssetLoaderActivity::class.java),

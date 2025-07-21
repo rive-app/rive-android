@@ -73,4 +73,24 @@ std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv* env, jbyteArray byteArray)
                             reinterpret_cast<jbyte*>(bytes.data()));
     return bytes;
 }
+
+JniResource<jobject> VecStringToJStringList(
+    JNIEnv* env,
+    const std::vector<std::string>& strs)
+{
+    auto arrayListClass = FindClass(env, "java/util/ArrayList");
+    auto arrayListConstructor =
+        env->GetMethodID(arrayListClass.get(), "<init>", "()V");
+    auto arrayListAddFn =
+        env->GetMethodID(arrayListClass.get(), "add", "(Ljava/lang/Object;)Z");
+    auto arrayList =
+        MakeObject(env, arrayListClass.get(), arrayListConstructor);
+    for (const auto& str : strs)
+    {
+        auto jName = MakeJString(env, str);
+        env->CallBooleanMethod(arrayList.get(), arrayListAddFn, jName.get());
+    }
+    return arrayList;
+}
+
 } // namespace rive_android

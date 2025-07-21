@@ -8,6 +8,7 @@
 #include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/jni_resource.hpp"
 #include "helpers/thread_state_pls.hpp"
 
 #include "rive/math/math_types.hpp"
@@ -29,27 +30,18 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
 {
     auto env = rive_android::GetJNIEnv();
 
-    jclass cls = env->FindClass("app/rive/runtime/kotlin/core/Decoder");
-    if (!cls)
-    {
-        LOGE("can't find class 'app/rive/runtime/kotlin/core/Decoder'");
-        return false;
-    }
+    auto imageDecoderClass =
+        FindClass(env, "app/rive/runtime/kotlin/core/ImageDecoder");
 
-    jmethodID method = env->GetStaticMethodID(cls, "decodeToPixels", "([B)[I");
-    if (!method)
-    {
-        LOGE("can't find static method decodeToPixels");
-        env->DeleteLocalRef(cls);
-        return false;
-    }
+    auto decodeToBitmap = env->GetStaticMethodID(imageDecoderClass.get(),
+                                                 "decodeToBitmap",
+                                                 "([B)[I");
 
-    jbyteArray encoded =
+    auto encoded =
         env->NewByteArray(rive_android::SizeTTOInt(encodedBytes.size()));
     if (!encoded)
     {
-        LOGE("failed to allocate NewByteArray");
-        env->DeleteLocalRef(cls);
+        LOGE("Failed to allocate NewByteArray");
         return false;
     }
 
@@ -57,35 +49,35 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
                             0,
                             rive_android::SizeTTOInt(encodedBytes.size()),
                             (jbyte*)encodedBytes.data());
-    auto jpixels = (jintArray)
-        JNIExceptionHandler::CallStaticObjectMethod(env, cls, method, encoded);
-    env->DeleteLocalRef(encoded); // no longer need encoded
+    auto jpixels = (jintArray)JNIExceptionHandler::CallStaticObjectMethod(
+        env,
+        imageDecoderClass.get(),
+        decodeToBitmap,
+        encoded);
+    env->DeleteLocalRef(encoded); // No longer need encoded
 
-    // At ths point, we have the decode results. Now we just need to convert
+    // At ths point, we have the decoded results. Now we just need to convert
     // it into the form we need (ImageInfo + premul pixels)
 
     size_t arrayCount = env->GetArrayLength(jpixels);
     if (arrayCount < 2)
     {
-        LOGE("bad array length (unexpected)");
-        env->DeleteLocalRef(cls);
+        LOGE("Bad array length (unexpected)");
         return false;
     }
 
-    int* rawPixels = env->GetIntArrayElements(jpixels, nullptr);
+    auto rawPixels = env->GetIntArrayElements(jpixels, nullptr);
     const uint32_t rawWidth = rawPixels[0];
     const uint32_t rawHeight = rawPixels[1];
     const size_t pixelCount = (size_t)rawWidth * rawHeight;
     if (pixelCount == 0)
     {
-        LOGE("don't support empty images (zero dimension)");
-        env->DeleteLocalRef(cls);
+        LOGE("Unsupported empty image (zero dimension)");
         return false;
     }
     if (2 + pixelCount < arrayCount)
     {
-        LOGE("not enough elements in pixel array");
-        env->DeleteLocalRef(cls);
+        LOGE("Not enough elements in pixel array");
         return false;
     }
 
@@ -94,8 +86,8 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     pixels->resize(pixelCount * 4);
 
     auto div255 = [](unsigned value) { return (value + 128) * 257 >> 16; };
-    uint8_t* bytes = pixels->data();
-    bool rawIsOpaque = true;
+    auto bytes = pixels->data();
+    auto rawIsOpaque = true;
     for (size_t i = 0; i < pixelCount; ++i)
     {
         uint32_t p = rawPixels[2 + i];
@@ -122,7 +114,6 @@ bool JNIDecodeImage(Span<const uint8_t> encodedBytes,
     }
     *isOpaque = rawIsOpaque;
     env->ReleaseIntArrayElements(jpixels, rawPixels, 0);
-    env->DeleteLocalRef(cls);
     return true;
 }
 
