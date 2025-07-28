@@ -1,1 +1,1 @@
--keep class app.rive.runtime.kotlin.** { *;}
+-keep class app.rive.** { *;}
