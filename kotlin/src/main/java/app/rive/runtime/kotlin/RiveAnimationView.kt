@@ -407,7 +407,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onSurfaceTextureAvailable(
-        surfaceTexture: SurfaceTexture, width: Int, height: Int
+        surfaceTexture: SurfaceTexture, width: Int, height: Int,
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
@@ -545,7 +545,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     fun play(
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
-        settleInitialState: Boolean = true
+        settleInitialState: Boolean = true,
     ) {
         rendererAttributes.apply {
             this.loop = loop
@@ -564,7 +564,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         areStateMachines: Boolean = false,
-        settleInitialState: Boolean = true
+        settleInitialState: Boolean = true,
     ) {
         rendererAttributes.apply {
             this.loop = loop
@@ -588,7 +588,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         loop: Loop = Loop.AUTO,
         direction: Direction = Direction.AUTO,
         isStateMachine: Boolean = false,
-        settleInitialState: Boolean = true
+        settleInitialState: Boolean = true,
     ) {
         rendererAttributes.apply {
             this.animationName = if (isStateMachine) null else animationName
@@ -869,8 +869,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         val currentAssetLoader = rendererAttributes.assetLoader
         rendererAttributes.assetLoader = assetLoader
 
-        currentAssetLoader?.release()
         assetLoader?.acquire()
+        currentAssetLoader?.release()
 
         (lifecycleObserver as? RiveViewLifecycleObserver)?.let { depObserver ->
             currentAssetLoader?.let { old -> depObserver.remove(old) }
@@ -904,7 +904,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Calling addObserver again will trigger a onCreate/onStart/onResume again.
      */
     private fun validateLifecycleOwner() {
-
         val currentLifecycleOwner = this.findViewTreeLifecycleOwner()
         currentLifecycleOwner?.let {
             if (it != lifecycleOwner) {
@@ -1125,7 +1124,7 @@ class RiveFileRequest(
     private val rendererType: RendererType,
     private val listener: Response.Listener<File>,
     errorListener: Response.ErrorListener,
-    private val assetLoader: FileAssetLoader? = null
+    private val assetLoader: FileAssetLoader? = null,
 ) : Request<File>(Method.GET, url, errorListener) {
 
     override fun deliverResponse(response: File) = listener.onResponse(response)
@@ -1186,5 +1185,5 @@ data class ChangedInput(
     val stateMachineName: String,
     val name: String,
     val value: Any? = null,
-    val nestedArtboardPath: String? = null
+    val nestedArtboardPath: String? = null,
 )

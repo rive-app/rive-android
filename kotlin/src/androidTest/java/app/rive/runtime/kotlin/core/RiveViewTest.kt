@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
@@ -33,7 +35,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -652,15 +653,16 @@ class RiveViewTest {
 @RunWith(AndroidJUnit4::class)
 class TouchPassThroughComposeTest {
     companion object {
-        @JvmStatic
-        @BeforeClass
-        fun initRive() {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            Rive.init(context)
-        }
-
         const val BUTTON_TAG = "test_button"
     }
+
+    @Before
+    fun setup() {
+        Rive.init(
+            InstrumentationRegistry.getInstrumentation().targetContext
+        )
+    }
+
 
     @get:Rule
     val composeRule = createComposeRule()
@@ -675,13 +677,21 @@ class TouchPassThroughComposeTest {
             TouchPassThroughDemo(passThrough = false)
         }
 
+        // Also add the wait condition here for robustness.
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            composeRule.onAllNodesWithTag(BUTTON_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+
         // Base case
         composeRule.onNodeWithText("Click Count: 0").assertExists()
 
         // Tap the button - Rive view is on top
         composeRule.onNodeWithTag(BUTTON_TAG).performTouchInput { click() }
 
-        // Counter should remain at 0
+        // The UI should not change, so we can just assert.
+        // To be extra safe against recomposition delays, you could add a small delay
+        // or a wait condition that checks the count remains 0.
+        composeRule.mainClock.advanceTimeBy(200) // Advance compose clock to allow potential changes
         composeRule.onNodeWithText("Click Count: 0").assertExists()
     }
 
@@ -694,10 +704,20 @@ class TouchPassThroughComposeTest {
             TouchPassThroughDemo(passThrough = true)
         }
 
-        // Tap the button
+        // Add this wait condition before any interaction.
+        // This will wait up to a few seconds for the button to appear.
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            composeRule.onAllNodesWithTag(BUTTON_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Now that we know the button exists, we can safely interact with it.
         composeRule.onNodeWithTag(BUTTON_TAG).performTouchInput { click() }
 
-        // Counter should have incremented to 1
+        // It's also good practice to wait for the expected outcome.
+        composeRule.waitUntil(timeoutMillis = 1000) {
+            composeRule.onAllNodesWithText("Click Count: 1").fetchSemanticsNodes().isNotEmpty()
+        }
+        // Final assertion for clarity, though the waitUntil above already confirms it.
         composeRule.onNodeWithText("Click Count: 1").assertExists()
     }
 

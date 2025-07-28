@@ -17,6 +17,7 @@ extern "C"
         JNIEnv* env,
         jobject ktObject)
     {
+        // FileAssetLoader is now a RefCnt. Upon creation its count is 1.
         JNIFileAssetLoader* fileAssetLoader =
             new JNIFileAssetLoader(ktObject, env);
         return (jlong)fileAssetLoader;
@@ -29,7 +30,17 @@ extern "C"
     {
         JNIFileAssetLoader* fileAssetLoader =
             reinterpret_cast<JNIFileAssetLoader*>(ref);
-        delete fileAssetLoader;
+        fileAssetLoader->unref();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppRef(JNIEnv*,
+                                                             jobject,
+                                                             jlong ref)
+    {
+        JNIFileAssetLoader* fileAssetLoader =
+            reinterpret_cast<JNIFileAssetLoader*>(ref);
+        fileAssetLoader->ref();
     }
 
     JNIEXPORT void JNICALL

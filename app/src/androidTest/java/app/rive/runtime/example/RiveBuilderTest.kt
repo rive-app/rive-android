@@ -18,7 +18,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeoutException
@@ -26,7 +25,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
-@Ignore("Temporarily disabled due to flakes https://github.com/rive-app/rive-android/issues/375")
 class RiveBuilderTest {
 
     private val cleanupTimeout = 1500.milliseconds

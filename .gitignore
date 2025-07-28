@@ -37,3 +37,16 @@ kotlin/src/main/cpp/rive_build_x86.log
 
 # Kotlin 2.0 output
 .kotlin/sessions
+
+# Test outputs
+test_run_*/
+test_run_*.log
+logcat_*.log
+tombstones/
+bugreport*.zip
+
+# Test history
+test_history.csv
+
+# OS files
+.DS_Store

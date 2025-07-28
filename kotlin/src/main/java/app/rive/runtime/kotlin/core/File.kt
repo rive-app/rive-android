@@ -28,8 +28,14 @@ class File(
     fileAssetLoader: FileAssetLoader? = null,
 ) : NativeObject(NULL_POINTER) {
     init {
-        // Set the correct renderer type.
-        fileAssetLoader?.setRendererType(rendererType)
+        // Set the correct renderer type and make sure we make this a dependency.
+        // In fact, when importing a file, the FileAssetLoader rcp is incremented and Kotlin
+        // should do the same.
+        fileAssetLoader?.let {
+            it.setRendererType(rendererType)
+            it.acquire()
+            dependencies.add(it)
+        }
 
         cppPointer = import(
             bytes,
@@ -46,7 +52,7 @@ class File(
         bytes: ByteArray,
         length: Int,
         rendererType: Int,
-        fileAssetLoaderPointer: Long
+        fileAssetLoaderPointer: Long,
     ): Long
 
     private external fun cppArtboardByName(cppPointer: Long, name: String): Long
@@ -61,7 +67,7 @@ class File(
     private external fun cppViewModelByName(cppPointer: Long, viewModelName: String): Long
     private external fun cppDefaultViewModelForArtboard(
         cppPointer: Long,
-        artboardPointer: Long
+        artboardPointer: Long,
     ): Long
 
     external override fun cppDelete(pointer: Long)

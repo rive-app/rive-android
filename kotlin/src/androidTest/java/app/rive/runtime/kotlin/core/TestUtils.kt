@@ -2,6 +2,10 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
@@ -95,6 +99,10 @@ class TestUtils {
         fun mockOnDestroy() {
             controller.release()
         }
+
+        public override fun createObserver(): LifecycleObserver {
+            return super.createObserver()
+        }
     }
 
     class MockNoopArtboardRenderer(controller: RiveFileController) :
@@ -174,6 +182,17 @@ class TestUtils {
 
         override fun notifyAdvance(elapsed: Float) {
             this.elapsed = 0.016f;
+        }
+    }
+
+    // A mock LifecycleOwner that allows us to manually control its state.
+    class MockLifecycleOwner : LifecycleOwner {
+        private val registry = LifecycleRegistry(this)
+        override val lifecycle: Lifecycle
+            get() = registry
+
+        fun moveToState(state: Lifecycle.State) {
+            registry.currentState = state
         }
     }
 }

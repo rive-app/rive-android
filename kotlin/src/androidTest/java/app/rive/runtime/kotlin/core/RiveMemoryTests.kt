@@ -407,7 +407,7 @@ class RiveMemoryTests {
                 cppPointer: Long,
                 fit: Fit,
                 alignment: Alignment,
-                scaleFactor: Float
+                scaleFactor: Float,
             ) {
                 // Initial sync spot with main
                 phaser.arrive()
@@ -498,5 +498,50 @@ class RiveMemoryTests {
         // Arrive and wait for postDraw
         phaser.arrive()
         phaser.awaitAdvance(postDraw)
+    }
+
+    @Test
+    fun fileAssetLoaderReleases() {
+        val assetLoader = object : ContextAssetLoader(appContext) {
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
+                return false
+            }
+        }
+        assertEquals(1, assetLoader.refCount)
+        assertTrue(assetLoader.hasCppObject)
+
+        assetLoader.release()
+
+        assertEquals(0, assetLoader.refCount)
+        assertFalse(assetLoader.hasCppObject)
+    }
+
+    @Test
+    fun fileKeepsAssetLoaderAlive() {
+        val assetLoader = object : ContextAssetLoader(appContext) {
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
+                return false
+            }
+        }
+        assertEquals(1, assetLoader.refCount)
+
+        val fileBytes = appContext.resources.openRawResource(R.raw.walle).readBytes()
+
+        val file = File(fileBytes, fileAssetLoader = assetLoader)
+
+        assertEquals(2, assetLoader.refCount)
+        assetLoader.release() // Release our local reference.
+        assertEquals(1, assetLoader.refCount)
+        assertTrue(
+            "AssetLoader should be alive because File depends on it",
+            assetLoader.hasCppObject
+        )
+
+        file.release()
+
+        assertFalse(
+            "AssetLoader should be disposed after File is disposed",
+            assetLoader.hasCppObject
+        )
     }
 }

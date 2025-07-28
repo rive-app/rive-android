@@ -25,6 +25,8 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
     /* Destructor gets called on [dispose()] */
     external override fun cppDelete(pointer: Long)
 
+    external fun cppRef(pointer: Long)
+
     private external fun cppSetRendererType(pointer: Long, rendererType: Int)
 
     /**
@@ -34,6 +36,11 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
 
     fun setRendererType(rendererType: RendererType) {
         cppSetRendererType(cppPointer, rendererType.value)
+    }
+
+    override fun acquire(): Int {
+        cppRef(cppPointer)
+        return super.acquire()
     }
 }
 

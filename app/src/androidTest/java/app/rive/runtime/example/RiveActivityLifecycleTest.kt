@@ -3,6 +3,7 @@ package app.rive.runtime.example
 import TestUtils.Companion.waitUntil
 import android.view.ViewGroup
 import android.widget.Button
+import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,14 +21,14 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 
 @RunWith(AndroidJUnit4::class)
-@Ignore("Temporarily disabled due to flakes https://github.com/rive-app/rive-android/issues/375")
 class RiveActivityLifecycleTest {
     @Test
     fun activityWithRiveView() {
@@ -63,36 +64,49 @@ class RiveActivityLifecycleTest {
         val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
-        var assetLoader: FileAssetLoader? = null
+        lateinit var ogAssetLoader: FileAssetLoader
+        lateinit var replacedAssetLoader: FileAssetLoader
         // Start the Activity.
         activityScenario.onActivity {
             riveView = it.findViewById(R.id.rive_single)
             controller = riveView.controller
 
-            assetLoader = riveView.rendererAttributes.assetLoader
-            assertTrue(assetLoader!!.hasCppObject)
+            ogAssetLoader = riveView.rendererAttributes.assetLoader!!
+            assertTrue(ogAssetLoader.hasCppObject)
 
-            val nopAssetLoader = object : ContextAssetLoader(it) {
+            replacedAssetLoader = object : ContextAssetLoader(it) {
                 override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean = true
             }
-            riveView.setAssetLoader(nopAssetLoader)
-            // release()'d the old one
-            assertFalse(assetLoader!!.hasCppObject)
-            assertNotNull(riveView.rendererAttributes.assetLoader)
-            assetLoader = riveView.rendererAttributes.assetLoader
+            assertEquals(2, ogAssetLoader.refCount)
+            riveView.setAssetLoader(replacedAssetLoader)
+            // The old asset loader is still referenced by the old file
+            assertEquals(1, ogAssetLoader.refCount)
+            assertEquals(
+                replacedAssetLoader,
+                riveView.rendererAttributes.assetLoader
+            )
+            // One ref from the owner (this test) and one from the View.
+            assertEquals(2, replacedAssetLoader.refCount)
         }
         // Close it down.
         activityScenario.close()
         // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 && !controller.isActive && controller.file == null && controller.activeArtboard == null }
+        waitUntil(1500.milliseconds) {
+            controller.refCount == 0 &&
+                    !controller.isActive &&
+                    controller.file == null &&
+                    controller.activeArtboard == null &&
+                    !ogAssetLoader.hasCppObject
+        }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
+        assertFalse(ogAssetLoader.hasCppObject)
 
         // New assetLoader needs to be freed by the creator
-        assertTrue(assetLoader!!.hasCppObject)
-        assetLoader?.release()
-        assertFalse(assetLoader!!.hasCppObject)
+        assertTrue(replacedAssetLoader.hasCppObject)
+        replacedAssetLoader.release()
+        assertFalse(replacedAssetLoader.hasCppObject)
     }
 
     @Test
@@ -138,16 +152,17 @@ class RiveActivityLifecycleTest {
     }
 
 
-    @Ignore("(umberto) disabling this test for now since it seems to be way too flaky for our bots.")
     @Test
     fun resizeRiveView() {
         val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         var ogWidth = 0f
+
+        val layoutCompleteLatch = CountDownLatch(1)
         // Start the Activity.
-        activityScenario.onActivity {
-            riveView = it.findViewById(R.id.rive_single)
+        activityScenario.onActivity { activity ->
+            riveView = activity.findViewById(R.id.rive_single)
             controller = riveView.controller
 
             assertEquals(2, controller.refCount)
@@ -157,28 +172,44 @@ class RiveActivityLifecycleTest {
 
             ogWidth = riveView.artboardRenderer!!.width
 
-            var isResized = false
+            // This block runs after the initial layout
+            riveView.doOnLayout {
+                ogWidth = riveView.artboardRenderer!!.width
 
-            Button(it).apply {
-                text = "RESIZE"
-                setOnClickListener {
-                    riveView.updateLayoutParams {
-                        width = (ogWidth - 1).toInt()
+                val button = Button(activity).apply {
+                    text = "RESIZE"
+                    setOnClickListener {
+                        riveView.updateLayoutParams { width = (ogWidth - 1).toInt() }
                     }
-                    isResized = true
+
+                    // After requesting resize, wait for the next layout pass to confirm it
+                    riveView.doOnLayout { layoutCompleteLatch.countDown() }
                 }
-                (riveView.parent as ViewGroup).addView(this)
-                performClick()
+
+                (riveView.parent as ViewGroup).addView(button)
+                button.performClick()
             }
-            assert(isResized)
         }
+
+        assertTrue(
+            "Timed out waiting for view to be re-laid out.",
+            layoutCompleteLatch.await(3, TimeUnit.SECONDS)
+        )
+
+        var finalWidth: Float? = null
+        activityScenario.onActivity { finalWidth = riveView.artboardRenderer?.width }
+
+        assertEquals(ogWidth - 1f, finalWidth)
 
         // Close it down.
         activityScenario.close()
-        // This assert is not very robust...
-        assertEquals(ogWidth - 1f, riveView.artboardRenderer?.width)
-        // Background thread deallocates asynchronously.
-        waitUntil(1500.milliseconds) { controller.refCount == 0 }
+
+        // Background thread deallocates asynchronously, so let's wait for it.
+        waitUntil(1500.milliseconds) {
+            controller.refCount == 0 &&
+                    controller.file == null &&
+                    controller.activeArtboard == null
+        }
         assertFalse(controller.isActive)
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
