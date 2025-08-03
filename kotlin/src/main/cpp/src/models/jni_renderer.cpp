@@ -42,6 +42,15 @@ JNIRenderer::~JNIRenderer()
     releaseSurface(&m_surface);
 }
 
+void JNIRenderer::disposeAsync()
+{
+    // Capture `this`, post to the worker; the destructor now runs on the worker thread.
+    m_worker->run([this](DrawableThreadState*)
+    {
+        delete this;
+    });
+}
+
 void JNIRenderer::setSurface(SurfaceVariant surface)
 {
     SurfaceVariant oldSurface = m_surface;

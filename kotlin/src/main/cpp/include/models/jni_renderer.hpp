@@ -18,6 +18,8 @@ public:
 
     ~JNIRenderer();
 
+    void disposeAsync();
+
     void setSurface(SurfaceVariant);
 
     rive::Renderer* getRendererOnWorkerThread() const;

@@ -49,7 +49,8 @@ extern "C"
                                                               jlong rendererRef)
     {
         JNIRenderer* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
-        delete renderer;
+        // Capture the raw pointer, post to the worker thread, return immediately:
+        renderer->disposeAsync();
     }
 
     JNIEXPORT void JNICALL
