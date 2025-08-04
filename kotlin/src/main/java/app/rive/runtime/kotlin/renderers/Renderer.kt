@@ -68,7 +68,8 @@ abstract class Renderer(
      * couldn't build the renderer with [type] but had to fall back to a different value
      * (e.g. the Rive Renderer isn't available on emulators and it defaults back to Canvas).
      */
-    private fun setRendererType(newType: Int) {
+    @JvmName("setRendererType")
+    internal fun setRendererType(newType: Int) {
         if (newType != type.value) {
             type = RendererType.fromIndex(newType)
         }

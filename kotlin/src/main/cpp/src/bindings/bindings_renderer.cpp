@@ -8,6 +8,7 @@
 #include "models/jni_renderer.hpp"
 #include "rive/layout.hpp"
 #include "rive/artboard.hpp"
+#include "helpers/jni_resource.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -31,14 +32,14 @@ extern "C"
         int actualType = static_cast<int>(renderer->rendererType());
         if (type != actualType)
         {
-            jclass ktRendererClass = env->GetObjectClass(ktRenderer);
-            jmethodID setRendererType =
-                env->GetMethodID(ktRendererClass, "setRendererType", "(I)V");
+            auto ktRendererClass = GetObjectClass(env, ktRenderer);
+            jmethodID setRendererType = env->GetMethodID(ktRendererClass.get(),
+                                                         "setRendererType",
+                                                         "(I)V");
             JNIExceptionHandler::CallVoidMethod(env,
                                                 ktRenderer,
                                                 setRendererType,
                                                 actualType);
-            env->DeleteLocalRef(ktRendererClass);
         }
         return (jlong)renderer;
     }
