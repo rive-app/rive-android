@@ -228,6 +228,42 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppPropertyImage(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jstring path)
+    {
+        auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
+        auto nativePath = JStringToString(env, path);
+        return (jlong)vmi->propertyImage(nativePath);
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppPropertyList(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jstring path)
+    {
+        auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
+        auto nativePath = JStringToString(env, path);
+        return (jlong)vmi->propertyList(nativePath);
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppPropertyArtboard(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jstring path)
+    {
+        auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
+        auto nativePath = JStringToString(env, path);
+        return (jlong)vmi->propertyArtboard(nativePath);
+    }
+
+    JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppPropertyInstance(
         JNIEnv* env,
         jobject,
@@ -274,6 +310,16 @@ extern "C"
     }
 
     // Properties
+
+    JNIEXPORT jstring JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelProperty_cppName(JNIEnv* env,
+                                                                jobject,
+                                                                jlong ref)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceValueRuntime*>(ref);
+        return env->NewStringUTF(property->name().c_str());
+    }
 
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_ViewModelProperty_cppHasChanged(JNIEnv*,
@@ -420,6 +466,118 @@ extern "C"
         auto property =
             reinterpret_cast<rive::ViewModelInstanceTriggerRuntime*>(ref);
         property->trigger();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelImageProperty_cppSetValue(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong imageRef)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceAssetImageRuntime*>(ref);
+        auto image = reinterpret_cast<rive::RenderImage*>(imageRef);
+        property->value(image);
+    }
+
+    JNIEXPORT jint JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppSize(JNIEnv*,
+                                                                    jobject,
+                                                                    jlong ref)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        return static_cast<jint>(property->size());
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppElementAt(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jint index)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        return (jlong)property->instanceAt(index);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppAdd(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong itemRef)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        auto item = reinterpret_cast<rive::ViewModelInstanceRuntime*>(itemRef);
+        property->addInstance(item);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppAddAt(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jint index,
+        jlong itemRef)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        auto item = reinterpret_cast<rive::ViewModelInstanceRuntime*>(itemRef);
+        property->addInstanceAt(item, index);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppRemove(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong itemRef)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        auto item = reinterpret_cast<rive::ViewModelInstanceRuntime*>(itemRef);
+        property->removeInstance(item);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppRemoveAt(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jint index)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        property->removeInstanceAt(index);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppSwap(JNIEnv*,
+                                                                    jobject,
+                                                                    jlong ref,
+                                                                    jint indexA,
+                                                                    jint indexB)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
+        property->swap(indexA, indexB);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelArtboardProperty_cppSetValue(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong artboardRef)
+    {
+        auto property =
+            reinterpret_cast<rive::ViewModelInstanceArtboardRuntime*>(ref);
+        auto artboard = reinterpret_cast<rive::Artboard*>(artboardRef);
+        property->value(artboard);
     }
 
 #ifdef __cplusplus

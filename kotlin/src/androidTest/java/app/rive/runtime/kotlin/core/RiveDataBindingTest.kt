@@ -19,8 +19,12 @@ import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,6 +46,13 @@ class RiveDataBindingTest {
         }
     }
 
+    @OptIn(ExperimentalEncodingApi::class)
+    @Suppress("SpellCheckingInspection")
+    // World's smallest PNG, 1x1 black pixel
+    val image =
+        Base64.Default.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==")
+    val imageAsset = RiveRenderImage.make(image)
+
     private fun String.toColor(): Color = Color.fromString(this)
 
     @Before
@@ -58,36 +69,30 @@ class RiveDataBindingTest {
     @Test
     fun get_vm_properties() {
         assertEquals("Test All", vm.name)
-        assertEquals(7, vm.propertyCount)
+        assertEquals(9, vm.propertyCount)
 
         val properties = vm.properties
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.NUMBER, "Test Num")
+        val expectedProperties = listOf(
+            ViewModel.Property(ViewModel.PropertyDataType.NUMBER, "Test Num"),
+            ViewModel.Property(ViewModel.PropertyDataType.STRING, "Test String"),
+            ViewModel.Property(ViewModel.PropertyDataType.BOOLEAN, "Test Bool"),
+            ViewModel.Property(ViewModel.PropertyDataType.ENUM, "Test Enum"),
+            ViewModel.Property(ViewModel.PropertyDataType.COLOR, "Test Color"),
+            ViewModel.Property(ViewModel.PropertyDataType.TRIGGER, "Test Trigger"),
+            ViewModel.Property(ViewModel.PropertyDataType.VIEW_MODEL, "Test Nested"),
+            ViewModel.Property(ViewModel.PropertyDataType.ASSET_IMAGE, "Test Image"),
+            ViewModel.Property(ViewModel.PropertyDataType.ARTBOARD, "Test Artboard")
         )
+        expectedProperties.forEach {
+            assertContains(properties, it)
+        }
+
+        val listVM = view.controller.file?.getViewModelByName("Test List VM")!!
+
+        assertEquals(1, listVM.propertyCount)
         assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.STRING, "Test String")
-        )
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.BOOLEAN, "Test Bool")
-        )
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.ENUM, "Test Enum")
-        )
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.COLOR, "Test Color")
-        )
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.TRIGGER, "Test Trigger")
-        )
-        assertContains(
-            properties,
-            ViewModel.Property(ViewModel.PropertyDataType.VIEW_MODEL, "Test Nested")
+            listVM.properties,
+            ViewModel.Property(ViewModel.PropertyDataType.LIST, "Test List")
         )
     }
 
@@ -117,6 +122,8 @@ class RiveDataBindingTest {
         assertTrue(vmi.getBooleanProperty("Test Bool").value)
         assertEquals("Value 1", vmi.getEnumProperty("Test Enum").value)
         assertEquals(0xFFFF0000.toInt(), vmi.getColorProperty("Test Color").value)
+        assertEquals(Unit, vmi.getImageProperty("Test Image").value)
+        assertEquals(Unit, vmi.getArtboardProperty("Test Artboard").value)
         assertEquals(
             100f,
             vmi.getInstanceProperty("Test Nested").getNumberProperty("Nested Number").value
@@ -158,6 +165,7 @@ class RiveDataBindingTest {
         assertFalse(vmiAlt.getBooleanProperty("Test Bool").value)
         assertEquals("Value 2", vmiAlt.getEnumProperty("Test Enum").value)
         assertEquals(0xFF00FF00.toInt(), vmiAlt.getColorProperty("Test Color").value)
+        assertEquals(Unit, vmiAlt.getImageProperty("Test Image").value)
         assertEquals(
             200f,
             vmiAlt.getInstanceProperty("Test Nested").getNumberProperty("Nested Number").value
@@ -186,10 +194,37 @@ class RiveDataBindingTest {
         assertEquals("200", view.getTextRunValue("Test Nested Number Value"))
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun set_vmi_values() {
+    fun set_vmi_values() = runTest {
         // Advance to set the values from the "Test Default" instance
         view.play()
+
+        // Setup image property, which has no observable output other than its `hasChanged` flag
+        // The subscription will cause it to clear after polling
+        val imageProperty = vmi.getImageProperty("Test Image")
+        var image = Unit
+
+        // Setup artboard property, identical to image
+        val artboardProperty = vmi.getArtboardProperty("Test Artboard")
+        var artboard = Unit
+        var artboardToSet = view.controller.file?.artboard("Test Bindable Artboard 1")!!
+
+
+        // One subscription, two interior launches to collect the two properties
+        val writeOnlyPropertiesSubscription = launch {
+            launch {
+                imageProperty.valueFlow.collect { image = it }
+            }
+            launch {
+                artboardProperty.valueFlow.collect { artboard = it }
+            }
+        }
+
+        // Wait for collecting to start
+        advanceUntilIdle()
+        assertFalse(imageProperty.cppHasChanged(imageProperty.cppPointer))
+        assertFalse(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
 
         // Set each property to a new value
         vmi.getNumberProperty("Test Num").value = 456f
@@ -197,6 +232,8 @@ class RiveDataBindingTest {
         vmi.getBooleanProperty("Test Bool").value = false
         vmi.getEnumProperty("Test Enum").value = "Value 2"
         vmi.getColorProperty("Test Color").value = 0xFF00FF00.toInt()
+        imageProperty.set(imageAsset)
+        artboardProperty.set(artboardToSet)
         vmi.getNumberProperty("Test Nested/Nested Number").value = 200f
 
         // Bindings will not apply their values until the artboard is advanced
@@ -208,23 +245,34 @@ class RiveDataBindingTest {
             Color(0, 255, 0, 255),
             view.getTextRunValue("Test Color Value")?.toColor()
         )
+        assertTrue(imageProperty.cppHasChanged(imageProperty.cppPointer))
+        assertTrue(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
         assertNotEquals("200", view.getTextRunValue("Test Nested Number Value"))
 
         // Apply the values by advancing
         view.play()
+        view.controller.advance(0.016f)
+        // Manually poll since the state machine is no considered playing
+        // This clears the image and artboard property changes
+        vmi.pollChanges()
+        advanceUntilIdle()
 
         assertEquals("456", view.getTextRunValue("Test Number Value"))
         assertEquals("Moon", view.getTextRunValue("Test String Value"))
         assertEquals("0", view.getTextRunValue("Test Bool Value"))
         assertEquals("Value 2", view.getTextRunValue("Test Enum Value"))
         assertEquals(Color(0, 255, 0, 255), view.getTextRunValue("Test Color Value")?.toColor())
+        assertFalse(imageProperty.cppHasChanged(imageProperty.cppPointer))
+        assertFalse(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
         assertEquals("200", view.getTextRunValue("Test Nested Number Value"))
+
+        writeOnlyPropertiesSubscription.cancel()
     }
 
     @Test
     fun vm_by_index() {
         val vmCount = view.controller.file?.viewModelCount!!
-        assertEquals(6, vmCount)
+        assertEquals(8, vmCount)
 
         // Iterate indices and verify all VM names are present
         assertEquals(
@@ -234,7 +282,9 @@ class RiveDataBindingTest {
                 "Nested VM",
                 "State Transition",
                 "Alternate VM",
-                "Test Slash"
+                "Test Slash",
+                "Test List VM",
+                "Test List Item VM",
             ).sorted().toList(),
             (0 until vmCount).map { view.controller.file?.getViewModelByIndex(it)!!.name }
                 .sorted().toList()
@@ -271,6 +321,9 @@ class RiveDataBindingTest {
         assertThrows(ViewModelException::class.java) { vmi.getEnumProperty("Non Existent") }
         assertThrows(ViewModelException::class.java) { vmi.getColorProperty("Non Existent") }
         assertThrows(ViewModelException::class.java) { vmi.getTriggerProperty("Non Existent") }
+        assertThrows(ViewModelException::class.java) { vmi.getImageProperty("Non Existent") }
+        assertThrows(ViewModelException::class.java) { vmi.getArtboardProperty("Non Existent") }
+        assertThrows(ViewModelException::class.java) { vmi.getInstanceProperty("Non Existent") }
     }
 
     @Test
@@ -320,6 +373,8 @@ class RiveDataBindingTest {
         assertFalse(vmi.getBooleanProperty("Test Bool").value)
         assertEquals("Value 1", vmi.getEnumProperty("Test Enum").value)
         assertEquals(0xFF000000.toInt(), vmi.getColorProperty("Test Color").value)
+        assertEquals(Unit, vmi.getImageProperty("Test Image").value)
+        assertEquals(Unit, vmi.getArtboardProperty("Test Artboard").value)
         assertNotNull(vmi.getInstanceProperty("Test Nested"))
         assertEquals(0f, vmi.getNumberProperty("Test Nested/Nested Number").value)
     }
@@ -917,5 +972,218 @@ class RiveDataBindingTest {
         assertThrows(ViewModelException::class.java) {
             vmi.transfer()
         }
+    }
+
+    @Test
+    fun list_item_values() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val list = vmi.getListProperty("Test List")
+
+        assertEquals(2, list.size)
+        assertEquals(1f, list.elementAt(0).getNumberProperty("Test Item Number").value)
+        assertEquals(1f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(2f, list.elementAt(1).getNumberProperty("Test Item Number").value)
+        assertEquals(2f, list[1].getNumberProperty("Test Item Number").value)
+
+        assertThrows(IndexOutOfBoundsException::class.java) { list.elementAt(2) }
+        assertThrows(IndexOutOfBoundsException::class.java) { list[2] }
+
+        assertThrows(IndexOutOfBoundsException::class.java) { list.elementAt(-1) }
+        assertThrows(IndexOutOfBoundsException::class.java) { list[-1] }
+    }
+
+    @Test
+    fun list_item_swap() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val list = vmi.getListProperty("Test List")
+
+        assertEquals(1f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(2f, list[1].getNumberProperty("Test Item Number").value)
+
+        list.swap(0, 1)
+
+        assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(1f, list[1].getNumberProperty("Test Item Number").value)
+
+        assertThrows(IndexOutOfBoundsException::class.java) { list.swap(-1, 0) }
+        assertThrows(IndexOutOfBoundsException::class.java) { list.swap(0, 2) }
+    }
+
+    @Test
+    fun list_item_add() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List")
+
+        val vm = view.controller.file?.getViewModelByName("Test List VM")!!
+        val vmi = vm.createBlankInstance()
+        view.controller.stateMachines.first().viewModelInstance = vmi
+
+        val list = vmi.getListProperty("Test List")
+
+        assertEquals(0, list.size)
+
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val itemVMIs = (0 until 3).map {
+            itemVM.createDefaultInstance().also { vmi ->
+                vmi.getNumberProperty("Test Item Number").value = (it + 1).toFloat()
+            }
+        }
+
+        // Append in non-trivial order
+        list.add(itemVMIs[1])
+        list.add(itemVMIs[0])
+
+        assertEquals(2, list.size)
+        assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(1f, list[1].getNumberProperty("Test Item Number").value)
+
+        // Add to the middle
+        list.add(1, itemVMIs[2])
+
+        assertEquals(3, list.size)
+        assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(3f, list[1].getNumberProperty("Test Item Number").value)
+        assertEquals(1f, list[2].getNumberProperty("Test Item Number").value)
+
+        assertThrows(IndexOutOfBoundsException::class.java) { list.add(-1, itemVMIs[0]) }
+        assertThrows(IndexOutOfBoundsException::class.java) { list.add(4, itemVMIs[0]) }
+    }
+
+    @Test
+    fun list_item_remove() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List")
+
+        val vm = view.controller.file?.getViewModelByName("Test List VM")!!
+        val vmi = vm.createBlankInstance()
+        view.controller.stateMachines.first().viewModelInstance = vmi
+
+        val list = vmi.getListProperty("Test List")
+
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val items = (0 until 3).map {
+            itemVM.createDefaultInstance().also { vmi ->
+                vmi.getNumberProperty("Test Item Number").value = (it + 1).toFloat()
+                list.add(vmi)
+            }
+        }
+
+        assertEquals(3, list.size)
+
+        // Remove by index
+        list.removeAt(1)
+        assertEquals(2, list.size)
+        assertEquals(1f, list[0].getNumberProperty("Test Item Number").value)
+        assertEquals(3f, list[1].getNumberProperty("Test Item Number").value)
+
+        // Remove by value
+        list.remove(items[0])
+        assertEquals(1, list.size)
+        assertEquals(3f, list[0].getNumberProperty("Test Item Number").value)
+
+        // Removing a non-existent item does nothing
+        list.remove(items[0])
+
+        assertThrows(IndexOutOfBoundsException::class.java) { list.removeAt(1) }
+        assertThrows(IndexOutOfBoundsException::class.java) { list.removeAt(-1) }
+    }
+
+    @Test
+    fun list_item_remove_multiple_by_value() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List")
+
+        val vm = view.controller.file?.getViewModelByName("Test List VM")!!
+        val vmi = vm.createBlankInstance()
+        view.controller.stateMachines.first().viewModelInstance = vmi
+
+        val list = vmi.getListProperty("Test List")
+
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val itemVMI = itemVM.createDefaultInstance().also { vmi ->
+            vmi.getNumberProperty("Test Item Number").value = 1f
+        }
+        val itemVMI2 = itemVM.createDefaultInstance().also { vmi ->
+            vmi.getNumberProperty("Test Item Number").value = 2f
+        }
+        list.add(itemVMI)
+        list.add(itemVMI) // Add the same item multiple times
+        list.add(itemVMI2)
+
+        // Removes all instances of this VMI
+        list.remove(itemVMI)
+
+        assertEquals(1, list.size)
+        assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
+    }
+
+    @Test
+    fun list_add_remove_disposed() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val list = vmi.getListProperty("Test List")
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val itemVMI = itemVM.createDefaultInstance()
+
+        // Dispose the item before adding it to the list
+        itemVMI.release()
+
+        assertThrows(IllegalArgumentException::class.java) { list.add(itemVMI) }
+        assertThrows(IllegalArgumentException::class.java) { list.add(0, itemVMI) }
+        assertThrows(IllegalArgumentException::class.java) { list.remove(itemVMI) }
+    }
+
+    @Test
+    fun list_item_caching() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List")
+
+        val vm = view.controller.file?.getViewModelByName("Test List VM")!!
+        val vmi = vm.createBlankInstance()
+        view.controller.stateMachines.first().viewModelInstance = vmi
+
+        val list = vmi.getListProperty("Test List")
+
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val itemVMI = itemVM.createDefaultInstance()
+        val itemVMI2 = itemVM.createDefaultInstance()
+        list.add(itemVMI)
+        list.add(itemVMI)
+        list.add(itemVMI2)
+
+        assertSame(list[0], list[1])
+        assertSame(itemVMI, list[0])
+        assertNotSame(itemVMI, list[2])
+
+        itemVMI.release()
+
+        // List cache is still an owner
+        assertTrue(itemVMI.hasCppObject)
+    }
+
+    @Test
+    fun list_item_caching_after_removal() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List")
+
+        val vm = view.controller.file?.getViewModelByName("Test List VM")!!
+        val vmi = vm.createBlankInstance()
+        view.controller.stateMachines.first().viewModelInstance = vmi
+
+        val list = vmi.getListProperty("Test List")
+
+        val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
+        val itemVMI = itemVM.createDefaultInstance()
+        list.add(itemVMI)
+        list.add(itemVMI)
+        list.removeAt(0)
+
+        assertSame(itemVMI, list[0])
+
+        list.add(itemVMI) // Add a second copy
+        list.remove(itemVMI) // Remove all copies
+        itemVMI.release() // Remove the user's reference
+
+        assertFalse(itemVMI.hasCppObject)
     }
 }

@@ -123,6 +123,7 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
         val name: String,
     )
 
+    // Enum values mirror those in rive::DataType
     enum class PropertyDataType(val value: Int) {
         NONE(0),
         STRING(1),

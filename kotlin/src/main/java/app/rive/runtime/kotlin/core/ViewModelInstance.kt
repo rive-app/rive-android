@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.Color
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,9 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
     private external fun cppPropertyColor(cppPointer: Long, path: String): Long
     private external fun cppPropertyEnum(cppPointer: Long, path: String): Long
     private external fun cppPropertyTrigger(cppPointer: Long, path: String): Long
+    private external fun cppPropertyImage(cppPointer: Long, path: String): Long
+    private external fun cppPropertyList(cppPointer: Long, path: String): Long
+    private external fun cppPropertyArtboard(cppPointer: Long, path: String): Long
     private external fun cppPropertyInstance(cppPointer: Long, path: String): Long
     private external fun cppSetInstanceProperty(
         cppPointer: Long,
@@ -50,7 +54,7 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
     // Un-ref the extra reference created in init
     override fun cppDelete(pointer: Long) = cppDerefInstance(pointer)
 
-    /** Get the [name] of the viewmodel instance. */
+    /** Get the [name] of the view model instance. */
     val name: String
         get() = cppName(cppPointer)
 
@@ -136,6 +140,31 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
     fun getTriggerProperty(path: String): ViewModelTriggerProperty =
         getProperty(path, ::cppPropertyTrigger, ::ViewModelTriggerProperty)
 
+    /**
+     * Get a named [image property][ViewModelImageProperty].
+     *
+     * @throws ViewModelException If [path] does not refer to a valid property or if the property is
+     *    not an image property.
+     * @see getNumberProperty
+     */
+    @Throws(ViewModelException::class)
+    fun getImageProperty(path: String): ViewModelImageProperty =
+        getProperty(path, ::cppPropertyImage, ::ViewModelImageProperty)
+
+    /**
+     * Get a named [list property][ViewModelListProperty].
+     *
+     * @throws ViewModelException If [path] does not refer to a valid property or if the property is
+     *    not a list property.
+     * @see getNumberProperty
+     */
+    @Throws(ViewModelException::class)
+    fun getListProperty(path: String): ViewModelListProperty =
+        getProperty(path, ::cppPropertyList, ::ViewModelListProperty)
+
+    @Throws(ViewModelException::class)
+    fun getArtboardProperty(path: String): ViewModelArtboardProperty =
+        getProperty(path, ::cppPropertyArtboard, ::ViewModelArtboardProperty)
 
     /**
      * Get a nested, named [ViewModelInstance][ViewModelInstance].
@@ -320,8 +349,15 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
  * [valueFlow] to subscribe to changes on the value.
  */
 abstract class ViewModelProperty<T>(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
-    private external fun cppHasChanged(cppPointer: Long): Boolean
+    external fun cppName(cppPointer: Long): String
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    external fun cppHasChanged(cppPointer: Long): Boolean
     private external fun cppFlushChanges(cppPointer: Long): Boolean
+
+    /** The name of the property. */
+    val name: String
+        get() = cppName(cppPointer)
 
     /**
      * The current value of the property, whether set by this property or by a data binding update.
@@ -438,4 +474,210 @@ class ViewModelTriggerProperty(unsafeCppPointer: Long) :
     override fun nativeSetValue(value: TriggerUnit) {}
 
     fun trigger() = cppTrigger(cppPointer)
+}
+
+/**
+ * An image property of a [ViewModelInstance]. Values are [RiveRenderImage] type, and must be
+ * constructed from encoded bytes with [RiveRenderImage.make].
+ *
+ * Unlike other property types, this property can only be set with [set]. It cannot be read or
+ * observed. It's [value] and [valueFlow] are not applicable and will always return [Unit].
+ *
+ * Setting to null will remove the image and release the reference to the image.
+ */
+class ViewModelImageProperty(unsafeCppPointer: Long) : ViewModelProperty<Unit>(unsafeCppPointer) {
+    private external fun cppSetValue(cppPointer: Long, value: Long)
+
+    fun set(image: RiveRenderImage?) = cppSetValue(cppPointer, image?.cppPointer ?: NULL_POINTER)
+
+    // Return Unit, as images don't have a value to get.
+    override fun nativeGetValue() = Unit
+
+    // No-op, images are set with `set`, not `value`.
+    override fun nativeSetValue(value: Unit) {}
+}
+
+/**
+ * A list property of [ViewModelInstance]s.
+ *
+ * The list is mutable, and can be modified at runtime using [add], [remove], [removeAt], and
+ * [swap].
+ *
+ * The list does not have one particular value to get or set, so [value] and [valueFlow] are not
+ * applicable and will always return [Unit].
+ */
+class ViewModelListProperty(unsafeCppPointer: Long) : ViewModelProperty<Unit>(unsafeCppPointer) {
+    private external fun cppSize(cppPointer: Long): Int
+    private external fun cppElementAt(cppPointer: Long, index: Int): Long
+    private external fun cppAdd(cppPointer: Long, itemPointer: Long)
+    private external fun cppAddAt(cppPointer: Long, index: Int, itemPointer: Long)
+    private external fun cppRemove(cppPointer: Long, itemPointer: Long)
+    private external fun cppRemoveAt(cppPointer: Long, index: Int)
+    private external fun cppSwap(cppPointer: Long, index1: Int, index2: Int)
+
+    private data class CacheEntry(
+        val instance: ViewModelInstance,
+        var count: Int
+    )
+
+    private var cachedItems: MutableMap<Long, CacheEntry> = mutableMapOf()
+
+    override fun cppDelete(pointer: Long) {
+        super.cppDelete(pointer)
+
+        // Release all cached items when the list is deleted
+        cachedItems.values.forEach { it.instance.release() }
+        cachedItems.clear()
+    }
+
+    @Throws(IndexOutOfBoundsException::class)
+    private fun boundsCheck(index: Int) {
+        if (index < 0 || index >= size) {
+            throw IndexOutOfBoundsException("Index out of bounds for ViewModelListProperty.")
+        }
+    }
+
+    /** The number of items in the list. */
+    val size: Int
+        get() = cppSize(cppPointer)
+
+    /**
+     * Get the [ViewModelInstance] at the specified [index].
+     *
+     * @throws IndexOutOfBoundsException if [index] is out of bounds.
+     */
+    @Throws(IndexOutOfBoundsException::class)
+    fun elementAt(index: Int): ViewModelInstance {
+        boundsCheck(index)
+
+        val cppPointer = cppElementAt(cppPointer, index)
+        // Check if the item is cached
+        return cachedItems[cppPointer]?.instance ?: run {
+            /**
+             * If not cached, create a new instance and cache it. The instance will have a reference
+             * count of 1, which will be released when either the list is deleted or the item is
+             * removed from the list.
+             */
+            val newItem = ViewModelInstance(cppPointer)
+            cachedItems[cppPointer] = CacheEntry(newItem, count = 1)
+            newItem
+        }
+    }
+
+    operator fun get(index: Int): ViewModelInstance = elementAt(index)
+
+    /**
+     * Append the [ViewModelInstance] to the end of the list.
+     *
+     * @throws IllegalArgumentException if [item] is disposed.
+     */
+    @Throws(IllegalArgumentException::class)
+    fun add(item: ViewModelInstance) {
+        require(item.hasCppObject) { "Cannot add a disposed ViewModelProperty to ViewModelListProperty." }
+
+        cachedItems.getOrPut(item.cppPointer) {
+            item.acquire()
+            CacheEntry(item, count = 0)
+        }.count++
+
+        cppAdd(cppPointer, item.cppPointer)
+    }
+
+    /**
+     * Insert the [ViewModelInstance] at the specified [index]. The item currently at that index and
+     * all subsequent items will be shifted one position to the right.
+     *
+     * @throws IndexOutOfBoundsException if [index] is out of bounds.
+     * @throws IllegalArgumentException if [item] is disposed.
+     */
+    @Throws(IndexOutOfBoundsException::class, IllegalArgumentException::class)
+    fun add(index: Int, item: ViewModelInstance) {
+        boundsCheck(index)
+        require(item.hasCppObject) { "Cannot add a disposed ViewModelProperty to ViewModelListProperty." }
+
+        cachedItems.getOrPut(item.cppPointer) {
+            item.acquire()
+            CacheEntry(item, count = 0)
+        }.count++
+
+        cppAddAt(cppPointer, index, item.cppPointer)
+    }
+
+    /**
+     * Remove all instances of [ViewModelInstance] from the list.
+     *
+     * @throws IllegalArgumentException if [item] is disposed.
+     */
+    @Throws(IllegalArgumentException::class)
+    fun remove(item: ViewModelInstance) {
+        require(item.hasCppObject) { "Cannot remove a disposed ViewModelProperty from ViewModelListProperty." }
+
+        cachedItems.remove(item.cppPointer)?.also { it.instance.release() }
+
+        cppRemove(cppPointer, item.cppPointer)
+    }
+
+    /**
+     * Remove the item at the specified [index] from the list. The items after the removed item will
+     * be shifted one position to the left.
+     *
+     * @throws IndexOutOfBoundsException if [index] is out of bounds.
+     */
+    @Throws(IndexOutOfBoundsException::class)
+    fun removeAt(index: Int) {
+        boundsCheck(index)
+
+        val itemPointer = cppElementAt(cppPointer, index)
+        cachedItems[itemPointer]?.let { entry ->
+            // Decrement the count and release the instance if it reaches zero
+            if (--entry.count == 0) {
+                cachedItems.remove(itemPointer)?.also { it.instance.release() }
+            }
+        }
+
+        cppRemoveAt(cppPointer, index)
+    }
+
+    /**
+     * Swap the items at indices [index1] and [index2].
+     *
+     * @throws IndexOutOfBoundsException if either index is out of bounds.
+     */
+    @Throws(IndexOutOfBoundsException::class)
+    fun swap(index1: Int, index2: Int) {
+        boundsCheck(index1)
+        boundsCheck(index2)
+
+        if (index1 == index2) {
+            // No-op, swapping the same index does nothing.
+            return
+        }
+        cppSwap(cppPointer, index1, index2)
+    }
+
+    // Return Unit, as lists don't have a value to get.
+    override fun nativeGetValue() = Unit
+
+    // No-op, lists don't have a value to set.
+    override fun nativeSetValue(value: Unit) {}
+}
+
+/**
+ * An artboard property of a [ViewModelInstance].
+ *
+ * Unlike other property types, this property can only be [set]. It cannot be read or observed. It's
+ * [value] and [valueFlow] are not applicable and will always return [Unit].
+ */
+class ViewModelArtboardProperty(unsafeCppPointer: Long) :
+    ViewModelProperty<Unit>(unsafeCppPointer) {
+
+    private external fun cppSetValue(cppPointer: Long, value: Long)
+
+    fun set(artboard: Artboard) = cppSetValue(cppPointer, artboard.cppPointer)
+
+    // Return Unit, as artboards don't have a value to get.
+    override fun nativeGetValue() = Unit
+
+    // No-op, artboards are set with `set`, not `value`.
+    override fun nativeSetValue(value: Unit) {}
 }
