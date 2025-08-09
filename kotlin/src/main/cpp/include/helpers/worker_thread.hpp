@@ -83,14 +83,23 @@ public:
         {
             return; // Early out that doesn't require a mutex!
         }
-        std::lock_guard<std::mutex> threadLock(mWorkMutex);
-        while (m_lastCompletedWorkID < workID)
-        {
-            m_workedCompletedCondition.wait(mWorkMutex);
-        }
+        std::unique_lock<std::mutex> lk(mWorkMutex);
+        m_workedCompletedCondition.wait(lk, [this, workID] {
+            return m_lastCompletedWorkID >= workID;
+        });
     }
 
-    void runAndWait(Work&& work) { waitUntilComplete(run(std::move(work))); }
+    void runAndWait(Work&& work) {
+        // Re‑entrancy guard: if we *are* the worker thread, run the task
+        // right now to avoid a self‑dead‑lock.
+        if (std::this_thread::get_id() == threadID())
+        {
+            work(threadState());  // threadState() is only legal here.
+            return;
+        }
+
+        waitUntilComplete(run(std::move(work)));
+    }
 
     void terminateThread()
     {
@@ -134,7 +143,7 @@ private:
         {
             while (mWorkQueue.empty())
             {
-                m_workPushedCondition.wait(mWorkMutex);
+                m_workPushedCondition.wait(lock);
             }
             Work work = mWorkQueue.front();
             mWorkQueue.pop();
