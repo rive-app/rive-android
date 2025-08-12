@@ -6,6 +6,7 @@ import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
@@ -450,7 +451,7 @@ class RiveMemoryTests {
                 // Required to setup the JNIRenderer's WorkerImpl
                 // This will create warnings and errors in the logs, but they can be ignored.
                 val surface = Surface(SurfaceTexture(0))
-                renderer?.setSurface(surface)
+                renderer?.setSurface(SharedSurface(surface))
             }
 
             // Fills the role of the Choreographer, allowing for manual frame advance

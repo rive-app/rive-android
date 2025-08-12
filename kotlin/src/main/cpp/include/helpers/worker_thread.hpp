@@ -107,9 +107,22 @@ public:
         if (didSendTerminationToken)
         {
             m_workPushedCondition.notify_one();
-            mThread.join();
+            // Check if the current thread is the worker thread itself. Since we
+            // dispose async this could happen directly on the worker thread
+            // itself.
+            if (std::this_thread::get_id() == mThread.get_id())
+            {
+                // A thread cannot join itself as it will deadlock. Detach it
+                // and let it terminate.
+                mThread.detach();
+            }
+            else
+            {
+                // It's safe to join from another thread.
+                mThread.join();
+                assert(m_lastCompletedWorkID == m_lastPushedWorkID);
+            }
         }
-        assert(m_lastCompletedWorkID == m_lastPushedWorkID);
     }
 
     RendererType rendererType() const { return m_RendererType; }
@@ -153,6 +166,7 @@ private:
             ++m_lastCompletedWorkID;
             m_workedCompletedCondition.notify_all();
         }
+        lock.unlock();
         m_threadState.reset();
         DetachThread();
     }

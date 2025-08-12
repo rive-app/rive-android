@@ -13,37 +13,49 @@ JNIRenderer::JNIRenderer(
     //  from under us since the destructor will be called from the render thread
     //  rather than the UI thread.
     m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktRenderer)),
-    m_tracer(getTracer(trace))
+    m_tracer(makeTracer(trace))
 {}
 
 JNIRenderer::~JNIRenderer()
 {
-    // Delete the worker thread objects. And since the worker has captured our
-    // "this" pointer, wait for it to finish processing our work before
-    // continuing the destruction process.
-    m_worker->runAndWait([this](DrawableThreadState* threadState) {
-        if (!m_workerImpl)
-            return;
-        m_workerImpl->destroy(threadState);
+    // This destructor is just a final sanity check: all heavy lifting is done
+    // in the lambda inside `scheduleDisposal()`
+    // We assert here to ensure that the asynchronous disposal path was taken.
+    assert(m_isDisposeScheduled &&
+           "JNIRenderer was deleted directly instead of scheduling disposal!");
+}
+
+void JNIRenderer::scheduleDispose()
+{
+    bool isDisposed = m_isDisposeScheduled.exchange(true);
+    assert(!isDisposed);
+
+    // The lambda captures `this` to operate on the JNIRenderer instance.
+    // This task is queued on the worker thread. The UI thread does not wait.
+    m_worker->run([this](DrawableThreadState* threadState) {
+        if (m_workerImpl)
+        {
+            m_workerImpl->destroy(threadState);
+        }
+
+        auto env = GetJNIEnv();
+        jclass ktClass = env->GetObjectClass(m_ktRenderer);
+        auto disposeDeps =
+            env->GetMethodID(ktClass, "disposeDependencies", "()V");
+        env->CallVoidMethod(m_ktRenderer, disposeDeps);
+        env->DeleteGlobalRef(m_ktRenderer);
+        releaseSurface(&m_surface);
+
+        delete this;
     });
-
-    // Clean up dependencies.
-    auto env = GetJNIEnv();
-    jclass ktClass = env->GetObjectClass(m_ktRenderer);
-    auto disposeDeps = env->GetMethodID(ktClass, "disposeDependencies", "()V");
-    env->CallVoidMethod(m_ktRenderer, disposeDeps);
-
-    env->DeleteGlobalRef(m_ktRenderer);
-    if (m_tracer)
-    {
-        delete m_tracer;
-    }
-
-    releaseSurface(&m_surface);
 }
 
 void JNIRenderer::setSurface(SurfaceVariant surface)
 {
+    if (m_isDisposeScheduled)
+    {
+        return;
+    }
     SurfaceVariant oldSurface = m_surface;
     acquireSurface(surface);
     m_worker->run([this,
@@ -82,6 +94,10 @@ rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
 
 void JNIRenderer::start()
 {
+    if (m_isDisposeScheduled)
+    {
+        return;
+    }
     m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
@@ -93,6 +109,10 @@ void JNIRenderer::start()
 
 void JNIRenderer::stop()
 {
+    if (m_isDisposeScheduled)
+    {
+        return;
+    }
     m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
             return;
@@ -102,6 +122,11 @@ void JNIRenderer::stop()
 
 void JNIRenderer::doFrame()
 {
+    if (m_isDisposeScheduled)
+    {
+        return;
+    }
+
     if (m_numScheduledFrames >= kMaxScheduledFrames)
     {
         return;
@@ -111,31 +136,31 @@ void JNIRenderer::doFrame()
         if (!m_workerImpl)
             return;
         auto now = std::chrono::high_resolution_clock::now();
-        m_workerImpl->doFrame(m_tracer, threadState, m_ktRenderer, now);
+        m_workerImpl->doFrame(m_tracer.get(), threadState, m_ktRenderer, now);
         m_numScheduledFrames--;
         calculateFps(now);
     });
     m_numScheduledFrames++;
 }
 
-ITracer* JNIRenderer::getTracer(bool trace) const
+std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace) const
 {
     if (!trace)
     {
-        return new NoopTracer();
+        return std::make_unique<NoopTracer>();
     }
 
     bool traceAvailable = android_get_device_api_level() >= 23;
     if (traceAvailable)
     {
-        return new Tracer();
+        return std::make_unique<Tracer>();
     }
     else
     {
         LOGE("JNIRenderer cannot enable tracing on API <23. Api "
              "version is %d",
              android_get_device_api_level());
-        return new NoopTracer();
+        return std::make_unique<NoopTracer>();
     }
 }
 

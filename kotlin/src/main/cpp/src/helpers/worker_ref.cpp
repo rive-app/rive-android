@@ -82,10 +82,6 @@ rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
             currentOrFallback = CanvasWorker();
             break;
     }
-    if (currentOrFallback == nullptr)
-    {
-        currentOrFallback = CanvasWorker();
-    }
     return currentOrFallback;
 }
 
@@ -143,7 +139,15 @@ void RefWorker::externalRefCountDidReachZero()
         {
             // Delete the entire Canvas context.
             assert(s_canvasWorker.get() == this);
-            s_canvasWorker = nullptr;
+            auto workerToDestroy =
+                s_canvasWorker.release(); // Transfer ownership
+            std::thread([workerToDestroy]() {
+                // This 'delete' will call ~RefWorker -> ~WorkerThread ->
+                // terminateThread(). Because this is a separate thread,
+                // terminateThread() will call mThread.join() which will block
+                // safely until the worker is finished.
+                delete workerToDestroy;
+            }).detach();
             break;
         }
     }

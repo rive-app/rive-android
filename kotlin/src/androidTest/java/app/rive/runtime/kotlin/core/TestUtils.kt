@@ -12,6 +12,9 @@ import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.fonts.FontBytes
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration
 
@@ -31,7 +34,7 @@ class TestUtils {
         @Suppress("unused")
         fun waitUntil(
             atMost: Duration,
-            condition: () -> Boolean
+            condition: () -> Boolean,
         ) {
             val maxTime = atMost.inWholeMilliseconds
 
@@ -49,7 +52,7 @@ class TestUtils {
     }
 
 
-    class MockArtboardRenderer(controller: RiveFileController) :
+    class MockArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
         RiveArtboardRenderer(controller = controller) {
         /**
          * Instead of scheduling a new frame via the Choreographer (which uses a native C++ thread)
@@ -66,13 +69,22 @@ class TestUtils {
 
         /** NOP */
         override fun draw() {}
+
+        override fun disposeDependencies() {
+            super.disposeDependencies()
+            latch.countDown()
+        }
     }
 
     /**
      * This RiveAnimationView uses a custom [MockArtboardRenderer] to prevent tests from using the
      * Choreographer API which would be calling native threading primitives.
      */
-    class MockRiveAnimationView(context: Context, attachOnInit: Boolean = true) :
+    class MockRiveAnimationView(
+        context: Context,
+        attachOnInit: Boolean = true,
+        val latchCount: Int = 1,
+    ) :
         RiveAnimationView(context) {
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
@@ -82,15 +94,22 @@ class TestUtils {
         }
 
         override fun createRenderer(): MockArtboardRenderer {
-            return MockArtboardRenderer(controller)
+            return MockArtboardRenderer(controller, CountDownLatch(latchCount))
         }
 
-        fun mockAttach() {
+        fun mockAttach(isReinit: Boolean = false) {
             onAttachedToWindow()
         }
 
         fun mockDetach(destroy: Boolean = true) {
+            // Grab the reference before it's nullified.
+            val mockRendererLatch = (renderer as MockArtboardRenderer).latch
             onDetachedFromWindow()
+
+            // Make sure that the background thread cleaned everything up
+            val released = mockRendererLatch.await(2, TimeUnit.SECONDS)
+            assertTrue("Renderer was not released", released)
+
             if (destroy) {
                 mockOnDestroy()
             }
@@ -105,26 +124,34 @@ class TestUtils {
         }
     }
 
-    class MockNoopArtboardRenderer(controller: RiveFileController) :
+    class MockNoopArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
         RiveArtboardRenderer(controller = controller) {
         /** NOP */
         override fun scheduleFrame() {}
 
         /** NOP */
         override fun draw() {}
+
+        override fun disposeDependencies() {
+            super.disposeDependencies()
+            latch.countDown()
+        }
     }
 
     /**
      * This RiveAnimationView uses a custom [MockNoopArtboardRenderer] to noop any drawing interactions.
      */
-    class MockNoopRiveAnimationView(context: Context) : RiveAnimationView(context) {
+    class MockNoopRiveAnimationView(
+        context: Context,
+        val latch: CountDownLatch = CountDownLatch(1),
+    ) : RiveAnimationView(context) {
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
             mockAttach()
         }
 
         override fun createRenderer(): MockNoopArtboardRenderer {
-            return MockNoopArtboardRenderer(controller)
+            return MockNoopArtboardRenderer(controller, latch)
         }
 
 
@@ -138,6 +165,9 @@ class TestUtils {
 
         fun mockDetach() {
             onDetachedFromWindow()
+            // Let's wait until the background thread cleans everything up.
+            val released = latch.await(2, TimeUnit.SECONDS)
+            assertTrue("Renderer was not released", released)
             // Mimics onDestroy() but these tests don't have lifecycle observers.
             controller.release()
         }

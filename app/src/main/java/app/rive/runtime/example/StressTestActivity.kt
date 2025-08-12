@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.annotation.WorkerThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
@@ -15,6 +16,7 @@ import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
+import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.renderers.Renderer
 import java.util.Locale
 import kotlin.math.min
@@ -56,52 +58,69 @@ class StressTestView(context: Context) : RiveTextureView(context) {
     override fun createRenderer(): Renderer {
         val renderer = object : Renderer() {
 
+            @WorkerThread
             override fun draw() {
-                artboard.let {
-                    save()
-                    align(Fit.CONTAIN, Alignment.CENTER, RectF(0f, 0f, width, height), it.bounds)
-                    val rows = (instanceCount + 6) / 7
-                    val cols = min(instanceCount, 7)
-                    translate(0f, (rows - 1) * -.5f * 200f)
-                    for (j in 1..rows) {
+                synchronized(frameLock) {
+                    if (!isAttached || !hasCppObject) {
+                        return
+                    }
+                    artboard.let {
                         save()
-                        translate((cols - 1) * -.5f * 125f, 0f)
-                        for (i in 1..cols) {
-                            it.draw(cppPointer)
-                            translate(125f, 0f)
+                        align(
+                            Fit.CONTAIN,
+                            Alignment.CENTER,
+                            RectF(0f, 0f, width, height),
+                            it.bounds
+                        )
+                        val rows = (instanceCount + 6) / 7
+                        val cols = min(instanceCount, 7)
+                        translate(0f, (rows - 1) * -.5f * 200f)
+                        for (j in 1..rows) {
+                            save()
+                            translate((cols - 1) * -.5f * 125f, 0f)
+                            for (i in 1..cols) {
+                                it.draw(cppPointer)
+                                translate(125f, 0f)
+                            }
+                            restore()
+                            translate(0f, 200f)
                         }
                         restore()
-                        translate(0f, 200f)
                     }
-                    restore()
                 }
             }
 
+            @WorkerThread
             override fun advance(elapsed: Float) {
-                // Actually advance the animation here. draw() will also call advance(), but the
-                // purpose of that is to draw each Marty at a slightly different animation offset,
-                // and it will loop back around to the original animation location.
-                animationInstance.advance(elapsed)
-                animationInstance.apply()
-                artboard.advance(elapsed)
+                synchronized(frameLock) {
+                    if (!isAttached || !hasCppObject) {
+                        return
+                    }
+                    // Actually advance the animation here. draw() will also call advance(), but the
+                    // purpose of that is to draw each Marty at a slightly different animation offset,
+                    // and it will loop back around to the original animation location.
+                    animationInstance.advance(elapsed)
+                    animationInstance.apply()
+                    artboard.advance(elapsed)
 
-                totalElapsed += elapsed
-                totalFrames++
+                    totalElapsed += elapsed
+                    totalFrames++
 
-                if (totalElapsed > 1f) {
-                    val fps = totalFrames / totalElapsed
-                    val fpsView =
-                        ((parent as ViewGroup).parent as ViewGroup).getChildAt(1) as TextView
-                    fpsView.text =
-                        java.lang.String.format(
-                            Locale.US,
-                            "%d instances @ %.1f FPS (%.2f ms)",
-                            instanceCount,
-                            fps,
-                            1e3f / fps
-                        )
-                    totalElapsed = 0f
-                    totalFrames = 0
+                    if (totalElapsed > 1f) {
+                        val fps = totalFrames / totalElapsed
+                        val fpsView =
+                            ((parent as ViewGroup).parent as ViewGroup).getChildAt(1) as TextView
+                        fpsView.text =
+                            java.lang.String.format(
+                                Locale.US,
+                                "%d instances @ %.1f FPS (%.2f ms)",
+                                instanceCount,
+                                fps,
+                                1e3f / fps
+                            )
+                        totalElapsed = 0f
+                        totalFrames = 0
+                    }
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
@@ -17,7 +18,7 @@ import app.rive.runtime.kotlin.core.Rive
 abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     var type: RendererType = Rive.defaultRendererType,
-    val trace: Boolean = false
+    val trace: Boolean = false,
 ) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
     // From NativeObject
@@ -39,7 +40,7 @@ abstract class Renderer(
         alignment: Alignment,
         targetBounds: RectF,
         srcBounds: RectF,
-        scaleFactor: Float
+        scaleFactor: Float,
     )
 
     private external fun cppTransform(
@@ -49,7 +50,7 @@ abstract class Renderer(
         sx: Float,
         y: Float,
         tx: Float,
-        ty: Float
+        ty: Float,
     )
 
     /** Instantiates JNIRenderer in C++ */
@@ -79,6 +80,17 @@ abstract class Renderer(
         private set
     var isAttached: Boolean = false
 
+    private var sharedSurface: SharedSurface? = null
+
+    /**
+     * A lock to synchronize access to the C++ renderer object between the UI thread (which
+     * handles lifecycle events like `delete()`) and the Choreographer thread (which executes
+     * `doFrame()`). This prevents a race condition where the UI thread might nullify the C++
+     * pointer while the worker thread is still using it.
+     */
+    public val frameLock = Any()
+
+
     @WorkerThread
     abstract fun draw()
 
@@ -107,9 +119,39 @@ abstract class Renderer(
         scheduleFrame()
     }
 
+    /**
+     * Sets the drawing surface for the renderer.
+     *
+     * @deprecated This method is dangerous as it does not correctly manage the Surface's lifecycle,
+     * which can lead to application crashes. Its internal implementation has been patched to be safer,
+     * but it will be removed in a future major version. Prefer using higher-level APIs like
+     * `setRiveResource`.
+     */
+    @Deprecated(
+        message = "This low-level method can cause crashes and will be removed. Prefer using higher-level APIs.",
+        level = DeprecationLevel.WARNING
+    )
     fun setSurface(surface: Surface) {
-        cppSetSurface(surface, cppPointer)
-        isAttached = true
+        setSurface(SharedSurface(surface))
+    }
+
+    /**
+     * Sets the drawing surface for the renderer.
+     *
+     * This method is thread-safe. It acquires a reference to the [SharedSurface],
+     * ensuring it remains valid until the renderer is done with it.
+     *
+     * @param surface The reference-counted surface to draw on.
+     */
+    internal fun setSurface(surface: SharedSurface) {
+        synchronized(frameLock) {
+            sharedSurface?.release()
+            surface.acquire()
+            sharedSurface = surface
+
+            cppSetSurface(surface.surface, cppPointer)
+            isAttached = true
+        }
         start()
     }
 
@@ -149,9 +191,11 @@ abstract class Renderer(
     }
 
     private fun destroySurface() {
-        isAttached = false
-        stop()
-        cppDestroySurface(cppPointer)
+        synchronized(frameLock) {
+            isAttached = false
+            stop()
+            cppDestroySurface(cppPointer)
+        }
     }
 
     open fun scheduleFrame() {
@@ -182,7 +226,7 @@ abstract class Renderer(
         alignment: Alignment,
         targetBounds: RectF,
         sourceBounds: RectF,
-        scaleFactor: Float = 1.0f
+        scaleFactor: Float = 1.0f,
     ) {
         cppAlign(
             cppPointer,
@@ -209,32 +253,72 @@ abstract class Renderer(
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
         if (isPlaying) {
-            cppDoFrame(cppPointer)
-            scheduleFrame()
+            // This `synchronized` block ensures that the `delete()` method (called on the UI thread)
+            // cannot proceed while a frame is being processed on the render thread.
+            // It prevents a race where `cppPointer` could be nullified while `cppDoFrame` is
+            // being executed.
+            synchronized(frameLock) {
+                // We must re-check `hasCppObject` inside the lock. It's possible for `delete()`
+                // to have acquired the lock, nullified the pointer, and released the lock just
+                // before this thread acquired it. This check prevents us from using a null pointer.
+                if (hasCppObject) {
+                    cppDoFrame(cppPointer)
+                }
+            }
+            // Check `isPlaying` again, as stop() could have been called during cppDoFrame.
+            if (isPlaying) {
+                scheduleFrame()
+            }
         }
     }
 
+
     /**
-     * Trigger a deletion of the underlying C++ object.
+     * Schedules the deletion of the underlying C++ object using a two-phase disposal pattern.
      *
-     * [cppDelete] call will delete the underlying object. This will internally trigger a call to
-     * [disposeDependencies].
+     * UI Thread: Immediately marks the Kotlin object as disposed to prevent new operations.
+     * [cppDelete] schedules the actual deletion on the background render thread, ensuring the C++
+     * object is deleted only after all work for this Renderer has completed.
+     *
+     * Background Thread: cleans up resources after all pending work completes via [disposeDependencies]
      */
     @CallSuper
     open fun delete() {
-        destroySurface()
-        // Queues the C++ renderer for deletion
-        cppDelete(cppPointer)
-        cppPointer = NULL_POINTER
+        stop()
+        // Acquire the `frameLock`: If the render thread is currently inside `doFrame`, this call
+        // will block until that frame completes. Once this lock is acquired, we have a guarantee
+        // that no part of `doFrame` is executing.
+        synchronized(frameLock) {
+            destroySurface()
+
+            // We manually manage disposal rather than using `release()` here because we want
+            // our dependencies to be cleaned up on the background render thread
+            // (i.e. inside `disposeDependencies()`) rather than immediately on the UI thread,
+            // which would invalidate resources that the render thread might still need.
+
+            // Schedule the asynchronous disposal of the C++ JNIRenderer object.
+            cppDelete(cppPointer)
+
+            // Immediately nullify the pointer on the UI thread. This marks the
+            // Kotlin object as disposed, preventing further attempts to use it
+            // (e.g., in rapid view re-attachment scenarios).
+            cppPointer = NULL_POINTER
+        }
     }
 
+
     /**
-     * Deletes all of this renderer's dependents.
+     * Releases all of this renderer's dependents.
      *
-     * Called internally by the JNIRenderer within ~JNIRenderer()
+     * This is called from the C++ worker thread as part of the asynchronous disposal.
      */
+    @WorkerThread
     protected open fun disposeDependencies() {
-        dependencies.forEach { it.release() }
-        dependencies.clear()
+        synchronized(frameLock) {
+            sharedSurface?.release()
+            sharedSurface = null
+            dependencies.forEach { it.release() }
+            dependencies.clear()
+        }
     }
 }

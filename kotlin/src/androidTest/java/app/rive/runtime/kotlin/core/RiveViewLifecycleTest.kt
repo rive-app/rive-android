@@ -6,7 +6,11 @@ import app.rive.runtime.kotlin.ResourceType
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.test.R
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -215,7 +219,7 @@ class RiveViewLifecycleTest {
 
             // Let's 'close' this view - detached
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
-            assertEquals(1, file?.refCount)
+            assertEquals(1, file.refCount)
             assertNull(mockView.artboardRenderer)
 
             savedState.dispose()

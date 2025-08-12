@@ -2,7 +2,9 @@ package app.rive.runtime.kotlin.core
 
 import app.rive.runtime.kotlin.core.NativeObject.Companion.NULL_POINTER
 import app.rive.runtime.kotlin.core.errors.RiveException
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * NativeObject is a Kotlin object that's backed by a C++ counterpart via the JNI. It keeps track of
@@ -10,7 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * [unsafeCppPointer] is accessible via the [cppPointer] getter/setter.
  */
-abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
+abstract class NativeObject(initialPointer: Long) : RefCount {
+    private val unsafeCppPointer = AtomicLong(initialPointer)
 
     /**
      * A cache of the stack trace at the time that this object was disposed. Appended to the stack
@@ -24,10 +27,10 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
     }
 
     /** Whether this objects underlying pointer is still valid. */
-    val hasCppObject get() = unsafeCppPointer != NULL_POINTER
+    val hasCppObject get() = unsafeCppPointer.get() != NULL_POINTER
 
     final override var refs = AtomicInteger(
-        if (unsafeCppPointer == NULL_POINTER) 0 // null objects cannot be referenced.
+        if (initialPointer == NULL_POINTER) 0 // null objects cannot be referenced.
         else 1
     )
 
@@ -38,11 +41,12 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
      */
     var cppPointer: Long
         set(value) {
-            unsafeCppPointer = value
+            unsafeCppPointer.set(value)
         }
         @Throws(RiveException::class)
         get() {
-            if (!hasCppObject) {
+            val pointer = unsafeCppPointer.get()
+            if (pointer == NULL_POINTER) {
                 val nativeObjectName = this.javaClass.simpleName
                 val riveException = RiveException(
                     "Accessing disposed C++ object $nativeObjectName."
@@ -52,11 +56,12 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
 
                 throw riveException
             }
-            return unsafeCppPointer
+            return pointer
         }
 
     // Collection of native objects that are owned(created) by this.
-    val dependencies = mutableListOf<RefCount>()
+    val dependencies: MutableList<RefCount> =
+        Collections.synchronizedList(mutableListOf<RefCount>())
 
     // Up to the implementer (interfaces cannot have external functions)
     open fun cppDelete(pointer: Long) {}
@@ -147,7 +152,7 @@ abstract class NativeObject(private var unsafeCppPointer: Long) : RefCount {
             forEach { it.release() }
             clear()
         }
-        cppDelete(unsafeCppPointer)
-        unsafeCppPointer = NULL_POINTER
+        cppDelete(unsafeCppPointer.get())
+        unsafeCppPointer.set(NULL_POINTER)
     }
 }

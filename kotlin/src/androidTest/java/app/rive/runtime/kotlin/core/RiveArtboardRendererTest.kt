@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Test
@@ -16,12 +17,12 @@ class RiveArtboardRendererTest {
     @Test
     fun createRenderer() {
         val textures = mutableListOf<SurfaceTexture>()
-        val surfaces = mutableListOf<Surface>()
+        val surfaces = mutableListOf<SharedSurface>()
         repeat(10) {
             val surfaceTexture = SurfaceTexture(it)
             val surface = Surface(surfaceTexture)
             textures.add(surfaceTexture)
-            surfaces.add(surface)
+            surfaces.add(SharedSurface(surface))
         }
 
         val controller = RiveFileController()

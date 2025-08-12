@@ -18,6 +18,8 @@ public:
 
     ~JNIRenderer();
 
+    void scheduleDispose();
+
     void setSurface(SurfaceVariant);
 
     rive::Renderer* getRendererOnWorkerThread() const;
@@ -36,33 +38,46 @@ public:
     {
         if (rendererType() == RendererType::Canvas)
         {
+            // Sanity checks: make sure we are on worker thread
+            assert(m_workerImpl);
+            assert(m_workerThreadID != std::thread::id{});
+
+            if (m_workerThreadID == std::thread::id{} || !m_workerImpl)
+            {
+                return INVALID_DIMENSION;
+            }
             auto renderer =
                 static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
-            return renderer->width();
+            return renderer ? renderer->width() : INVALID_DIMENSION;
         }
         else if (auto window = std::get_if<ANativeWindow*>(&m_surface))
         {
             return ANativeWindow_getWidth(*window);
         }
-        return -1;
+        return INVALID_DIMENSION;
     }
     int height() const
     {
         if (rendererType() == RendererType::Canvas)
         {
+            // Sanity checks: make sure we are on worker thread
+            assert(m_workerImpl);
+            assert(m_workerThreadID != std::thread::id{});
+
             auto renderer =
                 static_cast<CanvasRenderer*>(getRendererOnWorkerThread());
-            return renderer->height();
+            return renderer ? renderer->height() : INVALID_DIMENSION;
         }
         else if (auto window = std::get_if<ANativeWindow*>(&m_surface))
         {
             return ANativeWindow_getHeight(*window);
         }
-        return -1;
+        return INVALID_DIMENSION;
     }
 
 private:
     static constexpr uint8_t kMaxScheduledFrames = 2;
+    static constexpr int INVALID_DIMENSION = -1;
 
     rive::rcp<RefWorker> m_worker;
     jobject m_ktRenderer;
@@ -79,9 +94,11 @@ private:
     float m_fpsSum = 0.0f;
     int m_fpsCount = 0;
 
-    ITracer* m_tracer;
+    std::atomic<bool> m_isDisposeScheduled = false;
 
-    ITracer* getTracer(bool trace) const;
+    std::unique_ptr<ITracer> m_tracer;
+
+    std::unique_ptr<ITracer> makeTracer(bool trace) const;
 
     void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
 

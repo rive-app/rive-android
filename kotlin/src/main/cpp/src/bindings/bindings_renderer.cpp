@@ -50,7 +50,7 @@ extern "C"
                                                               jlong rendererRef)
     {
         JNIRenderer* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
-        delete renderer;
+        renderer->scheduleDispose();
     }
 
     JNIEXPORT void JNICALL
@@ -90,8 +90,7 @@ extern "C"
         {
             ANativeWindow* surfaceWindow =
                 ANativeWindow_fromSurface(env, surface);
-            reinterpret_cast<JNIRenderer*>(rendererRef)
-                ->setSurface(surfaceWindow);
+            renderer->setSurface(surfaceWindow);
             if (surfaceWindow)
             {
                 // Release this handle.
