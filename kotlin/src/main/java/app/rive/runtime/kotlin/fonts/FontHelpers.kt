@@ -3,6 +3,10 @@ package app.rive.runtime.kotlin.fonts
 import android.util.Log
 import android.util.Xml
 import androidx.annotation.VisibleForTesting
+import app.rive.runtime.kotlin.fonts.FontHelper.Companion.findMatches
+import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getFontFile
+import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFontList
+import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFonts
 import org.xmlpull.v1.XmlPullParser
 import java.io.File
 import java.io.InputStream
@@ -69,14 +73,13 @@ class Fonts {
             /**
              * Default configuration for font options, intended for general usage.
              *
-             * This field provides a default set of options with a widely supported
-             * family name of "sans-serif", default weight as [Weight.NORMAL] (equivalent to
-             * 400), and style as [Font.STYLE_NORMAL]. This setup ensures that if no specific
-             * preferences are specified, a broadly compatible and visually neutral
-             * font configuration is used.
+             * This field provides a default set of options with a widely supported family name
+             * of "sans-serif", default weight as [Weight.NORMAL] (equivalent to 400), and style
+             * as [Font.STYLE_NORMAL]. This setup ensures that if no specific preferences are
+             * specified, a broadly compatible and visually neutral font configuration is used.
              *
-             * This can be particularly useful in scenarios where specific font attributes
-             * are not critical, or where a robust and fail-safe font selection is needed.
+             * This can be particularly useful in scenarios where specific font attributes are not
+             * critical, or where a robust and fail-safe font selection is needed.
              */
             val DEFAULT = FontOpts(familyName = "sans-serif")
         }
@@ -100,15 +103,15 @@ class FontHelper {
         /**
          * Retrieves a map of all system fonts available.
          *
-         * **DEPRECATED**: Use [getSystemFontList] instead for more reliable handling
-         *  of unnamed font families. This method can lose data when multiple unnamed
-         *  families have fonts with the same filename as their first font.
+         * **DEPRECATED**: Use [getSystemFontList] instead for more reliable handling of unnamed
+         * font families. This method can lose data when multiple unnamed families have fonts with
+         * the same filename as their first font.
          *
-         * This function attempts to find a valid XML configuration file from a set of
-         * possible paths and parses it to a map of font families.
+         * This function attempts to find a valid XML configuration file from a set of possible
+         * paths and parses it to a map of font families.
          *
-         * @return A [Map]<String, Fonts.Family> representing all the available font
-         *         families, or an empty map if no valid XML is found.
+         * @return A [Map]<String, Fonts.Family> representing all the available font families, or an
+         *    empty map if no valid XML is found.
          */
         @Deprecated(
             message = "Use getSystemFontList() instead. Map approach can lose unnamed families with colliding first font names.",
@@ -127,13 +130,13 @@ class FontHelper {
         /**
          * Retrieves a list of all system fonts available.
          *
-         * This is the preferred method for accessing system fonts as it preserves
-         * all font families, including multiple unnamed families that might have
-         * the same first font filename. The Map-based approach ([getSystemFonts])
-         * can lose data due to key collisions in such cases.
+         * This is the preferred method for accessing system fonts as it preserves all font
+         * families, including multiple unnamed families that might have the same first font
+         * filename. The Map-based approach ([getSystemFonts]) can lose data due to key collisions
+         * in such cases.
          *
-         * @return A [List]<Fonts.Family> representing all the available font
-         *         families, or an empty list if no valid XML is found.
+         * @return A [List]<Fonts.Family> representing all the available font families, or an empty
+         *    list if no valid XML is found.
          */
         fun getSystemFontList(): List<Fonts.Family> {
             familiesListCache.get()?.let { return it }
@@ -143,9 +146,9 @@ class FontHelper {
         }
 
         /**
-         * Loads and parses the system font configuration from the first available XML file found
-         * at predefined system paths, filters the results based on font file existence, and
-         * updates the internal font cache.
+         * Loads and parses the system font configuration from the first available XML file found at
+         * predefined system paths, filters the results based on font file existence, and updates
+         * the internal font cache.
          *
          * This function attempts to locate a font configuration file by checking the following
          * paths in order:
@@ -155,21 +158,20 @@ class FontHelper {
          *
          * It uses the first file that exists in this sequence.
          *
-         * If a valid file is found, it is parsed using [SystemFontsParser.parseFontsXMLMap].
-         * If parsing fails or no configuration file is found at any of the expected paths,
-         * an error or warning is logged, and an empty map is processed.
+         * If a valid file is found, it is parsed using [SystemFontsParser.parseFontsXMLMap]. If
+         * parsing fails or no configuration file is found at any of the expected paths, an error or
+         * warning is logged, and an empty map is processed.
          *
-         * The parsed font families are then filtered using `filterNonExistingFonts` to remove
-         * any font entries whose corresponding `.ttf` or `.otf` file cannot be located on the
-         * device's filesystem via [FontHelper.getFontFile].
+         * The parsed font families are then filtered using `filterNonExistingFonts` to remove any
+         * font entries whose corresponding `.ttf` or `.otf` file cannot be located on the device's
+         * filesystem via [FontHelper.getFontFile].
          *
          * The resulting map of valid, existing font families is then stored in the internal
          * `fontCache` and returned.
          *
-         * @return A [Map] of font family names to [Fonts.Family] objects, containing only
-         *   fonts whose files were found on the filesystem. Returns an empty map if no
-         *   configuration file was found, parsing failed, or no fonts passed the
-         *   filesystem existence check.
+         * @return A [Map] of font family names to [Fonts.Family] objects, containing only fonts
+         *    whose files were found on the filesystem. Returns an empty map if no configuration
+         *    file was found, parsing failed, or no fonts passed the filesystem existence check.
          */
         internal fun loadFonts(): Map<String, Fonts.Family> {
             val validPath = sequenceOf(
@@ -234,14 +236,14 @@ class FontHelper {
         /**
          * Retrieves a fallback font based on optional font preferences.
          *
-         * This function searches through the system's available fonts and selects a font
-         * that matches the provided options. If no options are provided, it uses the
-         * default settings (i.e. [Fonts.FontOpts.DEFAULT])
+         * This function searches through the system's available fonts and selects a font that
+         * matches the provided options. If no options are provided, it uses the default settings
+         * (i.e. [Fonts.FontOpts.DEFAULT])
          *
-         * @param opts Optional [Fonts.FontOpts] specifying the desired font
-         *             characteristics. If not provided, defaults are used.
-         * @return The [Fonts.Font] matching the specified options, or `null` if no
-         *         suitable font is found.
+         * @param opts Optional [Fonts.FontOpts] specifying the desired font characteristics. If not
+         *    provided, defaults are used.
+         * @return The [Fonts.Font] matching the specified options, or `null` if no suitable font is
+         *    found.
          */
         fun getFallbackFont(opts: Fonts.FontOpts? = null): Fonts.Font? =
             getFallbackFonts(opts ?: Fonts.FontOpts.DEFAULT).firstOrNull()
@@ -249,14 +251,14 @@ class FontHelper {
         /**
          * Retrieves a list of fallback fonts based on optional font preferences.
          *
-         * This function searches through the system's available fonts and returns a list
-         * of fonts that match the provided options, ordered by priority with named fonts
-         * first, followed by unnamed fallback fonts.
+         * This function searches through the system's available fonts and returns a list of fonts
+         * that match the provided options, ordered by priority with named fonts first, followed by
+         * unnamed fallback fonts.
          *
-         * @param opts Optional [Fonts.FontOpts] specifying the desired font
-         *             characteristics. If not provided, defaults are used.
-         * @return A [List] of [Fonts.Font] matching the specified options, or an empty list
-         *         if no suitable fonts are found.
+         * @param opts Optional [Fonts.FontOpts] specifying the desired font characteristics. If not
+         *    provided, defaults are used.
+         * @return A [List] of [Fonts.Font] matching the specified options, or an empty list if no
+         *    suitable fonts are found.
          */
         fun getFallbackFonts(opts: Fonts.FontOpts = Fonts.FontOpts.DEFAULT): List<Fonts.Font> {
             val fontFamilies = getSystemFontList()
@@ -269,8 +271,8 @@ class FontHelper {
         }
 
         /**
-         * Helper function for [findMatches] to filter fonts based on weight and style.
-         * Adds them to a result set to ensure uniqueness.
+         * Helper function for [findMatches] to filter fonts based on weight and style. Adds them to
+         * a result set to ensure uniqueness.
          */
         private fun filterFamilies(
             families: List<Fonts.Family>,
@@ -305,15 +307,16 @@ class FontHelper {
          *
          * The returned list prioritizes fonts as follows:
          * 1. Fonts from families explicitly named (not derived from filename).
-         * 2. Fonts from unnamed (fallback) families.
-         * Within these groups, families matching the requested language ([Fonts.FontOpts.lang])
-         * are prioritized. The resulting list contains unique [Fonts.Font] instances.
+         * 2. Fonts from unnamed (fallback) families. Within these groups, families matching the
+         *    requested language ([Fonts.FontOpts.lang]) are prioritized. The resulting list
+         *    contains unique [Fonts.Font] instances.
          *
-         * @param fontFamilies The map of font family names to [Fonts.Family] objects to search within.
+         * @param fontFamilies The map of font family names to [Fonts.Family] objects to search
+         *    within.
          * @param opts The [Fonts.FontOpts] specifying the desired font characteristics (family,
-         *   language, weight, style). Defaults to [Fonts.FontOpts.DEFAULT] if null.
+         *    language, weight, style). Defaults to [Fonts.FontOpts.DEFAULT] if null.
          * @return A [List] of unique [Fonts.Font] objects matching the criteria, ordered by
-         *   priority or an empty list if no matches are found.
+         *    priority or an empty list if no matches are found.
          */
         internal fun findMatches(
             fontFamilies: Map<String, Fonts.Family>,
@@ -404,13 +407,11 @@ class FontHelper {
         /**
          * Retrieves the file for a specified font from the system's font paths.
          *
-         * Searches through predefined system font paths to find the file corresponding
-         * to the specified font.
+         * Searches through predefined system font paths to find the file corresponding to the
+         * specified font.
          *
-         * @param font The [Fonts.Font] object representing the font whose file is being
-         *             sought.
-         * @return A [File] object pointing to the font file, or `null` if the file does
-         *         not exist.
+         * @param font The [Fonts.Font] object representing the font whose file is being sought.
+         * @return A [File] object pointing to the font file, or `null` if the file does not exist.
          */
         fun getFontFile(font: Fonts.Font): File? = SystemFontsParser.SYSTEM_FONTS_PATHS
             .asSequence()
@@ -420,12 +421,12 @@ class FontHelper {
         /**
          * Reads and returns the bytes of a font file for a specified font.
          *
-         * This function uses [getFontFile] to find the font file and reads its bytes
-         * into a ByteArray.
+         * This function uses [getFontFile] to find the font file and reads its bytes into a
+         * ByteArray.
          *
          * @param font The [Fonts.Font] object representing the font to be read.
-         * @return A [ByteArray] containing the font file's bytes, or `null` if the file
-         *         could not be found or read.
+         * @return A [ByteArray] containing the font file's bytes, or `null` if the file could not
+         *    be found or read.
          */
         fun getFontBytes(font: Fonts.Font): ByteArray? = getFontFile(font)
             ?.readBytes()
@@ -469,16 +470,16 @@ class FontHelper {
         /**
          * Retrieves the byte array of a fallback font specified by optional font options.
          *
-         * This function combines the functionality of `getFallbackFont` and `getFontBytes`
-         * to fetch the bytes of a font that matches the provided options. If no specific
-         * options are provided, default settings are used. This is useful when direct
-         * byte-level access to a font file is required, such as for sending font data
-         * over a network or loading it into a custom rendering system.
+         * This function combines the functionality of `getFallbackFont` and `getFontBytes` to
+         * fetch the bytes of a font that matches the provided options. If no specific options are
+         * provided, default settings are used. This is useful when direct byte-level access to a
+         * font file is required, such as for sending font data over a network or loading it into a
+         * custom rendering system.
          *
-         * @param opts Optional [Fonts.FontOpts] specifying the desired font
-         *             characteristics. If not provided, default options are used.
-         * @return A [ByteArray] containing the font's data, or `null` if no suitable
-         *         font is found or if there is an error accessing the font file.
+         * @param opts Optional [Fonts.FontOpts] specifying the desired font characteristics. If not
+         *    provided, default options are used.
+         * @return A [ByteArray] containing the font's data, or `null` if no suitable font is found
+         *    or if there is an error accessing the font file.
          */
         fun getFallbackFontBytes(opts: Fonts.FontOpts? = null): ByteArray? =
             getFallbackFont(opts ?: Fonts.FontOpts.DEFAULT)?.let {
@@ -804,7 +805,7 @@ class SystemFontsParser {
                 return null // Failed to create an alias for a weight that doesn't exist
             }
 
-            val (name, variant, lang) = ogFamily
+            val (_/*name*/, variant, lang) = ogFamily
 
             return Fonts.Family(
                 name = alias.name,
@@ -927,8 +928,8 @@ class SystemFontsParser {
 
 
         /**
-         * The font files are listed in the order of the styles which they
-         *     support: regular, bold, italic and bold-italic.
+         * The font files are listed in the order of the styles which they support: regular, bold,
+         * italic and bold-italic.
          */
         private val fontFilesOrder = listOf(
             Pair(Fonts.Weight.NORMAL, Fonts.Font.STYLE_NORMAL),

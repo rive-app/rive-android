@@ -8,11 +8,7 @@ class SMIBoolean(unsafeCppPointer: Long) :
 
     var value: Boolean
         get() = cppValue(cppPointer)
-        internal set(value) {
-            cppSetValue(cppPointer, value)
-        }
+        internal set(value) = cppSetValue(cppPointer, value)
 
-    override fun toString(): String {
-        return "SMIBoolean $name\n"
-    }
+    override fun toString(): String = "SMIBoolean $name\n"
 }

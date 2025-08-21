@@ -4,46 +4,48 @@ plugins {
 }
 
 android {
-    namespace "app.rive.runtime.compatibilitytest"
-    compileSdk 35
-    ndkVersion "27.2.12479018"
+    namespace = "app.rive.runtime.compatibilitytest"
+    compileSdk = 36
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId "app.rive.runtime.compatibilitytest"
-        minSdk 21
-        targetSdk 35
-        versionCode 1
-        versionName "1.1"
+        minSdk = 21
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.1"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         debug {
-            debuggable true
-            minifyEnabled false
-            shrinkResources false
+            debuggable = true
+            minifyEnabled = false
+            shrinkResources = false
         }
         release {
-            debuggable true
-            minifyEnabled false
-            shrinkResources false
-            signingConfig signingConfigs.debug
+            debuggable = true
+            minifyEnabled = false
+            shrinkResources = false
+            signingConfig = signingConfigs.debug
         }
     }
+
+    def javaVersion = JavaVersion.VERSION_11
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility javaVersion
+        targetCompatibility javaVersion
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = javaVersion.toString()
     }
 }
 
 dependencies {
-    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "androidx.constraintlayout:constraintlayout:2.2.1"
-    implementation "androidx.core:core-ktx:1.16.0"
+    implementation "androidx.core:core-ktx:1.17.0"
     implementation "com.google.android.material:material:1.12.0"
     implementation project(path: ":kotlin")
 }

@@ -16,7 +16,6 @@ import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.LinearAnimationInstance
-import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.renderers.Renderer
 import java.util.Locale
 import kotlin.math.min
@@ -99,7 +98,7 @@ class StressTestView(context: Context) : RiveTextureView(context) {
                     // Actually advance the animation here. draw() will also call advance(), but the
                     // purpose of that is to draw each Marty at a slightly different animation offset,
                     // and it will loop back around to the original animation location.
-                    animationInstance.advance(elapsed)
+                    animationInstance.advanceAndGetResult(elapsed)
                     animationInstance.apply()
                     artboard.advance(elapsed)
 

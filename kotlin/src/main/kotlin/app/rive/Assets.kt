@@ -33,6 +33,7 @@ const val FONT_TAG = "Rive/Font"
 @ExperimentalRiveComposeAPI
 @Composable
 @Throws(NotImplementedError::class)
+@Suppress("UNUSED_PARAMETER", "UNREACHABLE_CODE")
 fun rememberImage(
     commandQueue: CommandQueue,
     bytes: ByteArray,
@@ -69,6 +70,7 @@ fun rememberImage(
 @ExperimentalRiveComposeAPI
 @Composable
 @Throws(NotImplementedError::class)
+@Suppress("UNUSED_PARAMETER", "UNREACHABLE_CODE")
 fun rememberRegisteredImage(
     commandQueue: CommandQueue,
     name: String,

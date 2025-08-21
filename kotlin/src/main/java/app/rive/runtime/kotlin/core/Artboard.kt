@@ -102,14 +102,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      */
     val firstAnimation: LinearAnimationInstance
         @Throws(AnimationException::class)
-        get() {
-            return animation(0)
-        }
+        get() = animation(0)
 
     /**
-     * Get the animation at a given [index] in the [Artboard].
-     *
-     * This starts at 0.
+     * Get the animation at a given 0-based [index] in the [Artboard].
      *
      * @throws AnimationException If the animation does not exist.
      */
@@ -152,15 +148,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      */
     val firstStateMachine: StateMachineInstance
         @Throws(StateMachineException::class)
-        get() {
-            return stateMachine(0)
-        }
-
+        get() = stateMachine(0)
 
     /**
-     * Get the animation at a given [index] in the artboard.
-     *
-     * This starts at 0.
+     * Get the state machine at a given 0-based [index] in the artboard.
      *
      * @throws StateMachineException If the state machine does not exist.
      */
@@ -176,7 +167,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     }
 
     /**
-     * Get the animation with a given [name] in the artboard.
+     * Get the state machine with a given [name] in the artboard.
      *
      * @throws StateMachineException If the state machine does not exist.
      */
@@ -228,9 +219,7 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      *
      * @return The text value of the run, or null if the run is not found.
      */
-    fun getTextRunValue(name: String): String? {
-        return cppFindValueOfTextValueRun(cppPointer, name)
-    }
+    fun getTextRunValue(name: String): String? = cppFindValueOfTextValueRun(cppPointer, name)
 
     /**
      * Set the text value for a text run named [name] to [textValue].
@@ -267,9 +256,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      *
      * @return The text value of the run, or null if the run is not found.
      */
-    fun getTextRunValue(name: String, path: String): String? {
-        return cppFindValueOfTextValueRunAtPath(cppPointer, name, path)
-    }
+    fun getTextRunValue(name: String, path: String): String? =
+        cppFindValueOfTextValueRunAtPath(cppPointer, name, path)
 
     /**
      * Set the text value for a text run named [name] to [textValue] on the nested artboard
@@ -343,20 +331,20 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
      *
      * [elapsedTime] is currently not taken into account.
      */
-    fun advance(elapsedTime: Float): Boolean {
-        synchronized(lock) { return cppAdvance(cppPointer, elapsedTime) }
-    }
+    fun advance(elapsedTime: Float): Boolean =
+        synchronized(lock) { cppAdvance(cppPointer, elapsedTime) }
 
     /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     @WorkerThread
-    fun draw(rendererAddress: Long) = synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
+    fun draw(rendererAddress: Long) =
+        synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
 
     /**
      * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
      * align the artboard to the render surface.
      */
     @WorkerThread
-    fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) {
+    fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) =
         synchronized(lock) {
             cppDrawAligned(
                 cppPointer,
@@ -366,12 +354,9 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
                 scaleFactor
             )
         }
-    }
 
     /** Reset the artboard size to its defaults. */
-    fun resetArtboardSize() {
-        cppResetArtboardSize(cppPointer)
-    }
+    fun resetArtboardSize() = cppResetArtboardSize(cppPointer)
 
     /** @return The bounds of artboard as defined in the Rive Editor. */
     val bounds: RectF
@@ -395,13 +380,11 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
 
-    private fun convertInput(input: SMIInput): SMIInput {
-        val convertedInput = when {
+    private fun convertInput(input: SMIInput): SMIInput =
+        when {
             input.isBoolean -> SMIBoolean(input.cppPointer)
             input.isTrigger -> SMITrigger(input.cppPointer)
             input.isNumber -> SMINumber(input.cppPointer)
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
-        return convertedInput
-    }
 }

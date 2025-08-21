@@ -14,7 +14,7 @@ namespace rive_android
 class DrawableThreadState
 {
 public:
-    virtual ~DrawableThreadState(){};
+    virtual ~DrawableThreadState() {};
     virtual void swapBuffers() = 0;
 };
 

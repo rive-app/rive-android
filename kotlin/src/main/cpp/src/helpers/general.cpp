@@ -6,8 +6,8 @@
 #include "rive/file.hpp"
 
 #if defined(DEBUG) || defined(LOG)
-#include <errno.h>
-#include <stdio.h>
+#include <cerrno>
+#include <cstdio>
 #include <unistd.h>
 #include <EGL/egl.h>
 #endif
@@ -21,7 +21,7 @@ namespace rive_android
 static AndroidRiveRenderFactory g_RiveFactory;
 static AndroidCanvasFactory g_CanvasFactory;
 
-JavaVM* g_JVM;
+JavaVM* g_JVM = nullptr;
 long g_sdkVersion;
 
 JNIEnv* GetJNIEnv()
@@ -32,7 +32,7 @@ JNIEnv* GetJNIEnv()
     if (getEnvStat == JNI_EDETACHED)
     {
         LOGW("GetJNIEnv - Not Attached.");
-        if (g_JVM->AttachCurrentThread((JNIEnv**)&g_env, NULL) != 0)
+        if (g_JVM->AttachCurrentThread((JNIEnv**)&g_env, nullptr) != 0)
         {
             LOGE("Failed to attach current thread.");
         }
@@ -68,16 +68,16 @@ void SetSDKVersion()
 {
     char sdk_ver_str[255];
     __system_property_get("ro.build.version.sdk", sdk_ver_str);
-    g_sdkVersion = strtol(sdk_ver_str, NULL, 10);
+    g_sdkVersion = strtol(sdk_ver_str, nullptr, 10);
 }
 
-rive::Fit GetFit(JNIEnv* env, jobject jfit)
+rive::Fit GetFit(JNIEnv* env, jobject jFit)
 {
-    jstring fitValue = (jstring)JNIExceptionHandler::CallObjectMethod(
+    auto fitValue = (jstring)JNIExceptionHandler::CallObjectMethod(
         env,
-        jfit,
+        jFit,
         rive_android::GetFitNameMethodId());
-    const char* fitValueNative = env->GetStringUTFChars(fitValue, 0);
+    const char* fitValueNative = env->GetStringUTFChars(fitValue, JNI_FALSE);
 
     rive::Fit fit = rive::Fit::none;
     if (strcmp(fitValueNative, "FILL") == 0)
@@ -117,14 +117,14 @@ rive::Fit GetFit(JNIEnv* env, jobject jfit)
     return fit;
 }
 
-rive::Alignment GetAlignment(JNIEnv* env, jobject jalignment)
+rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)
 {
-    jstring alignmentValue = (jstring)JNIExceptionHandler::CallObjectMethod(
+    auto alignmentValue = (jstring)JNIExceptionHandler::CallObjectMethod(
         env,
-        jalignment,
+        jAlignment,
         rive_android::GetAlignmentNameMethodId());
     const char* alignmentValueNative =
-        env->GetStringUTFChars(alignmentValue, 0);
+        env->GetStringUTFChars(alignmentValue, JNI_FALSE);
 
     rive::Alignment alignment = rive::Alignment::center;
     if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
@@ -215,11 +215,11 @@ std::string JStringToString(JNIEnv* env, jstring jStr)
 {
     if (jStr == nullptr)
     {
-        return std::string();
+        return {};
     }
-    const char* cstr = env->GetStringUTFChars(jStr, NULL);
-    std::string str = std::string(cstr);
-    env->ReleaseStringUTFChars(jStr, cstr);
+    const char* cStr = env->GetStringUTFChars(jStr, JNI_FALSE);
+    std::string str = std::string(cStr);
+    env->ReleaseStringUTFChars(jStr, cStr);
     return str;
 }
 
@@ -246,7 +246,7 @@ size_t JIntToSizeT(jint jintValue)
     dup2(pipes[1], STDERR_FILENO);
     FILE* inputFile = fdopen(pipes[0], "r");
     char readBuffer[256];
-    while (1)
+    while (true)
     {
         fgets(readBuffer, sizeof(readBuffer), inputFile);
         __android_log_write(2, "rive_stderr", readBuffer);

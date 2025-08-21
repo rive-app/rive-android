@@ -179,7 +179,7 @@ class ViewModelInstance(
             propertyPath,
             Unit,
             triggerFlows,
-            { handle, path -> }, // Triggers don't have a getter, so we return Unit
+            { _, _ -> }, // Triggers don't have a getter, so we return Unit
             commandQueue.triggerPropertyFlow,
             PropertyDataType.TRIGGER
         )

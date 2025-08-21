@@ -5,11 +5,7 @@ class SMITrigger(unsafeCppPointer: Long) :
     SMIInput(unsafeCppPointer) {
     private external fun cppFire(cppPointer: Long)
 
-    internal fun fire() {
-        cppFire(cppPointer)
-    }
+    internal fun fire() = cppFire(cppPointer)
 
-    override fun toString(): String {
-        return "SMITrigger $name\n"
-    }
+    override fun toString(): String = "SMITrigger $name\n"
 }

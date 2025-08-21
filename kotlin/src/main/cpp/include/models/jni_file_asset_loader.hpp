@@ -19,7 +19,7 @@ class JNIFileAssetLoader : public rive::FileAssetLoader
 {
 public:
     JNIFileAssetLoader(jobject, JNIEnv*);
-    ~JNIFileAssetLoader();
+    ~JNIFileAssetLoader() override;
 
     bool loadContents(rive::FileAsset&,
                       rive::Span<const uint8_t>,
@@ -93,7 +93,7 @@ public:
     }
 
 private:
-    jobject m_ktFileAssetLoader;
+    jobject m_ktFileAssetLoader = nullptr;
     jmethodID m_ktLoadContentsFn;
 
     RendererType m_rendererType = RendererType::None;

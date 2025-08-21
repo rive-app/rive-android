@@ -25,8 +25,8 @@ class NoopTracer : public ITracer
 public:
     NoopTracer() {}
     ~NoopTracer() {}
-    void beginSection(const char* sectionName) override{};
-    void endSection() override{};
+    void beginSection(const char* sectionName) override {};
+    void endSection() override {};
 };
 
 class Tracer : public ITracer

@@ -8,8 +8,8 @@ package app.rive.runtime.kotlin.core
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
 open class SMIInput(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
-    //    SMIInput cpp objects are tied to the lifecycle of hte StateMachineInstances in cpp
-    //    Therefore we do not have a cppDelete implementation
+    // SMIInput cpp objects are tied to the lifecycle of hte StateMachineInstances in cpp
+    // Therefore we do not have a cppDelete implementation
     private external fun cppName(cppPointer: Long): String
     private external fun cppIsBoolean(cppPointer: Long): Boolean
     private external fun cppIsTrigger(cppPointer: Long): Boolean
@@ -31,7 +31,5 @@ open class SMIInput(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
     val isNumber: Boolean
         get() = cppIsNumber(cppPointer)
 
-    override fun toString(): String {
-        return "SMIInput $name\n"
-    }
+    override fun toString(): String = "SMIInput $name\n"
 }

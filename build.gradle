@@ -9,7 +9,7 @@ ext {
 }
 buildscript {
     ext {
-        gradle_version = "8.10.1"
+        gradle_version = '8.12.0'
         // Sticking with Kotlin 1.9.x for now for maximum compatibility.
         // Not all projects use 2.x+ yet, and forcing an upgrade can increase client DEX sizes.
         kotlin_version = "1.9.25"
@@ -35,8 +35,8 @@ buildscript {
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
         classpath("androidx.compose.compiler:compiler:$compose_compiler_version")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:${dokkaVersion}")
-        classpath("com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin:0.33.0")
-        classpath("com.palantir.gradle.gitversion:gradle-git-version:3.1.0")
+        classpath("com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin:0.34.0")
+        classpath("com.palantir.gradle.gitversion:gradle-git-version:4.0.0")
     }
 }
 

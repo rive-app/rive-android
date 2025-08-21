@@ -105,7 +105,7 @@ class ComposeActivity : ComponentActivity() {
             var fileSource by remember { mutableStateOf(RiveFileSource.RawRes(R.raw.rating_animation_all)) }
 
             // Gate file loading on the font being ready, otherwise propagate the loading or error state
-            val riveFile = when (font) {
+            val riveFileResult = when (font) {
                 is Result.Loading -> Result.Loading
                 is Result.Error -> Result.Error(font.throwable)
                 is Result.Success -> rememberRiveFile(fileSource, commandQueue).value
@@ -119,7 +119,7 @@ class ComposeActivity : ComponentActivity() {
                         .fillMaxSize()
                 ) {
                     // Switch on the status of the loading Rive file
-                    when (val file = riveFile) {
+                    when (val file = riveFileResult) {
                         is Result.Loading -> LoadingIndicator()
                         is Result.Error -> ErrorMessage(file.throwable)
                         is Result.Success -> {

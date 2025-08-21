@@ -202,10 +202,10 @@ fun RiveUI(
 
     /** Clean up for the surface. */
     DisposableEffect(surface) {
-        val surface = surface ?: return@DisposableEffect onDispose {}
+        val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
         onDispose {
             RiveLog.d(SURFACE_TAG) { "Deleting surface" }
-            surface.dispose()
+            nonNullSurface.dispose()
         }
     }
 

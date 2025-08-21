@@ -1,12 +1,12 @@
 package app.rive.runtime.example
 
-import TestUtils.Companion.waitUntil
 import android.view.ViewGroup
 import android.widget.Button
 import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.example.TestUtils.Companion.waitUntil
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.ContextAssetLoader
@@ -27,12 +27,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveActivityLifecycleTest {
     @Test
     fun activityWithRiveView() {
-        val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         // Start the Activity.
@@ -61,7 +60,7 @@ class RiveActivityLifecycleTest {
 
     @Test
     fun withCustomLoader() {
-        val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         lateinit var ogAssetLoader: FileAssetLoader
@@ -111,7 +110,7 @@ class RiveActivityLifecycleTest {
 
     @Test
     fun activityWithRiveViewSetsWrongFileType() {
-        val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         // Start the Activity.
@@ -154,7 +153,7 @@ class RiveActivityLifecycleTest {
 
     @Test
     fun resizeRiveView() {
-        val activityScenario = ActivityScenario.launch(SingleActivity::class.java);
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         var ogWidth = 0f
@@ -214,5 +213,4 @@ class RiveActivityLifecycleTest {
         assertNull(controller.file)
         assertNull(controller.activeArtboard)
     }
-
 }

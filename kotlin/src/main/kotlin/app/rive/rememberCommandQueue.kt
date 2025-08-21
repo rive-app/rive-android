@@ -68,7 +68,7 @@ fun rememberCommandQueueOrNull(
     val lifecycleOwner = LocalLifecycleOwner.current
     val commandQueue = remember(coroutineScope) {
         runCatching {
-            CommandQueue(coroutineScope).also { queue ->
+            CommandQueue(coroutineScope).also {
                 RiveLog.d(COMMAND_QUEUE_TAG) { "Created command queue" }
             }
         }.onFailure {

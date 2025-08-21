@@ -1,8 +1,8 @@
 package app.rive.runtime.example
 
-import TestUtils.Companion.waitUntil
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.example.TestUtils.Companion.waitUntil
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Alignment
@@ -23,10 +23,8 @@ import org.junit.runner.RunWith
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveBuilderTest {
-
     private val cleanupTimeout = 1500.milliseconds
 
     @Test
@@ -379,7 +377,7 @@ class RiveBuilderTest {
                 val artboardIsNull = controller.activeArtboard == null
                 val fileIsNull = controller.file == null
                 val assetLoaderCppObjectGone = capturedAssetLoader?.hasCppObject == false
-                
+
                 refCountZero && isInactive && artboardIsNull && fileIsNull && assetLoaderCppObjectGone
             }
         } catch (e: TimeoutException) {

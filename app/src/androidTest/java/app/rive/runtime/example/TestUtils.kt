@@ -1,3 +1,5 @@
+package app.rive.runtime.example
+
 import android.annotation.SuppressLint
 import android.os.Build
 import java.io.BufferedReader
@@ -9,7 +11,6 @@ import kotlin.time.Duration
 
 class TestUtils {
     companion object {
-
         fun waitUntil(
             atMost: Duration,
             condition: () -> Boolean
@@ -28,7 +29,6 @@ class TestUtils {
             } while (!condition())
 
         }
-
 
         // Helper function to check whether it's running on an emulator
         // Found on: https://stackoverflow.com/a/21505193
@@ -81,7 +81,7 @@ class TestUtils {
                 }
                 return getPropMethod!!.invoke(null, propName, defaultResult) as String?
                     ?: defaultResult
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 getPropMethod = null
                 failedUsingReflection = true
             }
@@ -97,5 +97,4 @@ class TestUtils {
             return defaultResult
         }
     }
-
 }

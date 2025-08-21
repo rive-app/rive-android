@@ -72,21 +72,17 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
      * @param elapsed The time in seconds to advance by.
      * @return `true` if the state machine will continue to animate after this advance.
      */
-    fun advance(elapsed: Float): Boolean {
-        synchronized(lock) { return cppAdvance(cppPointer, elapsed) }
-    }
+    fun advance(elapsed: Float): Boolean =
+        synchronized(lock) { cppAdvance(cppPointer, elapsed) }
 
-    fun pointerDown(x: Float, y: Float) {
-        synchronized(lock) { return cppPointerDown(cppPointer, x, y) }
-    }
+    fun pointerDown(x: Float, y: Float) =
+        synchronized(lock) { cppPointerDown(cppPointer, x, y) }
 
-    fun pointerUp(x: Float, y: Float) {
-        synchronized(lock) { return cppPointerUp(cppPointer, x, y) }
-    }
+    fun pointerUp(x: Float, y: Float) =
+        synchronized(lock) { cppPointerUp(cppPointer, x, y) }
 
-    fun pointerMove(x: Float, y: Float) {
-        synchronized(lock) { return cppPointerMove(cppPointer, x, y) }
-    }
+    fun pointerMove(x: Float, y: Float) =
+        synchronized(lock) { cppPointerMove(cppPointer, x, y) }
 
     /** @return The number of inputs configured for the state machine. */
     val inputCount: Int
@@ -100,14 +96,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     private val reportedEventCount: Int
         get() = cppReportedEventCount(cppPointer)
 
-    private fun convertInput(input: SMIInput): SMIInput {
-        val convertedInput = when {
-            input.isBoolean -> SMIBoolean(input.cppPointer)
-            input.isTrigger -> SMITrigger(input.cppPointer)
-            input.isNumber -> SMINumber(input.cppPointer)
-            else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
-        }
-        return convertedInput
+    private fun convertInput(input: SMIInput): SMIInput = when {
+        input.isBoolean -> SMIBoolean(input.cppPointer)
+        input.isTrigger -> SMITrigger(input.cppPointer)
+        input.isNumber -> SMINumber(input.cppPointer)
+        else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
     }
 
     /**
@@ -151,31 +144,13 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     val inputNames: List<String>
         get() = (0 until inputCount).map { input(it).name }
 
-    private fun convertLayerState(state: LayerState): LayerState {
-        val convertedState = when {
-            state.isAnimationState -> {
-                AnimationState(state.cppPointer)
-            }
-
-            state.isAnyState -> {
-                AnyState(state.cppPointer)
-            }
-
-            state.isEntryState -> {
-                EntryState(state.cppPointer)
-            }
-
-            state.isExitState -> {
-                ExitState(state.cppPointer)
-            }
-
-            state.isBlendState -> {
-                BlendState(state.cppPointer)
-            }
-
-            else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
-        }
-        return convertedState
+    private fun convertLayerState(state: LayerState): LayerState = when {
+        state.isAnimationState -> AnimationState(state.cppPointer)
+        state.isAnyState -> AnyState(state.cppPointer)
+        state.isEntryState -> EntryState(state.cppPointer)
+        state.isExitState -> ExitState(state.cppPointer)
+        state.isBlendState -> BlendState(state.cppPointer)
+        else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
     }
 
     /**

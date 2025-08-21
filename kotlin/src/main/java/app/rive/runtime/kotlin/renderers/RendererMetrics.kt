@@ -8,7 +8,7 @@ import android.view.Window
 import androidx.annotation.RequiresApi
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.util.*
+import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.N)
 class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListener {
@@ -28,18 +28,13 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
         // Get display metrics
         val window = activity.window
         // Let's get the system's default refresh rate in ms
-        var refreshRateHz: Float = 60.0F
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.context.display?.let {
-                refreshRateHz = it.refreshRate
-            } ?: run {
-                // Failed to get my display?
-                Log.w(TAG, "Failed to get the display, defaulting to 60hz")
+        var refreshRateHz =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.context.display.refreshRate
+            } else {
+                @Suppress("DEPRECATION")
+                window.windowManager.defaultDisplay.refreshRate
             }
-        } else {
-            @Suppress("DEPRECATION")
-            refreshRateHz = window.windowManager.defaultDisplay.refreshRate
-        }
         Log.i(TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
 
         refreshRateMs = 1000 / refreshRateHz

@@ -8,11 +8,7 @@ class SMINumber(unsafeCppPointer: Long) :
 
     var value: Float
         get() = cppValue(cppPointer)
-        internal set(value) {
-            cppSetValue(cppPointer, value)
-        }
+        internal set(value) = cppSetValue(cppPointer, value)
 
-    override fun toString(): String {
-        return "SMINumber $name\n"
-    }
+    override fun toString(): String = "SMINumber $name\n"
 }

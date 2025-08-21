@@ -4,17 +4,11 @@ import android.os.Bundle
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 
-
 class SingleActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val isRiveRenderer = intent.getStringExtra("renderer") == "Rive"
-        setContentView(
-            if (isRiveRenderer)
-                R.layout.single_rive_renderer
-            else
-                R.layout.single
-        )
+
+        setContentView(R.layout.single)
     }
 }
 
@@ -33,7 +27,5 @@ class EmptyActivity : AppCompatActivity() {
             )
             setContentView(it)
         }
-
-
     }
 }

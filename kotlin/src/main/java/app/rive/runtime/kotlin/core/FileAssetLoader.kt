@@ -29,14 +29,11 @@ abstract class FileAssetLoader : NativeObject(NULL_POINTER) {
 
     private external fun cppSetRendererType(pointer: Long, rendererType: Int)
 
-    /**
-     * Override this method to customize the asset loading process.
-     */
+    /** Override this method to customize the asset loading process. */
     abstract fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean
 
-    fun setRendererType(rendererType: RendererType) {
+    fun setRendererType(rendererType: RendererType) =
         cppSetRendererType(cppPointer, rendererType.value)
-    }
 
     override fun acquire(): Int {
         cppRef(cppPointer)
@@ -51,7 +48,6 @@ class FallbackAssetLoader(
     loadCDNAssets: Boolean = true,
     loader: FileAssetLoader? = null,
 ) : FileAssetLoader() {
-
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     val loaders = mutableListOf<FileAssetLoader>()
 
@@ -74,9 +70,8 @@ class FallbackAssetLoader(
         dependencies.add(loader)
     }
 
-    override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
-        return loaders.any { it.loadContents(asset, inBandBytes) }
-    }
+    override fun loadContents(asset: FileAsset, inBandBytes: ByteArray) =
+        loaders.any { it.loadContents(asset, inBandBytes) }
 
     private fun resetCDNLoader(needsCDNLoader: Boolean, context: Context) {
         // Make sure CDN Loader is set.
@@ -92,8 +87,8 @@ class FallbackAssetLoader(
     }
 
     /**
-     * Resets the state of the asset loader when building RiveAnimationView with the
-     * secondary constructor.
+     * Resets the state of the asset loader when building RiveAnimationView with the secondary
+     * constructor.
      */
     internal fun resetWith(builder: RiveAnimationView.Builder) {
         // First, try setting up a custom loader.
@@ -133,15 +128,13 @@ class BytesRequest(
     private val onResponse: (bytes: ByteArray) -> Unit,
     errorListener: Response.ErrorListener,
 ) : Request<ByteArray>(Method.GET, url, errorListener) {
-
     override fun deliverResponse(response: ByteArray) = onResponse(response)
 
-    override fun parseNetworkResponse(response: NetworkResponse?): Response<ByteArray> {
-        return try {
+    override fun parseNetworkResponse(response: NetworkResponse?): Response<ByteArray> =
+        try {
             val bytes = response?.data ?: ByteArray(0)
             Response.success(bytes, HttpHeaderParser.parseCacheHeaders(response))
         } catch (e: Exception) {
             Response.error(ParseError(e))
         }
-    }
 }

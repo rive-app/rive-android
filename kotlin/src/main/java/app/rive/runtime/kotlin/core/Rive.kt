@@ -65,10 +65,7 @@ object Rive {
      *
      * Normally done as part of init, and only required if you are avoiding calling [init].
      */
-    fun initializeCppEnvironment() {
-        cppInitialize()
-    }
-
+    fun initializeCppEnvironment() = cppInitialize()
 
     fun calculateRequiredBounds(
         fit: Fit,
@@ -113,10 +110,8 @@ object Rive {
         "Prefer defining a `FontFallbackStrategy` instead",
         level = DeprecationLevel.WARNING
     )
-    fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean {
+    fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean =
         FontHelper.getFallbackFontBytes(opts)?.let { bytes ->
-            return NativeFontHelper.cppRegisterFallbackFont(bytes)
-        }
-        return false
-    }
+            NativeFontHelper.cppRegisterFallbackFont(bytes)
+        } == true
 }

@@ -15,11 +15,9 @@ extern "C"
 
     using namespace rive_android;
 
-    // ARTBOARD
-
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppName(JNIEnv* env,
-                                                       jobject thisObj,
+                                                       jobject,
                                                        jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
@@ -34,8 +32,7 @@ extern "C"
         jint index)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
-
-        rive::LinearAnimation* animation = artboard->animation(index);
+        auto* animation = artboard->animation(index);
         auto name = animation->name();
 
         return env->NewStringUTF(name.c_str());
@@ -50,18 +47,17 @@ extern "C"
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
 
-        rive::StateMachine* stateMachine = artboard->stateMachine(index);
+        auto* stateMachine = artboard->stateMachine(index);
         auto name = stateMachine->name();
 
         return env->NewStringUTF(name.c_str());
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref,
-        jint index)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByIndex(JNIEnv*,
+                                                                   jobject,
+                                                                   jlong ref,
+                                                                   jint index)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         // Creates a new instance.
@@ -69,11 +65,10 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref,
-        jstring name)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationByName(JNIEnv* env,
+                                                                  jobject,
+                                                                  jlong ref,
+                                                                  jstring name)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         // Creates a new instance.
@@ -82,10 +77,9 @@ extern "C"
     }
 
     JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCount(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppAnimationCount(JNIEnv*,
+                                                                 jobject,
+                                                                 jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
 
@@ -107,7 +101,7 @@ extern "C"
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByName(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name)
     {
@@ -119,10 +113,9 @@ extern "C"
     }
 
     JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineCount(JNIEnv*,
+                                                                    jobject,
+                                                                    jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
 
@@ -132,7 +125,7 @@ extern "C"
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppInputByNameAtPath(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name,
         jstring path)
@@ -143,8 +136,8 @@ extern "C"
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppGetVolume(JNIEnv* env,
-                                                            jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetVolume(JNIEnv*,
+                                                            jobject,
                                                             jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
@@ -152,8 +145,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppSetVolume(JNIEnv* env,
-                                                            jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetVolume(JNIEnv*,
+                                                            jobject,
                                                             jlong ref,
                                                             jfloat volume)
     {
@@ -162,11 +155,10 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRun(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref,
-        jstring name)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRun(JNIEnv* env,
+                                                                   jobject,
+                                                                   jlong ref,
+                                                                   jstring name)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         return (jlong)artboard->find<rive::TextValueRun>(
@@ -176,7 +168,7 @@ extern "C"
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppFindValueOfTextValueRun(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name)
     {
@@ -193,7 +185,7 @@ extern "C"
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppSetValueOfTextValueRun(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name,
         jstring newText)
@@ -212,7 +204,7 @@ extern "C"
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppFindTextValueRunAtPath(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name,
         jstring path)
@@ -225,7 +217,7 @@ extern "C"
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppFindValueOfTextValueRunAtPath(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name,
         jstring path)
@@ -243,7 +235,7 @@ extern "C"
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppSetValueOfTextValueRunAtPath(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jstring name,
         jstring newText,
@@ -261,8 +253,8 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(JNIEnv* env,
-                                                          jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_Artboard_cppAdvance(JNIEnv*,
+                                                          jobject,
                                                           jlong ref,
                                                           jfloat elapsedTime)
     {
@@ -272,7 +264,7 @@ extern "C"
 
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppBounds(JNIEnv* env,
-                                                         jobject thisObj,
+                                                         jobject,
                                                          jlong ref)
     {
         auto cls = env->FindClass("android/graphics/RectF");
@@ -290,10 +282,9 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppResetArtboardSize(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppResetArtboardSize(JNIEnv*,
+                                                                    jobject,
+                                                                    jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         artboard->width(artboard->originalWidth());
@@ -301,31 +292,28 @@ extern "C"
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardWidth(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardWidth(JNIEnv*,
+                                                                   jobject,
+                                                                   jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         return artboard->width();
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppSetArtboardWidth(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref,
-        jfloat value)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppSetArtboardWidth(JNIEnv*,
+                                                                   jobject,
+                                                                   jlong ref,
+                                                                   jfloat value)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         artboard->width(value);
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardHeight(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_Artboard_cppGetArtboardHeight(JNIEnv*,
+                                                                    jobject,
+                                                                    jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
         return artboard->height();
@@ -333,8 +321,8 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppSetArtboardHeight(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jfloat value)
     {
@@ -357,14 +345,14 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(JNIEnv* env,
+    Java_app_rive_runtime_kotlin_core_Artboard_cppDraw(JNIEnv*,
                                                        jobject,
                                                        jlong artboardRef,
                                                        jlong rendererRef)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(artboardRef);
         auto jniWrapper = reinterpret_cast<JNIRenderer*>(rendererRef);
-        rive::Renderer* renderer = jniWrapper->getRendererOnWorkerThread();
+        auto* renderer = jniWrapper->getRendererOnWorkerThread();
         artboard->draw(renderer);
     }
 
@@ -380,10 +368,10 @@ extern "C"
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(artboardRef);
         auto jniWrapper = reinterpret_cast<JNIRenderer*>(rendererRef);
-        rive::Renderer* renderer = jniWrapper->getRendererOnWorkerThread();
+        auto* renderer = jniWrapper->getRendererOnWorkerThread();
 
-        rive::Fit fit = GetFit(env, ktFit);
-        rive::Alignment alignment = GetAlignment(env, ktAlignment);
+        auto fit = GetFit(env, ktFit);
+        auto alignment = GetAlignment(env, ktAlignment);
 
         renderer->save();
         renderer->align(
@@ -397,8 +385,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Artboard_cppDelete(JNIEnv* env,
-                                                         jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_Artboard_cppDelete(JNIEnv*,
+                                                         jobject,
                                                          jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);

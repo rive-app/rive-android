@@ -42,9 +42,16 @@ extern "C"
         AABBToRectF(env, required, requiredBoundsRectF);
     }
 
+    jint JNI_OnLoad(JavaVM* jvm, void*)
+    {
+        // Assign the global JVM
+        g_JVM = jvm;
+        // Standard JNI version to return on Android
+        return JNI_VERSION_1_6;
+    }
+
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env,
-                                                         jobject thisObj)
+    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env, jobject)
     {
 #if defined(DEBUG) || defined(LOG)
         // luigi: again ifdef this out for release (or murder completely, but
@@ -54,7 +61,6 @@ extern "C"
         t.detach();
 #endif
         // pretty much considered the entrypoint.
-        env->GetJavaVM(&::g_JVM);
         SetSDKVersion();
         rive::Font::gFallbackProc = FontHelper::FindFontFallback;
     }

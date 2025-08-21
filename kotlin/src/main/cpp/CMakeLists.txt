@@ -5,13 +5,40 @@ project(rive-android VERSION 1.0.0 LANGUAGES CXX)
 # Compile detail will be in rive-android/kotlin/.cxx/Debug/<hash>/<ABI>/compile_commands.json
 #   e.g: kotlin/.cxx/Debug/4o1b5h48/arm64-v8a/compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
-
-#set(CMAKE_CXX_STANDARD 17)
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fno-exceptions -fno-rtti -DYOGA_EXPORT=")
-set(CMAKE_CXX_FLAGS_RELEASE "-Oz -DYOGA_EXPORT=")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Find all source files
+file(GLOB SOURCES CONFIGURE_DEPENDS
+        src/*.cpp
+        src/bindings/*.cpp
+        src/helpers/*.cpp
+        src/models/*.cpp
+)
+
+# Create the rive-android library target with the given sources
+add_library(rive-android SHARED ${SOURCES})
+
+# List of static libraries
+set(static_libs
+        rive
+        rive_harfbuzz
+        rive_sheenbidi
+        rive_yoga
+        rive_pls_renderer
+)
+
+# Enable C++17
+target_compile_features(rive-android PUBLIC cxx_std_17)
+target_compile_options(rive-android PRIVATE
+        -Wall # Enable all warnings
+        -fno-exceptions # Disable C++ exceptions
+        -fno-rtti # Disable C++ RTTI
+        $<$<CONFIG:Release>:-Oz>) # Optimize for size with -Oz in release
+target_compile_definitions(rive-android PRIVATE
+        YOGA_EXPORT=
+        $<$<CONFIG:Debug>:DEBUG>)
+
+# Configure for monorepo vs. rive-android repo
 if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-runtime")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
     set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/submodules/rive-runtime")
@@ -20,60 +47,75 @@ else ()
     set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/runtime")
 endif ()
 
-message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
-
-#[[ CMake adds these flags depending on CMAKE_BUILD_TYPE
-    1. Release: `-O3 -DNDEBUG`
-    2. Debug: `-O0 -g`
-    3. RelWithDebInfo: `-O2 -g -DNDEBUG`
-    4. MinSizeRel: `-Os -DNDEBUG`
-]]
-
-add_definitions(-DSK_GL)
-add_definitions(-DRIVE_GLES)
-
 # Add an option to remove miniaudio
+# Passed from Gradle with -DWITH_RIVE_AUDIO=ON|OFF
 option(WITH_RIVE_AUDIO "Enable Rive audio support" ON)
 if (WITH_RIVE_AUDIO)
     # Compile flag picked up by JNI C++
-    add_definitions(-DWITH_RIVE_AUDIO -DMA_NO_RESOURCE_MANAGER)
+    target_compile_definitions(rive-android PRIVATE
+            WITH_RIVE_AUDIO
+            MA_NO_RESOURCE_MANAGER)
     # Value for Premake --with_rive_audio
     set(RIVE_AUDIO_ARG "system")
+    # Add to the list of static libraries
+    list(APPEND static_libs miniaudio)
 else ()
     # Value for Premake --with_rive_audio
     set(RIVE_AUDIO_ARG "disabled")
 endif ()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CONFIG "debug")
-    add_definitions(-DDEBUG)
+# Add an option to enable ASAN
+# Passed from Gradle with -DENABLE_ASAN=ON|OFF
+option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
+if (ENABLE_ASAN)
+    # Pass to Premake to enable ASAN on librive and its dependencies
+    set(RIVE_ASAN_FLAG "--with-asan")
+
+    # Add ASAN flags to rive-android as well
+    target_compile_options(rive-android PRIVATE
+            -fsanitize=address
+            -fno-omit-frame-pointer)
+    target_link_options(rive-android PRIVATE
+            -fsanitize=address
+            -Wl,--export-dynamic
+            -Wl,--no-undefined)
 endif ()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release" OR
+# Debug/release configuration
+message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
+#[[ CMake adds these flags depending on CMAKE_BUILD_TYPE
+    1. Debug: `-O0 -g`
+    2. Release: `-O3 -DNDEBUG`
+    3. RelWithDebInfo: `-O2 -g -DNDEBUG`
+    4. MinSizeRel: `-Os -DNDEBUG`
+]]
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CONFIG "debug")
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release" OR
         CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR
         CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
     set(CONFIG "release")
-    add_definitions(-DNDEBUG)
 endif ()
 
+# Translate Android ABI to Rive architecture
 if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
     set(RIVE_ARCH "arm64")
 elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
     set(RIVE_ARCH "arm")
 elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
     set(RIVE_ARCH "x64")
-elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "i686")
+elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
     set(RIVE_ARCH "x86")
 else ()
-    set(RIVE_ARCH "${CMAKE_ANDROID_ARCH_ABI}")
+    message(FATAL_ERROR "Unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif ()
 
 # Promote our ${ANDROID_NDK} to an environment var so premake uses the same one.
 set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
-# Build dependencies.
+# Build the Rive C++ runtime and its dependencies as static .a libs
 execute_process(
-        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} -- rive_cpp_runtime
+        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
@@ -83,65 +125,36 @@ if (NOT SCRIPT_RESULT EQUAL "0")
     message(FATAL_ERROR "Script returned with error: '${SCRIPT_OUTPUT}' - '${SCRIPT_RESULT}'")
 endif ()
 
-include_directories(
-        include
+# Add header files
+target_include_directories(rive-android PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${RIVE_RUNTIME_DIR}/include
-        ${RIVE_RUNTIME_DIR}/renderer/include
-)
+        ${RIVE_RUNTIME_DIR}/renderer/include)
 
-file(GLOB SOURCES CONFIGURE_DEPENDS
-        src/*.cpp
-        src/bindings/*.cpp
-        src/helpers/*.cpp
-        src/models/*.cpp
-)
-
-add_library(rive-android SHARED ${SOURCES})
-
-set(static_libs
-        rive
-        rive_harfbuzz
-        rive_sheenbidi
-        rive_yoga
-        rive_pls_renderer
-)
-
-# Conditionally add miniaudio
-# Passed from Gradle with -DWITH_RIVE_AUDIO=ON|OFF
-if (WITH_RIVE_AUDIO)
-    list(APPEND static_libs miniaudio)
-endif ()
-
+# Link each static library
 foreach (X IN LISTS static_libs)
-    add_library(${X}-lib STATIC IMPORTED)
-    set_target_properties(${X}-lib
+    set(LIB_TARGET "${X}-lib")
+    add_library(${LIB_TARGET} STATIC IMPORTED)
+    # Find the .a outputs from Premake
+    set_target_properties(${LIB_TARGET}
             PROPERTIES IMPORTED_LOCATION
             ${CMAKE_CURRENT_SOURCE_DIR}/out/android_${RIVE_ARCH}_${CONFIG}/lib${X}.a
     )
+    # Link
+    target_link_libraries(rive-android ${LIB_TARGET})
 endforeach ()
 
-target_include_directories(rive-android PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
+# Find additional libraries
 find_library(log-lib log)
 find_library(android-lib android)
 find_library(egl-lib EGL)
 find_library(gles-lib GLESv3)
 
+# Link additional libraries
 target_link_libraries(rive-android
-        rive-lib
-        rive_harfbuzz-lib
-        rive_sheenbidi-lib
-        rive_yoga-lib
-        rive_pls_renderer-lib
-
         ${log-lib}
         ${android-lib}
         ${egl-lib}
         ${gles-lib}
         jnigraphics
 )
-
-# Conditionally link miniaudio
-if (WITH_RIVE_AUDIO)
-    target_link_libraries(rive-android miniaudio-lib)
-endif ()

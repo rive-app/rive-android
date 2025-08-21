@@ -1,29 +1,25 @@
 package app.rive.runtime.example
 
-import RunOnDevice
-import TestUtils.Companion.waitUntil
-import android.content.Intent
 import androidx.test.core.app.ActivityScenario
-import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.example.TestUtils.Companion.waitUntil
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.RendererType
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.milliseconds
 
-
-// Don't run on the Emulator: Rive renderer can't initialize there.
-@RunWith(RunOnDevice::class)
+@RunWith(AndroidJUnit4::class)
 class RiveRendererActivityTest {
     @Test
     fun activityWithRiveRenderer() {
-        val intent =
-            Intent(ApplicationProvider.getApplicationContext(), SingleActivity::class.java).apply {
-                putExtra("renderer", "Rive")
-            }
-        val activityScenario = ActivityScenario.launch<SingleActivity>(intent);
+        val activityScenario = ActivityScenario.launch(SingleActivity::class.java)
         lateinit var riveView: RiveAnimationView
         lateinit var controller: RiveFileController
         // Start the Activity.

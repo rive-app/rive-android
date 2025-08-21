@@ -7,12 +7,12 @@ plugins {
 }
 
 android {
-    compileSdk 35
-    ndkVersion "27.2.12479018"
-    namespace "app.rive.runtime.kotlin"
+    compileSdk = 35
+    ndkVersion = "27.2.12479018"
+    namespace = "app.rive.runtime.kotlin"
 
     buildFeatures {
-        compose true
+        compose = true
     }
 
     composeOptions {
@@ -21,13 +21,15 @@ android {
 
     // Enable removing miniaudio to reduce binary size
     def audioEnabled = !project.hasProperty("noAudio")
+    // Enable ASAN support when debugging
+    def asanEnabled = project.hasProperty("asan")
 
     defaultConfig {
         minSdkVersion 21
-        targetSdk 35
+        targetSdk = 35
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles "consumer-rules.pro"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
         externalNativeBuild {
             cmake {
                 // Used during PR matrix builds to build each architecture as a separate job
@@ -49,28 +51,39 @@ android {
                         // https://developer.android.com/guide/practices/page-sizes#compile-r27
                         "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
                         // Toggle miniaudio
-                        "-DWITH_RIVE_AUDIO=${audioEnabled ? 'ON' : 'OFF'}"
+                        "-DWITH_RIVE_AUDIO=${audioEnabled ? 'ON' : 'OFF'}",
+                        // Needed for ASAN support (if enabled)
+                        // See https://developer.android.com/ndk/guides/asan#building
+                        // and https://developer.android.com/ndk/guides/cmake#android_arm_mode
+                        "-DANDROID_ARM_MODE=${asanEnabled ? 'arm' : 'thumb'}",
+                        // Enable ASAN if requested
+                        "-DENABLE_ASAN=${asanEnabled ? 'ON' : 'OFF'}"
             }
         }
     }
 
+    def javaVersion = JavaVersion.VERSION_11
+    compileOptions {
+        sourceCompatibility javaVersion
+        targetCompatibility javaVersion
+    }
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        jvmTarget = javaVersion.toString()
     }
 
     externalNativeBuild {
         cmake {
-            path file("src/main/cpp/CMakeLists.txt")
-            version "3.22.1"
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
     dokkaGfm {
         dokkaSourceSets {
             named("main") {
-                noAndroidSdkLink.set(false)
-                outputDirectory.set(layout.buildDirectory.resolve("dokka"))
-                reportUndocumented.set(true)
+                noAndroidSdkLink = false
+                outputDirectory = layout.buildDirectory.resolve("dokka")
+                reportUndocumented = true
             }
         }
     }
@@ -101,17 +114,16 @@ dependencies {
     androidTestImplementation "androidx.compose.foundation:foundation-layout"
     androidTestImplementation "androidx.compose.material3:material3"
     androidTestImplementation "androidx.compose.ui:ui-test-junit4"
-    androidTestImplementation "androidx.test.ext:junit-ktx:1.2.1"
-    androidTestImplementation "androidx.test:runner:1.6.2"
-    //noinspection GradleDependency Match with Kotlin version
+    androidTestImplementation "androidx.test.ext:junit-ktx:1.3.0"
+    androidTestImplementation "androidx.test:runner:1.7.0"
     androidTestImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
-    //noinspection GradleDependency Last version that supports Kotlin 1.9.x
+    //noinspection NewerVersionAvailable Last version that supports Kotlin 1.9.x
     androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1"
 }
 
 allOpen {
     // Allows mocking for classes without opening them for release builds
-    annotation "androidx.annotation.OpenForTesting"
+    annotation("androidx.annotation.OpenForTesting")
 }
 
 mavenPublishing {
@@ -155,8 +167,7 @@ mavenPublishing {
             }
         }
 
-        // Version control info - if you're using GitHub, follow the
-        // format as seen here
+        // Version control info
         scm {
             connection = 'scm:git:git@github.com:rive-app/rive-android.git'
             developerConnection = 'scm:git:ssh://git@github.com:rive-app/rive-android.git'

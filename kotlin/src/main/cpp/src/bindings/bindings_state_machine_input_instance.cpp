@@ -13,7 +13,7 @@ extern "C"
 
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_SMIInput_cppName(JNIEnv* env,
-                                                       jobject thisObj,
+                                                       jobject,
                                                        jlong ref)
     {
 
@@ -22,8 +22,8 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(JNIEnv* env,
-                                                            jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(JNIEnv*,
+                                                            jobject,
                                                             jlong ref)
     {
 
@@ -32,8 +32,8 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(JNIEnv* env,
-                                                           jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(JNIEnv*,
+                                                           jobject,
                                                            jlong ref)
     {
 
@@ -42,8 +42,8 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(JNIEnv* env,
-                                                            jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(JNIEnv*,
+                                                            jobject,
                                                             jlong ref)
     {
 
@@ -52,8 +52,8 @@ extern "C"
     }
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(JNIEnv* env,
-                                                          jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(JNIEnv*,
+                                                          jobject,
                                                           jlong ref)
     {
 
@@ -62,8 +62,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppSetValue(JNIEnv* env,
-                                                             jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppSetValue(JNIEnv*,
+                                                             jobject,
                                                              jlong ref,
                                                              jboolean newValue)
     {
@@ -73,8 +73,8 @@ extern "C"
     }
 
     JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(JNIEnv* env,
-                                                         jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(JNIEnv*,
+                                                         jobject,
                                                          jlong ref)
     {
 
@@ -83,8 +83,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(JNIEnv* env,
-                                                            jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(JNIEnv*,
+                                                            jobject,
                                                             jlong ref,
                                                             jfloat newValue)
     {
@@ -94,8 +94,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(JNIEnv* env,
-                                                         jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(JNIEnv*,
+                                                         jobject,
                                                          jlong ref)
     {
 

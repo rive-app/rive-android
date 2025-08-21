@@ -18,8 +18,7 @@ extern "C"
         jobject ktObject)
     {
         // FileAssetLoader is now a RefCnt. Upon creation its count is 1.
-        JNIFileAssetLoader* fileAssetLoader =
-            new JNIFileAssetLoader(ktObject, env);
+        auto* fileAssetLoader = new JNIFileAssetLoader(ktObject, env);
         return (jlong)fileAssetLoader;
     }
 
@@ -28,8 +27,7 @@ extern "C"
                                                                 jobject,
                                                                 jlong ref)
     {
-        JNIFileAssetLoader* fileAssetLoader =
-            reinterpret_cast<JNIFileAssetLoader*>(ref);
+        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
         fileAssetLoader->unref();
     }
 
@@ -38,8 +36,7 @@ extern "C"
                                                              jobject,
                                                              jlong ref)
     {
-        JNIFileAssetLoader* fileAssetLoader =
-            reinterpret_cast<JNIFileAssetLoader*>(ref);
+        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
         fileAssetLoader->ref();
     }
 
@@ -47,11 +44,10 @@ extern "C"
     Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppSetRendererType(
         JNIEnv*,
         jobject,
-        jlong resolverAddress,
+        jlong ref,
         jint type)
     {
-        JNIFileAssetLoader* fileAssetLoader =
-            reinterpret_cast<JNIFileAssetLoader*>(resolverAddress);
+        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
         fileAssetLoader->setRendererType(static_cast<RendererType>(type));
     }
 #ifdef __cplusplus
