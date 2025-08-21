@@ -1,11 +1,13 @@
 package app.rive.runtime.kotlin.core
 
 import android.graphics.Color
+import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Represents an instantiated set of properties on a ViewModel. With this class you have access to
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
+@OpenForTesting
 class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
@@ -41,8 +44,8 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
     private external fun cppRefInstance(cppPointer: Long)
     private external fun cppDerefInstance(cppPointer: Long)
 
-    private var properties: MutableMap<String, ViewModelProperty<*>> = mutableMapOf()
-    private var children: MutableMap<String, ViewModelInstance> = mutableMapOf()
+    protected var properties: MutableMap<String, ViewModelProperty<*>> = ConcurrentHashMap()
+    protected var children: MutableMap<String, ViewModelInstance> = ConcurrentHashMap()
 
     init {
         // Keep an extra reference to the instance. Cleaned up in cppDelete.

@@ -57,6 +57,7 @@ class File(
 
     private external fun cppArtboardByName(cppPointer: Long, name: String): Long
 
+    @Suppress("ProtectedInFinal")
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     protected external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
     private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String
@@ -64,7 +65,10 @@ class File(
     private external fun cppEnums(cppPointer: Long): List<Enum>
     private external fun cppViewModelCount(cppPointer: Long): Int
     private external fun cppViewModelByIndex(cppPointer: Long, viewModelIdx: Int): Long
-    private external fun cppViewModelByName(cppPointer: Long, viewModelName: String): Long
+
+    @Suppress("ProtectedInFinal")
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    protected external fun cppViewModelByName(cppPointer: Long, viewModelName: String): Long
     private external fun cppDefaultViewModelForArtboard(
         cppPointer: Long,
         artboardPointer: Long,

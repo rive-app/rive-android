@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import androidx.annotation.OpenForTesting
+import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 
 /**
@@ -9,13 +11,17 @@ import app.rive.runtime.kotlin.core.errors.ViewModelException
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  */
+@OpenForTesting
 class ViewModel internal constructor(unsafeCppPointer: Long) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppInstanceCount(cppPointer: Long): Int
     private external fun cppPropertyCount(cppPointer: Long): Int
     private external fun cppGetProperties(cppPointer: Long): List<Property>
-    private external fun cppCreateBlankInstance(cppPointer: Long): Long
+
+    @Suppress("ProtectedInFinal")
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    protected external fun cppCreateBlankInstance(cppPointer: Long): Long
     private external fun cppCreateDefaultInstance(cppPointer: Long): Long
     private external fun cppCreateInstanceFromIndex(cppPointer: Long, index: Int): Long
     private external fun cppCreateInstanceFromName(cppPointer: Long, name: String): Long

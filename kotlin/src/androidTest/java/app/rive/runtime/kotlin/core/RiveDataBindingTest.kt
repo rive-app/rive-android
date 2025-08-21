@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.core
 
+import androidx.annotation.WorkerThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.errors.RiveException
@@ -19,6 +20,8 @@ import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.assertContains
@@ -137,7 +140,7 @@ class RiveDataBindingTest {
         assertNotEquals("true", view.getTextRunValue("Test Bool Value"))
         assertNotEquals("Value 1", view.getTextRunValue("Test Enum Value"))
         assertNotEquals(
-            0xFFFF0000.toInt(),
+            Color(255, 0, 0, 255),
             view.getTextRunValue("Test Color Value")?.toColor()
         )
         assertFalse(triggered)
@@ -203,21 +206,19 @@ class RiveDataBindingTest {
         // Setup image property, which has no observable output other than its `hasChanged` flag
         // The subscription will cause it to clear after polling
         val imageProperty = vmi.getImageProperty("Test Image")
-        var image = Unit
 
         // Setup artboard property, identical to image
         val artboardProperty = vmi.getArtboardProperty("Test Artboard")
-        var artboard = Unit
-        var artboardToSet = view.controller.file?.artboard("Test Bindable Artboard 1")!!
+        val artboardToSet = view.controller.file?.artboard("Test Bindable Artboard 1")!!
 
 
         // One subscription, two interior launches to collect the two properties
         val writeOnlyPropertiesSubscription = launch {
             launch {
-                imageProperty.valueFlow.collect { image = it }
+                imageProperty.valueFlow.collect { }
             }
             launch {
-                artboardProperty.valueFlow.collect { artboard = it }
+                artboardProperty.valueFlow.collect { }
             }
         }
 
@@ -652,7 +653,7 @@ class RiveDataBindingTest {
         assertTrue(subscribedBoolean)
         assertEquals("Value 1", subscribedEnum)
         assertEquals(0xFF0000FF.toInt(), subscribedColor)
-        assertTrue(triggered).also { triggered = false }
+        assertTrue(triggered)
         assertEquals(300f, subscribedNestedNumber)
 
         subscription.cancel()
@@ -1185,5 +1186,113 @@ class RiveDataBindingTest {
         itemVMI.release() // Remove the user's reference
 
         assertFalse(itemVMI.hasCppObject)
+    }
+
+    /**
+     * Tests for concurrent modification exceptions (CME) when both iterating over and mutating view
+     * model instance properties.
+     */
+    @Test
+    fun concurrent_property_access() {
+        /**
+         * A version of ViewModelInstance that uses two latches to control the timing of polling (on
+         * the worker thread) and mutation (on the main thread).
+         */
+        class LatchedViewModelInstance(
+            private val iterationStarted: CountDownLatch,
+            private val mapMutated: CountDownLatch,
+            unsafeCppPointer: Long
+        ) : ViewModelInstance(unsafeCppPointer) {
+            /**
+             * This version creates an iterator over the map and holds it. If the operation
+             * is unsafe, any structural change while this iterator is in use will cause a
+             * ConcurrentModificationException when next() is called.
+             *
+             * Effectively it is the same as the original implementation, but with additional
+             * latches to control the timing of the iteration and mutation. We also do not
+             * bother to poll recursively over children, as this is not relevant for the test.
+             */
+            @WorkerThread
+            override fun pollChanges() {
+                val it = properties.values.iterator()
+
+                // Signal that the iterator exists (this is the "last safe" moment before mutation).
+                iterationStarted.countDown()
+
+                // Wait for the main thread to perform a structural mutation on `properties`.
+                mapMutated.await()
+
+                // Consume the iterator. This would trip if the map was structurally modified.
+                while (it.hasNext()) {
+                    it.next().pollChanges()
+                }
+            }
+        }
+
+        // We need to wrap both the ViewModel and File to produce a LatchedViewModelInstance.
+        class LatchedViewModel(
+            private val iterationStarted: CountDownLatch,
+            private val mapMutated: CountDownLatch,
+            unsafeCppPointer: Long
+        ) : ViewModel(unsafeCppPointer) {
+            override fun createBlankInstance(): ViewModelInstance {
+                val instancePointer = cppCreateBlankInstance(cppPointer)
+                return LatchedViewModelInstance(
+                    iterationStarted,
+                    mapMutated,
+                    instancePointer
+                ).also {
+                    dependencies.add(it)
+                }
+            }
+        }
+
+        class LatchedFile(
+            private val iterationStarted: CountDownLatch,
+            private val mapMutated: CountDownLatch,
+            bytes: ByteArray
+        ) : File(bytes) {
+            override fun getViewModelByName(viewModelName: String): ViewModel {
+                val vm = cppViewModelByName(cppPointer, viewModelName)
+                return LatchedViewModel(
+                    iterationStarted,
+                    mapMutated,
+                    vm
+                ).also { dependencies.add(it) }
+            }
+        }
+
+        // Two latches: one to signal that the iterator has been created, and another to let
+        // the iterator proceed after we've mutated the map.
+        val iterationStarted = CountDownLatch(1)
+        val mapMutated = CountDownLatch(1)
+
+        // Load bytes and setup the VMI on the view.
+        val fileBytes = appContext.resources.openRawResource(R.raw.data_bind_test_impl).readBytes()
+        val file = LatchedFile(iterationStarted, mapMutated, fileBytes)
+        val latchedVMI =
+            (file.getViewModelByName("Test All").createBlankInstance() as LatchedViewModelInstance)
+        view.setRiveFile(file)
+        view.controller.stateMachines.first().viewModelInstance = latchedVMI
+
+        // Ensure there is at least one subscribed property so pollChanges iterates the map.
+        latchedVMI.getNumberProperty("Test Num")
+
+        // Run pollChanges() on a worker thread as it would be normally. In normal use, this happens
+        // in advance() but we skip to the relevant part here.
+        val worker = thread(name = "pollChanges-worker") {
+            latchedVMI.pollChanges()
+        }
+
+        // Wait for pollChanges to create the iterator over `properties`.
+        iterationStarted.await()
+
+        // Mutate the property map by creating a new property (must not already be cached).
+        latchedVMI.getStringProperty("Test String")
+
+        // Allow the iterator to continue.
+        mapMutated.countDown()
+
+        worker.join()
     }
 }
