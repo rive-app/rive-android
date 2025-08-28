@@ -5,6 +5,7 @@ import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -50,26 +51,36 @@ class RiveStateMachineLoadTest {
         val bytes = appContext.resources.openRawResource(R.raw.noanimation).readBytes()
         val file = File(bytes)
         val artboard = file.firstArtboard
-        assertEquals(0, artboard.stateMachineCount)
-        assertEquals(listOf<String>(), artboard.stateMachineNames)
+
+        // If a Rive file has no state machines, it will create one auto-generated state machine
+        assertEquals(1, artboard.stateMachineCount)
+        assertEquals(listOf("Auto Generated State Machine"), artboard.stateMachineNames)
     }
 
-    @Test(expected = RiveException::class)
-    fun loadFirstStateMachineNoExists() {
+    @Test
+    fun loadFirstStateMachineDoesNotExist() {
         val file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         val artboard = file.firstArtboard
+
+        // Does not throw, this will find the auto-generated state machine
         artboard.firstStateMachine
     }
 
-    @Test(expected = RiveException::class)
-    fun loadStateMachineByIndexDoesntExist() {
+    @Test
+    fun loadStateMachineByIndexDoesNotExist() {
         val file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         val artboard = file.firstArtboard
-        artboard.stateMachine(1)
+
+        // Does not throw, this will find the auto-generated state machine
+        artboard.stateMachine(0)
+
+        assertThrows(RiveException::class.java) {
+            artboard.stateMachine(1)
+        }
     }
 
     @Test(expected = RiveException::class)
-    fun loadStateMachineByNameDoesntExist() {
+    fun loadStateMachineByNameDoesNotExist() {
         val file = File(appContext.resources.openRawResource(R.raw.noanimation).readBytes())
         val artboard = file.firstArtboard
         artboard.stateMachine("foo")
