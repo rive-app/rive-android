@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.controllers
 import android.graphics.PointF
 import android.graphics.RectF
 import android.util.Log
+import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.ChangedInput
@@ -56,6 +57,7 @@ class ControllerState internal constructor(
 
 typealias OnStartCallback = () -> Unit
 
+@OpenForTesting
 class RiveFileController internal constructor(
     var loop: Loop = Loop.AUTO,
     var autoplay: Boolean = true,
@@ -98,12 +100,12 @@ class RiveFileController internal constructor(
      * Whether this [activeArtboard] requires resizing or not. If this is true, the artboard will be
      * resized in the next draw call.
      */
-    internal var requireArtboardResize = AtomicBoolean(false);
+    internal var requireArtboardResize = AtomicBoolean(false)
 
     var fit: Fit = Fit.CONTAIN
         set(value) {
             field = value
-            requireArtboardResize.set(true);
+            requireArtboardResize.set(true)
             synchronized(startStopLock) {
                 onStart?.invoke()
             }
@@ -123,7 +125,7 @@ class RiveFileController internal constructor(
     var layoutScaleFactor: Float? = null
         set(value) {
             field = value
-            requireArtboardResize.set(true);
+            requireArtboardResize.set(true)
             synchronized(startStopLock) {
                 onStart?.invoke()
             }
@@ -136,7 +138,7 @@ class RiveFileController internal constructor(
     var layoutScaleFactorAutomatic: Float = 1.0f
         internal set(value) {
             field = value
-            requireArtboardResize.set(true);
+            requireArtboardResize.set(true)
             synchronized(startStopLock) {
                 onStart?.invoke()
             }

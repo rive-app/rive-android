@@ -83,12 +83,12 @@ abstract class Renderer(
     private var sharedSurface: SharedSurface? = null
 
     /**
-     * A lock to synchronize access to the C++ renderer object between the UI thread (which
-     * handles lifecycle events like `delete()`) and the Choreographer thread (which executes
-     * `doFrame()`). This prevents a race condition where the UI thread might nullify the C++
-     * pointer while the worker thread is still using it.
+     * A lock to synchronize access to the C++ renderer object between the UI thread (which handles
+     * lifecycle events like `delete()`) and the Choreographer thread (which executes `doFrame()`).
+     * This prevents a race condition where the UI thread might nullify the C++ pointer while the
+     * worker thread is still using it.
      */
-    public val frameLock = Any()
+    val frameLock = Any()
 
 
     @WorkerThread
@@ -123,9 +123,9 @@ abstract class Renderer(
      * Sets the drawing surface for the renderer.
      *
      * @deprecated This method is dangerous as it does not correctly manage the Surface's lifecycle,
-     * which can lead to application crashes. Its internal implementation has been patched to be safer,
-     * but it will be removed in a future major version. Prefer using higher-level APIs like
-     * `setRiveResource`.
+     *    which can lead to application crashes. Its internal implementation has been patched to be
+     *    safer, but it will be removed in a future major version. Prefer using higher-level APIs
+     *    like `setRiveResource`.
      */
     @Deprecated(
         message = "This low-level method can cause crashes and will be removed. Prefer using higher-level APIs.",
@@ -138,8 +138,8 @@ abstract class Renderer(
     /**
      * Sets the drawing surface for the renderer.
      *
-     * This method is thread-safe. It acquires a reference to the [SharedSurface],
-     * ensuring it remains valid until the renderer is done with it.
+     * This method is thread-safe. It acquires a reference to the [SharedSurface], ensuring it
+     * remains valid until the renderer is done with it.
      *
      * @param surface The reference-counted surface to draw on.
      */
@@ -277,10 +277,11 @@ abstract class Renderer(
      * Schedules the deletion of the underlying C++ object using a two-phase disposal pattern.
      *
      * UI Thread: Immediately marks the Kotlin object as disposed to prevent new operations.
-     * [cppDelete] schedules the actual deletion on the background render thread, ensuring the C++
-     * object is deleted only after all work for this Renderer has completed.
+     * [cppDelete] schedules the actual deletion on the background render thread, ensuring
+     * the C++ object is deleted only after all work for this Renderer has completed.
      *
-     * Background Thread: cleans up resources after all pending work completes via [disposeDependencies]
+     * Background Thread: cleans up resources after all pending work completes via
+     * [disposeDependencies].
      */
     @CallSuper
     open fun delete() {

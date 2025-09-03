@@ -47,14 +47,14 @@ open class RiveArtboardRenderer(
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        synchronized(controller.file?.lock ?: this) {
-            if (!hasCppObject || !controller.isActive) {
-                return // exit early
-            }
+        if (controller.requireArtboardResize.getAndSet(false)) {
+            synchronized(controller.file?.lock ?: this) { resizeArtboard() }
+        }
 
-            if (controller.requireArtboardResize.getAndSet(false)) {
-                resizeArtboard()
-            }
+        // Deref and draw under frameLock
+        synchronized(frameLock) {
+            // Early out for deleted renderer or inactive controller.
+            if (!hasCppObject || !controller.isActive) return
 
             controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
         }

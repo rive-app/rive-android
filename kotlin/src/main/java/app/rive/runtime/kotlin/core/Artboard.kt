@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import android.graphics.RectF
 import androidx.annotation.OpenForTesting
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.errors.AnimationException
 import app.rive.runtime.kotlin.core.errors.StateMachineException
@@ -70,7 +71,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
-    private external fun cppDrawAligned(
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    protected external fun cppDrawAligned(
         cppPointer: Long, rendererPointer: Long,
         fit: Fit, alignment: Alignment,
         scaleFactor: Float
@@ -88,6 +90,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     private external fun cppSetViewModelInstance(cppPointer: Long, instancePointer: Long)
 
     external override fun cppDelete(pointer: Long)
+
+    override fun release(): Int = synchronized(lock) {
+        super.release()
+    }
 
     /** Get the [name] of the Artboard. */
     val name: String
@@ -336,8 +342,10 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
 
     /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     @WorkerThread
-    fun draw(rendererAddress: Long) =
-        synchronized(lock) { cppDraw(cppPointer, rendererAddress) }
+    fun draw(rendererAddress: Long) = synchronized(lock) {
+        if (!hasCppObject) return
+        cppDraw(cppPointer, rendererAddress)
+    }
 
     /**
      * Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. Also
@@ -346,6 +354,8 @@ class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
     @WorkerThread
     fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) =
         synchronized(lock) {
+            if (!hasCppObject) return
+
             cppDrawAligned(
                 cppPointer,
                 rendererAddress,
