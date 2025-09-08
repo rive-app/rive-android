@@ -35,6 +35,7 @@ target_compile_options(rive-android PRIVATE
         -fno-rtti # Disable C++ RTTI
         $<$<CONFIG:Release>:-Oz>) # Optimize for size with -Oz in release
 target_compile_definitions(rive-android PRIVATE
+        RIVE_ANDROID=
         YOGA_EXPORT=
         $<$<CONFIG:Debug>:DEBUG>)
 
