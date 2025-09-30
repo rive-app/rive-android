@@ -8,18 +8,29 @@ import app.rive.runtime.kotlin.core.errors.ViewModelException
 import java.util.concurrent.locks.ReentrantLock
 
 /**
- * [File]s are created in the rive editor.
+ * [File]s are created in the Rive editor.
  *
- * This object has a counterpart in C++, which implements a lot of functionality. The base class's
- * [cppPointer] keeps track of this relationship.
+ * This object has a counterpart in C++, which implements much of its functionality. The base
+ * class's [cppPointer] keeps track of this relationship.
  *
- * You can export these .riv files and load them up. [File]s can contain multiple artboards.
+ * You can export .riv from the editor and use this class to load them. [File]s may contain multiple
+ * artboards.
  *
  * If the given file cannot be loaded this will throw a [RiveException]. The Rive [File] format is
  * evolving, and while we attempt to keep backwards (and forwards) compatibility where possible,
  * there are times when this is not possible.
  *
- * The rive editor will always let you download your file in the latest runtime format.
+ * The Rive editor will always export your file in the latest runtime format.
+ *
+ * ⚠️ Important: If you create a [File] yourself using this constructor, you are responsible for
+ * calling [release] when you are done with it, otherwise it will leak memory.
+ *
+ * @param bytes The bytes of the .riv file.
+ * @param rendererType The [RendererType] to use when rendering this file. This defaults to
+ *    [Rive.defaultRendererType], which is [RendererType.Rive].
+ * @param fileAssetLoader An optional [FileAssetLoader] to use when loading external assets (images,
+ *    fonts, audio) referenced by this file. If it is not provided you will not be able to load
+ *    external assets.
  */
 @OpenForTesting
 class File(
@@ -62,6 +73,8 @@ class File(
     protected external fun cppArtboardByIndex(cppPointer: Long, index: Int): Long
     private external fun cppArtboardNameByIndex(cppPointer: Long, index: Int): String
     private external fun cppArtboardCount(cppPointer: Long): Int
+    private external fun cppCreateBindableArtboardByName(cppPointer: Long, name: String): Long
+    private external fun cppCreateDefaultBindableArtboard(cppPointer: Long): Long
     private external fun cppEnums(cppPointer: Long): List<Enum>
     private external fun cppViewModelCount(cppPointer: Long): Int
     private external fun cppViewModelByIndex(cppPointer: Long, viewModelIdx: Int): Long
@@ -97,7 +110,7 @@ class File(
             )
         }
 
-        val ab = Artboard(artboardPointer, lock)
+        val ab = Artboard(artboardPointer, lock, this)
         dependencies.add(ab)
         return ab
     }
@@ -114,9 +127,48 @@ class File(
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        val ab = Artboard(artboardPointer, lock)
+        val ab = Artboard(artboardPointer, lock, this)
         dependencies.add(ab)
         return ab
+    }
+
+    /**
+     * Create a [BindableArtboard] by name. This is can then be bound to a
+     * [ViewModelArtboardProperty].
+     *
+     * ⚠️ Important: The bindable artboard can outlive this [File] instance, but in order to do so
+     * it has an extra reference count. You need to call [BindableArtboard.release] when you are
+     * done with it, otherwise it will leak memory.
+     *
+     * @param name The name of the artboard in the Rive file to create.
+     * @return A new [BindableArtboard] instance.
+     * @throws ArtboardException If no artboard with the given name exists.
+     */
+    fun createBindableArtboardByName(name: String): BindableArtboard {
+        val artboardPointer = cppCreateBindableArtboardByName(cppPointer, name)
+        if (artboardPointer == NULL_POINTER) {
+            throw ArtboardException("No BindableArtboard found with name $name.")
+        }
+        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
+    }
+
+    /**
+     * Create the default [BindableArtboard], as marked in the Rive file. This is can then be bound
+     * to a [ViewModelArtboardProperty].
+     *
+     * ⚠️ Important: The bindable artboard can outlive this [File] instance, but in order to do so
+     * it has an extra reference count. You need to call [BindableArtboard.release] when you are
+     * done with it, otherwise it will leak memory.
+     *
+     * @return A new [BindableArtboard] instance.
+     * @throws ArtboardException If no default artboard exists.
+     */
+    fun createDefaultBindableArtboard(): BindableArtboard {
+        val artboardPointer = cppCreateDefaultBindableArtboard(cppPointer)
+        if (artboardPointer == NULL_POINTER) {
+            throw ArtboardException("No default BindableArtboard.")
+        }
+        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
     }
 
     /** Get the number of artboards in the file. Useful for index-based iteration. */

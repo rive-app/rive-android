@@ -4,6 +4,7 @@ import android.graphics.Color
 import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -674,9 +675,71 @@ class ViewModelListProperty(unsafeCppPointer: Long) : ViewModelProperty<Unit>(un
 class ViewModelArtboardProperty(unsafeCppPointer: Long) :
     ViewModelProperty<Unit>(unsafeCppPointer) {
 
-    private external fun cppSetValue(cppPointer: Long, value: Long)
+    private external fun cppSetArtboard(
+        cppPointer: Long,
+        fileCppPointer: Long,
+        artboardCppPointer: Long
+    )
 
-    fun set(artboard: Artboard) = cppSetValue(cppPointer, artboard.cppPointer)
+    private external fun cppSetBindableArtboard(cppPointer: Long, bindableArtboardCppPointer: Long)
+
+    /**
+     * Set the [artboard] for this property.
+     *
+     * The bound artboard will retain none of the state of the passed in [artboard]. It effectively
+     * creates a new instance of the artboard with its initial state.
+     *
+     * @throws RiveException if [artboard] has been disposed, if its file doesn't exist, or if its
+     *    file has been disposed.
+     * @deprecated This method is unsafe as the [artboard]'s lifetime is bound to that of the [File]
+     *    that created it. Use a [BindableArtboard] to ensure proper lifetimes.
+     */
+    @Throws(RiveException::class)
+    @Deprecated(
+        "This method is unsafe as the Artboard's lifetime is bound to that of the File " +
+                "that created it. Use a BindableArtboard to ensure proper lifetimes.",
+        ReplaceWith("set(BindableArtboard?)")
+    )
+    fun set(artboard: Artboard) {
+        if (!artboard.hasCppObject) {
+            throw RiveException("Cannot set a disposed Artboard to a ViewModelArtboardProperty.")
+        } else if (artboard.file == null) {
+            throw RiveException("Cannot set an Artboard with no File reference to a ViewModelArtboardProperty.")
+        } else if (!artboard.file!!.hasCppObject) {
+            throw RiveException("Cannot set an Artboard whose File has been disposed to a ViewModelArtboardProperty.")
+        }
+        cppSetArtboard(cppPointer, artboard.file!!.cppPointer, artboard.cppPointer)
+    }
+
+    /**
+     * Set the bindable artboard for this property.
+     *
+     * To create a [BindableArtboard], use [File.createBindableArtboardByName] or
+     * [File.createDefaultBindableArtboard].
+     *
+     * Pass `null` to clear the artboard from the property.
+     *
+     * ⚠️ If you are done with the [BindableArtboard] instance, be sure to call
+     * [BindableArtboard.release] after assigning. The property will retain its own reference to the
+     * bindable artboard.
+     *
+     * @throws RiveException if [bindableArtboard] has been disposed.
+     */
+    fun set(bindableArtboard: BindableArtboard?) {
+        cppSetBindableArtboard(cppPointer, bindableArtboard?.cppPointer ?: NULL_POINTER)
+
+        // Remove any existing BindableArtboard dependency
+        dependencies.filterIsInstance<BindableArtboard>().forEach {
+            it.release()
+            dependencies.remove(it)
+        }
+
+        // If non-null, acquire a reference and and add it to the property's dependencies
+        bindableArtboard?.let {
+            bindableArtboard.acquire()
+            dependencies.add(it)
+        }
+    }
 
     // Return Unit, as artboards don't have a value to get.
     override fun nativeGetValue() = Unit

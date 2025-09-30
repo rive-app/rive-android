@@ -198,6 +198,7 @@ class RiveDataBindingTest {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    @Suppress("DEPRECATION")
     @Test
     fun set_vmi_values() = runTest {
         // Advance to set the values from the "Test Default" instance
@@ -209,8 +210,8 @@ class RiveDataBindingTest {
 
         // Setup artboard property, identical to image
         val artboardProperty = vmi.getArtboardProperty("Test Artboard")
-        val artboardToSet = view.controller.file?.artboard("Test Bindable Artboard 1")!!
-
+        val bindableArtboardToSet =
+            view.controller.file?.createBindableArtboardByName("Test Bindable Artboard 1")!!
 
         // One subscription, two interior launches to collect the two properties
         val writeOnlyPropertiesSubscription = launch {
@@ -234,7 +235,7 @@ class RiveDataBindingTest {
         vmi.getEnumProperty("Test Enum").value = "Value 2"
         vmi.getColorProperty("Test Color").value = 0xFF00FF00.toInt()
         imageProperty.set(imageAsset)
-        artboardProperty.set(artboardToSet)
+        artboardProperty.set(bindableArtboardToSet)
         vmi.getNumberProperty("Test Nested/Nested Number").value = 200f
 
         // Bindings will not apply their values until the artboard is advanced
@@ -266,6 +267,14 @@ class RiveDataBindingTest {
         assertFalse(imageProperty.cppHasChanged(imageProperty.cppPointer))
         assertFalse(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
         assertEquals("200", view.getTextRunValue("Test Nested Number Value"))
+
+        // Test the legacy artboard path
+        val artboardToSet = view.controller.file?.artboard("Test Bindable Artboard 1")!!
+        artboardProperty.set(artboardToSet)
+        assertTrue(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
+        vmi.pollChanges()
+        advanceUntilIdle()
+        assertFalse(artboardProperty.cppHasChanged(artboardProperty.cppPointer))
 
         writeOnlyPropertiesSubscription.cancel()
     }
@@ -1102,12 +1111,10 @@ class RiveDataBindingTest {
         val list = vmi.getListProperty("Test List")
 
         val itemVM = view.controller.file?.getViewModelByName("Test List Item VM")!!
-        val itemVMI = itemVM.createDefaultInstance().also { vmi ->
-            vmi.getNumberProperty("Test Item Number").value = 1f
-        }
-        val itemVMI2 = itemVM.createDefaultInstance().also { vmi ->
-            vmi.getNumberProperty("Test Item Number").value = 2f
-        }
+        val itemVMI = itemVM.createDefaultInstance()
+        itemVMI.getNumberProperty("Test Item Number").value = 1f
+        val itemVMI2 = itemVM.createDefaultInstance()
+        itemVMI2.getNumberProperty("Test Item Number").value = 2f
         list.add(itemVMI)
         list.add(itemVMI) // Add the same item multiple times
         list.add(itemVMI2)
@@ -1186,6 +1193,90 @@ class RiveDataBindingTest {
         itemVMI.release() // Remove the user's reference
 
         assertFalse(itemVMI.hasCppObject)
+    }
+
+    @Test
+    fun default_bindable_artboard() {
+        val defaultBindableArtboard = view.controller.file!!.createDefaultBindableArtboard()
+        val namedBindableArtboard =
+            view.controller.file!!.createBindableArtboardByName("Test Artboard")
+        assertEquals(namedBindableArtboard.name, defaultBindableArtboard.name)
+    }
+
+    @Test
+    fun bindable_artboard_lifetimes() {
+        val bindableArtboard = view.file!!.createDefaultBindableArtboard()
+
+        // One from the file's ownership, one from the user's held reference
+        assertEquals(2, bindableArtboard.refCount)
+
+        vmi.getArtboardProperty("Test Artboard").set(bindableArtboard)
+
+        // A new reference from the view model instance
+        assertEquals(3, bindableArtboard.refCount)
+
+        // Release the file
+        view.controller.file = null
+
+        // Dropping the file also drops the VMI
+        assertEquals(1, bindableArtboard.refCount)
+        // C++ object is still valid
+        assertEquals("Test Artboard", bindableArtboard.name)
+
+        // Release the user's reference
+        bindableArtboard.release()
+        assertEquals(0, bindableArtboard.refCount)
+        assertThrows(RiveException::class.java) { bindableArtboard.name }
+    }
+
+    @Test
+    fun bindable_artboard_lifetime_on_VMI() {
+        val bindableArtboard = view.file!!.createDefaultBindableArtboard()
+        vmi.getArtboardProperty("Test Artboard").set(bindableArtboard)
+
+        // By storing in a transfer VMI, the bindable artboard has a reference that survives both
+        // the file and user reference being released
+        val transfer = vmi.transfer()
+        view.controller.file = null
+        bindableArtboard.release()
+
+        // The bindable artboard is still held alive by the transferred VMI
+        assertEquals(1, bindableArtboard.refCount)
+        assertEquals("Test Artboard", bindableArtboard.name)
+
+        transfer.dispose()
+
+        assertEquals(0, bindableArtboard.refCount)
+    }
+
+    @Test
+    fun bindable_artboard_lifetime_after_replace() {
+        val bindableArtboard = view.file!!.createDefaultBindableArtboard()
+        vmi.getArtboardProperty("Test Artboard").set(bindableArtboard)
+
+        val view2 = TestUtils.MockRiveAnimationView(appContext)
+        view2.setRiveResource(R.raw.data_bind_test_impl, autoBind = true)
+
+        val transfer = vmi.transfer()
+        // Releasing the file's and user's references
+        view.controller.file = null
+        bindableArtboard.release()
+
+        view2.controller.stateMachines.first().receiveViewModelInstance(transfer)
+
+        // The only holder of the bindable artboard is now the VMI in view2
+        assertEquals(1, bindableArtboard.refCount)
+
+        val bindableArtboard2 = view2.file!!.createDefaultBindableArtboard()
+        val vmi2 = view2.controller.stateMachines.first().viewModelInstance!!
+        vmi2.getArtboardProperty("Test Artboard").set(bindableArtboard2)
+
+        // The first bindable artboard is released when replaced
+        assertEquals(0, bindableArtboard.refCount)
+        // One for the file, one for the VMI, one for the user
+        assertEquals(3, bindableArtboard2.refCount)
+
+        bindableArtboard2.release()
     }
 
     /**

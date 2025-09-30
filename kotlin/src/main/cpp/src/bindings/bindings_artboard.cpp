@@ -1,5 +1,5 @@
 #include <jni.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include "models/jni_renderer.hpp"
 #include "rive/artboard.hpp"

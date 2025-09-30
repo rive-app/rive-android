@@ -5,6 +5,7 @@
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/artboard.hpp"
+#include "rive/refcnt.hpp"
 #include "rive/text/text_value_run.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_number_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
@@ -109,7 +110,8 @@ extern "C"
         jlong ref)
     {
         auto vm = reinterpret_cast<rive::ViewModelRuntime*>(ref);
-        return reinterpret_cast<jlong>(vm->createInstance());
+        auto vmi = vm->createInstance();
+        return reinterpret_cast<jlong>(vmi.release());
     }
 
     JNIEXPORT jlong JNICALL
@@ -119,7 +121,8 @@ extern "C"
         jlong ref)
     {
         auto vm = reinterpret_cast<rive::ViewModelRuntime*>(ref);
-        return reinterpret_cast<jlong>(vm->createDefaultInstance());
+        auto vmi = vm->createDefaultInstance();
+        return reinterpret_cast<jlong>(vmi.release());
     }
 
     JNIEXPORT jlong JNICALL
@@ -130,7 +133,8 @@ extern "C"
         jint index)
     {
         auto vm = reinterpret_cast<rive::ViewModelRuntime*>(ref);
-        return (jlong)vm->createInstanceFromIndex(index);
+        auto vmi = vm->createInstanceFromIndex(static_cast<size_t>(index));
+        return reinterpret_cast<jlong>(vmi.release());
     }
 
     JNIEXPORT jlong JNICALL
@@ -141,7 +145,9 @@ extern "C"
         jstring name)
     {
         auto vm = reinterpret_cast<rive::ViewModelRuntime*>(ref);
-        return (jlong)vm->createInstanceFromName(JStringToString(env, name));
+        auto nativeName = JStringToString(env, name);
+        auto vmi = vm->createInstanceFromName(nativeName);
+        return reinterpret_cast<jlong>(vmi.release());
     }
 
     // ViewModelInstance
@@ -176,7 +182,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyString(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyString(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -188,7 +194,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyBoolean(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyBoolean(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -200,7 +206,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyColor(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyColor(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -212,7 +218,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyEnum(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyEnum(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -224,7 +230,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyTrigger(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyTrigger(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -236,7 +242,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyImage(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyImage(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -248,7 +254,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyList(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyList(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -260,7 +266,7 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return (jlong)vmi->propertyArtboard(nativePath);
+        return reinterpret_cast<jlong>(vmi->propertyArtboard(nativePath));
     }
 
     JNIEXPORT jlong JNICALL
@@ -272,7 +278,8 @@ extern "C"
     {
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto nativePath = JStringToString(env, path);
-        return reinterpret_cast<jlong>(vmi->propertyViewModel(nativePath));
+        auto vmiProperty = vmi->propertyViewModel(nativePath);
+        return reinterpret_cast<jlong>(vmiProperty.release());
     }
 
     JNIEXPORT jboolean JNICALL
@@ -286,7 +293,8 @@ extern "C"
         auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
         auto property =
             reinterpret_cast<rive::ViewModelInstanceRuntime*>(propertyRef);
-        return vmi->replaceViewModel(JStringToString(env, path), property);
+        auto nativePath = JStringToString(env, path);
+        return vmi->replaceViewModel(nativePath, property);
     }
 
     JNIEXPORT void JNICALL
@@ -385,7 +393,8 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceStringRuntime*>(ref);
-        property->value(JStringToString(env, value));
+        auto nativeValue = JStringToString(env, value);
+        property->value(nativeValue);
     }
 
     JNIEXPORT jboolean JNICALL
@@ -454,7 +463,8 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceEnumRuntime*>(ref);
-        property->value(JStringToString(env, value));
+        auto nativeValue = JStringToString(env, value);
+        property->value(nativeValue);
     }
 
     JNIEXPORT void JNICALL
@@ -500,7 +510,8 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
-        return (jlong)property->instanceAt(index);
+        auto vmi = property->instanceAt(index);
+        return reinterpret_cast<jlong>(vmi.release());
     }
 
     JNIEXPORT void JNICALL
@@ -568,16 +579,41 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_ViewModelArtboardProperty_cppSetValue(
+    Java_app_rive_runtime_kotlin_core_ViewModelArtboardProperty_cppSetArtboard(
         JNIEnv*,
         jobject,
         jlong ref,
+        jlong fileRef,
         jlong artboardRef)
     {
-        auto property =
+        auto* property =
             reinterpret_cast<rive::ViewModelInstanceArtboardRuntime*>(ref);
-        auto artboard = reinterpret_cast<rive::Artboard*>(artboardRef);
-        property->value(artboard);
+        auto* file = reinterpret_cast<rive::File*>(fileRef);
+        auto* artboard = reinterpret_cast<rive::Artboard*>(artboardRef);
+
+        auto bindableArtboard =
+            file->internalBindableArtboardFromArtboard(artboard);
+        property->value(bindableArtboard);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_ViewModelArtboardProperty_cppSetBindableArtboard(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong bindableArtboardRef)
+    {
+        auto* property =
+            reinterpret_cast<rive::ViewModelInstanceArtboardRuntime*>(ref);
+        auto* bindableArtboard =
+            reinterpret_cast<rive::BindableArtboard*>(bindableArtboardRef);
+
+        auto rcpBindableArtboard = rive::rcp(bindableArtboard);
+        property->value(rcpBindableArtboard);
+
+        // We need to release the rcp of the the bindable artboard so that when
+        // the rcp goes out of scope it doesn't un-ref.
+        rcpBindableArtboard.release();
     }
 
 #ifdef __cplusplus

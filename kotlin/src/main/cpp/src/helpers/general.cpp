@@ -77,7 +77,7 @@ rive::Fit GetFit(JNIEnv* env, jobject jFit)
         env,
         jFit,
         rive_android::GetFitNameMethodId());
-    const char* fitValueNative = env->GetStringUTFChars(fitValue, JNI_FALSE);
+    const char* fitValueNative = env->GetStringUTFChars(fitValue, nullptr);
 
     rive::Fit fit = rive::Fit::none;
     if (strcmp(fitValueNative, "FILL") == 0)
@@ -124,7 +124,7 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)
         jAlignment,
         rive_android::GetAlignmentNameMethodId());
     const char* alignmentValueNative =
-        env->GetStringUTFChars(alignmentValue, JNI_FALSE);
+        env->GetStringUTFChars(alignmentValue, nullptr);
 
     rive::Alignment alignment = rive::Alignment::center;
     if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
@@ -179,22 +179,23 @@ rive::Factory* GetFactory(RendererType rendererType)
     return static_cast<rive::Factory*>(&g_CanvasFactory);
 }
 
-long Import(uint8_t* bytes,
-            jint length,
-            RendererType rendererType,
-            rive::FileAssetLoader* assetLoader)
+jlong Import(uint8_t* bytes,
+             jint length,
+             RendererType rendererType,
+             rive::FileAssetLoader* assetLoader)
 {
     rive::ImportResult result;
-    rive::Factory* fileFactory = GetFactory(rendererType);
-    rive::File* file =
-        rive::File::import(rive::Span<const uint8_t>(bytes, length),
-                           fileFactory,
-                           &result,
-                           assetLoader)
-            .release();
+    auto* fileFactory = GetFactory(rendererType);
+    auto* file = rive::File::import(rive::Span<const uint8_t>(bytes, length),
+                                    fileFactory,
+                                    &result,
+                                    assetLoader)
+                     // Release the RCP to a raw pointer.
+                     // We will un-ref when deleting the file.
+                     .release();
     if (result == rive::ImportResult::success)
     {
-        return (long)file;
+        return reinterpret_cast<jlong>(file);
     }
     else if (result == rive::ImportResult::unsupportedVersion)
     {
@@ -217,8 +218,8 @@ std::string JStringToString(JNIEnv* env, jstring jStr)
     {
         return {};
     }
-    const char* cStr = env->GetStringUTFChars(jStr, JNI_FALSE);
-    std::string str = std::string(cStr);
+    auto* cStr = env->GetStringUTFChars(jStr, nullptr);
+    auto str = std::string(cStr);
     env->ReleaseStringUTFChars(jStr, cStr);
     return str;
 }

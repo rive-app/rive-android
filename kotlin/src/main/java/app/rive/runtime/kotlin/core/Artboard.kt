@@ -19,9 +19,16 @@ import java.util.concurrent.locks.ReentrantLock
  * canvas.
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @param lock A lock that is used to synchronize access to the underlying C++ object.
+ * @param file The [File] that created this artboard. Used only to promote an artboard to a bindable
+ *    artboard.
  */
 @OpenForTesting
-class Artboard(unsafeCppPointer: Long, private val lock: ReentrantLock) :
+class Artboard(
+    unsafeCppPointer: Long,
+    private val lock: ReentrantLock,
+    internal val file: File? = null
+) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
 
