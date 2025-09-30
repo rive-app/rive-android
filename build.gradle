@@ -9,7 +9,7 @@ ext {
 }
 buildscript {
     ext {
-        gradle_version = '8.12.0'
+        gradle_version = '8.13.0'
         // Sticking with Kotlin 1.9.x for now for maximum compatibility.
         // Not all projects use 2.x+ yet, and forcing an upgrade can increase client DEX sizes.
         kotlin_version = "1.9.25"
