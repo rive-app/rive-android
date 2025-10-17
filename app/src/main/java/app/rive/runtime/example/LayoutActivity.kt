@@ -17,6 +17,8 @@ class LayoutActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.layout)
 
+        animationView.setRiveResource(R.raw.responsive_layouts, autoBind = true)
+
         // FIT BUTTONS
 
         findViewById<Button>(R.id.fit_layout).setOnClickListener {
