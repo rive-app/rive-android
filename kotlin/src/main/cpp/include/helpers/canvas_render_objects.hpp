@@ -7,6 +7,7 @@
 #include "helpers/android_factories.hpp"
 #include "helpers/general.hpp"
 #include "helpers/worker_ref.hpp"
+#include "jni_refs.hpp"
 
 namespace rive_android
 {
@@ -23,7 +24,7 @@ public:
 
     CanvasRenderPath(rive::RawPath&, rive::FillRule);
 
-    ~CanvasRenderPath();
+    ~CanvasRenderPath() override;
 
     jobject ktPath() const { return m_ktPath; }
 
@@ -50,9 +51,9 @@ protected:
     jobject m_KtShader = nullptr;
 
 public:
-    CanvasShader() {}
+    CanvasShader() = default;
 
-    virtual ~CanvasShader()
+    ~CanvasShader() override
     {
         if (m_KtShader != nullptr)
         {
@@ -96,7 +97,7 @@ private:
 public:
     CanvasRenderPaint();
 
-    ~CanvasRenderPaint();
+    ~CanvasRenderPaint() override;
 
     void style(rive::RenderPaintStyle) override;
 
@@ -144,9 +145,10 @@ private:
     static jobject CreateKtBitmapFrom(JNIEnv*, rive::Span<const uint8_t>&);
 
 public:
-    CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);
+    explicit CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);
+    explicit CanvasRenderImage(jobject jBitmap);
 
-    ~CanvasRenderImage();
+    ~CanvasRenderImage() override;
 
     jobject ktBitmap() const { return m_ktBitmap; }
 

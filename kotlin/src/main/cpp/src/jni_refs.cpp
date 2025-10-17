@@ -275,6 +275,10 @@ jmethodID GetSetAntiAliasMethodId()
 {
     return GetMethodId(GetPaintClass(), "setAntiAlias", "(Z)V");
 }
+jmethodID GetSetFilterBitmapMethodId()
+{
+    return GetMethodId(GetPaintClass(), "setFilterBitmap", "(Z)V");
+}
 jmethodID GetSetShaderMethodId()
 {
     return GetMethodId(GetPaintClass(),
@@ -871,6 +875,13 @@ jfieldID GetARGB8888Field()
     return GetStaticFieldId(GetAndroidBitmapConfigClass(),
                             "ARGB_8888",
                             "Landroid/graphics/Bitmap$Config;");
+}
+
+jmethodID GetBitmapSetPixelsMethodId()
+{
+    // void setPixels (int[] pixels, int offset, int stride, int x, int y, int
+    // width, int height)
+    return GetMethodId(GetAndroidBitmapClass(), "setPixels", "([IIIIIII)V");
 }
 
 } // namespace rive_android

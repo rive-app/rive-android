@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         Pair(R.id.go_audio_external, AudioExternalAssetActivity::class.java),
         Pair(R.id.go_font_fallback, FontFallback::class.java),
         Pair(R.id.go_touch_passthrough, TouchPassthroughActivity::class.java),
+        Pair(R.id.go_image_binding, ImageBindingActivity::class.java),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

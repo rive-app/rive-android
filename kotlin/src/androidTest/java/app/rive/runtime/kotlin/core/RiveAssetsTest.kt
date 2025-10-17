@@ -1,5 +1,7 @@
 package app.rive.runtime.kotlin.core
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
@@ -32,7 +34,7 @@ class RiveAssetsTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun invalidImageBytes() {
-        val renderImage = RiveRenderImage.make(byteArrayOf(0x01, 0x02, 0x03))
+        val renderImage = RiveRenderImage.fromEncoded(byteArrayOf(0x01, 0x02, 0x03))
         // Failed to decode the image, this is a null pointer
         assertFalse(renderImage.hasCppObject)
 
@@ -42,7 +44,7 @@ class RiveAssetsTest {
 
     @Test
     fun makeRenderImage() {
-        val renderImage = RiveRenderImage.make(imageBytes)
+        val renderImage = RiveRenderImage.fromEncoded(imageBytes)
         assertTrue(renderImage.hasCppObject)
 
         // Clean up & validate
@@ -52,7 +54,8 @@ class RiveAssetsTest {
 
     @Test
     fun makeRenderImageWithRendererType() {
-        val renderImage = RiveRenderImage.make(imageBytes, rendererType = RendererType.Canvas)
+        val renderImage =
+            RiveRenderImage.fromEncoded(imageBytes, rendererType = RendererType.Canvas)
         assertTrue(renderImage.hasCppObject)
 
         // Clean up & validate
@@ -63,7 +66,7 @@ class RiveAssetsTest {
     @Test
     fun setRenderImage() {
         var imageAsset: ImageAsset? = null
-        val renderImage = RiveRenderImage.make(imageBytes)
+        val renderImage = RiveRenderImage.fromEncoded(imageBytes)
         val myLoader = object : ContextAssetLoader(appContext) {
             override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
                 if (asset is ImageAsset) {
@@ -219,5 +222,218 @@ class RiveAssetsTest {
         myLoader.release()
         file.release()
         customAudio.release()
+    }
+
+    /** Straight 2x2 RGBA image with semi-transparent pixels. */
+    fun testStraightByteImage(): ByteArray = byteArrayOf(
+        255.toByte(), 0, 0, 255.toByte(),   // Opaque red
+        0, 255.toByte(), 0, 128.toByte(),   // 50% green
+        0, 0, 255.toByte(), 64.toByte(),    // 25% blue
+        255.toByte(), 255.toByte(), 255.toByte(), 0.toByte() // Transparent white
+    )
+
+    /** Premultiplied 2x2 RGBA image with semi-transparent pixels. */
+    fun testPremultipliedByteImage(): ByteArray = byteArrayOf(
+        255.toByte(), 0, 0, 255.toByte(),   // Opaque red
+        0, 128.toByte(), 0, 128.toByte(),   // 50% green premul
+        0, 0, 16.toByte(), 64.toByte(),     // 25% blue premul
+        0, 0, 0, 0                          // Transparent white premul
+    )
+
+    @Test
+    fun fromRGBABytes_rive_straightAlpha() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromRGBABytes(
+            testStraightByteImage(),
+            width,
+            height,
+            RendererType.Rive,
+            premultiplied = false
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromRGBABytes_rive_premultiplied() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromRGBABytes(
+            testPremultipliedByteImage(),
+            width,
+            height,
+            RendererType.Rive,
+            premultiplied = true
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromRGBABytes_canvas_straightAlpha() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromRGBABytes(
+            testStraightByteImage(),
+            width,
+            height,
+            RendererType.Canvas,
+            premultiplied = false
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromRGBABytes_canvas_premultiplied() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromRGBABytes(
+            testPremultipliedByteImage(),
+            width,
+            height,
+            RendererType.Canvas,
+            premultiplied = true
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun fromRGBABytes_invalidLength() {
+        RiveRenderImage.fromRGBABytes(ByteArray(3), 2, 2)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun fromRGBABytes_invalidDims() {
+        // width = 0, height = 1, byte length = 0 is consistent but dims are invalid
+        RiveRenderImage.fromRGBABytes(ByteArray(0), 0, 1)
+    }
+
+    /** Straight 2x2 RGBA image with semi-transparent pixels. */
+    fun testStraightIntsImage(): IntArray = intArrayOf(
+        Color.argb(255, 255, 0, 0), // Opaque red
+        Color.argb(128, 0, 255, 0), // 50% green
+        Color.argb(64, 0, 0, 255),  // 25% blue
+        Color.argb(0, 255, 255, 255)// Transparent white
+    )
+
+    fun testPremultipliedIntsImage(): IntArray = intArrayOf(
+        Color.argb(255, 255, 0, 0), // Opaque red
+        Color.argb(128, 0, 128, 0), // 50% green premul
+        Color.argb(64, 0, 0, 16),   // 25% blue premul
+        Color.argb(0, 0, 0, 0)      // Transparent white premul
+    )
+
+    @Test
+    fun fromARGBInts_rive_straightAlpha() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromARGBInts(
+            testStraightIntsImage(),
+            width,
+            height,
+            RendererType.Rive,
+            premultiplied = false
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromARGBInts_rive_premultiplied() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromARGBInts(
+            testPremultipliedIntsImage(),
+            width,
+            height,
+            RendererType.Rive,
+            premultiplied = true
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromARGBInts_canvas_straightAlpha() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromARGBInts(
+            testStraightIntsImage(),
+            width,
+            height,
+            RendererType.Canvas,
+            premultiplied = false
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromARGBInts_canvas_premultiplied() {
+        val width = 2
+        val height = 2
+        val image = RiveRenderImage.fromARGBInts(
+            testPremultipliedIntsImage(),
+            width,
+            height,
+            RendererType.Canvas,
+            premultiplied = true
+        )
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun fromARGBInts_invalidLength() {
+        RiveRenderImage.fromARGBInts(IntArray(3), 2, 2)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun fromARGBInts_invalidDims() {
+        // width = 0, height = 1, colors length = 0 is consistent but dims are invalid
+        RiveRenderImage.fromARGBInts(IntArray(0), 0, 1)
+    }
+
+    @Test
+    fun fromBitmap_rive() {
+        val width = 2
+        val height = 2
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.setPixels(testStraightIntsImage(), 0, width, 0, 0, width, height)
+        val image = RiveRenderImage.fromBitmap(bitmap, RendererType.Rive)
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test
+    fun fromBitmap_canvas() {
+        val width = 2
+        val height = 2
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.setPixels(testStraightIntsImage(), 0, width, 0, 0, width, height)
+        val image = RiveRenderImage.fromBitmap(bitmap, RendererType.Canvas)
+        assertTrue(image.hasCppObject)
+        image.release()
+        assertFalse(image.hasCppObject)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun fromBitmap_recycledBitmap() {
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        bitmap.recycle()
+        // Should throw due to require(!isRecycled)
+        RiveRenderImage.fromBitmap(bitmap)
     }
 }

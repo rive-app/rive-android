@@ -54,7 +54,7 @@ class RiveDataBindingTest {
     // World's smallest PNG, 1x1 black pixel
     val image =
         Base64.Default.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==")
-    val imageAsset = RiveRenderImage.make(image)
+    val imageAsset = RiveRenderImage.fromEncoded(image)
 
     private fun String.toColor(): Color = Color.fromString(this)
 

@@ -1,26 +1,14 @@
-//
-// Created by Umberto Sonnino on 7/18/23.
-//
-#ifndef RIVE_ANDROID_FACTORIES_HPP
-#define RIVE_ANDROID_FACTORIES_HPP
+#pragma once
 
-#include "jni_refs.hpp"
 #include "helpers/general.hpp"
+#include "helpers/worker_ref.hpp"
 
+#include "rive/refcnt.hpp"
 #include "rive/renderer/rive_render_factory.hpp"
-#include "utils/factory_utils.hpp"
-#include <vector>
-#include <jni.h>
+#include "rive/renderer/rive_render_image.hpp"
 
 namespace rive_android
 {
-bool JNIDecodeImage(rive::Span<const uint8_t> encodedBytes,
-                    bool premultiply,
-                    uint32_t* width,
-                    uint32_t* height,
-                    std::vector<uint8_t>* pixels,
-                    bool* isOpaque);
-
 // Forward declare template specialization.
 template <typename AssetType>
 rive::rcp<AssetType> decode(rive::Span<const uint8_t>, RendererType);
@@ -35,7 +23,7 @@ rive::rcp<AssetType> decodeAsset(JNIEnv* env,
     rive::Span<const uint8_t> data(reinterpret_cast<const uint8_t*>(buffer),
                                    count);
 
-    RendererType rendererType = static_cast<RendererType>(rendererTypeIdx);
+    auto rendererType = static_cast<RendererType>(rendererTypeIdx);
     rive::rcp<AssetType> asset = decode<AssetType>(data, rendererType);
 
     env->ReleaseByteArrayElements(byteArray, buffer, JNI_ABORT);
@@ -45,7 +33,7 @@ rive::rcp<AssetType> decodeAsset(JNIEnv* env,
 
 template <typename AssetType> void releaseAsset(jlong address)
 {
-    AssetType* asset = reinterpret_cast<AssetType*>(address);
+    auto* asset = reinterpret_cast<AssetType*>(address);
     rive::safe_unref(asset);
 }
 
@@ -59,6 +47,21 @@ public:
     rive::rcp<rive::RenderImage> decodeImage(
         rive::Span<const uint8_t>) override;
 };
+
+class AndroidImage : public rive::RiveRenderImage
+{
+public:
+    AndroidImage(int width,
+                 int height,
+                 std::unique_ptr<const uint8_t[]> imageDataRGBAPtr);
+
+    ~AndroidImage() override;
+
+private:
+    const rive::rcp<RefWorker> m_glWorker;
+    RefWorker::WorkID m_textureCreationWorkID;
+};
+
 class AndroidCanvasFactory : public rive::Factory
 {
 public:
@@ -96,4 +99,3 @@ public:
     rive::rcp<rive::RenderPaint> makeRenderPaint() override;
 };
 } // namespace rive_android
-#endif // RIVE_ANDROID_FACTORIES_HPP

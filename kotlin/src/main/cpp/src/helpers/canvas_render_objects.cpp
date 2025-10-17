@@ -292,6 +292,10 @@ CanvasRenderPaint::CanvasRenderPaint()
                                         m_ktPaint,
                                         GetSetAntiAliasMethodId(),
                                         JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetFilterBitmapMethodId(),
+                                        JNI_TRUE);
 }
 
 CanvasRenderPaint::~CanvasRenderPaint()
@@ -586,69 +590,98 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     JNIEnv* env,
     rive::Span<const uint8_t>& encodedBytes)
 {
-    jbyteArray byteArray = env->NewByteArray(encodedBytes.size());
-    if (byteArray == nullptr)
+    auto jByteArray = env->NewByteArray(encodedBytes.size());
+    if (jByteArray == nullptr)
     {
         LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
         return nullptr;
     }
 
     env->SetByteArrayRegion(
-        byteArray,
+        jByteArray,
         0,
         encodedBytes.size(),
         reinterpret_cast<const jbyte*>(encodedBytes.data()));
 
-    jclass bitmapFactoryClass = GetAndroidBitmapFactoryClass();
-    jmethodID decodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
+    auto jBitmapFactoryClass = GetAndroidBitmapFactoryClass();
+    auto jDecodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
 
-    jobject bitmap = JNIExceptionHandler::CallStaticObjectMethod(
+    auto jBitmap = JNIExceptionHandler::CallStaticObjectMethod(
         env,
-        bitmapFactoryClass,
-        decodeByteArrayMethodID,
-        byteArray,
+        jBitmapFactoryClass,
+        jDecodeByteArrayMethodID,
+        jByteArray,
         0,
         SizeTTOInt(encodedBytes.size()));
-    env->DeleteLocalRef(byteArray);
-    env->DeleteLocalRef(bitmapFactoryClass);
-    if (bitmap == nullptr)
+    env->DeleteLocalRef(jByteArray);
+    env->DeleteLocalRef(jBitmapFactoryClass);
+    if (jBitmap == nullptr)
     {
         LOGE("CreateKtBitmapFrom() - decodeByteArray() failed.");
         return nullptr;
     }
-    return bitmap;
+    return jBitmap;
 }
 
 CanvasRenderImage::CanvasRenderImage(rive::Span<const uint8_t> encodedBytes)
 {
-    JNIEnv* env = GetJNIEnv();
-
-    jobject bitmap = CreateKtBitmapFrom(env, encodedBytes);
-    if (bitmap == nullptr)
+    auto* env = GetJNIEnv();
+    auto jBitmap = CreateKtBitmapFrom(env, encodedBytes);
+    if (jBitmap == nullptr)
     {
         LOGE("CanvasRenderImage() - Failed to create a Bitmap.");
         return;
     }
 
     m_Width = JNIExceptionHandler::CallIntMethod(env,
-                                                 bitmap,
+                                                 jBitmap,
                                                  GetBitmapWidthMethodId());
     m_Height = JNIExceptionHandler::CallIntMethod(env,
-                                                  bitmap,
+                                                  jBitmap,
                                                   GetBitmapHeightMethodId());
 
-    m_ktBitmap = env->NewGlobalRef(bitmap);
-    env->DeleteLocalRef(bitmap);
+    m_ktBitmap = env->NewGlobalRef(jBitmap);
+    env->DeleteLocalRef(jBitmap);
     m_ktPaint = env->NewGlobalRef(CanvasRenderPaint::CreateKtPaint());
     JNIExceptionHandler::CallVoidMethod(env,
                                         m_ktPaint,
                                         GetSetAntiAliasMethodId(),
                                         JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetFilterBitmapMethodId(),
+                                        JNI_TRUE);
+}
+
+CanvasRenderImage::CanvasRenderImage(jobject jBitmap)
+{
+    auto* env = GetJNIEnv();
+    if (jBitmap == nullptr)
+    {
+        LOGE("CanvasRenderImage(jBitmap) - Bitmap is null.");
+        return;
+    }
+    m_Width = JNIExceptionHandler::CallIntMethod(env,
+                                                 jBitmap,
+                                                 GetBitmapWidthMethodId());
+    m_Height = JNIExceptionHandler::CallIntMethod(env,
+                                                  jBitmap,
+                                                  GetBitmapHeightMethodId());
+    m_ktBitmap = env->NewGlobalRef(jBitmap);
+    m_ktPaint = env->NewGlobalRef(CanvasRenderPaint::CreateKtPaint());
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetAntiAliasMethodId(),
+                                        JNI_TRUE);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        m_ktPaint,
+                                        GetSetFilterBitmapMethodId(),
+                                        JNI_TRUE);
 }
 
 CanvasRenderImage::~CanvasRenderImage()
 {
-    JNIEnv* env = GetJNIEnv();
+    auto* env = GetJNIEnv();
     if (m_ktBitmap)
     {
         env->DeleteGlobalRef(m_ktBitmap);

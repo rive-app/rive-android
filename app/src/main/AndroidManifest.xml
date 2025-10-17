@@ -80,6 +80,9 @@
         <activity
             android:name=".TouchPassthroughActivity"
             android:exported="true" />
+        <activity
+            android:name=".ImageBindingActivity"
+            android:exported="true" />
         <!-- For testing 👇 -->
         <activity
             android:name=".SingleActivity"

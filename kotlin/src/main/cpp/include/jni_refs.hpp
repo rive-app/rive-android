@@ -65,6 +65,7 @@ extern jmethodID GetPaintInitMethod();
 extern jmethodID GetSetColorMethodId();
 extern jmethodID GetSetAlphaMethodId();
 extern jmethodID GetSetAntiAliasMethodId();
+extern jmethodID GetSetFilterBitmapMethodId();
 extern jmethodID GetSetShaderMethodId();
 extern jmethodID GetSetStyleMethodId();
 
@@ -185,5 +186,6 @@ extern jmethodID GetDecodeByteArrayStaticMethodId();
 extern jmethodID GetBitmapWidthMethodId();
 extern jmethodID GetBitmapHeightMethodId();
 extern jfieldID GetARGB8888Field();
+extern jmethodID GetBitmapSetPixelsMethodId();
 } // namespace rive_android
 #endif
