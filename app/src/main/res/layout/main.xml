@@ -8,7 +8,10 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingVertical="8dp">
+        android:paddingVertical="8dp"
+        android:fitsSystemWindows="true"
+        android:id="@+id/stuff"
+        android:layout_marginTop="?attr/actionBarSize">
 
         <LinearLayout
             android:id="@+id/button_container"
