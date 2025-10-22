@@ -663,7 +663,6 @@ class TouchPassThroughComposeTest {
         )
     }
 
-
     @get:Rule
     val composeRule = createComposeRule()
 

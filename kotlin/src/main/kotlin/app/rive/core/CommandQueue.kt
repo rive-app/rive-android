@@ -343,6 +343,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         x: Float,
         y: Float
     )
@@ -354,6 +355,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         x: Float,
         y: Float
     )
@@ -365,6 +367,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         x: Float,
         y: Float
     )
@@ -376,6 +379,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         x: Float,
         y: Float
     )
@@ -1774,6 +1778,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         pointerX: Float,
         pointerY: Float
     ) = cppPointerMove(
@@ -1783,6 +1788,7 @@ class CommandQueue(
         alignment,
         surfaceWidth,
         surfaceHeight,
+        pointerID,
         pointerX,
         pointerY
     )
@@ -1808,6 +1814,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         pointerX: Float,
         pointerY: Float
     ) = cppPointerDown(
@@ -1817,6 +1824,7 @@ class CommandQueue(
         alignment,
         surfaceWidth,
         surfaceHeight,
+        pointerID,
         pointerX,
         pointerY
     )
@@ -1842,6 +1850,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         pointerX: Float,
         pointerY: Float
     ) = cppPointerUp(
@@ -1851,6 +1860,7 @@ class CommandQueue(
         alignment,
         surfaceWidth,
         surfaceHeight,
+        pointerID,
         pointerX,
         pointerY
     )
@@ -1876,6 +1886,7 @@ class CommandQueue(
         alignment: Alignment,
         surfaceWidth: Float,
         surfaceHeight: Float,
+        pointerID: Int,
         pointerX: Float,
         pointerY: Float
     ) = cppPointerExit(
@@ -1885,6 +1896,7 @@ class CommandQueue(
         alignment,
         surfaceWidth,
         surfaceHeight,
+        pointerID,
         pointerX,
         pointerY
     )

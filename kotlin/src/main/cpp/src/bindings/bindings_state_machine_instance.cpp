@@ -124,41 +124,58 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerDown(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
+        jint pointerID,
         jfloat x,
         jfloat y)
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerDown(rive::Vec2D(x, y));
+        stateMachineInstance->pointerDown(rive::Vec2D(x, y), pointerID);
     }
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerMove(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
+        jint pointerID,
         jfloat x,
         jfloat y)
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerMove(rive::Vec2D(x, y));
+        stateMachineInstance->pointerMove(rive::Vec2D(x, y), 0.0f, pointerID);
     }
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerUp(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
+        jint pointerID,
         jfloat x,
         jfloat y)
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerUp(rive::Vec2D(x, y));
+        stateMachineInstance->pointerUp(rive::Vec2D(x, y), pointerID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerExit(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jint pointerID,
+        jfloat x,
+        jfloat y)
+    {
+        auto stateMachineInstance =
+            reinterpret_cast<rive::StateMachineInstance*>(ref);
+        stateMachineInstance->pointerExit(rive::Vec2D(x, y), pointerID);
     }
 
     JNIEXPORT void JNICALL

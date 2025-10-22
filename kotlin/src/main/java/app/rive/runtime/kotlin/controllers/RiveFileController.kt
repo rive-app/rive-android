@@ -923,7 +923,7 @@ class RiveFileController internal constructor(
     }
 
 
-    fun pointerEvent(eventType: PointerEvents, x: Float, y: Float) {
+    fun pointerEvent(eventType: PointerEvents, pointerID: Int, x: Float, y: Float) {
         /// TODO: once we start composing artboards we may need x,y offsets here...
         val artboardEventLocation = Helpers.convertToArtboardSpace(
             touchBounds = targetBounds,
@@ -937,20 +937,28 @@ class RiveFileController internal constructor(
 
             when (eventType) {
                 PointerEvents.POINTER_DOWN -> it.pointerDown(
+                    pointerID,
                     artboardEventLocation.x,
                     artboardEventLocation.y
                 )
 
                 PointerEvents.POINTER_UP -> it.pointerUp(
+                    pointerID,
                     artboardEventLocation.x,
                     artboardEventLocation.y
                 )
 
                 PointerEvents.POINTER_MOVE -> it.pointerMove(
+                    pointerID,
                     artboardEventLocation.x,
                     artboardEventLocation.y
                 )
 
+                PointerEvents.POINTER_EXIT -> it.pointerExit(
+                    pointerID,
+                    artboardEventLocation.x,
+                    artboardEventLocation.y
+                )
             }
             play(it, settleStateMachineState = false)
         }

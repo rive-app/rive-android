@@ -27,9 +27,10 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     private external fun cppReportedEventAt(cppPointer: Long, index: Int): RiveEventReport
     private external fun cppName(cppPointer: Long): String
     private external fun cppLayerCount(cppPointer: Long): Int
-    private external fun cppPointerDown(cppPointer: Long, x: Float, y: Float)
-    private external fun cppPointerUp(cppPointer: Long, x: Float, y: Float)
-    private external fun cppPointerMove(cppPointer: Long, x: Float, y: Float)
+    private external fun cppPointerDown(cppPointer: Long, pointerID: Int, x: Float, y: Float)
+    private external fun cppPointerUp(cppPointer: Long, pointerID: Int, x: Float, y: Float)
+    private external fun cppPointerMove(cppPointer: Long, pointerID: Int, x: Float, y: Float)
+    private external fun cppPointerExit(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppSetViewModelInstance(cppPointer: Long, viewModel: Long)
 
     external override fun cppDelete(pointer: Long)
@@ -75,14 +76,17 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     fun advance(elapsed: Float): Boolean =
         synchronized(lock) { cppAdvance(cppPointer, elapsed) }
 
-    fun pointerDown(x: Float, y: Float) =
-        synchronized(lock) { cppPointerDown(cppPointer, x, y) }
+    fun pointerDown(pointerID: Int, x: Float, y: Float) =
+        synchronized(lock) { cppPointerDown(cppPointer, pointerID, x, y) }
 
-    fun pointerUp(x: Float, y: Float) =
-        synchronized(lock) { cppPointerUp(cppPointer, x, y) }
+    fun pointerUp(pointerID: Int, x: Float, y: Float) =
+        synchronized(lock) { cppPointerUp(cppPointer, pointerID, x, y) }
 
-    fun pointerMove(x: Float, y: Float) =
-        synchronized(lock) { cppPointerMove(cppPointer, x, y) }
+    fun pointerMove(pointerID: Int, x: Float, y: Float) =
+        synchronized(lock) { cppPointerMove(cppPointer, pointerID, x, y) }
+
+    fun pointerExit(pointerID: Int, x: Float, y: Float) =
+        synchronized(lock) { cppPointerExit(cppPointer, pointerID, x, y) }
 
     /** @return The number of inputs configured for the state machine. */
     val inputCount: Int

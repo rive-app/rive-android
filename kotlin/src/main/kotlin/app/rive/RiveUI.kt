@@ -297,16 +297,19 @@ fun RiveUI(
                             PointerEventType.Exit -> commandQueue::pointerExit
                             else -> continue // Ignore other pointer events
                         }
-                        val pointerPosition = event.changes.first().position
-                        pointerFn(
-                            stateMachineHandle,
-                            fit,
-                            alignment,
-                            surfaceWidth.toFloat(),
-                            surfaceHeight.toFloat(),
-                            pointerPosition.x,
-                            pointerPosition.y
-                        )
+                        event.changes.forEach { change ->
+                            val pointerPosition = change.position
+                            pointerFn(
+                                stateMachineHandle,
+                                fit,
+                                alignment,
+                                surfaceWidth.toFloat(),
+                                surfaceHeight.toFloat(),
+                                change.id.value.toInt(),
+                                pointerPosition.x,
+                                pointerPosition.y
+                            )
+                        }
                     }
                 }
             }

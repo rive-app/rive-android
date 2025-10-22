@@ -9,12 +9,14 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
+import android.util.SparseBooleanArray
 import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import androidx.annotation.CallSuper
 import androidx.annotation.RawRes
 import androidx.annotation.VisibleForTesting
+import androidx.core.util.keyIterator
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
@@ -75,6 +77,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs), Observable<RiveFileController.Listener> {
     companion object {
         const val TAG = "RiveAnimationView"
+
+        const val SINGLE_TOUCH_ID = 0
 
         // Default attribute values.
         val alignmentIndexDefault = Alignment.CENTER.ordinal
@@ -184,7 +188,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = controller.playingStateMachines
 
-    /** The current [LifecycleOwner]. At the time of creation it will be the [Activity]. */
+    /**
+     * The current [LifecycleOwner]. At the time of creation it will be the [android.app.Activity].
+     */
     private var lifecycleOwner: LifecycleOwner? = getContextAsType<LifecycleOwner>()
 
     /**
@@ -192,6 +198,32 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * events to views behind it. Set to `true` to allow for this behavior.
      */
     open var touchPassThrough: Boolean = false
+
+    /** Track which pointer IDs are inside the view bounds. Used for pointer exit events. */
+    private val pointersInsideView = SparseBooleanArray()
+
+    /**
+     * Whether multitouch is enabled. When false, only the primary pointer (index 0) will be
+     * processed; additional fingers will be ignored.
+     *
+     * If set to false while multiple pointers are down, pointer up/exit events will be synthesized
+     * for all non-primary pointers to notify Rive that those pointers are no longer active.
+     */
+    open var multiTouchEnabled: Boolean = false
+        set(value) {
+            field = value
+            if (!value) {
+                val pointers = pointersInsideView.keyIterator()
+                while (pointers.hasNext()) {
+                    val pointerId = pointers.next()
+                    if (pointerId != SINGLE_TOUCH_ID) {
+                        controller.pointerEvent(PointerEvents.POINTER_UP, pointerId, -1f, -1f)
+                        controller.pointerEvent(PointerEvents.POINTER_EXIT, pointerId, -1f, -1f)
+                        pointersInsideView.delete(pointerId)
+                    }
+                }
+            }
+        }
 
     /**
      * Tracks the renderer attributes that need to be applied to this [View] within its lifecycle.
@@ -251,7 +283,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         var rendererType: RendererType = RendererType.fromIndex(rendererIndex)
     }
 
-
     class Builder(internal val context: Context) {
         internal var alignment: Alignment? = null
         internal var fit: Fit? = null
@@ -266,6 +297,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         internal var assetLoader: FileAssetLoader? = null
         internal var shouldLoadCDNAssets: Boolean = shouldLoadCDNAssetsDefault
         internal var touchPassThrough: Boolean = false
+        internal var multiTouchEnabled: Boolean = false
 
         internal var resource: Any? = null
         internal var resourceType: ResourceType? = null
@@ -288,6 +320,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         fun setAssetLoader(value: FileAssetLoader) = apply { assetLoader = value }
         fun setShouldLoadCDNAssets(value: Boolean) = apply { shouldLoadCDNAssets = value }
         fun setTouchPassThrough(value: Boolean) = apply { touchPassThrough = value }
+        fun setMultiTouchEnabled(value: Boolean) = apply { multiTouchEnabled = value }
 
         fun build(): RiveAnimationView {
             return RiveAnimationView(this)
@@ -317,6 +350,11 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
                 touchPassThrough = getBoolean(
                     R.styleable.RiveAnimationView_riveTouchPassThrough,
+                    false
+                )
+
+                multiTouchEnabled = getBoolean(
+                    R.styleable.RiveAnimationView_riveMultiTouchEnabled,
                     false
                 )
 
@@ -398,6 +436,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             fit = builder.fit ?: this.fit
             loop = builder.loop ?: this.loop
             touchPassThrough = builder.touchPassThrough
+            multiTouchEnabled = builder.multiTouchEnabled
         }
     }
 
@@ -1046,34 +1085,99 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.removeEventListener(listener)
     }
 
+    /** Check if the provided coordinates are within the view bounds. */
+    private fun inBounds(x: Float, y: Float): Boolean =
+        x >= 0f && y >= 0f && x < width && y < height
 
-    // Handoff to Controller which knows about artboards & state machines.
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        event.apply {
-            when (action) {
-                MotionEvent.ACTION_MOVE -> controller.pointerEvent(
-                    PointerEvents.POINTER_MOVE, x, y
-                )
+        data class PointerInfo(val id: Int, val x: Float, val y: Float)
 
-                MotionEvent.ACTION_CANCEL -> controller.pointerEvent(
-                    PointerEvents.POINTER_UP, x, y
-                )
+        fun pointerInfoAt(index: Int): PointerInfo {
+            // Collapse ID if multitouch is disabled.
+            val id = if (multiTouchEnabled) event.getPointerId(index) else SINGLE_TOUCH_ID
+            return PointerInfo(id, event.getX(index), event.getY(index))
+        }
 
-                MotionEvent.ACTION_DOWN -> controller.pointerEvent(
-                    PointerEvents.POINTER_DOWN, x, y
-                )
+        // Returning true absorbs the event, so we take the inverse of the pass through var.
+        val returnVal = !touchPassThrough
 
-                MotionEvent.ACTION_UP -> controller.pointerEvent(
-                    PointerEvents.POINTER_UP, x, y
-                )
+        when (event.actionMasked) {
+            // First pointer
+            MotionEvent.ACTION_DOWN -> {
+                val (id, x, y) = pointerInfoAt(event.actionIndex)
+                pointersInsideView.put(id, inBounds(x, y))
+                controller.pointerEvent(PointerEvents.POINTER_DOWN, id, x, y)
+            }
+            // Subsequent pointers
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                if (!multiTouchEnabled) return returnVal // Ignored
+                val (id, x, y) = pointerInfoAt(event.actionIndex)
+                pointersInsideView.put(id, inBounds(x, y))
+                controller.pointerEvent(PointerEvents.POINTER_DOWN, id, x, y)
+            }
 
-                else -> {
-                    Log.w(TAG, "onTouchEvent(): Renderer not instantiated yet.")
+            MotionEvent.ACTION_MOVE -> {
+                // When not multitouch, only process one
+                val upperBound = if (multiTouchEnabled) event.pointerCount else 1
+                for (i in 0 until upperBound) {
+                    val (id, x, y) = pointerInfoAt(i)
+                    val wasInside = pointersInsideView.get(id)
+                    val nowInside = inBounds(x, y)
+                    if (wasInside && !nowInside) {
+                        controller.pointerEvent(PointerEvents.POINTER_EXIT, id, x, y)
+                    }
+                    pointersInsideView.put(id, nowInside)
+                    controller.pointerEvent(PointerEvents.POINTER_MOVE, id, x, y)
                 }
             }
+            // Non-final pointer up.
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (!multiTouchEnabled) return returnVal // Ignored
+                val (id, x, y) = pointerInfoAt(event.actionIndex)
+                controller.pointerEvent(PointerEvents.POINTER_UP, id, x, y)
+                // With touch events, we always send an exit when the pointer is lifted.
+                // It can be considered "exiting" in the Z axis.
+                controller.pointerEvent(PointerEvents.POINTER_EXIT, id, x, y)
+                // If the pointer was inside the view when lifted, treat it as a click for
+                // accessibility by calling performClick(). This satisfies Android lint that
+                // expects performClick() to be invoked when overriding onTouchEvent.
+                if (pointersInsideView.get(id)) performClick()
+                pointersInsideView.delete(id)
+            }
+            // The last pointer up. Not necessarily the initiating pointer.
+            MotionEvent.ACTION_UP -> {
+                val (id, x, y) = pointerInfoAt(event.actionIndex)
+                controller.pointerEvent(PointerEvents.POINTER_UP, id, x, y)
+                controller.pointerEvent(PointerEvents.POINTER_EXIT, id, x, y)
+                if (pointersInsideView.get(id)) performClick()
+                // Last pointer up: reset state
+                pointersInsideView.clear()
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                // ACTION_CANCEL does not send all pointers currently down.
+                // We need to synthesize up and exit events for the pointers we know are down.
+                val keyIterator = pointersInsideView.keyIterator()
+                while (keyIterator.hasNext()) {
+                    val remainingId = keyIterator.next()
+                    // We don't have coordinates for these pointers, so we send -1,-1
+                    controller.pointerEvent(
+                        PointerEvents.POINTER_UP, remainingId, -1f, -1f
+                    )
+                    controller.pointerEvent(
+                        PointerEvents.POINTER_EXIT, remainingId, -1f, -1f
+                    )
+                }
+                // Reset state
+                pointersInsideView.clear()
+            }
+
+            else -> {
+                Log.w(TAG, "onTouchEvent(): Renderer not instantiated yet.")
+            }
         }
-        // Returning true absorbs the event, so we take the inverse of the pass through var.
-        return !touchPassThrough
+
+        return returnVal
     }
 }
 
@@ -1118,7 +1222,7 @@ open class RiveViewLifecycleObserver(protected val dependencies: MutableList<Ref
     }
 }
 
-// Custom Volley request to download and create Rive files over HTTP
+/** Custom Volley request to download and create Rive files over HTTP. */
 class RiveFileRequest(
     url: String,
     private val rendererType: RendererType,
@@ -1149,7 +1253,6 @@ class RiveFileRequest(
  *
  * Use [makeMaybeResource] for making a new value passing in a resource.
  */
-
 sealed class ResourceType {
     class ResourceId(val id: Int) : ResourceType()
     class ResourceUrl(val url: String) : ResourceType()

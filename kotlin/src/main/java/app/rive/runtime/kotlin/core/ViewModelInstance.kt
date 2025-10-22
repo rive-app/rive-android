@@ -63,12 +63,12 @@ class ViewModelInstance internal constructor(unsafeCppPointer: Long) :
         get() = cppName(cppPointer)
 
     /**
-     * Poll all subscribed properties for changes. This is called from advance, and is therefore
-     * running on the worker thread.
+     * Poll all properties for changes. This is called from advance, and is therefore running on the
+     * worker thread.
      */
     @WorkerThread
     internal fun pollChanges() {
-        properties.values.filter { it.isSubscribed }.forEach { it.pollChanges() }
+        properties.values.forEach { it.pollChanges() }
         children.values.forEach { it.pollChanges() }
     }
 

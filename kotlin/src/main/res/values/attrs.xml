@@ -55,7 +55,10 @@
         <attr name="riveUrl" format="string" />
         <attr name="riveAssetLoaderClass" format="string" />
         <attr name="riveShouldLoadCDNAssets" format="boolean" />
+        <!-- When true, touch events will pass through to views behind this one. Defaults to false. -->
         <attr name="riveTouchPassThrough" format="boolean" />
+        <!-- When false, ignore non-primary touch pointers (disable multitouch). Defaults to false. -->
+        <attr name="riveMultiTouchEnabled" format="boolean" />
     </declare-styleable>
 
     <declare-styleable name="RiveAnimationView">
@@ -75,5 +78,6 @@
         <attr name="riveAssetLoaderClass" />
         <attr name="riveShouldLoadCDNAssets" />
         <attr name="riveTouchPassThrough" />
+        <attr name="riveMultiTouchEnabled" />
     </declare-styleable>
 </resources>

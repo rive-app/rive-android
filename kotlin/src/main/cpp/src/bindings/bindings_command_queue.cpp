@@ -1583,6 +1583,7 @@ extern "C"
                                                    jobject jAlignment,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
+                                                   jint pointerID,
                                                    jfloat pointerX,
                                                    jfloat pointerY)
     {
@@ -1594,6 +1595,7 @@ extern "C"
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
                                     static_cast<float_t>(pointerY))};
+        event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerMove(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
@@ -1609,6 +1611,7 @@ extern "C"
                                                    jobject jAlignment,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
+                                                   jint pointerID,
                                                    jfloat pointerX,
                                                    jfloat pointerY)
     {
@@ -1620,6 +1623,7 @@ extern "C"
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
                                     static_cast<float_t>(pointerY))};
+        event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerDown(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
@@ -1635,6 +1639,7 @@ extern "C"
                                                  jobject jAlignment,
                                                  jfloat surfaceWidth,
                                                  jfloat surfaceHeight,
+                                                 jint pointerID,
                                                  jfloat pointerX,
                                                  jfloat pointerY)
     {
@@ -1646,6 +1651,7 @@ extern "C"
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
                                     static_cast<float_t>(pointerY))};
+        event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerUp(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
@@ -1661,6 +1667,7 @@ extern "C"
                                                    jobject jAlignment,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
+                                                   jint pointerID,
                                                    jfloat pointerX,
                                                    jfloat pointerY)
     {
@@ -1672,6 +1679,7 @@ extern "C"
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
                                     static_cast<float_t>(pointerY))};
+        event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerExit(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),

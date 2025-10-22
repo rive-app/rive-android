@@ -45,6 +45,9 @@
             android:exported="true" />
         <activity android:name=".EventsActivity" />
         <activity android:name=".InteractiveSamplesActivity" />
+        <activity
+            android:name=".MultiTouchActivity"
+            android:exported="true" />
         <activity android:name=".MultipleArtboardsActivity" />
         <activity android:name=".AndroidPlayerActivity" />
         <activity android:name=".LoopModeActivity" />
