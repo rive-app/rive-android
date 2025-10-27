@@ -7,10 +7,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import app.rive.runtime.example.databinding.ActivityAssetLoaderBinding
+import app.rive.runtime.kotlin.core.BytesRequest
 import app.rive.runtime.kotlin.core.ContextAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
-import app.rive.runtime.kotlin.core.BytesRequest
 import app.rive.runtime.kotlin.core.Rive
 import com.android.volley.toolbox.Volley
 import com.google.android.material.tabs.TabLayoutMediator
@@ -28,7 +28,6 @@ class AssetLoaderActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.viewPager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 3
-
 
             override fun createFragment(position: Int): Fragment {
                 return when (position) {
@@ -52,7 +51,8 @@ class AssetLoaderActivity : AppCompatActivity() {
 /**
  * [FileAssetLoader] tailored for the two assets in the walle.riv file.
  *
- * The main purpose of this class is to demonstrate how create a custom [ContextAssetLoader] via XML.
+ * The main purpose of this class is to demonstrate how create a custom [ContextAssetLoader] via
+ * XML.
  */
 class WalleAssetLoader(context: Context) : ContextAssetLoader(context) {
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
@@ -67,9 +67,7 @@ class WalleAssetLoader(context: Context) : ContextAssetLoader(context) {
     }
 }
 
-/**
- * Loads a random image from picsum.photos.
- */
+/** Loads a random image from picsum.photos. */
 class RandomNetworkLoader(context: Context) : FileAssetLoader() {
     private val loremImage = "https://picsum.photos"
     private val queue = Volley.newRequestQueue(context)

@@ -17,7 +17,7 @@ extern "C"
                                                        jlong ref)
     {
 
-        rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
+        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
         return env->NewStringUTF(input->name().c_str());
     }
 
@@ -27,7 +27,7 @@ extern "C"
                                                             jlong ref)
     {
 
-        rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
+        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
         return input->input()->is<rive::StateMachineBool>();
     }
 
@@ -37,7 +37,7 @@ extern "C"
                                                            jlong ref)
     {
 
-        rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
+        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
         return input->input()->is<rive::StateMachineNumber>();
     }
 
@@ -47,7 +47,7 @@ extern "C"
                                                             jlong ref)
     {
 
-        rive::SMIInput* input = reinterpret_cast<rive::SMIInput*>(ref);
+        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
         return input->input()->is<rive::StateMachineTrigger>();
     }
 
@@ -57,7 +57,7 @@ extern "C"
                                                           jlong ref)
     {
 
-        rive::SMIBool* input = reinterpret_cast<rive::SMIBool*>(ref);
+        auto* input = reinterpret_cast<rive::SMIBool*>(ref);
         return input->value();
     }
 
@@ -68,7 +68,7 @@ extern "C"
                                                              jboolean newValue)
     {
 
-        rive::SMIBool* input = reinterpret_cast<rive::SMIBool*>(ref);
+        auto* input = reinterpret_cast<rive::SMIBool*>(ref);
         input->value(newValue);
     }
 
@@ -78,7 +78,7 @@ extern "C"
                                                          jlong ref)
     {
 
-        rive::SMINumber* input = reinterpret_cast<rive::SMINumber*>(ref);
+        auto* input = reinterpret_cast<rive::SMINumber*>(ref);
         return input->value();
     }
 
@@ -89,7 +89,7 @@ extern "C"
                                                             jfloat newValue)
     {
 
-        rive::SMINumber* input = reinterpret_cast<rive::SMINumber*>(ref);
+        auto* input = reinterpret_cast<rive::SMINumber*>(ref);
         input->value(newValue);
     }
 
@@ -99,7 +99,7 @@ extern "C"
                                                          jlong ref)
     {
 
-        rive::SMITrigger* input = reinterpret_cast<rive::SMITrigger*>(ref);
+        auto* input = reinterpret_cast<rive::SMITrigger*>(ref);
         input->fire();
     }
 

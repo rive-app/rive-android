@@ -1,5 +1,4 @@
-#ifndef RIVE_ANDROID_WORKER_REF_HPP
-#define RIVE_ANDROID_WORKER_REF_HPP
+#pragma once
 
 #include "helpers/thread_state_egl.hpp"
 #include "helpers/worker_thread.hpp"
@@ -20,7 +19,7 @@ public:
     // Returns the current Canvas renderer worker.
     static rive::rcp<RefWorker> CanvasWorker();
 
-    ~RefWorker();
+    ~RefWorker() override;
 
     // These methods work with rive::rcp<> for tracking _external_ references.
     // They don't necessarily delete this object when the external ref count
@@ -52,5 +51,3 @@ private:
     size_t m_externalRefCount = 0;
 };
 } // namespace rive_android
-
-#endif // RIVE_ANDROID_WORKER_REF_HPP

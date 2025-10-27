@@ -16,7 +16,6 @@ import java.util.concurrent.locks.ReentrantLock
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
     private val testUtils = TestUtils()
-    private val appContext = testUtils.context
 
     @Test
     fun createRenderer() {

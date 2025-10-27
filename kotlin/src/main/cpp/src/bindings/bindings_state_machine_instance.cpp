@@ -12,8 +12,8 @@ extern "C"
 
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppAdvance(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jfloat elapsedTime)
     {
@@ -24,8 +24,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedCount(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto stateMachineInstance =
@@ -35,8 +35,8 @@ extern "C"
 
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedByIndex(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jint index)
     {
@@ -47,8 +47,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventCount(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto stateMachineInstance =
@@ -59,7 +59,7 @@ extern "C"
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventAt(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jint index)
     {
@@ -76,8 +76,8 @@ extern "C"
 
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSMIInputByIndex(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jint index)
     {
@@ -89,8 +89,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppInputCount(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto stateMachineInstance =
@@ -100,10 +100,9 @@ extern "C"
 
     // ANIMATION
     JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppName(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppName(JNIEnv* env,
+                                                                   jobject,
+                                                                   jlong ref)
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
@@ -113,8 +112,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppLayerCount(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto stateMachineInstance =

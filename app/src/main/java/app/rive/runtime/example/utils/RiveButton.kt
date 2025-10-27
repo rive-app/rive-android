@@ -3,6 +3,7 @@ package app.rive.runtime.example.utils
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
+import app.rive.runtime.example.R
 import app.rive.runtime.kotlin.RiveAnimationView
 
 class RiveButton(context: Context, attrs: AttributeSet? = null) :
@@ -13,13 +14,10 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     init {
         context.theme.obtainStyledAttributes(
-            attrs,
-            app.rive.runtime.example.R.styleable.RiveButton,
-            0, 0
+            attrs, R.styleable.RiveButton, 0, 0
         ).apply {
             try {
-                pressAnimation =
-                    getString(app.rive.runtime.example.R.styleable.RiveButton_rivePressAnimation)
+                pressAnimation = getString(R.styleable.RiveButton_rivePressAnimation)
             } finally {
                 recycle()
             }

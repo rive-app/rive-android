@@ -66,7 +66,6 @@ class AssetLoaderFragment : Fragment() {
         val ctx = view.context
         networkLoader = RandomNetworkLoader(ctx)
 
-
         makeContainer(ctx).let {
             val riveView = RiveAnimationView.Builder(ctx)
                 .setAssetLoader(networkLoader)
@@ -75,7 +74,6 @@ class AssetLoaderFragment : Fragment() {
             it.addView(riveView)
             binding.fragmentLoaderContainer.addView(it)
         }
-
 
         makeContainer(ctx).let {
             val cdnRiveView = RiveAnimationView.Builder(ctx)
@@ -109,7 +107,7 @@ class AssetButtonFragment : Fragment() {
             val request = BytesRequest(
                 url,
                 { bytes ->
-                    assetStore.nextAsset.image = RiveRenderImage.make(bytes)
+                    assetStore.nextAsset.image = RiveRenderImage.fromEncoded(bytes)
                 },
                 {
                     Log.e("Request", "onAssetLoaded: failed to load $url.")
@@ -145,7 +143,6 @@ class AssetButtonFragment : Fragment() {
             binding.fragmentButtonContainer.addView(it)
         }
 
-
         return view
     }
 
@@ -180,7 +177,6 @@ class FontAssetFragment : Fragment() {
         "https://cdn.rive.app/runtime/flutter/josefin-sans.ttf",
         "https://cdn.rive.app/runtime/flutter/send-flowers.ttf",
     )
-
 
     private fun randomFontButton(context: Context): Button {
         return makeButton(context, "Change Font") {

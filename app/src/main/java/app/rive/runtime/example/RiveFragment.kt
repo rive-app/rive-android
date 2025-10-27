@@ -13,9 +13,8 @@ import kotlin.properties.Delegates
 const val RIVE_FRAGMENT_ARG_RES_ID = "resourceId"
 
 /**
- * A [RiveFragment] encapsulates a [RiveAnimationView].
- * Use the [RiveFragment.newInstance] factory method to
- * create an instance of this fragment.
+ * A [RiveFragment] encapsulates a [RiveAnimationView]. Use the [RiveFragment.newInstance] factory
+ * method to create an instance of this fragment.
  */
 open class RiveFragment(private val name: String? = "Fragment") : Fragment() {
     private var rId: Int by Delegates.notNull()
@@ -46,8 +45,8 @@ open class RiveFragment(private val name: String? = "Fragment") : Fragment() {
 
     companion object {
         /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
+         * Use this factory method to create a new instance of this fragment using the provided
+         * parameters.
          *
          * @param resId the resource id of the Rive file.
          * @return A new instance of RiveFragment.

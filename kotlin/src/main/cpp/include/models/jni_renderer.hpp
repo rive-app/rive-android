@@ -1,5 +1,5 @@
-#ifndef _RIVE_ANDROID_JNI_RENDERER_HPP_
-#define _RIVE_ANDROID_JNI_RENDERER_HPP_
+#pragma once
+
 #include <android/native_window.h>
 #include <GLES3/gl3.h>
 #include <jni.h>
@@ -14,7 +14,7 @@ class JNIRenderer
 public:
     explicit JNIRenderer(jobject ktRenderer,
                          bool trace = false,
-                         const RendererType rendererType = RendererType::Rive);
+                         RendererType rendererType = RendererType::Rive);
 
     ~JNIRenderer();
 
@@ -98,18 +98,18 @@ private:
 
     std::unique_ptr<ITracer> m_tracer;
 
-    std::unique_ptr<ITracer> makeTracer(bool trace) const;
+    static std::unique_ptr<ITracer> makeTracer(bool trace);
 
     void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
 
     void acquireSurface(SurfaceVariant& surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
+        if (auto** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_acquire(*window);
             m_surface = *window;
         }
-        else if (jobject* ktSurface = std::get_if<jobject>(&surface))
+        else if (auto* ktSurface = std::get_if<jobject>(&surface))
         {
             m_surface = GetJNIEnv()->NewGlobalRef(*ktSurface);
         }
@@ -119,13 +119,13 @@ private:
         }
     }
 
-    void releaseSurface(SurfaceVariant* surface)
+    static void releaseSurface(SurfaceVariant* surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(surface))
+        if (auto** window = std::get_if<ANativeWindow*>(surface))
         {
             ANativeWindow_release(*window);
         }
-        else if (jobject* ktSurface = std::get_if<jobject>(surface))
+        else if (auto* ktSurface = std::get_if<jobject>(surface))
         {
             GetJNIEnv()->DeleteGlobalRef(*ktSurface);
         }
@@ -133,4 +133,3 @@ private:
     }
 };
 } // namespace rive_android
-#endif // _RIVE_ANDROID_JNI_RENDERER_HPP_

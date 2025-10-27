@@ -143,7 +143,7 @@ void JNIRenderer::doFrame()
     m_numScheduledFrames++;
 }
 
-std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace) const
+std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace)
 {
     if (!trace)
     {

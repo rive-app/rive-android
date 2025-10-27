@@ -23,8 +23,9 @@ data class AnimationTest(
     val height: Int,
     // Optional function to perform actions on the view before draw.
     val setup: RiveSetupFunction? = null,
-);
-data class RendererSetup(val name: String, val type: RendererType);
+)
+
+data class RendererSetup(val name: String, val type: RendererType)
 
 val tests = listOf(
     AnimationTest("mesh", R.raw.dwarf, 860, 540),
@@ -53,11 +54,11 @@ class MainActivity : AppCompatActivity() {
         Rive.init(applicationContext)
         setContentView(R.layout.main)
 
-        val buttonLayout = findViewById<LinearLayout>(R.id.buttonContainer);
+        val buttonLayout = findViewById<LinearLayout>(R.id.buttonContainer)
         rendererSetups.forEach { setup ->
             val label = TextView(this)
             label.text = "Check - ${setup.name}"
-            buttonLayout.addView(label);
+            buttonLayout.addView(label)
 
             tests.forEach { test ->
                 addButton(buttonLayout, setup, test)
@@ -80,9 +81,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun addButton(buttonLayout: LinearLayout, setup: RendererSetup, test: AnimationTest) {
-        val that = this;
+        val that = this
         val button = Button(this)
         button.text = "${setup.name} - ${test.name}"
         button.setOnClickListener {
@@ -100,18 +100,16 @@ class MainActivity : AppCompatActivity() {
             this.setResource(test.resource)
         }
 
-
         val view = CallbackRiveAnimationView(builder)
         view.drawCallback = {
             Log.d("BitmapExtractor", "Draw callback called for  ${test.name}")
             extractor.extractView(this, view, "${setup.name}_${test.name}")
-        };
-        view.layoutParams = ViewGroup.LayoutParams(test.width, test.height);
-        val displayLayout = findViewById<LinearLayout>(R.id.viewContainer);
+        }
+        view.layoutParams = ViewGroup.LayoutParams(test.width, test.height)
+        val displayLayout = findViewById<LinearLayout>(R.id.viewContainer)
         displayLayout.removeAllViews()
         displayLayout.addView(view)
         // Setup the text after it's been added and init'd
         test.setup?.invoke(view)
     }
 }
-

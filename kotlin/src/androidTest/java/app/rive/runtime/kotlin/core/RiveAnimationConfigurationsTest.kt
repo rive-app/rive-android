@@ -7,7 +7,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveAnimationConfigurationsTest {
     private val testUtils = TestUtils()
@@ -38,7 +37,7 @@ class RiveAnimationConfigurationsTest {
     }
 
     @Test
-    fun checkdurations1sec60fps() {
+    fun checkDurations1sec60fps() {
         val animation = file.firstArtboard.animation("1sec60fps")
         assertEquals(60, animation.duration)
         assertEquals(60, animation.effectiveDuration)
@@ -48,7 +47,7 @@ class RiveAnimationConfigurationsTest {
     }
 
     @Test
-    fun checkdurations1sec120fps() {
+    fun checkDurations1sec120fps() {
         val animation = file.firstArtboard.animation("1sec120fps")
         assertEquals(120, animation.duration)
         assertEquals(120, animation.effectiveDuration)
@@ -58,7 +57,7 @@ class RiveAnimationConfigurationsTest {
     }
 
     @Test
-    fun checkdurations1sec60fps_f30f50() {
+    fun checkDurations1sec60fps_f30f50() {
         val animation = file.firstArtboard.animation("1sec60fps_f30f50")
         assertEquals(60, animation.duration)
         assertEquals(20, animation.effectiveDuration)
@@ -68,7 +67,7 @@ class RiveAnimationConfigurationsTest {
     }
 
     @Test
-    fun checkdurations1sec120fps_f30f50() {
+    fun checkDurations1sec120fps_f30f50() {
         val animation = file.firstArtboard.animation("1sec120fps_f50f80")
         assertEquals(120, animation.duration)
         assertEquals(30, animation.effectiveDuration)
@@ -76,5 +75,4 @@ class RiveAnimationConfigurationsTest {
         assertEquals(50, animation.workStart)
         assertEquals(80, animation.workEnd)
     }
-
 }

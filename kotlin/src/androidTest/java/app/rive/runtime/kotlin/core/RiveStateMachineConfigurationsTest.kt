@@ -7,7 +7,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineConfigurationsTest {
     private val testUtils = TestUtils()
@@ -23,99 +22,95 @@ class RiveStateMachineConfigurationsTest {
 
     @Test
     fun nothing() {
-        val state_machine = file.firstArtboard.stateMachine("nothing")
-        assertEquals(0, state_machine.inputCount)
-        assertEquals(0, state_machine.layerCount)
+        val stateMachine = file.firstArtboard.stateMachine("nothing")
+        assertEquals(0, stateMachine.inputCount)
+        assertEquals(0, stateMachine.layerCount)
     }
 
     @Test
     fun one_layer() {
-        val state_machine = file.firstArtboard.stateMachine("one_layer")
-        assertEquals(0, state_machine.inputCount)
-        assertEquals(1, state_machine.layerCount)
+        val stateMachine = file.firstArtboard.stateMachine("one_layer")
+        assertEquals(0, stateMachine.inputCount)
+        assertEquals(1, stateMachine.layerCount)
     }
-
 
     @Test
     fun two_layers() {
-        val state_machine = file.firstArtboard.stateMachine("two_layers")
-        assertEquals(0, state_machine.inputCount)
-        assertEquals(2, state_machine.layerCount)
+        val stateMachine = file.firstArtboard.stateMachine("two_layers")
+        assertEquals(0, stateMachine.inputCount)
+        assertEquals(2, stateMachine.layerCount)
     }
 
     @Test
     fun number_input() {
-        val state_machine = file.firstArtboard.stateMachine("number_input")
-        assertEquals(1, state_machine.inputCount)
-        assertEquals(1, state_machine.layerCount)
-        val input = state_machine.input(0)
+        val stateMachine = file.firstArtboard.stateMachine("number_input")
+        assertEquals(1, stateMachine.inputCount)
+        assertEquals(1, stateMachine.layerCount)
+        val input = stateMachine.input(0)
         assertEquals(false, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(true, input.isNumber)
         assertEquals("Number 1", input.name)
-        assertEquals(state_machine.input("Number 1").cppPointer, input.cppPointer)
+        assertEquals(stateMachine.input("Number 1").cppPointer, input.cppPointer)
     }
 
     @Test
     fun boolean_input() {
-        val state_machine = file.firstArtboard.stateMachine("boolean_input")
-        assertEquals(1, state_machine.inputCount)
-        assertEquals(1, state_machine.layerCount)
-        val input = state_machine.input(0)
+        val stateMachine = file.firstArtboard.stateMachine("boolean_input")
+        assertEquals(1, stateMachine.inputCount)
+        assertEquals(1, stateMachine.layerCount)
+        val input = stateMachine.input(0)
         assertEquals(true, input.isBoolean)
         assertEquals(false, input.isTrigger)
         assertEquals(false, input.isNumber)
         assertEquals("Boolean 1", input.name)
-        assertEquals(state_machine.input("Boolean 1").cppPointer, input.cppPointer)
+        assertEquals(stateMachine.input("Boolean 1").cppPointer, input.cppPointer)
     }
 
     @Test
     fun trigger_input() {
-        val state_machine = file.firstArtboard.stateMachine("trigger_input")
-        assertEquals(1, state_machine.inputCount)
-        assertEquals(1, state_machine.layerCount)
-        val input = state_machine.input(0)
+        val stateMachine = file.firstArtboard.stateMachine("trigger_input")
+        assertEquals(1, stateMachine.inputCount)
+        assertEquals(1, stateMachine.layerCount)
+        val input = stateMachine.input(0)
         assertEquals(false, input.isBoolean)
         assertEquals(true, input.isTrigger)
         assertEquals(false, input.isNumber)
         assertEquals("Trigger 1", input.name)
-        assertEquals(state_machine.input("Trigger 1").cppPointer, input.cppPointer)
+        assertEquals(stateMachine.input("Trigger 1").cppPointer, input.cppPointer)
     }
 
     @Test
     fun mixed() {
-        val state_machine = file.firstArtboard.stateMachine("mixed")
-        assertEquals(6, state_machine.inputCount)
-        assertEquals(4, state_machine.layerCount)
+        val stateMachine = file.firstArtboard.stateMachine("mixed")
+        assertEquals(6, stateMachine.inputCount)
+        assertEquals(4, stateMachine.layerCount)
         assertEquals(
             listOf("zero", "off", "trigger", "two_point_two", "on", "three"),
-            state_machine.inputNames
+            stateMachine.inputNames
         )
-        assertEquals(true, state_machine.input("zero").isNumber)
-        assertEquals(true, state_machine.input("off").isBoolean)
-        assertEquals(true, state_machine.input("trigger").isTrigger)
-        assertEquals(true, state_machine.input("two_point_two").isNumber)
-        assertEquals(true, state_machine.input("on").isBoolean)
-        assertEquals(true, state_machine.input("three").isNumber)
+        assertEquals(true, stateMachine.input("zero").isNumber)
+        assertEquals(true, stateMachine.input("off").isBoolean)
+        assertEquals(true, stateMachine.input("trigger").isTrigger)
+        assertEquals(true, stateMachine.input("two_point_two").isNumber)
+        assertEquals(true, stateMachine.input("on").isBoolean)
+        assertEquals(true, stateMachine.input("three").isNumber)
 
-        assertEquals(true, state_machine.input("zero") is SMINumber)
-        assertEquals(0f, (state_machine.input("zero") as SMINumber).value)
+        assertEquals(true, stateMachine.input("zero") is SMINumber)
+        assertEquals(0f, (stateMachine.input("zero") as SMINumber).value)
 
-        assertEquals(true, state_machine.input("three") is SMINumber)
-        assertEquals(3f, (state_machine.input("three") as SMINumber).value)
+        assertEquals(true, stateMachine.input("three") is SMINumber)
+        assertEquals(3f, (stateMachine.input("three") as SMINumber).value)
 
-        assertEquals(true, state_machine.input("two_point_two") is SMINumber)
-        assertEquals(2.2f, (state_machine.input("two_point_two") as SMINumber).value)
+        assertEquals(true, stateMachine.input("two_point_two") is SMINumber)
+        assertEquals(2.2f, (stateMachine.input("two_point_two") as SMINumber).value)
 
-        assertEquals(true, state_machine.input("off") is SMIBoolean)
-        assertEquals(false, (state_machine.input("off") as SMIBoolean).value)
+        assertEquals(true, stateMachine.input("off") is SMIBoolean)
+        assertEquals(false, (stateMachine.input("off") as SMIBoolean).value)
 
-        assertEquals(true, state_machine.input("on") is SMIBoolean)
-        assertEquals(true, (state_machine.input("on") as SMIBoolean).value)
+        assertEquals(true, stateMachine.input("on") is SMIBoolean)
+        assertEquals(true, (stateMachine.input("on") as SMIBoolean).value)
 
-        assertEquals(true, state_machine.input("trigger") is SMITrigger)
-
-
+        assertEquals(true, stateMachine.input("trigger") is SMITrigger)
     }
-
 }

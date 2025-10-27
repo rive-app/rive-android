@@ -11,7 +11,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineTouchEventTest {
     private val testUtils = TestUtils()
@@ -213,5 +212,4 @@ class RiveStateMachineTouchEventTest {
             assertEquals("x25updown", observer.states[0].stateName)
         }
     }
-
 }

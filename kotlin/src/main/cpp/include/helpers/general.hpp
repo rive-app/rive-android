@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_GENERAL_HPP_
-#define _RIVE_ANDROID_GENERAL_HPP_
+#pragma once
 
 #include <jni.h>
 #include <string>
@@ -63,4 +62,3 @@ size_t JIntToSizeT(jint);
 void _check_egl_error(const char*, int);
 #endif
 } // namespace rive_android
-#endif

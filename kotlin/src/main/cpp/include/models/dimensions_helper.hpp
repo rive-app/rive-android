@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_DIMENSIONS_HELPER_HPP_
-#define _RIVE_ANDROID_DIMENSIONS_HELPER_HPP_
+#pragma once
 
 #include "rive/renderer.hpp"
 #include <jni.h>
@@ -47,13 +46,13 @@ public:
         m_Width(0.0f), m_Height(0.0f), m_ScaleX(1.0f), m_ScaleY(1.0f)
     {}
     // clang-format off
-    ~DimensionsHelper() {};
+    ~DimensionsHelper() override = default;
     // clang-format on
 
-    float width() const { return m_Width; }
-    float height() const { return m_Height; }
-    float scaleX() const { return m_ScaleX; }
-    float scaleY() const { return m_ScaleY; }
+    [[nodiscard]] float width() const { return m_Width; }
+    [[nodiscard]] float height() const { return m_Height; }
+    [[nodiscard]] float scaleX() const { return m_ScaleX; }
+    [[nodiscard]] float scaleY() const { return m_ScaleY; }
 
     rive::AABB computeDimensions(rive::Fit fit,
                                  rive::Alignment alignment,
@@ -62,4 +61,3 @@ public:
                                  float scaleFactor);
 };
 } // namespace rive_android
-#endif

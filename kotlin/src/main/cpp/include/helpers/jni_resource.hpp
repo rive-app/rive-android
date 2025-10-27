@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_JNI_RESOURCE_HPP_
-#define _RIVE_ANDROID_JNI_RESOURCE_HPP_
+#pragma once
 
 #include <jni.h>
 #include <vector>
@@ -20,11 +19,11 @@ private:
     T resource;
     JNIEnv* env;
 
+public:
     // Prevent copying to ensure unique ownership
     JniResource(const JniResource&) = delete;
     JniResource& operator=(const JniResource&) = delete;
 
-public:
     // Direct initialization with resource
     JniResource(T res, JNIEnv* env) : resource(res), env(env) {}
 
@@ -109,4 +108,3 @@ JniResource<jobject> VecStringToJStringList(JNIEnv*,
                                             const std::vector<std::string>&);
 
 } // namespace rive_android
-#endif

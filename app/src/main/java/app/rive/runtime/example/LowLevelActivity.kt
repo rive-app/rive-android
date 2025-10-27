@@ -12,10 +12,8 @@ import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.File
 import app.rive.runtime.kotlin.core.Fit
-import app.rive.runtime.kotlin.core.LinearAnimationInstance
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.renderers.Renderer
-
 
 class LowLevelActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,8 +72,8 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
             override fun draw() {
                 synchronized(file.lock) {
                     artboard.let {
-                        artboard.width = width / scaleFactor;
-                        artboard.height = height / scaleFactor;
+                        artboard.width = width / scaleFactor
+                        artboard.height = height / scaleFactor
                         save()
                         align(
                             Fit.LAYOUT,
@@ -101,5 +99,4 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         setupFile(renderer)
         return renderer
     }
-
 }

@@ -117,7 +117,7 @@ extern "C"
 
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_File_cppCreateDefaultBindableArtboard(
-        JNIEnv* env,
+        JNIEnv*,
         jobject,
         jlong ref)
     {

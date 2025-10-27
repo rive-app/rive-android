@@ -47,6 +47,3 @@ bugreport*.zip
 
 # Test history
 test_history.csv
-
-# OS files
-.DS_Store

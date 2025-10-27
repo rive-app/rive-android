@@ -58,7 +58,7 @@ void CanvasRenderer::clipPath(rive::RenderPath* path)
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
-    CanvasRenderPath* canvasPath = static_cast<CanvasRenderPath*>(path);
+    auto* canvasPath = static_cast<CanvasRenderPath*>(path);
     GetJNIEnv()->CallBooleanMethod(m_ktCanvas,
                                    GetCanvasClipPathMethodId(),
                                    canvasPath->ktPath());
@@ -67,8 +67,8 @@ void CanvasRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* paint)
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
-    CanvasRenderPath* canvasPath = static_cast<CanvasRenderPath*>(path);
-    CanvasRenderPaint* canvasPaint = static_cast<CanvasRenderPaint*>(paint);
+    auto* canvasPath = static_cast<CanvasRenderPath*>(path);
+    auto* canvasPaint = static_cast<CanvasRenderPaint*>(paint);
     GetJNIEnv()->CallVoidMethod(m_ktCanvas,
                                 GetCanvasDrawPathMethodId(),
                                 canvasPath->ktPath(),
@@ -82,8 +82,7 @@ void CanvasRenderer::drawImage(const rive::RenderImage* image,
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
 
-    const CanvasRenderImage* canvasImage =
-        static_cast<const CanvasRenderImage*>(image);
+    const auto* canvasImage = static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
     CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));
@@ -110,8 +109,7 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
-    const CanvasRenderImage* canvasImage =
-        static_cast<const CanvasRenderImage*>(image);
+    const auto* canvasImage = static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
     CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));

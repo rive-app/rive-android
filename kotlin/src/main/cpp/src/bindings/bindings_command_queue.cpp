@@ -619,10 +619,8 @@ extern "C"
                     {false, error, "Failed to make EGL context current"});
 
                 // Cleanup PBuffer and JVM thread attachment
-                if (pBuffer != EGL_NO_SURFACE)
-                {
-                    eglDestroySurface(eglDisplay, pBuffer);
-                }
+                eglDestroySurface(eglDisplay, pBuffer);
+
                 g_JVM->DetachCurrentThread();
                 return;
             }
@@ -637,10 +635,8 @@ extern "C"
                     {false, error, "Failed to create Rive RenderContextGL"});
 
                 // Cleanup PBuffer and JVM thread attachment
-                if (pBuffer != EGL_NO_SURFACE)
-                {
-                    eglDestroySurface(eglDisplay, pBuffer);
-                }
+                eglDestroySurface(eglDisplay, pBuffer);
+
                 g_JVM->DetachCurrentThread();
                 return;
             }
@@ -666,10 +662,7 @@ extern "C"
                            EGL_NO_SURFACE,
                            EGL_NO_SURFACE,
                            EGL_NO_CONTEXT);
-            if (pBuffer != EGL_NO_SURFACE)
-            {
-                eglDestroySurface(eglDisplay, pBuffer);
-            }
+            eglDestroySurface(eglDisplay, pBuffer);
 
             // Cleanup JVM thread attachment
             g_JVM->DetachCurrentThread();
@@ -750,7 +743,7 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateRenderTarget(JNIEnv* env,
+    Java_app_rive_core_CommandQueue_cppCreateRenderTarget(JNIEnv*,
                                                           jobject,
                                                           jint width,
                                                           jint height)

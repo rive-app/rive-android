@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -265,7 +265,7 @@ private fun buildConfigs(ctx: Context): List<ImageConfig> {
     }
 }
 
-class ImageBindingActivity : AppCompatActivity() {
+class ImageBindingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -325,10 +325,10 @@ private fun RiveGrid(
                 RiveLabeledView(
                     label = left.displayLabel(),
                     rendererType = left.rendererType,
-                    assetLoader = left.assetLoader,
                     modifier = Modifier
                         .weight(1f)
                         .padding(8.dp),
+                    assetLoader = left.assetLoader,
                     onViewReady = { onViewReadyAt(i, it) }
                 )
 
@@ -337,10 +337,10 @@ private fun RiveGrid(
                     RiveLabeledView(
                         label = right.displayLabel(),
                         rendererType = right.rendererType,
-                        assetLoader = right.assetLoader,
                         modifier = Modifier
                             .weight(1f)
                             .padding(8.dp),
+                        assetLoader = right.assetLoader,
                         onViewReady = { onViewReadyAt(i + 1, it) }
                     )
                 } else {
@@ -355,8 +355,8 @@ private fun RiveGrid(
 private fun RiveLabeledView(
     label: String,
     rendererType: RendererType,
-    assetLoader: FileAssetLoader? = null,
     modifier: Modifier = Modifier,
+    assetLoader: FileAssetLoader? = null,
     onViewReady: (RiveAnimationView) -> Unit
 ) {
     Column(modifier = modifier) {

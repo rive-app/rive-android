@@ -48,7 +48,6 @@ class AudioExternalAssetActivity : AppCompatActivity() {
     }
 
     private class AudioDecoder(private val context: Context) : FileAssetLoader() {
-        lateinit var audioAsset: AudioAsset
         override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
             if (asset is AudioAsset) {
                 val audioFilename = asset.uniqueFilename

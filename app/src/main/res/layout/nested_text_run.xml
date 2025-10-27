@@ -17,11 +17,11 @@
             android:id="@+id/nested_text_run"
             android:layout_width="match_parent"
             android:layout_height="400dp"
-            app:riveResource="@raw/runtime_nested_text_runs"
             app:riveArtboard="ArtboardA"
+            app:riveResource="@raw/runtime_nested_text_runs"
             app:riveStateMachine="State Machine 1" />
 
-        <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+        <RadioGroup
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
 
@@ -32,50 +32,49 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B1" />
+                android:text="Set B1"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/set_b2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B2" />
+                android:text="Set B2"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/set_b1_c1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B1/C1" />
+                android:text="Set B1/C1"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/set_b1_c2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B1/C2" />
+                android:text="Set B1/C2"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/set_b2_c1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B2/C1" />
+                android:text="Set B2/C1"
+                android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/set_b2_c2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="onButtonClick"
-                android:textColor="@color/textColorPrimary"
-                android:text="Set B2/C2" />
+                android:text="Set B2/C2"
+                android:textColor="@color/textColorPrimary" />
 
         </RadioGroup>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

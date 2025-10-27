@@ -15,7 +15,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @ControllerStateManagement
 @RunWith(AndroidJUnit4::class)
 class RiveViewLifecycleTest {
@@ -96,7 +95,6 @@ class RiveViewLifecycleTest {
             assertFalse(mockView.isPlaying)
         }
     }
-
 
     @Test
     fun viewLoadResourceAndThenAttach() {

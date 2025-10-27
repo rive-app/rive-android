@@ -64,7 +64,7 @@ class RiveEventTest {
             assertIs<RiveOpenURLEvent>(event)
             assertEquals("SomeOpenUrlEvent", event.name)
             assertEquals(EventType.OpenURLEvent, event.type)
-            assertEquals("https://rive.app", (event as RiveOpenURLEvent).url)
+            assertEquals("https://rive.app", event.url)
             assertEquals("_parent", (event).target)
             val expectedProperties = hashMapOf<String, Any>()
             assertEquals(expectedProperties, event.properties)

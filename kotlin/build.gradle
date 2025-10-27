@@ -147,24 +147,27 @@ mavenPublishing {
 
         developers {
             developer {
-                id = 'luigi-rosso'
-                name = 'Luigi Rosso'
-                email = 'luigi@rive.app'
+                id = 'erikuggeldahl'
+                name = 'Erik Uggeldahl'
+                email = 'erik@rive.app'
+                roles = ['Android DevRel']
             }
             developer {
                 id = 'umberto-sonnino'
                 name = 'Umberto Sonnino'
                 email = 'umberto@rive.app'
+                roles = ['Original Author']
+            }
+            developer {
+                id = 'luigi-rosso'
+                name = 'Luigi Rosso'
+                email = 'luigi@rive.app'
+                roles = ['Founder', 'CTO']
             }
             developer {
                 id = 'mjtalbot'
                 name = 'Maxwell Talbot'
-                email = 'max@rive.app'
-            }
-            developer {
-                id = 'erikuggeldahl'
-                name = 'Erik Uggeldahl'
-                email = 'erik@rive.app'
+                roles = ['Original Contributor']
             }
         }
 
@@ -172,7 +175,7 @@ mavenPublishing {
         scm {
             connection = 'scm:git:git@github.com:rive-app/rive-android.git'
             developerConnection = 'scm:git:ssh://git@github.com:rive-app/rive-android.git'
-            url = 'https://github.com/rive-app/rive-android/tree/master'
+            url = 'https://github.com/rive-app/rive-android/'
         }
     }
 }

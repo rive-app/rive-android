@@ -1,9 +1,4 @@
-//
-// Created by Umberto Sonnino on 7/10/23.
-//
-
-#ifndef RIVE_ANDROID_WORKER_IMPL_HPP
-#define RIVE_ANDROID_WORKER_IMPL_HPP
+#pragma once
 
 #include <variant>
 
@@ -26,7 +21,7 @@ class WorkerImpl
 public:
     static std::unique_ptr<WorkerImpl> Make(SurfaceVariant,
                                             DrawableThreadState*,
-                                            const RendererType);
+                                            RendererType);
 
     virtual ~WorkerImpl()
     {
@@ -50,7 +45,7 @@ public:
 
     virtual void flush(DrawableThreadState*) const = 0;
 
-    virtual rive::Renderer* renderer() const = 0;
+    [[nodiscard]] virtual rive::Renderer* renderer() const = 0;
 
 protected:
     jclass m_ktRendererClass = nullptr;
@@ -63,13 +58,13 @@ protected:
 class EGLWorkerImpl : public WorkerImpl
 {
 public:
-    virtual ~EGLWorkerImpl()
+    ~EGLWorkerImpl() override
     {
         // Call destroy() first!
         assert(m_eglSurface == EGL_NO_SURFACE);
     }
 
-    virtual void destroy(DrawableThreadState* threadState) override
+    void destroy(DrawableThreadState* threadState) override
     {
         if (m_eglSurface != EGL_NO_SURFACE)
         {
@@ -79,7 +74,7 @@ public:
         }
     }
 
-    virtual void prepareForDraw(DrawableThreadState* threadState) const override
+    void prepareForDraw(DrawableThreadState* threadState) const override
     {
         auto eglThreadState = static_cast<EGLThreadState*>(threadState);
         // Bind context to this thread.
@@ -116,7 +111,7 @@ public:
 
     void flush(DrawableThreadState* threadState) const override;
 
-    rive::Renderer* renderer() const override;
+    [[nodiscard]] rive::Renderer* renderer() const override;
 
 private:
     rive::rcp<rive::gpu::RenderTargetGL> m_renderTarget;
@@ -143,13 +138,16 @@ public:
         *success = true;
     }
 
-    ~CanvasWorkerImpl()
+    ~CanvasWorkerImpl() override
     {
         // Call destroy() first!
         assert(m_ktSurface == nullptr);
     }
 
-    rive::Renderer* renderer() const override { return m_canvasRenderer.get(); }
+    [[nodiscard]] rive::Renderer* renderer() const override
+    {
+        return m_canvasRenderer.get();
+    }
 
     void flush(DrawableThreadState*) const override;
 
@@ -163,4 +161,3 @@ private:
 };
 
 } // namespace rive_android
-#endif // RIVE_ANDROID_WORKER_IMPL_HPP

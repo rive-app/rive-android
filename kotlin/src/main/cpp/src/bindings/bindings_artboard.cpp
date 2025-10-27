@@ -88,8 +88,8 @@ extern "C"
 
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_Artboard_cppStateMachineByIndex(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jint index)
     {
@@ -372,14 +372,15 @@ extern "C"
 
         auto fit = GetFit(env, ktFit);
         auto alignment = GetAlignment(env, ktAlignment);
+        auto width = static_cast<float>(jniWrapper->width());
+        auto height = static_cast<float>(jniWrapper->height());
 
         renderer->save();
-        renderer->align(
-            fit,
-            alignment,
-            rive::AABB(0, 0, jniWrapper->width(), jniWrapper->height()),
-            artboard->bounds(),
-            scaleFactor);
+        renderer->align(fit,
+                        alignment,
+                        rive::AABB(0, 0, width, height),
+                        artboard->bounds(),
+                        scaleFactor);
         artboard->draw(renderer);
         renderer->restore();
     }

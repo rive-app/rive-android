@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -32,30 +31,28 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Reset"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/forwards"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="forwards"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/auto"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="auto"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/backwards"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="backwards"
-                android:textSize="10dp" />
-
-
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -69,36 +66,35 @@
                 android:layout_height="fill_parent"
                 android:layout_centerVertical="true"
                 android:text="Animation: \nRotate\n 90"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/play_oneshot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Play"
-                android:textSize="10dp" />
-
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/oneshot_oneshot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Oneshot"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/loop_oneshot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Loop"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/pingpong_oneshot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Pingpong"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -111,36 +107,35 @@
                 android:layout_width="wrap_content"
                 android:layout_height="fill_parent"
                 android:text="Animation: \nLoop\ndown up"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/play_loop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Play"
-                android:textSize="10dp" />
-
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/oneshot_loop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Oneshot"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/loop_loop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Loop"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/pingpong_loop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Pingpong"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -152,38 +147,35 @@
                 android:layout_width="wrap_content"
                 android:layout_height="fill_parent"
                 android:text="Animation: \nPing Pong\n Ltr"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/play_pingpong"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Play"
-                android:textSize="10dp" />
-
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/oneshot_pingpong"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Oneshot"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/loop_pingpong"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Loop"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/pingpong_pingpong"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Pingpong"
-                android:textSize="10dp" />
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
-
-
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -25,9 +25,8 @@ extern "C"
         jboolean trace,
         jint type)
     {
-        RendererType rendererType = static_cast<RendererType>(type);
-        JNIRenderer* renderer =
-            new JNIRenderer(ktRenderer, trace, rendererType);
+        auto rendererType = static_cast<RendererType>(type);
+        auto* renderer = new JNIRenderer(ktRenderer, trace, rendererType);
         // If using a fallback renderer, reassign this value.
         int actualType = static_cast<int>(renderer->rendererType());
         if (type != actualType)
@@ -41,7 +40,7 @@ extern "C"
                                                 setRendererType,
                                                 actualType);
         }
-        return (jlong)renderer;
+        return reinterpret_cast<jlong>(renderer);
     }
 
     JNIEXPORT void JNICALL
@@ -49,7 +48,7 @@ extern "C"
                                                               jobject,
                                                               jlong rendererRef)
     {
-        JNIRenderer* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
+        auto* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
         renderer->scheduleDispose();
     }
 
@@ -85,7 +84,7 @@ extern "C"
         jobject surface,
         jlong rendererRef)
     {
-        JNIRenderer* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
+        auto* renderer = reinterpret_cast<JNIRenderer*>(rendererRef);
         if (renderer->rendererType() != RendererType::Canvas)
         {
             ANativeWindow* surfaceWindow =
@@ -138,7 +137,7 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_renderers_Renderer_cppAlign(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jobject ktFit,
         jobject ktAlignment,
@@ -146,7 +145,7 @@ extern "C"
         jobject sourceBoundsRectF,
         jfloat scaleFactor)
     {
-        JNIRenderer* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
+        auto* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
         rive::Fit fit = GetFit(env, ktFit);
         rive::Alignment alignment = GetAlignment(env, ktAlignment);
         rive::AABB targetBounds = RectFToAABB(env, targetBoundsRectF);
@@ -159,18 +158,17 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_renderers_Renderer_cppTransform(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref,
-        jfloat x,
-        jfloat sy,
-        jfloat sx,
-        jfloat y,
-        jfloat tx,
-        jfloat ty)
+    Java_app_rive_runtime_kotlin_renderers_Renderer_cppTransform(JNIEnv*,
+                                                                 jobject,
+                                                                 jlong ref,
+                                                                 jfloat x,
+                                                                 jfloat sy,
+                                                                 jfloat sx,
+                                                                 jfloat y,
+                                                                 jfloat tx,
+                                                                 jfloat ty)
     {
-        JNIRenderer* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
+        auto* jniWrapper = reinterpret_cast<JNIRenderer*>(ref);
         jniWrapper->getRendererOnWorkerThread()->transform(
             rive::Mat2D(x, sy, sx, y, tx, ty));
     }

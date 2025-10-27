@@ -27,7 +27,6 @@ class TestUtils {
                     throw TimeoutException("Took too long.")
                 }
             } while (!condition())
-
         }
 
         // Helper function to check whether it's running on an emulator

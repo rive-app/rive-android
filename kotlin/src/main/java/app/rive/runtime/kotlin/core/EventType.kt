@@ -1,8 +1,6 @@
 package app.rive.runtime.kotlin.core
 
-/**
- * The type of Rive event.
- */
+/** The type of Rive event. */
 enum class EventType(val value: Short) {
     OpenURLEvent(131),
     GeneralEvent(128);

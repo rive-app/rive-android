@@ -1,8 +1,4 @@
-//
-// Created by Umberto Sonnino on 7/18/23.
-//
-#ifndef RIVE_ANDROID_CANVAS_RENDER_OBJECTS_HPP
-#define RIVE_ANDROID_CANVAS_RENDER_OBJECTS_HPP
+#pragma once
 
 #include "helpers/android_factories.hpp"
 #include "helpers/general.hpp"
@@ -172,4 +168,3 @@ public:
     }
 };
 } // namespace rive_android
-#endif // RIVE_ANDROID_CANVAS_RENDER_OBJECTS_HPP

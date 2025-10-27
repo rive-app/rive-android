@@ -26,92 +26,98 @@ class RiveLinearAnimationInstanceAdvanceTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultAdvanced() {
-            val anim = artboard.animation("one")
-            anim.loop = Loop.LOOP
+        val anim = artboard.animation("one")
+        anim.loop = Loop.LOOP
 
-            // Advance less than full duration
-            val resultNew = anim.advanceAndGetResult(animDurationSecs * 0.5f)
-            assertEquals(AdvanceResult.ADVANCED, resultNew)
-            assertEquals(animDurationSecs * 0.5f, anim.time, 0.001f)
+        // Advance less than full duration
+        val resultNew = anim.advanceAndGetResult(animDurationSecs * 0.5f)
+        assertEquals(AdvanceResult.ADVANCED, resultNew)
+        assertEquals(animDurationSecs * 0.5f, anim.time, 0.001f)
 
-            // Check deprecated method compatibility
-            anim.time(0f)
-            val resultOld = anim.advance(animDurationSecs * 0.5f)
-            assertNull(resultOld)
+        // Check deprecated method compatibility
+        anim.time(0f)
+        val resultOld = anim.advance(animDurationSecs * 0.5f)
+        assertNull(resultOld)
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultOneShot() {
-            val anim = artboard.animation("one")
-            anim.loop = Loop.ONESHOT
+        val anim = artboard.animation("one")
+        anim.loop = Loop.ONESHOT
 
-            // Advance just before the end
-            val resultPre = anim.advanceAndGetResult(animDurationSecs * 0.9f)
-            assertEquals(AdvanceResult.ADVANCED, resultPre)
+        // Advance just before the end
+        val resultPre = anim.advanceAndGetResult(animDurationSecs * 0.9f)
+        assertEquals(AdvanceResult.ADVANCED, resultPre)
 
-            // Advance past the end
-            val resultNew = anim.advanceAndGetResult(animDurationSecs * 0.2f)
-            assertEquals(AdvanceResult.ONESHOT, resultNew)
+        // Advance past the end
+        val resultNew = anim.advanceAndGetResult(animDurationSecs * 0.2f)
+        assertEquals(AdvanceResult.ONESHOT, resultNew)
 
-            // Check deprecated method compatibility
-            anim.time(0f)
-            val resultOldPre = anim.advance(animDurationSecs * 0.9f)
-            assertNull(resultOldPre)
-            val resultOldPost = anim.advance(animDurationSecs * 0.2f)
-            assertEquals(Loop.ONESHOT, resultOldPost)
+        // Check deprecated method compatibility
+        anim.time(0f)
+        val resultOldPre = anim.advance(animDurationSecs * 0.9f)
+        assertNull(resultOldPre)
+        val resultOldPost = anim.advance(animDurationSecs * 0.2f)
+        assertEquals(Loop.ONESHOT, resultOldPost)
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultLoop() {
-            val anim = artboard.animation("one")
-            anim.loop = Loop.LOOP
-            // Past the end
-            val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
-            assertEquals(AdvanceResult.LOOP, resultNew)
+        val anim = artboard.animation("one")
+        anim.loop = Loop.LOOP
+        // Past the end
+        val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
+        assertEquals(AdvanceResult.LOOP, resultNew)
 
-            anim.time(0f)
-            val resultOld = anim.advance(animDurationSecs * 1.2f)
-            assertEquals(Loop.LOOP, resultOld)
+        anim.time(0f)
+        val resultOld = anim.advance(animDurationSecs * 1.2f)
+        assertEquals(Loop.LOOP, resultOld)
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultPingPongForwardToEnd() {
-            val anim = artboard.animation("one")
-            anim.loop = Loop.PINGPONG
-            anim.direction = Direction.FORWARDS
+        val anim = artboard.animation("one")
+        anim.loop = Loop.PINGPONG
+        anim.direction = Direction.FORWARDS
 
-            // Past the end
-            val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
-            assertEquals(AdvanceResult.PINGPONG, resultNew)
-            assertEquals(Direction.BACKWARDS, anim.direction)
+        // Past the end
+        val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
+        assertEquals(AdvanceResult.PINGPONG, resultNew)
+        assertEquals(Direction.BACKWARDS, anim.direction)
 
-            anim.time(0f)
-            anim.direction = Direction.FORWARDS
-            val resultOld = anim.advance(animDurationSecs * 1.2f)
-            assertEquals(Loop.PINGPONG, resultOld)
-            assertEquals(Direction.BACKWARDS, anim.direction)
+        anim.time(0f)
+        anim.direction = Direction.FORWARDS
+        val resultOld = anim.advance(animDurationSecs * 1.2f)
+        assertEquals(Loop.PINGPONG, resultOld)
+        assertEquals(Direction.BACKWARDS, anim.direction)
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultPingPongBackwardToStart() {
-            val anim = artboard.animation("one")
-            anim.loop = Loop.PINGPONG
-            anim.direction = Direction.BACKWARDS
-            anim.time(anim.endTime)
+        val anim = artboard.animation("one")
+        anim.loop = Loop.PINGPONG
+        anim.direction = Direction.BACKWARDS
+        anim.time(anim.endTime)
 
-            val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
-            assertEquals(AdvanceResult.PINGPONG, resultNew)
-            assertEquals(Direction.FORWARDS, anim.direction)
+        val resultNew = anim.advanceAndGetResult(animDurationSecs * 1.2f)
+        assertEquals(AdvanceResult.PINGPONG, resultNew)
+        assertEquals(Direction.FORWARDS, anim.direction)
 
-            anim.time(anim.endTime)
-            anim.direction = Direction.BACKWARDS
-            val resultOld = anim.advance(animDurationSecs * 1.2f)
-            assertEquals(Loop.PINGPONG, resultOld)
-            assertEquals(Direction.FORWARDS, anim.direction)
+        anim.time(anim.endTime)
+        anim.direction = Direction.BACKWARDS
+        val resultOld = anim.advance(animDurationSecs * 1.2f)
+        assertEquals(Loop.PINGPONG, resultOld)
+        assertEquals(Direction.FORWARDS, anim.direction)
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testAdvanceResultNoneWhenFinished() {
         val anim = artboard.animation("one")
         anim.loop = Loop.ONESHOT
@@ -128,18 +134,18 @@ class RiveLinearAnimationInstanceAdvanceTest {
 
     @Test
     fun testAdvanceResultWithZeroDelta() {
-            val anim = artboard.animation("one")
+        val anim = artboard.animation("one")
 
-            anim.loop = Loop.LOOP
-            val resultNewPlaying = anim.advanceAndGetResult(0.01f)
-            assertEquals(AdvanceResult.ADVANCED, resultNewPlaying)
+        anim.loop = Loop.LOOP
+        val resultNewPlaying = anim.advanceAndGetResult(0.01f)
+        assertEquals(AdvanceResult.ADVANCED, resultNewPlaying)
 
-            anim.loop = Loop.ONESHOT
-            anim.advanceAndGetResult(animDurationSecs * 1.2f)
-            assertEquals(animDurationSecs, anim.time)
+        anim.loop = Loop.ONESHOT
+        anim.advanceAndGetResult(animDurationSecs * 1.2f)
+        assertEquals(animDurationSecs, anim.time)
 
-            val resultNewStopped = anim.advanceAndGetResult(0.0f)
-            assertEquals(AdvanceResult.NONE, resultNewStopped)
-            assertEquals(animDurationSecs, anim.time)
+        val resultNewStopped = anim.advanceAndGetResult(0.0f)
+        assertEquals(AdvanceResult.NONE, resultNewStopped)
+        assertEquals(animDurationSecs, anim.time)
     }
 }

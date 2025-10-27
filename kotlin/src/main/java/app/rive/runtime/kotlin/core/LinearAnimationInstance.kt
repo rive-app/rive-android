@@ -59,7 +59,6 @@ class LinearAnimationInstance(
         synchronized(lock) { return cppAdvanceAndGetResult(cppPointer, elapsedTime) }
     }
 
-
     /**
      * Applies the animation instance's current set of transformations to an [Artboard].
      *
@@ -127,7 +126,6 @@ class LinearAnimationInstance(
     val effectiveDurationInSeconds: Float
         get() = effectiveDuration.toFloat() / fps
 
-
     /** Return the frames per second (FPS) configured for this animation. */
     val fps: Int
         get() = cppFps(cppPointer)
@@ -184,5 +182,3 @@ class LinearAnimationInstance(
         }
         set(loop) = synchronized(lock) { cppSetLoop(cppPointer, loop.ordinal) }
 }
-
-

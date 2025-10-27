@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveMemoryTests {
     private val testUtils = TestUtils()
@@ -231,7 +230,6 @@ class RiveMemoryTests {
         }
     }
 
-
     @Test
     fun resetDoesNotResetManualArtboards() {
         val mockView = TestUtils.MockNoopRiveAnimationView(appContext)
@@ -405,7 +403,7 @@ class RiveMemoryTests {
             private val phaser: Phaser,
         ) : Artboard(unsafeCppPointer, lock) {
             override fun draw(
-                cppPointer: Long,
+                rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
                 scaleFactor: Float,
@@ -426,7 +424,7 @@ class RiveMemoryTests {
                 }
 
                 // Only now do we draw, at which point the file would have been replaced
-                super.draw(cppPointer, fit, alignment, scaleFactor)
+                super.draw(rendererAddress, fit, alignment, scaleFactor)
                 // Arrive at postDraw - we're done
                 phaser.arrive()
             }

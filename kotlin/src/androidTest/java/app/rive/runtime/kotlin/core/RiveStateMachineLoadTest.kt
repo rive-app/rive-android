@@ -9,7 +9,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineLoadTest {
     private val testUtils = TestUtils()

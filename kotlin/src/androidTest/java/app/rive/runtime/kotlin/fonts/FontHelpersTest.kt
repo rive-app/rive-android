@@ -225,8 +225,8 @@ class FontHelpersTest {
 
     @Test
     fun findMatchesMultipleFonts() {
-        context.resources.openRawResource(R.raw.fonts).use {
-            val systemFonts = SystemFontsParser.parseFontsXMLMap(it)
+        context.resources.openRawResource(R.raw.fonts).use { stream ->
+            val systemFonts = SystemFontsParser.parseFontsXMLMap(stream)
 
             val matches =
                 FontHelper.findMatches(
@@ -247,7 +247,6 @@ class FontHelpersTest {
                 actualSansSerifAll
             )
 
-
             val italicMatches = FontHelper.findMatches(
                 systemFonts,
                 Fonts.FontOpts(style = Fonts.Font.STYLE_ITALIC, weight = null)
@@ -266,7 +265,6 @@ class FontHelpersTest {
             )
             assertEquals(expectedItalicAll, italicMatches.map { it.name }.toSet())
             italicMatches.forEach { font -> assertEquals(Fonts.Font.STYLE_ITALIC, font.style) }
-
 
             val sansSerifNormal = FontHelper.findMatches(
                 systemFonts,
@@ -290,7 +288,6 @@ class FontHelpersTest {
                 actualSansSerifNormal
             )
             sansSerifNormal.forEach { font -> assertEquals(Fonts.Font.STYLE_NORMAL, font.style) }
-
 
             val sansSerifItalic = FontHelper.findMatches(
                 systemFonts,
@@ -400,6 +397,7 @@ class FontHelpersTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun systemFontFiles() {
         // Warn: keep an eye out for this test - this is testing the target device has all the
         //  fonts that have been parsed from the XML file on its File System. We deem this
@@ -439,8 +437,8 @@ class FontHelpersTest {
     @Test
     fun parseFonts() {
         val fontResource = context.resources.openRawResource(R.raw.fonts)
-        fontResource.use {
-            val systemFonts = SystemFontsParser.parseFontsXMLMap(it)
+        fontResource.use { stream ->
+            val systemFonts = SystemFontsParser.parseFontsXMLMap(stream)
             assertTrue(systemFonts.isNotEmpty())
             listOf(
                 Pair(100, "Roboto-Thin.ttf"),
@@ -887,7 +885,7 @@ class FontHelpersTest {
                     "NotoSansSinhala-Regular.ttf",
                     "NotoSansSinhala-Bold.ttf",
                 ),
-            ).forEach { (regular, bold) ->
+            ).forEach { (regular, _) ->
                 assertTrue(systemFonts.containsKey(regular))
                 val fonts = systemFonts[regular]!!.fonts
                 assertTrue(fonts[Fonts.Weight.NORMAL]!!.isNotEmpty())
@@ -1159,6 +1157,7 @@ class FontHelpersTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun nativeFallbackFontRegistration() {
         val families = FontHelper.getSystemFonts().values
         val allFonts = families.flatMap { family -> family.fonts.values.flatten() }
@@ -1174,6 +1173,7 @@ class FontHelpersTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun nativeHasGlyphWithBytes() {
         // Since this test fetches the bytes from the device, use a Font that
         //  seems to be found across the board
@@ -1183,9 +1183,7 @@ class FontHelpersTest {
         assertNotNull(thaiFont)
         val fontBytes = FontHelper.getFontBytes(thaiFont!!)
         assertNotNull(fontBytes)
-        assertTrue(
-            Rive.setFallbackFont(fontBytes!!)
-        )
+        assertTrue(Rive.setFallbackFont(fontBytes!!))
 
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
@@ -1214,6 +1212,7 @@ class FontHelpersTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun nativeHasGlyphWithOpts() {
         // Since this test fetches the bytes from the device, use a Font that
         //  seems to be found across the board
@@ -1224,9 +1223,7 @@ class FontHelpersTest {
 
         val thaiFontBytes = FontHelper.getFontBytes(thaiFont!!)
         assertNotNull(thaiFontBytes)
-        assertTrue(
-            Rive.setFallbackFont(thaiFontBytes!!)
-        )
+        assertTrue(Rive.setFallbackFont(thaiFontBytes!!))
 
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
@@ -1488,7 +1485,7 @@ class FontHelpersTest {
         val numThreads = 10
         val threads = List(numThreads) {
             Thread {
-                val fonts = FontHelper.getSystemFonts()
+                val fonts = FontHelper.getSystemFontList()
                 assertFalse(fonts.isEmpty())
             }
         }
@@ -1496,7 +1493,7 @@ class FontHelpersTest {
         threads.forEach { it.start() }
         threads.forEach { it.join() }
 
-        val finalFonts = FontHelper.getSystemFonts()
+        val finalFonts = FontHelper.getSystemFontList()
         assertFalse(finalFonts.isEmpty())
     }
 
@@ -1548,7 +1545,7 @@ class FontHelpersTest {
             Fonts.FontOpts(lang = "ko")
         ).first()
 
-        assertEquals("Korean.ttf", matchedFont!!.name)
+        assertEquals("Korean.ttf", matchedFont.name)
     }
 
     @Test
@@ -1598,7 +1595,7 @@ class FontHelpersTest {
     @Test
     fun testResetFunctionality() {
         // First get system fonts to ensure 1 is populated
-        val initialFonts = FontHelper.getSystemFonts()
+        val initialFonts = FontHelper.getSystemFontList()
         assertFalse(initialFonts.isEmpty())
 
         // Create test instance to access the reset method
@@ -1757,7 +1754,6 @@ class FontHelpersTest {
             droidFallbackFamily!!.fonts.values.flatten().first().name
         )
     }
-
 
     @Test
     fun testParseDuplicateFamilyNamesList() {

@@ -15,7 +15,6 @@ class RiveNestedInputsTest {
     private val appContext = testUtils.context
     private lateinit var view: TestUtils.MockRiveAnimationView
 
-
     @Before
     fun init() {
         view = TestUtils.MockRiveAnimationView(appContext)
@@ -24,7 +23,11 @@ class RiveNestedInputsTest {
     @Test
     fun can_set_inputs_at_path_no_errors() {
         UiThreadStatement.runOnUiThread {
-            view.setRiveResource(R.raw.nested_inputs_test, artboardName = "Artboard", stateMachineName = "State Machine 1")
+            view.setRiveResource(
+                R.raw.nested_inputs_test,
+                artboardName = "Artboard",
+                stateMachineName = "State Machine 1"
+            )
             view.play()
             view.setBooleanStateAtPath("bool", true, "nested")
             view.setNumberStateAtPath("number", 1f, "nested")
@@ -35,7 +38,11 @@ class RiveNestedInputsTest {
     @Test
     fun set_incorrect_name_inputs_at_path_throws() {
         UiThreadStatement.runOnUiThread {
-            view.setRiveResource(R.raw.nested_inputs_test, artboardName = "Artboard", stateMachineName = "State Machine 1")
+            view.setRiveResource(
+                R.raw.nested_inputs_test,
+                artboardName = "Artboard",
+                stateMachineName = "State Machine 1"
+            )
             view.play()
             assertThrows(StateMachineInputException::class.java) {
                 view.setBooleanStateAtPath("wrongname", true, "nested")
@@ -55,7 +62,11 @@ class RiveNestedInputsTest {
     @Test
     fun set_incorrect_path_inputs_at_path_throws() {
         UiThreadStatement.runOnUiThread {
-            view.setRiveResource(R.raw.nested_inputs_test, artboardName = "Artboard", stateMachineName = "State Machine 1")
+            view.setRiveResource(
+                R.raw.nested_inputs_test,
+                artboardName = "Artboard",
+                stateMachineName = "State Machine 1"
+            )
             view.play()
             assertThrows(StateMachineInputException::class.java) {
                 view.setBooleanStateAtPath("bool", true, "wrongPath")
@@ -71,5 +82,4 @@ class RiveNestedInputsTest {
             }
         }
     }
-
 }

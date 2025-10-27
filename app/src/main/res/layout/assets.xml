@@ -12,6 +12,4 @@
         android:layout_height="match_parent"
         app:riveFit="COVER"
         app:riveResource="@raw/falling" />
-
-
 </androidx.constraintlayout.widget.ConstraintLayout>

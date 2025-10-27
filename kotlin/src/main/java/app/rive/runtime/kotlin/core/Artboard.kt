@@ -75,7 +75,6 @@ class Artboard(
         path: String
     ): Boolean
 
-
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)

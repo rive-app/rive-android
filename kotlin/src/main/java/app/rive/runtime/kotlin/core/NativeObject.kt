@@ -66,7 +66,6 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
     // Up to the implementer (interfaces cannot have external functions)
     open fun cppDelete(pointer: Long) {}
 
-
     /**
      * Builds a combined stack trace incorporating the disposal stack trace and the current access
      * trace. This helps diagnosing issues with invalid memory access.

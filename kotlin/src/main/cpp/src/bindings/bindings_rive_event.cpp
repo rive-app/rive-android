@@ -33,7 +33,7 @@ extern "C"
                 return "_top";
         }
         return "_blank";
-    };
+    }
 
     jobject GetProperties(JNIEnv* env, rive::Event* event)
     {
@@ -127,10 +127,10 @@ extern "C"
 
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_RiveOpenURLEvent_cppURL(JNIEnv* env,
-                                                              jobject thisObj,
+                                                              jobject,
                                                               jlong ref)
     {
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
+        auto* event = reinterpret_cast<rive::Event*>(ref);
         if (event->is<rive::OpenUrlEvent>())
         {
             auto urlEvent = event->as<rive::OpenUrlEvent>();
@@ -140,21 +140,17 @@ extern "C"
     }
 
     JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveOpenURLEvent_cppTarget(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_RiveOpenURLEvent_cppTarget(JNIEnv* env,
+                                                                 jobject,
+                                                                 jlong ref)
     {
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
+        auto* event = reinterpret_cast<rive::Event*>(ref);
         if (event->is<rive::OpenUrlEvent>())
         {
             auto urlEvent = event->as<rive::OpenUrlEvent>();
             const char* target = GetTargetValue(urlEvent);
 
-            if (target != nullptr)
-            {
-                return env->NewStringUTF(target);
-            }
+            return env->NewStringUTF(target);
         }
 
         return env->NewStringUTF("_blank");
@@ -162,35 +158,35 @@ extern "C"
 
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_RiveEvent_cppName(JNIEnv* env,
-                                                        jobject thisObj,
+                                                        jobject,
                                                         jlong ref)
     {
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
+        auto* event = reinterpret_cast<rive::Event*>(ref);
         return env->NewStringUTF(event->name().c_str());
     }
 
     JNIEXPORT jshort JNICALL
-    Java_app_rive_runtime_kotlin_core_RiveEvent_cppType(JNIEnv* env,
-                                                        jobject thisObj,
+    Java_app_rive_runtime_kotlin_core_RiveEvent_cppType(JNIEnv*,
+                                                        jobject,
                                                         jlong ref)
     {
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
-        return event->coreType();
+        auto* event = reinterpret_cast<rive::Event*>(ref);
+        return static_cast<jshort>(event->coreType());
     }
 
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_RiveEvent_cppProperties(JNIEnv* env,
-                                                              jobject thisObj,
+                                                              jobject,
                                                               jlong ref)
     {
 
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
+        auto* event = reinterpret_cast<rive::Event*>(ref);
         return GetProperties(env, event);
     }
 
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_RiveEvent_cppData(JNIEnv* env,
-                                                        jobject thisObj,
+                                                        jobject,
                                                         jlong ref)
     {
         jclass hashMapClass = GetHashMapClass();
@@ -201,7 +197,7 @@ extern "C"
             "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
         jobject eventObject = env->NewObject(hashMapClass, hashMapConstructor);
 
-        rive::Event* event = reinterpret_cast<rive::Event*>(ref);
+        auto* event = reinterpret_cast<rive::Event*>(ref);
 
         if (event == nullptr)
         {
@@ -233,15 +229,11 @@ extern "C"
                                                   env->NewStringUTF("url"),
                                                   env->NewStringUTF(url));
             const char* target = GetTargetValue(urlEvent);
-            if (target != nullptr)
-            {
-                JNIExceptionHandler::CallObjectMethod(
-                    env,
-                    eventObject,
-                    putMethod,
-                    env->NewStringUTF("target"),
-                    env->NewStringUTF(target));
-            }
+            JNIExceptionHandler::CallObjectMethod(env,
+                                                  eventObject,
+                                                  putMethod,
+                                                  env->NewStringUTF("target"),
+                                                  env->NewStringUTF(target));
         }
 
         JNIExceptionHandler::CallObjectMethod(env,

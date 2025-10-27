@@ -12,16 +12,16 @@ extern "C"
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_Helpers_cppConvertToArtboardSpace(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jobject touchSpaceRectF,
         jobject touchSpacePointF,
-        jobject jfit,
-        jobject jalignment,
+        jobject jFit,
+        jobject jAlignment,
         jobject artboardSpaceRectF,
         jfloat scaleFactor)
     {
-        auto fit = ::GetFit(env, jfit);
-        auto alignment = ::GetAlignment(env, jalignment);
+        auto fit = ::GetFit(env, jFit);
+        auto alignment = ::GetAlignment(env, jAlignment);
         auto artboardSpaceBounds = RectFToAABB(env, artboardSpaceRectF);
         auto touchSpaceBounds = RectFToAABB(env, touchSpaceRectF);
         jlong touchX =

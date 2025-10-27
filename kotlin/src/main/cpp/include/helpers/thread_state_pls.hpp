@@ -1,8 +1,4 @@
-//
-// Created by Umberto Sonnino on 6/27/23.
-//
-#ifndef RIVE_ANDROID_THREAD_STATE_PLS_HPP
-#define RIVE_ANDROID_THREAD_STATE_PLS_HPP
+#pragma once
 
 #include <memory>
 
@@ -15,9 +11,9 @@ class PLSThreadState : public EGLThreadState
 {
 public:
     PLSThreadState();
-    ~PLSThreadState();
+    ~PLSThreadState() override;
 
-    rive::gpu::RenderContext* renderContext() const
+    [[nodiscard]] rive::gpu::RenderContext* renderContext() const
     {
         return m_renderContext.get();
     }
@@ -34,5 +30,3 @@ private:
     EGLSurface m_backgroundSurface;
 };
 } // namespace rive_android
-
-#endif // RIVE_ANDROID_THREAD_STATE_PLS_HPP

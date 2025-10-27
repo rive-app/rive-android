@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration
 
-
 class TestUtils {
 
     val context: Context by lazy {
@@ -51,7 +50,6 @@ class TestUtils {
         }
     }
 
-
     class MockArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
         RiveArtboardRenderer(controller = controller) {
         /**
@@ -63,11 +61,9 @@ class TestUtils {
             isAttached = true
         }
 
-        override fun scheduleFrame() {
-            advance(0f)
-        }
+        override fun scheduleFrame() = advance(0f)
 
-        /** NOP */
+        /** NOP. */
         override fun draw() {}
 
         override fun disposeDependencies() {
@@ -93,13 +89,10 @@ class TestUtils {
             }
         }
 
-        override fun createRenderer(): MockArtboardRenderer {
-            return MockArtboardRenderer(controller, CountDownLatch(latchCount))
-        }
+        override fun createRenderer(): MockArtboardRenderer =
+            MockArtboardRenderer(controller, CountDownLatch(latchCount))
 
-        fun mockAttach(isReinit: Boolean = false) {
-            onAttachedToWindow()
-        }
+        fun mockAttach() = onAttachedToWindow()
 
         fun mockDetach(destroy: Boolean = true) {
             // Grab the reference before it's nullified.
@@ -119,17 +112,15 @@ class TestUtils {
             controller.release()
         }
 
-        public override fun createObserver(): LifecycleObserver {
-            return super.createObserver()
-        }
+        public override fun createObserver(): LifecycleObserver = super.createObserver()
     }
 
     class MockNoopArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
         RiveArtboardRenderer(controller = controller) {
-        /** NOP */
+        /** NOP. */
         override fun scheduleFrame() {}
 
-        /** NOP */
+        /** NOP. */
         override fun draw() {}
 
         override fun disposeDependencies() {
@@ -139,7 +130,8 @@ class TestUtils {
     }
 
     /**
-     * This RiveAnimationView uses a custom [MockNoopArtboardRenderer] to noop any drawing interactions.
+     * This RiveAnimationView uses a custom [MockNoopArtboardRenderer] to noop any drawing
+     * interactions.
      */
     class MockNoopRiveAnimationView(
         context: Context,
@@ -150,18 +142,14 @@ class TestUtils {
             mockAttach()
         }
 
-        override fun createRenderer(): MockNoopArtboardRenderer {
-            return MockNoopArtboardRenderer(controller, latch)
-        }
-
+        override fun createRenderer(): MockNoopArtboardRenderer =
+            MockNoopArtboardRenderer(controller, latch)
 
         fun setBounds(width: Float, height: Float) {
             controller.targetBounds = RectF(0f, 0f, width, height)
         }
 
-        private fun mockAttach() {
-            onAttachedToWindow()
-        }
+        private fun mockAttach() = onAttachedToWindow()
 
         fun mockDetach() {
             onDetachedFromWindow()
@@ -211,7 +199,7 @@ class TestUtils {
         }
 
         override fun notifyAdvance(elapsed: Float) {
-            this.elapsed = 0.016f;
+            this.elapsed = 0.016f
         }
     }
 
@@ -226,7 +214,6 @@ class TestUtils {
         }
     }
 }
-
 
 object NativeFontTestHelper {
     external fun cppGetSystemFontBytes(): ByteArray

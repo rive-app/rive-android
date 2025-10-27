@@ -11,7 +11,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveAssetsTest {
     private val testUtils = TestUtils()
@@ -30,7 +29,6 @@ class RiveAssetsTest {
         .resources
         .openRawResource(R.raw.table)
         .use { it.readBytes() }
-
 
     @Test(expected = IllegalArgumentException::class)
     fun invalidImageBytes() {
@@ -87,7 +85,6 @@ class RiveAssetsTest {
         assertNotNull(imageAsset)
         assert(imageAsset!!.image.cppPointer == renderImage.cppPointer)
 
-
         /* Clean things up */
         myLoader.release()
         file.release()
@@ -96,7 +93,7 @@ class RiveAssetsTest {
 
     @Test
     fun imageAssetWidthAndHeightValidation() {
-        var imageAsset: ImageAsset? = null
+        lateinit var imageAsset: ImageAsset
         val myLoader = object : ContextAssetLoader(appContext) {
             override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
                 if (asset is ImageAsset) {
@@ -113,9 +110,8 @@ class RiveAssetsTest {
             rendererType = RendererType.Rive,
         )
         assertEquals(1, file.firstArtboard.animationCount)
-        assertNotNull(imageAsset)
-        assert(imageAsset!!.width == 1280.0f)
-        assert(imageAsset!!.height == 720.0f)
+        assert(imageAsset.width == 1280.0f)
+        assert(imageAsset.height == 720.0f)
 
         /* Clean things up */
         myLoader.release()
@@ -166,7 +162,6 @@ class RiveAssetsTest {
         assertNotNull(fontAsset)
         assert(fontAsset!!.font.cppPointer == customFont.cppPointer)
 
-
         /* Clean things up */
         myLoader.release()
         file.release()
@@ -193,7 +188,6 @@ class RiveAssetsTest {
         assertFalse(audio.hasCppObject)
     }
 
-
     @Test
     fun setAudio() {
         var audioAsset: AudioAsset? = null
@@ -216,7 +210,6 @@ class RiveAssetsTest {
         assertEquals(1, file.firstArtboard.animationCount)
         assertNotNull(audioAsset)
         assert(audioAsset!!.audio.cppPointer == customAudio.cppPointer)
-
 
         /* Clean things up */
         myLoader.release()

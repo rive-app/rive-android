@@ -169,7 +169,6 @@ class ViewModelInstance(
             PropertyDataType.COLOR
         )
 
-
     /**
      * Creates or retrieve from cache a trigger property, represented as a [StateFlow]. Triggers
      * emit Unit as the value, which simply indicates that the trigger has been fired.

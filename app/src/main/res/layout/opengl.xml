@@ -10,5 +10,4 @@
         android:orientation="vertical">
         <!-- Gets filled programmatically -->
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

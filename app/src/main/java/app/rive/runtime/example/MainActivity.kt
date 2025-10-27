@@ -3,11 +3,11 @@ package app.rive.runtime.example
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
 @ControllerStateManagement
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_compose, ComposeActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),

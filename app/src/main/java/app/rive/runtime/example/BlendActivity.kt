@@ -10,10 +10,8 @@ class BlendActivity : AppCompatActivity() {
         findViewById<RiveAnimationView>(R.id.blend)
     }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.blend)
     }
-
 }

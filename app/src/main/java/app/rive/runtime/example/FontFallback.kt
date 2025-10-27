@@ -43,21 +43,25 @@ class FontFallback : AppCompatActivity(), FontFallbackStrategy {
             // 'Invert' the weights to make the fallback chars more prominent.
             weight.weight < 400 -> fontMatch =
                 Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(900))
+
             weight.weight > 400 -> fontMatch =
                 Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(100))
         }
         val fonts = listOf(
             fontMatch,
             // Tag a Thai font along so our second view can draw the glyphs
-            Fonts.FontOpts("NotoSansThai-Regular.ttf")        )
+            Fonts.FontOpts("NotoSansThai-Regular.ttf")
+        )
         return fonts.mapNotNull { FontHelper.getFallbackFontBytes(it) }
     }
 
     /**
      * The Rive file displayed here contains four blocks of text each with three different runs
-     * Also, the Rive file only exported the glyphs that have been specified in the file, and
-     * each line is made of three runs: | ABC | DEF | GHI |     * Modifying these runs with glyphs that are not part of the { ABCDEFGHI } set will require
-     * a fallback.
+     * Also, the Rive file only exported the glyphs that have been specified in the file, and each
+     * line is made of three runs: | ABC | DEF | GHI |
+     *
+     * Modifying these runs with glyphs that are not part of the { ABCDEFGHI } set will require a
+     * fallback.
      */
     private fun updateTextRuns() {
         binding.riveViewStylePicker.setTextRunValue("ultralight_start", "aBc ")

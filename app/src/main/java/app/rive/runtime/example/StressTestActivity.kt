@@ -20,7 +20,6 @@ import app.rive.runtime.kotlin.renderers.Renderer
 import java.util.Locale
 import kotlin.math.min
 
-
 class StressTestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

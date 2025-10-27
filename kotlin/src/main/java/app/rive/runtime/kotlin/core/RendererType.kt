@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.core
 
-
 enum class RendererType(val value: Int) {
     Rive(0),
     Canvas(1);

@@ -117,7 +117,6 @@
                 android:text="HTTP"
                 android:textColor="@color/textColorPrimary" />
 
-
             <Button
                 android:id="@+id/go_simple_state_machine"
                 style="@style/Widget.Material3.Button"
@@ -153,7 +152,6 @@
                 android:layout_marginVertical="4dp"
                 android:text="Button Presses"
                 android:textColor="@color/textColorPrimary" />
-
 
             <Button
                 android:id="@+id/go_blend"
@@ -320,5 +318,4 @@
         </LinearLayout>
 
     </ScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

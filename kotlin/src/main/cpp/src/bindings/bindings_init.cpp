@@ -19,16 +19,16 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
         JNIEnv* env,
-        jobject thisObj,
-        jobject jfit,
-        jobject jalignment,
+        jobject,
+        jobject jFit,
+        jobject jAlignment,
         jobject availableBoundsRectF,
         jobject artboardBoundsRectF,
         jobject requiredBoundsRectF,
         jfloat scaleFactor)
     {
-        auto fit = ::GetFit(env, jfit);
-        auto alignment = ::GetAlignment(env, jalignment);
+        auto fit = ::GetFit(env, jFit);
+        auto alignment = ::GetAlignment(env, jAlignment);
         auto availableBounds = RectFToAABB(env, availableBoundsRectF);
         auto artboardBounds = RectFToAABB(env, artboardBoundsRectF);
 
@@ -51,7 +51,7 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env, jobject)
+    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv*, jobject)
     {
 #if defined(DEBUG) || defined(LOG)
         // luigi: again ifdef this out for release (or murder completely, but

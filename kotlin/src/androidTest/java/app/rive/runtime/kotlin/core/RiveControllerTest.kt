@@ -19,7 +19,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveControllerTest {
     private val testUtils = TestUtils()

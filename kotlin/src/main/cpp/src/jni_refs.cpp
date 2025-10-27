@@ -1,7 +1,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include <sys/system_properties.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 
@@ -193,7 +193,7 @@ rive::AABB RectFToAABB(JNIEnv* env, jobject rectf)
                                env->GetFieldID(cls, AABBFieldNames[i], "F"));
     }
     env->DeleteLocalRef(cls);
-    return rive::AABB(values[0], values[1], values[2], values[3]);
+    return {values[0], values[1], values[2], values[3]};
 }
 
 void AABBToRectF(JNIEnv* env, const rive::AABB& aabb, jobject rectf)
@@ -242,18 +242,6 @@ jfieldID GetClampId()
 {
     return GetStaticFieldId(GetTileModeClass(),
                             "CLAMP",
-                            "Landroid/graphics/Shader$TileMode;");
-}
-jfieldID GetRepeatId()
-{
-    return GetStaticFieldId(GetTileModeClass(),
-                            "REPEAT",
-                            "Landroid/graphics/Shader$TileMode;");
-}
-jfieldID GetMirrorId()
-{
-    return GetStaticFieldId(GetTileModeClass(),
-                            "MIRROR",
                             "Landroid/graphics/Shader$TileMode;");
 }
 
@@ -362,10 +350,6 @@ jmethodID GetLineToMethodId()
 {
     return GetMethodId(GetPathClass(), "lineTo", "(FF)V");
 }
-jmethodID GetQuadToMethodId()
-{
-    return GetMethodId(GetPathClass(), "quadTo", "(FFFF)V");
-}
 jmethodID GetCubicToMethodId()
 {
     return GetMethodId(GetPathClass(), "cubicTo", "(FFFFFF)V");
@@ -381,14 +365,6 @@ jmethodID GetSurfaceLockCanvasMethodId()
     return GetMethodId(GetAndroidSurfaceClass(),
                        "lockCanvas",
                        "(Landroid/graphics/Rect;)Landroid/graphics/Canvas;");
-}
-jmethodID GetSurfaceHardwareCanvasMethodId()
-{
-    // Only available on API >= 23
-    // Currently unused: it works, but when using this it prints errors.
-    return GetMethodId(GetAndroidSurfaceClass(),
-                       "lockHardwareCanvas",
-                       "()Landroid/graphics/Canvas;");
 }
 jmethodID GetSurfaceUnlockCanvasAndPostMethodId()
 {
@@ -410,33 +386,17 @@ jmethodID GetCanvasRestoreMethodId()
 {
     return GetMethodId(GetAndroidCanvasClass(), "restore", "()V");
 }
-jmethodID GetCanvasSetMatrixMethodId()
-{
-    return GetMethodId(GetAndroidCanvasClass(),
-                       "setMatrix",
-                       "(Landroid/graphics/Matrix;)V");
-}
 jmethodID GetCanvasConcatMatrixMethodId()
 {
     return GetMethodId(GetAndroidCanvasClass(),
                        "concat",
                        "(Landroid/graphics/Matrix;)V");
 }
-jmethodID GetCanvasTranslateMethodId()
-{
-    return GetMethodId(GetAndroidCanvasClass(), "translate", "(FF)V");
-}
 jmethodID GetCanvasDrawPathMethodId()
 {
     return GetMethodId(GetAndroidCanvasClass(),
                        "drawPath",
                        "(Landroid/graphics/Path;Landroid/graphics/Paint;)V");
-}
-jmethodID GetCanvasDrawCircleMethodId()
-{
-    return GetMethodId(GetAndroidCanvasClass(),
-                       "drawCircle",
-                       "(FFFLandroid/graphics/Paint;)V");
 }
 jmethodID GetCanvasDrawColorMethodId()
 {
@@ -450,13 +410,6 @@ jmethodID GetCanvasDrawBitmapMethodId()
         GetAndroidCanvasClass(),
         "drawBitmap",
         "(Landroid/graphics/Bitmap;FFLandroid/graphics/Paint;)V");
-}
-jmethodID GetCanvasDrawBitmapMeshMethodId()
-{
-    return GetMethodId(
-        GetAndroidCanvasClass(),
-        "drawBitmapMesh",
-        "(Landroid/graphics/Bitmap;II[FI[IILandroid/graphics/Paint;)V");
 }
 jmethodID GetCanvasDrawVerticesMethodId()
 {
@@ -683,12 +636,6 @@ jfieldID GetLuminosity()
                             "LUMINOSITY",
                             "Landroid/graphics/BlendMode;");
 }
-jfieldID GetClear()
-{
-    return GetStaticFieldId(GetBlendModeClass(),
-                            "CLEAR",
-                            "Landroid/graphics/BlendMode;");
-}
 
 jfieldID GetPdClear()
 {
@@ -696,70 +643,10 @@ jfieldID GetPdClear()
                             "CLEAR",
                             "Landroid/graphics/PorterDuff$Mode;");
 }
-jfieldID GetPdSrc()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "SRC",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdDst()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "DST",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
 jfieldID GetPdSrcOver()
 {
     return GetStaticFieldId(GetPorterDuffClass(),
                             "SRC_OVER",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdDstOver()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "DST_OVER",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdSrcIn()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "SRC_IN",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdDstIn()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "DST_IN",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdSrcOut()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "SRC_OUT",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdDstOut()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "DST_OUT",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdSrcAtop()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "SRC_ATOP",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdDstAtop()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "DST_ATOP",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
-jfieldID GetPdXor()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "XOR",
                             "Landroid/graphics/PorterDuff$Mode;");
 }
 jfieldID GetPdDarken()
@@ -786,12 +673,6 @@ jfieldID GetPdScreen()
                             "SCREEN",
                             "Landroid/graphics/PorterDuff$Mode;");
 }
-jfieldID GetPdAdd()
-{
-    return GetStaticFieldId(GetPorterDuffClass(),
-                            "ADD",
-                            "Landroid/graphics/PorterDuff$Mode;");
-}
 jfieldID GetPdOverlay()
 {
     return GetStaticFieldId(GetPorterDuffClass(),
@@ -814,16 +695,6 @@ jmethodID GetBitmapShaderConstructor()
         "<init>",
         "(Landroid/graphics/Bitmap;Landroid/graphics/Shader$TileMode;Landroid/"
         "graphics/Shader$TileMode;)V");
-}
-jmethodID GetBitmapSetLocalMatrixMethodId()
-{
-    /**
-     * Kotlin signature:
-     * setLocalMatrix (Matrix localM)
-     */
-    return GetMethodId(GetBitmapShaderClass(),
-                       "setLocalMatrix",
-                       "(Landroid/graphics/Matrix;)V");
 }
 
 jclass GetAndroidBitmapClass() { return GetClass("android/graphics/Bitmap"); }

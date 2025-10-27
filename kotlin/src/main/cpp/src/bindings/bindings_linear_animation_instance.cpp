@@ -13,7 +13,7 @@ extern "C"
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvance(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jfloat elapsedTime)
     {
@@ -54,7 +54,7 @@ extern "C"
     JNIEXPORT jobject JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvanceAndGetResult(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref,
         jfloat elapsedTime)
     {
@@ -109,8 +109,8 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppApply(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jfloat mix)
     {
@@ -121,8 +121,8 @@ extern "C"
 
     JNIEXPORT jfloat JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetTime(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
 
@@ -133,8 +133,8 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetTime(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jfloat time)
     {
@@ -145,8 +145,8 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetDirection(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jint direction)
     {
@@ -157,8 +157,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetDirection(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto animationInstance =
@@ -168,8 +168,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetLoop(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto animationInstance =
@@ -179,8 +179,8 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetLoop(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref,
         jint loopType)
     {
@@ -194,7 +194,7 @@ extern "C"
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppName(
         JNIEnv* env,
-        jobject thisObj,
+        jobject,
         jlong ref)
     {
 
@@ -206,8 +206,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDuration(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto animationInstance =
@@ -216,10 +216,9 @@ extern "C"
     }
 
     JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppFps(
-        JNIEnv* env,
-        jobject thisObj,
-        jlong ref)
+    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppFps(JNIEnv*,
+                                                                     jobject,
+                                                                     jlong ref)
     {
         auto animationInstance =
             reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
@@ -228,8 +227,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkStart(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto animationInstance =
@@ -239,8 +238,8 @@ extern "C"
 
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkEnd(
-        JNIEnv* env,
-        jobject thisObj,
+        JNIEnv*,
+        jobject,
         jlong ref)
     {
         auto animationInstance =

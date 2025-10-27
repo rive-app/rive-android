@@ -14,9 +14,9 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:riveFit="COVER"
-        app:riveStateMachine="State Machine 1"
         app:riveAssetLoaderClass="app.rive.runtime.example.HandleSimpleRiveAsset"
-        app:riveResource="@raw/acqua_text" />
+        app:riveFit="COVER"
+        app:riveResource="@raw/acqua_text"
+        app:riveStateMachine="State Machine 1" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

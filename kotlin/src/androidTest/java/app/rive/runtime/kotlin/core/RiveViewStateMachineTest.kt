@@ -14,7 +14,6 @@ import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveViewStateMachineTest {
     private val testUtils = TestUtils()

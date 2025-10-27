@@ -26,6 +26,7 @@ import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
+import app.rive.runtime.kotlin.core.errors.TextValueRunException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -193,7 +194,6 @@ class RiveFileController internal constructor(
             }
         }
 
-
     // Warning: `toList()` access is not thread-safe, use stateMachines instead
     private var stateMachineList =
         Collections.synchronizedList(mutableListOf<StateMachineInstance>())
@@ -244,7 +244,6 @@ class RiveFileController internal constructor(
         get() = activeArtboard?.bounds ?: RectF()
 
     var targetBounds: RectF = RectF()
-
 
     /**
      * Get a copy of the state of this controller and acquire a reference to the file to prevent it
@@ -478,7 +477,6 @@ class RiveFileController internal constructor(
         }
     }
 
-
     fun play(
         animationNames: List<String>,
         loop: Loop = Loop.AUTO,
@@ -595,7 +593,6 @@ class RiveFileController internal constructor(
             animations(animationNames).forEach { stop(it) }
         }
     }
-
 
     fun stopAnimations(animationName: String, isStateMachine: Boolean = false) {
         if (isStateMachine) {
@@ -890,7 +887,6 @@ class RiveFileController internal constructor(
         notifyPlay(animationInstance)
     }
 
-
     private fun pause(animation: LinearAnimationInstance) {
         val removed = playingAnimationSet.remove(animation)
         if (removed) {
@@ -904,7 +900,6 @@ class RiveFileController internal constructor(
             notifyPause(stateMachine)
         }
     }
-
 
     private fun stop(animation: LinearAnimationInstance) {
         playingAnimationSet.remove(animation)
@@ -921,7 +916,6 @@ class RiveFileController internal constructor(
             notifyStop(stateMachine)
         }
     }
-
 
     fun pointerEvent(eventType: PointerEvents, pointerID: Int, x: Float, y: Float) {
         /// TODO: once we start composing artboards we may need x,y offsets here...

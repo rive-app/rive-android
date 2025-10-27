@@ -1,7 +1,6 @@
-#ifndef _RIVE_ANDROID_JAVA_RENDERING_STATS_HPP_
-#define _RIVE_ANDROID_JAVA_RENDERING_STATS_HPP_
+#pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace rive_android
 {
@@ -13,7 +12,7 @@ class RenderingStats
     size_t mNumToAvg;
 
 public:
-    RenderingStats(size_t numToAvg) : mNumToAvg(numToAvg) {}
+    explicit RenderingStats(size_t numToAvg) : mNumToAvg(numToAvg) {}
 
     // Add a sample.
     // When mNumToAvg samples have been calculated, store the mean and
@@ -39,10 +38,8 @@ public:
         mN = 0;
     }
 
-    double mean() const { return mLatestMean; }
+    [[nodiscard]] double mean() const { return mLatestMean; }
 
-    double var() const { return mLatestVar; }
+    [[nodiscard]] double var() const { return mLatestVar; }
 };
 } // namespace rive_android
-
-#endif

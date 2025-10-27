@@ -583,7 +583,7 @@ class SystemFontsParser {
             }
 
             // Resolve nested aliases
-            var unresolvedAliases = aliases.toMutableList()
+            val unresolvedAliases = aliases.toMutableList()
             var progress = true
             while (progress && unresolvedAliases.isNotEmpty()) {
                 progress = false
@@ -653,7 +653,7 @@ class SystemFontsParser {
             }
 
             // Resolve nested aliases
-            var unresolvedAliases = aliases.toMutableList()
+            val unresolvedAliases = aliases.toMutableList()
             var progress = true
             while (progress && unresolvedAliases.isNotEmpty()) {
                 progress = false
@@ -910,12 +910,10 @@ class SystemFontsParser {
 
             if (filesList.isEmpty()) return null
 
-
             if (namesList.isEmpty()) {
                 namesList.add("")
             }
             val familyName = namesList.removeAt(0).trim()
-
 
             return fromFileFonts(
                 filesList,
@@ -925,7 +923,6 @@ class SystemFontsParser {
                 familyVariant = familyVariant,
             )
         }
-
 
         /**
          * The font files are listed in the order of the styles which they support: regular, bold,

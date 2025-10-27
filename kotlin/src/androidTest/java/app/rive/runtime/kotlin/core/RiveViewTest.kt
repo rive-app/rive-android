@@ -132,7 +132,6 @@ class RiveViewTest {
         }
     }
 
-
     @Test
     fun viewPauseOneByOne() {
         UiThreadStatement.runOnUiThread {
@@ -324,7 +323,6 @@ class RiveViewTest {
         }
     }
 
-
     @Test
     fun viewPlayPaused() {
         UiThreadStatement.runOnUiThread {
@@ -394,7 +392,6 @@ class RiveViewTest {
         }
     }
 
-
     @Test
     fun viewSetResourceLoadArtboard() {
         UiThreadStatement.runOnUiThread {
@@ -428,7 +425,6 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multipleartboards, artboardName = "artboard1")
         }
     }
-
 
     @Test
     fun viewStop() {
@@ -719,7 +715,6 @@ class TouchPassThroughComposeTest {
         // Final assertion for clarity, though the waitUntil above already confirms it.
         composeRule.onNodeWithText("Click Count: 1").assertExists()
     }
-
 
     // Local composable for these tests
     @Composable

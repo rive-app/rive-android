@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_JNI_REFS_HPP_
-#define _RIVE_ANDROID_JNI_REFS_HPP_
+#pragma once
 
 #include <jni.h>
 #include "rive/math/aabb.hpp"
@@ -57,8 +56,6 @@ extern jmethodID GetLinearGradientInitMethodId();
 
 extern jclass GetTileModeClass();
 extern jfieldID GetClampId();
-extern jfieldID GetRepeatId();
-extern jfieldID GetMirrorId();
 
 extern jclass GetPaintClass();
 extern jmethodID GetPaintInitMethod();
@@ -106,7 +103,6 @@ extern jfieldID GetHue();
 extern jfieldID GetSaturation();
 extern jfieldID GetColor();
 extern jfieldID GetLuminosity();
-extern jfieldID GetClear();
 extern jmethodID GetSetBlendModeMethodId();
 
 extern jclass GetPathClass();
@@ -124,27 +120,21 @@ extern jmethodID GetMatrixSetValuesMethodId();
 extern jmethodID GetAddPathMethodId();
 extern jmethodID GetMoveToMethodId();
 extern jmethodID GetLineToMethodId();
-extern jmethodID GetQuadToMethodId();
 extern jmethodID GetCubicToMethodId();
 extern jmethodID GetCloseMethodId();
 
 extern jclass GetAndroidSurfaceClass();
 extern jmethodID GetSurfaceLockCanvasMethodId();
-extern jmethodID GetSurfaceHardwareCanvasMethodId();
 extern jmethodID GetSurfaceUnlockCanvasAndPostMethodId();
 
 extern jclass GetAndroidCanvasClass();
 extern jclass GetAndroidCanvasVertexModeClass();
 extern jmethodID GetCanvasSaveMethodId();
 extern jmethodID GetCanvasRestoreMethodId();
-extern jmethodID GetCanvasSetMatrixMethodId();
 extern jmethodID GetCanvasConcatMatrixMethodId();
-extern jmethodID GetCanvasTranslateMethodId();
 extern jmethodID GetCanvasDrawPathMethodId();
-extern jmethodID GetCanvasDrawCircleMethodId();
 extern jmethodID GetCanvasDrawColorMethodId();
 extern jmethodID GetCanvasDrawBitmapMethodId();
-extern jmethodID GetCanvasDrawBitmapMeshMethodId();
 extern jmethodID GetCanvasDrawVerticesMethodId();
 extern jfieldID GetVertexModeTrianglesId();
 extern jmethodID GetCanvasClipPathMethodId();
@@ -157,27 +147,15 @@ extern jmethodID GetPorterDuffXferModeInitMethodId();
 extern jmethodID GetSetXfermodeMethodId();
 
 extern jfieldID GetPdClear();
-extern jfieldID GetPdSrc();
-extern jfieldID GetPdDst();
 extern jfieldID GetPdSrcOver();
-extern jfieldID GetPdDstOver();
-extern jfieldID GetPdSrcIn();
-extern jfieldID GetPdDstIn();
-extern jfieldID GetPdSrcOut();
-extern jfieldID GetPdDstOut();
-extern jfieldID GetPdSrcAtop();
-extern jfieldID GetPdDstAtop();
-extern jfieldID GetPdXor();
 extern jfieldID GetPdDarken();
 extern jfieldID GetPdLighten();
 extern jfieldID GetPdMultiply();
 extern jfieldID GetPdScreen();
-extern jfieldID GetPdAdd();
 extern jfieldID GetPdOverlay();
 
 extern jclass GetBitmapShaderClass();
 extern jmethodID GetBitmapShaderConstructor();
-extern jmethodID GetBitmapSetLocalMatrixMethodId();
 extern jclass GetAndroidBitmapClass();
 extern jclass GetAndroidBitmapConfigClass();
 extern jclass GetAndroidBitmapFactoryClass();
@@ -188,4 +166,3 @@ extern jmethodID GetBitmapHeightMethodId();
 extern jfieldID GetARGB8888Field();
 extern jmethodID GetBitmapSetPixelsMethodId();
 } // namespace rive_android
-#endif

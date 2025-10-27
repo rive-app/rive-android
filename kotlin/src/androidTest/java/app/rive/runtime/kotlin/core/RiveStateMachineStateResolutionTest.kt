@@ -11,7 +11,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineStateResolutionTest {
     private val testUtils = TestUtils()
@@ -126,7 +125,6 @@ class RiveStateMachineStateResolutionTest {
             assertEquals("Choice 1", observer.states[0].stateName)
         }
     }
-
 
     @Test
     fun getUnknownStateNameWhenAnimationIsMissing() {

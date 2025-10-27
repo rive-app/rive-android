@@ -7,7 +7,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveStateMachineInstanceTest {
     private val testUtils = TestUtils()
@@ -67,7 +66,6 @@ class RiveStateMachineInstanceTest {
         assertEquals(true, input.isTrigger)
         assertEquals(false, input.isNumber)
         assertEquals("Trigger 1", input.name)
-
 
         val triggerInput = input as SMITrigger
         triggerInput.fire()

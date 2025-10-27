@@ -8,7 +8,6 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveAnimationLoadTest {
     private val testUtils = TestUtils()

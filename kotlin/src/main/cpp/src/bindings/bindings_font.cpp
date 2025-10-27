@@ -14,7 +14,7 @@ extern "C"
 
     JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppRegisterFallbackFont(
-        JNIEnv* env,
+        JNIEnv*,
         jobject,
         jbyteArray fontByteArray)
     {
@@ -23,7 +23,7 @@ extern "C"
 
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_fonts_FontFallbackStrategy_00024Companion_cppResetFontCache(
-        JNIEnv* env,
+        JNIEnv*,
         jobject)
     {
         FontHelper::resetCache();

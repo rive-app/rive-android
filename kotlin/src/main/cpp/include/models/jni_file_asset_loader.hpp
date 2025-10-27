@@ -1,8 +1,4 @@
-//
-// Created by Umberto Sonnino on 9/13/23.
-//
-#ifndef _RIVE_ANDROID_JNI_ASSET_LOADER_HPP_
-#define _RIVE_ANDROID_JNI_ASSET_LOADER_HPP_
+#pragma once
 
 #include <jni.h>
 
@@ -99,4 +95,3 @@ private:
     RendererType m_rendererType = RendererType::None;
 };
 } // namespace rive_android
-#endif // _RIVE_ANDROID_JNI_ASSET_LOADER_HPP_

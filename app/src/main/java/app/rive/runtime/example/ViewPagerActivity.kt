@@ -20,7 +20,6 @@ class ViewPagerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
         binding = ViewPagerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

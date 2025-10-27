@@ -14,7 +14,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class FontPickerTest {
 
@@ -27,6 +26,7 @@ class FontPickerTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun noStylePicker() {
         FontFallbackStrategy.stylePicker = null
         // The font only contains glyphs 'abcdef'
@@ -109,7 +109,7 @@ class FontPickerTest {
     @Test
     fun withUnavailableChars() {
         var pickerCalls = 0
-        var pickerWeight = 0;
+        var pickerWeight = 0
 
         // Font with the needed characters
         val fontBytes = context
@@ -248,14 +248,14 @@ class FontPickerTest {
             }
         }
 
-        val limitedFontBytes = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
+        val limitedFontBytes =
+            context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
         /**
-         * A bit of an odd test here:
-         *  we query our fallback function to get back the index in the Strategy stack found
-         *  a match against the character in the "म错ا" string
-         *  1. Devangari
-         *  2. Chinese
-         *  3. Arabic
+         * A bit of an odd test here: we query our fallback function to get back the index in the
+         * Strategy stack found a match against the character in the "म错ا" string.
+         * 1. Devangari
+         * 2. Chinese
+         * 3. Arabic
          */
         "म错ا".codePoints().toArray().forEachIndexed { index, codePoint ->
             assertEquals(

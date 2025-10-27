@@ -29,5 +29,4 @@
             android:text="@string/fps"
             android:textAppearance="@style/InfoTextMedium" />
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

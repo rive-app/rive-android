@@ -10,18 +10,18 @@
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
         <app.rive.runtime.kotlin.RiveAnimationView
             android:id="@+id/layout_view"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="2"
-            app:riveStateMachine="State Machine 1"
             app:riveFit="LAYOUT"
-            app:riveResource="@raw/layout_test" />
+            app:riveResource="@raw/layout_test"
+            app:riveStateMachine="State Machine 1" />
 
         <LinearLayout
             android:layout_width="fill_parent"
@@ -94,7 +94,6 @@
             </LinearLayout>
         </LinearLayout>
 
-
         <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
@@ -130,7 +129,6 @@
 
             </LinearLayout>
         </LinearLayout>
-
 
         <LinearLayout
             android:layout_width="fill_parent"
@@ -215,5 +213,4 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

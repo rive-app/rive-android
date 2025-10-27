@@ -8,7 +8,6 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardLoadTest {
     private val testUtils = TestUtils()
@@ -38,7 +37,7 @@ class RiveArtboardLoadTest {
             file.artboard(name = "artboard2").name,
             file.artboard(0).name
         )
-        assertEquals(listOf<String>("artboard2", "artboard1"), file.artboardNames)
+        assertEquals(listOf("artboard2", "artboard1"), file.artboardNames)
     }
 
     @Test(expected = RiveException::class)

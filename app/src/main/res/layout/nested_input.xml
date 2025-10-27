@@ -56,5 +56,4 @@
 
         </RadioGroup>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -6,7 +6,6 @@ import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 
-
 class OnDrawRenderer(
     private val onDraw: (() -> Unit)?,
     controller: RiveFileController,
@@ -22,7 +21,7 @@ class OnDrawRenderer(
 class CallbackRiveAnimationView(
     builder: Builder
 ) : RiveAnimationView(builder) {
-    var drawCallback: ( ()-> Unit)? = null;
+    var drawCallback: (() -> Unit)? = null
 
     override fun createRenderer(): Renderer {
         return OnDrawRenderer(

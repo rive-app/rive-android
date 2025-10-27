@@ -27,7 +27,7 @@ EGLThreadState::EGLThreadState()
         return;
     }
 
-    if (!eglInitialize(m_display, 0, 0))
+    if (!eglInitialize(m_display, nullptr, nullptr))
     {
         EGL_ERR_CHECK();
         LOGE("eglInitialize() failed.");

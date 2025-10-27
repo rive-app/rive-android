@@ -90,7 +90,6 @@ abstract class Renderer(
      */
     val frameLock = Any()
 
-
     @WorkerThread
     abstract fun draw()
 
@@ -272,7 +271,6 @@ abstract class Renderer(
         }
     }
 
-
     /**
      * Schedules the deletion of the underlying C++ object using a two-phase disposal pattern.
      *
@@ -306,7 +304,6 @@ abstract class Renderer(
             cppPointer = NULL_POINTER
         }
     }
-
 
     /**
      * Releases all of this renderer's dependents.

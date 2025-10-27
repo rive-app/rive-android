@@ -79,11 +79,10 @@ class AndroidPlayerActivity : AppCompatActivity() {
         }
     }
 
-
     fun onLoopModeSelected(view: View) {
         if (view is RadioButton && view.isChecked) {
             // Check which radio button was clicked
-            when (view.getId()) {
+            when (view.id) {
                 R.id.loop_auto ->
                     loop = Loop.AUTO
 
@@ -102,7 +101,7 @@ class AndroidPlayerActivity : AppCompatActivity() {
     fun onDirectionSelected(view: View) {
         if (view is RadioButton && view.isChecked) {
             // Check which radio button was clicked
-            when (view.getId()) {
+            when (view.id) {
                 R.id.direction_auto ->
                     direction = Direction.AUTO
 
@@ -153,14 +152,12 @@ class AndroidPlayerActivity : AppCompatActivity() {
         }
         stopButtonMap[animationName] = stopButton
 
-
         layout.addView(text)
         layout.addView(playButton)
         layout.addView(pauseButton)
         layout.addView(stopButton)
         return layout
     }
-
 
     fun addStateMachineControl(artboard: Artboard, stateMachineName: String): List<View> {
         val views = mutableListOf<View>()
@@ -202,7 +199,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
         layout.addView(pauseButton)
         layout.addView(stopButton)
         views.add(layout)
-
 
         stateMachine.inputs.forEach {
             val innerLayout = LinearLayout(this)
@@ -312,7 +308,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
         }
     }
 
-
     fun setResourceSpinner() {
         animationResources.let { _ ->
             val dropdown = findViewById<Spinner>(R.id.resources)
@@ -336,7 +331,6 @@ class AndroidPlayerActivity : AppCompatActivity() {
             }
         }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -432,4 +426,3 @@ class AndroidPlayerActivity : AppCompatActivity() {
         animationView.registerListener(listener)
     }
 }
-

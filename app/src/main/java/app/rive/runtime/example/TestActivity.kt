@@ -13,7 +13,6 @@ class SingleActivity : AppCompatActivity() {
 }
 
 class EmptyActivity : AppCompatActivity() {
-
     lateinit var container: FrameLayout
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -150,7 +150,6 @@ class RiveActivityLifecycleTest {
         assertNull(controller.activeArtboard)
     }
 
-
     @Test
     fun resizeRiveView() {
         val activityScenario = ActivityScenario.launch(SingleActivity::class.java)

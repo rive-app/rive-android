@@ -590,7 +590,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     JNIEnv* env,
     rive::Span<const uint8_t>& encodedBytes)
 {
-    auto jByteArray = env->NewByteArray(encodedBytes.size());
+    auto jSize = static_cast<jsize>(encodedBytes.size());
+    auto jByteArray = env->NewByteArray(jSize);
     if (jByteArray == nullptr)
     {
         LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
@@ -600,7 +601,7 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     env->SetByteArrayRegion(
         jByteArray,
         0,
-        encodedBytes.size(),
+        jSize,
         reinterpret_cast<const jbyte*>(encodedBytes.data()));
 
     auto jBitmapFactoryClass = GetAndroidBitmapFactoryClass();

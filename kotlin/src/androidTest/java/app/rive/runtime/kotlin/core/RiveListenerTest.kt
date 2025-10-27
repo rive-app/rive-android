@@ -121,7 +121,6 @@ class RiveListenerTest {
         }
     }
 
-
     @Test
     fun testPauseEventNotPlaying() {
         UiThreadStatement.runOnUiThread {
@@ -135,7 +134,6 @@ class RiveListenerTest {
             assertEquals(0, observer.pauses.size)
         }
     }
-
 
     @Test
     fun testStopEvent() {
@@ -151,7 +149,6 @@ class RiveListenerTest {
             assertEquals(1, observer.stops.size)
         }
     }
-
 
     @Test
     fun testStopEventNotPlaying() {
@@ -337,7 +334,7 @@ class RiveListenerTest {
             assertEquals(0, observer.states.size)
 
             view.fireState("State Machine 1", "change")
-            view.artboardRenderer?.advance(0.016f);
+            view.artboardRenderer?.advance(0.016f)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "change!")
 
@@ -348,7 +345,6 @@ class RiveListenerTest {
         }
     }
 
-
     @Test
     fun viewBlendState1DBroken() {
         UiThreadStatement.runOnUiThread {
@@ -357,7 +353,7 @@ class RiveListenerTest {
             view.registerListener(observer)
             view.setRiveResource(R.raw.blend_state, stateMachineName = "one")
             view.fireState("one", "blend mix")
-            view.artboardRenderer?.advance(0.016f);
+            view.artboardRenderer?.advance(0.016f)
             assertEquals(true, view.isPlaying)
             assertEquals(1, observer.states.size)
             assertEquals(true, observer.states[0].stateName == "BlendState")
@@ -416,5 +412,4 @@ class RiveListenerTest {
             assertEquals(true, observer.states[0].stateName == "BlendState")
         }
     }
-
 }

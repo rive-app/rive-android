@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_TRACER_HPP_
-#define _RIVE_ANDROID_TRACER_HPP_
+#pragma once
 
 #include <android/api-level.h>
 #include <dlfcn.h>
@@ -14,8 +13,8 @@ namespace rive_android
 class ITracer
 {
 public:
-    ITracer() {}
-    virtual ~ITracer() {}
+    ITracer() = default;
+    virtual ~ITracer() = default;
     virtual void beginSection(const char* sectionName) = 0;
     virtual void endSection() = 0;
 };
@@ -23,8 +22,8 @@ public:
 class NoopTracer : public ITracer
 {
 public:
-    NoopTracer() {}
-    ~NoopTracer() {}
+    NoopTracer() = default;
+    ~NoopTracer() override = default;
     void beginSection(const char* sectionName) override {};
     void endSection() override {};
 };
@@ -35,7 +34,7 @@ public:
     Tracer()
     {
         void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-        if (lib != NULL)
+        if (lib != nullptr)
         {
             ATrace_beginSection = reinterpret_cast<fp_ATrace_beginSection>(
                 dlsym(lib, "ATrace_beginSection"));
@@ -47,7 +46,7 @@ public:
             LOGE("Tracer cannot load libandroid.so!");
         }
     }
-    ~Tracer() {}
+    ~Tracer() override = default;
     void beginSection(const char* sectionName) override
     {
         ATrace_beginSection(sectionName);
@@ -56,11 +55,10 @@ public:
 
 private:
     void* (*ATrace_beginSection)(const char* sectionName);
-    void* (*ATrace_endSection)(void);
+    void* (*ATrace_endSection)();
 
     typedef void* (*fp_ATrace_beginSection)(const char* sectionName);
-    typedef void* (*fp_ATrace_endSection)(void);
+    typedef void* (*fp_ATrace_endSection)();
 };
 
 } // namespace rive_android
-#endif

@@ -1,12 +1,12 @@
 package app.rive.runtime.example
 
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -113,9 +113,9 @@ class RiveAdapter(private val sharedFile: File, private val useSharedFile: Boole
     override fun onBindViewHolder(holder: RiveViewHolder, position: Int) {
         // Alternate background colors to differentiate various elements.
         if (position % 2 == 1) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFFFFF"))
+            holder.itemView.setBackgroundColor("#FFFFFF".toColorInt())
         } else {
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFFAF8FD"))
+            holder.itemView.setBackgroundColor("#FFFAF8FD".toColorInt())
         }
     }
 

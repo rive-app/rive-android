@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Rive samples</string>
+    <string name="app_name">Rive Samples</string>
     <string name="fps">Rendering FPS:</string>
     <string name="title_activity_compose">ComposeActivity</string>
 </resources>

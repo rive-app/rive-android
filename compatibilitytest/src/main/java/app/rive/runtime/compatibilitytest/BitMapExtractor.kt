@@ -8,13 +8,11 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import app.rive.runtime.kotlin.RiveAnimationView
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
-
 
 // TODO: 
 // I'd like to trigger this after we finished rendering, is it possible to do that? in the meantime we are simply time based. 
@@ -67,4 +65,4 @@ class BitMapExtractor {
     }
 }
 
-val extractor = BitMapExtractor();
+val extractor = BitMapExtractor()

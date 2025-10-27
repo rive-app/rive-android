@@ -1,5 +1,4 @@
-#ifndef _RIVE_ANDROID_JNI_EXCEPTION_HANDLER_HPP_
-#define _RIVE_ANDROID_JNI_EXCEPTION_HANDLER_HPP_
+#pragma once
 
 #include <jni.h>
 #include <android/log.h>
@@ -62,4 +61,3 @@ public:
                                           ...);
 };
 } // namespace rive_android
-#endif

@@ -151,7 +151,7 @@ namespace rive_android
             GetObjectFromMethod(env, fontListObj.get(), listGetMethod, i);
 
         // Convert ByteArray to std::vector<uint8_t>
-        jbyteArray byteArray = reinterpret_cast<jbyteArray>(byteArrayObj.get());
+        auto byteArray = reinterpret_cast<jbyteArray>(byteArrayObj.get());
         jsize arrayLength = env->GetArrayLength(byteArray);
         std::vector<uint8_t> byteVector(arrayLength);
         env->GetByteArrayRegion(byteArray,

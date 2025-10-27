@@ -7,7 +7,6 @@ import app.rive.runtime.example.databinding.ActivityMetricsBinding
 import app.rive.runtime.kotlin.RiveAnimationView
 import java.util.Locale
 
-
 class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
 
     private lateinit var binding: ActivityMetricsBinding
@@ -28,7 +27,6 @@ class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
                 1e3f / fps
             )
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

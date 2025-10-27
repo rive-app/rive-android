@@ -9,7 +9,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.net.URI
 
-
 @RunWith(AndroidJUnit4::class)
 class RiveFileLoadTest {
     private val testUtils = TestUtils()

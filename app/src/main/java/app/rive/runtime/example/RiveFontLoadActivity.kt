@@ -3,10 +3,9 @@ package app.rive.runtime.example
 import android.content.Context
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.ContextAssetLoader
+import app.rive.runtime.kotlin.core.FileAsset
 import kotlin.random.Random
-
 
 class FontLoadActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,9 +22,8 @@ open class HandleSimpleRiveAsset(context: Context) : ContextAssetLoader(context)
         R.raw.opensans,
         R.raw.roboto,
     )
-    /**
-     * Override this method to customize the asset loading process.
-     */
+
+    /** Override this method to customize the asset loading process. */
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         val randFontIndex = Random.nextInt(fontPool.size)
         val fontToLoad = fontPool[randFontIndex]

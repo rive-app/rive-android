@@ -16,5 +16,4 @@
         android:padding="16dp"
         app:riveAssetLoaderClass="app.rive.runtime.example.WalleAssetLoader"
         app:riveResource="@raw/walle" />
-
 </LinearLayout>

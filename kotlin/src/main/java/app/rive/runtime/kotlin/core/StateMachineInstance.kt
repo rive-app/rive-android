@@ -5,7 +5,6 @@ import app.rive.runtime.kotlin.core.errors.StateMachineInputException
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 import java.util.concurrent.locks.ReentrantLock
 
-
 /**
  * The [StateMachineInstance] is a helper to wrap common operations to play a state machine.
  *
@@ -192,7 +191,6 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     /** @return All layer states changed in the last advance. */
     val statesChanged: List<LayerState>
         get() = (0 until stateChangedCount).map { stateChanged(it) }
-
 
     /** @return All events fired in the last advance. */
     val eventsReported: List<RiveEvent>

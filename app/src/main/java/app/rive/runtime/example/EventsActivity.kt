@@ -12,7 +12,6 @@ import app.rive.runtime.kotlin.core.RiveEvent
 import app.rive.runtime.kotlin.core.RiveGeneralEvent
 import app.rive.runtime.kotlin.core.RiveOpenURLEvent
 
-
 class EventsActivity : AppCompatActivity() {
 
     private val starRatingAnimation: RiveAnimationView by lazy(LazyThreadSafetyMode.NONE) {

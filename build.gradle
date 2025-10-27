@@ -36,7 +36,7 @@ buildscript {
         classpath("androidx.compose.compiler:compiler:$compose_compiler_version")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:${dokkaVersion}")
         classpath("com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin:0.34.0")
-        classpath("com.palantir.gradle.gitversion:gradle-git-version:4.0.0")
+        classpath("com.palantir.gradle.gitversion:gradle-git-version:4.1.0")
     }
 }
 

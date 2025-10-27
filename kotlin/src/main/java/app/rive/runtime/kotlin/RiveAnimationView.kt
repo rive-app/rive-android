@@ -60,7 +60,6 @@ import java.io.IOException
 import java.io.UnsupportedEncodingException
 import kotlin.math.min
 
-
 /**
  * This view aims to provide the most straightforward way to get Rive graphics into your
  * application.
@@ -516,7 +515,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         controller.pause(animationNames = animationNames, areStateMachines = areStateMachines)
     }
 
-
     /**
      * Pauses any [animation instances][LinearAnimationInstance] called [animationName].
      *
@@ -739,7 +737,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     fun getTextRunValue(textRunName: String, path: String): String? {
         return controller.getTextRunValue(textRunName = textRunName, path = path)
     }
-
 
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
@@ -1089,6 +1086,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     private fun inBounds(x: Float, y: Float): Boolean =
         x >= 0f && y >= 0f && x < width && y < height
 
+    // Handoff to Controller which knows about artboards & state machines.
     override fun onTouchEvent(event: MotionEvent): Boolean {
         data class PointerInfo(val id: Int, val x: Float, val y: Float)
 

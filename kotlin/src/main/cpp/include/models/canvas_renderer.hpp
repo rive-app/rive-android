@@ -1,8 +1,4 @@
-/*
- * Copyright 2023 Rive
- */
-#ifndef _RIVE_ANDROID_CANVAS_RENDERER_HPP_
-#define _RIVE_ANDROID_CANVAS_RENDERER_HPP_
+#pragma once
 
 #include <jni.h>
 #include "jni_refs.hpp"
@@ -50,18 +46,18 @@ private:
     }
 
 public:
-    ~CanvasRenderer() { assert(m_ktCanvas == nullptr); }
+    ~CanvasRenderer() override { assert(m_ktCanvas == nullptr); }
     void save() override;
     void restore() override;
     void transform(const rive::Mat2D& transform) override;
     void clipPath(rive::RenderPath* path) override;
     void drawPath(rive::RenderPath* path, rive::RenderPaint* paint) override;
     void drawImage(const rive::RenderImage*,
-                   const rive::ImageSampler options,
+                   rive::ImageSampler options,
                    rive::BlendMode,
                    float opacity) override;
     void drawImageMesh(const rive::RenderImage*,
-                       const rive::ImageSampler options,
+                       rive::ImageSampler options,
                        rive::rcp<rive::RenderBuffer> vertices_f32,
                        rive::rcp<rive::RenderBuffer> uvCoords_f32,
                        rive::rcp<rive::RenderBuffer> indices_u16,
@@ -70,8 +66,8 @@ public:
                        rive::BlendMode,
                        float opacity) override;
 
-    int width() const { return m_width; }
-    int height() const { return m_height; }
+    [[nodiscard]] int width() const { return m_width; }
+    [[nodiscard]] int height() const { return m_height; }
 
     void bindCanvas(jobject ktSurface)
     {
@@ -105,4 +101,3 @@ public:
     }
 };
 } // namespace rive_android
-#endif // _RIVE_ANDROID_CANVAS_RENDERER_HPP_

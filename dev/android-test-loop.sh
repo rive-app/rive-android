@@ -12,7 +12,6 @@ Logcat output (logcat_run_*_failed.txt)
 Tombstones if device is rooted (tombstones_run_*/)
 Bugreport as fallback (bugreport_run_*.zip)
 
-
 Reports pass/fail statistics and success rate
 Exits with non-zero code if any run fails
 
