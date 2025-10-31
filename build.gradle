@@ -1,62 +1,11 @@
-apply plugin: "com.palantir.git-version"
-
-def details = versionDetails()
-
-ext {
-    PUBLISH_GROUP_ID = "app.rive"
-    PUBLISH_VERSION = details.lastTag
-    PUBLISH_ARTIFACT_ID = "rive-android"
-}
-buildscript {
-    ext {
-        gradle_version = '8.13.0'
-        // Sticking with Kotlin 1.9.x for now for maximum compatibility.
-        // Not all projects use 2.x+ yet, and forcing an upgrade can increase client DEX sizes.
-        kotlin_version = "1.9.25"
-        dokkaVersion = "1.4.30"
-        // See the table here for matching Kotlin version with Compose Compiler version
-        // https://developer.android.com/jetpack/androidx/releases/compose-kotlin#pre-release_kotlin_compatibility
-        compose_compiler_version = "1.5.15"
-        // The last Compose BOM version that supports Kotlin 1.9.x
-        compose_bom_version = "2023.10.00"
-        lifecycle_version = "2.9.1"
-    }
-
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url = uri("https://plugins.gradle.org/m2/")
-        }
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:$gradle_version")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
-        classpath("androidx.compose.compiler:compiler:$compose_compiler_version")
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:${dokkaVersion}")
-        classpath("com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin:0.34.0")
-        classpath("com.palantir.gradle.gitversion:gradle-git-version:4.1.0")
-    }
+plugins {
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.android.application) apply false
+    id 'base' // For built-in clean task
 }
 
-allprojects {
-    repositories {
-        maven {
-            url = 'https://central.sonatype.com/repository/maven-snapshots/'
-            name = 'CentralPortalSnapshots'
-        }
-        google()
-        mavenCentral()
-    }
-}
-
-tasks.register("cleanDeps", Exec) {
-    workingDir("./kotlin/src/main/cpp")
-    commandLine("./clean_all.sh")
-}
-
-tasks.register("clean", Delete) {
-    dependsOn(cleanDeps)
-    delete(rootProject.buildDir)
+// Root clean task (gradlew or Android Studio) to clean all subprojects
+tasks.named('clean') {
+    dependsOn(':kotlin:clean')
 }

@@ -1,5 +1,20 @@
-rootProject.name = "rive-android"
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "rive-android"
 include ':kotlin'
 include ':app'
 include ':compatibilitytest'

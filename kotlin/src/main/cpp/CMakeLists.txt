@@ -47,6 +47,8 @@ else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
     set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/runtime")
 endif ()
+# Pass the resolved runtime directory to the environment for Premake
+set(ENV{RIVE_RUNTIME_DIR} "${RIVE_RUNTIME_DIR}")
 
 # Add an option to remove miniaudio
 # Passed from Gradle with -DWITH_RIVE_AUDIO=ON|OFF
@@ -83,7 +85,7 @@ if (ENABLE_ASAN)
 endif ()
 
 # Debug/release configuration
-message("BUILD TYPE: ${CMAKE_BUILD_TYPE}")
+message("librive-android build type: ${CMAKE_BUILD_TYPE}")
 #[[ CMake adds these flags depending on CMAKE_BUILD_TYPE
     1. Debug: `-O0 -g`
     2. Release: `-O3 -DNDEBUG`

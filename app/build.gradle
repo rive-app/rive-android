@@ -1,6 +1,6 @@
 plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -55,7 +55,9 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = compose_compiler_version
+        // Chosen to match Kotlin version
+        // https://developer.android.com/jetpack/androidx/releases/compose-kotlin
+        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
     packagingOptions {
         resources {
@@ -71,25 +73,24 @@ android {
 }
 
 dependencies {
-    def composeBom = platform("androidx.compose:compose-bom:$compose_bom_version")
-    implementation(composeBom)
+    def composeBom = platform(libs.androidx.compose.bom)
 
-    implementation "androidx.activity:activity-compose"
-    implementation "androidx.compose.material3:material3"
-    implementation "androidx.compose.ui:ui-tooling-preview-android"
-    implementation "androidx.fragment:fragment-ktx:1.8.9"
-    implementation "androidx.startup:startup-runtime:1.2.0"
-    implementation "com.android.volley:volley:1.2.1"
-    implementation "com.google.android.material:material:1.13.0"
+    implementation(composeBom)
+    implementation(libs.android.volley)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.tooling.preview.android)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.startup.runtime)
+    implementation(libs.google.material)
 
     debugImplementation project(path: ":kotlin")
     releaseImplementation project(path: ":kotlin")
-    //noinspection GradleDynamicVersion We explicitly want the latest version
-    previewImplementation "app.rive:rive-android:+"
+    previewImplementation(libs.rive.android.preview)
 
-    androidTestImplementation "androidx.test.ext:junit:1.3.0"
-    androidTestImplementation "androidx.test:runner:1.7.0"
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation project(path: ":kotlin")
 
-    debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
+    debugImplementation(libs.leakcanary)
 }

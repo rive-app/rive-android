@@ -11,14 +11,17 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import app.rive.core.AudioHandle
 import app.rive.core.CommandQueue
+import app.rive.core.FontHandle
+import app.rive.core.ImageHandle
 import kotlinx.coroutines.isActive
 
 const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
 /**
  * A [CommandQueue] is the worker that runs Rive in a thread. It holds all of the state, including
- * assets ([images][ImageHandle], [audio][AudioHandle], and [fonts][FontHandle]), [RiveFiles]s,
+ * assets ([images][ImageHandle], [audio][AudioHandle], and [fonts][FontHandle]), [RiveFile]s,
  * [artboards][Artboard], state machines, and [view model instances][ViewModelInstance].
  *
  * The lifetime of the command queue is managed by this composable. It will release the resources

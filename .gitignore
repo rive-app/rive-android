@@ -1,49 +1,35 @@
-# OS-specific files
+# OS specific files
+# ======
 .DS_Store
 .DS_Store?
-._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+._*
 Thumbs.db
+ehthumbs.db
 
-kotlin/src/main/cpp/*.o
-kotlin/src/main/cpp/*.so
-kotlin/src/main/cpp/build
-kotlin/src/main/cpp/deps
-kotlin/src/main/cpp/dependencies
-kotlin/src/main/cpp/Toolchains
-kotlin/src/main/cpp/test/build
-kotlin/src/main/cpp/test/build_catch_tests
-kotlin/src/main/cpp/test/output
-kotlin/src/main/cpp/test/Catch2
-
+# IDE and build system metadata
+# =====
 *.iml
-.gradle
+.gradle/
+.idea/
+.kotlin/
+.kotlinc/
+.kotlintest/
+.vscode/
+
+# Local machine configuration
+# =====
 local.properties
-.idea
-app/build
-captures
-build.pixel.sh
-build.nexus.sh
-.vscode
 
-.settings
-.classpath
-kotlin/src/main/jniLibs/*
-kotlin/.cxx
-# Notification of missing NDK
-kotlin/src/main/cpp/rive_build_x86.log
+# Android & Gradle builds
+# =====
+# Build output for all modules
+**/build/
+# C/C++ external native build folders
+.cxx/
 
-# Kotlin 2.0 output
-.kotlin/sessions
-
-# Test outputs
-test_run_*/
-test_run_*.log
-logcat_*.log
+# Profiling artifacts & logs
+# =====
+*.hprof
 tombstones/
-bugreport*.zip
-
-# Test history
-test_history.csv
