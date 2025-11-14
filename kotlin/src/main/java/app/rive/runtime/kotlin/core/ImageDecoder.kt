@@ -27,7 +27,7 @@ object ImageDecoder {
             pixels[1] = height
             bitmap.getPixels(pixels, offset, width, 0, 0, width, height)
             pixels
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             IntArray(0)
         }
     }
