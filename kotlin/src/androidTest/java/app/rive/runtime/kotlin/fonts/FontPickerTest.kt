@@ -62,13 +62,14 @@ class FontPickerTest {
     fun withStylePicker() {
         var isPickerCalled = false
         // Define a style picker.
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 assertEquals(400, weight.weight)
                 isPickerCalled = true
                 return listOf(byteArrayOf(1, 2, 3))
             }
         }
+        FontFallbackStrategy.stylePicker = picker
 
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
@@ -83,13 +84,14 @@ class FontPickerTest {
     fun withAvailableChars() {
         var isPickerCalled = false
         // Define a style picker..
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 assertEquals(400, weight.weight)
                 isPickerCalled = true
                 return listOf(byteArrayOf(1, 2, 3))
             }
         }
+        FontFallbackStrategy.stylePicker = picker
         val file = context
             .resources
             .openRawResource(R.raw.style_fallback_fonts)
@@ -118,13 +120,14 @@ class FontPickerTest {
             .use { it.readBytes() }
 
         // Define a style picker..
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 pickerCalls++
                 pickerWeight = 200
                 return listOf(fontBytes)
             }
         }
+        FontFallbackStrategy.stylePicker = picker
         val riveFile = context
             .resources
             .openRawResource(R.raw.style_fallback_fonts)
@@ -156,13 +159,14 @@ class FontPickerTest {
             .use { it.readBytes() }
 
         // Define a style picker..
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<ByteArray> {
                 pickerCalls++
                 assertEquals(200, weight.weight) // ultralight font
                 return listOf(fontBytes)
             }
         }
+        FontFallbackStrategy.stylePicker = picker
         val file = context
             .resources
             .openRawResource(R.raw.style_fallback_fonts)
@@ -199,12 +203,13 @@ class FontPickerTest {
         }
 
         // Define a style picker..
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<FontBytes> {
                 pickerCalls++
                 return fontList
             }
         }
+        FontFallbackStrategy.stylePicker = picker
         val file = context
             .resources
             .openRawResource(R.raw.style_fallback_fonts)
@@ -241,12 +246,13 @@ class FontPickerTest {
         }
 
         // Define a style picker..
-        FontFallbackStrategy.stylePicker = object : FontFallbackStrategy {
+        val picker = object : FontFallbackStrategy {
             override fun getFont(weight: Fonts.Weight): List<FontBytes> {
                 pickerCalls++
                 return fontList
             }
         }
+        FontFallbackStrategy.stylePicker = picker
 
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
