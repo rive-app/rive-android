@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
 @RunWith(AndroidJUnit4::class)
@@ -254,5 +255,73 @@ class RiveArtboardRendererTest {
         afterRelease.countDown()
 
         drawThread.join(timeout)
+    }
+
+    /**
+     * Tests that the renderer can be safely deleted while resizeArtboard() is executing.
+     * The fix adds a hasCppObject check at the start of resizeArtboard() to prevent
+     * accessing disposed C++ objects when accessing width/height properties.
+     */
+    @Test
+    fun deleteRendererDuringResizeArtboard() {
+        val timeout = 1000L
+        // Latch to signal we've entered resizeArtboard()
+        val duringResizeLatch = CountDownLatch(1)
+        // Latch to block until we have deleted the renderer
+        val afterDeleteLatch = CountDownLatch(1)
+
+        val controller = RiveFileController()
+        controller.fit = Fit.LAYOUT // This sets requireArtboardResize to true
+        controller.isActive = true
+
+        // Create a custom renderer that overrides resizeArtboard() to add blocking,
+        // simulating the race condition where the renderer is deleted during resize
+        val latchingRenderer = object : RiveArtboardRenderer(controller = controller) {
+            override fun resizeArtboard() {
+                // Signal we've entered resizeArtboard()
+                duringResizeLatch.countDown()
+
+                // Block until the renderer is deleted - this simulates the race where
+                // the renderer could be deleted while resizeArtboard() is executing
+                afterDeleteLatch.await(timeout, TimeUnit.MILLISECONDS)
+
+                // Call the parent's resizeArtboard() which will check hasCppObject
+                // (the fix) and return early if disposed, preventing a crash
+                super.resizeArtboard()
+            }
+        }
+
+        latchingRenderer.make()
+
+        // Capture any exception thrown in the background thread
+        val exceptionRef = AtomicReference<Throwable>()
+
+        // Start draw() in a background thread
+        val drawThread = Thread {
+            try {
+                latchingRenderer.draw()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        drawThread.start()
+
+        // Wait for resizeArtboard() to be entered
+        duringResizeLatch.await(timeout, TimeUnit.MILLISECONDS)
+
+        // Delete the renderer while resizeArtboard() is blocked
+        latchingRenderer.delete()
+
+        // Let resizeArtboard() continue - the hasCppObject check should prevent a crash
+        afterDeleteLatch.countDown()
+
+        drawThread.join(timeout)
+
+        // Verify no exception was thrown - the fix should prevent the crash
+        val exception = exceptionRef.get()
+        assert(exception == null) {
+            "Expected no exception when renderer is deleted during resizeArtboard(). " +
+                    "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
+        }
     }
 }

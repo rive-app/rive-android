@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Fit
@@ -31,7 +32,10 @@ open class RiveArtboardRenderer(
     }
 
     @WorkerThread
-    private fun resizeArtboard() {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    open fun resizeArtboard() {
+        if (!hasCppObject) return
+
         if (fit == Fit.LAYOUT) {
             val newWidth = width / scaleFactor
             val newHeight = height / scaleFactor
