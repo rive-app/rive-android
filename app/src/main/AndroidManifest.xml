@@ -38,8 +38,10 @@
         </activity>
         <activity
             android:name=".ComposeActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
+            android:exported="true" />
+        <activity
+            android:name=".RiveUIViewActivity"
+            android:exported="true" />
         <activity
             android:name=".SimpleActivity"
             android:exported="true" />

@@ -4,19 +4,23 @@ import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import app.rive.core.CloseOnce
 import app.rive.core.CommandQueue
+import app.rive.core.FileHandle
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onSubscription
+
+internal const val VM_INSTANCE_TAG = "RiveUI/VMI"
 
 /**
  * A view model instance for data binding which has properties that can be set and observed.
@@ -26,13 +30,37 @@ import kotlinx.coroutines.launch
  *
  * @param instanceHandle The handle to the view model instance on the command server.
  * @param commandQueue The command queue that owns the view model instance.
- * @param parentScope The coroutine scope to use for launching coroutines.
  */
-class ViewModelInstance(
+class ViewModelInstance internal constructor(
     internal val instanceHandle: ViewModelInstanceHandle,
     private val commandQueue: CommandQueue,
-    private val parentScope: CoroutineScope
-) {
+    private val fileHandle: FileHandle,
+) : AutoCloseable by CloseOnce({
+    RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle} (${fileHandle})" }
+    commandQueue.deleteViewModelInstance(instanceHandle)
+}) {
+    companion object {
+        /**
+         * Creates a new [ViewModelInstance].
+         *
+         * The lifetime of the view model instance is managed by the caller. Make sure to call
+         * [close] when you are done with the instance to release its resources.
+         *
+         * @param file The [RiveFile] to create the view model instance from.
+         * @param source The source of the view model instance. Constructed from [ViewModelSource]
+         *    combined with [ViewModelInstanceSource].
+         * @return The created view model instance.
+         */
+        fun fromFile(
+            file: RiveFile,
+            source: ViewModelInstanceSource
+        ): ViewModelInstance {
+            val handle = file.commandQueue.createViewModelInstance(file.fileHandle, source)
+            RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
+            return ViewModelInstance(handle, file.commandQueue, file.fileHandle)
+        }
+    }
+
     private val _dirtyFlow = MutableSharedFlow<Unit>(
         replay = 1,
         extraBufferCapacity = 1,
@@ -40,47 +68,50 @@ class ViewModelInstance(
     )
     internal val dirtyFlow: SharedFlow<Unit> = _dirtyFlow
 
-    private val numberFlows = mutableMapOf<String, StateFlow<Float>>()
-    private val stringFlows = mutableMapOf<String, StateFlow<String>>()
-    private val booleanFlows = mutableMapOf<String, StateFlow<Boolean>>()
-    private val enumFlows = mutableMapOf<String, StateFlow<String>>()
-    private val colorFlows = mutableMapOf<String, StateFlow<Int>>()
-    private val triggerFlows = mutableMapOf<String, StateFlow<Unit>>()
+    private val numberFlows = mutableMapOf<String, Flow<Float>>()
+    private val stringFlows = mutableMapOf<String, Flow<String>>()
+    private val booleanFlows = mutableMapOf<String, Flow<Boolean>>()
+    private val enumFlows = mutableMapOf<String, Flow<String>>()
+    private val colorFlows = mutableMapOf<String, Flow<Int>>()
+    private val triggerFlows = mutableMapOf<String, Flow<Unit>>()
 
     private fun <T> getPropertyFlow(
         propertyPath: String,
-        initialValue: T,
-        cache: MutableMap<String, StateFlow<T>>,
+        cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
         updateFlow: SharedFlow<CommandQueue.PropertyUpdate<T>>,
         propertyType: PropertyDataType
-    ): StateFlow<T> = cache.getOrPut(propertyPath) {
-        val state = MutableStateFlow<T>(initialValue)
-        commandQueue.subscribeToProperty(instanceHandle, propertyPath, propertyType)
-        parentScope.launch {
-            val initial = getter(instanceHandle, propertyPath)
-            state.value = initial
-            updateFlow
-                .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
-                .collect { state.value = it.value }
-        }
-        state
+    ): Flow<T> = cache.getOrPut(propertyPath) {
+        updateFlow
+            // Ensure we’re subscribed, then kick off fetching latest value
+            .onSubscription {
+                commandQueue.subscribeToProperty(instanceHandle, propertyPath, propertyType)
+                // Fire the getter so its reply comes through as the first emission
+                // (ignoring the immediately returned value).
+                runCatching { getter(instanceHandle, propertyPath) }
+            }
+            .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
+            .map { it.value }
+            .distinctUntilChanged() // Don't emit duplicates
     }
 
     /**
-     * Creates or retrieve from cache a [number][Float] property, represented as a [StateFlow].
+     * Creates or retrieves from cache a [number][Float] property, represented as a cold [Flow].
      *
-     * The flow will automatically subscribe to updates from the command queue.
+     * The flow is subscribed to updates from the command queue while it is being collected.
+     *
+     * This flow emits every distinct value (up to the backing buffer limit). If you process
+     * the flow slowly, consider applying [conflate] if you only need the latest value to skip
+     * intermediate values. Alternatively, if you need to process every value, consider using a
+     * [buffer] operator with an appropriate buffer size to handle bursts.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param initialValue The initial value of the property. Since the property is retrieved
-     *    asynchronously, the initial value is used until the first update is received.
+     * @return A cold [Flow] of [Float] values representing the property.
      */
-    fun getNumberFlow(propertyPath: String, initialValue: Float): StateFlow<Float> =
+    fun getNumberFlow(propertyPath: String): Flow<Float> =
         getPropertyFlow(
             propertyPath,
-            initialValue,
             numberFlows,
             commandQueue::getNumberProperty,
             commandQueue.numberPropertyFlow,
@@ -88,19 +119,16 @@ class ViewModelInstance(
         )
 
     /**
-     * Creates or retrieve from cache a [string][String] property, represented as a [StateFlow].
-     *
-     * The flow will automatically subscribe to updates from the command queue.
+     * Creates or retrieves from cache a [string][String] property, represented as a cold [Flow].
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param initialValue The initial value of the property. Since the property is retrieved
-     *    asynchronously, the initial value is used until the first update is received.
+     * @return A cold [Flow] of [String] values representing the property.
+     * @see getNumberFlow
      */
-    fun getStringFlow(propertyPath: String, initialValue: String): StateFlow<String> =
+    fun getStringFlow(propertyPath: String): Flow<String> =
         getPropertyFlow(
             propertyPath,
-            initialValue,
             stringFlows,
             commandQueue::getStringProperty,
             commandQueue.stringPropertyFlow,
@@ -108,19 +136,16 @@ class ViewModelInstance(
         )
 
     /**
-     * Creates or retrieve from cache a [boolean][Boolean] property, represented as a [StateFlow].
-     *
-     * The flow will automatically subscribe to updates from the command queue.
+     * Creates or retrieves from cache a [boolean][Boolean] property, represented as a cold [Flow].
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param initialValue The initial value of the property. Since the property is retrieved
-     *    asynchronously, the initial value is used until the first update is received.
+     * @return A cold [Flow] of [Boolean] values representing the property.
+     * @see getNumberFlow
      */
-    fun getBooleanFlow(propertyPath: String, initialValue: Boolean): StateFlow<Boolean> =
+    fun getBooleanFlow(propertyPath: String): Flow<Boolean> =
         getPropertyFlow(
             propertyPath,
-            initialValue,
             booleanFlows,
             commandQueue::getBooleanProperty,
             commandQueue.booleanPropertyFlow,
@@ -128,20 +153,17 @@ class ViewModelInstance(
         )
 
     /**
-     * Creates or retrieve from cache an enum property, represented as a [StateFlow]. Enums are
+     * Creates or retrieves from cache an enum property, represented as a cold [Flow]. Enums are
      * represented as strings, and this flow will emit the string value of the enum.
-     *
-     * The flow will automatically subscribe to updates from the command queue.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param initialValue The initial value of the property. Since the property is retrieved
-     *    asynchronously, the initial value is used until the first update is received.
+     * @return A cold [Flow] of [String] values representing the enum property.
+     * @see getNumberFlow
      */
-    fun getEnumFlow(propertyPath: String, initialValue: String): StateFlow<String> =
+    fun getEnumFlow(propertyPath: String): Flow<String> =
         getPropertyFlow(
             propertyPath,
-            initialValue,
             enumFlows,
             commandQueue::getEnumProperty,
             commandQueue.enumPropertyFlow,
@@ -149,20 +171,17 @@ class ViewModelInstance(
         )
 
     /**
-     * Creates or retrieve from cache a color property, represented as a [StateFlow]. Colors are
+     * Creates or retrieves from cache a color property, represented as a cold [Flow]. Colors are
      * represented as AARRGGBB integers, and this flow will emit the integer value of the color.
-     *
-     * The flow will automatically subscribe to updates from the command queue.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param initialValue The initial value of the property. Since the property is retrieved
-     *    asynchronously, the initial value is used until the first update is received.
+     * @return A cold [Flow] of [Int] values representing the color property.
+     * @see getNumberFlow
      */
-    fun getColorFlow(propertyPath: String, @ColorInt initialValue: Int): StateFlow<Int> =
+    fun getColorFlow(propertyPath: String): Flow<Int> =
         getPropertyFlow(
             propertyPath,
-            initialValue,
             colorFlows,
             commandQueue::getColorProperty,
             commandQueue.colorPropertyFlow,
@@ -170,18 +189,28 @@ class ViewModelInstance(
         )
 
     /**
-     * Creates or retrieve from cache a trigger property, represented as a [StateFlow]. Triggers
+     * Creates or retrieves from cache a trigger property, represented as a cold [Flow]. Triggers
      * emit Unit as the value, which simply indicates that the trigger has been fired.
+     *
+     * The flow is subscribed to updates from the command queue while it is being collected.
+     *
+     * @param propertyPath The path to the trigger property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @return A cold [Flow] of [Unit] values representing trigger events.
      */
-    fun getTriggerFlow(propertyPath: String): StateFlow<Unit> =
-        getPropertyFlow(
-            propertyPath,
-            Unit,
-            triggerFlows,
-            { _, _ -> }, // Triggers don't have a getter, so we return Unit
-            commandQueue.triggerPropertyFlow,
-            PropertyDataType.TRIGGER
-        )
+    fun getTriggerFlow(propertyPath: String): Flow<Unit> = triggerFlows.getOrPut(propertyPath) {
+        commandQueue.triggerPropertyFlow
+            .onSubscription {
+                commandQueue.subscribeToProperty(
+                    instanceHandle,
+                    propertyPath,
+                    PropertyDataType.TRIGGER
+                )
+            }
+            .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
+            .map { /* Unit */ }
+            .buffer(32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    }
 
     private fun <T> setProperty(
         propertyPath: String,
@@ -308,12 +337,13 @@ sealed interface ViewModelInstanceSource {
 /**
  * Creates a [ViewModelInstance] from the given [file] and [source].
  *
- * The lifetime of the [ViewModelInstance] is managed by this composable. It will release the
- * resources allocated to the instance when it falls out of scope.
+ * The lifetime of the instance is managed by this composable. It will delete the instance when it
+ * falls out of scope.
  *
  * @param file The [RiveFile] to create the view model instance from.
  * @param source The source of the view model instance. Constructed from [ViewModelSource] combined
  *    with [ViewModelInstanceSource].
+ * @return The created [ViewModelInstance].
  */
 @ExperimentalRiveComposeAPI
 @Composable
@@ -321,21 +351,12 @@ fun rememberViewModelInstance(
     file: RiveFile,
     source: ViewModelInstanceSource,
 ): ViewModelInstance {
-    val commandQueue = file.commandQueue
-    val instanceScope = rememberCoroutineScope()
-
     val instance = remember(file, source) {
-        val handle = commandQueue.createViewModelInstance(file.fileHandle, source)
-        RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
-        ViewModelInstance(handle, commandQueue, instanceScope)
+        ViewModelInstance.fromFile(file, source)
     }
 
     DisposableEffect(instance) {
-        onDispose {
-            RiveLog.d(VM_INSTANCE_TAG) { "Deleting ${instance.instanceHandle} (${file.fileHandle})" }
-            commandQueue.deleteViewModelInstance(instance.instanceHandle)
-            instanceScope.cancel()
-        }
+        onDispose { instance.close() }
     }
 
     return instance

@@ -81,12 +81,6 @@ public:
 
     virtual ~FileListener() = default;
 
-    void onFileLoaded(const rive::FileHandle handle,
-                      uint64_t requestID) override
-    {
-        m_queue.call("onFileLoaded", "(JJ)V", requestID, handle);
-    }
-
     void onFileError(const rive::FileHandle,
                      uint64_t requestID,
                      std::string error) override
@@ -96,6 +90,12 @@ public:
                      "(JLjava/lang/String;)V",
                      requestID,
                      jError.get());
+    }
+
+    void onFileLoaded(const rive::FileHandle handle,
+                      uint64_t requestID) override
+    {
+        m_queue.call("onFileLoaded", "(JJ)V", requestID, handle);
     }
 
     void onArtboardsListed(const rive::FileHandle,
@@ -262,6 +262,17 @@ public:
 
     virtual ~ArtboardListener() = default;
 
+    void onArtboardError(const rive::ArtboardHandle,
+                         uint64_t requestID,
+                         std::string error) override
+    {
+        auto jError = MakeJString(m_queue.env(), error);
+        m_queue.call("onArtboardError",
+                     "(JLjava/lang/String;)V",
+                     requestID,
+                     jError.get());
+    }
+
     void onStateMachinesListed(
         const rive::ArtboardHandle,
         uint64_t requestID,
@@ -287,6 +298,17 @@ public:
 
     virtual ~StateMachineListener() = default;
 
+    void onStateMachineError(const rive::StateMachineHandle,
+                             uint64_t requestID,
+                             std::string error) override
+    {
+        auto jError = MakeJString(m_queue.env(), error);
+        m_queue.call("onStateMachineError",
+                     "(JLjava/lang/String;)V",
+                     requestID,
+                     jError.get());
+    }
+
     void onStateMachineSettled(const rive::StateMachineHandle smHandle,
                                uint64_t requestID) override
     {
@@ -306,6 +328,17 @@ public:
     {}
 
     virtual ~ViewModelInstanceListener() = default;
+
+    void onViewModelInstanceError(const rive::ViewModelInstanceHandle,
+                                  uint64_t requestID,
+                                  std::string error) override
+    {
+        auto jError = MakeJString(m_queue.env(), error);
+        m_queue.call("onViewModelInstanceError",
+                     "(JLjava/lang/String;)V",
+                     requestID,
+                     jError.get());
+    }
 
     void onViewModelDataReceived(
         const rive::ViewModelInstanceHandle vmiHandle,

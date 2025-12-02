@@ -25,18 +25,12 @@ import app.rive.core.RebuggerWrapper
 import app.rive.core.RiveSurface
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
 
-const val GENERAL_TAG = "RiveUI"
-const val STATE_MACHINE_TAG = "RiveUI/SM"
-const val VM_INSTANCE_TAG = "RiveUI/VMI"
-const val SURFACE_TAG = "RiveUI/Surface"
-const val DRAW_TAG = "RiveUI/Draw"
+private const val GENERAL_TAG = "RiveUI"
+private const val STATE_MACHINE_TAG = "RiveUI/SM"
+private const val DRAW_TAG = "RiveUI/Draw"
 
 @RequiresOptIn(
     level = RequiresOptIn.Level.WARNING,
@@ -55,17 +49,16 @@ sealed interface Result<out T> {
     object Loading : Result<Nothing>
     data class Error(val throwable: Throwable) : Result<Nothing>
     data class Success<T>(val value: T) : Result<T>
-}
 
-internal fun <T> lazyDeferred(
-    parentScope: CoroutineScope,
-    block: suspend () -> T
-): Lazy<Deferred<T>> =
-    lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        parentScope.async(start = CoroutineStart.LAZY) {
-            block()
-        }
+    @Composable
+    fun <T, R> Result<T>.andThen(
+        onSuccess: @Composable (T) -> Result<R>
+    ): Result<R> = when (this) {
+        is Loading -> Loading
+        is Error -> Error(this.throwable)
+        is Success -> onSuccess(this.value)
     }
+}
 
 /**
  * The main composable for rendering a Rive file's artboard and state machine.
@@ -132,7 +125,6 @@ fun RiveUI(
                 newSurfaceTexture: SurfaceTexture, width: Int, height: Int
             ) {
                 val newSurface = Surface(newSurfaceTexture)
-                RiveLog.d(SURFACE_TAG) { "Creating rendering surface" }
                 surface = commandQueue.createRiveSurface(newSurface)
                 surfaceWidth = width
                 surfaceHeight = height
@@ -204,7 +196,6 @@ fun RiveUI(
     DisposableEffect(surface) {
         val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
         onDispose {
-            RiveLog.d(SURFACE_TAG) { "Deleting surface" }
             nonNullSurface.dispose()
         }
     }

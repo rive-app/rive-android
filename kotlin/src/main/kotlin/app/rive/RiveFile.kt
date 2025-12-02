@@ -1,25 +1,28 @@
 package app.rive
 
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
+import app.rive.core.CloseOnce
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.SuspendLazy
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel.Property
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
+private const val FILE_TAG = "Rive/File"
+
 /**
- * A Rive file, which contains one or more artboards, state machines, and view model instances.
+ * A Rive file which contains one or more artboards, state machines, and view model instances.
  *
- * A Rive file is created from the Rive editor, which is exported as a `.riv` file.
+ * A Rive file is created from the Rive editor and is exported as a `.riv` file.
+ *
+ * Create an instance of this class using [rememberRiveFile] or [RiveFile.fromSource]. When using
+ * the latter, make sure to call [close] when you are done with the file to release its resources.
  *
  * The this object can be used to query the file for its contents, such as artboards names. It can
  * then be passed to [rememberArtboard] to create an [Artboard], and then to [RiveUI] for rendering.
@@ -28,23 +31,74 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * @param fileHandle The handle to the file on the command server.
  * @param commandQueue The command queue that owns and performs operations on this file.
- * @param parentScope The coroutine scope to use for launching coroutines.
  */
 @Stable
-class RiveFile(
+class RiveFile internal constructor(
     internal val fileHandle: FileHandle,
-    internal val commandQueue: CommandQueue,
-    private val parentScope: CoroutineScope,
-) {
+    internal val commandQueue: CommandQueue
+) : AutoCloseable by CloseOnce({
+    RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
+    commandQueue.deleteFile(fileHandle)
+
+    commandQueue.release(FILE_TAG, "RiveFile closed")
+}) {
+    companion object {
+        /**
+         * Loads a [RiveFile] from the given [source].
+         *
+         * The lifetime of the [RiveFile] is managed by the caller. Make sure to call [close] when
+         * you are done with the file to release its resources.
+         *
+         * @param source The source of the Rive file.
+         * @param commandQueue The command queue that owns the file.
+         * @return The loaded Rive file, or an error if loading failed.
+         */
+        suspend fun fromSource(
+            source: RiveFileSource,
+            commandQueue: CommandQueue
+        ): Result<RiveFile> {
+            RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
+            return try {
+                commandQueue.acquire(FILE_TAG)
+
+                val fileBytes = when (source) {
+                    is RiveFileSource.Bytes -> source.data
+                    is RiveFileSource.RawRes -> {
+                        // Use an I/O worker to load the raw resource bytes
+                        withContext(Dispatchers.IO) {
+                            source.resources.openRawResource(source.resId)
+                                .use { it.readBytes() }
+                        }
+                    }
+                }
+                RiveLog.v(FILE_TAG) { "Loaded Rive file bytes from source: $source; sending to command queue" }
+                val fileHandle = commandQueue.loadFile(fileBytes)
+
+                RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
+                Result.Success(RiveFile(fileHandle, commandQueue))
+            } catch (ce: CancellationException) {
+                // Thrown by withContext if the coroutine is cancelled
+                RiveLog.d(FILE_TAG) { "Rive file loading was cancelled: $source" }
+                commandQueue.release(FILE_TAG, "Cancellation")
+                // Propagate the cancellation exception, needed by callers to handle cancellation correctly
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(FILE_TAG, e) { "Error loading Rive file with source: $source" }
+                commandQueue.release(FILE_TAG, "Load error")
+                Result.Error(e)
+            }
+        }
+    }
+
     /** @return A list of all exported artboard names available on this file. */
     suspend fun getArtboardNames(): List<String> = artboardNamesCache.await()
-    private val artboardNamesCache by lazyDeferred<List<String>>(parentScope) {
+    private val artboardNamesCache = SuspendLazy {
         commandQueue.getArtboardNames(fileHandle)
     }
 
     /** @return A list of all view model names available on this file. */
     suspend fun getViewModelNames(): List<String> = viewModelNamesCache.await()
-    private val viewModelNamesCache by lazyDeferred<List<String>>(parentScope) {
+    private val viewModelNamesCache = SuspendLazy {
         commandQueue.getViewModelNames(fileHandle)
     }
 
@@ -52,13 +106,13 @@ class RiveFile(
     suspend fun getViewModelInstanceNames(viewModel: String): List<String> =
         synchronized(instanceNamesCache) {
             instanceNamesCache.getOrPut(viewModel) {
-                lazyDeferred(parentScope) {
+                SuspendLazy {
                     commandQueue.getViewModelInstanceNames(fileHandle, viewModel)
                 }
             }
-        }.value.await()
+        }.await()
 
-    private val instanceNamesCache = mutableMapOf<String, Lazy<Deferred<List<String>>>>()
+    private val instanceNamesCache = mutableMapOf<String, SuspendLazy<List<String>>>()
 
     /**
      * @return A list of all properties available on the given [viewModel].
@@ -67,20 +121,20 @@ class RiveFile(
     suspend fun getViewModelProperties(viewModel: String): List<Property> =
         synchronized(propertiesCache) {
             propertiesCache.getOrPut(viewModel) {
-                lazyDeferred(parentScope) {
+                SuspendLazy {
                     commandQueue.getViewModelProperties(fileHandle, viewModel)
                 }
             }
-        }.value.await()
+        }.await()
 
-    private val propertiesCache = mutableMapOf<String, Lazy<Deferred<List<Property>>>>()
+    private val propertiesCache = mutableMapOf<String, SuspendLazy<List<Property>>>()
 
     /**
      * @return A list of all enums available on this file.
      * @see [Enum]
      */
     suspend fun getEnums(): List<Enum> = enumsCache.await()
-    private val enumsCache by lazyDeferred<List<Enum>>(parentScope) {
+    private val enumsCache = SuspendLazy {
         commandQueue.getEnums(fileHandle)
     }
 }
@@ -94,11 +148,11 @@ sealed interface RiveFileSource {
     @JvmInline
     value class Bytes(val data: ByteArray) : RiveFileSource
 
-    @JvmInline
-    value class RawRes(@androidx.annotation.RawRes val resId: Int) : RiveFileSource
+    data class RawRes(
+        @androidx.annotation.RawRes val resId: Int,
+        val resources: Resources
+    ) : RiveFileSource
 }
-
-private const val FILE_TAG = "Rive/File"
 
 /**
  * Loads a [RiveFile] from the given [source].
@@ -109,62 +163,25 @@ private const val FILE_TAG = "Rive/File"
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
  * @param commandQueue The command queue that owns the file. If not provided, a new command queue
  *    will be created and remembered.
+ * @return The [Result] of loading the Rive file, which can be either loading, error, or success
+ *    with the [RiveFile].
  */
 @ExperimentalRiveComposeAPI
 @Composable
 fun rememberRiveFile(
     source: RiveFileSource,
     commandQueue: CommandQueue = rememberCommandQueue(),
-): State<Result<RiveFile>> {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source) {
+    val result = RiveFile.fromSource(source, commandQueue)
+    value = result
 
-    return produceState<Result<RiveFile>>(Result.Loading, source) {
-        RiveLog.v(COMMAND_QUEUE_TAG) { "Acquiring command queue from Rive File (ref count before acquire: ${commandQueue.refCount})" }
-        commandQueue.acquire()
-        var acquired = true
-
-        fun release(label: String) {
-            if (acquired) {
-                RiveLog.v(COMMAND_QUEUE_TAG) { "Releasing command queue from Rive File ($label) (ref before: ${commandQueue.refCount})" }
-                commandQueue.release()
-                acquired = false
-            }
-        }
-
-        RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
-        try {
-            val fileHandle = when (source) {
-                is RiveFileSource.Bytes -> commandQueue.loadFile(source.data)
-
-                is RiveFileSource.RawRes -> {
-                    // Use an I/O worker to load the raw resource and file
-                    withContext(Dispatchers.IO) {
-                        val bytes =
-                            context.resources.openRawResource(source.resId).use { it.readBytes() }
-                        commandQueue.loadFile(bytes)
-                    }
-                }
-            }
-
-            RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
-            value = Result.Success(RiveFile(fileHandle, commandQueue, coroutineScope))
-
+    when (result) {
+        is Result.Success -> {
             awaitDispose {
-                RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
-                commandQueue.deleteFile(fileHandle)
-                release("dispose")
+                result.value.close()
             }
-        } catch (ce: CancellationException) {
-            // Thrown by withContext if the coroutine is cancelled
-            RiveLog.d(FILE_TAG) { "Rive file loading was cancelled: $source" }
-            release("cancellation")
-            // Propagate the cancellation exception, needed by Compose to handle cancellation correctly
-            throw ce
-        } catch (e: Exception) {
-            RiveLog.e(FILE_TAG, e) { "Error loading Rive file with source: $source" }
-            value = Result.Error(e)
-            release("error")
         }
+
+        else -> {}
     }
-}
+}.value

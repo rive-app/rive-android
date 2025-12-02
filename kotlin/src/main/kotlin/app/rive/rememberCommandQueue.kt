@@ -6,18 +6,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
 import app.rive.core.AudioHandle
+import app.rive.core.COMMAND_QUEUE_TAG
 import app.rive.core.CommandQueue
+import app.rive.core.ComposeFrameTicker
 import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
-import kotlinx.coroutines.isActive
-
-const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
 /**
  * A [CommandQueue] is the worker that runs Rive in a thread. It holds all of the state, including
@@ -67,47 +63,35 @@ fun rememberCommandQueue(): CommandQueue {
 fun rememberCommandQueueOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null)
 ): CommandQueue? {
-    val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val commandQueue = remember(coroutineScope) {
-        runCatching {
-            CommandQueue(coroutineScope).also {
-                RiveLog.d(COMMAND_QUEUE_TAG) { "Created command queue" }
-            }
-        }.onFailure {
-            if (errorState.value == null) {
-                errorState.value = it
-            }
-            RiveLog.e(COMMAND_QUEUE_TAG) { "Failed to create command queue: ${it.message}" }
-        }.getOrNull()
+    val commandQueue = remember {
+        runCatching { CommandQueue() }
+            .onFailure {
+                if (errorState.value == null) {
+                    errorState.value = it
+                }
+                RiveLog.e(COMMAND_QUEUE_TAG) { "Failed to create command queue: ${it.message}" }
+            }.getOrNull()
     }
 
     /**
      * Start polling the command queue for messages. This runs in a loop while the [Lifecycle] is in
      * the [Lifecycle.State.RESUMED] state.
      *
-     * `withFrameNanos` ties the loop to the Choreographer.
+     * Uses [ComposeFrameTicker] as the implementation for frame timing.
      */
     LaunchedEffect(lifecycleOwner, commandQueue) {
         if (commandQueue == null) return@LaunchedEffect
 
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-            while (isActive) {
-                withFrameNanos {
-                    commandQueue.pollMessages()
-                }
-            }
-        }
+        commandQueue.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
     }
 
     /** Disposes the command queue when it falls out of scope. */
     DisposableEffect(commandQueue) {
-        if (commandQueue == null) return@DisposableEffect onDispose { }
+        if (commandQueue == null) return@DisposableEffect onDispose {}
 
         onDispose {
-            RiveLog.d(COMMAND_QUEUE_TAG) { "Releasing command queue (remaining ref count before release: ${commandQueue.refCount})" }
-            commandQueue.release()
+            commandQueue.release(COMMAND_QUEUE_TAG, "Compose dispose")
         }
     }
 

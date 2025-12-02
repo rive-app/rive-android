@@ -9,35 +9,50 @@ import android.opengl.EGLSurface
 import android.view.Surface
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.RiveFile
+import app.rive.RiveLog
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
+import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.ViewModel
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+
+const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
 /**
  * A [CommandQueue] is the worker that runs Rive in a thread. It holds all of
  * the state, including assets ([images][ImageHandle], [audio][AudioHandle], and
  * [fonts][FontHandle]), [Rive files][RiveFile], [artboards][Artboard], state machines, and
  * [view model instances][ViewModelInstance].
+ *
+ * Instances of the command queue are reference counted. At initialization, the command queue has a
+ * ref count of 1. Call [acquire] to increment the ref count, and [release] to decrement it. When
+ * the ref count reaches 0, the command queue is disposed, and its resources are released. Using
+ * a disposed command queue will throw an [IllegalStateException]. Any pending operations will be
+ * notified with a [CancellationException].
  *
  * The command queue normally is passed into [rememberRiveFile] or, alternatively, created by
  * default if one is not supplied. This is then transitively supplied to other Rive elements, such
@@ -62,13 +77,11 @@ import kotlin.coroutines.resumeWithException
  * loaded into each command queue separately.
  *
  * A command queue needs to be polled to receive messages from the command server. This is handled
- * by the [rememberCommandQueue][app.rive.rememberCommandQueue] composable.
+ * by the [rememberCommandQueue] composable or by calling [beginPolling].
  *
- * @param coroutineScope The coroutine scope to use for launching coroutines.
  * @throws RuntimeException If the command queue cannot be created for any reason.
  */
 class CommandQueue(
-    private val scope: CoroutineScope,
 //    private val bridge: CommandQueueBridge
 ) {
     @Throws(RuntimeException::class)
@@ -409,33 +422,81 @@ class CommandQueue(
          * Maximum number of RiveUI components that can safely use this CommandQueue instance
          * concurrently.
          */
-        const val MAX_CONCURRENT_SUBSCRIBERS = 8
+        const val MAX_CONCURRENT_SUBSCRIBERS = 32
     }
 
-    private var cppPointer: Long = NULL_POINTER
+    private var cppPointer: RCPointer
     private var listeners: Listeners
 
-    private var referenceCount: AtomicInteger = AtomicInteger(1)
-    internal val refCount get() = referenceCount.get()
+    /**
+     * Cleanup to be performed when the ref count reaches 0.
+     *
+     * Any pending continuations are cancelled to avoid callers hanging indefinitely.
+     */
+    private fun dispose(cppPointer: Long) {
+        cppDelete(cppPointer)
 
-    fun acquire() {
-        referenceCount.incrementAndGet()
-    }
+        listeners.dispose()
 
-    fun release() {
-        val count = referenceCount.decrementAndGet()
-        check(count >= 0) { "CommandQueue released too many times." }
-        // Dispose
-        if (count == 0) {
-            cppDelete(cppPointer)
-            cppPointer = NULL_POINTER
-            listeners.dispose()
+        // Cancel and clear any pending JNI continuations so callers don't hang.
+        pendingContinuations.values.forEach { cont ->
+            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
         }
     }
 
-    private val queueDispatcher = Dispatchers.Main.immediate
+    /**
+     * Acquire a reference to this CommandQueue. Must be balanced with a call to [release].
+     *
+     * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
+     *    "MyActivity".
+     * @throws IllegalStateException If the CommandQueue has already been disposed, i.e. the ref
+     *    count is zero.
+     */
+    fun acquire(source: String) = cppPointer.acquire(source)
 
-    val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY).also {
+    /**
+     * Release a reference to this CommandQueue. When the last reference is released, the
+     * CommandQueue is disposed.
+     *
+     * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
+     *    "MyActivity".
+     * @param reason An optional string indicating the reason for the release, for logging purposes.
+     * @throws IllegalStateException If the CommandQueue has already been disposed, i.e. the ref
+     *    count is already zero.
+     */
+    fun release(source: String, reason: String = "") =
+        cppPointer.release(source, reason)
+
+    /**
+     * Tie this CommandQueue's lifetime to a LifecycleOwner. This will call [release] when the
+     * owner's lifecycle reaches DESTROYED. Returns an [AutoCloseable] that can be used to manually
+     * release early; calling it is idempotent.
+     *
+     * Typical usage from an Activity or Fragment:
+     *
+     * val cq = CommandQueue().also { it.withLifecycle(this, "MyActivity") }
+     *
+     * @param owner The LifecycleOwner to tie this CommandQueue's lifetime to, such as an Activity
+     *    or Fragment.
+     * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
+     *    "MyActivity".
+     */
+    fun withLifecycle(owner: LifecycleOwner, source: String): AutoCloseable {
+        lateinit var onClose: CloseOnce // lateinit to break circular reference
+        val observer = object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                onClose.close()
+            }
+        }
+        onClose = CloseOnce {
+            owner.lifecycle.removeObserver(observer)
+            cppPointer.release(source, "Closed by withLifecycle")
+        }
+        owner.lifecycle.addObserver(observer)
+        return onClose
+    }
+
+    private val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY).also {
         if (it == EGL14.EGL_NO_DISPLAY) {
             throw RuntimeException("Unable to get EGL display")
         }
@@ -444,14 +505,16 @@ class CommandQueue(
             throw RuntimeException("Unable to initialize EGL")
         }
     }
-    val config: EGLConfig = makeConfig()
-    var context: EGLContext = EGL14.EGL_NO_CONTEXT
+    private val config: EGLConfig = makeConfig()
+    private var context: EGLContext = EGL14.EGL_NO_CONTEXT
 
     private val _settledFlow = MutableSharedFlow<StateMachineHandle>(
         replay = 0,
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS, // Protects for the worst case of simultaneous settles
         onBufferOverflow = BufferOverflow.DROP_OLDEST // It's fine to miss a settle event - worse to block
     )
+
+    /** Flow that emits when a state machine has settled. */
     val settledFlow: SharedFlow<StateMachineHandle> = _settledFlow
 
     /**
@@ -538,6 +601,8 @@ class CommandQueue(
     }
 
     init {
+        RiveLog.d(COMMAND_QUEUE_TAG) { "Creating command queue" }
+
         val err = EGL14.eglGetError()
         if (err != EGL14.EGL_SUCCESS) {
             throw RuntimeException("EGL error: $err")
@@ -560,11 +625,24 @@ class CommandQueue(
             throw RuntimeException("Unable to create EGL context")
         }
 
-        cppPointer = cppConstructor(display.nativeHandle, context.nativeHandle)
-        listeners = cppCreateListeners(cppPointer)
+        cppPointer = RCPointer(
+            cppConstructor(display.nativeHandle, context.nativeHandle),
+            ::dispose,
+            COMMAND_QUEUE_TAG
+        )
+        listeners = cppCreateListeners(cppPointer.pointer)
     }
 
+    /**
+     * Create a Rive rendering surface for Rive to draw into.
+     *
+     * @param surface The Android [Surface] to create the Rive rendering surface for.
+     * @return A [RiveSurface] that can be used for rendering.
+     * @throws RuntimeException If the surface could not be created.
+     */
+    @Throws(RuntimeException::class)
     fun createRiveSurface(surface: Surface): RiveSurface {
+        RiveLog.d(SURFACE_TAG) { "Creating rendering surface" }
         val eglSurface = EGL14.eglCreateWindowSurface(
             display,
             config,
@@ -577,16 +655,84 @@ class CommandQueue(
             throw RuntimeException("Unable to create EGL surface")
         }
 
-        var dimensions = IntArray(2)
+        val dimensions = IntArray(2)
         EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_WIDTH, dimensions, 0)
         EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_HEIGHT, dimensions, 1)
         val width = dimensions[0]
         val height = dimensions[1]
 
         val renderTarget = cppCreateRenderTarget(width, height)
-        val drawKey = DrawKey(cppCreateDrawKey(cppPointer))
+        val drawKey = DrawKey(cppCreateDrawKey(cppPointer.pointer))
 
         return RiveSurface(surface, eglSurface, display, renderTarget, drawKey, width, height)
+    }
+
+    /**
+     * Callback when there is any error on a file operation. The continuation will be resumed with
+     * an exception, including a message with the specific error.
+     *
+     * @param requestID The request ID for the original operation, used to complete the
+     *    continuation.
+     * @param error The error message.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onFileError")
+    internal fun onFileError(requestID: Long, error: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<FileHandle>)?.resumeWithException(
+            RuntimeException("File error: $error")
+        )
+    }
+
+    /**
+     * Callback when there is any error on an artboard operation. The continuation will be resumed
+     * with an exception, including a message with the specific error.
+     *
+     * @param requestID The request ID for the original operation, used to complete the
+     *    continuation.
+     * @param error The error message.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onArtboardError")
+    internal fun onArtboardError(requestID: Long, error: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<ArtboardHandle>)?.resumeWithException(
+            RuntimeException("Artboard error: $error")
+        )
+    }
+
+    /**
+     * Callback when there is any error on a state machine operation. The continuation will be
+     * resumed with an exception, including a message with the specific error.
+     *
+     * @param requestID The request ID for the original operation, used to complete the
+     *    continuation.
+     * @param error The error message.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onStateMachineError")
+    internal fun onStateMachineError(requestID: Long, error: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<StateMachineHandle>)?.resumeWithException(
+            RuntimeException("State machine error: $error")
+        )
+    }
+
+    /**
+     * Callback when there is any error on a view model instance operation. The continuation will be
+     * resumed with an exception, including a message with the specific error.
+     *
+     * @param requestID The request ID for the original operation, used to complete the
+     *    continuation.
+     * @param error The error message.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelInstanceError")
+    internal fun onViewModelInstanceError(requestID: Long, error: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<ViewModelInstanceHandle>)?.resumeWithException(
+            RuntimeException("View model instance error: $error")
+        )
     }
 
     /**
@@ -595,12 +741,13 @@ class CommandQueue(
      *
      * @param bytes The bytes of the Rive file to load.
      * @return A [FileHandle] that represents the loaded Rive file.
-     * @throws RuntimeException If the file could not be loaded, this will throw an exception. Note
-     *    that the exception comes from the continuation callback.
+     * @throws RuntimeException If the file could not be loaded.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
-    @Throws(RuntimeException::class)
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun loadFile(bytes: ByteArray): FileHandle = suspendNativeRequest { requestID ->
-        cppLoadFile(cppPointer, requestID, bytes)
+        cppLoadFile(cppPointer.pointer, requestID, bytes)
     }
 
     /**
@@ -618,43 +765,32 @@ class CommandQueue(
     }
 
     /**
-     * Callback when there is *any* error on a file operation. This includes loading a file, but
-     * also operations such as instantiating an artboard or state machine.
-     *
-     * @param requestID The request ID used when loading the file, used to complete the
-     *    continuation.
-     * @param error The error message.
-     * @throws RuntimeException If the file could not be loaded, this will resume the continuation
-     *    with an exception.
-     */
-    @Keep // Called from JNI
-    @Suppress("Unused")
-    @JvmName("onFileError")
-    @Throws(RuntimeException::class)
-    internal fun onFileError(requestID: Long, error: String) {
-        (pendingContinuations.remove(requestID) as? Continuation<FileHandle>)?.resumeWithException(
-            RuntimeException("File error: $error")
-        )
-    }
-
-    /**
      * Counterpart to [loadFile] to free the resources associated to the file handle.
      *
+     * This method is idempotent; calling it multiple times with the same file handle has no
+     * additional effect.
+     *
      * @param fileHandle The handle of the file to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteFile(fileHandle: FileHandle) =
-        cppDeleteFile(cppPointer, nextRequestID.getAndIncrement(), fileHandle.handle)
+        cppDeleteFile(cppPointer.pointer, nextRequestID.getAndIncrement(), fileHandle.handle)
 
     /**
      * Query the file for available artboard names. Returns on [onArtboardsListed].
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of artboard names in the file.
+     * @throws RuntimeException If the file handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getArtboardNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             cppGetArtboardNames(
-                cppPointer,
+                cppPointer.pointer,
                 requestID,
                 fileHandle.handle
             )
@@ -679,11 +815,15 @@ class CommandQueue(
      *
      * @param artboardHandle The handle of the artboard to query.
      * @return A list of state machine names in the artboard.
+     * @throws RuntimeException If the artboard handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getStateMachineNames(artboardHandle: ArtboardHandle): List<String> =
         suspendNativeRequest { requestID ->
             cppGetStateMachineNames(
-                cppPointer,
+                cppPointer.pointer,
                 requestID,
                 artboardHandle.handle
             )
@@ -708,11 +848,15 @@ class CommandQueue(
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of view model names in the file.
+     * @throws RuntimeException If the file handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             cppGetViewModelNames(
-                cppPointer,
+                cppPointer.pointer,
                 requestID,
                 fileHandle.handle
             )
@@ -739,13 +883,18 @@ class CommandQueue(
      * @param fileHandle The handle of the file that owns the view model.
      * @param viewModelName The name of the view model to query.
      * @return A list of view model instance names on the view model.
+     * @throws RuntimeException If the file handle is invalid or the named view model does not
+     *    exist.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelInstanceNames(
         fileHandle: FileHandle,
         viewModelName: String
     ): List<String> = suspendNativeRequest { requestID ->
         cppGetViewModelInstanceNames(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             fileHandle.handle,
             viewModelName
@@ -773,13 +922,18 @@ class CommandQueue(
      * @param fileHandle The handle of the file that owns the view model.
      * @param viewModelName The name of the view model to query.
      * @return A list of properties on the view model.
+     * @throws RuntimeException If the file handle is invalid or the named view model does not
+     *    exist.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelProperties(
         fileHandle: FileHandle,
         viewModelName: String
     ): List<ViewModel.Property> = suspendNativeRequest { requestID ->
         cppGetViewModelProperties(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             fileHandle.handle,
             viewModelName
@@ -810,10 +964,14 @@ class CommandQueue(
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of enums in the file.
+     * @throws RuntimeException If the file handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getEnums(fileHandle: FileHandle): List<Enum> = suspendNativeRequest { requestID ->
         cppGetEnums(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             fileHandle.handle
         )
@@ -839,11 +997,13 @@ class CommandQueue(
      *
      * @param fileHandle The handle of the file that owns the artboard.
      * @return The handle of the created artboard.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun createDefaultArtboard(fileHandle: FileHandle): ArtboardHandle =
         ArtboardHandle(
             cppCreateDefaultArtboard(
-                cppPointer,
+                cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
                 fileHandle.handle
             )
@@ -855,11 +1015,13 @@ class CommandQueue(
      *
      * @param fileHandle The handle of the file that owns the artboard.
      * @param name The name of the artboard to create.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun createArtboardByName(fileHandle: FileHandle, name: String): ArtboardHandle =
         ArtboardHandle(
             cppCreateArtboardByName(
-                cppPointer,
+                cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
                 fileHandle.handle,
                 name
@@ -872,9 +1034,15 @@ class CommandQueue(
      * [createArtboardByName].
      *
      * @param artboardHandle The handle of the artboard to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteArtboard(artboardHandle: ArtboardHandle) =
-        cppDeleteArtboard(cppPointer, nextRequestID.getAndIncrement(), artboardHandle.handle)
+        cppDeleteArtboard(
+            cppPointer.pointer,
+            nextRequestID.getAndIncrement(),
+            artboardHandle.handle
+        )
 
     /**
      * Create the default state machine for the given artboard. This is the state machine marked
@@ -882,11 +1050,13 @@ class CommandQueue(
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @return The handle of the created state machine.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun createDefaultStateMachine(artboardHandle: ArtboardHandle): StateMachineHandle =
         StateMachineHandle(
             cppCreateDefaultStateMachine(
-                cppPointer,
+                cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
                 artboardHandle.handle
             )
@@ -898,11 +1068,13 @@ class CommandQueue(
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @param name The name of the state machine to create.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun createStateMachineByName(artboardHandle: ArtboardHandle, name: String): StateMachineHandle =
         StateMachineHandle(
             cppCreateStateMachineByName(
-                cppPointer,
+                cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
                 artboardHandle.handle,
                 name
@@ -915,10 +1087,12 @@ class CommandQueue(
      * [createStateMachineByName].
      *
      * @param stateMachineHandle The handle of the state machine to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteStateMachine(stateMachineHandle: StateMachineHandle) =
         cppDeleteStateMachine(
-            cppPointer,
+            cppPointer.pointer,
             nextRequestID.getAndIncrement(),
             stateMachineHandle.handle
         )
@@ -928,12 +1102,15 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to advance.
      * @param deltaTimeNs The delta time in nanoseconds to advance the state machine by.
+     * @throws RuntimeException If the state machine handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class)
     fun advanceStateMachine(
         stateMachineHandle: StateMachineHandle,
         deltaTimeNs: Long
     ) = cppAdvanceStateMachine(
-        cppPointer,
+        cppPointer.pointer,
         stateMachineHandle.handle,
         deltaTimeNs
     )
@@ -967,7 +1144,9 @@ class CommandQueue(
      * @param source The source of the view model instance to create, which internally also has a
      *    [view model source][ViewModelSource].
      * @return The handle of the created view model instance.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun createViewModelInstance(
         fileHandle: FileHandle,
         source: ViewModelInstanceSource
@@ -977,7 +1156,7 @@ class CommandQueue(
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         cppNamedVMCreateBlankVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName
@@ -987,7 +1166,7 @@ class CommandQueue(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         cppDefaultVMCreateBlankVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
@@ -999,7 +1178,7 @@ class CommandQueue(
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         cppNamedVMCreateDefaultVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName
@@ -1009,7 +1188,7 @@ class CommandQueue(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         cppDefaultVMCreateDefaultVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
@@ -1021,7 +1200,7 @@ class CommandQueue(
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         cppNamedVMCreateNamedVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName,
@@ -1032,7 +1211,7 @@ class CommandQueue(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         cppDefaultVMCreateNamedVMI(
-                            cppPointer,
+                            cppPointer.pointer,
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle,
@@ -1043,7 +1222,7 @@ class CommandQueue(
 
             is ViewModelInstanceSource.Reference -> ViewModelInstanceHandle(
                 cppReferenceNestedVMI(
-                    cppPointer,
+                    cppPointer.pointer,
                     nextRequestID.getAndIncrement(),
                     source.instance.instanceHandle.handle,
                     source.path
@@ -1056,11 +1235,13 @@ class CommandQueue(
      * the view model instance and want to free up memory. Counterpart to [createViewModelInstance].
      *
      * @param viewModelInstanceHandle The handle of the view model instance to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteViewModelInstance(
         viewModelInstanceHandle: ViewModelInstanceHandle
     ) = cppDeleteViewModelInstance(
-        cppPointer,
+        cppPointer.pointer,
         nextRequestID.getAndIncrement(),
         viewModelInstanceHandle.handle
     )
@@ -1071,12 +1252,16 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to bind to.
      * @param viewModelInstanceHandle The handle of the view model instance to bind.
+     * @throws RuntimeException If the state machine handle or view model instance handle is
+     *    invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class)
     fun bindViewModelInstance(
         stateMachineHandle: StateMachineHandle,
         viewModelInstanceHandle: ViewModelInstanceHandle
     ) = cppBindViewModelInstance(
-        cppPointer,
+        cppPointer.pointer,
         nextRequestID.getAndIncrement(),
         stateMachineHandle.handle,
         viewModelInstanceHandle.handle
@@ -1110,13 +1295,15 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun setNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: Float
     ) = cppSetNumberProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1129,13 +1316,18 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Float = suspendNativeRequest { requestID ->
         cppGetNumberProperty(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1176,13 +1368,15 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun setStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: String
     ) = cppSetStringProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1195,13 +1389,18 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): String = suspendNativeRequest { requestID ->
         cppGetStringProperty(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1242,13 +1441,15 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun setBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: Boolean
     ) = cppSetBooleanProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1261,13 +1462,18 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Boolean = suspendNativeRequest { requestID ->
         cppGetBooleanProperty(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1308,13 +1514,15 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property, as a string.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun setEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: String
     ) = cppSetEnumProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1327,13 +1535,18 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property, as a string.
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): String = suspendNativeRequest { requestID ->
         cppGetEnumProperty(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1374,13 +1587,15 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property, as an AARRGGBB [ColorInt].
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun setColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         @ColorInt value: Int
     ) = cppSetColorProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1393,13 +1608,18 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property, as an AARRGGBB [ColorInt].
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Int = suspendNativeRequest { requestID ->
         cppGetColorProperty(
-            cppPointer,
+            cppPointer.pointer,
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1439,12 +1659,14 @@ class CommandQueue(
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be fired. Slash delimited.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun fireTriggerProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ) = cppFireTriggerProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath
     )
@@ -1481,13 +1703,16 @@ class CommandQueue(
      *    belongs to.
      * @param propertyPath The path to the property that should be subscribed to. Slash delimited.
      * @param propertyType The type of the property to subscribe to.
+     * @throws RuntimeException If the property type is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun subscribeToProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         propertyType: ViewModel.PropertyDataType
     ) = cppSubscribeToProperty(
-        cppPointer,
+        cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
         propertyType.value
@@ -1504,10 +1729,12 @@ class CommandQueue(
      * @return A handle to the decoded image.
      * @throws RuntimeException If the image could not be decoded, e.g. if the bytes are not a valid
      *    image.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
-    @Throws(RuntimeException::class)
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeImage(bytes: ByteArray): ImageHandle = suspendNativeRequest { requestID ->
-        cppDecodeImage(cppPointer, requestID, bytes)
+        cppDecodeImage(cppPointer.pointer, requestID, bytes)
     }
 
     /**
@@ -1525,18 +1752,16 @@ class CommandQueue(
     }
 
     /**
-     * Callback when an image fails to decode, from [decodeImage].
+     * Callback when an image fails to decode, from [decodeImage]. This will resume the continuation
+     * with an exception.
      *
      * @param requestID The request ID used when decoding the image, used to complete the
      *    continuation.
      * @param error The error message describing the failure.
-     * @throws RuntimeException If the image could not be decoded, this will resume the continuation
-     *    with an exception.
      */
     @Keep // Called from JNI
     @Suppress("Unused")
     @JvmName("onImageError")
-    @Throws(RuntimeException::class)
     internal fun onImageError(requestID: Long, error: String) {
         (pendingContinuations.remove(requestID) as? Continuation<ImageHandle>)?.resumeWithException(
             RuntimeException("Failed to decode image: $error")
@@ -1548,9 +1773,11 @@ class CommandQueue(
      * want to free up memory. Counterpart to [decodeImage].
      *
      * @param imageHandle The handle of the image to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteImage(imageHandle: ImageHandle) =
-        cppDeleteImage(cppPointer, imageHandle.handle)
+        cppDeleteImage(cppPointer.pointer, imageHandle.handle)
 
     /**
      * Register an image as an asset with the given name. This allows the image to be used to
@@ -1568,9 +1795,11 @@ class CommandQueue(
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param imageHandle The handle of the image to register.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun registerImage(name: String, imageHandle: ImageHandle) =
-        cppRegisterImage(cppPointer, name, imageHandle.handle)
+        cppRegisterImage(cppPointer.pointer, name, imageHandle.handle)
 
     /**
      * Unregister an image that was previously registered with [registerImage]. This will remove the
@@ -1578,9 +1807,11 @@ class CommandQueue(
      * handle was also deleted with [deleteImage].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerImage].
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun unregisterImage(name: String) =
-        cppUnregisterImage(cppPointer, name)
+        cppUnregisterImage(cppPointer.pointer, name)
 
     /**
      * Decode an audio file from the given bytes. The decoded audio is stored on the CommandServer.
@@ -1591,10 +1822,12 @@ class CommandQueue(
      * @return A handle to the decoded audio.
      * @throws RuntimeException If the audio could not be decoded, e.g. if the bytes are not a valid
      *    audio file.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
-    @Throws(RuntimeException::class)
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeAudio(bytes: ByteArray): AudioHandle = suspendNativeRequest { requestID ->
-        cppDecodeAudio(cppPointer, requestID, bytes)
+        cppDecodeAudio(cppPointer.pointer, requestID, bytes)
     }
 
     /**
@@ -1612,18 +1845,16 @@ class CommandQueue(
     }
 
     /**
-     * Callback when audio fails to decode, from [decodeAudio].
+     * Callback when audio fails to decode, from [decodeAudio]. This will resume the continuation
+     * with an exception.
      *
      * @param requestID The request ID used when decoding the audio, used to complete the
      *    continuation.
      * @param error The error message describing the failure.
-     * @throws RuntimeException If the audio could not be decoded, this will resume the continuation
-     *    with an exception.
      */
     @Keep // Called from JNI
     @Suppress("Unused")
     @JvmName("onAudioError")
-    @Throws(RuntimeException::class)
     internal fun onAudioError(requestID: Long, error: String) {
         (pendingContinuations.remove(requestID) as? Continuation<AudioHandle>)?.resumeWithException(
             RuntimeException("Failed to decode audio: $error")
@@ -1635,9 +1866,11 @@ class CommandQueue(
      * want to free up memory. Counterpart to [decodeAudio].
      *
      * @param audioHandle The handle of the audio to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteAudio(audioHandle: AudioHandle) =
-        cppDeleteAudio(cppPointer, audioHandle.handle)
+        cppDeleteAudio(cppPointer.pointer, audioHandle.handle)
 
     /**
      * Register audio as an asset with the given name. This allows the audio to be used to fulfill a
@@ -1655,9 +1888,11 @@ class CommandQueue(
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param audioHandle The handle of the audio to register.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun registerAudio(name: String, audioHandle: AudioHandle) =
-        cppRegisterAudio(cppPointer, name, audioHandle.handle)
+        cppRegisterAudio(cppPointer.pointer, name, audioHandle.handle)
 
     /**
      * Unregister audio that was previously registered with [registerAudio]. This will remove the
@@ -1665,9 +1900,11 @@ class CommandQueue(
      * handle was also deleted with [deleteAudio].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerAudio].
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun unregisterAudio(name: String) =
-        cppUnregisterAudio(cppPointer, name)
+        cppUnregisterAudio(cppPointer.pointer, name)
 
     /**
      * Decode a font file from the given bytes. The bytes are for a font file, such as TTF. The
@@ -1679,10 +1916,12 @@ class CommandQueue(
      * @return A handle to the decoded font.
      * @throws RuntimeException If the font could not be decoded, e.g. if the bytes are not a valid
      *    font.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled the operation completes.
      */
-    @Throws(RuntimeException::class)
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeFont(bytes: ByteArray): FontHandle = suspendNativeRequest { requestID ->
-        cppDecodeFont(cppPointer, requestID, bytes)
+        cppDecodeFont(cppPointer.pointer, requestID, bytes)
     }
 
     /**
@@ -1700,18 +1939,16 @@ class CommandQueue(
     }
 
     /**
-     * Callback when a font fails to decode, from [decodeFont].
+     * Callback when a font fails to decode, from [decodeFont]. This will resume the continuation
+     * with an exception.
      *
      * @param requestID The request ID used when decoding the font, used to complete the
      *    continuation.
      * @param error The error message describing the failure.
-     * @throws RuntimeException If the font could not be decoded, this will resume the continuation
-     *    with an exception.
      */
     @Keep // Called from JNI
     @Suppress("Unused")
     @JvmName("onFontError")
-    @Throws(RuntimeException::class)
     internal fun onFontError(requestID: Long, error: String) {
         (pendingContinuations.remove(requestID) as? Continuation<FontHandle>)?.resumeWithException(
             RuntimeException("Failed to decode font: $error")
@@ -1723,9 +1960,11 @@ class CommandQueue(
      * want to free up memory. Counterpart to [decodeFont].
      *
      * @param fontHandle The handle of the font to delete.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun deleteFont(fontHandle: FontHandle) =
-        cppDeleteFont(cppPointer, fontHandle.handle)
+        cppDeleteFont(cppPointer.pointer, fontHandle.handle)
 
     /**
      * Register a font as an asset with the given name. This allows the font to be used to fulfill a
@@ -1743,9 +1982,11 @@ class CommandQueue(
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param fontHandle The handle of the font to register.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun registerFont(name: String, fontHandle: FontHandle) =
-        cppRegisterFont(cppPointer, name, fontHandle.handle)
+        cppRegisterFont(cppPointer.pointer, name, fontHandle.handle)
 
     /**
      * Unregister a font that was previously registered with [registerFont]. This will remove the
@@ -1753,9 +1994,11 @@ class CommandQueue(
      * handle was also deleted with [deleteFont].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerFont].
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun unregisterFont(name: String) =
-        cppUnregisterFont(cppPointer, name)
+        cppUnregisterFont(cppPointer.pointer, name)
 
     /**
      * Notify the state machine that the pointer (typically a user's touch) has moved. This is used
@@ -1771,7 +2014,9 @@ class CommandQueue(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun pointerMove(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -1782,7 +2027,7 @@ class CommandQueue(
         pointerX: Float,
         pointerY: Float
     ) = cppPointerMove(
-        cppPointer,
+        cppPointer.pointer,
         stateMachineHandle.handle,
         fit,
         alignment,
@@ -1807,7 +2052,9 @@ class CommandQueue(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun pointerDown(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -1818,7 +2065,7 @@ class CommandQueue(
         pointerX: Float,
         pointerY: Float
     ) = cppPointerDown(
-        cppPointer,
+        cppPointer.pointer,
         stateMachineHandle.handle,
         fit,
         alignment,
@@ -1843,7 +2090,9 @@ class CommandQueue(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun pointerUp(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -1854,7 +2103,7 @@ class CommandQueue(
         pointerX: Float,
         pointerY: Float
     ) = cppPointerUp(
-        cppPointer,
+        cppPointer.pointer,
         stateMachineHandle.handle,
         fit,
         alignment,
@@ -1879,7 +2128,9 @@ class CommandQueue(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun pointerExit(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -1890,7 +2141,7 @@ class CommandQueue(
         pointerX: Float,
         pointerY: Float
     ) = cppPointerExit(
-        cppPointer,
+        cppPointer.pointer,
         stateMachineHandle.handle,
         fit,
         alignment,
@@ -1902,11 +2153,44 @@ class CommandQueue(
     )
 
     /**
+     * Begin polling the CommandQueue for messages from the CommandServer. Without this, callbacks
+     * and errors will not be delivered. This should typically be called by tying to the lifecycle
+     * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
+     *
+     * The polling will automatically start and stop based on the lifecycle state, only polling when
+     * the lifecycle is in the RESUMED state.
+     *
+     * @param lifecycle The lifecycle bounding the polling.
+     * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
+     *    which uses the Choreographer to sync to the display refresh rate.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun beginPolling(
+        lifecycle: Lifecycle,
+        ticker: FrameTicker = ChoreographerFrameTicker
+    ) = lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
+        while (isActive) {
+            ticker.withFrame {
+                pollMessages()
+            }
+        }
+    }
+
+    /**
      * Poll messages from the CommandServer to the CommandQueue. This is the channel that all
      * callbacks and errors arrive on. Should be called every frame, regardless of whether there is
      * any advancing or drawing.
+     *
+     * This method represents a single poll operation. To continuously poll, use [beginPolling],
+     * which will handle starting and stopping the polling based on a lifecycle.
+     *
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @see [beginPolling]
      */
-    fun pollMessages() = cppPollMessages(cppPointer)
+    @Throws(IllegalStateException::class)
+    fun pollMessages() = cppPollMessages(cppPointer.pointer)
 
     /**
      * Draw the artboard with the given state machine.
@@ -1917,7 +2201,9 @@ class CommandQueue(
      * @param alignment The alignment of the artboard.
      * @param surface The surface to draw to.
      * @param clearColor The color to clear the surface with before drawing, in AARRGGBB format.
+     * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Throws(IllegalStateException::class)
     fun draw(
         artboardHandle: ArtboardHandle,
         stateMachineHandle: StateMachineHandle,
@@ -1926,7 +2212,7 @@ class CommandQueue(
         surface: RiveSurface,
         clearColor: Int = Color.TRANSPARENT
     ) = cppDraw(
-        cppPointer,
+        cppPointer.pointer,
         display.nativeHandle,
         surface.eglSurface.nativeHandle,
         context.nativeHandle,
@@ -1947,7 +2233,7 @@ class CommandQueue(
      *
      * @see [suspendNativeRequest]
      */
-    private val pendingContinuations = ConcurrentHashMap<Long, Continuation<Any>>()
+    private val pendingContinuations = ConcurrentHashMap<Long, CancellableContinuation<Any>>()
 
     /**
      * A monotonically increasing request ID used to identify JNI requests. This allows pairing
@@ -1965,30 +2251,31 @@ class CommandQueue(
      * request ID. When the native callback is invoked, it retrieves the continuation from the map
      * and resumes it with the result.
      *
-     * To handle the ability for callers to run on different dispatchers, the native function is
-     * called on the main thread using a [launch] on the [queueDispatcher]. This is because the C++
-     * CommandQueue implementation is currently not thread-safe, and so must always be called from
-     * the main thread. If this changes in the future, this can be removed.
+     * We switch to the Main dispatcher before running. This is because the C++ CommandQueue
+     * implementation is currently not thread-safe, and so must always be called from the main
+     * thread. If this changes in the future, this can be removed.
      *
      * @param nativeFn A lambda function invoked by the caller, using trailing lambda syntax, which
      *    takes the request ID as a parameter and performs the JNI function call.
      * @return The result of the JNI function call.
+     * @throws CancellationException If the coroutine is cancelled before the native callback
+     *    returns, the continuation is removed from the map and a [CancellationException] is thrown.
      */
+    @Throws(CancellationException::class)
     private suspend inline fun <reified T> suspendNativeRequest(
         crossinline nativeFn: (Long) -> Unit
-    ): T = suspendCancellableCoroutine { cont ->
-        val requestID = nextRequestID.getAndIncrement()
+    ): T = withContext(Dispatchers.Main.immediate) { // Ensure we're on the main thread
+        suspendCancellableCoroutine { cont ->
+            val requestID = nextRequestID.getAndIncrement()
 
-        // Store the continuation
-        @Suppress("UNCHECKED_CAST")
-        pendingContinuations[requestID] = cont as Continuation<Any>
+            // Store the continuation
+            @Suppress("UNCHECKED_CAST")
+            pendingContinuations[requestID] = cont as CancellableContinuation<Any>
 
-        cont.invokeOnCancellation {
-            pendingContinuations.remove(requestID)
-        }
+            cont.invokeOnCancellation {
+                pendingContinuations.remove(requestID)
+            }
 
-        /** Ensure the call to native happens on the main thread. */
-        scope.launch(queueDispatcher) {
             nativeFn(requestID)
         }
     }
@@ -2083,6 +2370,8 @@ value class FontHandle(val handle: Long) {
 @JvmInline
 value class DrawKey(val handle: Long)
 
+private const val SURFACE_TAG = "RiveUI/Surface"
+
 /**
  * A collection of four surface properties needed for rendering.
  * - An Android Surface, provided by an Android SurfaceTextureListener
@@ -2121,6 +2410,7 @@ data class RiveSurface(
      * Releases the Android Surface, destroys the EGLSurface, and deletes the native render target.
      */
     fun dispose() {
+        RiveLog.d(SURFACE_TAG) { "Deleting surface" }
         surface.release()
         EGL14.eglDestroySurface(display, eglSurface)
         cppDelete(renderTargetPointer)

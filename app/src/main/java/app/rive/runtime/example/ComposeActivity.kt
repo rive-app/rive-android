@@ -27,7 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -42,8 +41,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Result
+import app.rive.Result.Loading.andThen
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.RiveUI
@@ -78,37 +79,35 @@ class ComposeActivity : ComponentActivity() {
              * this is a safeguard for production deployments.
              */
             val errorState = remember { mutableStateOf<Throwable?>(null) }
-            val cq = rememberCommandQueueOrNull(errorState)
-            if (cq == null) {
+            val commandQueue = rememberCommandQueueOrNull(errorState)
+            if (commandQueue == null) {
                 // If the command queue could not be created, show an error
                 ErrorMessage(errorState.value!!)
                 return@setContent
             }
-            val commandQueue = cq
 
             // Load the Inter font from raw resources
-            val fontBytes by produceState<ByteArray?>(null) {
+            val fontBytes by produceState<Result<ByteArray>>(Result.Loading) {
                 value = withContext(Dispatchers.IO) {
-                    context.resources.openRawResource(R.raw.inter).use { it.readBytes() }
+                    context.resources.openRawResource(R.raw.inter)
+                        .use { Result.Success(it.readBytes()) }
                 }
             }
 
-            // Decode and register the font with the command queue (available to all Rive files on this queue)
-            val font = when (val bytes = fontBytes) {
-                null -> Result.Loading
-                // Only register after the bytes are loaded
-                // The key, "Inter-594377", is the name in the zip produced by exporting from Rive
-                else -> rememberRegisteredFont(commandQueue, "Inter-594377", bytes).value
+            // Decode and register the font with the command queue (available to all Rive files on
+            // this queue). Only register after the bytes are loaded.
+            // The key, "Inter-594377", is the name in the zip produced by exporting from Rive
+            val font = fontBytes.andThen { bytes ->
+                rememberRegisteredFont(commandQueue, "Inter-594377", bytes)
             }
 
-            // Point to the Rive raw resource file
-            var fileSource by remember { mutableStateOf(RiveFileSource.RawRes(R.raw.rating_animation_all)) }
-
             // Gate file loading on the font being ready, otherwise propagate the loading or error state
-            val riveFileResult = when (font) {
-                is Result.Loading -> Result.Loading
-                is Result.Error -> Result.Error(font.throwable)
-                is Result.Success -> rememberRiveFile(fileSource, commandQueue).value
+            val riveFileResult = font.andThen {
+                rememberRiveFile(
+                    // Point to the Rive raw resource file
+                    RiveFileSource.RawRes(R.raw.rating_animation_all, context.resources),
+                    commandQueue
+                )
             }
 
             Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -147,57 +146,56 @@ class ComposeActivity : ComponentActivity() {
                                 ViewModelSource.Named("Rating Animation").defaultInstance()
                             )
                             // Collect the rating value by the name of the property
-                            val rating by vmi.getNumberFlow("Number_Star", 0f).collectAsState()
+                            val rating by vmi.getNumberFlow("Number_Star")
+                                .collectAsStateWithLifecycle(0f)
 
-                            Column {
-                                // Render the Rive UI
-                                RiveUI(
-                                    file = riveFile,
-                                    artboard = artboard,
-                                    viewModelInstance = vmi,
-                                    fit = fit,
-                                    alignment = alignment,
-                                    modifier = Modifier
-                                        .height(300.dp)
-                                        .semantics {
-                                            contentDescription = "Rive UI: $artboardName"
-                                        }
-                                )
+                            // Render the Rive UI
+                            RiveUI(
+                                file = riveFile,
+                                artboard = artboard,
+                                viewModelInstance = vmi,
+                                fit = fit,
+                                alignment = alignment,
+                                modifier = Modifier
+                                    .height(300.dp)
+                                    .semantics {
+                                        contentDescription = "Rive UI: $artboardName"
+                                    }
+                            )
 
-                                // Reactive slider - changes and is changed by Rive
-                                RatingSlider(
-                                    sliderValue = rating,
-                                    onValueChange = {
-                                        vmi.setNumber("Number_Star", it)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                            // Reactive slider - changes and is changed by Rive
+                            RatingSlider(
+                                sliderValue = rating,
+                                onValueChange = {
+                                    vmi.setNumber("Number_Star", it)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                                // Artboard, fit, and alignment selectors
-                                LabelledDropdown(
-                                    label = "Artboard",
-                                    options = artboardNames,
-                                    selectedOption = artboardName ?: "Default",
-                                    onOptionSelected = { selectedArtboard ->
-                                        artboardName = selectedArtboard
-                                    })
+                            // Artboard, fit, and alignment selectors
+                            LabelledDropdown(
+                                label = "Artboard",
+                                options = artboardNames,
+                                selectedOption = artboardName ?: "Default",
+                                onOptionSelected = { selectedArtboard ->
+                                    artboardName = selectedArtboard
+                                })
 
-                                LabelledDropdown(
-                                    label = "Fit",
-                                    options = fitMap.keys.toList(),
-                                    selectedOption = fitString,
-                                    onOptionSelected = { selectedFit ->
-                                        fitString = selectedFit
-                                    })
+                            LabelledDropdown(
+                                label = "Fit",
+                                options = fitMap.keys.toList(),
+                                selectedOption = fitString,
+                                onOptionSelected = { selectedFit ->
+                                    fitString = selectedFit
+                                })
 
-                                LabelledDropdown(
-                                    label = "Alignment",
-                                    options = alignmentMap.keys.toList(),
-                                    selectedOption = alignmentString,
-                                    onOptionSelected = { selectedAlignment ->
-                                        alignmentString = selectedAlignment
-                                    })
-                            }
+                            LabelledDropdown(
+                                label = "Alignment",
+                                options = alignmentMap.keys.toList(),
+                                selectedOption = alignmentString,
+                                onOptionSelected = { selectedAlignment ->
+                                    alignmentString = selectedAlignment
+                                })
                         }
                     }
                 }
