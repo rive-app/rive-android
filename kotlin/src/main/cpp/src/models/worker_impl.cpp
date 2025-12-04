@@ -53,7 +53,7 @@ void WorkerImpl::start(jobject ktRenderer,
     m_lastFrameTime = frameTime;
     m_isStarted = true;
     // Conditional from CMake on whether to include miniaudio
-#ifdef WITH_AUDIO
+#ifdef WITH_RIVE_AUDIO
     if (auto engine = rive::AudioEngine::RuntimeEngine(false))
     {
         engine->start();
