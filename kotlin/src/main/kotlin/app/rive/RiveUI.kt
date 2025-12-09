@@ -247,14 +247,16 @@ fun RiveUI(
                 }
 
                 commandQueue.advanceStateMachine(stateMachineHandle, deltaTimeNs)
-                commandQueue.draw(
+                surface?.let { surface ->
+                  commandQueue.draw(
                     artboardHandle,
                     stateMachineHandle,
                     fit,
                     alignment,
-                    surface!!,
+                    surface,
                     clearColor
-                )
+                  )
+                }
             }
         }
     }
