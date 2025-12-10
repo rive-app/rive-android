@@ -23,12 +23,13 @@ private const val ARTBOARD_TAG = "Rive/Artboard"
  * @param commandQueue The command queue that owns the artboard.
  */
 class Artboard internal constructor(
-    internal val artboardHandle: ArtboardHandle,
-    private val commandQueue: CommandQueue,
-    private val fileHandle: FileHandle,
+    val artboardHandle: ArtboardHandle,
+    internal val commandQueue: CommandQueue,
+    internal val fileHandle: FileHandle,
     val name: String?,
-) : AutoCloseable by CloseOnce({
-    RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle with name: $name (${fileHandle})" }
+) : AutoCloseable by CloseOnce("$artboardHandle", {
+    val nameLog = name?.let { "with name $it" } ?: "(default)"
+    RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle $nameLog (${fileHandle})" }
     commandQueue.deleteArtboard(artboardHandle)
 }) {
     companion object {
@@ -50,7 +51,8 @@ class Artboard internal constructor(
             val handle = artboardName?.let { name ->
                 file.commandQueue.createArtboardByName(file.fileHandle, name)
             } ?: file.commandQueue.createDefaultArtboard(file.fileHandle)
-            RiveLog.d(ARTBOARD_TAG) { "Created $handle with name: $artboardName (${file.fileHandle})" }
+            val nameLog = artboardName?.let { "with name $it" } ?: "(default)"
+            RiveLog.d(ARTBOARD_TAG) { "Created $handle $nameLog (${file.fileHandle})" }
             return Artboard(handle, file.commandQueue, file.fileHandle, artboardName)
         }
     }

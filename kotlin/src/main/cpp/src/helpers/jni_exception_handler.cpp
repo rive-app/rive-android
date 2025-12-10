@@ -1,6 +1,8 @@
-#include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+
+#include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
@@ -123,6 +125,25 @@ namespace rive_android
 
     // Detach thread so the app can end.
     DetachThread();
+}
+
+/* static  */ bool JNIExceptionHandler::ClearAndLogErrors(JNIEnv* env,
+                                                          const char* tag,
+                                                          const char* message)
+{
+    if (!env->ExceptionCheck())
+    {
+        return false;
+    }
+
+    // Grab the throwable and clear it
+    auto throwable = MakeJniResource(env->ExceptionOccurred(), env);
+    env->ExceptionClear();
+
+    auto errorString =
+        JNIExceptionHandler::get_exception_message(env, throwable.get());
+    RiveLogE(tag, "%s\n%s", message, errorString.c_str());
+    return true;
 }
 
 /* static  */ jobject JNIExceptionHandler::CallObjectMethod(JNIEnv* env,

@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.dokka)
     alias(libs.plugins.allopen)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.dropshots)
     alias(libs.plugins.git.version)
     alias(libs.plugins.maven.publish)
 }
@@ -17,9 +18,21 @@ android {
     }
 
     composeOptions {
-        // Chosen to match Kotlin version
-        // https://developer.android.com/jetpack/androidx/releases/compose-kotlin
         kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+    }
+
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+
+    buildTypes {
+        debug {
+            packagingOptions {
+                doNotStrip "**/*.so"
+            }
+        }
     }
 
     // Enable removing miniaudio to reduce binary size
@@ -114,7 +127,14 @@ dependencies {
     // Used to debug Compose recompositions
     debugImplementation(libs.rebugger)
 
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.mockk.agent)
+    testImplementation(libs.mockk.android)
+
     androidTestImplementation(composeBom)
+    androidTestImplementation(libs.androidx.activity.compose)
     androidTestImplementation(libs.androidx.compose.foundation.layout)
     androidTestImplementation(libs.androidx.compose.material3)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

@@ -69,9 +69,33 @@ object RiveLog {
     inline fun e(tag: String, t: Throwable? = null, noinline msg: () -> String) =
         logger.e(tag, t, msg)
 
+    /**
+     * JNI bridge methods that take a String directly instead of a lambda. These are used by the C++
+     * helper for efficient logging from native code.
+     */
+    @JvmStatic
+    @Suppress("UNUSED") // Used by native code
+    fun logV(tag: String, msg: String) = logger.v(tag) { msg }
+
+    @JvmStatic
+    @Suppress("UNUSED") // Used by native code
+    fun logD(tag: String, msg: String) = logger.d(tag) { msg }
+
+    @JvmStatic
+    @Suppress("UNUSED") // Used by native code
+    fun logI(tag: String, msg: String) = logger.i(tag) { msg }
+
+    @JvmStatic
+    @Suppress("UNUSED") // Used by native code
+    fun logW(tag: String, msg: String) = logger.w(tag) { msg }
+
+    @JvmStatic
+    @Suppress("UNUSED") // Used by native code
+    fun logE(tag: String, msg: String) = logger.e(tag, null) { msg }
+
     /** Implementation that logs to Logcat with lazy `msg()` evaluation. */
     class LogcatLogger : Logger {
-        override fun v(tag: String, msg: () -> String): Unit {
+        override fun v(tag: String, msg: () -> String) {
             Log.v(tag, msg())
         }
 
@@ -92,6 +116,6 @@ object RiveLog {
         }
     }
 
-    /** Logger implementation that logs nothing. Used by default. */
+    /** Implementation that logs nothing. Used by default. */
     object NoOpLogger : Logger
 }

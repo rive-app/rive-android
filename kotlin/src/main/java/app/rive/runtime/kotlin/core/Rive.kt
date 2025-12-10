@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.core
 
 import android.content.Context
 import android.graphics.RectF
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.core.Rive.init
 import app.rive.runtime.kotlin.core.Rive.initializeCppEnvironment
 import app.rive.runtime.kotlin.fonts.FontHelper
@@ -43,6 +44,7 @@ object Rive {
      *    [RendererType.Rive].
      */
     fun init(context: Context, defaultRenderer: RendererType = RendererType.Rive) {
+        RiveLog.i("Rive") { "Initializing Rive runtime" }
         // NOTE: loadLibrary also allows us to specify a version, something we might want to take
         //       advantage of
         ReLinker

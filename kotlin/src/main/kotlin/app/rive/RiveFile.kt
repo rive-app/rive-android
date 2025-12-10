@@ -34,9 +34,9 @@ private const val FILE_TAG = "Rive/File"
  */
 @Stable
 class RiveFile internal constructor(
-    internal val fileHandle: FileHandle,
-    internal val commandQueue: CommandQueue
-) : AutoCloseable by CloseOnce({
+    val fileHandle: FileHandle,
+    val commandQueue: CommandQueue
+) : AutoCloseable by CloseOnce("$fileHandle", {
     RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
     commandQueue.deleteFile(fileHandle)
 
@@ -51,7 +51,8 @@ class RiveFile internal constructor(
          *
          * @param source The source of the Rive file.
          * @param commandQueue The command queue that owns the file.
-         * @return The loaded Rive file, or an error if loading failed.
+         * @return The loaded Rive file, or an error if loading failed. The Loading state is not
+         *    used here since the loading is performed in a suspend function.
          */
         suspend fun fromSource(
             source: RiveFileSource,
@@ -102,7 +103,10 @@ class RiveFile internal constructor(
         commandQueue.getViewModelNames(fileHandle)
     }
 
-    /** @return A list of all instance names available on the given [viewModel]. */
+    /**
+     * @param viewModel The name of the view model to get instance names for.
+     * @return A list of all instance names available on the given view model.
+     */
     suspend fun getViewModelInstanceNames(viewModel: String): List<String> =
         synchronized(instanceNamesCache) {
             instanceNamesCache.getOrPut(viewModel) {
@@ -115,7 +119,8 @@ class RiveFile internal constructor(
     private val instanceNamesCache = mutableMapOf<String, SuspendLazy<List<String>>>()
 
     /**
-     * @return A list of all properties available on the given [viewModel].
+     * @param viewModel The name of the view model to get properties for.
+     * @return A list of all properties available on the given view model.
      * @see [Property]
      */
     suspend fun getViewModelProperties(viewModel: String): List<Property> =
@@ -176,10 +181,8 @@ fun rememberRiveFile(
     value = result
 
     when (result) {
-        is Result.Success -> {
-            awaitDispose {
-                result.value.close()
-            }
+        is Result.Success -> awaitDispose {
+            result.value.close()
         }
 
         else -> {}

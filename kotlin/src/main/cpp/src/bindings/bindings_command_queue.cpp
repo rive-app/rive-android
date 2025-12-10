@@ -1,8 +1,11 @@
 #include <jni.h>
 #include <android/native_window_jni.h>
+#include <GLES3/gl3.h>
 
+#include "models/render_context.hpp"
 #include "helpers/android_factories.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/rive_log.hpp"
 #include "models/jni_renderer.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/command_queue.hpp"
@@ -15,6 +18,10 @@
 
 #include <future>
 #include <string>
+#include <utility>
+#include <vector>
+#include <cstring>
+#include <atomic>
 
 using namespace rive_android;
 
@@ -39,7 +46,7 @@ class JCommandQueue
 public:
     JCommandQueue(JNIEnv* env, jobject jQueue) :
         m_env(env),
-        m_class(static_cast<jclass>(
+        m_class(reinterpret_cast<jclass>(
             env->NewGlobalRef(env->FindClass("app/rive/core/CommandQueue")))),
         m_jQueue(env->NewGlobalRef(jQueue))
     {}
@@ -400,12 +407,14 @@ public:
                              jPropertyName.get());
                 break;
             default:
-                LOGE("Unknown ViewModelInstance property type: %d",
-                     static_cast<int>(data.metaData.type));
+                RiveLogE(TAG,
+                         "Unknown ViewModelInstance property type: %d",
+                         static_cast<int>(data.metaData.type));
         }
     }
 
 private:
+    constexpr static const char* TAG = "RiveN/VMIListener";
     JCommandQueue m_queue;
 };
 
@@ -531,7 +540,7 @@ void setProperty(JNIEnv* env,
 
     (commandQueue->*setter)(viewModelInstanceHandle,
                             propertyPath,
-                            value,
+                            std::move(value),
                             0); // Pass 0 for requestID
 }
 
@@ -556,185 +565,220 @@ void getProperty(JNIEnv* env,
     (commandQueue->*getter)(viewModelInstanceHandle, propertyPath, requestID);
 }
 
-/** Create a 1x1 PBuffer surface to bind before Android provides a surface. */
-EGLSurface createPBufferSurface(EGLDisplay eglDisplay, EGLContext eglContext)
+constexpr static const char* TAG_CQ = "RiveN/CQ";
+
+class CommandQueueWithThread : public rive::CommandQueue
 {
-    EGLint configID = 0;
-    eglQueryContext(eglDisplay, eglContext, EGL_CONFIG_ID, &configID);
+public:
+    CommandQueueWithThread() : rive::CommandQueue() {}
 
-    EGLConfig config;
-    EGLint configCount = 0;
-    EGLint configAttributes[] = {EGL_CONFIG_ID, configID, EGL_NONE};
-    eglChooseConfig(eglDisplay, configAttributes, &config, 1, &configCount);
-
-    // We expect only one config.
-    if (configCount == 1)
+    /**
+     * Starts the command server thread.
+     *
+     * @param renderContext The render context to use in the command server
+     * thread. Its resources will be created and destroyed within the thread,
+     * but the object itself must still be managed by the caller and outlive the
+     * thread.
+     * @param promise A promise to signal startup success or failure.
+     */
+    void startCommandServer(RenderContext* renderContext,
+                            std::promise<StartupResult>&& promise)
     {
-        EGLint pBufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-        return eglCreatePbufferSurface(eglDisplay, config, pBufferAttributes);
-    }
-    else
-    {
-        LOGE("Failed to choose EGL config for PBuffer surface");
-        return EGL_NO_SURFACE;
-    }
-}
+        // Keep a strong ref while thread runs
+        auto self = rive::rcp<CommandQueueWithThread>(this);
 
-extern "C"
-{
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppConstructor(JNIEnv* env,
-                                                   jobject,
-                                                   jlong display,
-                                                   jlong context)
-    {
-        auto commandQueue =
-            rive::rcp<rive::CommandQueue>(new rive::CommandQueue());
-        auto eglDisplay = reinterpret_cast<EGLDisplay>(display);
-        auto eglContext = reinterpret_cast<EGLContext>(context);
-
-        struct StartupResult
-        {
-            bool success;
-            EGLint eglError;
-            std::string message;
-        };
-        // Used by the CommandServer thread to signal startup success or failure
-        std::promise<StartupResult> promise;
-        // Blocks the main thread until the CommandServer is ready
-        std::future<StartupResult> f = promise.get_future();
-
-        // Setup the C++ thread that drives the CommandServer
-        std::thread([eglDisplay,
-                     eglContext,
-                     commandQueue,
-                     // Move the promise into the thread and mark mutable so we
-                     // can `set_value`
-                     promise = std::move(promise)]() mutable {
+        m_commandServerThread = std::thread([renderContext,
+                                             self,
+                                             promise =
+                                                 std::move(promise)]() mutable {
+            const auto THREAD_NAME = "Rive CmdServer";
             JNIEnv* env = nullptr;
+            RiveLogD(TAG_CQ, "Attaching command server thread to JVM");
             JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
-                                  .name = "Rive CmdServer",
+                                  .name = THREAD_NAME,
                                   .group = nullptr};
             auto attachResult = g_JVM->AttachCurrentThread(&env, &args);
             if (attachResult != JNI_OK)
             {
-                LOGE("Failed to attach thread to JVM: %d", attachResult);
+                RiveLogE(TAG_CQ,
+                         "Failed to attach command server thread to JVM: %d",
+                         attachResult);
                 promise.set_value(
                     {false, EGL_BAD_ALLOC, "Failed to attach thread to JVM"});
                 return;
             }
 
-            // Create a 1x1 PBuffer to bind to the context (some devices do not
-            // support surface-less bindings)
-            // We must have a valid binding for `MakeContext` to succeed,
-            auto pBuffer = createPBufferSurface(eglDisplay, eglContext);
-            if (pBuffer == EGL_NO_SURFACE)
+            RiveLogD(TAG_CQ, "Setting command server thread name");
+            // Set the native thread name
+            pthread_setname_np(pthread_self(), THREAD_NAME);
+            // Set the JVM thread name
+            // Scope the JniResource objects to fall out of scope and delete
+            // local refs before detaching the thread (which makes the JNIEnv
+            // invalid).
             {
-                auto error = eglGetError();
-                LOGE("Failed to create PBuffer surface. Error: (0x%04x)",
-                     error);
-                promise.set_value(
-                    {false, error, "Failed to create PBuffer surface"});
+                auto jThreadClass = FindClass(env, "java/lang/Thread");
+                auto currentThreadFn =
+                    env->GetStaticMethodID(jThreadClass.get(),
+                                           "currentThread",
+                                           "()Ljava/lang/Thread;");
+                auto jThreadObj = MakeJniResource(
+                    env->CallStaticObjectMethod(jThreadClass.get(),
+                                                currentThreadFn),
+                    env);
 
-                // Cleanup JVM thread attachment
-                g_JVM->DetachCurrentThread();
+                auto setNameFn = env->GetMethodID(jThreadClass.get(),
+                                                  "setName",
+                                                  "(Ljava/lang/String;)V");
+                auto jName = MakeJString(env, THREAD_NAME);
+                env->CallVoidMethod(jThreadObj.get(), setNameFn, jName.get());
+            }
+
+            RiveLogD(TAG_CQ,
+                     "Initializing Rive render context for command server");
+            auto result = renderContext->initialize();
+            if (!result.success)
+            {
+                RiveLogE(TAG_CQ,
+                         "Failed to initialize the Rive render context");
+                promise.set_value(result);
                 return;
             }
 
-            auto contextCurrentSuccess =
-                eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext);
-            if (!contextCurrentSuccess)
-            {
-                auto error = eglGetError();
-                LOGE("Failed to make EGL context current. Error: (0x%04x)",
-                     error);
-                promise.set_value(
-                    {false, error, "Failed to make EGL context current"});
-
-                // Cleanup PBuffer and JVM thread attachment
-                eglDestroySurface(eglDisplay, pBuffer);
-
-                g_JVM->DetachCurrentThread();
-                return;
-            }
-
-            auto riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
-            if (!riveContext)
-            {
-                auto error = eglGetError();
-                LOGE("Failed to create Rive RenderContextGL. Error: (0x%04x)",
-                     error);
-                promise.set_value(
-                    {false, error, "Failed to create Rive RenderContextGL"});
-
-                // Cleanup PBuffer and JVM thread attachment
-                eglDestroySurface(eglDisplay, pBuffer);
-
-                g_JVM->DetachCurrentThread();
-                return;
-            }
-
-            auto commandServer =
-                std::make_unique<rive::CommandServer>(commandQueue,
-                                                      riveContext.get());
+            RiveLogD(TAG_CQ, "Creating command server");
+            auto commandServer = std::make_unique<rive::CommandServer>(
+                self,
+                renderContext->riveContext.get());
 
             // Signal success and unblock the main thread
             promise.set_value(
                 {true, EGL_SUCCESS, "Command Server started successfully"});
 
-            // Begin the serving loop. This will "block" the thread until the
-            // server receives the disconnect command.
+            // Begin the serving loop. This will "block" the thread until
+            // the server receives the disconnect command.
+            RiveLogD(TAG_CQ, "Beginning command server processing loop");
             commandServer->serveUntilDisconnect();
+
+            RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
 
             // Matching unref from constructor since we release()'d.
             // Ensures the command queue outlives the command server's run.
-            commandQueue->unref();
+            RiveLogD(TAG_CQ, "Deleting command queue");
+            self->unref();
 
-            // Cleanup the EGL context and surface
-            eglMakeCurrent(eglDisplay,
-                           EGL_NO_SURFACE,
-                           EGL_NO_SURFACE,
-                           EGL_NO_CONTEXT);
-            eglDestroySurface(eglDisplay, pBuffer);
+            RiveLogD(TAG_CQ, "Deleting render context");
+            renderContext->destroy();
 
             // Cleanup JVM thread attachment
+            RiveLogD(TAG_CQ, "Detaching command server thread from JVM");
             g_JVM->DetachCurrentThread();
-        }).detach();
+        });
+    }
 
-        // Wait for the command server to start and return the result
-        auto result = f.get();
+    /**
+     * Shuts down the command server by sending a disconnect command, then joins
+     * the thread. This means it is a blocking call until the command server
+     * thread has fully exited.
+     */
+    void shutdownAndJoin()
+    {
+        disconnect();
+        if (m_commandServerThread.joinable())
+        {
+            m_commandServerThread.join();
+        }
+    }
+
+    /**
+     * Check if we've logged a missing artboard error already for this draw
+     * key.
+     */
+    bool shouldLogArtboardNull(rive::DrawKey key)
+    {
+        return m_artboardNullKeys.insert(key).second;
+    }
+
+    /**
+     * Check if we've logged a missing state machine error already for this
+     * draw key.
+     */
+    bool shouldLogStateMachineNull(rive::DrawKey key)
+    {
+        return m_stateMachineNullKeys.insert(key).second;
+    }
+
+private:
+    std::thread m_commandServerThread;
+    // Holds that an error has been reported, to avoid log spam
+    std::unordered_set<rive::DrawKey> m_artboardNullKeys;
+    std::unordered_set<rive::DrawKey> m_stateMachineNullKeys;
+};
+
+extern "C"
+{
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppConstructor(
+        JNIEnv* env,
+        jobject,
+        jlong renderContextPtr)
+    {
+        auto* renderContext =
+            reinterpret_cast<RenderContext*>(renderContextPtr);
+
+        // Used by the CommandServer thread to signal startup success or failure
+        std::promise<StartupResult> promise;
+        std::future<StartupResult> resultFuture = promise.get_future();
+
+        /* Create a command queue with an owned thread handle.
+         * The ref count is now 2, one for the base constructor of RefCnt, one
+         * for using `ref_rcp`. One is released in the CommandServer thread when
+         * it shuts down. The other is released in cppDelete. */
+        auto commandQueue =
+            rive::ref_rcp<CommandQueueWithThread>(new CommandQueueWithThread());
+        // Start the C++ thread that drives the CommandServer
+        commandQueue->startCommandServer(renderContext, std::move(promise));
+
+        // Wait for the command server to start, blocking the main thread, and
+        // return the result
+        auto result = resultFuture.get();
         if (!result.success)
         {
             // Surface error to Java
-            auto jRTEClass = FindClass(env, "java/lang/RuntimeException");
+            auto jRiveInitializationExceptionClass =
+                FindClass(env, "app/rive/RiveInitializationException");
             char messageBuffer[256];
             snprintf(messageBuffer,
                      sizeof(messageBuffer),
                      "CommandQueue startup failed (EGL 0x%04x): %s",
-                     result.eglError,
+                     result.errorCode,
                      result.message.c_str());
-            env->ThrowNew(jRTEClass.get(), messageBuffer);
+            env->ThrowNew(jRiveInitializationExceptionClass.get(),
+                          messageBuffer);
 
             // Return null pointer
             return 0L;
         }
 
-        // Ref count is currently 1, unref'd on disconnect.
         return reinterpret_cast<jlong>(commandQueue.release());
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppDelete(JNIEnv*,
-                                                                     jobject,
-                                                                     jlong ref)
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppDelete(JNIEnv*,
+                                                       jobject,
+                                                       jlong ref)
     {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->disconnect();
+        auto commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        // Blocks the calling thread until the command server thread shuts down
+        commandQueue->shutdownAndJoin();
+        // Second unref, matches the one from cppConstructor
+        commandQueue->unref();
     }
 
     JNIEXPORT jobject JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateListeners(JNIEnv* env,
-                                                       jobject jCommandQueue,
-                                                       jlong ref)
+    Java_app_rive_core_CommandQueueJNIBridge_cppCreateListeners(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jobject jReceiver)
     {
         auto listenersClass = FindClass(env, "app/rive/core/Listeners");
         auto listenersConstructor =
@@ -742,15 +786,14 @@ extern "C"
 
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
-        auto fileListener = new FileListener(env, jCommandQueue);
-        auto artboardListener = new ArtboardListener(env, jCommandQueue);
-        auto stateMachineListener =
-            new StateMachineListener(env, jCommandQueue);
+        auto fileListener = new FileListener(env, jReceiver);
+        auto artboardListener = new ArtboardListener(env, jReceiver);
+        auto stateMachineListener = new StateMachineListener(env, jReceiver);
         auto viewModelInstanceListener =
-            new ViewModelInstanceListener(env, jCommandQueue);
-        auto imageListener = new ImageListener(env, jCommandQueue);
-        auto audioListener = new AudioListener(env, jCommandQueue);
-        auto fontListener = new FontListener(env, jCommandQueue);
+            new ViewModelInstanceListener(env, jReceiver);
+        auto imageListener = new ImageListener(env, jReceiver);
+        auto audioListener = new AudioListener(env, jReceiver);
+        auto fontListener = new FontListener(env, jReceiver);
 
         commandQueue->setGlobalFileListener(fileListener);
         commandQueue->setGlobalArtboardListener(artboardListener);
@@ -775,30 +818,12 @@ extern "C"
         return listeners.release();
     }
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateRenderTarget(JNIEnv*,
-                                                          jobject,
-                                                          jint width,
-                                                          jint height)
-    {
-        // TODO: Move this off the main thread.
-        GLint sampleCount;
-        glGetIntegerv(GL_SAMPLES, &sampleCount);
-
-        auto renderTarget =
-            new rive::gpu::FramebufferRenderTargetGL(width,
-                                                     height,
-                                                     0, // externalFramebufferID
-                                                     sampleCount);
-        return reinterpret_cast<jlong>(renderTarget);
-    }
-
     JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppLoadFile(JNIEnv* env,
-                                                jobject,
-                                                jlong ref,
-                                                jlong requestID,
-                                                jbyteArray bytes)
+    Java_app_rive_core_CommandQueueJNIBridge_cppLoadFile(JNIEnv* env,
+                                                         jobject,
+                                                         jlong ref,
+                                                         jlong requestID,
+                                                         jbyteArray bytes)
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
@@ -807,11 +832,11 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteFile(JNIEnv*,
-                                                  jobject,
-                                                  jlong ref,
-                                                  jlong requestID,
-                                                  jlong jFileHandle)
+    Java_app_rive_core_CommandQueueJNIBridge_cppDeleteFile(JNIEnv*,
+                                                           jobject,
+                                                           jlong ref,
+                                                           jlong requestID,
+                                                           jlong jFileHandle)
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         commandQueue->deleteFile(handleFromLong<rive::FileHandle>(jFileHandle),
@@ -1713,6 +1738,44 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
+    Java_app_rive_core_CommandQueue_cppCreateRiveRenderTarget(JNIEnv*,
+                                                              jobject,
+                                                              jlong ref,
+                                                              jint width,
+                                                              jint height)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+
+        // Use a promise/future to make this synchronous
+        auto promise = std::make_shared<std::promise<jlong>>();
+        std::future<jlong> future = promise->get_future();
+
+        // Use runOnce to execute on the command server thread where GL context
+        // is active
+        commandQueue->runOnce([width, height, promise](
+                                  rive::CommandServer* server) {
+            // Query sample count from the current GL context
+            GLint actualSampleCount = 1;
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glGetIntegerv(GL_SAMPLES, &actualSampleCount);
+            RiveLogD(TAG_CQ,
+                     "Creating render target on command server "
+                     "(sample count: %d)",
+                     actualSampleCount);
+
+            auto renderTarget =
+                new rive::gpu::FramebufferRenderTargetGL(width,
+                                                         height,
+                                                         0, // Framebuffer ID
+                                                         actualSampleCount);
+            promise->set_value(reinterpret_cast<jlong>(renderTarget));
+        });
+
+        // Wait for the result. Blocks the main thread until complete.
+        return future.get();
+    }
+
+    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueue_cppCreateDrawKey(JNIEnv*,
                                                      jobject,
                                                      jlong ref)
@@ -1733,9 +1796,8 @@ extern "C"
     Java_app_rive_core_CommandQueue_cppDraw(JNIEnv* env,
                                             jobject,
                                             jlong ref,
-                                            jlong eglDisplayRef,
-                                            jlong eglSurfaceRef,
-                                            jlong eglContextRef,
+                                            jlong renderContextRef,
+                                            jlong surfaceRef,
                                             jlong drawKey,
                                             jlong artboardHandleRef,
                                             jlong stateMachineHandleRef,
@@ -1746,31 +1808,38 @@ extern "C"
                                             jobject jAlignment,
                                             jint jClearColor)
     {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto eglDisplay = reinterpret_cast<EGLDisplay>(eglDisplayRef);
-        auto eglSurface = reinterpret_cast<EGLSurface>(eglSurfaceRef);
-        auto eglContext = reinterpret_cast<EGLContext>(eglContextRef);
-        auto renderTarget =
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        auto* renderContext =
+            reinterpret_cast<RenderContext*>(renderContextRef);
+        auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
+        auto* renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(env, jFit);
         auto alignment = GetAlignment(env, jAlignment);
         auto clearColor = static_cast<uint32_t>(jClearColor);
 
-        auto loop = [eglDisplay,
-                     eglSurface,
-                     eglContext,
-                     artboardHandleRef,
-                     stateMachineHandleRef,
-                     renderTarget,
-                     width,
-                     height,
-                     fit,
-                     alignment,
-                     clearColor](rive::DrawKey, rive::CommandServer* server) {
+        auto drawWork = [commandQueue,
+                         renderContext,
+                         nativeSurface,
+                         artboardHandleRef,
+                         stateMachineHandleRef,
+                         renderTarget,
+                         width,
+                         height,
+                         fit,
+                         alignment,
+                         clearColor](rive::DrawKey drawKey,
+                                     rive::CommandServer* server) {
             auto artboard = server->getArtboardInstance(
                 handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
             if (artboard == nullptr)
             {
+                if (commandQueue->shouldLogArtboardNull(drawKey))
+                {
+                    RiveLogE(
+                        TAG_CQ,
+                        "Draw failed: Artboard instance is null (only reported once)");
+                }
                 return;
             }
 
@@ -1779,20 +1848,19 @@ extern "C"
                     stateMachineHandleRef));
             if (stateMachine == nullptr)
             {
+                if (commandQueue->shouldLogStateMachineNull(drawKey))
+                {
+                    RiveLogE(
+                        TAG_CQ,
+                        "Draw failed: State machine instance is null (only reported once)");
+                }
                 return;
             }
 
-            // Make the EGL surface current
-            eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+            // Render backend specific - make the context current
+            renderContext->beginFrame(nativeSurface);
 
-            auto error = eglGetError();
-            if (error != EGL_SUCCESS)
-            {
-                LOGE("EGL error setting context (SetSurface): %d", error);
-                return;
-            }
-
-            // Stack allocate a Rive Renderer
+            // Retrieve the Rive RenderContext from the CommandServer
             auto riveContext =
                 static_cast<rive::gpu::RenderContext*>(server->factory());
 
@@ -1803,6 +1871,7 @@ extern "C"
                 .clearColor = clearColor,
             });
 
+            // Stack allocate a Rive Renderer
             auto renderer = rive::RiveRenderer(riveContext);
 
             // Draw the .riv
@@ -1820,20 +1889,227 @@ extern "C"
                 .renderTarget = renderTarget,
             });
 
-            // Swap buffers
-            eglSwapBuffers(eglDisplay, eglSurface);
+            // Render context specific - swap buffers
+            renderContext->present(nativeSurface);
         };
-        commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), loop);
+        commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), drawWork);
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_RiveSurface_cppDelete(JNIEnv*,
-                                             jobject,
-                                             jlong renderTargetRef)
+    Java_app_rive_core_CommandQueue_cppDrawToBuffer(JNIEnv* env,
+                                                    jobject,
+                                                    jlong ref,
+                                                    jlong renderContextRef,
+                                                    jlong surfaceRef,
+                                                    jlong drawKey,
+                                                    jlong artboardHandleRef,
+                                                    jlong stateMachineHandleRef,
+                                                    jlong renderTargetRef,
+                                                    jint width,
+                                                    jint height,
+                                                    jobject jFit,
+                                                    jobject jAlignment,
+                                                    jint jClearColor,
+                                                    jbyteArray jBuffer)
     {
-        auto renderTarget =
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        auto* renderContext =
+            reinterpret_cast<RenderContext*>(renderContextRef);
+        auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
+        auto* renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        delete renderTarget;
+        auto fit = GetFit(env, jFit);
+        auto alignment = GetAlignment(env, jAlignment);
+        auto clearColor = static_cast<uint32_t>(jClearColor);
+        auto widthInt = static_cast<int>(width);
+        auto heightInt = static_cast<int>(height);
+        auto* pixels = reinterpret_cast<uint8_t*>(
+            env->GetByteArrayElements(jBuffer, nullptr));
+        auto jExceptionClass =
+            FindClass(env, "app/rive/RiveDrawToBufferException");
+        if (pixels == nullptr)
+        {
+            RiveLogE(TAG_CQ,
+                     "Failed to access pixel buffer for drawIntoBuffer");
+            env->ThrowNew(jExceptionClass.get(),
+                          "Failed to access pixel buffer for drawing");
+            return;
+        }
+
+        // Success case plus any potential errors producing the drawn buffer
+        enum class DrawResult
+        {
+            Success,
+            ArtboardNull,
+            StateMachineNull,
+        };
+
+        // Be sure all pathways signal completion with `set_value` before
+        // returning to avoid deadlock.
+        auto completionPromise = std::make_shared<std::promise<DrawResult>>();
+        auto drawWork = [commandQueue,
+                         renderContext,
+                         nativeSurface,
+                         artboardHandleRef,
+                         stateMachineHandleRef,
+                         renderTarget,
+                         widthInt,
+                         heightInt,
+                         fit,
+                         alignment,
+                         clearColor,
+                         pixels,
+                         completionPromise](rive::DrawKey drawKey,
+                                            rive::CommandServer* server) {
+            auto artboard = server->getArtboardInstance(
+                handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
+            if (artboard == nullptr)
+            {
+                if (commandQueue->shouldLogArtboardNull(drawKey))
+                {
+                    RiveLogE(
+                        TAG_CQ,
+                        "Draw failed: Artboard instance is null (only reported once)");
+                }
+                completionPromise->set_value(DrawResult::ArtboardNull);
+                return;
+            }
+
+            auto stateMachine = server->getStateMachineInstance(
+                handleFromLong<rive::StateMachineHandle>(
+                    stateMachineHandleRef));
+            if (stateMachine == nullptr)
+            {
+                if (commandQueue->shouldLogStateMachineNull(drawKey))
+                {
+                    RiveLogE(
+                        TAG_CQ,
+                        "Draw failed: State machine instance is null (only reported once)");
+                }
+                completionPromise->set_value(DrawResult::StateMachineNull);
+                return;
+            }
+
+            renderContext->beginFrame(nativeSurface);
+
+            auto riveContext =
+                static_cast<rive::gpu::RenderContext*>(server->factory());
+
+            riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
+                .renderTargetWidth = static_cast<uint32_t>(widthInt),
+                .renderTargetHeight = static_cast<uint32_t>(heightInt),
+                .loadAction = rive::gpu::LoadAction::clear,
+                .clearColor = clearColor,
+            });
+
+            auto renderer = rive::RiveRenderer(riveContext);
+
+            renderer.align(fit,
+                           alignment,
+                           rive::AABB(0.0f,
+                                      0.0f,
+                                      static_cast<float_t>(widthInt),
+                                      static_cast<float_t>(heightInt)),
+                           artboard->bounds());
+            artboard->draw(&renderer);
+
+            riveContext->flush({
+                .renderTarget = renderTarget,
+            });
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glFinish();
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glReadPixels(0,
+                         0,
+                         widthInt,
+                         heightInt,
+                         GL_RGBA,
+                         GL_UNSIGNED_BYTE,
+                         pixels);
+
+            auto rowBytes = static_cast<size_t>(widthInt) * 4;
+            std::vector<uint8_t> row(rowBytes);
+            auto* data = pixels;
+            for (int y = 0; y < heightInt / 2; ++y)
+            {
+                auto* top = data + (static_cast<size_t>(y) * rowBytes);
+                auto* bottom =
+                    data + (static_cast<size_t>(heightInt - 1 - y) * rowBytes);
+                std::memcpy(row.data(), top, rowBytes);
+                std::memcpy(top, bottom, rowBytes);
+                std::memcpy(bottom, row.data(), rowBytes);
+            }
+
+            renderContext->present(nativeSurface);
+            completionPromise->set_value(DrawResult::Success);
+        };
+
+        commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), drawWork);
+        auto result = completionPromise->get_future().get();
+        env->ReleaseByteArrayElements(jBuffer,
+                                      reinterpret_cast<jbyte*>(pixels),
+                                      0);
+
+        switch (result)
+        {
+            case DrawResult::Success:
+                break;
+            case DrawResult::ArtboardNull:
+                env->ThrowNew(
+                    jExceptionClass.get(),
+                    "Failed to draw into buffer: Artboard instance is null");
+                break;
+            case DrawResult::StateMachineNull:
+                env->ThrowNew(
+                    jExceptionClass.get(),
+                    "Failed to draw into buffer: State machine instance is null");
+                break;
+        }
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueue_cppRunOnCommandServer(JNIEnv* env,
+                                                          jobject,
+                                                          jlong ref,
+                                                          jobject jWork)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+
+        // Create a global reference to the Kotlin lambda so that it
+        // survives until the command server thread invokes it
+        jobject jGlobalWork = env->NewGlobalRef(jWork);
+
+        commandQueue->runOnce([jGlobalWork](rive::CommandServer*) {
+            auto* env = GetJNIEnv();
+            if (env == nullptr)
+            {
+                RiveLogE(TAG_CQ, "Failed to get command server JNIEnv");
+                return;
+            }
+
+            // Get the Function0 class and invoke() method
+            // Kotlin's () -> Unit compiles to Function0<Unit>, and invoke()
+            // returns Object at the JVM level due to generic type erasure
+            auto function0Class = GetObjectClass(env, jGlobalWork);
+            auto invokeMethod = env->GetMethodID(function0Class.get(),
+                                                 "invoke",
+                                                 "()Ljava/lang/Object;");
+
+            // Invoke the Kotlin lambda (ignoring the Unit return value)
+            env->CallObjectMethod(jGlobalWork, invokeMethod);
+
+            // Check for exceptions. We won't re-throw though, since this is
+            // intended to be fire-and-forget, and we don't want to crash the
+            // command server thread.
+            JNIExceptionHandler::ClearAndLogErrors(
+                env,
+                TAG_CQ,
+                "runOnCommandServer: Exception thrown in Kotlin lambda:");
+
+            // Clean up the global reference
+            env->DeleteGlobalRef(jGlobalWork);
+        });
     }
 
     JNIEXPORT void JNICALL

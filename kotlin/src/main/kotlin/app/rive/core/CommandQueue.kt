@@ -1,12 +1,8 @@
 package app.rive.core
 
 import android.graphics.Color
-import android.opengl.EGL14
-import android.opengl.EGLConfig
-import android.opengl.EGLContext
-import android.opengl.EGLDisplay
-import android.opengl.EGLSurface
-import android.view.Surface
+import android.graphics.SurfaceTexture
+import android.view.TextureView
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -14,11 +10,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
+import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
+import app.rive.RiveFileException
+import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
+import app.rive.core.RenderContextGL.Companion.TAG
 import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
 import app.rive.runtime.kotlin.core.Alignment
@@ -39,6 +39,7 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration
 
 const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
@@ -79,24 +80,16 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * A command queue needs to be polled to receive messages from the command server. This is handled
  * by the [rememberCommandQueue] composable or by calling [beginPolling].
  *
- * @throws RuntimeException If the command queue cannot be created for any reason.
+ * @param renderContext The [RenderContext] to use for rendering. Currently only OpenGL is
+ *    supported. The CommandQueue takes ownership of the passed context.
+ * @param bridge The [CommandQueueBridge] to use for native implementation. Leave as default - used
+ *    for testing.
+ * @throws RiveInitializationException If the command queue cannot be created for any reason.
  */
 class CommandQueue(
-//    private val bridge: CommandQueueBridge
-) {
-    @Throws(RuntimeException::class)
-    private external fun cppConstructor(display: Long, context: Long): Long
-    private external fun cppDelete(pointer: Long)
-    private external fun cppCreateListeners(pointer: Long): Listeners
-    private external fun cppCreateRenderTarget(width: Int, height: Int): Long
-
-    private external fun cppLoadFile(
-        pointer: Long,
-        requestID: Long,
-        bytes: ByteArray
-    )
-
-    private external fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
+    private val renderContext: RenderContext = RenderContextGL(),
+    private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
+) : RefCounted {
     private external fun cppGetArtboardNames(
         pointer: Long,
         requestID: Long,
@@ -397,13 +390,13 @@ class CommandQueue(
         y: Float
     )
 
+    private external fun cppCreateRiveRenderTarget(pointer: Long, width: Int, height: Int): Long
     private external fun cppCreateDrawKey(pointer: Long): Long
     private external fun cppPollMessages(pointer: Long)
     private external fun cppDraw(
         pointer: Long,
-        eglDisplay: Long,
-        eglSurface: Long,
-        eglContext: Long,
+        renderContextPointer: Long,
+        surfaceNativePointer: Long,
         drawKey: Long,
         artboardHandle: Long,
         stateMachineHandle: Long,
@@ -415,9 +408,25 @@ class CommandQueue(
         clearColor: Int
     )
 
-    companion object {
-        const val NULL_POINTER = 0L
+    private external fun cppDrawToBuffer(
+        pointer: Long,
+        renderContextPointer: Long,
+        surfaceNativePointer: Long,
+        drawKey: Long,
+        artboardHandle: Long,
+        stateMachineHandle: Long,
+        renderTargetPointer: Long,
+        width: Int,
+        height: Int,
+        fit: Fit,
+        alignment: Alignment,
+        clearColor: Int,
+        buffer: ByteArray
+    )
 
+    private external fun cppRunOnCommandServer(pointer: Long, work: () -> Unit)
+
+    companion object {
         /**
          * Maximum number of RiveUI components that can safely use this CommandQueue instance
          * concurrently.
@@ -425,8 +434,12 @@ class CommandQueue(
         const val MAX_CONCURRENT_SUBSCRIBERS = 32
     }
 
-    private var cppPointer: RCPointer
-    private var listeners: Listeners
+    private val cppPointer = RCPointer(
+        bridge.cppConstructor(renderContext.nativeObjectPointer),
+        COMMAND_QUEUE_TAG,
+        ::dispose
+    )
+    private var listeners = bridge.cppCreateListeners(cppPointer.pointer, this)
 
     /**
      * Cleanup to be performed when the ref count reaches 0.
@@ -434,38 +447,25 @@ class CommandQueue(
      * Any pending continuations are cancelled to avoid callers hanging indefinitely.
      */
     private fun dispose(cppPointer: Long) {
-        cppDelete(cppPointer)
+        bridge.cppDelete(cppPointer)
 
-        listeners.dispose()
+        listeners.close()
+        renderContext.close()
 
         // Cancel and clear any pending JNI continuations so callers don't hang.
-        pendingContinuations.values.forEach { cont ->
+        pendingContinuations.values.toList().forEach { cont ->
             cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
         }
+        pendingContinuations.clear()
     }
 
-    /**
-     * Acquire a reference to this CommandQueue. Must be balanced with a call to [release].
-     *
-     * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
-     *    "MyActivity".
-     * @throws IllegalStateException If the CommandQueue has already been disposed, i.e. the ref
-     *    count is zero.
-     */
-    fun acquire(source: String) = cppPointer.acquire(source)
-
-    /**
-     * Release a reference to this CommandQueue. When the last reference is released, the
-     * CommandQueue is disposed.
-     *
-     * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
-     *    "MyActivity".
-     * @param reason An optional string indicating the reason for the release, for logging purposes.
-     * @throws IllegalStateException If the CommandQueue has already been disposed, i.e. the ref
-     *    count is already zero.
-     */
-    fun release(source: String, reason: String = "") =
-        cppPointer.release(source, reason)
+    // Implement the RefCounted interface by delegating to cppPointer
+    override fun acquire(source: String) = cppPointer.acquire(source)
+    override fun release(source: String, reason: String) = cppPointer.release(source, reason)
+    override val refCount: Int
+        get() = cppPointer.refCount
+    override val isDisposed: Boolean
+        get() = cppPointer.isDisposed
 
     /**
      * Tie this CommandQueue's lifetime to a LifecycleOwner. This will call [release] when the
@@ -488,25 +488,13 @@ class CommandQueue(
                 onClose.close()
             }
         }
-        onClose = CloseOnce {
+        onClose = CloseOnce("CommandQueue (withLifecycle)") {
             owner.lifecycle.removeObserver(observer)
             cppPointer.release(source, "Closed by withLifecycle")
         }
         owner.lifecycle.addObserver(observer)
         return onClose
     }
-
-    private val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY).also {
-        if (it == EGL14.EGL_NO_DISPLAY) {
-            throw RuntimeException("Unable to get EGL display")
-        }
-
-        if (!EGL14.eglInitialize(it, null, 0, null, 0)) {
-            throw RuntimeException("Unable to initialize EGL")
-        }
-    }
-    private val config: EGLConfig = makeConfig()
-    private var context: EGLContext = EGL14.EGL_NO_CONTEXT
 
     private val _settledFlow = MutableSharedFlow<StateMachineHandle>(
         replay = 0,
@@ -535,6 +523,8 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any number property is updated. */
     val numberPropertyFlow: SharedFlow<PropertyUpdate<Float>> = _numberPropertyFlow
 
     private val _stringPropertyFlow = MutableSharedFlow<PropertyUpdate<String>>(
@@ -542,6 +532,8 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any string property is updated. */
     val stringPropertyFlow: SharedFlow<PropertyUpdate<String>> = _stringPropertyFlow
 
     private val _booleanPropertyFlow = MutableSharedFlow<PropertyUpdate<Boolean>>(
@@ -549,6 +541,8 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any boolean property is updated. */
     val booleanPropertyFlow: SharedFlow<PropertyUpdate<Boolean>> = _booleanPropertyFlow
 
     private val _enumPropertyFlow = MutableSharedFlow<PropertyUpdate<String>>(
@@ -556,6 +550,8 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any enum property is updated. */
     val enumPropertyFlow: SharedFlow<PropertyUpdate<String>> = _enumPropertyFlow
 
     private val _colorPropertyFlow = MutableSharedFlow<PropertyUpdate<Int>>(
@@ -563,6 +559,8 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any color property is updated. */
     val colorPropertyFlow: SharedFlow<PropertyUpdate<Int>> = _colorPropertyFlow
 
     private val _triggerPropertyFlow = MutableSharedFlow<PropertyUpdate<Unit>>(
@@ -570,102 +568,65 @@ class CommandQueue(
         extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    /** Hot flow that emits when any trigger property is fired. */
     val triggerPropertyFlow: SharedFlow<PropertyUpdate<Unit>> = _triggerPropertyFlow
-
-    private fun makeConfig(): EGLConfig {
-        val configAttributes = intArrayOf(
-            EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-//            EGL14.EGL_SURFACE_TYPE, EGL14.EGL_WINDOW_BIT,
-            EGL14.EGL_RED_SIZE, 8,
-            EGL14.EGL_GREEN_SIZE, 8,
-            EGL14.EGL_BLUE_SIZE, 8,
-            EGL14.EGL_ALPHA_SIZE, 8,
-            EGL14.EGL_DEPTH_SIZE, 0,
-            EGL14.EGL_STENCIL_SIZE, 8,
-            EGL14.EGL_NONE
-        )
-
-        val numConfigs = IntArray(1)
-        val configs = arrayOfNulls<EGLConfig>(1)
-        EGL14.eglChooseConfig(
-            display,
-            configAttributes,
-            0,
-            configs,
-            0,
-            configs.size,
-            numConfigs,
-            0
-        )
-        return configs[0] ?: throw RuntimeException("Unable to find a suitable EGLConfig")
-    }
 
     init {
         RiveLog.d(COMMAND_QUEUE_TAG) { "Creating command queue" }
-
-        val err = EGL14.eglGetError()
-        if (err != EGL14.EGL_SUCCESS) {
-            throw RuntimeException("EGL error: $err")
-        }
-
-        var version = IntArray(2)
-        if (!EGL14.eglInitialize(display, version, 0, version, 1)) {
-            throw RuntimeException("Unable to initialize EGL")
-        }
-
-        context = EGL14.eglCreateContext(
-            display,
-            config,
-            EGL14.EGL_NO_CONTEXT,
-            intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE),
-            0
-        )
-
-        if (context == EGL14.EGL_NO_CONTEXT) {
-            throw RuntimeException("Unable to create EGL context")
-        }
-
-        cppPointer = RCPointer(
-            cppConstructor(display.nativeHandle, context.nativeHandle),
-            ::dispose,
-            COMMAND_QUEUE_TAG
-        )
-        listeners = cppCreateListeners(cppPointer.pointer)
     }
 
     /**
      * Create a Rive rendering surface for Rive to draw into.
      *
-     * @param surface The Android [Surface] to create the Rive rendering surface for.
+     * @param surfaceTexture The Android [SurfaceTexture], likely coming from a [TextureView].
      * @return A [RiveSurface] that can be used for rendering.
      * @throws RuntimeException If the surface could not be created.
      */
     @Throws(RuntimeException::class)
-    fun createRiveSurface(surface: Surface): RiveSurface {
-        RiveLog.d(SURFACE_TAG) { "Creating rendering surface" }
-        val eglSurface = EGL14.eglCreateWindowSurface(
-            display,
-            config,
-            surface,
-            intArrayOf(EGL14.EGL_NONE),
-            0
-        )
+    fun createRiveSurface(surfaceTexture: SurfaceTexture): RiveSurface =
+        renderContext.createSurface(surfaceTexture, nextDrawKey(), this)
 
-        if (eglSurface == EGL14.EGL_NO_SURFACE) {
-            throw RuntimeException("Unable to create EGL surface")
-        }
+    /**
+     * Create an off-screen image surface for rendering to a buffer.
+     *
+     * @param width The width of the image surface in pixels.
+     * @param height The height of the image surface in pixels.
+     * @return A [RiveSurface] that can be used for off-screen rendering.
+     * @throws RuntimeException If the surface could not be created.
+     */
+    @Throws(RuntimeException::class)
+    fun createImageSurface(width: Int, height: Int): RiveSurface =
+        renderContext.createImageSurface(width, height, nextDrawKey(), this)
 
-        val dimensions = IntArray(2)
-        EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_WIDTH, dimensions, 0)
-        EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_HEIGHT, dimensions, 1)
-        val width = dimensions[0]
-        val height = dimensions[1]
+    /**
+     * Destroy a Rive rendering surface. The surface will not be valid for use after this call.
+     *
+     * This runs on the command server thread to ensure that any in-flight draw commands finish with
+     * a valid [SurfaceTexture].
+     *
+     * @param surface The [RiveSurface] to destroy.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun destroyRiveSurface(surface: RiveSurface) = runOnCommandServer { surface.close() }
 
-        val renderTarget = cppCreateRenderTarget(width, height)
-        val drawKey = DrawKey(cppCreateDrawKey(cppPointer.pointer))
-
-        return RiveSurface(surface, eglSurface, display, renderTarget, drawKey, width, height)
+    /**
+     * Creates a Rive render target on the command server thread. This is a synchronous call that
+     * blocks until the render target is created.
+     *
+     * @param width The width of the render target in pixels.
+     * @param height The height of the render target in pixels.
+     * @return The native pointer to the created render target.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun createRiveRenderTarget(width: Int, height: Int): Long {
+        RiveLog.d(TAG) { "Creating Rive render target on command server thread" }
+        return cppCreateRiveRenderTarget(cppPointer.pointer, width, height)
     }
+
+    private fun nextDrawKey() = DrawKey(cppCreateDrawKey(cppPointer.pointer))
 
     /**
      * Callback when there is any error on a file operation. The continuation will be resumed with
@@ -679,8 +640,9 @@ class CommandQueue(
     @Suppress("Unused")
     @JvmName("onFileError")
     internal fun onFileError(requestID: Long, error: String) {
+        RiveLog.e(COMMAND_QUEUE_TAG) { "File error for request $requestID: $error" }
         (pendingContinuations.remove(requestID) as? Continuation<FileHandle>)?.resumeWithException(
-            RuntimeException("File error: $error")
+            RiveFileException("File error: $error")
         )
     }
 
@@ -696,6 +658,7 @@ class CommandQueue(
     @Suppress("Unused")
     @JvmName("onArtboardError")
     internal fun onArtboardError(requestID: Long, error: String) {
+        RiveLog.e(COMMAND_QUEUE_TAG) { "Artboard error for request $requestID: $error" }
         (pendingContinuations.remove(requestID) as? Continuation<ArtboardHandle>)?.resumeWithException(
             RuntimeException("Artboard error: $error")
         )
@@ -713,6 +676,7 @@ class CommandQueue(
     @Suppress("Unused")
     @JvmName("onStateMachineError")
     internal fun onStateMachineError(requestID: Long, error: String) {
+        RiveLog.e(COMMAND_QUEUE_TAG) { "State machine error for request $requestID: $error" }
         (pendingContinuations.remove(requestID) as? Continuation<StateMachineHandle>)?.resumeWithException(
             RuntimeException("State machine error: $error")
         )
@@ -730,6 +694,7 @@ class CommandQueue(
     @Suppress("Unused")
     @JvmName("onViewModelInstanceError")
     internal fun onViewModelInstanceError(requestID: Long, error: String) {
+        RiveLog.e(COMMAND_QUEUE_TAG) { "View model instance error for request $requestID: $error" }
         (pendingContinuations.remove(requestID) as? Continuation<ViewModelInstanceHandle>)?.resumeWithException(
             RuntimeException("View model instance error: $error")
         )
@@ -741,13 +706,13 @@ class CommandQueue(
      *
      * @param bytes The bytes of the Rive file to load.
      * @return A [FileHandle] that represents the loaded Rive file.
-     * @throws RuntimeException If the file could not be loaded.
+     * @throws RiveFileException If the file could not be loaded.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun loadFile(bytes: ByteArray): FileHandle = suspendNativeRequest { requestID ->
-        cppLoadFile(cppPointer.pointer, requestID, bytes)
+        bridge.cppLoadFile(cppPointer.pointer, requestID, bytes)
     }
 
     /**
@@ -775,7 +740,7 @@ class CommandQueue(
      */
     @Throws(IllegalStateException::class)
     fun deleteFile(fileHandle: FileHandle) =
-        cppDeleteFile(cppPointer.pointer, nextRequestID.getAndIncrement(), fileHandle.handle)
+        bridge.cppDeleteFile(cppPointer.pointer, nextRequestID.getAndIncrement(), fileHandle.handle)
 
     /**
      * Query the file for available artboard names. Returns on [onArtboardsListed].
@@ -784,7 +749,7 @@ class CommandQueue(
      * @return A list of artboard names in the file.
      * @throws RuntimeException If the file handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getArtboardNames(fileHandle: FileHandle): List<String> =
@@ -817,7 +782,7 @@ class CommandQueue(
      * @return A list of state machine names in the artboard.
      * @throws RuntimeException If the artboard handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getStateMachineNames(artboardHandle: ArtboardHandle): List<String> =
@@ -850,7 +815,7 @@ class CommandQueue(
      * @return A list of view model names in the file.
      * @throws RuntimeException If the file handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelNames(fileHandle: FileHandle): List<String> =
@@ -886,7 +851,7 @@ class CommandQueue(
      * @throws RuntimeException If the file handle is invalid or the named view model does not
      *    exist.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelInstanceNames(
@@ -925,7 +890,7 @@ class CommandQueue(
      * @throws RuntimeException If the file handle is invalid or the named view model does not
      *    exist.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getViewModelProperties(
@@ -966,7 +931,7 @@ class CommandQueue(
      * @return A list of enums in the file.
      * @throws RuntimeException If the file handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getEnums(fileHandle: FileHandle): List<Enum> = suspendNativeRequest { requestID ->
@@ -1048,6 +1013,14 @@ class CommandQueue(
      * Create the default state machine for the given artboard. This is the state machine marked
      * "Default" in the Rive editor.
      *
+     * ℹ️ State machines are initialized to the "design" state upon creation, which is almost never
+     * the desired starting point for runtime use. Additionally, the Entry state absorbs the first
+     * advance call due to not tracking the remaining advance time after exiting.
+     *
+     * For these reasons, you will almost always want to advance the state machine by 0ns after
+     * binding view models and before your first real advance call to allow it to settle into its
+     * initial "animated" state.
+     *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @return The handle of the created state machine.
      * @throws IllegalStateException If the CommandQueue has been released.
@@ -1065,6 +1038,14 @@ class CommandQueue(
     /**
      * Create a state machine by name for the given artboard. This is useful when the artboard has
      * multiple state machines and you want to create a specific one.
+     *
+     * ℹ️ State machines are initialized to the "design" state upon creation, which is almost never
+     * the desired starting point for runtime use. Additionally, the Entry state absorbs the first
+     * advance call due to not tracking the remaining advance time after exiting.
+     *
+     * For these reasons, you will almost always want to advance the state machine by 0ns after
+     * binding view models and before your first real advance call to allow it to settle into its
+     * initial "animated" state.
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @param name The name of the state machine to create.
@@ -1101,18 +1082,18 @@ class CommandQueue(
      * Advance the state machine by the given delta time in nanoseconds.
      *
      * @param stateMachineHandle The handle of the state machine to advance.
-     * @param deltaTimeNs The delta time in nanoseconds to advance the state machine by.
+     * @param deltaTime The delta time to advance the state machine by.
      * @throws RuntimeException If the state machine handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(RuntimeException::class, IllegalStateException::class)
     fun advanceStateMachine(
         stateMachineHandle: StateMachineHandle,
-        deltaTimeNs: Long
+        deltaTime: Duration
     ) = cppAdvanceStateMachine(
         cppPointer.pointer,
         stateMachineHandle.handle,
-        deltaTimeNs
+        deltaTime.inWholeNanoseconds
     )
 
     /**
@@ -1319,7 +1300,7 @@ class CommandQueue(
      * @throws RuntimeException If the view model instance handle is invalid, or the named property
      *    does not exist or is of the wrong type.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getNumberProperty(
@@ -1392,7 +1373,7 @@ class CommandQueue(
      * @throws RuntimeException If the view model instance handle is invalid, or the named property
      *    does not exist or is of the wrong type.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getStringProperty(
@@ -1465,7 +1446,7 @@ class CommandQueue(
      * @throws RuntimeException If the view model instance handle is invalid, or the named property
      *    does not exist or is of the wrong type.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getBooleanProperty(
@@ -1538,7 +1519,7 @@ class CommandQueue(
      * @throws RuntimeException If the view model instance handle is invalid, or the named property
      *    does not exist or is of the wrong type.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getEnumProperty(
@@ -1611,7 +1592,7 @@ class CommandQueue(
      * @throws RuntimeException If the view model instance handle is invalid, or the named property
      *    does not exist or is of the wrong type.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun getColorProperty(
@@ -1730,7 +1711,7 @@ class CommandQueue(
      * @throws RuntimeException If the image could not be decoded, e.g. if the bytes are not a valid
      *    image.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeImage(bytes: ByteArray): ImageHandle = suspendNativeRequest { requestID ->
@@ -1823,7 +1804,7 @@ class CommandQueue(
      * @throws RuntimeException If the audio could not be decoded, e.g. if the bytes are not a valid
      *    audio file.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeAudio(bytes: ByteArray): AudioHandle = suspendNativeRequest { requestID ->
@@ -1917,7 +1898,7 @@ class CommandQueue(
      * @throws RuntimeException If the font could not be decoded, e.g. if the bytes are not a valid
      *    font.
      * @throws IllegalStateException If the CommandQueue has been released.
-     * @throws CancellationException If the coroutine is cancelled the operation completes.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
     suspend fun decodeFont(bytes: ByteArray): FontHandle = suspendNativeRequest { requestID ->
@@ -2176,6 +2157,7 @@ class CommandQueue(
                 pollMessages()
             }
         }
+        RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
     }
 
     /**
@@ -2213,19 +2195,82 @@ class CommandQueue(
         clearColor: Int = Color.TRANSPARENT
     ) = cppDraw(
         cppPointer.pointer,
-        display.nativeHandle,
-        surface.eglSurface.nativeHandle,
-        context.nativeHandle,
+        renderContext.nativeObjectPointer,
+        surface.surfaceNativePointer,
         surface.drawKey.handle,
         artboardHandle.handle,
         stateMachineHandle.handle,
-        surface.renderTargetPointer,
+        surface.renderTargetPointer.pointer,
         surface.width,
         surface.height,
         fit,
         alignment,
         clearColor,
     )
+
+    /**
+     * Renders the current state of an artboard/state machine pair into an off-screen buffer that
+     * can be used for snapshot comparisons.
+     *
+     * ⚠️ Unlike other CommandQueue methods, this method is synchronous and blocks the calling
+     * thread.
+     *
+     * @param artboardHandle The handle of the artboard to draw.
+     * @param stateMachineHandle The handle of the state machine to advance/draw.
+     * @param surface The surface to draw to, likely created from [createImageSurface].
+     * @param buffer The byte array buffer to render into. Must be at least width * height * 4 bytes
+     *    in size.
+     * @param width The width of the buffer to render.
+     * @param height The height of the buffer to render.
+     * @param fit Fit to use when drawing.
+     * @param alignment Alignment to use when drawing.
+     * @param clearColor Clear color used prior to drawing, defaults to transparent.
+     * @throws RiveDrawToBufferException If the buffer could not be drawn to for any reason. Further
+     *    details can be found in the exception message.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(RiveDrawToBufferException::class, IllegalStateException::class)
+    fun drawToBuffer(
+        artboardHandle: ArtboardHandle,
+        stateMachineHandle: StateMachineHandle,
+        surface: RiveSurface,
+        buffer: ByteArray,
+        width: Int,
+        height: Int,
+        fit: Fit = Fit.CONTAIN,
+        alignment: Alignment = Alignment.CENTER,
+        clearColor: Int = Color.TRANSPARENT
+    ) = cppDrawToBuffer(
+        cppPointer.pointer,
+        renderContext.nativeObjectPointer,
+        surface.surfaceNativePointer,
+        surface.drawKey.handle,
+        artboardHandle.handle,
+        stateMachineHandle.handle,
+        surface.renderTargetPointer.pointer,
+        width,
+        height,
+        fit,
+        alignment,
+        clearColor,
+        buffer
+    )
+
+    /**
+     * Enqueue arbitrary Kotlin code to be run on the command server thread.
+     *
+     * This allows executing Kotlin-side logic in the context of the command server thread. This can
+     * be useful for operations that need to be queued orderly with other commands, such as freeing
+     * resources that should only be freed after prior commands using them have completed.
+     *
+     * The operation is fire-and-forget, so no response is expected.
+     *
+     * @param work The lambda to execute on the command server thread.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    private fun runOnCommandServer(work: () -> Unit) =
+        cppRunOnCommandServer(cppPointer.pointer, work)
 
     /**
      * The map of all pending continuations, keyed by request ID. Entries are added when a suspend
@@ -2370,60 +2415,15 @@ value class FontHandle(val handle: Long) {
 @JvmInline
 value class DrawKey(val handle: Long)
 
-private const val SURFACE_TAG = "RiveUI/Surface"
-
-/**
- * A collection of four surface properties needed for rendering.
- * - An Android Surface, provided by an Android SurfaceTextureListener
- * - An EGLSurface, created from the Surface
- * - A Rive render target, created natively which renders to the GL framebuffer
- * - A draw key, which uniquely identifies draw operations in the CommandQueue
- *
- * It also stores the width and height of the surface.
- *
- * It assumes ownership of all resources and should be [disposed][dispose] when no longer needed.
- *
- * @param surface The Android Surface that will be used for rendering.
- * @param eglSurface The EGLSurface created from the Android Surface.
- * @param display The EGLDisplay used to create the EGLSurface.
- * @param renderTargetPointer The native pointer to the Rive render target.
- * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
- * @param width The width of the surface in pixels.
- * @param height The height of the surface in pixels.
- */
-@Keep // Called from JNI
-data class RiveSurface(
-    val surface: Surface,
-    val eglSurface: EGLSurface,
-    private val display: EGLDisplay,
-    val renderTargetPointer: Long,
-    val drawKey: DrawKey,
-    val width: Int,
-    val height: Int
-) {
-    private external fun cppDelete(renderTargetPointer: Long)
-
-    /**
-     * Dispose of the RiveSurface and free its resources. This should be called when the backing
-     * Android Surface is no longer available.
-     *
-     * Releases the Android Surface, destroys the EGLSurface, and deletes the native render target.
-     */
-    fun dispose() {
-        RiveLog.d(SURFACE_TAG) { "Deleting surface" }
-        surface.release()
-        EGL14.eglDestroySurface(display, eglSurface)
-        cppDelete(renderTargetPointer)
-    }
-}
-
 /**
  * Holds the native pointers to the listeners used by the CommandQueue. Android uses only one
  * listener of each type to simplify lifetime management. This is as opposed to a listener for each
  * handle.
+ *
+ * This class is constructed from C++.
  */
 @Keep // Called from JNI
-internal data class Listeners(
+data class Listeners(
     val fileListener: Long,
     val artboardListener: Long,
     val stateMachineListener: Long,
@@ -2431,7 +2431,7 @@ internal data class Listeners(
     val imageListener: Long,
     val audioListener: Long,
     val fontListener: Long,
-) {
+) : AutoCloseable {
     private external fun cppDelete(
         fileListener: Long,
         artboardListener: Long,
@@ -2446,7 +2446,7 @@ internal data class Listeners(
      * Dispose of the listeners and free their resources. This should be called when the
      * CommandQueue is disposed.
      */
-    internal fun dispose() = cppDelete(
+    override fun close() = cppDelete(
         fileListener,
         artboardListener,
         stateMachineListener,
