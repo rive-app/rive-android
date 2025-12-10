@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.renderers
 
-import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Fit
@@ -32,10 +31,7 @@ open class RiveArtboardRenderer(
     }
 
     @WorkerThread
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    open fun resizeArtboard() {
-        if (!hasCppObject) return
-
+    private fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
             val newWidth = width / scaleFactor
             val newHeight = height / scaleFactor
@@ -54,16 +50,24 @@ open class RiveArtboardRenderer(
         // Deref and draw under frameLock
         synchronized(frameLock) {
             // Early out for deleted renderer or inactive controller.
+            // Note: controller.isActive can change at any time, but
+            // hasCppObject can only change while holding frameLock
             if (!hasCppObject || !controller.isActive) return
 
-            // Handle artboard resize inside frameLock to prevent race condition
-            if (controller.requireArtboardResize.getAndSet(false)) {
-                synchronized(controller.file?.lock ?: this) { 
-                    resizeArtboard() 
+            // Protect both resize and draw operations with file.lock to prevent race conditions
+            // with file/artboard changes on the UI thread. This matches the locking strategy
+            // used in controller.advance()
+            synchronized(controller.file?.lock ?: this) {
+                if (controller.requireArtboardResize.getAndSet(false)) {
+                    resizeArtboard()
                 }
+                controller.activeArtboard?.draw(
+                    cppPointer,
+                    fit,
+                    alignment,
+                    scaleFactor = scaleFactor
+                )
             }
-
-            controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
         }
     }
 
@@ -95,7 +99,10 @@ open class RiveArtboardRenderer(
     }
 
     override fun disposeDependencies() {
-        // Lock to make sure things are disposed in an orderly manner.
-        synchronized(controller.file?.lock ?: this) { super.disposeDependencies() }
+        // Lock to ensure dependencies are disposed in an orderly manner and to coordinate
+        // with any ongoing file/artboard operations that might be using these dependencies.
+        synchronized(controller.file?.lock ?: this) {
+            super.disposeDependencies()
+        }
     }
 }

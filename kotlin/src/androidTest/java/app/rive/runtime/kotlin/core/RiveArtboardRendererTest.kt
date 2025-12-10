@@ -3,10 +3,12 @@ package app.rive.runtime.kotlin.core
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Assert.assertFalse
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
@@ -16,7 +18,11 @@ import java.util.concurrent.locks.ReentrantLock
 
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
-    private val testUtils = TestUtils()
+
+    @Before
+    fun setup() {
+        Rive.init(InstrumentationRegistry.getInstrumentation().targetContext)
+    }
 
     @Test
     fun createRenderer() {
@@ -55,67 +61,93 @@ class RiveArtboardRendererTest {
     }
 
     /**
-     * Tests for a race where the renderer is deleted while a frame is being drawn, using a
-     * controller subclass that blocks the getter for activeArtboard.
+     * Tests that the renderer cannot be deleted while draw() is executing.
+     * The delete() call should block until file.lock is released when draw() completes.
      */
     @Test
     fun deleteRendererDuringFrame() {
-        // Keep this low, as the test times out during non-critical activeArtboard access.
-        val timeout = 100L
-        // Latch to block signal we are passed the `hasCppObject` check in the draw() method
-        val duringActiveArtboardLatch = CountDownLatch(1)
-        // Latch to block the activeArtboard getter until we have deleted the renderer
-        val afterDeleteLatch = CountDownLatch(1)
+        val timeout = 1000L
+        // Latch to signal we are inside the file.lock synchronized block during draw()
+        val insideDrawLatch = CountDownLatch(1)
+        // Latch to allow draw() to complete
+        val releaseDrawLatch = CountDownLatch(1)
 
-        // The renderer needs a valid artboard to proceed to accessing the cppPointer
+        // The renderer needs a valid artboard
         val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, lock = ReentrantLock()) {
-            // Override draw to do nothing, avoiding the thread affinity checks in the real draw().
+            // Override draw to add blocking and signal we're inside the synchronized block
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
                 scaleFactor: Float
             ) {
+                // Signal that we're inside draw (holding file.lock)
+                insideDrawLatch.countDown()
+                // Block to hold the file.lock
+                releaseDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
             }
         }
 
-        val latchedController = object : RiveFileController() {
-            // Called by the renderer's `draw()` method *before* accessing the cppPointer but *after*
-            // checking `hasCppObject` and `isActive`.
-            override var activeArtboard: Artboard?
-                get() {
-                    // Signal that we are in the getter
-                    duringActiveArtboardLatch.countDown()
-                    // Wait until we have deleted the renderer
-                    afterDeleteLatch.await(timeout, TimeUnit.MILLISECONDS)
-                    return dummyArtboard
-                }
-                set(value) {
-                    super.activeArtboard = value
-                }
-        }
-
-        latchedController.isActive = true
-        latchedController.activeArtboard = dummyArtboard
-        val renderer = RiveArtboardRenderer(controller = latchedController)
+        val controller = RiveFileController(activeArtboard = dummyArtboard)
+        controller.isActive = true
+        val renderer = RiveArtboardRenderer(controller = controller)
         renderer.make()
 
-        // Start draw() in a background thread, simulating the worker thread.
-        // It will block in activeArtboard getter.
+        // Capture any exception thrown in the background threads
+        val exceptionRef = AtomicReference<Throwable>()
+
+        // Start draw() in a background thread - this will hold file.lock
         val drawThread = Thread {
-            renderer.draw()
+            try {
+                renderer.draw()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
         }
         drawThread.start()
 
-        // Wait for the getter to be entered
-        duringActiveArtboardLatch.await(timeout, TimeUnit.MILLISECONDS)
+        // Wait until we're inside draw() (holding file.lock)
+        insideDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
 
-        // Simulate deletion during draw(), nulling the cppPointer.
-        renderer.delete()
-        // Let the getter return and draw() proceed
-        afterDeleteLatch.countDown()
+        // Start delete() in a separate thread - it should block trying to acquire file.lock
+        val deleteThread = Thread {
+            try {
+                renderer.delete()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        deleteThread.start()
 
+        // Give delete a chance to try acquiring the lock
+        Thread.sleep(200)
+
+        // Verify delete is still blocked waiting for file.lock (thread should still be alive)
+        assert(deleteThread.isAlive) {
+            "Expected delete to be blocked waiting for file.lock while draw is executing"
+        }
+
+        // Now allow draw() to complete and release the lock
+        releaseDrawLatch.countDown()
+
+        // Wait for draw thread to finish (releases file.lock)
         drawThread.join(timeout)
+
+        // Now delete should be able to complete
+        deleteThread.join(timeout)
+
+        // Verify delete completed successfully (thread is no longer alive)
+        assertFalse(
+            "Expected delete to complete after file.lock was released",
+            deleteThread.isAlive
+        )
+
+        // Verify no exception was thrown
+        val exception = exceptionRef.get()
+        assert(exception == null) {
+            "Expected no exception with proper locking. " +
+                    "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
+        }
     }
 
     /**
@@ -257,71 +289,4 @@ class RiveArtboardRendererTest {
         drawThread.join(timeout)
     }
 
-    /**
-     * Tests that the renderer can be safely deleted while resizeArtboard() is executing.
-     * The fix adds a hasCppObject check at the start of resizeArtboard() to prevent
-     * accessing disposed C++ objects when accessing width/height properties.
-     */
-    @Test
-    fun deleteRendererDuringResizeArtboard() {
-        val timeout = 1000L
-        // Latch to signal we've entered resizeArtboard()
-        val duringResizeLatch = CountDownLatch(1)
-        // Latch to block until we have deleted the renderer
-        val afterDeleteLatch = CountDownLatch(1)
-
-        val controller = RiveFileController()
-        controller.fit = Fit.LAYOUT // This sets requireArtboardResize to true
-        controller.isActive = true
-
-        // Create a custom renderer that overrides resizeArtboard() to add blocking,
-        // simulating the race condition where the renderer is deleted during resize
-        val latchingRenderer = object : RiveArtboardRenderer(controller = controller) {
-            override fun resizeArtboard() {
-                // Signal we've entered resizeArtboard()
-                duringResizeLatch.countDown()
-
-                // Block until the renderer is deleted - this simulates the race where
-                // the renderer could be deleted while resizeArtboard() is executing
-                afterDeleteLatch.await(timeout, TimeUnit.MILLISECONDS)
-
-                // Call the parent's resizeArtboard() which will check hasCppObject
-                // (the fix) and return early if disposed, preventing a crash
-                super.resizeArtboard()
-            }
-        }
-
-        latchingRenderer.make()
-
-        // Capture any exception thrown in the background thread
-        val exceptionRef = AtomicReference<Throwable>()
-
-        // Start draw() in a background thread
-        val drawThread = Thread {
-            try {
-                latchingRenderer.draw()
-            } catch (e: Throwable) {
-                exceptionRef.set(e)
-            }
-        }
-        drawThread.start()
-
-        // Wait for resizeArtboard() to be entered
-        duringResizeLatch.await(timeout, TimeUnit.MILLISECONDS)
-
-        // Delete the renderer while resizeArtboard() is blocked
-        latchingRenderer.delete()
-
-        // Let resizeArtboard() continue - the hasCppObject check should prevent a crash
-        afterDeleteLatch.countDown()
-
-        drawThread.join(timeout)
-
-        // Verify no exception was thrown - the fix should prevent the crash
-        val exception = exceptionRef.get()
-        assert(exception == null) {
-            "Expected no exception when renderer is deleted during resizeArtboard(). " +
-                    "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
-        }
-    }
 }
