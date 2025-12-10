@@ -58,6 +58,8 @@ open class RiveArtboardRenderer(
             // with file/artboard changes on the UI thread. This matches the locking strategy
             // used in controller.advance()
             synchronized(controller.file?.lock ?: this) {
+                // No need to check hasCppObject again here.
+                if (!controller.isActive) return
                 if (controller.requireArtboardResize.getAndSet(false)) {
                     resizeArtboard()
                 }
