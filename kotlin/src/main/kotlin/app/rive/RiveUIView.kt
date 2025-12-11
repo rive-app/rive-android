@@ -3,7 +3,6 @@ package app.rive
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.util.AttributeSet
-import android.view.Surface
 import android.view.TextureView
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
@@ -14,11 +13,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.rive.core.ArtboardHandle
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
-import app.rive.core.withFrameNanosChoreo
+import app.rive.core.withFrameNanosChoreographer
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Note: This class is more experimental than others. It is not recommended for use at this time.
@@ -33,13 +33,13 @@ class RiveUIView @JvmOverloads constructor(
     private var artboardHandle: ArtboardHandle? = null
     private var stateMachineHandle: StateMachineHandle? = null
 
-    private var surface: Surface? = null
+    private var surfaceTexture: SurfaceTexture? = null
     private var surfaceWidth = 0
     private var surfaceHeight = 0
     private var riveSurface: RiveSurface? = null
         set(value) {
             if (field != null) {
-                field?.dispose()
+                field?.close()
             }
             field = value
         }
@@ -55,21 +55,22 @@ class RiveUIView @JvmOverloads constructor(
 
         owner.lifecycleScope.launch {
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                var lastFrameTimeNs = 0L
+                var lastFrameTime = 0.nanoseconds
                 while (isActive) {
-                    val deltaTimeNs = withFrameNanosChoreo { frameTimeNs ->
-                        (if (lastFrameTimeNs == 0L) 0L else frameTimeNs - lastFrameTimeNs).also {
-                            lastFrameTimeNs = frameTimeNs
+                    val deltaTime = withFrameNanosChoreographer { frameTimeNs ->
+                        val frameTime = frameTimeNs.nanoseconds
+                        (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
+                            lastFrameTime = frameTime
                         }
                     }
 
-                    val file = riveFile ?: continue
+                    val file = riveFile ?: break
                     val cq = file.commandQueue
-                    val art = artboardHandle ?: continue
-                    val sm = stateMachineHandle ?: continue
-                    val rs = riveSurface ?: continue
+                    val art = artboardHandle ?: break
+                    val sm = stateMachineHandle ?: break
+                    val rs = riveSurface ?: break
 
-                    cq.advanceStateMachine(sm, deltaTimeNs)
+                    cq.advanceStateMachine(sm, deltaTime)
                     cq.draw(art, sm, Fit.CONTAIN, Alignment.CENTER, rs)
                 }
             }
@@ -90,18 +91,19 @@ class RiveUIView @JvmOverloads constructor(
                 width: Int,
                 height: Int
             ) {
-                surface = Surface(newSurfaceTexture)
+                this@RiveUIView.surfaceTexture = newSurfaceTexture
                 surfaceWidth = width
                 surfaceHeight = height
                 riveFile?.let { file ->
-                    riveSurface = file.commandQueue.createRiveSurface(surface!!)
+                    riveSurface = file.commandQueue.createRiveSurface(newSurfaceTexture)
                 }
             }
 
             override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
                 riveSurface = null
-                surface = null
-                return true
+                // False here means that we are responsible for destroying the surface texture
+                // This happens in RenderContext::close(), called from CommandQueue::destroyRiveSurface
+                return false
             }
 
             override fun onSurfaceTextureSizeChanged(
@@ -131,8 +133,8 @@ class RiveUIView @JvmOverloads constructor(
         else
             file.commandQueue.createDefaultStateMachine(artboardHandle!!)
 
-        if (surface != null && riveSurface == null) {
-            riveSurface = file.commandQueue.createRiveSurface(surface!!)
+        if (surfaceTexture != null && riveSurface == null) {
+            riveSurface = file.commandQueue.createRiveSurface(surfaceTexture!!)
         }
     }
 }

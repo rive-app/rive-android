@@ -1,6 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "helpers/font_helper.hpp"
+#include "helpers/rive_log.hpp"
 #include "models/dimensions_helper.hpp"
 #include <jni.h>
 
@@ -63,6 +64,8 @@ extern "C"
         // pretty much considered the entrypoint.
         SetSDKVersion();
         rive::Font::gFallbackProc = FontHelper::FindFontFallback;
+        // Initialize RiveLog helper for efficient logging from C++
+        InitializeRiveLog();
     }
 
 #ifdef __cplusplus

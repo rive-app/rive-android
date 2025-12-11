@@ -43,6 +43,9 @@
             android:name=".RiveUIViewActivity"
             android:exported="true" />
         <activity
+            android:name=".RiveSnapshotActivity"
+            android:exported="true" />
+        <activity
             android:name=".SimpleActivity"
             android:exported="true" />
         <activity android:name=".EventsActivity" />

@@ -23,7 +23,7 @@ class RiveUIViewActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         val commandQueue = CommandQueue().also {
-            it.withLifecycle(this, "SingleActivity")
+            it.withLifecycle(this, "RiveUIViewActivity")
 
             lifecycleScope.launch {
                 it.beginPolling(lifecycle)

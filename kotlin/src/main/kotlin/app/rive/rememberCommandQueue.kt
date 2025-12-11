@@ -31,18 +31,19 @@ import app.rive.core.ImageHandle
  * handle failure gracefully, use [rememberCommandQueueOrNull] instead.
  *
  * @return The created [CommandQueue].
- * @throws RuntimeException If the command queue cannot be created for any reason.
+ * @throws RiveInitializationException If the command queue cannot be created for any reason.
  * @see CommandQueue
  * @see rememberCommandQueueOrNull
  */
 @ExperimentalRiveComposeAPI
 @Composable
-@Throws(RuntimeException::class)
-fun rememberCommandQueue(): CommandQueue {
+@Throws(RiveInitializationException::class)
+fun rememberCommandQueue(autoPoll: Boolean = true): CommandQueue {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
-    val commandQueue = rememberCommandQueueOrNull(errorState)
-    return commandQueue ?: throw RuntimeException(
-        errorState.value ?: RuntimeException("Failed to create CommandQueue")
+    val commandQueue = rememberCommandQueueOrNull(errorState, autoPoll)
+    return commandQueue ?: throw RiveInitializationException(
+        "Failed to create CommandQueue",
+        errorState.value
     )
 }
 
@@ -61,7 +62,8 @@ fun rememberCommandQueue(): CommandQueue {
 @ExperimentalRiveComposeAPI
 @Composable
 fun rememberCommandQueueOrNull(
-    errorState: MutableState<Throwable?> = mutableStateOf(null)
+    errorState: MutableState<Throwable?> = mutableStateOf(null),
+    autoPoll: Boolean = true,
 ): CommandQueue? {
     val lifecycleOwner = LocalLifecycleOwner.current
     val commandQueue = remember {
@@ -80,8 +82,8 @@ fun rememberCommandQueueOrNull(
      *
      * Uses [ComposeFrameTicker] as the implementation for frame timing.
      */
-    LaunchedEffect(lifecycleOwner, commandQueue) {
-        if (commandQueue == null) return@LaunchedEffect
+    LaunchedEffect(lifecycleOwner, commandQueue, autoPoll) {
+        if (commandQueue == null || !autoPoll) return@LaunchedEffect
 
         commandQueue.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
     }

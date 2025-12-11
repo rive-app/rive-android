@@ -33,11 +33,11 @@ internal class SuspendLazy<T>(private val block: suspend () -> T) {
             is DeferredResult.Success -> res.value
             is DeferredResult.Failure -> throw res.error
             DeferredResult.Uninitialized -> mutex.withLock {
-                when (val res = result) {
+                when (val lockedRes = result) {
                     // Need to check again inside the lock on the small chance another coroutine
                     // initialized the value while we were waiting for the lock.
-                    is DeferredResult.Success -> res.value
-                    is DeferredResult.Failure -> throw res.error
+                    is DeferredResult.Success -> lockedRes.value
+                    is DeferredResult.Failure -> throw lockedRes.error
                     // Non-cached path, compute the value.
                     DeferredResult.Uninitialized -> try {
                         val v = block()

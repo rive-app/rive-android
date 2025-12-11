@@ -35,6 +35,16 @@ private:
     static void check_and_rethrow(JNIEnv* env);
 
 public:
+    /**
+     * Clears any pending exceptions and logs them. Useful when there is no
+     * need to re-throw and the exception should be ignored.
+     *
+     * @return true if an exception was cleared, false otherwise
+     */
+    static bool ClearAndLogErrors(JNIEnv* env,
+                                  const char* tag,
+                                  const char* message);
+
     static jobject CallObjectMethod(JNIEnv* env,
                                     jobject obj,
                                     jmethodID methodID,

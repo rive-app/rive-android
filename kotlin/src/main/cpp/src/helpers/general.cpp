@@ -27,7 +27,7 @@ long g_sdkVersion;
 JNIEnv* GetJNIEnv()
 {
     // double check it's all ok
-    JNIEnv* g_env;
+    JNIEnv* g_env = nullptr;
     int getEnvStat = g_JVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED)
     {

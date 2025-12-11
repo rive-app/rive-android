@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onSubscription
 
-internal const val VM_INSTANCE_TAG = "RiveUI/VMI"
+internal const val VM_INSTANCE_TAG = "Rive/VMI"
 
 /**
  * A view model instance for data binding which has properties that can be set and observed.
@@ -32,11 +32,11 @@ internal const val VM_INSTANCE_TAG = "RiveUI/VMI"
  * @param commandQueue The command queue that owns the view model instance.
  */
 class ViewModelInstance internal constructor(
-    internal val instanceHandle: ViewModelInstanceHandle,
+    val instanceHandle: ViewModelInstanceHandle,
     private val commandQueue: CommandQueue,
     private val fileHandle: FileHandle,
-) : AutoCloseable by CloseOnce({
-    RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle} (${fileHandle})" }
+) : AutoCloseable by CloseOnce("$instanceHandle", {
+    RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
     commandQueue.deleteViewModelInstance(instanceHandle)
 }) {
     companion object {
@@ -88,7 +88,7 @@ class ViewModelInstance internal constructor(
                 commandQueue.subscribeToProperty(instanceHandle, propertyPath, propertyType)
                 // Fire the getter so its reply comes through as the first emission
                 // (ignoring the immediately returned value).
-                runCatching { getter(instanceHandle, propertyPath) }
+                getter(instanceHandle, propertyPath)
             }
             .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
             .map { it.value }
@@ -104,6 +104,11 @@ class ViewModelInstance internal constructor(
      * the flow slowly, consider applying [conflate] if you only need the latest value to skip
      * intermediate values. Alternatively, if you need to process every value, consider using a
      * [buffer] operator with an appropriate buffer size to handle bursts.
+     *
+     * Collection of the flow may cause an exception:
+     * - [RuntimeException]: If this class has been [closed][close], if the property does not exist
+     *   on this view model instance, or is is of a different type.
+     * - [IllegalStateException]: If the backing command queue has been released.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -121,6 +126,8 @@ class ViewModelInstance internal constructor(
     /**
      * Creates or retrieves from cache a [string][String] property, represented as a cold [Flow].
      *
+     * The collection of the flow may cause an exception. See [getNumberFlow] for details.
+     *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [String] values representing the property.
@@ -137,6 +144,8 @@ class ViewModelInstance internal constructor(
 
     /**
      * Creates or retrieves from cache a [boolean][Boolean] property, represented as a cold [Flow].
+     *
+     * The collection of the flow may cause an exception. See [getNumberFlow] for details.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -156,6 +165,8 @@ class ViewModelInstance internal constructor(
      * Creates or retrieves from cache an enum property, represented as a cold [Flow]. Enums are
      * represented as strings, and this flow will emit the string value of the enum.
      *
+     * The collection of the flow may cause an exception. See [getNumberFlow] for details.
+     *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [String] values representing the enum property.
@@ -173,6 +184,8 @@ class ViewModelInstance internal constructor(
     /**
      * Creates or retrieves from cache a color property, represented as a cold [Flow]. Colors are
      * represented as AARRGGBB integers, and this flow will emit the integer value of the color.
+     *
+     * The collection of the flow may cause an exception. See [getNumberFlow] for details.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -192,11 +205,12 @@ class ViewModelInstance internal constructor(
      * Creates or retrieves from cache a trigger property, represented as a cold [Flow]. Triggers
      * emit Unit as the value, which simply indicates that the trigger has been fired.
      *
-     * The flow is subscribed to updates from the command queue while it is being collected.
+     * The collection of the flow may cause an exception. See [getNumberFlow] for details.
      *
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @return A cold [Flow] of [Unit] values representing trigger events.
+     * @see getNumberFlow
      */
     fun getTriggerFlow(propertyPath: String): Flow<Unit> = triggerFlows.getOrPut(propertyPath) {
         commandQueue.triggerPropertyFlow
@@ -224,6 +238,8 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [number][Float] property on this view model instance.
      *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
@@ -233,6 +249,8 @@ class ViewModelInstance internal constructor(
 
     /**
      * Sets a [string][String] property on this view model instance.
+     *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -244,6 +262,8 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [boolean][Boolean] property on this view model instance.
      *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
@@ -253,6 +273,8 @@ class ViewModelInstance internal constructor(
 
     /**
      * Sets an enum property on this view model instance. Enums are represented as strings.
+     *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -265,6 +287,8 @@ class ViewModelInstance internal constructor(
      * Sets a color property on this view model instance. Colors are represented as AARRGGBB
      * integers.
      *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The integer value of the color to set the property to.
@@ -274,6 +298,8 @@ class ViewModelInstance internal constructor(
 
     /**
      * Fires a trigger on this view model instance.
+     *
+     * Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
@@ -307,7 +333,6 @@ sealed interface ViewModelSource {
     /** A specific instance by name. */
     fun namedInstance(instanceName: String): ViewModelInstanceSource =
         ViewModelInstanceSource.Named(this, instanceName)
-
 }
 
 /**

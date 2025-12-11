@@ -1,5 +1,6 @@
 package app.rive
 
+import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
@@ -10,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -27,10 +29,11 @@ import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
+import kotlin.time.Duration.Companion.nanoseconds
 
-private const val GENERAL_TAG = "RiveUI"
-private const val STATE_MACHINE_TAG = "RiveUI/SM"
-private const val DRAW_TAG = "RiveUI/Draw"
+private const val GENERAL_TAG = "Rive/UI"
+private const val STATE_MACHINE_TAG = "Rive/UI/SM"
+private const val DRAW_TAG = "Rive/UI/Draw"
 
 @RequiresOptIn(
     level = RequiresOptIn.Level.WARNING,
@@ -60,6 +63,9 @@ sealed interface Result<out T> {
     }
 }
 
+/** Function type for getting a Bitmap. */
+typealias GetBitmapFun = () -> Bitmap
+
 /**
  * The main composable for rendering a Rive file's artboard and state machine.
  *
@@ -75,76 +81,80 @@ sealed interface Result<out T> {
  *
  * @param file The [RiveFile] that created the artboard and state machine.
  * @param modifier The [Modifier] to apply to the composable.
+ * @param playing Whether the state machine should advance. When true (default), the state machine
+ *    will advance on each frame. When false, the advancement loop will not activate.
  * @param artboard The [Artboard] to render. If null, the default artboard will be used.
- * @param stateMachineName The name of the state machine to use. If null, the default state machine
- *    will be used.
+ * @param stateMachine The [StateMachine] to use. If null, the default state machine will be
+ *    created.
  * @param viewModelInstance The [ViewModelInstance] to bind to the state machine. If null, no view
  *    model instance will be bound.
  * @param fit The [Fit] to use for the artboard. Defaults to [Fit.CONTAIN].
  * @param alignment The [Alignment] to use for the artboard. Defaults to [Alignment.CENTER].
  * @param clearColor The color to clear the surface with before drawing. Defaults to transparent.
+ * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
+ *    available. The callback provides a function to get the current [Bitmap] from the underlying
+ *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
+ *    getter is only valid while the surface is active.
  */
 @ExperimentalRiveComposeAPI
 @Composable
 fun RiveUI(
     file: RiveFile,
     modifier: Modifier = Modifier,
+    playing: Boolean = true,
     artboard: Artboard? = null,
-    stateMachineName: String? = null,
+    stateMachine: StateMachine? = null,
     viewModelInstance: ViewModelInstance? = null,
     fit: Fit = Fit.CONTAIN,
     alignment: Alignment = Alignment.CENTER,
-    clearColor: Int = Color.Transparent.toArgb()
+    clearColor: Int = Color.Transparent.toArgb(),
+    onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
     RiveLog.v(GENERAL_TAG) { "RiveUI Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val commandQueue = file.commandQueue
 
-    val artboardHandle = remember(file.fileHandle, artboard) {
-        artboard?.artboardHandle ?: commandQueue.createDefaultArtboard(file.fileHandle)
+    /** Use provided artboard or create a default one. */
+    val artboardToUse = remember(file.fileHandle, artboard) {
+        artboard ?: Artboard.fromFile(file)
     }
-    val stateMachineHandle = remember(artboardHandle, stateMachineName) {
-        val handle = if (stateMachineName != null)
-            commandQueue.createStateMachineByName(artboardHandle, stateMachineName)
-        else
-            commandQueue.createDefaultStateMachine(artboardHandle)
+    val artboardHandle = artboardToUse.artboardHandle
 
-        RiveLog.d(STATE_MACHINE_TAG) { "Created $handle with name $stateMachineName (${artboardHandle}; ${file.fileHandle})" }
-
-        handle
+    /** Clean up the artboard if we created it internally. */
+    DisposableEffect(artboardToUse) {
+        onDispose {
+            if (artboard == null) {
+                artboardToUse.close()
+            }
+        }
     }
+
+    /** Use provided state machine or create a default one. */
+    val stateMachineToUse = remember(file.fileHandle, artboardHandle, stateMachine) {
+        stateMachine ?: StateMachine.fromArtboard(
+            artboardToUse,
+            null
+        )
+    }
+    val stateMachineHandle = stateMachineToUse.stateMachineHandle
     var isSettled by remember(stateMachineHandle) { mutableStateOf(false) }
+
+    /** Clean up for the state machine if we created it internally. */
+    DisposableEffect(stateMachineToUse) {
+        onDispose {
+            if (stateMachine == null) {
+                stateMachineToUse.close()
+            }
+        }
+    }
 
     var surface by remember { mutableStateOf<RiveSurface?>(null) }
     var surfaceWidth by remember { mutableIntStateOf(0) }
     var surfaceHeight by remember { mutableIntStateOf(0) }
-    val surfaceListener = remember {
-        object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(
-                newSurfaceTexture: SurfaceTexture, width: Int, height: Int
-            ) {
-                val newSurface = Surface(newSurfaceTexture)
-                surface = commandQueue.createRiveSurface(newSurface)
-                surfaceWidth = width
-                surfaceHeight = height
-            }
 
-            override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
-                surface = null
-                return true
-            }
-
-            override fun onSurfaceTextureSizeChanged(
-                surfaceTexture: SurfaceTexture, width: Int, height: Int
-            ) {
-                surfaceWidth = width
-                surfaceHeight = height
-            }
-
-            override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {}
-        }
-    }
+    val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
+    var bitmapCallbackSent by remember { mutableStateOf(false) }
 
     // In debug builds, output the reasons for recomposition
     RebuggerWrapper(
@@ -157,17 +167,10 @@ fun RiveUI(
             "alignment" to alignment,
             "lifecycleOwner" to lifecycleOwner,
             "artboard" to artboard,
-            "stateMachineName" to stateMachineName,
+            "stateMachine" to stateMachine,
+            "playing" to playing,
         )
     )
-
-    /** Clean up for the state machine. */
-    DisposableEffect(stateMachineHandle) {
-        onDispose {
-            RiveLog.d(STATE_MACHINE_TAG) { "Deleting $stateMachineHandle with name $stateMachineName ($artboardHandle; ${file.fileHandle})" }
-            commandQueue.deleteStateMachine(stateMachineHandle)
-        }
-    }
 
     /** Bind the view model instance to the state machine. */
     LaunchedEffect(stateMachineHandle, viewModelInstance) {
@@ -182,8 +185,22 @@ fun RiveUI(
             viewModelInstance.instanceHandle
         )
 
+        // Advance to exit the "Entry" state and apply initial values
+        commandQueue.advanceStateMachine(stateMachineHandle, 0.nanoseconds)
+
         // Assigning a view model instance unsettles the state machine
         isSettled = false
+
+        if (!playing) {
+            commandQueue.draw(
+                artboardHandle,
+                stateMachineHandle,
+                fit,
+                alignment,
+                surface!!,
+                clearColor
+            )
+        }
 
         // Subscribe to the instance's dirty flow to unsettle when properties change
         viewModelInstance.dirtyFlow.collect {
@@ -196,7 +213,7 @@ fun RiveUI(
     DisposableEffect(surface) {
         val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
         onDispose {
-            nonNullSurface.dispose()
+            commandQueue.destroyRiveSurface(nonNullSurface)
         }
     }
 
@@ -226,18 +243,34 @@ fun RiveUI(
         fit,
         alignment,
         clearColor,
+        playing,
     ) {
         if (surface == null) {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
             return@LaunchedEffect
         }
+        if (!playing) {
+            RiveLog.d(DRAW_TAG) { "Playing is false, skipping advancement loop" }
+
+            commandQueue.draw(
+                artboardHandle,
+                stateMachineHandle,
+                fit,
+                alignment,
+                surface!!,
+                clearColor
+            )
+
+            return@LaunchedEffect
+        }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
-            var lastFrameTimeNs = 0L
+            var lastFrameTime = 0.nanoseconds
             while (isActive) {
-                val deltaTimeNs = withFrameNanos { frameTimeNs ->
-                    (if (lastFrameTimeNs == 0L) 0L else frameTimeNs - lastFrameTimeNs).also {
-                        lastFrameTimeNs = frameTimeNs
+                val deltaTime = withFrameNanos { frameTimeNs ->
+                    val frameTime = frameTimeNs.nanoseconds
+                    (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
+                        lastFrameTime = frameTime
                     }
                 }
 
@@ -246,7 +279,7 @@ fun RiveUI(
                     continue
                 }
 
-                commandQueue.advanceStateMachine(stateMachineHandle, deltaTimeNs)
+                commandQueue.advanceStateMachine(stateMachineHandle, deltaTime)
                 commandQueue.draw(
                     artboardHandle,
                     stateMachineHandle,
@@ -256,14 +289,63 @@ fun RiveUI(
                     clearColor
                 )
             }
+            RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
         }
     }
 
     AndroidView(
         factory = { context ->
             TextureView(context).apply {
-                surfaceTextureListener = surfaceListener
                 isOpaque = false
+
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(
+                        newSurfaceTexture: SurfaceTexture,
+                        width: Int,
+                        height: Int
+                    ) {
+                        RiveLog.d(GENERAL_TAG) { "Surface texture available ($width x $height)" }
+                        surface = commandQueue.createRiveSurface(newSurfaceTexture)
+                        surfaceWidth = width
+                        surfaceHeight = height
+                        // Because this is a new surface, we send a fresh callback
+                        bitmapCallbackSent = false
+                    }
+
+                    override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
+                        RiveLog.d(GENERAL_TAG) { "Surface texture destroyed (final release deferred to RenderContext disposal)" }
+                        surface = null
+                        bitmapCallbackSent = false
+                        // False here means that we are responsible for destroying the surface texture
+                        // This happens in RenderContext::close(), called from CommandQueue::destroyRiveSurface
+                        return false
+                    }
+
+                    override fun onSurfaceTextureSizeChanged(
+                        surfaceTexture: SurfaceTexture,
+                        width: Int,
+                        height: Int
+                    ) {
+                        RiveLog.d(GENERAL_TAG) { "Surface texture size changed ($width x $height)" }
+                        surfaceWidth = width
+                        surfaceHeight = height
+                    }
+
+                    override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {
+                        // Only dispatch once per surface, and only when a real frame is available
+                        if (!bitmapCallbackSent) {
+                            val bmp = bitmap
+                            if (bmp != null) {
+                                bitmapCallbackSent = true
+                                currentOnBitmapAvailable?.invoke {
+                                    // Getter is safe because we only expose it after first non-null frame
+                                    bitmap
+                                        ?: error("Bitmap no longer available; surface may have been destroyed")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         modifier = modifier.then(

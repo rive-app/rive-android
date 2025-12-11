@@ -50,7 +50,7 @@ sealed class Asset<H>(
     protected val handle: H,
     protected val commandQueue: CommandQueue,
     private val ops: AssetOps<H, out Asset<H>>,
-) : AutoCloseable by CloseOnce({
+) : AutoCloseable by CloseOnce("$handle", {
     RiveLog.d(ops.tag) { "Deleting ${ops.label} with handle: $handle" }
     ops.delete(commandQueue, handle)
 
