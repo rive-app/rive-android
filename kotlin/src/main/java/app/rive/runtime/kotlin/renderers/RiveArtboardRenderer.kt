@@ -100,11 +100,4 @@ open class RiveArtboardRenderer(
         start()
     }
 
-    override fun disposeDependencies() {
-        // Lock to ensure dependencies are disposed in an orderly manner and to coordinate
-        // with any ongoing file/artboard operations that might be using these dependencies.
-        synchronized(controller.file?.lock ?: this) {
-            super.disposeDependencies()
-        }
-    }
 }
