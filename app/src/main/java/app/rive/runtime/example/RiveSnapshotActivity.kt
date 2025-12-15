@@ -19,6 +19,7 @@ import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.StateMachine
 import app.rive.core.CommandQueue
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.launch
@@ -35,9 +36,8 @@ class RiveSnapshotActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         RiveLog.logger = RiveLog.LogcatLogger()
-
         snapshotView = SnapshotCanvasView(this)
-        setContentView(snapshotView)
+        setEdgeToEdgeContent(snapshotView)
 
         val commandQueue = CommandQueue().also {
             it.withLifecycle(this, TAG)

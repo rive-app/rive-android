@@ -1,12 +1,13 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
 
-class HttpActivity : AppCompatActivity() {
+class HttpActivity : ComponentActivity() {
     // Url of the Rive file
     private val riveUrl = "https://cdn.rive.app/animations/juice_v7.riv"
 
@@ -28,10 +29,7 @@ class HttpActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_http)
-
-        // Hides the app/action bar
-        supportActionBar?.hide()
+        setEdgeToEdgeContent(R.layout.activity_http)
 
         // Load the Rive data asynchronously
         httpViewModel.byteLiveData.observe(

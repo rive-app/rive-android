@@ -71,7 +71,7 @@ class RiveUIView @JvmOverloads constructor(
                     val rs = riveSurface ?: break
 
                     cq.advanceStateMachine(sm, deltaTime)
-                    cq.draw(art, sm, Fit.CONTAIN, Alignment.CENTER, rs)
+                    cq.draw(art, sm, rs, Fit.CONTAIN, Alignment.CENTER)
                 }
             }
         }

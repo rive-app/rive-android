@@ -44,7 +44,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
             context: android.content.Context,
             config: SnapshotActivityConfig
         ): Intent = Intent(context, SnapshotBitmapActivity::class.java).apply {
-            SnapshotActivityConfig.intoIntent(this, config)
+            config.applyToIntent(this)
         }
     }
 
@@ -92,6 +92,20 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         val (width, height) = 100 to 100
+        val fit = when (config) {
+            is SnapshotActivityConfig.Layout -> if (config.useLayout) {
+                Fit.LAYOUT
+            } else {
+                Fit.NONE
+            }
+
+            else -> Fit.NONE // Default to no layout for other scenarios
+        }
+        val layoutScale = when (config) {
+            is SnapshotActivityConfig.Layout -> config.layoutScale
+            else -> 1f // Default of 1 for other scenarios
+        }
+
         RenderBuffer(width, height, file.commandQueue).use { buffer ->
             Artboard.fromFile(file, config.artboardName).use { artboard ->
                 StateMachine.fromArtboard(artboard).use { stateMachine ->
@@ -103,6 +117,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                             stateMachine.stateMachineHandle,
                             vmi.instanceHandle
                         )
+
                         when (config) {
                             is SnapshotActivityConfig.Sweep -> {
                                 // Map percentage (0f-1f) to milliseconds (0-1000ms)
@@ -129,13 +144,21 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                                 stateMachine.advance(0.milliseconds)
                             }
 
+                            is SnapshotActivityConfig.Layout -> {
+                                if (config.useLayout) {
+                                    artboard.resizeArtboard(buffer.surface, config.layoutScale)
+                                }
+                                stateMachine.advance(0.milliseconds)
+                            }
+
                             else -> {
                                 // No additional setup needed for other scenarios beyond initial advance
                                 stateMachine.advance(0.milliseconds)
                             }
                         }
                         resultBitmap =
-                            buffer.snapshot(artboard, stateMachine, fit = Fit.NONE).toBitmap()
+                            buffer.snapshot(artboard, stateMachine, fit, scaleFactor = layoutScale)
+                                .toBitmap()
                     }
                 }
             }

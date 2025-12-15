@@ -54,6 +54,7 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv*, jobject)
     {
+        const auto TAG = "RiveN/Init";
 #if defined(DEBUG) || defined(LOG)
         // luigi: again ifdef this out for release (or murder completely, but
         // it's nice to catch all fprintf to stderr).
@@ -63,9 +64,11 @@ extern "C"
 #endif
         // pretty much considered the entrypoint.
         SetSDKVersion();
-        rive::Font::gFallbackProc = FontHelper::FindFontFallback;
-        // Initialize RiveLog helper for efficient logging from C++
+        // Initialize RiveLog helper for logging from C++
         InitializeRiveLog();
+
+        RiveLogD(TAG, "Initializing fallback font global callback");
+        rive::Font::gFallbackProc = FontHelper::FindFontFallback;
     }
 
 #ifdef __cplusplus

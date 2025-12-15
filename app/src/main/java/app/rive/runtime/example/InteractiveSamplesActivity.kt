@@ -3,11 +3,12 @@ package app.rive.runtime.example
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import java.util.Calendar
 
-class InteractiveSamplesActivity : AppCompatActivity() {
+class InteractiveSamplesActivity : ComponentActivity() {
     private var keepGoing = true
     fun setTime() {
         val hours =
@@ -19,7 +20,8 @@ class InteractiveSamplesActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.interactive_samples)
+        setEdgeToEdgeContent(R.layout.interactive_samples)
+
         setTime()
         val h = Handler(Looper.getMainLooper())
         h.postDelayed(object : Runnable {

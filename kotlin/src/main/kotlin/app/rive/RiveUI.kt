@@ -90,6 +90,8 @@ typealias GetBitmapFun = () -> Bitmap
  *    model instance will be bound.
  * @param fit The [Fit] to use for the artboard. Defaults to [Fit.CONTAIN].
  * @param alignment The [Alignment] to use for the artboard. Defaults to [Alignment.CENTER].
+ * @param layoutScaleFactor The scale factor to use when [fit] is set to [Fit.LAYOUT]. Defaults to
+ *    1f. Does not affect other [Fit] modes.
  * @param clearColor The color to clear the surface with before drawing. Defaults to transparent.
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
@@ -107,6 +109,7 @@ fun RiveUI(
     viewModelInstance: ViewModelInstance? = null,
     fit: Fit = Fit.CONTAIN,
     alignment: Alignment = Alignment.CENTER,
+    layoutScaleFactor: Float = 1f,
     clearColor: Int = Color.Transparent.toArgb(),
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
@@ -116,42 +119,25 @@ fun RiveUI(
     val commandQueue = file.commandQueue
 
     /** Use provided artboard or create a default one. */
-    val artboardToUse = remember(file.fileHandle, artboard) {
-        artboard ?: Artboard.fromFile(file)
-    }
+    val artboardToUse = artboard ?: rememberArtboard(file)
     val artboardHandle = artboardToUse.artboardHandle
 
-    /** Clean up the artboard if we created it internally. */
-    DisposableEffect(artboardToUse) {
-        onDispose {
-            if (artboard == null) {
-                artboardToUse.close()
-            }
-        }
-    }
-
     /** Use provided state machine or create a default one. */
-    val stateMachineToUse = remember(file.fileHandle, artboardHandle, stateMachine) {
-        stateMachine ?: StateMachine.fromArtboard(
-            artboardToUse,
-            null
-        )
-    }
+    val stateMachineToUse = stateMachine ?: rememberStateMachine(artboardToUse)
     val stateMachineHandle = stateMachineToUse.stateMachineHandle
     var isSettled by remember(stateMachineHandle) { mutableStateOf(false) }
-
-    /** Clean up for the state machine if we created it internally. */
-    DisposableEffect(stateMachineToUse) {
-        onDispose {
-            if (stateMachine == null) {
-                stateMachineToUse.close()
-            }
-        }
-    }
 
     var surface by remember { mutableStateOf<RiveSurface?>(null) }
     var surfaceWidth by remember { mutableIntStateOf(0) }
     var surfaceHeight by remember { mutableIntStateOf(0) }
+
+    /** Clean up for the surface. */
+    DisposableEffect(surface) {
+        val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
+        onDispose {
+            commandQueue.destroyRiveSurface(nonNullSurface)
+        }
+    }
 
     val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
     var bitmapCallbackSent by remember { mutableStateOf(false) }
@@ -160,15 +146,18 @@ fun RiveUI(
     RebuggerWrapper(
         trackMap = mapOf(
             "file" to file,
+            "playing" to playing,
+            "artboard" to artboard,
             "artboardHandle" to artboardHandle,
+            "stateMachine" to stateMachine,
             "stateMachineHandle" to stateMachineHandle,
-            "surface" to surface,
+            "viewModelInstance" to viewModelInstance,
             "fit" to fit,
             "alignment" to alignment,
+            "layoutScaleFactor" to layoutScaleFactor,
+            "clearColor" to clearColor,
+            "surface" to surface,
             "lifecycleOwner" to lifecycleOwner,
-            "artboard" to artboard,
-            "stateMachine" to stateMachine,
-            "playing" to playing,
         )
     )
 
@@ -185,35 +174,13 @@ fun RiveUI(
             viewModelInstance.instanceHandle
         )
 
-        // Advance to exit the "Entry" state and apply initial values
-        commandQueue.advanceStateMachine(stateMachineHandle, 0.nanoseconds)
-
         // Assigning a view model instance unsettles the state machine
         isSettled = false
-
-        if (!playing) {
-            commandQueue.draw(
-                artboardHandle,
-                stateMachineHandle,
-                fit,
-                alignment,
-                surface!!,
-                clearColor
-            )
-        }
 
         // Subscribe to the instance's dirty flow to unsettle when properties change
         viewModelInstance.dirtyFlow.collect {
             RiveLog.v(VM_INSTANCE_TAG) { "View model instance dirty, unsettling $stateMachineHandle" }
             isSettled = false
-        }
-    }
-
-    /** Clean up for the surface. */
-    DisposableEffect(surface) {
-        val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
-        onDispose {
-            commandQueue.destroyRiveSurface(nonNullSurface)
         }
     }
 
@@ -228,10 +195,28 @@ fun RiveUI(
     }
 
     /**
-     * Changing the fit, alignment, or clear color unsettles the state machine, forcing a re-draw.
+     * Changing the fit, alignment, layout scale factor, or clear color unsettles the state machine,
+     * forcing a re-draw.
      */
-    LaunchedEffect(fit, alignment, clearColor) {
+    LaunchedEffect(fit, alignment, layoutScaleFactor, clearColor) {
+        RiveLog.d(STATE_MACHINE_TAG) {
+            "State machine $stateMachineHandle unsettled due to parameter change"
+        }
         isSettled = false
+    }
+
+    /** Resize artboard based on fit parameter. */
+    LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight, layoutScaleFactor) {
+        if (surface == null) {
+            return@LaunchedEffect
+        }
+        if (fit == Fit.LAYOUT) {
+            RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
+            artboardToUse.resizeArtboard(surface!!, layoutScaleFactor)
+        } else {
+            RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
+            artboardToUse.resetArtboardSize()
+        }
     }
 
     /** Drawing loop while RESUMED. */
@@ -240,8 +225,10 @@ fun RiveUI(
         surface,
         artboardHandle,
         stateMachineHandle,
+        viewModelInstance,
         fit,
         alignment,
+        layoutScaleFactor,
         clearColor,
         playing,
     ) {
@@ -250,14 +237,20 @@ fun RiveUI(
             return@LaunchedEffect
         }
         if (!playing) {
-            RiveLog.d(DRAW_TAG) { "Playing is false, skipping advancement loop" }
+            RiveLog.d(DRAW_TAG) {
+                "Playing is false. Advancing by 0, drawing once, and skipping advancement loop."
+            }
 
+            //Advance the state machine once to exit the "Entry" state and apply initial values,
+            // including any pending artboard resizes from the fit mode.
+            stateMachineToUse.advance(0.nanoseconds)
             commandQueue.draw(
                 artboardHandle,
                 stateMachineHandle,
+                surface!!,
                 fit,
                 alignment,
-                surface!!,
+                layoutScaleFactor,
                 clearColor
             )
 
@@ -283,9 +276,10 @@ fun RiveUI(
                 commandQueue.draw(
                     artboardHandle,
                     stateMachineHandle,
+                    surface!!,
                     fit,
                     alignment,
-                    surface!!,
+                    layoutScaleFactor,
                     clearColor
                 )
             }
@@ -337,10 +331,15 @@ fun RiveUI(
                             val bmp = bitmap
                             if (bmp != null) {
                                 bitmapCallbackSent = true
-                                currentOnBitmapAvailable?.invoke {
-                                    // Getter is safe because we only expose it after first non-null frame
-                                    bitmap
-                                        ?: error("Bitmap no longer available; surface may have been destroyed")
+                                // Post the callback to the next frame to ensure the bitmap is fully rendered.
+                                // Prevents race conditions where the callback is invoked before the
+                                // draw command has completed rendering to the surface.
+                                post {
+                                    currentOnBitmapAvailable?.invoke {
+                                        // Getter is safe because we only expose it after first non-null frame
+                                        bitmap
+                                            ?: error("Bitmap no longer available; surface may have been destroyed")
+                                    }
                                 }
                             }
                         }
@@ -376,6 +375,7 @@ fun RiveUI(
                                 stateMachineHandle,
                                 fit,
                                 alignment,
+                                layoutScaleFactor,
                                 surfaceWidth.toFloat(),
                                 surfaceHeight.toFloat(),
                                 change.id.value.toInt(),

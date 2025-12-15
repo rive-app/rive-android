@@ -2,20 +2,21 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.bundleOf
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.add
 import androidx.fragment.app.commit
 import app.rive.runtime.example.databinding.ActivityViewStubBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
-class ViewStubActivity : AppCompatActivity() {
+class ViewStubActivity : FragmentActivity() {
 
     private lateinit var binding: ActivityViewStubBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityViewStubBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setEdgeToEdgeContent(binding.root)
 
         val viewStub = binding.viewstubRiveContainer
         viewStub.setOnInflateListener { _, _ ->

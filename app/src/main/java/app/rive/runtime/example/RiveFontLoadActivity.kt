@@ -2,17 +2,16 @@ package app.rive.runtime.example
 
 import android.content.Context
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.core.ContextAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import kotlin.random.Random
 
-class FontLoadActivity : AppCompatActivity() {
+class FontLoadActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(
-            R.layout.rive_font_load_simple
-        )
+        setEdgeToEdgeContent(R.layout.rive_font_load_simple)
     }
 }
 

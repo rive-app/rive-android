@@ -52,7 +52,7 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
             context: android.content.Context,
             config: SnapshotActivityConfig
         ): Intent = Intent(context, SnapshotComposeActivity::class.java).apply {
-            SnapshotActivityConfig.intoIntent(this, config)
+            config.applyToIntent(this)
         }
     }
 
@@ -131,16 +131,30 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
                         }
 
                         val dpSize = with(LocalDensity.current) { 100.toDp() }
+                        val fit = when (config) {
+                            is SnapshotActivityConfig.Layout -> if (config.useLayout) {
+                                Fit.LAYOUT
+                            } else {
+                                Fit.NONE
+                            }
+
+                            else -> Fit.NONE // Default to no layout for other scenarios
+                        }
+                        val layoutScale = when (config) {
+                            is SnapshotActivityConfig.Layout -> config.layoutScale
+                            else -> 1f // Default of 1 for other scenarios
+                        }
 
                         RiveUI(
                             file = riveFile,
+                            modifier = Modifier.requiredSize(dpSize),
                             playing = false,
                             artboard = artboard,
                             stateMachine = stateMachine,
                             viewModelInstance = vmi,
-                            fit = Fit.NONE,
+                            fit = fit,
                             alignment = RiveAlignment.CENTER,
-                            modifier = Modifier.requiredSize(dpSize),
+                            layoutScaleFactor = layoutScale,
                             onBitmapAvailable = { bitmapFn ->
                                 RiveLog.i("SnapshotComposeActivity") { "Bitmap available" }
                                 // Get the bitmap and store it

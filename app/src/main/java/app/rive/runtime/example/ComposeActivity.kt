@@ -118,12 +118,12 @@ class ComposeActivity : ComponentActivity() {
                         .fillMaxSize()
                 ) {
                     // Switch on the status of the loading Rive file
-                    when (val file = riveFileResult) {
+                    when (riveFileResult) {
                         is Result.Loading -> LoadingIndicator()
-                        is Result.Error -> ErrorMessage(file.throwable)
+                        is Result.Error -> ErrorMessage(riveFileResult.throwable)
                         is Result.Success -> {
                             // On success, we can use the Rive file
-                            val riveFile = file.value
+                            val riveFile = riveFileResult.value
 
                             // Query the Rive file for artboard names
                             val artboardNames by produceState<List<String>>(emptyList(), riveFile) {

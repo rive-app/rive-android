@@ -11,13 +11,4 @@
         <attr name="riveStateMachine" />
         <attr name="rivePressAnimation" format="string" />
     </declare-styleable>
-    <declare-styleable name="RiveSwitch">
-        <attr name="riveResource" />
-        <attr name="riveArtboard" />
-        <attr name="riveAnimation" />
-        <attr name="riveStateMachine" />
-        <attr name="riveOnAnimation" format="string" />
-        <attr name="riveOffAnimation" format="string" />
-        <attr name="riveBooleanStateInput" format="string" />
-    </declare-styleable>
 </resources>

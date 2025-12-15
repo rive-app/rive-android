@@ -10,10 +10,11 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.Spinner
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatCheckBox
 import androidx.appcompat.widget.AppCompatEditText
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Artboard
@@ -25,7 +26,7 @@ import app.rive.runtime.kotlin.core.SMIBoolean
 import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.StateMachineInstance
 
-class AndroidPlayerActivity : AppCompatActivity() {
+class AndroidPlayerActivity : ComponentActivity() {
     var loop: Loop = Loop.AUTO
     var direction: Direction = Direction.AUTO
     var playButtonMap: HashMap<String, View> = HashMap()
@@ -334,7 +335,8 @@ class AndroidPlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.android_player)
+        setEdgeToEdgeContent(R.layout.android_player)
+
         setResourceSpinner()
         loadResource(0)
         val that = this

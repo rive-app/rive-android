@@ -7,7 +7,9 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.CloseOnce
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.RiveSurface
 import app.rive.core.SuspendLazy
+import app.rive.runtime.kotlin.core.Fit
 
 private const val ARTBOARD_TAG = "Rive/Artboard"
 
@@ -62,6 +64,43 @@ class Artboard internal constructor(
     private val stateMachineNamesCache = SuspendLazy {
         commandQueue.getStateMachineNames(artboardHandle)
     }
+
+    /**
+     * Resizes this artboard to match the dimensions of the given surface, divided by the scale
+     * factor.
+     *
+     * ℹ️ This is required when drawing with a fit type of [Fit.LAYOUT], where the artboard is
+     * expected to match the dimensions of the surface it is drawn to and layout its children within
+     * those bounds.
+     *
+     * ⚠️ In order for this to take effect, the state machine associated to this artboard must be
+     * advanced, even if just by 0.
+     *
+     * @param surface The surface whose width and height will be used to resize the artboard.
+     * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
+     *    surface dimensions divided by this factor. Defaults to 1f.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun resizeArtboard(
+        surface: RiveSurface,
+        scaleFactor: Float = 1f
+    ) = commandQueue.resizeArtboard(artboardHandle, surface, scaleFactor)
+
+    /**
+     * Resets this artboard to its original dimensions.
+     *
+     * ℹ️ This should be called if the artboard was previously resized with [resizeArtboard] and
+     * you now want to draw with a fit type other than [Fit.LAYOUT], to restore the artboard to its
+     * original size.
+     *
+     * ⚠️ In order for this to take effect, the state machine associated to this artboard must be
+     * advanced, even if just by 0.
+     *
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun resetArtboardSize() = commandQueue.resetArtboardSize(artboardHandle)
 }
 
 /**

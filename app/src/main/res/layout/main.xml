@@ -7,16 +7,14 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingVertical="8dp">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:id="@+id/button_container"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
-            android:orientation="vertical"
-            android:paddingVertical="8dp">
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/go_compose"
@@ -25,6 +23,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
                 android:text="Compose"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_layout"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Layout"
                 android:textColor="@color/textColorPrimary" />
 
             <Button

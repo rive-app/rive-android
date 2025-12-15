@@ -5,14 +5,15 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.RiveEvent
 import app.rive.runtime.kotlin.core.RiveGeneralEvent
 import app.rive.runtime.kotlin.core.RiveOpenURLEvent
 
-class EventsActivity : AppCompatActivity() {
+class EventsActivity : ComponentActivity() {
 
     private val starRatingAnimation: RiveAnimationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById(R.id.star_event_asset)
@@ -28,7 +29,8 @@ class EventsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.events)
+        setEdgeToEdgeContent(R.layout.events)
+
         setStarRating()
         setUrlButton()
         setLogButton()

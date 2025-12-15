@@ -491,7 +491,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 onComplete(it)
                 it.release()
             },
-            { throw IOException("Unable to download Rive file $url") },
+            { volleyError -> throw IOException("Unable to download Rive file $url", volleyError) },
             assetLoader = rendererAttributes.assetLoader
         )
         queue.add(stringRequest)
@@ -1189,16 +1189,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
  */
 open class RiveViewLifecycleObserver(protected val dependencies: MutableList<RefCount>) :
     DefaultLifecycleObserver {
-    override fun onCreate(owner: LifecycleOwner) {}
-
-    override fun onStart(owner: LifecycleOwner) {}
-
-    override fun onResume(owner: LifecycleOwner) {}
-
-    override fun onPause(owner: LifecycleOwner) {}
-
-    override fun onStop(owner: LifecycleOwner) {}
-
     /**
      * [DefaultLifecycleObserver.onDestroy] is called when the [LifecycleOwner]'s
      * [ON_DESTROY][Lifecycle.Event.ON_DESTROY] event is thrown. This typically happens when the

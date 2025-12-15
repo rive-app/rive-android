@@ -4,12 +4,14 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
 @ControllerStateManagement
 class MainActivity : ComponentActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_compose, ComposeActivity::class.java),
+        Pair(R.id.go_compose_layout, ComposeLayoutActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),
         Pair(R.id.go_events, EventsActivity::class.java),
         Pair(R.id.go_interactive_samples, InteractiveSamplesActivity::class.java),
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.main)
+        setEdgeToEdgeContent(R.layout.main)
 
         buttonsData.forEach { pair ->
             findViewById<Button>(pair.first).setOnClickListener {

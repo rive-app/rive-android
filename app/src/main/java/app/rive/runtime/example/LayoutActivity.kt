@@ -2,12 +2,13 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 
-class LayoutActivity : AppCompatActivity() {
+class LayoutActivity : ComponentActivity() {
 
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.layout_view)
@@ -15,7 +16,7 @@ class LayoutActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.layout)
+        setEdgeToEdgeContent(R.layout.layout)
 
         // FIT BUTTONS
 
@@ -48,7 +49,7 @@ class LayoutActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.scale_up).setOnClickListener {
             if (animationView.fit != Fit.LAYOUT) {
-                return@setOnClickListener;
+                return@setOnClickListener
             }
 
             if (animationView.layoutScaleFactor == null) {
@@ -57,12 +58,12 @@ class LayoutActivity : AppCompatActivity() {
                 animationView.layoutScaleFactor = animationView.layoutScaleFactorAutomatic
             }
 
-            animationView.layoutScaleFactor = animationView.layoutScaleFactor?.plus(1);
+            animationView.layoutScaleFactor = animationView.layoutScaleFactor?.plus(1)
 
         }
         findViewById<Button>(R.id.scale_down).setOnClickListener {
             if (animationView.fit != Fit.LAYOUT) {
-                return@setOnClickListener;
+                return@setOnClickListener
             }
 
             if (animationView.layoutScaleFactor == null) {
@@ -72,12 +73,12 @@ class LayoutActivity : AppCompatActivity() {
             }
 
             if (animationView.layoutScaleFactor!! > 1) {
-                animationView.layoutScaleFactor = animationView.layoutScaleFactor?.minus(1);
+                animationView.layoutScaleFactor = animationView.layoutScaleFactor?.minus(1)
             }
         }
         findViewById<Button>(R.id.scale_auto).setOnClickListener {
             // Setting to -1 will use the device density as determined by Rive
-            animationView.layoutScaleFactor = null;
+            animationView.layoutScaleFactor = null
         }
 
         // ALIGNMENT BUTTONS

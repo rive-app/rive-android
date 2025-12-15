@@ -2,31 +2,23 @@ package app.rive.runtime.example
 
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.activity.ComponentActivity
 import app.rive.runtime.example.databinding.ActivityAudioExternalAssetBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.AudioAsset
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
 import app.rive.runtime.kotlin.core.RiveAudio
 
-class AudioAssetActivity : AppCompatActivity() {
+class AudioAssetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_audio_asset)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        setEdgeToEdgeContent(R.layout.activity_audio_asset)
     }
 }
 
-class AudioExternalAssetActivity : AppCompatActivity() {
+class AudioExternalAssetActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityAudioExternalAssetBinding
     private val audioDecoder = AudioDecoder(this)
@@ -34,8 +26,7 @@ class AudioExternalAssetActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAudioExternalAssetBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
-        setContentView(binding.root)
+        setEdgeToEdgeContent(binding.root)
 
         val riveView = RiveAnimationView.Builder(this)
             .setAssetLoader(audioDecoder)

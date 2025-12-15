@@ -819,6 +819,13 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueue_cppPollMessages(JNIEnv*, jobject, jlong ref)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->processMessages();
+    }
+
+    JNIEXPORT void JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppLoadFile(JNIEnv* env,
                                                          jobject,
                                                          jlong ref,
@@ -1632,6 +1639,7 @@ extern "C"
                                                    jlong stateMachineHandle,
                                                    jobject jFit,
                                                    jobject jAlignment,
+                                                   jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
                                                    jint pointerID,
@@ -1645,7 +1653,8 @@ extern "C"
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
+                                    static_cast<float_t>(pointerY)),
+            .scaleFactor = static_cast<float>(layoutScale)};
         event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerMove(
@@ -1660,6 +1669,7 @@ extern "C"
                                                    jlong stateMachineHandle,
                                                    jobject jFit,
                                                    jobject jAlignment,
+                                                   jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
                                                    jint pointerID,
@@ -1673,7 +1683,8 @@ extern "C"
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
+                                    static_cast<float_t>(pointerY)),
+            .scaleFactor = static_cast<float>(layoutScale)};
         event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerDown(
@@ -1688,6 +1699,7 @@ extern "C"
                                                  jlong stateMachineHandle,
                                                  jobject jFit,
                                                  jobject jAlignment,
+                                                 jfloat layoutScale,
                                                  jfloat surfaceWidth,
                                                  jfloat surfaceHeight,
                                                  jint pointerID,
@@ -1701,7 +1713,8 @@ extern "C"
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
+                                    static_cast<float_t>(pointerY)),
+            .scaleFactor = static_cast<float>(layoutScale)};
         event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerUp(
@@ -1716,6 +1729,7 @@ extern "C"
                                                    jlong stateMachineHandle,
                                                    jobject jFit,
                                                    jobject jAlignment,
+                                                   jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
                                                    jint pointerID,
@@ -1729,12 +1743,48 @@ extern "C"
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
+                                    static_cast<float_t>(pointerY)),
+            .scaleFactor = static_cast<float>(layoutScale)};
         event.pointerId = static_cast<int>(pointerID);
 
         commandQueue->pointerExit(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
             event);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueue_cppResizeArtboard(JNIEnv*,
+                                                      jobject,
+                                                      jlong ref,
+                                                      jlong jArtboardHandle,
+                                                      jint jWidth,
+                                                      jint jHeight,
+                                                      jfloat jScaleFactor)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto artboardHandle =
+            handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
+        auto width = static_cast<float_t>(jWidth);
+        auto height = static_cast<float_t>(jHeight);
+        auto scaleFactor = static_cast<float_t>(jScaleFactor);
+
+        commandQueue->setArtboardSize(artboardHandle,
+                                      width,
+                                      height,
+                                      scaleFactor);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueue_cppResetArtboardSize(JNIEnv*,
+                                                         jobject,
+                                                         jlong ref,
+                                                         jlong jArtboardHandle)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto artboardHandle =
+            handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
+
+        commandQueue->resetArtboardSize(artboardHandle);
     }
 
     JNIEXPORT jlong JNICALL
@@ -1786,13 +1836,6 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPollMessages(JNIEnv*, jobject, jlong ref)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->processMessages();
-    }
-
-    JNIEXPORT void JNICALL
     Java_app_rive_core_CommandQueue_cppDraw(JNIEnv* env,
                                             jobject,
                                             jlong ref,
@@ -1806,6 +1849,7 @@ extern "C"
                                             jint height,
                                             jobject jFit,
                                             jobject jAlignment,
+                                            jfloat jScaleFactor,
                                             jint jClearColor)
     {
         auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
@@ -1816,6 +1860,7 @@ extern "C"
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(env, jFit);
         auto alignment = GetAlignment(env, jAlignment);
+        auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
 
         auto drawWork = [commandQueue,
@@ -1828,8 +1873,9 @@ extern "C"
                          height,
                          fit,
                          alignment,
-                         clearColor](rive::DrawKey drawKey,
-                                     rive::CommandServer* server) {
+                         clearColor,
+                         scaleFactor](rive::DrawKey drawKey,
+                                      rive::CommandServer* server) {
             auto artboard = server->getArtboardInstance(
                 handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
             if (artboard == nullptr)
@@ -1881,7 +1927,8 @@ extern "C"
                                       0.0f,
                                       static_cast<float_t>(width),
                                       static_cast<float_t>(height)),
-                           artboard->bounds());
+                           artboard->bounds(),
+                           scaleFactor);
             artboard->draw(&renderer);
 
             // Flush the draw commands
@@ -1905,10 +1952,11 @@ extern "C"
                                                     jlong artboardHandleRef,
                                                     jlong stateMachineHandleRef,
                                                     jlong renderTargetRef,
-                                                    jint width,
-                                                    jint height,
+                                                    jint jWidth,
+                                                    jint jHeight,
                                                     jobject jFit,
                                                     jobject jAlignment,
+                                                    jfloat jScaleFactor,
                                                     jint jClearColor,
                                                     jbyteArray jBuffer)
     {
@@ -1920,9 +1968,10 @@ extern "C"
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(env, jFit);
         auto alignment = GetAlignment(env, jAlignment);
+        auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
-        auto widthInt = static_cast<int>(width);
-        auto heightInt = static_cast<int>(height);
+        auto width = static_cast<int>(jWidth);
+        auto height = static_cast<int>(jHeight);
         auto* pixels = reinterpret_cast<uint8_t*>(
             env->GetByteArrayElements(jBuffer, nullptr));
         auto jExceptionClass =
@@ -1953,10 +2002,11 @@ extern "C"
                          artboardHandleRef,
                          stateMachineHandleRef,
                          renderTarget,
-                         widthInt,
-                         heightInt,
+                         width,
+                         height,
                          fit,
                          alignment,
+                         scaleFactor,
                          clearColor,
                          pixels,
                          completionPromise](rive::DrawKey drawKey,
@@ -1996,8 +2046,8 @@ extern "C"
                 static_cast<rive::gpu::RenderContext*>(server->factory());
 
             riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
-                .renderTargetWidth = static_cast<uint32_t>(widthInt),
-                .renderTargetHeight = static_cast<uint32_t>(heightInt),
+                .renderTargetWidth = static_cast<uint32_t>(width),
+                .renderTargetHeight = static_cast<uint32_t>(height),
                 .loadAction = rive::gpu::LoadAction::clear,
                 .clearColor = clearColor,
             });
@@ -2008,9 +2058,10 @@ extern "C"
                            alignment,
                            rive::AABB(0.0f,
                                       0.0f,
-                                      static_cast<float_t>(widthInt),
-                                      static_cast<float_t>(heightInt)),
-                           artboard->bounds());
+                                      static_cast<float_t>(width),
+                                      static_cast<float_t>(height)),
+                           artboard->bounds(),
+                           scaleFactor);
             artboard->draw(&renderer);
 
             riveContext->flush({
@@ -2022,20 +2073,20 @@ extern "C"
             glPixelStorei(GL_PACK_ALIGNMENT, 1);
             glReadPixels(0,
                          0,
-                         widthInt,
-                         heightInt,
+                         width,
+                         height,
                          GL_RGBA,
                          GL_UNSIGNED_BYTE,
                          pixels);
 
-            auto rowBytes = static_cast<size_t>(widthInt) * 4;
+            auto rowBytes = static_cast<size_t>(width) * 4;
             std::vector<uint8_t> row(rowBytes);
             auto* data = pixels;
-            for (int y = 0; y < heightInt / 2; ++y)
+            for (int y = 0; y < height / 2; ++y)
             {
                 auto* top = data + (static_cast<size_t>(y) * rowBytes);
                 auto* bottom =
-                    data + (static_cast<size_t>(heightInt - 1 - y) * rowBytes);
+                    data + (static_cast<size_t>(height - 1 - y) * rowBytes);
                 std::memcpy(row.data(), top, rowBytes);
                 std::memcpy(top, bottom, rowBytes);
                 std::memcpy(bottom, row.data(), rowBytes);

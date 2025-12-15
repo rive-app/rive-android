@@ -4,9 +4,10 @@ import android.content.Context
 import android.graphics.RectF
 import android.os.Bundle
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveTextureView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
@@ -15,13 +16,10 @@ import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.renderers.Renderer
 
-class LowLevelActivity : AppCompatActivity() {
+class LowLevelActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_low_level)
-
-        // Hides the app/action bar
-        supportActionBar?.hide()
+        setEdgeToEdgeContent(R.layout.activity_low_level)
 
         // Attach the Rive view to the activity's root layout
         val layout = findViewById<ViewGroup>(R.id.low_level_view_root)

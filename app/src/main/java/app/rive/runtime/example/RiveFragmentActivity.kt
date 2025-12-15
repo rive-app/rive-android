@@ -1,16 +1,17 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.bundleOf
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.add
 import androidx.fragment.app.commit
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
-class RiveFragmentActivity : AppCompatActivity() {
+class RiveFragmentActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_rive_fragment)
+        setEdgeToEdgeContent(R.layout.activity_rive_fragment)
 
         // Instantiate the basketball fragment
         var bundle = bundleOf(RIVE_FRAGMENT_ARG_RES_ID to R.raw.basketball)

@@ -62,6 +62,10 @@ class SnapshotTest(
     @get:Rule
     val dropshots = Dropshots()
 
+    /**
+     * Tests a sweeping line from left to right. The given percentage will move this line a
+     * proportional amount, ensuring that the state machine is advancing at the correct rate.
+     */
     @Test
     fun testSweep() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -79,6 +83,10 @@ class SnapshotTest(
         }
     }
 
+    /**
+     * Tests data binding a string, ensuring the text displays as correctly, including when it's an
+     * empty string or when no value is supplied.
+     */
     @Test
     fun testDataBind() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -98,6 +106,31 @@ class SnapshotTest(
             }
 
             runSnapshotTest(context, config, testName)
+        }
+    }
+
+    /**
+     * Tests that the layout system is applying correctly at various scales. Two squares are laid in
+     * a row, with wrapping enabled. In the original artboard, it is too narrow, so wrapping takes
+     * effect and they stack vertically. When expanded to 100px in this test, they lay out in a row.
+     */
+    @Test
+    fun testLayout() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+        listOf(true, false).forEach { useLayout ->
+            listOf(0.5f, 1f, 1.5f).forEach { layoutScale ->
+                val config = SnapshotActivityConfig.Layout(useLayout, layoutScale)
+                val layoutStr = if (useLayout) "On" else "Off"
+                val scaleStr = "Scale${layoutScale.toString().replace('.', '_')}"
+                val testName = "layout$layoutStr$scaleStr"
+
+                RiveLog.i("SnapshotTest") {
+                    "Testing ${activityType.name.lowercase()} with layout: $useLayout"
+                }
+
+                runSnapshotTest(context, config, testName)
+            }
         }
     }
 
