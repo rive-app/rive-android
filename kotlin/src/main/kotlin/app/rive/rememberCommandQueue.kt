@@ -8,12 +8,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import app.rive.core.AudioEngine
 import app.rive.core.AudioHandle
 import app.rive.core.COMMAND_QUEUE_TAG
 import app.rive.core.CommandQueue
 import app.rive.core.ComposeFrameTicker
 import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
+import kotlinx.coroutines.awaitCancellation
 
 /**
  * A [CommandQueue] is the worker that runs Rive in a thread. It holds all of the state, including
@@ -86,6 +89,25 @@ fun rememberCommandQueueOrNull(
         if (commandQueue == null || !autoPoll) return@LaunchedEffect
 
         commandQueue.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
+    }
+
+    /**
+     * Manage audio engine start/stop state based on the surrounding lifecycle. Acquires a reference
+     * when RESUMED and releases when exiting RESUMED.
+     */
+    LaunchedEffect(commandQueue, lifecycleOwner) {
+        if (commandQueue == null) return@LaunchedEffect
+
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            AudioEngine.acquire()
+            try {
+                // Wait while RESUMED - the coroutine will be cancelled when lifecycle exits RESUMED
+                awaitCancellation()
+            } finally {
+                // Release the audio engine reference when exiting RESUMED state
+                AudioEngine.release()
+            }
+        }
     }
 
     /** Disposes the command queue when it falls out of scope. */

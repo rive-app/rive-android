@@ -491,9 +491,15 @@ class CommandQueue(
      * owner's lifecycle reaches DESTROYED. Returns an [AutoCloseable] that can be used to manually
      * release early; calling it is idempotent.
      *
+     * Also manages the audio engine start/stop state by acquiring a reference when the lifecycle is
+     * "resumed" and releasing when "paused" or destroyed.
+     *
      * Typical usage from an Activity or Fragment:
      *
      * val cq = CommandQueue().also { it.withLifecycle(this, "MyActivity") }
+     *
+     * ⚠️ Do not use this with a command queue created with [rememberCommandQueue]. A command queue
+     * created with that method has its lifecycle managed by the Composable's lifecycle.
      *
      * @param owner The LifecycleOwner to tie this CommandQueue's lifetime to, such as an Activity
      *    or Fragment.
@@ -502,16 +508,40 @@ class CommandQueue(
      */
     fun withLifecycle(owner: LifecycleOwner, source: String): AutoCloseable {
         lateinit var onClose: CloseOnce // lateinit to break circular reference
+        var audioAcquired = false
         val observer = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                if (!audioAcquired) {
+                    AudioEngine.acquire()
+                    audioAcquired = true
+                }
+            }
+
+            override fun onPause(owner: LifecycleOwner) {
+                if (audioAcquired) {
+                    AudioEngine.release()
+                    audioAcquired = false
+                }
+            }
+
             override fun onDestroy(owner: LifecycleOwner) {
                 onClose.close()
             }
         }
         onClose = CloseOnce("CommandQueue (withLifecycle)") {
             owner.lifecycle.removeObserver(observer)
+            if (audioAcquired) {
+                AudioEngine.release()
+                audioAcquired = false
+            }
             cppPointer.release(source, "Closed by withLifecycle")
         }
         owner.lifecycle.addObserver(observer)
+        // If already RESUMED, acquire immediately since the callback won't fire
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            AudioEngine.acquire()
+            audioAcquired = true
+        }
         return onClose
     }
 

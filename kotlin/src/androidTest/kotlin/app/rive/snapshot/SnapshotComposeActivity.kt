@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Result
@@ -69,13 +68,9 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         setContent {
-            val context = LocalContext.current
-
             val commandQueue = rememberCommandQueue()
-            val riveFileResult = rememberRiveFile(
-                RiveFileSource.RawRes(R.raw.snapshot_test, context.resources),
-                commandQueue
-            )
+            val riveFileResult =
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), commandQueue)
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 when (riveFileResult) {

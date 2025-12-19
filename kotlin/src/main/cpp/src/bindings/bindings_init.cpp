@@ -1,6 +1,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "helpers/font_helper.hpp"
+#include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
 #include "models/dimensions_helper.hpp"
 #include <jni.h>
@@ -52,7 +53,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv*, jobject)
+    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env,
+                                                         jobject jObj)
     {
         const auto TAG = "RiveN/Init";
 #if defined(DEBUG) || defined(LOG)
@@ -66,6 +68,11 @@ extern "C"
         SetSDKVersion();
         // Initialize RiveLog helper for logging from C++
         InitializeRiveLog();
+
+        // Use the calling Rive jobject as the "anchor" to initialize the global
+        // class loader.
+        RiveLogD(TAG, "Initializing global class loader");
+        InitJNIClassLoader(env, jObj);
 
         RiveLogD(TAG, "Initializing fallback font global callback");
         rive::Font::gFallbackProc = FontHelper::FindFontFallback;

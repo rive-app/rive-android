@@ -24,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Result
@@ -48,13 +47,9 @@ class ComposeLayoutActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val context = LocalContext.current
-
             val commandQueue = rememberCommandQueue()
-            val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes(R.raw.layouts_demo, context.resources),
-                commandQueue
-            )
+            val riveFile =
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.layouts_demo), commandQueue)
 
             var useLayout by rememberSaveable { mutableStateOf(true) }
             var scaleFactor by rememberSaveable { mutableStateOf(1f) }

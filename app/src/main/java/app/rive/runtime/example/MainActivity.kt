@@ -11,7 +11,11 @@ import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 class MainActivity : ComponentActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_compose, ComposeActivity::class.java),
+        Pair(R.id.go_compose_data_binding, ComposeDataBindingActivity::class.java),
         Pair(R.id.go_compose_layout, ComposeLayoutActivity::class.java),
+        Pair(R.id.go_compose_audio, ComposeAudioActivity::class.java),
+        Pair(R.id.go_compose_touch_pass_through, ComposeTouchPassThroughActivity::class.java),
+        Pair(R.id.go_compose_scrolling, ComposeScrollActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),
         Pair(R.id.go_events, EventsActivity::class.java),
         Pair(R.id.go_interactive_samples, InteractiveSamplesActivity::class.java),

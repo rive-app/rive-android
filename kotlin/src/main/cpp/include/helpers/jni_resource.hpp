@@ -79,6 +79,15 @@ public:
     }
 };
 
+/**
+ * Capture a global ClassLoader so native-attached threads can load app classes.
+ * Call early from the main thread.
+ *
+ * @param env The JNI environment
+ * @param anchorObject The object from which to capture the ClassLoader.
+ */
+void InitJNIClassLoader(JNIEnv* env, jobject anchorObject);
+
 // Helper function templates to simplify usage
 template <typename T> JniResource<T> MakeJniResource(T res, JNIEnv* env)
 {

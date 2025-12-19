@@ -45,19 +45,17 @@ class JCommandQueue
 {
 public:
     JCommandQueue(JNIEnv* env, jobject jQueue) :
-        m_env(env),
         m_class(reinterpret_cast<jclass>(
-            env->NewGlobalRef(env->FindClass("app/rive/core/CommandQueue")))),
+            env->NewGlobalRef(GetObjectClass(env, jQueue).get()))),
         m_jQueue(env->NewGlobalRef(jQueue))
     {}
 
     ~JCommandQueue()
     {
-        m_env->DeleteGlobalRef(m_class);
-        m_env->DeleteGlobalRef(m_jQueue);
+        auto env = GetJNIEnv();
+        env->DeleteGlobalRef(m_class);
+        env->DeleteGlobalRef(m_jQueue);
     }
-
-    [[nodiscard]] JNIEnv* env() const { return m_env; }
 
     /**
      * Call a CommandQueue Kotlin instance method.
@@ -69,12 +67,12 @@ public:
     template <typename... Args>
     void call(const char* name, const char* sig, Args... args) const
     {
-        jmethodID mid = m_env->GetMethodID(m_class, name, sig);
-        m_env->CallVoidMethod(m_jQueue, mid, args...);
+        auto env = GetJNIEnv();
+        jmethodID mid = env->GetMethodID(m_class, name, sig);
+        env->CallVoidMethod(m_jQueue, mid, args...);
     }
 
 private:
-    JNIEnv* const m_env;
     jclass m_class;
     jobject m_jQueue;
 };
@@ -92,7 +90,7 @@ public:
                      uint64_t requestID,
                      std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onFileError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -109,7 +107,7 @@ public:
                            uint64_t requestID,
                            std::vector<std::string> artboardNames) override
     {
-        auto jList = VecStringToJStringList(m_queue.env(), artboardNames);
+        auto jList = VecStringToJStringList(GetJNIEnv(), artboardNames);
         m_queue.call("onArtboardsListed",
                      "(JLjava/util/List;)V",
                      requestID,
@@ -120,7 +118,7 @@ public:
                             uint64_t requestID,
                             std::vector<std::string> viewModelNames) override
     {
-        auto jList = VecStringToJStringList(m_queue.env(), viewModelNames);
+        auto jList = VecStringToJStringList(GetJNIEnv(), viewModelNames);
         m_queue.call("onViewModelsListed",
                      "(JLjava/util/List;)V",
                      requestID,
@@ -133,7 +131,7 @@ public:
         std::string,
         std::vector<std::string> instanceNames) override
     {
-        auto jList = VecStringToJStringList(m_queue.env(), instanceNames);
+        auto jList = VecStringToJStringList(GetJNIEnv(), instanceNames);
         m_queue.call("onViewModelInstancesListed",
                      "(JLjava/util/List;)V",
                      requestID,
@@ -147,7 +145,7 @@ public:
         std::vector<rive::CommandQueue::FileListener::ViewModelPropertyData>
             properties) override
     {
-        auto env = m_queue.env();
+        auto env = GetJNIEnv();
         auto arrayListClass = FindClass(env, "java/util/ArrayList");
         auto arrayListConstructor =
             env->GetMethodID(arrayListClass.get(), "<init>", "()V");
@@ -203,7 +201,7 @@ public:
                                 uint64_t requestID,
                                 std::vector<rive::ViewModelEnum> enums) override
     {
-        auto env = m_queue.env();
+        auto env = GetJNIEnv();
         auto arrayListClass = FindClass(env, "java/util/ArrayList");
         auto arrayListConstructor =
             env->GetMethodID(arrayListClass.get(), "<init>", "()V");
@@ -273,7 +271,7 @@ public:
                          uint64_t requestID,
                          std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onArtboardError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -285,7 +283,7 @@ public:
         uint64_t requestID,
         std::vector<std::string> stateMachineNames) override
     {
-        auto jList = VecStringToJStringList(m_queue.env(), stateMachineNames);
+        auto jList = VecStringToJStringList(GetJNIEnv(), stateMachineNames);
         m_queue.call("onStateMachinesListed",
                      "(JLjava/util/List;)V",
                      requestID,
@@ -309,7 +307,7 @@ public:
                              uint64_t requestID,
                              std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onStateMachineError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -340,7 +338,7 @@ public:
                                   uint64_t requestID,
                                   std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onViewModelInstanceError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -352,7 +350,7 @@ public:
         uint64_t requestID,
         rive::CommandQueue::ViewModelInstanceData data) override
     {
-        auto env = m_queue.env();
+        auto env = GetJNIEnv();
         auto jPropertyName = MakeJString(env, data.metaData.name);
 
         switch (data.metaData.type)
@@ -440,7 +438,7 @@ public:
                             uint64_t requestID,
                             std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onImageError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -473,7 +471,7 @@ public:
                             uint64_t requestID,
                             std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onAudioError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -506,7 +504,7 @@ public:
                      uint64_t requestID,
                      std::string error) override
     {
-        auto jError = MakeJString(m_queue.env(), error);
+        auto jError = MakeJString(GetJNIEnv(), error);
         m_queue.call("onFontError",
                      "(JLjava/lang/String;)V",
                      requestID,
@@ -567,6 +565,10 @@ void getProperty(JNIEnv* env,
 
 constexpr static const char* TAG_CQ = "RiveN/CQ";
 
+/**
+ * A subclass of rive::CommandQueue which handles starting and stopping of the
+ * std::thread.
+ */
 class CommandQueueWithThread : public rive::CommandQueue
 {
 public:
@@ -584,8 +586,10 @@ public:
     void startCommandServer(RenderContext* renderContext,
                             std::promise<StartupResult>&& promise)
     {
-        // Keep a strong ref while thread runs
-        auto self = rive::rcp<CommandQueueWithThread>(this);
+        // Wrap command queue in an RCP, adding +1 ref with ref_rcp.
+        // Before this RCP falls out of scope (-1) it is copied (+1) into the
+        // thread lambda which is unref'd (-1) at the end of the lambda scope.
+        auto self = rive::ref_rcp<CommandQueueWithThread>(this);
 
         m_commandServerThread = std::thread([renderContext,
                                              self,
@@ -593,11 +597,11 @@ public:
                                                  std::move(promise)]() mutable {
             const auto THREAD_NAME = "Rive CmdServer";
             JNIEnv* env = nullptr;
-            RiveLogD(TAG_CQ, "Attaching command server thread to JVM");
             JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
                                   .name = THREAD_NAME,
                                   .group = nullptr};
             auto attachResult = g_JVM->AttachCurrentThread(&env, &args);
+            RiveLogD(TAG_CQ, "Attached command server thread to JVM");
             if (attachResult != JNI_OK)
             {
                 RiveLogE(TAG_CQ,
@@ -644,6 +648,9 @@ public:
                 return;
             }
 
+            // Stack allocated command server
+            // Takes a copy of this object's RCP, increasing the ref count to 3,
+            // releasing it when the command server falls out of scope.
             RiveLogD(TAG_CQ, "Creating command server");
             auto commandServer = std::make_unique<rive::CommandServer>(
                 self,
@@ -660,13 +667,22 @@ public:
 
             RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
 
-            // Matching unref from constructor since we release()'d.
-            // Ensures the command queue outlives the command server's run.
-            RiveLogD(TAG_CQ, "Deleting command queue");
-            self->unref();
-
             RiveLogD(TAG_CQ, "Deleting render context");
             renderContext->destroy();
+
+            // Extra information for debugging command queue lifetimes
+            auto refCnt = self->debugging_refcnt();
+            if (refCnt != 3)
+            {
+                RiveLogW(
+                    TAG_CQ,
+                    "Command queue ref count before worker thread detach does not match expected value:\n"
+                    "  Expected: 3; Actual: %d\n"
+                    "    1. Main thread's released reference\n"
+                    "    2. This worker thread, cleaned by rcp scope\n"
+                    "    3. Command server rcp, stack allocated and about to fall from scope",
+                    refCnt);
+            }
 
             // Cleanup JVM thread attachment
             RiveLogD(TAG_CQ, "Detaching command server thread from JVM");
@@ -728,12 +744,12 @@ extern "C"
         std::promise<StartupResult> promise;
         std::future<StartupResult> resultFuture = promise.get_future();
 
-        /* Create a command queue with an owned thread handle.
-         * The ref count is now 2, one for the base constructor of RefCnt, one
-         * for using `ref_rcp`. One is released in the CommandServer thread when
-         * it shuts down. The other is released in cppDelete. */
+        /* Create a command queue with an owned thread handle (ref count 1).
+         * The command server thread will also own 1 after calling
+         * startCommandServer.
+         * This RCP is released here, and its ref is deleted in in cppDelete. */
         auto commandQueue =
-            rive::ref_rcp<CommandQueueWithThread>(new CommandQueueWithThread());
+            rive::rcp<CommandQueueWithThread>(new CommandQueueWithThread());
         // Start the C++ thread that drives the CommandServer
         commandQueue->startCommandServer(renderContext, std::move(promise));
 
@@ -769,7 +785,32 @@ extern "C"
         auto commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
         // Blocks the calling thread until the command server thread shuts down
         commandQueue->shutdownAndJoin();
-        // Second unref, matches the one from cppConstructor
+
+        // Second unref, matches the RefCnt constructor's default of 1 from
+        // cppConstructor
+        auto refCnt = commandQueue->debugging_refcnt();
+        // Log any unexpected ref counts
+        if (refCnt != 1)
+        {
+            RiveLogW(
+                "RiveN/CQ",
+                "Command queue ref count before cppDelete unref does not match expected value:\n"
+                "  Expected: 1; Actual: %d\n"
+                "    1. This main thread's released reference",
+                refCnt);
+            if (refCnt > 1)
+            {
+                RiveLogW(
+                    TAG_CQ,
+                    "Expected the count to be 1 but it is greater, likely indicating a leak.");
+            }
+            else if (refCnt < 1)
+            {
+                RiveLogW(
+                    TAG_CQ,
+                    "Expected the count to be 1 but it is less. May result in use-after-free.");
+            }
+        }
         commandQueue->unref();
     }
 

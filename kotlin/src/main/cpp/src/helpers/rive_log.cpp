@@ -116,35 +116,35 @@ static void LogMessage(jmethodID methodID,
     // Try to use RiveLog if initialized, otherwise fallback to android log
     if (methodID != nullptr && g_riveLogInitialized)
     {
-        JNIEnv* env = GetJNIEnv();
-        if (env != nullptr)
+        JNIEnv* env = nullptr;
+        auto getEnvStat = g_JVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (getEnvStat != JNI_OK)
         {
-            // Create Kotlin strings for tag and message
-            auto jTag = MakeJString(env, tag);
-            auto jMessage = MakeJString(env, buffer);
+            LOGE("Logging error: Unable to get JNIEnv for RiveLog");
+            return;
+        }
 
-            // Call the static method
-            env->CallStaticVoidMethod(g_riveLogClass,
-                                      methodID,
-                                      jTag.get(),
-                                      jMessage.get());
+        // Create Kotlin strings for tag and message
+        auto jTag = MakeJString(env, tag);
+        auto jMessage = MakeJString(env, buffer);
 
-            // Check for exceptions (but don't throw - logging shouldn't crash)
-            if (env->ExceptionCheck())
-            {
-                LOGE("Logging error: Exception occurred in RiveLog method");
-                env->ExceptionDescribe(); // Log the exception details
-                env->ExceptionClear();
-                // Fall through to Android logging fallback
-            }
-            else
-            {
-                return; // Successfully logged via RiveLog
-            }
+        // Call the static method
+        env->CallStaticVoidMethod(g_riveLogClass,
+                                  methodID,
+                                  jTag.get(),
+                                  jMessage.get());
+
+        // Check for exceptions (but don't throw - logging shouldn't crash)
+        if (env->ExceptionCheck())
+        {
+            LOGE("Logging error: Exception occurred in RiveLog method");
+            env->ExceptionDescribe(); // Log the exception details
+            env->ExceptionClear();
+            // Fall through to Android logging fallback
         }
         else
         {
-            LOGE("Logging error: Unable to get JNIEnv for RiveLog");
+            return; // Successfully logged via RiveLog
         }
     }
 

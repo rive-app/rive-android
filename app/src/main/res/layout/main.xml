@@ -26,12 +26,48 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
+                android:id="@+id/go_compose_data_binding"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
                 android:id="@+id/go_compose_layout"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
                 android:text="Compose Layout"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_audio"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Audio"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_touch_pass_through"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Touch Pass Through"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_scrolling"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Scrolling"
                 android:textColor="@color/textColorPrimary" />
 
             <Button

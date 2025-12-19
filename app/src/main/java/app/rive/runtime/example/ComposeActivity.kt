@@ -105,7 +105,7 @@ class ComposeActivity : ComponentActivity() {
             val riveFileResult = font.andThen {
                 rememberRiveFile(
                     // Point to the Rive raw resource file
-                    RiveFileSource.RawRes(R.raw.rating_animation_all, context.resources),
+                    RiveFileSource.RawRes.from(R.raw.rating_animation_all),
                     commandQueue
                 )
             }

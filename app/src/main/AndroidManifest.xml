@@ -36,7 +36,19 @@
             android:name=".ComposeActivity"
             android:exported="true" />
         <activity
+            android:name=".ComposeDataBindingActivity"
+            android:exported="true" />
+        <activity
             android:name=".ComposeLayoutActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeAudioActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeTouchPassThroughActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeScrollActivity"
             android:exported="true" />
         <activity
             android:name=".RiveUIViewActivity"

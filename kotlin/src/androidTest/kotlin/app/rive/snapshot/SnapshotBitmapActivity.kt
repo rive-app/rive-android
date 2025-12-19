@@ -150,11 +150,6 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                                 }
                                 stateMachine.advance(0.milliseconds)
                             }
-
-                            else -> {
-                                // No additional setup needed for other scenarios beyond initial advance
-                                stateMachine.advance(0.milliseconds)
-                            }
                         }
                         resultBitmap =
                             buffer.snapshot(artboard, stateMachine, fit, scaleFactor = layoutScale)

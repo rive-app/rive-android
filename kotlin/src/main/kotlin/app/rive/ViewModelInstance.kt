@@ -367,17 +367,27 @@ sealed interface ViewModelInstanceSource {
  *
  * @param file The [RiveFile] to create the view model instance from.
  * @param source The source of the view model instance. Constructed from [ViewModelSource] combined
- *    with [ViewModelInstanceSource].
+ *    with [ViewModelInstanceSource]. If none is provided, the default artboard for the file will be
+ *    created, and the default view model and view model instance will be used.
+ *
+ *    If you already have an artboard, prefer to use [ViewModelSource.DefaultForArtboard], since
+ *    that will avoid instantiating another artboard.
+ *
+ *    This is the equivalent of "auto-binding" in other SDKs.
+ *
  * @return The created [ViewModelInstance].
  */
 @ExperimentalRiveComposeAPI
 @Composable
 fun rememberViewModelInstance(
     file: RiveFile,
-    source: ViewModelInstanceSource,
+    source: ViewModelInstanceSource? = null,
 ): ViewModelInstance {
-    val instance = remember(file, source) {
-        ViewModelInstance.fromFile(file, source)
+    val sourceToUse =
+        source ?: ViewModelSource.DefaultForArtboard(rememberArtboard(file)).defaultInstance()
+
+    val instance = remember(file, sourceToUse) {
+        ViewModelInstance.fromFile(file, sourceToUse)
     }
 
     DisposableEffect(instance) {

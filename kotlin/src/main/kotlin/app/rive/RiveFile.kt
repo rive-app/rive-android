@@ -4,6 +4,7 @@ import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
 import app.rive.core.CloseOnce
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
@@ -13,6 +14,7 @@ import app.rive.runtime.kotlin.core.ViewModel.Property
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
+import androidx.annotation.RawRes as RawResource
 
 private const val FILE_TAG = "Rive/File"
 
@@ -154,9 +156,23 @@ sealed interface RiveFileSource {
     value class Bytes(val data: ByteArray) : RiveFileSource
 
     data class RawRes(
-        @androidx.annotation.RawRes val resId: Int,
+        @param:RawResource val resId: Int,
         val resources: Resources
-    ) : RiveFileSource
+    ) : RiveFileSource {
+        companion object {
+            /**
+             * Convenience function for Compose contexts to create a [RawRes] instance.
+             *
+             * Uses the current Compose [LocalContext] to obtain [Resources], avoiding the need to
+             * pass it manually.
+             *
+             * @param resId The resource ID of the raw Rive file.
+             * @return A [RawRes] instance with the given resource ID and the current [Resources].
+             */
+            @Composable
+            fun from(@RawResource resId: Int) = RawRes(resId, LocalContext.current.resources)
+        }
+    }
 }
 
 /**
