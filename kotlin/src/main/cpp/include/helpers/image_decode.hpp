@@ -1,5 +1,6 @@
 #pragma once
 
+#include "models/render_context.hpp"
 #include "rive/refcnt.hpp"
 #include "rive/renderer.hpp"
 #include "rive/span.hpp"
@@ -11,11 +12,23 @@
 
 namespace rive_android
 {
-/** Decode path: Use Android BitmapFactory through JNI to decode into RGBA bytes
+/**
+ * Decode path: Use Android BitmapFactory through JNI to decode into RGBA bytes.
+ *
+ * ⚠️ When the context parameter is supplied, i.e. when running with the command
+ * queue, this function should only be called from the command server thread as
+ * only it has the necessary thread-local rendering context.
+ *
+ * @param encodedBytes The encoded bytes of the image, e.g. .png file
+ * @param isPremultiplied Whether the pixels are already premultiplied.
+ * @param context The RenderContext (command queue path) to generate
+ *   rive::RenderImage. If null, will instead use the legacy pathway,
+ *   constructing an AndroidImage.
  */
 rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     rive::Span<const uint8_t> encodedBytes,
-    bool isPremultiplied);
+    bool isPremultiplied,
+    RenderContext* context = nullptr);
 
 /** Rive (GL) path: From RGBA bytes -> AndroidImage */
 rive::rcp<rive::RenderImage> renderImageFromRGBABytesRive(

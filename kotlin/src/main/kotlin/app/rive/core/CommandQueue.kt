@@ -220,6 +220,14 @@ class CommandQueue(
         path: String
     ): Long
 
+    private external fun cppReferenceListItemVMI(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long,
+        path: String,
+        index: Int
+    ): Long
+
     private external fun cppDeleteViewModelInstance(
         pointer: Long,
         requestID: Long,
@@ -314,6 +322,64 @@ class CommandQueue(
         viewModelInstanceHandle: Long,
         propertyPath: String,
         propertyType: Int
+    )
+
+    private external fun cppSetImageProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        imageHandle: Long
+    )
+
+    private external fun cppSetArtboardProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        artboardHandle: Long
+    )
+
+    private external fun cppGetListSize(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String
+    )
+
+    private external fun cppInsertToListAtIndex(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        index: Int,
+        itemHandle: Long
+    )
+
+    private external fun cppAppendToList(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        itemHandle: Long
+    )
+
+    private external fun cppRemoveFromListAtIndex(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        index: Int
+    )
+
+    private external fun cppRemoveFromList(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        itemHandle: Long
+    )
+
+    private external fun cppSwapListItems(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        indexA: Int,
+        indexB: Int
     )
 
     private external fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray)
@@ -1295,8 +1361,18 @@ class CommandQueue(
                 cppReferenceNestedVMI(
                     cppPointer.pointer,
                     nextRequestID.getAndIncrement(),
-                    source.instance.instanceHandle.handle,
+                    source.parentInstance.instanceHandle.handle,
                     source.path
+                )
+            )
+
+            is ViewModelInstanceSource.ReferenceListItem -> ViewModelInstanceHandle(
+                cppReferenceListItemVMI(
+                    cppPointer.pointer,
+                    nextRequestID.getAndIncrement(),
+                    source.parentInstance.instanceHandle.handle,
+                    source.pathToList,
+                    source.index
                 )
             )
         }
@@ -1787,6 +1863,198 @@ class CommandQueue(
         viewModelInstanceHandle.handle,
         propertyPath,
         propertyType.value
+    )
+
+    /**
+     * Assign an image to an image property on the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param imageHandle The handle of the image to assign.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setImageProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        imageHandle: ImageHandle
+    ) = cppSetImageProperty(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        imageHandle.handle
+    )
+
+    /**
+     * Assign an artboard to a bindable artboard property on the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param artboardHandle The handle of the artboard to assign.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setArtboardProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        artboardHandle: ArtboardHandle
+    ) = cppSetArtboardProperty(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        artboardHandle.handle
+    )
+
+    /**
+     * Gets the size of a list property on the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be retrieved. Slash delimited.
+     * @return The size of the list.
+     * @throws RuntimeException If the view model instance handle is invalid, or the named property
+     *    does not exist or is of the wrong type.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getListSize(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String
+    ): Int = suspendNativeRequest { requestID ->
+        cppGetListSize(
+            cppPointer.pointer,
+            requestID,
+            viewModelInstanceHandle.handle,
+            propertyPath
+        )
+    }
+
+    /**
+     * Callback when the list size is retrieved, from [getListSize].
+     *
+     * @param requestID The request ID used when querying the list size, used to complete the
+     *    continuation.
+     * @param size The size of the list.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelListSizeReceived")
+    internal fun onViewModelListSizeReceived(requestID: Long, size: Int) {
+        (pendingContinuations.remove(requestID) as? Continuation<Int>)?.resume(size)
+    }
+
+    /**
+     * Inserts a view model instance into a list property at the specified index.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that owns the list
+     *    property.
+     * @param propertyPath The path to the list property. Slash delimited.
+     * @param index The index at which to insert the item.
+     * @param itemHandle The handle of the view model instance to insert into the list.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun insertToListAtIndex(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        index: Int,
+        itemHandle: ViewModelInstanceHandle
+    ) = cppInsertToListAtIndex(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        index,
+        itemHandle.handle
+    )
+
+    /**
+     * Appends a view model instance to the end of a list property.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that owns the list
+     *    property.
+     * @param propertyPath The path to the list property. Slash delimited.
+     * @param itemHandle The handle of the view model instance to append to the list.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun appendToList(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        itemHandle: ViewModelInstanceHandle
+    ) = cppAppendToList(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        itemHandle.handle
+    )
+
+    /**
+     * Removes an item from a list property at the specified index.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that owns the list
+     *    property.
+     * @param propertyPath The path to the list property. Slash delimited.
+     * @param index The index of the item to remove.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun removeFromListAtIndex(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        index: Int
+    ) = cppRemoveFromListAtIndex(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        index
+    )
+
+    /**
+     * Removes a view model instance from a list property.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that owns the list
+     *    property.
+     * @param propertyPath The path to the list property. Slash delimited.
+     * @param itemHandle The handle of the view model instance to remove from the list.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun removeFromList(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        itemHandle: ViewModelInstanceHandle
+    ) = cppRemoveFromList(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        itemHandle.handle
+    )
+
+    /**
+     * Swaps two items in a list property by their indices.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that owns the list
+     *    property.
+     * @param propertyPath The path to the list property. Slash delimited.
+     * @param indexA The index of the first item to swap.
+     * @param indexB The index of the second item to swap.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun swapListItems(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        indexA: Int,
+        indexB: Int
+    ) = cppSwapListItems(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        indexA,
+        indexB
     )
 
     /**

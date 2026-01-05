@@ -35,6 +35,33 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
+                android:id="@+id/go_compose_data_binding_artboards"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Artboards"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding_images"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Images"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding_lists"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Lists"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
                 android:id="@+id/go_compose_layout"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"

@@ -38,8 +38,8 @@ class Artboard internal constructor(
         /**
          * Creates a new [Artboard].
          *
-         * The lifetime of the artboard is managed by the caller. Make sure to call [close] when you
-         * are done with it to release its resources.
+         * ⚠️ The lifetime of the returned artboard is managed by the caller. Make sure to call
+         * [close] when you are done with it to release its resources.
          *
          * @param file The [RiveFile] to instantiate the artboard from.
          * @param artboardName The name of the artboard to load. If null, the default artboard will

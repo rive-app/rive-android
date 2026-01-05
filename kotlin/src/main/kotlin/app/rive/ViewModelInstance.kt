@@ -43,8 +43,8 @@ class ViewModelInstance internal constructor(
         /**
          * Creates a new [ViewModelInstance].
          *
-         * The lifetime of the view model instance is managed by the caller. Make sure to call
-         * [close] when you are done with the instance to release its resources.
+         * ⚠️ The lifetime of the returned view model instance is managed by the caller. Make sure
+         * to call [close] when you are done with the instance to release its resources.
          *
          * @param file The [RiveFile] to create the view model instance from.
          * @param source The source of the view model instance. Constructed from [ViewModelSource]
@@ -238,7 +238,7 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [number][Float] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -250,7 +250,7 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [string][String] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -262,7 +262,7 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [boolean][Boolean] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -274,7 +274,7 @@ class ViewModelInstance internal constructor(
     /**
      * Sets an enum property on this view model instance. Enums are represented as strings.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -287,7 +287,7 @@ class ViewModelInstance internal constructor(
      * Sets a color property on this view model instance. Colors are represented as AARRGGBB
      * integers.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -299,13 +299,122 @@ class ViewModelInstance internal constructor(
     /**
      * Fires a trigger on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
      */
     fun fireTrigger(propertyPath: String) =
         commandQueue.fireTriggerProperty(instanceHandle, propertyPath)
+
+    /**
+     * Assigns the given image to the image property on this view model instance.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the property from this view model instance. Slash delimited
+     *    to refer to nested properties.
+     * @param image The image to assign to the property.
+     */
+    fun setImage(propertyPath: String, image: ImageAsset) {
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $image to $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, image.handle, commandQueue::setImageProperty)
+    }
+
+    /**
+     * Assigns the given artboard to the bindable artboard property on this view model instance.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the property from this view model instance. Slash delimited
+     *    to refer to nested properties.
+     * @param artboard The artboard to assign to the property.
+     */
+    fun setArtboard(propertyPath: String, artboard: Artboard) {
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $artboard to $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, artboard.artboardHandle, commandQueue::setArtboardProperty)
+    }
+
+    suspend fun getListSize(propertyPath: String): Int =
+        commandQueue.getListSize(instanceHandle, propertyPath)
+
+    /**
+     * Inserts an item into a list property at the specified index.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * Once the item is added to the list, you do not need to hold a reference to its instance. The
+     * list will also maintain a reference to the item.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param index The index at which to insert the item.
+     * @param item The view model instance to insert into the list.
+     */
+    fun insertToListAtIndex(propertyPath: String, index: Int, item: ViewModelInstance) {
+        commandQueue.insertToListAtIndex(instanceHandle, propertyPath, index, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Appends an item to the end of a list property.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * Once the item is added to the list, you do not need to hold a reference to its instance. The
+     * list will also maintain a reference to the item.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param item The view model instance to append to the list.
+     */
+    fun appendToList(propertyPath: String, item: ViewModelInstance) {
+        commandQueue.appendToList(instanceHandle, propertyPath, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Removes an item from a list property at the specified index.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param index The index of the item to remove.
+     */
+    fun removeFromListAtIndex(propertyPath: String, index: Int) {
+        commandQueue.removeFromListAtIndex(instanceHandle, propertyPath, index)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Removes an item from a list property.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param item The view model instance to remove from the list.
+     */
+    fun removeFromList(propertyPath: String, item: ViewModelInstance) {
+        commandQueue.removeFromList(instanceHandle, propertyPath, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Swaps two items in a list property by their indices.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param indexA The index of the first item to swap.
+     * @param indexB The index of the second item to swap.
+     */
+    fun swapListItems(propertyPath: String, indexA: Int, indexB: Int) {
+        commandQueue.swapListItems(instanceHandle, propertyPath, indexA, indexB)
+        _dirtyFlow.tryEmit(Unit)
+    }
 }
 
 /**
@@ -318,19 +427,33 @@ class ViewModelInstance internal constructor(
  * instance. The helper methods on this interface are provided as a builder pattern.
  */
 sealed interface ViewModelSource {
+    /** A specific view model by [name][viewModelName]. */
     @JvmInline
     value class Named(val viewModelName: String) : ViewModelSource
 
+    /** The default view model for the given [artboard]. */
     @JvmInline
     value class DefaultForArtboard(val artboard: Artboard) : ViewModelSource
 
-    /** A view model instance with default initialized properties. */
+    /**
+     * A view model instance with default initialized properties.
+     *
+     * @see [ViewModelInstanceSource.Blank]
+     */
     fun blankInstance(): ViewModelInstanceSource = ViewModelInstanceSource.Blank(this)
 
-    /** The instance marked default in the editor. */
+    /**
+     * The instance marked "Default" in the Rive file.
+     *
+     * @see [ViewModelInstanceSource.Default]
+     */
     fun defaultInstance(): ViewModelInstanceSource = ViewModelInstanceSource.Default(this)
 
-    /** A specific instance by name. */
+    /**
+     * A specific instance by name.
+     *
+     * @see [ViewModelInstanceSource.Named]
+     */
     fun namedInstance(instanceName: String): ViewModelInstanceSource =
         ViewModelInstanceSource.Named(this, instanceName)
 }
@@ -346,17 +469,56 @@ sealed interface ViewModelSource {
  * slash delimited path.
  */
 sealed interface ViewModelInstanceSource {
+    /**
+     * Create a new view model instance with default value initialized properties, e.g. 0 for
+     * integers, empty strings, etc.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     */
     @JvmInline
     value class Blank(val vmSource: ViewModelSource) : ViewModelInstanceSource
 
+    /**
+     * Create a new view model instance with properties initialized to the values of the instance
+     * labelled "Default" in the Rive file.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     */
     @JvmInline
     value class Default(val vmSource: ViewModelSource) : ViewModelInstanceSource
 
+    /**
+     * Create a new view model instance with properties initialized to the values of the instance
+     * with the given name.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     * @param instanceName The name of the instance in the Rive file to reference when creating the
+     *    new instance.
+     */
     data class Named(val vmSource: ViewModelSource, val instanceName: String) :
         ViewModelInstanceSource
 
-    data class Reference(val instance: ViewModelInstance, val path: String) :
+    /**
+     * Create a reference to an existing child view model instance.
+     *
+     * @param parentInstance The parent that contains the child.
+     * @param path The path to the child instance. Slash delimited to refer to nested properties.
+     */
+    data class Reference(val parentInstance: ViewModelInstance, val path: String) :
         ViewModelInstanceSource
+
+    /**
+     * Create a reference to an existing child view model instance within a list at a given index.
+     *
+     * @param parentInstance The parent that contains the list.
+     * @param pathToList The path to the list. Slash delimited to refer to nested properties.
+     * @param index The index of the child instance in the list.
+     */
+    data class ReferenceListItem(
+        val parentInstance: ViewModelInstance,
+        val pathToList: String,
+        val index: Int
+    ) : ViewModelInstanceSource
 }
 
 /**
@@ -370,10 +532,10 @@ sealed interface ViewModelInstanceSource {
  *    with [ViewModelInstanceSource]. If none is provided, the default artboard for the file will be
  *    created, and the default view model and view model instance will be used.
  *
- *    If you already have an artboard, prefer to use [ViewModelSource.DefaultForArtboard], since
- *    that will avoid instantiating another artboard.
+ * If you already have an artboard, prefer to use [ViewModelSource.DefaultForArtboard], since that
+ * will avoid instantiating another artboard.
  *
- *    This is the equivalent of "auto-binding" in other SDKs.
+ * This is the equivalent of "auto-binding" in other SDKs.
  *
  * @return The created [ViewModelInstance].
  */

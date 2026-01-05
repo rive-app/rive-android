@@ -61,6 +61,12 @@ sealed interface Result<out T> {
     data class Error(val throwable: Throwable) : Result<Nothing>
     data class Success<T>(val value: T) : Result<T>
 
+    /**
+     * Convenience to chain the result of one Result into another, forwarding loading and error
+     * states, and mapping the success to another Result.
+     *
+     * @param onSuccess The mapping function to apply to a Success result.
+     */
     @Composable
     fun <T, R> Result<T>.andThen(
         onSuccess: @Composable (T) -> Result<R>
@@ -68,6 +74,53 @@ sealed interface Result<out T> {
         is Loading -> Loading
         is Error -> Error(this.throwable)
         is Success -> onSuccess(this.value)
+    }
+
+    /**
+     * Convenience to join two Results into one, forwarding loading and error states, and mapping
+     * the combination to another Result.
+     *
+     * @param other The other Result to combine with.
+     * @param combine The mapping function to apply to the two values, e.g. into a Pair with `{ a, b
+     *    -> a to b }`.
+     */
+    fun <A, B, R> Result<A>.zip(
+        other: Result<B>,
+        combine: (A, B) -> R
+    ): Result<R> = when (this) {
+        is Loading -> Loading
+        is Error -> Error(this.throwable)
+        is Success -> when (other) {
+            is Loading -> Loading
+            is Error -> Error(other.throwable)
+            is Success -> Success(combine(this.value, other.value))
+        }
+    }
+
+    /**
+     * Convenience to join two Results into one, forwarding loading and error states, and mapping
+     * the combination to a Pair.
+     *
+     * @param other The other Result to combine with.
+     */
+    fun <A, B> Result<A>.zip(
+        other: Result<B>
+    ): Result<Pair<A, B>> = zip(other) { a, b -> a to b }
+
+    /**
+     * Convenience to join a list of Results into a Result of one List. Any loading or error states
+     * will become the final Result state.
+     */
+    fun <T> Iterable<Result<T>>.sequence(): Result<List<T>> {
+        val out = ArrayList<T>()
+        for (r in this) {
+            when (r) {
+                is Error -> return Error(r.throwable)
+                is Loading -> return Loading
+                is Success -> out += r.value
+            }
+        }
+        return Success(out)
     }
 }
 
@@ -349,28 +402,34 @@ fun RiveUI(
                     // Pointer events unsettle the state machine.
                     isSettled = false
 
-                    val pointerFn = when (pointerEvent.type) {
-                        PointerEventType.Move -> commandQueue::pointerMove
-                        PointerEventType.Release -> commandQueue::pointerUp
-                        PointerEventType.Press -> commandQueue::pointerDown
-                        PointerEventType.Exit -> commandQueue::pointerExit
+                    val pointerFns = when (pointerEvent.type) {
+                        PointerEventType.Move -> listOf(commandQueue::pointerMove)
+                        // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
+                        PointerEventType.Release -> listOf(
+                            commandQueue::pointerUp,
+                            commandQueue::pointerExit
+                        )
+
+                        PointerEventType.Press -> listOf(commandQueue::pointerDown)
+                        PointerEventType.Exit -> listOf(commandQueue::pointerExit)
                         else -> return // Ignore other pointer events
                     }
 
                     pointerEvent.changes.forEach { change ->
                         val pointerPosition = change.position
-                        pointerFn(
-                            stateMachineHandle,
-                            fit,
-                            alignment,
-                            layoutScaleFactor,
-                            surfaceWidth.toFloat(),
-                            surfaceHeight.toFloat(),
-                            change.id.value.toInt(),
-                            pointerPosition.x,
-                            pointerPosition.y
-                        )
-
+                        pointerFns.forEach { fn ->
+                            fn(
+                                stateMachineHandle,
+                                fit,
+                                alignment,
+                                layoutScaleFactor,
+                                surfaceWidth.toFloat(),
+                                surfaceHeight.toFloat(),
+                                change.id.value.toInt(),
+                                pointerPosition.x,
+                                pointerPosition.y
+                            )
+                        }
                         // Only consume in Consume mode. Observe/PassThrough do not consume.
                         if (pointerInputMode == Consume) {
                             change.consume()

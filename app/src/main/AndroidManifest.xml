@@ -51,6 +51,15 @@
             android:name=".ComposeScrollActivity"
             android:exported="true" />
         <activity
+            android:name=".ComposeImageBindingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeArtboardBindingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeListActivity"
+            android:exported="true" />
+        <activity
             android:name=".RiveUIViewActivity"
             android:exported="true" />
         <activity

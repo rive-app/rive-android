@@ -48,8 +48,8 @@ class RiveFile internal constructor(
         /**
          * Loads a [RiveFile] from the given [source].
          *
-         * The lifetime of the [RiveFile] is managed by the caller. Make sure to call [close] when
-         * you are done with the file to release its resources.
+         * ⚠️ The lifetime of the [RiveFile] is managed by the caller. Make sure to call [close]
+         * when you are done with the file to release its resources.
          *
          * @param source The source of the Rive file.
          * @param commandQueue The command queue that owns the file.
@@ -182,8 +182,7 @@ sealed interface RiveFileSource {
  * allocated to the file when it falls out of scope.
  *
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
- * @param commandQueue The command queue that owns the file. If not provided, a new command queue
- *    will be created and remembered.
+ * @param commandQueue The command queue that owns the file.
  * @return The [Result] of loading the Rive file, which can be either loading, error, or success
  *    with the [RiveFile].
  */
@@ -191,7 +190,7 @@ sealed interface RiveFileSource {
 @Composable
 fun rememberRiveFile(
     source: RiveFileSource,
-    commandQueue: CommandQueue = rememberCommandQueue(),
+    commandQueue: CommandQueue,
 ): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source) {
     val result = RiveFile.fromSource(source, commandQueue)
     value = result

@@ -47,7 +47,7 @@ internal interface AssetOps<H, A : Asset<H>> {
  * @param ops The operations for managing the asset type.
  */
 sealed class Asset<H>(
-    protected val handle: H,
+    val handle: H,
     protected val commandQueue: CommandQueue,
     private val ops: AssetOps<H, out Asset<H>>,
 ) : AutoCloseable by CloseOnce("$handle", {
@@ -132,6 +132,9 @@ class ImageAsset(
          *
          * Must be registered with [ImageAsset.register] to be used for referenced images.
          *
+         * ⚠️ The lifetime of the returned image is managed by the caller. Make sure to call [close]
+         * when you are done with it to release its resources.
+         *
          * @param commandQueue The command queue that owns the image.
          * @param bytes The byte array containing the image data to decode.
          * @return The [Result] of the image decoding, which can be either loading, error, or
@@ -176,6 +179,9 @@ class AudioAsset(
          * The audio can only be used on the same [CommandQueue] it was created on.
          *
          * Must be registered with [AudioAsset.register] to be used for referenced audio.
+         *
+         * ⚠️ The lifetime of the returned audio is managed by the caller. Make sure to call [close]
+         * when you are done with it to release its resources.
          *
          * @param commandQueue The command queue that owns the audio.
          * @param bytes The byte array containing the audio data to decode.
@@ -222,6 +228,9 @@ class FontAsset(
          *
          * Must be registered with [FontAsset.register] to be used for referenced fonts.
          *
+         * ⚠️ The lifetime of the returned font is managed by the caller. Make sure to call [close]
+         * when you are done with it to release its resources.
+         *
          * @param commandQueue The command queue that owns the font.
          * @param bytes The byte array containing the font data to decode.
          * @return The [Result] of the font decoding, which can be either loading, error, or success
@@ -250,8 +259,6 @@ class FontAsset(
 }
 
 /**
- * WARNING: This function is not yet functional. It will be implemented in a future release.
- *
  * Decode an image from the given [bytes] on the provided [commandQueue]. The decoded image can only
  * be used on the same [CommandQueue] it was created on.
  *
@@ -268,19 +275,12 @@ class FontAsset(
  */
 @ExperimentalRiveComposeAPI
 @Composable
-@Throws(NotImplementedError::class)
-@Suppress("UNUSED_PARAMETER", "UNREACHABLE_CODE")
 fun rememberImage(
     commandQueue: CommandQueue,
     bytes: ByteArray,
-): Result<ImageAsset> {
-    TODO("Image decoding is not yet functional in the Rive Compose library. It will be implemented in a future release.")
-    return rememberAsset(commandQueue, bytes, ImageAsset::fromBytes)
-}
+): Result<ImageAsset> = rememberAsset(commandQueue, bytes, ImageAsset::fromBytes)
 
 /**
- * WARNING: This function is not yet functional. It will be implemented in a future release.
- *
  * Decode and register an image from the given [bytes] on the provided [commandQueue]. The decoded
  * image can only be used on the same [CommandQueue] it was created on.
  *
@@ -298,16 +298,11 @@ fun rememberImage(
  */
 @ExperimentalRiveComposeAPI
 @Composable
-@Throws(NotImplementedError::class)
-@Suppress("UNUSED_PARAMETER", "UNREACHABLE_CODE")
 fun rememberRegisteredImage(
     commandQueue: CommandQueue,
     key: String,
     bytes: ByteArray,
-): Result<ImageAsset> {
-    TODO("Image decoding is not yet functional in the Rive Compose library. It will be implemented in a future release.")
-    return rememberAsset(commandQueue, bytes, ImageAsset::fromBytes, key)
-}
+): Result<ImageAsset> = rememberAsset(commandQueue, bytes, ImageAsset::fromBytes, key)
 
 /**
  * Decode audio from the given [bytes] on the provided [commandQueue]. The decoded audio can only be

@@ -39,8 +39,8 @@ class StateMachine internal constructor(
         /**
          * Creates a new [StateMachine] from an [Artboard].
          *
-         * The lifetime of the state machine is managed by the caller. Make sure to call [close]
-         * when you are done with it to release its resources.
+         * ⚠️ The lifetime of the returned state machine is managed by the caller. Make sure to call
+         * [close] when you are done with it to release its resources.
          *
          * @param artboard The [Artboard] to instantiate the state machine from.
          * @param stateMachineName The name of the state machine to load. If null, the default state

@@ -15,8 +15,8 @@ import app.rive.runtime.kotlin.core.Fit
  *
  * Pixels are stored in RGBA byte order, top-left origin.
  *
- * This class must be [closed][close] when you no longer need it to free its resources. The buffer
- * creates and manages its own image surface, which is closed when the buffer is closed.
+ * ⚠️ This class must be [closed][close] when you no longer need it to free its resources. The
+ * buffer creates and manages its own image surface, which is closed when the buffer is closed.
  *
  * The buffer is initially empty; use [snapshot] to fill it with rendered content, then access the
  * image as a bitmap through [toBitmap] or [copyInto].
