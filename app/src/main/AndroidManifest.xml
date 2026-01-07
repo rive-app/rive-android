@@ -60,7 +60,7 @@
             android:name=".ComposeListActivity"
             android:exported="true" />
         <activity
-            android:name=".RiveUIViewActivity"
+            android:name=".RiveViewActivity"
             android:exported="true" />
         <activity
             android:name=".RiveSnapshotActivity"

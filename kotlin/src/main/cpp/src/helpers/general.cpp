@@ -75,6 +75,8 @@ void SetSDKVersion()
     g_sdkVersion = strtol(sdk_ver_str, nullptr, 10);
 }
 
+rive::Fit GetFit(uint8_t ordinal) { return static_cast<rive::Fit>(ordinal); }
+
 rive::Fit GetFit(JNIEnv* env, jobject jFit)
 {
     auto fitValue = (jstring)JNIExceptionHandler::CallObjectMethod(
@@ -119,6 +121,37 @@ rive::Fit GetFit(JNIEnv* env, jobject jFit)
     env->ReleaseStringUTFChars(fitValue, fitValueNative);
     env->DeleteLocalRef(fitValue);
     return fit;
+}
+
+rive::Alignment GetAlignment(uint8_t ordinal)
+{
+    switch (ordinal)
+    {
+        case 0:
+            return rive::Alignment::topLeft;
+        case 1:
+            return rive::Alignment::topCenter;
+        case 2:
+            return rive::Alignment::topRight;
+        case 3:
+            return rive::Alignment::centerLeft;
+        case 4:
+            return rive::Alignment::center;
+        case 5:
+            return rive::Alignment::centerRight;
+        case 6:
+            return rive::Alignment::bottomLeft;
+        case 7:
+            return rive::Alignment::bottomCenter;
+        case 8:
+            return rive::Alignment::bottomRight;
+        default:
+            RiveLogE("RiveN/GetAlignment",
+                     "Invalid alignment ordinal: %u",
+                     ordinal);
+            assert(false && "Invalid rive::Alignment ordinal");
+            std::abort();
+    }
 }
 
 rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)

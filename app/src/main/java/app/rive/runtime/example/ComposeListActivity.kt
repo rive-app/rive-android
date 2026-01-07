@@ -33,17 +33,17 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.graphics.Color as AndroidColor
@@ -59,10 +59,10 @@ class ComposeListActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.lists_demo),
-                commandQueue
+                riveWorker
             )
 
             val maxListItems = 10
@@ -161,12 +161,11 @@ class ComposeListActivity : ComponentActivity() {
                                 }
                             }
 
-                            RiveUI(
+                            Rive(
                                 riveFile.value,
                                 modifier = Modifier.weight(1f),
                                 viewModelInstance = mainVMI,
-                                fit = Fit.LAYOUT,
-                                layoutScaleFactor = 3f
+                                fit = Fit.Layout(3f),
                             )
 
                             Column(

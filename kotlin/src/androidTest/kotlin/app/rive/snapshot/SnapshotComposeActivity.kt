@@ -14,23 +14,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
 import app.rive.ViewModelSource
 import app.rive.rememberArtboard
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberStateMachine
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-import app.rive.runtime.kotlin.core.Alignment as RiveAlignment
 
 /**
  * Activity that renders a Rive file using Compose for instrumentation tests.
@@ -68,9 +67,9 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFileResult =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), commandQueue)
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), riveWorker)
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 when (riveFileResult) {
@@ -128,19 +127,15 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
                         val dpSize = with(LocalDensity.current) { 100.toDp() }
                         val fit = when (config) {
                             is SnapshotActivityConfig.Layout -> if (config.useLayout) {
-                                Fit.LAYOUT
+                                Fit.Layout(config.layoutScale)
                             } else {
-                                Fit.NONE
+                                Fit.None()
                             }
 
-                            else -> Fit.NONE // Default to no layout for other scenarios
-                        }
-                        val layoutScale = when (config) {
-                            is SnapshotActivityConfig.Layout -> config.layoutScale
-                            else -> 1f // Default of 1 for other scenarios
+                            else -> Fit.None() // Default to no layout for other scenarios
                         }
 
-                        RiveUI(
+                        Rive(
                             file = riveFile,
                             modifier = Modifier.requiredSize(dpSize),
                             playing = false,
@@ -148,8 +143,6 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
                             stateMachine = stateMachine,
                             viewModelInstance = vmi,
                             fit = fit,
-                            alignment = RiveAlignment.CENTER,
-                            layoutScaleFactor = layoutScale,
                             onBitmapAvailable = { bitmapFn ->
                                 RiveLog.i("SnapshotComposeActivity") { "Bitmap available" }
                                 // Get the bitmap and store it

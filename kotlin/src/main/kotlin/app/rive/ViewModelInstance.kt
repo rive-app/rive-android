@@ -5,8 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import app.rive.core.CloseOnce
-import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.RivePropertyUpdate
+import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import kotlinx.coroutines.channels.BufferOverflow
@@ -26,18 +27,18 @@ internal const val VM_INSTANCE_TAG = "Rive/VMI"
  * A view model instance for data binding which has properties that can be set and observed.
  *
  * The instance must be bound to a state machine for its values to take effect. This is done by
- * passing it to [RiveUI].
+ * passing it to [Rive].
  *
  * @param instanceHandle The handle to the view model instance on the command server.
- * @param commandQueue The command queue that owns the view model instance.
+ * @param riveWorker The Rive worker that owns the view model instance.
  */
 class ViewModelInstance internal constructor(
     val instanceHandle: ViewModelInstanceHandle,
-    private val commandQueue: CommandQueue,
+    private val riveWorker: RiveWorker,
     private val fileHandle: FileHandle,
 ) : AutoCloseable by CloseOnce("$instanceHandle", {
     RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
-    commandQueue.deleteViewModelInstance(instanceHandle)
+    riveWorker.deleteViewModelInstance(instanceHandle)
 }) {
     companion object {
         /**
@@ -55,9 +56,9 @@ class ViewModelInstance internal constructor(
             file: RiveFile,
             source: ViewModelInstanceSource
         ): ViewModelInstance {
-            val handle = file.commandQueue.createViewModelInstance(file.fileHandle, source)
+            val handle = file.riveWorker.createViewModelInstance(file.fileHandle, source)
             RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
-            return ViewModelInstance(handle, file.commandQueue, file.fileHandle)
+            return ViewModelInstance(handle, file.riveWorker, file.fileHandle)
         }
     }
 
@@ -79,13 +80,13 @@ class ViewModelInstance internal constructor(
         propertyPath: String,
         cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
-        updateFlow: SharedFlow<CommandQueue.PropertyUpdate<T>>,
+        updateFlow: SharedFlow<RivePropertyUpdate<T>>,
         propertyType: PropertyDataType
     ): Flow<T> = cache.getOrPut(propertyPath) {
         updateFlow
             // Ensure we’re subscribed, then kick off fetching latest value
             .onSubscription {
-                commandQueue.subscribeToProperty(instanceHandle, propertyPath, propertyType)
+                riveWorker.subscribeToProperty(instanceHandle, propertyPath, propertyType)
                 // Fire the getter so its reply comes through as the first emission
                 // (ignoring the immediately returned value).
                 getter(instanceHandle, propertyPath)
@@ -98,7 +99,7 @@ class ViewModelInstance internal constructor(
     /**
      * Creates or retrieves from cache a [number][Float] property, represented as a cold [Flow].
      *
-     * The flow is subscribed to updates from the command queue while it is being collected.
+     * The flow is subscribed to updates from the Rive worker while it is being collected.
      *
      * This flow emits every distinct value (up to the backing buffer limit). If you process
      * the flow slowly, consider applying [conflate] if you only need the latest value to skip
@@ -108,7 +109,7 @@ class ViewModelInstance internal constructor(
      * Collection of the flow may cause an exception:
      * - [RuntimeException]: If this class has been [closed][close], if the property does not exist
      *   on this view model instance, or is is of a different type.
-     * - [IllegalStateException]: If the backing command queue has been released.
+     * - [IllegalStateException]: If the backing Rive worker has been released.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -118,8 +119,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             numberFlows,
-            commandQueue::getNumberProperty,
-            commandQueue.numberPropertyFlow,
+            riveWorker::getNumberProperty,
+            riveWorker.numberPropertyFlow,
             PropertyDataType.NUMBER
         )
 
@@ -137,8 +138,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             stringFlows,
-            commandQueue::getStringProperty,
-            commandQueue.stringPropertyFlow,
+            riveWorker::getStringProperty,
+            riveWorker.stringPropertyFlow,
             PropertyDataType.STRING
         )
 
@@ -156,8 +157,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             booleanFlows,
-            commandQueue::getBooleanProperty,
-            commandQueue.booleanPropertyFlow,
+            riveWorker::getBooleanProperty,
+            riveWorker.booleanPropertyFlow,
             PropertyDataType.BOOLEAN
         )
 
@@ -176,8 +177,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             enumFlows,
-            commandQueue::getEnumProperty,
-            commandQueue.enumPropertyFlow,
+            riveWorker::getEnumProperty,
+            riveWorker.enumPropertyFlow,
             PropertyDataType.ENUM
         )
 
@@ -196,8 +197,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             colorFlows,
-            commandQueue::getColorProperty,
-            commandQueue.colorPropertyFlow,
+            riveWorker::getColorProperty,
+            riveWorker.colorPropertyFlow,
             PropertyDataType.COLOR
         )
 
@@ -213,9 +214,9 @@ class ViewModelInstance internal constructor(
      * @see getNumberFlow
      */
     fun getTriggerFlow(propertyPath: String): Flow<Unit> = triggerFlows.getOrPut(propertyPath) {
-        commandQueue.triggerPropertyFlow
+        riveWorker.triggerPropertyFlow
             .onSubscription {
-                commandQueue.subscribeToProperty(
+                riveWorker.subscribeToProperty(
                     instanceHandle,
                     propertyPath,
                     PropertyDataType.TRIGGER
@@ -245,7 +246,7 @@ class ViewModelInstance internal constructor(
      * @param value The value to set the property to.
      */
     fun setNumber(propertyPath: String, value: Float) =
-        setProperty(propertyPath, value, commandQueue::setNumberProperty)
+        setProperty(propertyPath, value, riveWorker::setNumberProperty)
 
     /**
      * Sets a [string][String] property on this view model instance.
@@ -257,7 +258,7 @@ class ViewModelInstance internal constructor(
      * @param value The value to set the property to.
      */
     fun setString(propertyPath: String, value: String) =
-        setProperty(propertyPath, value, commandQueue::setStringProperty)
+        setProperty(propertyPath, value, riveWorker::setStringProperty)
 
     /**
      * Sets a [boolean][Boolean] property on this view model instance.
@@ -269,7 +270,7 @@ class ViewModelInstance internal constructor(
      * @param value The value to set the property to.
      */
     fun setBoolean(propertyPath: String, value: Boolean) =
-        setProperty(propertyPath, value, commandQueue::setBooleanProperty)
+        setProperty(propertyPath, value, riveWorker::setBooleanProperty)
 
     /**
      * Sets an enum property on this view model instance. Enums are represented as strings.
@@ -281,7 +282,7 @@ class ViewModelInstance internal constructor(
      * @param value The string value of the enum to set the property to.
      */
     fun setEnum(propertyPath: String, value: String) =
-        setProperty(propertyPath, value, commandQueue::setEnumProperty)
+        setProperty(propertyPath, value, riveWorker::setEnumProperty)
 
     /**
      * Sets a color property on this view model instance. Colors are represented as AARRGGBB
@@ -294,7 +295,7 @@ class ViewModelInstance internal constructor(
      * @param value The integer value of the color to set the property to.
      */
     fun setColor(propertyPath: String, @ColorInt value: Int) =
-        setProperty(propertyPath, value, commandQueue::setColorProperty)
+        setProperty(propertyPath, value, riveWorker::setColorProperty)
 
     /**
      * Fires a trigger on this view model instance.
@@ -305,7 +306,7 @@ class ViewModelInstance internal constructor(
      *    delimited to refer to nested properties.
      */
     fun fireTrigger(propertyPath: String) =
-        commandQueue.fireTriggerProperty(instanceHandle, propertyPath)
+        riveWorker.fireTriggerProperty(instanceHandle, propertyPath)
 
     /**
      * Assigns the given image to the image property on this view model instance.
@@ -318,7 +319,7 @@ class ViewModelInstance internal constructor(
      */
     fun setImage(propertyPath: String, image: ImageAsset) {
         RiveLog.d(VM_INSTANCE_TAG) { "Assigning $image to $propertyPath (${fileHandle})" }
-        setProperty(propertyPath, image.handle, commandQueue::setImageProperty)
+        setProperty(propertyPath, image.handle, riveWorker::setImageProperty)
     }
 
     /**
@@ -332,11 +333,11 @@ class ViewModelInstance internal constructor(
      */
     fun setArtboard(propertyPath: String, artboard: Artboard) {
         RiveLog.d(VM_INSTANCE_TAG) { "Assigning $artboard to $propertyPath (${fileHandle})" }
-        setProperty(propertyPath, artboard.artboardHandle, commandQueue::setArtboardProperty)
+        setProperty(propertyPath, artboard.artboardHandle, riveWorker::setArtboardProperty)
     }
 
     suspend fun getListSize(propertyPath: String): Int =
-        commandQueue.getListSize(instanceHandle, propertyPath)
+        riveWorker.getListSize(instanceHandle, propertyPath)
 
     /**
      * Inserts an item into a list property at the specified index.
@@ -352,7 +353,7 @@ class ViewModelInstance internal constructor(
      * @param item The view model instance to insert into the list.
      */
     fun insertToListAtIndex(propertyPath: String, index: Int, item: ViewModelInstance) {
-        commandQueue.insertToListAtIndex(instanceHandle, propertyPath, index, item.instanceHandle)
+        riveWorker.insertToListAtIndex(instanceHandle, propertyPath, index, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
 
@@ -369,7 +370,7 @@ class ViewModelInstance internal constructor(
      * @param item The view model instance to append to the list.
      */
     fun appendToList(propertyPath: String, item: ViewModelInstance) {
-        commandQueue.appendToList(instanceHandle, propertyPath, item.instanceHandle)
+        riveWorker.appendToList(instanceHandle, propertyPath, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
 
@@ -383,7 +384,7 @@ class ViewModelInstance internal constructor(
      * @param index The index of the item to remove.
      */
     fun removeFromListAtIndex(propertyPath: String, index: Int) {
-        commandQueue.removeFromListAtIndex(instanceHandle, propertyPath, index)
+        riveWorker.removeFromListAtIndex(instanceHandle, propertyPath, index)
         _dirtyFlow.tryEmit(Unit)
     }
 
@@ -397,7 +398,7 @@ class ViewModelInstance internal constructor(
      * @param item The view model instance to remove from the list.
      */
     fun removeFromList(propertyPath: String, item: ViewModelInstance) {
-        commandQueue.removeFromList(instanceHandle, propertyPath, item.instanceHandle)
+        riveWorker.removeFromList(instanceHandle, propertyPath, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
 
@@ -412,7 +413,7 @@ class ViewModelInstance internal constructor(
      * @param indexB The index of the second item to swap.
      */
     fun swapListItems(propertyPath: String, indexA: Int, indexB: Int) {
-        commandQueue.swapListItems(instanceHandle, propertyPath, indexA, indexB)
+        riveWorker.swapListItems(instanceHandle, propertyPath, indexA, indexB)
         _dirtyFlow.tryEmit(Unit)
     }
 }

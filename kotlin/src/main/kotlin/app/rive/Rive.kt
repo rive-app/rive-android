@@ -33,8 +33,6 @@ import app.rive.RivePointerInputMode.Observe
 import app.rive.RivePointerInputMode.PassThrough
 import app.rive.core.RebuggerWrapper
 import app.rive.core.RiveSurface
-import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.nanoseconds
@@ -128,12 +126,12 @@ sealed interface Result<out T> {
 typealias GetBitmapFun = () -> Bitmap
 
 /**
- * Controls how RiveUI participates in Compose pointer input dispatch.
- * - [Consume]: RiveUI handles pointer events and consumes them, preventing parent/ancestor gesture
+ * Controls how a Rive composable participates in Compose pointer input dispatch.
+ * - [Consume]: Rive handles pointer events and consumes them, preventing parent/ancestor gesture
  *   detectors (e.g., scroll) from also acting.
- * - [Observe]: RiveUI handles pointer events but does not consume them. Parent/ancestor gesture
+ * - [Observe]: Rive handles pointer events but does not consume them. Parent/ancestor gesture
  *   detectors may also react.
- * - [PassThrough]: RiveUI handles pointer events and also shares them with any sibling composables
+ * - [PassThrough]: Rive handles pointer events and also shares them with any sibling composables
  *   positioned underneath it without consuming. Useful if your Rive file is an overlay with
  *   transparent sections that should allow pointer events through.
  */
@@ -146,13 +144,13 @@ enum class RivePointerInputMode {
 /**
  * The main composable for rendering a Rive file's artboard and state machine.
  *
- * Internally, RiveUI uses a [TextureView] to create and manage a [Surface] for rendering.
+ * Internally, Rive uses a [TextureView] to create and manage a [Surface] for rendering.
  *
  * The composable will advance the state machine and draw the artboard on every frame while the
  * [Lifecycle] is in the [Lifecycle.State.RESUMED] state. It will also handle pointer input events
  * to influence the state machine, such as pointer down, move, and up events.
  *
- * A RiveUI composable can enter a settled state, where it stops advancing the state machine. It
+ * A Rive composable can enter a settled state, where it stops advancing the state machine. It
  * will be restarted when influenced by other events, such as pointer input or view model instance
  * changes.
  *
@@ -165,12 +163,10 @@ enum class RivePointerInputMode {
  *    created.
  * @param viewModelInstance The [ViewModelInstance] to bind to the state machine. If null, no view
  *    model instance will be bound.
- * @param fit The [Fit] to use for the artboard. Defaults to [Fit.CONTAIN].
- * @param alignment The [Alignment] to use for the artboard. Defaults to [Alignment.CENTER].
- * @param layoutScaleFactor The scale factor to use when [fit] is set to [Fit.LAYOUT]. Defaults to
- *    1f. Does not affect other [Fit] modes.
- * @param clearColor The color to clear the surface with before drawing. Defaults to transparent.
- * @param pointerInputMode Controls how pointer events are handled and consumed by RiveUI. See
+ * @param fit The [Fit] to use for the artboard. Defaults to [Fit.Contain].
+ * @param backgroundColor The color to clear the surface with before drawing. Defaults to
+ *    transparent.
+ * @param pointerInputMode Controls how pointer events are handled and consumed by Rive. See
  *    [RivePointerInputMode]. Default is [RivePointerInputMode.Consume].
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
@@ -179,24 +175,22 @@ enum class RivePointerInputMode {
  */
 @ExperimentalRiveComposeAPI
 @Composable
-fun RiveUI(
+fun Rive(
     file: RiveFile,
     modifier: Modifier = Modifier,
     playing: Boolean = true,
     artboard: Artboard? = null,
     stateMachine: StateMachine? = null,
     viewModelInstance: ViewModelInstance? = null,
-    fit: Fit = Fit.CONTAIN,
-    alignment: Alignment = Alignment.CENTER,
-    layoutScaleFactor: Float = 1f,
-    clearColor: Int = Color.Transparent.toArgb(),
+    fit: Fit = Fit.Contain(),
+    backgroundColor: Int = Color.Transparent.toArgb(),
     pointerInputMode: RivePointerInputMode = Consume,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
-    RiveLog.v(GENERAL_TAG) { "RiveUI Recomposing" }
+    RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val commandQueue = file.commandQueue
+    val riveWorker = file.riveWorker
 
     /** Use provided artboard or create a default one. */
     val artboardToUse = artboard ?: rememberArtboard(file)
@@ -215,7 +209,7 @@ fun RiveUI(
     DisposableEffect(surface) {
         val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
         onDispose {
-            commandQueue.destroyRiveSurface(nonNullSurface)
+            riveWorker.destroyRiveSurface(nonNullSurface)
         }
     }
 
@@ -233,9 +227,7 @@ fun RiveUI(
             "stateMachineHandle" to stateMachineHandle,
             "viewModelInstance" to viewModelInstance,
             "fit" to fit,
-            "alignment" to alignment,
-            "layoutScaleFactor" to layoutScaleFactor,
-            "clearColor" to clearColor,
+            "backgroundColor" to backgroundColor,
             "surface" to surface,
             "lifecycleOwner" to lifecycleOwner,
         )
@@ -249,7 +241,7 @@ fun RiveUI(
         }
 
         RiveLog.d(VM_INSTANCE_TAG) { "Binding view model instance ${viewModelInstance.instanceHandle}" }
-        commandQueue.bindViewModelInstance(
+        riveWorker.bindViewModelInstance(
             stateMachineHandle,
             viewModelInstance.instanceHandle
         )
@@ -266,7 +258,7 @@ fun RiveUI(
 
     /** Listen for settle events for this state machine. */
     LaunchedEffect(stateMachineHandle) {
-        commandQueue.settledFlow
+        riveWorker.settledFlow
             .filter { it.handle == stateMachineHandle.handle }
             .collect {
                 RiveLog.v(STATE_MACHINE_TAG) { "State machine $stateMachineHandle settled" }
@@ -278,7 +270,7 @@ fun RiveUI(
      * Changing the fit, alignment, layout scale factor, or clear color unsettles the state machine,
      * forcing a re-draw.
      */
-    LaunchedEffect(fit, alignment, layoutScaleFactor, clearColor) {
+    LaunchedEffect(fit, backgroundColor) {
         RiveLog.d(STATE_MACHINE_TAG) {
             "State machine $stateMachineHandle unsettled due to parameter change"
         }
@@ -286,16 +278,18 @@ fun RiveUI(
     }
 
     /** Resize artboard based on fit parameter. */
-    LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight, layoutScaleFactor) {
-        if (surface == null) {
-            return@LaunchedEffect
-        }
-        if (fit == Fit.LAYOUT) {
-            RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
-            artboardToUse.resizeArtboard(surface!!, layoutScaleFactor)
-        } else {
-            RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
-            artboardToUse.resetArtboardSize()
+    LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight) {
+        if (surface == null) return@LaunchedEffect
+        when (fit) {
+            is Fit.Layout -> {
+                RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
+                artboardToUse.resizeArtboard(surface!!, fit.scaleFactor)
+            }
+
+            else -> {
+                RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
+                artboardToUse.resetArtboardSize()
+            }
         }
     }
 
@@ -307,9 +301,7 @@ fun RiveUI(
         stateMachineHandle,
         viewModelInstance,
         fit,
-        alignment,
-        layoutScaleFactor,
-        clearColor,
+        backgroundColor,
         playing,
     ) {
         if (surface == null) {
@@ -324,14 +316,12 @@ fun RiveUI(
             //Advance the state machine once to exit the "Entry" state and apply initial values,
             // including any pending artboard resizes from the fit mode.
             stateMachineToUse.advance(0.nanoseconds)
-            commandQueue.draw(
+            riveWorker.draw(
                 artboardHandle,
                 stateMachineHandle,
                 surface!!,
                 fit,
-                alignment,
-                layoutScaleFactor,
-                clearColor
+                backgroundColor
             )
 
             return@LaunchedEffect
@@ -352,15 +342,13 @@ fun RiveUI(
                     continue
                 }
 
-                commandQueue.advanceStateMachine(stateMachineHandle, deltaTime)
-                commandQueue.draw(
+                riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                riveWorker.draw(
                     artboardHandle,
                     stateMachineHandle,
                     surface!!,
                     fit,
-                    alignment,
-                    layoutScaleFactor,
-                    clearColor
+                    backgroundColor
                 )
             }
             RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
@@ -403,15 +391,15 @@ fun RiveUI(
                     isSettled = false
 
                     val pointerFns = when (pointerEvent.type) {
-                        PointerEventType.Move -> listOf(commandQueue::pointerMove)
+                        PointerEventType.Move -> listOf(riveWorker::pointerMove)
                         // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
                         PointerEventType.Release -> listOf(
-                            commandQueue::pointerUp,
-                            commandQueue::pointerExit
+                            riveWorker::pointerUp,
+                            riveWorker::pointerExit
                         )
 
-                        PointerEventType.Press -> listOf(commandQueue::pointerDown)
-                        PointerEventType.Exit -> listOf(commandQueue::pointerExit)
+                        PointerEventType.Press -> listOf(riveWorker::pointerDown)
+                        PointerEventType.Exit -> listOf(riveWorker::pointerExit)
                         else -> return // Ignore other pointer events
                     }
 
@@ -421,8 +409,6 @@ fun RiveUI(
                             fn(
                                 stateMachineHandle,
                                 fit,
-                                alignment,
-                                layoutScaleFactor,
                                 surfaceWidth.toFloat(),
                                 surfaceHeight.toFloat(),
                                 change.id.value.toInt(),
@@ -456,7 +442,7 @@ fun RiveUI(
                             height: Int
                         ) {
                             RiveLog.d(GENERAL_TAG) { "Surface texture available ($width x $height)" }
-                            surface = commandQueue.createRiveSurface(newSurfaceTexture)
+                            surface = riveWorker.createRiveSurface(newSurfaceTexture)
                             surfaceWidth = width
                             surfaceHeight = height
                             // Because this is a new surface, we send a fresh callback
@@ -468,7 +454,7 @@ fun RiveUI(
                             surface = null
                             bitmapCallbackSent = false
                             // False here means that we are responsible for destroying the surface texture
-                            // This happens in RenderContext::close(), called from CommandQueue::destroyRiveSurface
+                            // This happens in RenderContext::close(), called from RiveWorker::destroyRiveSurface
                             return false
                         }
 

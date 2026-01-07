@@ -6,8 +6,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import app.rive.core.CloseOnce
-import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel.Property
@@ -27,22 +27,22 @@ private const val FILE_TAG = "Rive/File"
  * the latter, make sure to call [close] when you are done with the file to release its resources.
  *
  * The this object can be used to query the file for its contents, such as artboards names. It can
- * then be passed to [rememberArtboard] to create an [Artboard], and then to [RiveUI] for rendering.
+ * then be passed to [rememberArtboard] to create an [Artboard], and then to [Rive] for rendering.
  *
  * Queries are cached for performance.
  *
  * @param fileHandle The handle to the file on the command server.
- * @param commandQueue The command queue that owns and performs operations on this file.
+ * @param riveWorker The Rive worker that owns and performs operations on this file.
  */
 @Stable
 class RiveFile internal constructor(
     val fileHandle: FileHandle,
-    val commandQueue: CommandQueue
+    val riveWorker: RiveWorker
 ) : AutoCloseable by CloseOnce("$fileHandle", {
     RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
-    commandQueue.deleteFile(fileHandle)
+    riveWorker.deleteFile(fileHandle)
 
-    commandQueue.release(FILE_TAG, "RiveFile closed")
+    riveWorker.release(FILE_TAG, "RiveFile closed")
 }) {
     companion object {
         /**
@@ -52,17 +52,17 @@ class RiveFile internal constructor(
          * when you are done with the file to release its resources.
          *
          * @param source The source of the Rive file.
-         * @param commandQueue The command queue that owns the file.
+         * @param riveWorker The Rive worker that owns the file.
          * @return The loaded Rive file, or an error if loading failed. The Loading state is not
          *    used here since the loading is performed in a suspend function.
          */
         suspend fun fromSource(
             source: RiveFileSource,
-            commandQueue: CommandQueue
+            riveWorker: RiveWorker
         ): Result<RiveFile> {
             RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
             return try {
-                commandQueue.acquire(FILE_TAG)
+                riveWorker.acquire(FILE_TAG)
 
                 val fileBytes = when (source) {
                     is RiveFileSource.Bytes -> source.data
@@ -74,20 +74,20 @@ class RiveFile internal constructor(
                         }
                     }
                 }
-                RiveLog.v(FILE_TAG) { "Loaded Rive file bytes from source: $source; sending to command queue" }
-                val fileHandle = commandQueue.loadFile(fileBytes)
+                RiveLog.v(FILE_TAG) { "Loaded Rive file bytes from source: $source; sending to Rive worker" }
+                val fileHandle = riveWorker.loadFile(fileBytes)
 
                 RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
-                Result.Success(RiveFile(fileHandle, commandQueue))
+                Result.Success(RiveFile(fileHandle, riveWorker))
             } catch (ce: CancellationException) {
                 // Thrown by withContext if the coroutine is cancelled
                 RiveLog.d(FILE_TAG) { "Rive file loading was cancelled: $source" }
-                commandQueue.release(FILE_TAG, "Cancellation")
+                riveWorker.release(FILE_TAG, "Cancellation")
                 // Propagate the cancellation exception, needed by callers to handle cancellation correctly
                 throw ce
             } catch (e: Exception) {
                 RiveLog.e(FILE_TAG, e) { "Error loading Rive file with source: $source" }
-                commandQueue.release(FILE_TAG, "Load error")
+                riveWorker.release(FILE_TAG, "Load error")
                 Result.Error(e)
             }
         }
@@ -96,13 +96,13 @@ class RiveFile internal constructor(
     /** @return A list of all exported artboard names available on this file. */
     suspend fun getArtboardNames(): List<String> = artboardNamesCache.await()
     private val artboardNamesCache = SuspendLazy {
-        commandQueue.getArtboardNames(fileHandle)
+        riveWorker.getArtboardNames(fileHandle)
     }
 
     /** @return A list of all view model names available on this file. */
     suspend fun getViewModelNames(): List<String> = viewModelNamesCache.await()
     private val viewModelNamesCache = SuspendLazy {
-        commandQueue.getViewModelNames(fileHandle)
+        riveWorker.getViewModelNames(fileHandle)
     }
 
     /**
@@ -113,7 +113,7 @@ class RiveFile internal constructor(
         synchronized(instanceNamesCache) {
             instanceNamesCache.getOrPut(viewModel) {
                 SuspendLazy {
-                    commandQueue.getViewModelInstanceNames(fileHandle, viewModel)
+                    riveWorker.getViewModelInstanceNames(fileHandle, viewModel)
                 }
             }
         }.await()
@@ -129,7 +129,7 @@ class RiveFile internal constructor(
         synchronized(propertiesCache) {
             propertiesCache.getOrPut(viewModel) {
                 SuspendLazy {
-                    commandQueue.getViewModelProperties(fileHandle, viewModel)
+                    riveWorker.getViewModelProperties(fileHandle, viewModel)
                 }
             }
         }.await()
@@ -142,7 +142,7 @@ class RiveFile internal constructor(
      */
     suspend fun getEnums(): List<Enum> = enumsCache.await()
     private val enumsCache = SuspendLazy {
-        commandQueue.getEnums(fileHandle)
+        riveWorker.getEnums(fileHandle)
     }
 }
 
@@ -182,7 +182,7 @@ sealed interface RiveFileSource {
  * allocated to the file when it falls out of scope.
  *
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
- * @param commandQueue The command queue that owns the file.
+ * @param riveWorker The Rive worker that owns the file.
  * @return The [Result] of loading the Rive file, which can be either loading, error, or success
  *    with the [RiveFile].
  */
@@ -190,9 +190,9 @@ sealed interface RiveFileSource {
 @Composable
 fun rememberRiveFile(
     source: RiveFileSource,
-    commandQueue: CommandQueue,
+    riveWorker: RiveWorker,
 ): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source) {
-    val result = RiveFile.fromSource(source, commandQueue)
+    val result = RiveFile.fromSource(source, riveWorker)
     value = result
 
     when (result) {

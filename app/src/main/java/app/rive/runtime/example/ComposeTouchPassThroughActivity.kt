@@ -29,15 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.RivePointerInputMode
-import app.rive.RiveUI
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import android.graphics.Color as AndroidColor
 
 class ComposeTouchPassThroughActivity : ComponentActivity() {
@@ -53,10 +53,10 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
         setContent {
             LocalContext.current
 
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.touch_passthrough),
-                commandQueue
+                riveWorker
             )
 
             var inputMode by remember { mutableStateOf(RivePointerInputMode.Consume) }
@@ -80,12 +80,11 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
                             is Result.Error -> ErrorMessage(riveFile.throwable)
                             is Result.Success -> {
                                 val vmi = rememberViewModelInstance(riveFile.value)
-                                RiveUI(
+                                Rive(
                                     riveFile.value,
                                     modifier = Modifier.matchParentSize(),
                                     viewModelInstance = vmi,
-                                    fit = Fit.LAYOUT,
-                                    layoutScaleFactor = 2f,
+                                    fit = Fit.Layout(2f),
                                     pointerInputMode = inputMode
                                 )
                             }

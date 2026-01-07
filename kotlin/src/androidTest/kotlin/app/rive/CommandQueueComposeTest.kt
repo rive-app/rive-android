@@ -38,7 +38,7 @@ class CommandQueueComposeTest {
         composeRule.setContent {
             show = remember { mutableStateOf(true) }
             if (show.value) {
-                queue = rememberCommandQueue(autoPoll = false)
+                queue = rememberRiveWorker(autoPoll = false)
             }
         }
 

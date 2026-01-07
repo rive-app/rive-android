@@ -33,27 +33,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.RivePointerInputMode
-import app.rive.RiveUI
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
-import app.rive.runtime.kotlin.core.Fit
+import app.rive.rememberRiveWorker
 import android.graphics.Color as AndroidColor
 
 /**
  * Demonstrates the difference between [RivePointerInputMode.Consume] and
  * [RivePointerInputMode.Observe] by nesting Android scrolling and Rive scrolling.
  *
- * When set to [RivePointerInputMode.Consume], the Android scroll region can only be scrolled
- * by dragging the left or right margins outside of the RiveUI compositions. Scrolling the Rive
- * scrolling region will not trigger Android's scroll behavior.
+ * When set to [RivePointerInputMode.Consume], the Android scroll region can only be scrolled by
+ * dragging the left or right margins outside of the Rive compositions. Scrolling the Rive scrolling
+ * region will not trigger Android's scroll behavior.
  *
  * When set to [RivePointerInputMode.Observe], the opposite is true. Dragging anywhere will scroll
- * the Android scrolling region. If that drag also begins on the RiveUI composition, the Rive
+ * the Android scrolling region. If that drag also begins on the Rive composition, the Rive
  * scrolling region will also scroll at the same time.
  */
 class ComposeScrollActivity : ComponentActivity() {
@@ -67,10 +67,10 @@ class ComposeScrollActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.skull_scroll),
-                commandQueue
+                riveWorker
             )
             var consumePointerEvents by remember { mutableStateOf(true) }
 
@@ -126,9 +126,9 @@ fun RiveScroll(file: RiveFile, consumePointerEvents: Boolean) {
             .height(300.dp)
             .border(1.dp, Color.White)
     ) {
-        RiveUI(
+        Rive(
             file,
-            fit = Fit.COVER,
+            fit = Fit.Cover(),
             pointerInputMode = if (consumePointerEvents) {
                 RivePointerInputMode.Consume
             } else {

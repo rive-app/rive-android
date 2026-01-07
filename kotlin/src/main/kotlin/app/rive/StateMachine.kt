@@ -5,7 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
 import app.rive.core.CloseOnce
-import app.rive.core.CommandQueue
+import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import kotlin.time.Duration
 
@@ -14,26 +14,26 @@ private const val STATE_MACHINE_TAG = "Rive/StateMachine"
 /**
  * An instantiated state machine from an [Artboard].
  *
- * Can be used to create a [RiveUI] composable and to manually advance the state machine.
+ * Can be used to create a [Rive] composable and to manually advance the state machine.
  *
  * Create an instance of this class using [rememberStateMachine] or [StateMachine.fromArtboard].
  * When using the latter, make sure to call [close] when you are done with the state machine to
  * release its resources.
  *
  * @param stateMachineHandle The handle to the state machine on the command server.
- * @param commandQueue The command queue that owns the state machine.
+ * @param riveWorker The Rive worker that owns the state machine.
  * @param artboardHandle The artboard handle that owns the state machine.
  * @param name The name of the state machine, or null if it's the default state machine.
  */
 class StateMachine internal constructor(
     val stateMachineHandle: StateMachineHandle,
-    private val commandQueue: CommandQueue,
+    private val riveWorker: RiveWorker,
     private val artboardHandle: ArtboardHandle,
     val name: String?,
 ) : AutoCloseable by CloseOnce("$stateMachineHandle", {
     val nameLog = name?.let { "with name $it" } ?: "(default)"
     RiveLog.d(STATE_MACHINE_TAG) { "Deleting $stateMachineHandle $nameLog ($artboardHandle)" }
-    commandQueue.deleteStateMachine(stateMachineHandle)
+    riveWorker.deleteStateMachine(stateMachineHandle)
 }) {
     companion object {
         /**
@@ -52,13 +52,13 @@ class StateMachine internal constructor(
             stateMachineName: String? = null
         ): StateMachine {
             val handle = stateMachineName?.let { name ->
-                artboard.commandQueue.createStateMachineByName(artboard.artboardHandle, name)
-            } ?: artboard.commandQueue.createDefaultStateMachine(artboard.artboardHandle)
+                artboard.riveWorker.createStateMachineByName(artboard.artboardHandle, name)
+            } ?: artboard.riveWorker.createDefaultStateMachine(artboard.artboardHandle)
             val nameLog = stateMachineName?.let { "with name $it" } ?: "(default)"
             RiveLog.d(STATE_MACHINE_TAG) { "Created $handle $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})" }
             return StateMachine(
                 handle,
-                artboard.commandQueue,
+                artboard.riveWorker,
                 artboard.artboardHandle,
                 stateMachineName
             )
@@ -71,7 +71,7 @@ class StateMachine internal constructor(
      * @param deltaTime The delta time to advance the state machine by.
      */
     fun advance(deltaTime: Duration) =
-        commandQueue.advanceStateMachine(stateMachineHandle, deltaTime)
+        riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
 }
 
 /**

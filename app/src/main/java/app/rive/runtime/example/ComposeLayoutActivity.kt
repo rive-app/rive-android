@@ -26,13 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
-import app.rive.runtime.kotlin.core.Fit
+import app.rive.rememberRiveWorker
 import java.util.Locale
 import android.graphics.Color as AndroidColor
 
@@ -47,13 +47,13 @@ class ComposeLayoutActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFile =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.layouts_demo), commandQueue)
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.layouts_demo), riveWorker)
 
             var useLayout by rememberSaveable { mutableStateOf(true) }
             var scaleFactor by rememberSaveable { mutableStateOf(1f) }
-            val fit = if (useLayout) Fit.LAYOUT else Fit.CONTAIN
+            val fit = if (useLayout) Fit.Layout(scaleFactor) else Fit.Contain()
 
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 Column(modifier = Modifier.padding(innerPadding)) {
@@ -63,10 +63,9 @@ class ComposeLayoutActivity : ComponentActivity() {
                             is Result.Loading -> LoadingIndicator()
                             is Result.Error -> ErrorMessage(riveFile.throwable)
                             is Result.Success -> {
-                                RiveUI(
+                                Rive(
                                     riveFile.value,
                                     fit = fit,
-                                    layoutScaleFactor = scaleFactor
                                 )
                             }
                         }

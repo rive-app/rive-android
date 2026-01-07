@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * [SnapshotComposeActivity], which share a common [SnapshotActivityResult] interface.
  *
  * The Bitmap tests are rendered to an off-screen EGL PBuffer, and so has fewer layers of
- * abstraction. The Compose tests use the RiveUI Composable, ensuring that the Compose integration
+ * abstraction. The Compose tests use the Rive composable, ensuring that the Compose integration
  * renders correctly. Despite the different approaches, both paths should produce identical output
  * for the same Rive file and configuration.
  *

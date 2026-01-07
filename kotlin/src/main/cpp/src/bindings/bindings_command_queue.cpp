@@ -1941,8 +1941,8 @@ extern "C"
                                                    jobject,
                                                    jlong ref,
                                                    jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
+                                                   jbyte jFit,
+                                                   jbyte jAlignment,
                                                    jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
@@ -1952,8 +1952,8 @@ extern "C"
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
+            .fit = GetFit(static_cast<uint8_t>(jFit)),
+            .alignment = GetAlignment(static_cast<uint8_t>(jAlignment)),
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
@@ -1971,8 +1971,8 @@ extern "C"
                                                    jobject,
                                                    jlong ref,
                                                    jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
+                                                   jbyte jFit,
+                                                   jbyte jAlignment,
                                                    jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
@@ -1982,8 +1982,8 @@ extern "C"
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
+            .fit = GetFit(static_cast<uint8_t>(jFit)),
+            .alignment = GetAlignment(static_cast<uint8_t>(jAlignment)),
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
@@ -2001,8 +2001,8 @@ extern "C"
                                                  jobject,
                                                  jlong ref,
                                                  jlong stateMachineHandle,
-                                                 jobject jFit,
-                                                 jobject jAlignment,
+                                                 jbyte jFit,
+                                                 jbyte jAlignment,
                                                  jfloat layoutScale,
                                                  jfloat surfaceWidth,
                                                  jfloat surfaceHeight,
@@ -2012,8 +2012,8 @@ extern "C"
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
+            .fit = GetFit(static_cast<uint8_t>(jFit)),
+            .alignment = GetAlignment(static_cast<uint8_t>(jAlignment)),
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
@@ -2031,8 +2031,8 @@ extern "C"
                                                    jobject,
                                                    jlong ref,
                                                    jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
+                                                   jbyte jFit,
+                                                   jbyte jAlignment,
                                                    jfloat layoutScale,
                                                    jfloat surfaceWidth,
                                                    jfloat surfaceHeight,
@@ -2042,8 +2042,8 @@ extern "C"
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
+            .fit = GetFit(static_cast<uint8_t>(jFit)),
+            .alignment = GetAlignment(static_cast<uint8_t>(jAlignment)),
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
                                         static_cast<float_t>(surfaceHeight)),
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
@@ -2151,8 +2151,8 @@ extern "C"
                                             jlong renderTargetRef,
                                             jint width,
                                             jint height,
-                                            jobject jFit,
-                                            jobject jAlignment,
+                                            jbyte jFit,
+                                            jbyte jAlignment,
                                             jfloat jScaleFactor,
                                             jint jClearColor)
     {
@@ -2162,8 +2162,8 @@ extern "C"
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
         auto* renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        auto fit = GetFit(env, jFit);
-        auto alignment = GetAlignment(env, jAlignment);
+        auto fit = GetFit(static_cast<uint8_t>(jFit));
+        auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
 
@@ -2259,8 +2259,8 @@ extern "C"
                                                     jlong renderTargetRef,
                                                     jint jWidth,
                                                     jint jHeight,
-                                                    jobject jFit,
-                                                    jobject jAlignment,
+                                                    jbyte jFit,
+                                                    jbyte jAlignment,
                                                     jfloat jScaleFactor,
                                                     jint jClearColor,
                                                     jbyteArray jBuffer)
@@ -2271,8 +2271,8 @@ extern "C"
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
         auto* renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        auto fit = GetFit(env, jFit);
-        auto alignment = GetAlignment(env, jAlignment);
+        auto fit = GetFit(static_cast<uint8_t>(jFit));
+        auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
         auto width = static_cast<int>(jWidth);

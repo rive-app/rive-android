@@ -8,21 +8,21 @@ import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUIView
-import app.rive.core.CommandQueue
+import app.rive.RiveView
+import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalRiveComposeAPI::class)
-class RiveUIViewActivity : ComponentActivity() {
+class RiveViewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         RiveLog.logger = RiveLog.LogcatLogger()
-        val rive = RiveUIView(this)
+        val rive = RiveView(this)
         setEdgeToEdgeContent(rive)
 
-        val commandQueue = CommandQueue().also {
-            it.withLifecycle(this, "RiveUIViewActivity")
+        val riveWorker = RiveWorker().also {
+            it.withLifecycle(this, "RiveViewActivity")
 
             lifecycleScope.launch {
                 it.beginPolling(lifecycle)
@@ -34,7 +34,7 @@ class RiveUIViewActivity : ComponentActivity() {
                 RiveFileSource.RawRes(
                     resId = R.raw.basketball,
                     resources = resources
-                ), commandQueue
+                ), riveWorker
             )
 
             when (riveFile) {

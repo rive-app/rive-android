@@ -26,16 +26,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.zip
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
 import app.rive.rememberArtboard
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import android.graphics.Color as AndroidColor
 
 class ComposeArtboardBindingActivity : ComponentActivity() {
@@ -49,14 +49,14 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val mainRiveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.swap_character_main),
-                commandQueue
+                riveWorker
             )
             val assetRiveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.swap_character_assets),
-                commandQueue
+                riveWorker
             )
             val bothFiles = mainRiveFile.zip(assetRiveFile)
 
@@ -81,11 +81,11 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
                                 }
                             }
 
-                            RiveUI(
+                            Rive(
                                 mainFile,
                                 Modifier.weight(1f),
                                 viewModelInstance = vmi,
-                                fit = Fit.LAYOUT,
+                                fit = Fit.Layout(),
                             )
                         }
                     }

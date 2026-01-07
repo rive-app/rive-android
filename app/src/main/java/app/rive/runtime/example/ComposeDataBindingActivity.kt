@@ -51,14 +51,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import java.util.Locale
 
 enum class WinKind(val enumValue: String) {
@@ -80,9 +80,9 @@ class ComposeDataBindingActivity : ComponentActivity() {
         RiveLog.logger = RiveLog.LogcatLogger()
 
         setContent {
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFileResult =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.rewards_demo), commandQueue)
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.rewards_demo), riveWorker)
 
             var showBottomSheet by remember { mutableStateOf(false) }
 
@@ -121,10 +121,10 @@ class ComposeDataBindingActivity : ComponentActivity() {
                                 .collectAsStateWithLifecycle(WinKind.COIN.enumValue)
 
                             Column {
-                                RiveUI(
+                                Rive(
                                     file = riveFile,
                                     viewModelInstance = vmi,
-                                    fit = Fit.LAYOUT,
+                                    fit = Fit.Layout(),
                                     modifier = Modifier
                                         .semantics {
                                             contentDescription = "Rive UI - Rewards Demo"

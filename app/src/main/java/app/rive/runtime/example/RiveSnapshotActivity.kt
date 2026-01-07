@@ -12,16 +12,15 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.RenderBuffer
 import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.StateMachine
-import app.rive.core.CommandQueue
+import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
-import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -39,7 +38,7 @@ class RiveSnapshotActivity : ComponentActivity() {
         snapshotView = SnapshotCanvasView(this)
         setEdgeToEdgeContent(snapshotView)
 
-        val commandQueue = CommandQueue().also {
+        val riveWorker = RiveWorker().also {
             it.withLifecycle(this, TAG)
             lifecycleScope.launch {
                 it.beginPolling(lifecycle)
@@ -50,7 +49,7 @@ class RiveSnapshotActivity : ComponentActivity() {
             when (val riveFile =
                 RiveFile.fromSource(
                     RiveFileSource.RawRes(R.raw.snapshot_test, resources),
-                    commandQueue
+                    riveWorker
                 )) {
                 is Result.Loading -> Unit
                 is Result.Success -> renderSnapshot(riveFile.value)
@@ -63,7 +62,7 @@ class RiveSnapshotActivity : ComponentActivity() {
 
     private suspend fun renderSnapshot(file: RiveFile) {
         val (width, height) = snapshotView.awaitSize()
-        RenderBuffer(width, height, file.commandQueue).use { buffer ->
+        RenderBuffer(width, height, file.riveWorker).use { buffer ->
             Artboard.fromFile(file).use { artboard ->
                 StateMachine.fromArtboard(artboard).use { stateMachine ->
                     val targetTime = 500.milliseconds
@@ -74,8 +73,7 @@ class RiveSnapshotActivity : ComponentActivity() {
                     val bitmap = buffer.snapshot(
                         artboard = artboard,
                         stateMachine = stateMachine,
-                        fit = Fit.CONTAIN,
-                        alignment = Alignment.CENTER,
+                        fit = Fit.Contain(),
                         clearColor = Color.WHITE
                     ).toBitmap()
 

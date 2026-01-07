@@ -16,18 +16,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.andThen
 import app.rive.Result.Loading.sequence
 import app.rive.Result.Loading.zip
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
-import app.rive.rememberCommandQueue
 import app.rive.rememberImage
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.runningFold
@@ -47,10 +47,10 @@ class ComposeImageBindingActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
 
-            val commandQueue = rememberCommandQueue()
+            val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.image_db_cats),
-                commandQueue
+                riveWorker
             )
 
             // Convert the list of image resources into a Result<List<ImageAsset>>
@@ -68,7 +68,7 @@ class ComposeImageBindingActivity : ComponentActivity() {
                         context.resources.openRawResource(id)
                             .use { Result.Success(it.readBytes()) }
                     }
-                }.value.andThen { bytes -> rememberImage(commandQueue, bytes) }
+                }.value.andThen { bytes -> rememberImage(riveWorker, bytes) }
             }.sequence()
 
             val fileAndImages = riveFile.zip(images)
@@ -95,12 +95,11 @@ class ComposeImageBindingActivity : ComponentActivity() {
                             vmi.setImage("property of Card/Image property", images[imageIndex])
                         }
 
-                        RiveUI(
+                        Rive(
                             riveFile,
                             Modifier.padding(innerPadding),
                             viewModelInstance = vmi,
-                            fit = Fit.LAYOUT,
-                            layoutScaleFactor = 1.4f,
+                            fit = Fit.Layout(1.4f),
                         )
                     }
                 }

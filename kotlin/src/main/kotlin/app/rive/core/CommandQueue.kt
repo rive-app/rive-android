@@ -10,6 +10,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
+import app.rive.Fit
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileException
@@ -19,11 +20,9 @@ import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
 import app.rive.core.RenderContextGL.Companion.TAG
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
-import app.rive.runtime.kotlin.core.Alignment
+import app.rive.rememberRiveWorker
 import app.rive.runtime.kotlin.core.File.Enum
-import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.ViewModel
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +39,24 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
+
+/**
+ * [CommandQueue] is named to match the underlying core C++ class, which reflects its algorithm: a
+ * queue of commands that are dispatched to a command server which receives them and operates on
+ * Rive files.
+ *
+ * But for the purposes of a public API, it makes more sense to think of this less in terms of its
+ * algorithm and more in terms of its purpose, which is to dispatch work and manage memory for a
+ * worker thread. This type alias preserves the internal name to continue matching the C++ class it
+ * represents while also exposing a more semantic name for users.
+ */
+typealias RiveWorker = CommandQueue
+
+/**
+ * Additional alias for the interior type `RiveWorker.PropertyUpdate` due to not being accessible
+ * from [RiveWorker].
+ */
+typealias RivePropertyUpdate<T> = CommandQueue.PropertyUpdate<T>
 
 const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
@@ -78,7 +95,7 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * loaded into each command queue separately.
  *
  * A command queue needs to be polled to receive messages from the command server. This is handled
- * by the [rememberCommandQueue] composable or by calling [beginPolling].
+ * by the [rememberRiveWorker] composable or by calling [beginPolling].
  *
  * @param renderContext The [RenderContext] to use for rendering. Currently only OpenGL is
  *    supported. The CommandQueue takes ownership of the passed context.
@@ -412,8 +429,8 @@ class CommandQueue(
     private external fun cppPointerMove(
         pointer: Long,
         stateMachineHandle: Long,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
@@ -425,8 +442,8 @@ class CommandQueue(
     private external fun cppPointerDown(
         pointer: Long,
         stateMachineHandle: Long,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
@@ -438,8 +455,8 @@ class CommandQueue(
     private external fun cppPointerUp(
         pointer: Long,
         stateMachineHandle: Long,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
@@ -451,8 +468,8 @@ class CommandQueue(
     private external fun cppPointerExit(
         pointer: Long,
         stateMachineHandle: Long,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
@@ -486,8 +503,8 @@ class CommandQueue(
         renderTargetPointer: Long,
         width: Int,
         height: Int,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         scaleFactor: Float,
         clearColor: Int
     )
@@ -502,8 +519,8 @@ class CommandQueue(
         renderTargetPointer: Long,
         width: Int,
         height: Int,
-        fit: Fit,
-        alignment: Alignment,
+        fit: Byte,
+        alignment: Byte,
         scaleFactor: Float,
         clearColor: Int,
         buffer: ByteArray
@@ -513,7 +530,7 @@ class CommandQueue(
 
     companion object {
         /**
-         * Maximum number of RiveUI components that can safely use this CommandQueue instance
+         * Maximum number of Rive components that can safely use this CommandQueue instance
          * concurrently.
          */
         const val MAX_CONCURRENT_SUBSCRIBERS = 32
@@ -564,7 +581,7 @@ class CommandQueue(
      *
      * val cq = CommandQueue().also { it.withLifecycle(this, "MyActivity") }
      *
-     * ⚠️ Do not use this with a command queue created with [rememberCommandQueue]. A command queue
+     * ⚠️ Do not use this with a command queue created with [rememberRiveWorker]. A command queue
      * created with that method has its lifecycle managed by the Composable's lifecycle.
      *
      * @param owner The LifecycleOwner to tie this CommandQueue's lifetime to, such as an Activity
@@ -2348,7 +2365,6 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to notify.
      * @param fit The fit mode of the artboard.
-     * @param alignment The alignment of the artboard.
      * @param surfaceWidth The width of the surface the artboard is drawn to.
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
@@ -2359,8 +2375,6 @@ class CommandQueue(
     fun pointerMove(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
-        alignment: Alignment,
-        layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
         pointerID: Int,
@@ -2369,9 +2383,9 @@ class CommandQueue(
     ) = cppPointerMove(
         cppPointer.pointer,
         stateMachineHandle.handle,
-        fit,
-        alignment,
-        layoutScale,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         surfaceWidth,
         surfaceHeight,
         pointerID,
@@ -2388,9 +2402,6 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to notify.
      * @param fit The fit mode of the artboard.
-     * @param alignment The alignment of the artboard.
-     * @param layoutScale The scale factor applied to the artboard when the fit type is Layout
-     *    (otherwise 1f).
      * @param surfaceWidth The width of the surface the artboard is drawn to.
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
@@ -2401,8 +2412,6 @@ class CommandQueue(
     fun pointerDown(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
-        alignment: Alignment,
-        layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
         pointerID: Int,
@@ -2411,9 +2420,9 @@ class CommandQueue(
     ) = cppPointerDown(
         cppPointer.pointer,
         stateMachineHandle.handle,
-        fit,
-        alignment,
-        layoutScale,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         surfaceWidth,
         surfaceHeight,
         pointerID,
@@ -2430,9 +2439,6 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to notify.
      * @param fit The fit mode of the artboard.
-     * @param alignment The alignment of the artboard.
-     * @param layoutScale The scale factor applied to the artboard when the fit type is Layout
-     *    (otherwise 1f).
      * @param surfaceWidth The width of the surface the artboard is drawn to.
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
@@ -2443,8 +2449,6 @@ class CommandQueue(
     fun pointerUp(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
-        alignment: Alignment,
-        layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
         pointerID: Int,
@@ -2453,9 +2457,9 @@ class CommandQueue(
     ) = cppPointerUp(
         cppPointer.pointer,
         stateMachineHandle.handle,
-        fit,
-        alignment,
-        layoutScale,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         surfaceWidth,
         surfaceHeight,
         pointerID,
@@ -2472,9 +2476,6 @@ class CommandQueue(
      *
      * @param stateMachineHandle The handle of the state machine to notify.
      * @param fit The fit mode of the artboard.
-     * @param alignment The alignment of the artboard.
-     * @param layoutScale The scale factor applied to the artboard when the fit type is Layout
-     *    (otherwise 1f).
      * @param surfaceWidth The width of the surface the artboard is drawn to.
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
@@ -2485,8 +2486,6 @@ class CommandQueue(
     fun pointerExit(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
-        alignment: Alignment,
-        layoutScale: Float,
         surfaceWidth: Float,
         surfaceHeight: Float,
         pointerID: Int,
@@ -2495,9 +2494,9 @@ class CommandQueue(
     ) = cppPointerExit(
         cppPointer.pointer,
         stateMachineHandle.handle,
-        fit,
-        alignment,
-        layoutScale,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         surfaceWidth,
         surfaceHeight,
         pointerID,
@@ -2508,7 +2507,7 @@ class CommandQueue(
     /**
      * Resizes an artboard to match the dimensions of the given surface.
      *
-     * ℹ️ This is required when setting the fit type to [Fit.LAYOUT], where the artboard is expected
+     * ℹ️ This is required when setting the fit type to [Fit.Layout], where the artboard is expected
      * to match the dimensions of the surface it is drawn to and layout its children within those
      * bounds.
      *
@@ -2535,7 +2534,7 @@ class CommandQueue(
      * Resets an artboard to its original dimensions.
      *
      * ℹ️ This should be called if the artboard was previously resized with [resizeArtboard] and you
-     * now have a fit type other than [Fit.LAYOUT], to restore the artboard to its original size.
+     * now have a fit type other than [Fit.Layout], to restore the artboard to its original size.
      *
      * @param artboardHandle The handle of the artboard to reset.
      * @throws IllegalStateException If the CommandQueue has been released.
@@ -2555,8 +2554,6 @@ class CommandQueue(
      * @param stateMachineHandle The handle of the state machine to use for drawing.
      * @param surface The surface to draw to.
      * @param fit The fit mode of the artboard.
-     * @param alignment The alignment of the artboard.
-     * @param scaleFactor The scale factor to use when aligning the artboard. Defaults to 1.0.
      * @param clearColor The color to clear the surface with before drawing, in AARRGGBB format.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
@@ -2566,8 +2563,6 @@ class CommandQueue(
         stateMachineHandle: StateMachineHandle,
         surface: RiveSurface,
         fit: Fit,
-        alignment: Alignment,
-        scaleFactor: Float = 1f,
         clearColor: Int = Color.TRANSPARENT
     ) = cppDraw(
         cppPointer.pointer,
@@ -2579,9 +2574,9 @@ class CommandQueue(
         surface.renderTargetPointer.pointer,
         surface.width,
         surface.height,
-        fit,
-        alignment,
-        scaleFactor,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         clearColor
     )
 
@@ -2600,8 +2595,6 @@ class CommandQueue(
      * @param width The width of the buffer to render.
      * @param height The height of the buffer to render.
      * @param fit Fit to use when drawing.
-     * @param alignment Alignment to use when drawing.
-     * @param scaleFactor The scale factor to use when aligning the artboard. Defaults to 1.0.
      * @param clearColor Clear color used prior to drawing, defaults to transparent.
      * @throws RiveDrawToBufferException If the buffer could not be drawn to for any reason. Further
      *    details can be found in the exception message.
@@ -2615,9 +2608,7 @@ class CommandQueue(
         buffer: ByteArray,
         width: Int,
         height: Int,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
-        scaleFactor: Float = 1f,
+        fit: Fit = Fit.Contain(),
         clearColor: Int = Color.TRANSPARENT
     ) = cppDrawToBuffer(
         cppPointer.pointer,
@@ -2629,9 +2620,9 @@ class CommandQueue(
         surface.renderTargetPointer.pointer,
         width,
         height,
-        fit,
-        alignment,
-        scaleFactor,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
         clearColor,
         buffer
     )
