@@ -66,6 +66,9 @@
             android:name=".RiveSnapshotActivity"
             android:exported="true" />
         <activity
+            android:name=".LegacyDataBindingActivity"
+            android:exported="true" />
+        <activity
             android:name=".SimpleActivity"
             android:exported="true" />
         <activity

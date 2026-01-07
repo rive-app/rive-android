@@ -12,6 +12,7 @@ class MainActivity : ComponentActivity() {
     private val buttonsData = listOf(
         Pair(R.id.go_compose, ComposeActivity::class.java),
         Pair(R.id.go_compose_data_binding, ComposeDataBindingActivity::class.java),
+        Pair(R.id.go_legacy_data_binding, LegacyDataBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_artboards, ComposeArtboardBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_images, ComposeImageBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_lists, ComposeListActivity::class.java),
