@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Result
 import app.rive.Rive
 import app.rive.RiveFileSource
@@ -19,7 +18,6 @@ import app.rive.rememberRiveWorker
 import android.graphics.Color as AndroidColor
 
 class ComposeAudioActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(

@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
@@ -48,7 +47,7 @@ enum class WinKind(val enumValue: String) {
 }
 
 class ComposeDataBindingActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class, ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val backgroundColor = "#30202F".toColorInt()

@@ -11,7 +11,6 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.RenderBuffer
 import app.rive.Result
@@ -28,7 +27,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "RiveSnapshotActivity"
 
-@OptIn(ExperimentalRiveComposeAPI::class)
 class RiveSnapshotActivity : ComponentActivity() {
     private lateinit var snapshotView: SnapshotCanvasView
 

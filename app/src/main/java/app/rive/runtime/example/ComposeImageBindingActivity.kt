@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.andThen
@@ -35,7 +34,6 @@ import kotlinx.coroutines.withContext
 import android.graphics.Color as AndroidColor
 
 class ComposeImageBindingActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(

@@ -13,7 +13,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
@@ -37,7 +36,6 @@ import kotlin.time.Duration.Companion.nanoseconds
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-@OptIn(ExperimentalRiveComposeAPI::class)
 class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
     companion object {
         /**

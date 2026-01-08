@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.RenderBuffer
 import app.rive.Result
@@ -31,7 +30,6 @@ private const val BITMAP_TAG = "Rive/BitmapSnapshotActivity"
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-@OptIn(ExperimentalRiveComposeAPI::class)
 class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
     companion object {
         /**

@@ -186,7 +186,6 @@ sealed interface RiveFileSource {
  * @return The [Result] of loading the Rive file, which can be either loading, error, or success
  *    with the [RiveFile].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberRiveFile(
     source: RiveFileSource,

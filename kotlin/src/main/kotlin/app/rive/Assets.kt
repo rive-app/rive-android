@@ -273,7 +273,6 @@ class FontAsset(
  * @return The [Result] of the image decoding, which can be either loading, error, or success with
  *    the [ImageHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberImage(
     riveWorker: RiveWorker,
@@ -296,7 +295,6 @@ fun rememberImage(
  * @return The [Result] of the image decoding and registration, which can be either loading, error,
  *    or success with the [ImageHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberRegisteredImage(
     riveWorker: RiveWorker,
@@ -319,7 +317,6 @@ fun rememberRegisteredImage(
  * @return The [Result] of the audio decoding, which can be either loading, error, or success with
  *    the [AudioHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberAudio(
     riveWorker: RiveWorker,
@@ -342,7 +339,6 @@ fun rememberAudio(
  * @return The [Result] of the audio decoding and registration, which can be either loading, error,
  *    or success with the [AudioHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberRegisteredAudio(
     riveWorker: RiveWorker,
@@ -365,7 +361,6 @@ fun rememberRegisteredAudio(
  * @return The [Result] of the font decoding, which can be either loading, error, or success with
  *    the [FontHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberFont(
     riveWorker: RiveWorker,
@@ -388,7 +383,6 @@ fun rememberFont(
  * @return The [Result] of the font decoding and registration, which can be either loading, error,
  *    or success with the [FontHandle].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberRegisteredFont(
     riveWorker: RiveWorker,

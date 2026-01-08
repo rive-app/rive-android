@@ -3,7 +3,6 @@ package app.rive.runtime.example
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
@@ -13,7 +12,6 @@ import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalRiveComposeAPI::class)
 class RiveViewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

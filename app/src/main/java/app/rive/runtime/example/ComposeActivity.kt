@@ -42,7 +42,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.andThen
@@ -61,7 +60,6 @@ import kotlin.math.roundToInt
 import app.rive.Alignment as RiveAlignment
 
 class ComposeActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

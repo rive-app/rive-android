@@ -39,7 +39,6 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * @see RiveWorker
  * @see rememberRiveWorkerOrNull
  */
-@ExperimentalRiveComposeAPI
 @Composable
 @Throws(RiveInitializationException::class)
 fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
@@ -63,7 +62,6 @@ fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
  * @return The created [RiveWorker], or null if creation failed.
  * @see rememberRiveWorker
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberRiveWorkerOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null),

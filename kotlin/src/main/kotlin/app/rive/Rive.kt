@@ -41,14 +41,6 @@ private const val GENERAL_TAG = "Rive/UI"
 private const val STATE_MACHINE_TAG = "Rive/UI/SM"
 private const val DRAW_TAG = "Rive/UI/Draw"
 
-@RequiresOptIn(
-    level = RequiresOptIn.Level.WARNING,
-    message = "The Rive Compose API is experimental and may change in the future. Opt-in is required."
-)
-@Retention(AnnotationRetention.BINARY)
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.TYPEALIAS)
-annotation class ExperimentalRiveComposeAPI
-
 /**
  * Represents the result of an operation - typically loading - that can be in a loading, error,
  * or success state. This includes Rive file loading. The Success result must be unwrapped to the
@@ -173,7 +165,6 @@ enum class RivePointerInputMode {
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
  *    getter is only valid while the surface is active.
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun Rive(
     file: RiveFile,

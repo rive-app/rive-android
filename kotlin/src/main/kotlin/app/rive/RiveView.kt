@@ -21,7 +21,6 @@ import kotlin.time.Duration.Companion.nanoseconds
 /**
  * Note: This class is more experimental than others. It is not recommended for use at this time.
  */
-@ExperimentalRiveComposeAPI()
 class RiveView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,

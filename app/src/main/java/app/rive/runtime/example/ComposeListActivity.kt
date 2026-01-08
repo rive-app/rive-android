@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.rive.ExperimentalRiveComposeAPI
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
@@ -49,7 +48,6 @@ import kotlinx.coroutines.launch
 import android.graphics.Color as AndroidColor
 
 class ComposeListActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(

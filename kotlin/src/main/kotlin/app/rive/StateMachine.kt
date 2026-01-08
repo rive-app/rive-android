@@ -85,7 +85,6 @@ class StateMachine internal constructor(
  *    will be loaded.
  * @return The created [StateMachine].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberStateMachine(
     artboard: Artboard,

@@ -17,7 +17,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalRiveComposeAPI::class)
 @RunWith(AndroidJUnit4::class)
 class CommandQueueComposeTest {
     @Before

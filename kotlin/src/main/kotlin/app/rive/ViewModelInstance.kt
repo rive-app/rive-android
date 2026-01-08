@@ -540,7 +540,6 @@ sealed interface ViewModelInstanceSource {
  *
  * @return The created [ViewModelInstance].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberViewModelInstance(
     file: RiveFile,

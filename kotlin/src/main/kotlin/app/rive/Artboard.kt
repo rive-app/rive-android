@@ -113,7 +113,6 @@ class Artboard internal constructor(
  *    loaded.
  * @return The created [Artboard].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberArtboard(
     file: RiveFile,
