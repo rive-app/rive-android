@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <jni.h>
+#include <vector>
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
@@ -14,6 +16,7 @@ protected:
     jobject m_ktCanvas = nullptr;
     int m_width = -1;
     int m_height = -1;
+    std::vector<float> m_opacityStack{1.0f};
 
 private:
     static jobject GetCanvas(jobject ktSurface)
@@ -65,7 +68,15 @@ public:
                        uint32_t indexCount,
                        rive::BlendMode,
                        float opacity) override;
+    void modulateOpacity(float opacity) override
+    {
+        m_opacityStack.back() *= opacity;
+    }
 
+    [[nodiscard]] float currentOpacity() const
+    {
+        return std::max(0.0f, m_opacityStack.back());
+    }
     [[nodiscard]] int width() const { return m_width; }
     [[nodiscard]] int height() const { return m_height; }
 
