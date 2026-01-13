@@ -60,6 +60,12 @@
             android:name=".ComposeListActivity"
             android:exported="true" />
         <activity
+            android:name=".ScriptingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".LegacyScriptingActivity"
+            android:exported="true" />
+        <activity
             android:name=".RiveViewActivity"
             android:exported="true" />
         <activity

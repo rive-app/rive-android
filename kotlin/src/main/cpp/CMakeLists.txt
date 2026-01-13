@@ -67,6 +67,16 @@ else ()
     set(RIVE_AUDIO_ARG "disabled")
 endif ()
 
+# Add an option to remove scripting
+# Passed from Gradle with -DWITH_SCRIPTING=ON|OFF
+option(WITH_SCRIPTING "Enable Rive scripting support" ON)
+if (WITH_SCRIPTING)
+    # Flag for Premake
+    set(RIVE_SCRIPTING_ARG "--with_rive_scripting")
+    # Add to the list of static libraries
+    list(APPEND static_libs luau_vm)
+endif ()
+
 # Add an option to enable ASAN
 # Passed from Gradle with -DENABLE_ASAN=ON|OFF
 option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
@@ -113,12 +123,12 @@ else ()
     message(FATAL_ERROR "Unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif ()
 
-# Promote our ${ANDROID_NDK} to an environment var so premake uses the same one.
+# Promote our ${ANDROID_NDK} to an environment var so Premake uses the same one.
 set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
 # Build the Rive C++ runtime and its dependencies as static .a libs
 execute_process(
-        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
+        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
