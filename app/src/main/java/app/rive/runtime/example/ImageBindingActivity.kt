@@ -6,12 +6,16 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -268,6 +272,7 @@ private fun buildConfigs(ctx: Context): List<ImageConfig> {
 class ImageBindingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
             // Build all combinations we want to exercise
@@ -280,7 +285,11 @@ class ImageBindingActivity : ComponentActivity() {
 
             val bound = remember { mutableStateOf(false) }
 
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = 16.dp)
+            ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     val scope = rememberCoroutineScope()
                     Button(
@@ -441,8 +450,7 @@ private fun premultiplyRGBABytes(straight: ByteArray): ByteArray {
         val r = straight[i].toInt() and LSB_MASK
         val g = straight[i + 1].toInt() and LSB_MASK
         val b = straight[i + 2].toInt() and LSB_MASK
-        val a = straight[i + 3].toInt() and LSB_MASK
-        when (a) {
+        when (val a = straight[i + 3].toInt() and LSB_MASK) {
             255 -> (0..3).forEach { offset -> out[i + offset] = straight[i + offset] }
             0 -> (0..3).forEach { offset -> out[i + offset] = 0 }
             else -> {

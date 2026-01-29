@@ -1,8 +1,10 @@
+#include "helpers/general.hpp"
+
 #include "jni_refs.hpp"
 #include "helpers/android_factories.hpp"
-#include "helpers/worker_ref.hpp"
-#include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/rive_log.hpp"
+#include "helpers/worker_ref.hpp"
 #include "rive/file.hpp"
 
 #if defined(DEBUG) || defined(LOG)
@@ -31,10 +33,10 @@ JNIEnv* GetJNIEnv()
     int getEnvStat = g_JVM->GetEnv((void**)&g_env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED)
     {
-        LOGW("GetJNIEnv - Not Attached.");
+        RiveLogW("RiveN/GetJNIEnv", "GetJNIEnv - Not Attached.");
         if (g_JVM->AttachCurrentThread((JNIEnv**)&g_env, nullptr) != 0)
         {
-            LOGE("Failed to attach current thread.");
+            RiveLogE("RiveN/GetJNIEnv", "Failed to attach current thread.");
         }
     }
     else if (getEnvStat == JNI_OK)
@@ -43,7 +45,9 @@ JNIEnv* GetJNIEnv()
     }
     else if (getEnvStat == JNI_EVERSION)
     {
-        LOGE("GetJNIEnv: unsupported version %d", getEnvStat);
+        RiveLogE("RiveN/GetJNIEnv",
+                 "GetJNIEnv: unsupported version %d",
+                 getEnvStat);
     }
     return g_env;
 }
@@ -52,7 +56,7 @@ void DetachThread()
 {
     if (g_JVM->DetachCurrentThread() != JNI_OK)
     {
-        LOGE("DetachCurrentThread failed.");
+        RiveLogE("RiveN/GetJNIEnv", "DetachCurrentThread failed.");
     }
 }
 
@@ -70,6 +74,8 @@ void SetSDKVersion()
     __system_property_get("ro.build.version.sdk", sdk_ver_str);
     g_sdkVersion = strtol(sdk_ver_str, nullptr, 10);
 }
+
+rive::Fit GetFit(uint8_t ordinal) { return static_cast<rive::Fit>(ordinal); }
 
 rive::Fit GetFit(JNIEnv* env, jobject jFit)
 {
@@ -115,6 +121,37 @@ rive::Fit GetFit(JNIEnv* env, jobject jFit)
     env->ReleaseStringUTFChars(fitValue, fitValueNative);
     env->DeleteLocalRef(fitValue);
     return fit;
+}
+
+rive::Alignment GetAlignment(uint8_t ordinal)
+{
+    switch (ordinal)
+    {
+        case 0:
+            return rive::Alignment::topLeft;
+        case 1:
+            return rive::Alignment::topCenter;
+        case 2:
+            return rive::Alignment::topRight;
+        case 3:
+            return rive::Alignment::centerLeft;
+        case 4:
+            return rive::Alignment::center;
+        case 5:
+            return rive::Alignment::centerRight;
+        case 6:
+            return rive::Alignment::bottomLeft;
+        case 7:
+            return rive::Alignment::bottomCenter;
+        case 8:
+            return rive::Alignment::bottomRight;
+        default:
+            RiveLogE("RiveN/GetAlignment",
+                     "Invalid alignment ordinal: %u",
+                     ordinal);
+            assert(false && "Invalid rive::Alignment ordinal");
+            std::abort();
+    }
 }
 
 rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)

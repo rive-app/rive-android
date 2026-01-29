@@ -2,13 +2,14 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import app.rive.runtime.example.utils.RiveButton
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
-class ButtonActivity : AppCompatActivity() {
+class ButtonActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.button)
+        setEdgeToEdgeContent(R.layout.button)
 
         val button = findViewById<RiveButton>(R.id.myButton)
         button.setOnClickListener {

@@ -7,16 +7,14 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingVertical="8dp">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:id="@+id/button_container"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
-            android:orientation="vertical"
-            android:paddingVertical="8dp">
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/go_compose"
@@ -25,6 +23,87 @@
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
                 android:text="Compose"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_legacy_data_binding"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Legacy Data Binding"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding_artboards"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Artboards"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding_images"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Images"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_data_binding_lists"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Data Binding Lists"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_layout"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Layout"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_audio"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Audio"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_touch_pass_through"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Touch Pass Through"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_compose_scrolling"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Compose Scrolling"
                 android:textColor="@color/textColorPrimary" />
 
             <Button

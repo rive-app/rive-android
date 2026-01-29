@@ -3,29 +3,27 @@ package app.rive.runtime.example
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import app.rive.runtime.example.databinding.ActivityAssetLoaderBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.core.BytesRequest
 import app.rive.runtime.kotlin.core.ContextAssetLoader
 import app.rive.runtime.kotlin.core.FileAsset
 import app.rive.runtime.kotlin.core.FileAssetLoader
-import app.rive.runtime.kotlin.core.Rive
 import com.android.volley.toolbox.Volley
 import com.google.android.material.tabs.TabLayoutMediator
 import kotlin.random.Random
 
-class AssetLoaderActivity : AppCompatActivity() {
+class AssetLoaderActivity : FragmentActivity() {
     private lateinit var binding: ActivityAssetLoaderBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Setup
-        Rive.init(this)
         super.onCreate(savedInstanceState)
-
         binding = ActivityAssetLoaderBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setEdgeToEdgeContent(binding.root)
+
         binding.viewPager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 3
 

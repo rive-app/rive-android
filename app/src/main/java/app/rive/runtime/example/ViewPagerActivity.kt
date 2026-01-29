@@ -3,25 +3,25 @@ package app.rive.runtime.example
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.activity.ComponentActivity
 import androidx.annotation.RawRes
-import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import app.rive.runtime.example.databinding.ViewPagerBinding
 import app.rive.runtime.example.databinding.ViewPagerRiveWrapperBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
 @ControllerStateManagement
-class ViewPagerActivity : AppCompatActivity() {
+class ViewPagerActivity : ComponentActivity() {
     private lateinit var binding: ViewPagerBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         binding = ViewPagerBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setEdgeToEdgeContent(binding.root)
 
         // Load multiple pages in advance.
         binding.viewPager.offscreenPageLimit = 3

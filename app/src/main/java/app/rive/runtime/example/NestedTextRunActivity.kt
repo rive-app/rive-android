@@ -4,10 +4,11 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 
-class NestedTextRunActivity : AppCompatActivity() {
+class NestedTextRunActivity : ComponentActivity() {
 
     private val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.nested_text_run)
@@ -77,6 +78,6 @@ class NestedTextRunActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.nested_text_run)
+        setEdgeToEdgeContent(R.layout.nested_text_run)
     }
 }

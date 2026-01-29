@@ -5,30 +5,30 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.EditText
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 
 /**
- * Dynamically change a Rive Text Run value. In this example the run is named: "name"
- * For the run to be discoverable at runtime, the name as to be set in the editor.
+ * Dynamically change a Rive Text Run value. In this example the run is named: "name" For the run to
+ * be discoverable at runtime, the name as to be set in the editor.
  *
  * See: https://rive.app/community/doc/text/docn2E6y1lXo
  */
-class DynamicTextActivity : AppCompatActivity(), TextWatcher {
+class DynamicTextActivity : ComponentActivity(), TextWatcher {
     private val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.dynamic_text)
     }
 
-    /**
-     * Reference to a [RiveTextValueRun]
-     */
+    /** Reference to a [RiveTextValueRun]. */
     private val textRun by lazy(LazyThreadSafetyMode.NONE) {
         animationView.controller.activeArtboard?.textRun("name")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.dynamic_text)
+        setEdgeToEdgeContent(R.layout.dynamic_text)
+
         val editText = findViewById<EditText>(R.id.text_run_value)
         editText.addTextChangedListener(this)
     }

@@ -6,7 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
-import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.RenderBuffer
 import app.rive.Result
 import app.rive.RiveFile
@@ -15,8 +15,7 @@ import app.rive.RiveLog
 import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
-import app.rive.core.CommandQueue
-import app.rive.runtime.kotlin.core.Fit
+import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.launch
@@ -31,7 +30,6 @@ private const val BITMAP_TAG = "Rive/BitmapSnapshotActivity"
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-@OptIn(ExperimentalRiveComposeAPI::class)
 class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
     companion object {
         /**
@@ -44,7 +42,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
             context: android.content.Context,
             config: SnapshotActivityConfig
         ): Intent = Intent(context, SnapshotBitmapActivity::class.java).apply {
-            SnapshotActivityConfig.intoIntent(this, config)
+            config.applyToIntent(this)
         }
     }
 
@@ -58,15 +56,15 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
         Rive.init(this)
 
         lifecycleScope.launch {
-            val commandQueue = CommandQueue().also { queue ->
-                queue.withLifecycle(this@SnapshotBitmapActivity, BITMAP_TAG)
+            val riveWorker = RiveWorker().also { worker ->
+                worker.withLifecycle(this@SnapshotBitmapActivity, BITMAP_TAG)
                 lifecycleScope.launch {
-                    queue.beginPolling(lifecycle)
+                    worker.beginPolling(lifecycle)
                 }
             }
             val riveFileResult = RiveFile.fromSource(
                 RiveFileSource.RawRes(R.raw.snapshot_test, resources),
-                commandQueue
+                riveWorker
             )
 
             when (riveFileResult) {
@@ -92,17 +90,28 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         val (width, height) = 100 to 100
-        RenderBuffer(width, height, file.commandQueue).use { buffer ->
+        val fit = when (config) {
+            is SnapshotActivityConfig.Layout -> if (config.useLayout) {
+                Fit.Layout(config.layoutScale)
+            } else {
+                Fit.None()
+            }
+
+            else -> Fit.None() // Default to no layout for other scenarios
+        }
+
+        RenderBuffer(width, height, file.riveWorker).use { buffer ->
             Artboard.fromFile(file, config.artboardName).use { artboard ->
                 StateMachine.fromArtboard(artboard).use { stateMachine ->
                     ViewModelInstance.fromFile(
                         file,
                         ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
                     ).use { vmi ->
-                        file.commandQueue.bindViewModelInstance(
+                        file.riveWorker.bindViewModelInstance(
                             stateMachine.stateMachineHandle,
                             vmi.instanceHandle
                         )
+
                         when (config) {
                             is SnapshotActivityConfig.Sweep -> {
                                 // Map percentage (0f-1f) to milliseconds (0-1000ms)
@@ -129,13 +138,16 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                                 stateMachine.advance(0.milliseconds)
                             }
 
-                            else -> {
-                                // No additional setup needed for other scenarios beyond initial advance
+                            is SnapshotActivityConfig.Layout -> {
+                                if (config.useLayout) {
+                                    artboard.resizeArtboard(buffer.surface, config.layoutScale)
+                                }
                                 stateMachine.advance(0.milliseconds)
                             }
                         }
                         resultBitmap =
-                            buffer.snapshot(artboard, stateMachine, fit = Fit.NONE).toBitmap()
+                            buffer.snapshot(artboard, stateMachine, fit)
+                                .toBitmap()
                     }
                 }
             }

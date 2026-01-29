@@ -14,8 +14,6 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
 import app.rive.core.withFrameNanosChoreographer
-import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
@@ -23,8 +21,7 @@ import kotlin.time.Duration.Companion.nanoseconds
 /**
  * Note: This class is more experimental than others. It is not recommended for use at this time.
  */
-@ExperimentalRiveComposeAPI()
-class RiveUIView @JvmOverloads constructor(
+class RiveView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyle: Int = 0,
@@ -48,10 +45,10 @@ class RiveUIView @JvmOverloads constructor(
         super.onAttachedToWindow()
 
         val owner = findViewTreeLifecycleOwner()
-            ?: error("RiveUIView must be hosted under a LifecycleOwner.")
+            ?: error("RiveView must be hosted under a LifecycleOwner.")
 
         // TODO: Refcount the file instead?
-        riveFile?.commandQueue?.acquire("RiveUIView")
+        riveFile?.riveWorker?.acquire("RiveView")
 
         owner.lifecycleScope.launch {
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -65,13 +62,13 @@ class RiveUIView @JvmOverloads constructor(
                     }
 
                     val file = riveFile ?: break
-                    val cq = file.commandQueue
+                    val cq = file.riveWorker
                     val art = artboardHandle ?: break
                     val sm = stateMachineHandle ?: break
                     val rs = riveSurface ?: break
 
                     cq.advanceStateMachine(sm, deltaTime)
-                    cq.draw(art, sm, Fit.CONTAIN, Alignment.CENTER, rs)
+                    cq.draw(art, sm, rs, Fit.Contain())
                 }
             }
         }
@@ -80,7 +77,7 @@ class RiveUIView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
 
-        riveFile?.commandQueue?.release("RiveUIView", "Detached from window")
+        riveFile?.riveWorker?.release("RiveView", "Detached from window")
     }
 
     val textureView = TextureView(context).apply {
@@ -91,18 +88,18 @@ class RiveUIView @JvmOverloads constructor(
                 width: Int,
                 height: Int
             ) {
-                this@RiveUIView.surfaceTexture = newSurfaceTexture
+                this@RiveView.surfaceTexture = newSurfaceTexture
                 surfaceWidth = width
                 surfaceHeight = height
                 riveFile?.let { file ->
-                    riveSurface = file.commandQueue.createRiveSurface(newSurfaceTexture)
+                    riveSurface = file.riveWorker.createRiveSurface(newSurfaceTexture)
                 }
             }
 
             override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
                 riveSurface = null
                 // False here means that we are responsible for destroying the surface texture
-                // This happens in RenderContext::close(), called from CommandQueue::destroyRiveSurface
+                // This happens in RenderContext::close(), called from RiveWorker::destroyRiveSurface
                 return false
             }
 
@@ -127,14 +124,14 @@ class RiveUIView @JvmOverloads constructor(
     ) {
         riveFile = file
         artboardHandle =
-            artboard?.artboardHandle ?: file.commandQueue.createDefaultArtboard(file.fileHandle)
+            artboard?.artboardHandle ?: file.riveWorker.createDefaultArtboard(file.fileHandle)
         stateMachineHandle = if (stateMachineName != null)
-            file.commandQueue.createStateMachineByName(artboardHandle!!, stateMachineName)
+            file.riveWorker.createStateMachineByName(artboardHandle!!, stateMachineName)
         else
-            file.commandQueue.createDefaultStateMachine(artboardHandle!!)
+            file.riveWorker.createDefaultStateMachine(artboardHandle!!)
 
         if (surfaceTexture != null && riveSurface == null) {
-            riveSurface = file.commandQueue.createRiveSurface(surfaceTexture!!)
+            riveSurface = file.riveWorker.createRiveSurface(surfaceTexture!!)
         }
     }
 }

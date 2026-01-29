@@ -1,17 +1,12 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import app.rive.runtime.kotlin.RiveAnimationView
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
-class BlendActivity : AppCompatActivity() {
-
-    private val animationViewAsset by lazy(LazyThreadSafetyMode.NONE) {
-        findViewById<RiveAnimationView>(R.id.blend)
-    }
-
+class BlendActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.blend)
+        setEdgeToEdgeContent(R.layout.blend)
     }
 }

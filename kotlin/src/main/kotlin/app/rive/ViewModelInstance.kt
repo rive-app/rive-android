@@ -5,8 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import app.rive.core.CloseOnce
-import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.RivePropertyUpdate
+import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import kotlinx.coroutines.channels.BufferOverflow
@@ -26,25 +27,25 @@ internal const val VM_INSTANCE_TAG = "Rive/VMI"
  * A view model instance for data binding which has properties that can be set and observed.
  *
  * The instance must be bound to a state machine for its values to take effect. This is done by
- * passing it to [RiveUI].
+ * passing it to [Rive].
  *
  * @param instanceHandle The handle to the view model instance on the command server.
- * @param commandQueue The command queue that owns the view model instance.
+ * @param riveWorker The Rive worker that owns the view model instance.
  */
 class ViewModelInstance internal constructor(
     val instanceHandle: ViewModelInstanceHandle,
-    private val commandQueue: CommandQueue,
+    private val riveWorker: RiveWorker,
     private val fileHandle: FileHandle,
 ) : AutoCloseable by CloseOnce("$instanceHandle", {
     RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
-    commandQueue.deleteViewModelInstance(instanceHandle)
+    riveWorker.deleteViewModelInstance(instanceHandle)
 }) {
     companion object {
         /**
          * Creates a new [ViewModelInstance].
          *
-         * The lifetime of the view model instance is managed by the caller. Make sure to call
-         * [close] when you are done with the instance to release its resources.
+         * ⚠️ The lifetime of the returned view model instance is managed by the caller. Make sure
+         * to call [close] when you are done with the instance to release its resources.
          *
          * @param file The [RiveFile] to create the view model instance from.
          * @param source The source of the view model instance. Constructed from [ViewModelSource]
@@ -55,9 +56,9 @@ class ViewModelInstance internal constructor(
             file: RiveFile,
             source: ViewModelInstanceSource
         ): ViewModelInstance {
-            val handle = file.commandQueue.createViewModelInstance(file.fileHandle, source)
+            val handle = file.riveWorker.createViewModelInstance(file.fileHandle, source)
             RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
-            return ViewModelInstance(handle, file.commandQueue, file.fileHandle)
+            return ViewModelInstance(handle, file.riveWorker, file.fileHandle)
         }
     }
 
@@ -79,13 +80,13 @@ class ViewModelInstance internal constructor(
         propertyPath: String,
         cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
-        updateFlow: SharedFlow<CommandQueue.PropertyUpdate<T>>,
+        updateFlow: SharedFlow<RivePropertyUpdate<T>>,
         propertyType: PropertyDataType
     ): Flow<T> = cache.getOrPut(propertyPath) {
         updateFlow
             // Ensure we’re subscribed, then kick off fetching latest value
             .onSubscription {
-                commandQueue.subscribeToProperty(instanceHandle, propertyPath, propertyType)
+                riveWorker.subscribeToProperty(instanceHandle, propertyPath, propertyType)
                 // Fire the getter so its reply comes through as the first emission
                 // (ignoring the immediately returned value).
                 getter(instanceHandle, propertyPath)
@@ -98,7 +99,7 @@ class ViewModelInstance internal constructor(
     /**
      * Creates or retrieves from cache a [number][Float] property, represented as a cold [Flow].
      *
-     * The flow is subscribed to updates from the command queue while it is being collected.
+     * The flow is subscribed to updates from the Rive worker while it is being collected.
      *
      * This flow emits every distinct value (up to the backing buffer limit). If you process
      * the flow slowly, consider applying [conflate] if you only need the latest value to skip
@@ -108,7 +109,7 @@ class ViewModelInstance internal constructor(
      * Collection of the flow may cause an exception:
      * - [RuntimeException]: If this class has been [closed][close], if the property does not exist
      *   on this view model instance, or is is of a different type.
-     * - [IllegalStateException]: If the backing command queue has been released.
+     * - [IllegalStateException]: If the backing Rive worker has been released.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
@@ -118,8 +119,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             numberFlows,
-            commandQueue::getNumberProperty,
-            commandQueue.numberPropertyFlow,
+            riveWorker::getNumberProperty,
+            riveWorker.numberPropertyFlow,
             PropertyDataType.NUMBER
         )
 
@@ -137,8 +138,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             stringFlows,
-            commandQueue::getStringProperty,
-            commandQueue.stringPropertyFlow,
+            riveWorker::getStringProperty,
+            riveWorker.stringPropertyFlow,
             PropertyDataType.STRING
         )
 
@@ -156,8 +157,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             booleanFlows,
-            commandQueue::getBooleanProperty,
-            commandQueue.booleanPropertyFlow,
+            riveWorker::getBooleanProperty,
+            riveWorker.booleanPropertyFlow,
             PropertyDataType.BOOLEAN
         )
 
@@ -176,8 +177,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             enumFlows,
-            commandQueue::getEnumProperty,
-            commandQueue.enumPropertyFlow,
+            riveWorker::getEnumProperty,
+            riveWorker.enumPropertyFlow,
             PropertyDataType.ENUM
         )
 
@@ -196,8 +197,8 @@ class ViewModelInstance internal constructor(
         getPropertyFlow(
             propertyPath,
             colorFlows,
-            commandQueue::getColorProperty,
-            commandQueue.colorPropertyFlow,
+            riveWorker::getColorProperty,
+            riveWorker.colorPropertyFlow,
             PropertyDataType.COLOR
         )
 
@@ -213,9 +214,9 @@ class ViewModelInstance internal constructor(
      * @see getNumberFlow
      */
     fun getTriggerFlow(propertyPath: String): Flow<Unit> = triggerFlows.getOrPut(propertyPath) {
-        commandQueue.triggerPropertyFlow
+        riveWorker.triggerPropertyFlow
             .onSubscription {
-                commandQueue.subscribeToProperty(
+                riveWorker.subscribeToProperty(
                     instanceHandle,
                     propertyPath,
                     PropertyDataType.TRIGGER
@@ -238,74 +239,183 @@ class ViewModelInstance internal constructor(
     /**
      * Sets a [number][Float] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
      */
     fun setNumber(propertyPath: String, value: Float) =
-        setProperty(propertyPath, value, commandQueue::setNumberProperty)
+        setProperty(propertyPath, value, riveWorker::setNumberProperty)
 
     /**
      * Sets a [string][String] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
      */
     fun setString(propertyPath: String, value: String) =
-        setProperty(propertyPath, value, commandQueue::setStringProperty)
+        setProperty(propertyPath, value, riveWorker::setStringProperty)
 
     /**
      * Sets a [boolean][Boolean] property on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
      */
     fun setBoolean(propertyPath: String, value: Boolean) =
-        setProperty(propertyPath, value, commandQueue::setBooleanProperty)
+        setProperty(propertyPath, value, riveWorker::setBooleanProperty)
 
     /**
      * Sets an enum property on this view model instance. Enums are represented as strings.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The string value of the enum to set the property to.
      */
     fun setEnum(propertyPath: String, value: String) =
-        setProperty(propertyPath, value, commandQueue::setEnumProperty)
+        setProperty(propertyPath, value, riveWorker::setEnumProperty)
 
     /**
      * Sets a color property on this view model instance. Colors are represented as AARRGGBB
      * integers.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The integer value of the color to set the property to.
      */
     fun setColor(propertyPath: String, @ColorInt value: Int) =
-        setProperty(propertyPath, value, commandQueue::setColorProperty)
+        setProperty(propertyPath, value, riveWorker::setColorProperty)
 
     /**
      * Fires a trigger on this view model instance.
      *
-     * Changes to bound Rive elements will not be reflected until the next state machine advance.
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
      */
     fun fireTrigger(propertyPath: String) =
-        commandQueue.fireTriggerProperty(instanceHandle, propertyPath)
+        riveWorker.fireTriggerProperty(instanceHandle, propertyPath)
+
+    /**
+     * Assigns the given image to the image property on this view model instance.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the property from this view model instance. Slash delimited
+     *    to refer to nested properties.
+     * @param image The image to assign to the property.
+     */
+    fun setImage(propertyPath: String, image: ImageAsset) {
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $image to $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, image.handle, riveWorker::setImageProperty)
+    }
+
+    /**
+     * Assigns the given artboard to the bindable artboard property on this view model instance.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the property from this view model instance. Slash delimited
+     *    to refer to nested properties.
+     * @param artboard The artboard to assign to the property.
+     */
+    fun setArtboard(propertyPath: String, artboard: Artboard) {
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $artboard to $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, artboard.artboardHandle, riveWorker::setArtboardProperty)
+    }
+
+    suspend fun getListSize(propertyPath: String): Int =
+        riveWorker.getListSize(instanceHandle, propertyPath)
+
+    /**
+     * Inserts an item into a list property at the specified index.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * Once the item is added to the list, you do not need to hold a reference to its instance. The
+     * list will also maintain a reference to the item.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param index The index at which to insert the item.
+     * @param item The view model instance to insert into the list.
+     */
+    fun insertToListAtIndex(propertyPath: String, index: Int, item: ViewModelInstance) {
+        riveWorker.insertToListAtIndex(instanceHandle, propertyPath, index, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Appends an item to the end of a list property.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * Once the item is added to the list, you do not need to hold a reference to its instance. The
+     * list will also maintain a reference to the item.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param item The view model instance to append to the list.
+     */
+    fun appendToList(propertyPath: String, item: ViewModelInstance) {
+        riveWorker.appendToList(instanceHandle, propertyPath, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Removes an item from a list property at the specified index.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param index The index of the item to remove.
+     */
+    fun removeFromListAtIndex(propertyPath: String, index: Int) {
+        riveWorker.removeFromListAtIndex(instanceHandle, propertyPath, index)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Removes an item from a list property.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param item The view model instance to remove from the list.
+     */
+    fun removeFromList(propertyPath: String, item: ViewModelInstance) {
+        riveWorker.removeFromList(instanceHandle, propertyPath, item.instanceHandle)
+        _dirtyFlow.tryEmit(Unit)
+    }
+
+    /**
+     * Swaps two items in a list property by their indices.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param indexA The index of the first item to swap.
+     * @param indexB The index of the second item to swap.
+     */
+    fun swapListItems(propertyPath: String, indexA: Int, indexB: Int) {
+        riveWorker.swapListItems(instanceHandle, propertyPath, indexA, indexB)
+        _dirtyFlow.tryEmit(Unit)
+    }
 }
 
 /**
@@ -318,19 +428,33 @@ class ViewModelInstance internal constructor(
  * instance. The helper methods on this interface are provided as a builder pattern.
  */
 sealed interface ViewModelSource {
+    /** A specific view model by [name][viewModelName]. */
     @JvmInline
     value class Named(val viewModelName: String) : ViewModelSource
 
+    /** The default view model for the given [artboard]. */
     @JvmInline
     value class DefaultForArtboard(val artboard: Artboard) : ViewModelSource
 
-    /** A view model instance with default initialized properties. */
+    /**
+     * A view model instance with default initialized properties.
+     *
+     * @see [ViewModelInstanceSource.Blank]
+     */
     fun blankInstance(): ViewModelInstanceSource = ViewModelInstanceSource.Blank(this)
 
-    /** The instance marked default in the editor. */
+    /**
+     * The instance marked "Default" in the Rive file.
+     *
+     * @see [ViewModelInstanceSource.Default]
+     */
     fun defaultInstance(): ViewModelInstanceSource = ViewModelInstanceSource.Default(this)
 
-    /** A specific instance by name. */
+    /**
+     * A specific instance by name.
+     *
+     * @see [ViewModelInstanceSource.Named]
+     */
     fun namedInstance(instanceName: String): ViewModelInstanceSource =
         ViewModelInstanceSource.Named(this, instanceName)
 }
@@ -346,17 +470,56 @@ sealed interface ViewModelSource {
  * slash delimited path.
  */
 sealed interface ViewModelInstanceSource {
+    /**
+     * Create a new view model instance with default value initialized properties, e.g. 0 for
+     * integers, empty strings, etc.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     */
     @JvmInline
     value class Blank(val vmSource: ViewModelSource) : ViewModelInstanceSource
 
+    /**
+     * Create a new view model instance with properties initialized to the values of the instance
+     * labelled "Default" in the Rive file.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     */
     @JvmInline
     value class Default(val vmSource: ViewModelSource) : ViewModelInstanceSource
 
+    /**
+     * Create a new view model instance with properties initialized to the values of the instance
+     * with the given name.
+     *
+     * @param vmSource The source of the view model that owns this instance.
+     * @param instanceName The name of the instance in the Rive file to reference when creating the
+     *    new instance.
+     */
     data class Named(val vmSource: ViewModelSource, val instanceName: String) :
         ViewModelInstanceSource
 
-    data class Reference(val instance: ViewModelInstance, val path: String) :
+    /**
+     * Create a reference to an existing child view model instance.
+     *
+     * @param parentInstance The parent that contains the child.
+     * @param path The path to the child instance. Slash delimited to refer to nested properties.
+     */
+    data class Reference(val parentInstance: ViewModelInstance, val path: String) :
         ViewModelInstanceSource
+
+    /**
+     * Create a reference to an existing child view model instance within a list at a given index.
+     *
+     * @param parentInstance The parent that contains the list.
+     * @param pathToList The path to the list. Slash delimited to refer to nested properties.
+     * @param index The index of the child instance in the list.
+     */
+    data class ReferenceListItem(
+        val parentInstance: ViewModelInstance,
+        val pathToList: String,
+        val index: Int
+    ) : ViewModelInstanceSource
 }
 
 /**
@@ -367,17 +530,26 @@ sealed interface ViewModelInstanceSource {
  *
  * @param file The [RiveFile] to create the view model instance from.
  * @param source The source of the view model instance. Constructed from [ViewModelSource] combined
- *    with [ViewModelInstanceSource].
+ *    with [ViewModelInstanceSource]. If none is provided, the default artboard for the file will be
+ *    created, and the default view model and view model instance will be used.
+ *
+ * If you already have an artboard, prefer to use [ViewModelSource.DefaultForArtboard], since that
+ * will avoid instantiating another artboard.
+ *
+ * This is the equivalent of "auto-binding" in other SDKs.
+ *
  * @return The created [ViewModelInstance].
  */
-@ExperimentalRiveComposeAPI
 @Composable
 fun rememberViewModelInstance(
     file: RiveFile,
-    source: ViewModelInstanceSource,
+    source: ViewModelInstanceSource? = null,
 ): ViewModelInstance {
-    val instance = remember(file, source) {
-        ViewModelInstance.fromFile(file, source)
+    val sourceToUse =
+        source ?: ViewModelSource.DefaultForArtboard(rememberArtboard(file)).defaultInstance()
+
+    val instance = remember(file, sourceToUse) {
+        ViewModelInstance.fromFile(file, sourceToUse)
     }
 
     DisposableEffect(instance) {

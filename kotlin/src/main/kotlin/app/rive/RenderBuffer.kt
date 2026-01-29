@@ -5,31 +5,29 @@ import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
-import app.rive.core.CommandQueue
 import app.rive.core.RiveSurface
-import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.core.Fit
+import app.rive.core.RiveWorker
 
 /**
  * Represents the pixels produced by rendering a frame off-screen.
  *
  * Pixels are stored in RGBA byte order, top-left origin.
  *
- * This class must be [closed][close] when you no longer need it to free its resources. The buffer
- * creates and manages its own image surface, which is closed when the buffer is closed.
+ * ⚠️ This class must be [closed][close] when you no longer need it to free its resources. The
+ * buffer creates and manages its own image surface, which is closed when the buffer is closed.
  *
  * The buffer is initially empty; use [snapshot] to fill it with rendered content, then access the
  * image as a bitmap through [toBitmap] or [copyInto].
  *
  * @param width The width of the buffer in pixels.
  * @param height The height of the buffer in pixels.
- * @param commandQueue The command queue used to create the underlying image surface.
+ * @param riveWorker The Rive worker used to create the underlying image surface.
  * @throws IllegalArgumentException if [width] or [height] are not greater than zero.
  */
 class RenderBuffer(
     val width: Int,
     val height: Int,
-    commandQueue: CommandQueue
+    riveWorker: RiveWorker
 ) : CheckableAutoCloseable {
     init {
         require(width > 0 && height > 0) { "RenderBuffer width/height must be > 0" }
@@ -39,8 +37,11 @@ class RenderBuffer(
     override val closed = closer.closed
     override fun close() = closer.close()
 
-    /** The underlying image surface for rendering. */
-    private val surface: RiveSurface = commandQueue.createImageSurface(width, height)
+    /**
+     * The underlying image surface for rendering. Useful to pass to [Artboard.resizeArtboard] when
+     * using [Fit.Layout]. See note in [snapshot].
+     */
+    val surface: RiveSurface = riveWorker.createImageSurface(width, height)
 
     /** The pixel data in RGBA byte order, top-left origin. */
     private val pixels: ByteArray = ByteArray(width * height * 4)
@@ -54,23 +55,25 @@ class RenderBuffer(
      * The user is responsible for advancing the state machine to the desired time before calling
      * this method.
      *
+     * ⚠️ If you use [Fit.Layout] as your fit mode, first call [Artboard.resizeArtboard] with your
+     * given [Fit.Layout.scaleFactor] to layout the artboard within your given width and height. If
+     * you need to restore the dimensions afterwards, you can call [Artboard.resetArtboardSize].
+     * Also note that after calling either of these methods, you will need to
+     * [advance the state machine][StateMachine.advance], even if only by 0.
+     *
      * @param artboard The artboard to snapshot.
      * @param stateMachine The state machine to snapshot.
-     * @param fit The fit mode to use when rendering. Defaults to
-     *    [app.rive.runtime.kotlin.core.Fit.CONTAIN].
-     * @param alignment The alignment to use when rendering. Defaults to
-     *    [app.rive.runtime.kotlin.core.Alignment.CENTER].
+     * @param fit The fit mode to use when rendering. Defaults to [Fit.Contain].
      * @param clearColor The background color to use. Defaults to transparent.
      * @return This buffer instance for method chaining.
      */
     fun snapshot(
         artboard: Artboard,
         stateMachine: StateMachine,
-        fit: Fit = Fit.CONTAIN,
-        alignment: Alignment = Alignment.CENTER,
+        fit: Fit = Fit.Contain(),
         clearColor: Int = Color.TRANSPARENT
     ): RenderBuffer {
-        artboard.commandQueue.drawToBuffer(
+        artboard.riveWorker.drawToBuffer(
             artboard.artboardHandle,
             stateMachine.stateMachineHandle,
             surface,
@@ -78,7 +81,6 @@ class RenderBuffer(
             width,
             height,
             fit,
-            alignment,
             clearColor
         )
         return this

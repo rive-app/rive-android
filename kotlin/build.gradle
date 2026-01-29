@@ -37,6 +37,8 @@ android {
 
     // Enable removing miniaudio to reduce binary size
     def audioEnabled = !project.hasProperty("noAudio")
+    // Enable removing scripting to reduce binary size
+    def scriptingEnabled = !project.hasProperty("noScripting")
     // Enable ASAN support when debugging
     def asanEnabled = project.hasProperty("asan")
 
@@ -68,6 +70,8 @@ android {
                         "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
                         // Toggle miniaudio
                         "-DWITH_RIVE_AUDIO=${audioEnabled ? 'ON' : 'OFF'}",
+                        // Toggle scripting
+                        "-DWITH_SCRIPTING=${scriptingEnabled ? 'ON' : 'OFF'}",
                         // Needed for ASAN support (if enabled)
                         // See https://developer.android.com/ndk/guides/asan#building
                         // and https://developer.android.com/ndk/guides/cmake#android_arm_mode

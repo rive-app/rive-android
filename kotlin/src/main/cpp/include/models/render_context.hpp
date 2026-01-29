@@ -5,6 +5,7 @@
 #include "helpers/rive_log.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/render_context.hpp"
+#include "rive/renderer/rive_render_image.hpp"
 
 #include <cstdint>
 #include <EGL/egl.h>
@@ -70,8 +71,9 @@ static std::string errorString(int32_t errorCode)
  *
  * Also holds a pointer to the Rive RenderContext instance.
  *
- * This class has thread affinity. It must be initialized, used, and
- * destroyed on the same thread.
+ * ⚠️ This class has thread affinity. It must be initialized, used, and
+ * destroyed on the thread with the backend rendering context (i.e. the command
+ * server thread), though it may be created and deleted on a different thread.
  */
 class RenderContext
 {
@@ -85,6 +87,20 @@ public:
     virtual StartupResult initialize() = 0;
     /** Destroy the RenderContext's resources. Call on the render thread. */
     virtual void destroy() = 0;
+
+    /**
+     * Make a renderable Rive image from decoded image data.
+     *
+     * @param width The width of the image.
+     * @param height The height of the image.
+     * @param imageDataRGBA The decoded image data in RGBA format.
+     * @return A renderable rive::RenderImage backed by the underlying
+     *   renderer's texture type.
+     */
+    virtual rive::rcp<rive::RenderImage> makeImage(
+        uint32_t width,
+        uint32_t height,
+        std::unique_ptr<const uint8_t[]> imageDataRGBA) = 0;
 
     /** Begin a frame by binding the context to the provided surface. */
     virtual void beginFrame(void* surface) = 0;
@@ -212,6 +228,22 @@ struct RenderContextGL : RenderContext
                          errorString(error).c_str());
             }
         }
+    }
+
+    /** Make a RiveRenderImage from RenderContextImplGL's makeImageTexture. */
+    rive::rcp<rive::RenderImage> makeImage(
+        uint32_t width,
+        uint32_t height,
+        std::unique_ptr<const uint8_t[]> imageDataRGBA) override
+    {
+        auto mipLevelCount = rive::math::msb(height | width);
+        RiveLogD(TAG_RC, "Creating RiveRenderImage");
+        auto texture =
+            riveContext->impl()->makeImageTexture(width,
+                                                  height,
+                                                  mipLevelCount,
+                                                  imageDataRGBA.get());
+        return rive::make_rcp<rive::RiveRenderImage>(texture);
     }
 
     /** Bind the EGL context to the provided surface for rendering. */

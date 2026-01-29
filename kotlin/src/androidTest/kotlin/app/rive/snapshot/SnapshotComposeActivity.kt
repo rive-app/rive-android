@@ -12,26 +12,23 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
 import app.rive.ViewModelSource
 import app.rive.rememberArtboard
-import app.rive.rememberCommandQueue
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.rememberStateMachine
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-import app.rive.runtime.kotlin.core.Alignment as RiveAlignment
 
 /**
  * Activity that renders a Rive file using Compose for instrumentation tests.
@@ -39,7 +36,6 @@ import app.rive.runtime.kotlin.core.Alignment as RiveAlignment
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-@OptIn(ExperimentalRiveComposeAPI::class)
 class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
     companion object {
         /**
@@ -52,7 +48,7 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
             context: android.content.Context,
             config: SnapshotActivityConfig
         ): Intent = Intent(context, SnapshotComposeActivity::class.java).apply {
-            SnapshotActivityConfig.intoIntent(this, config)
+            config.applyToIntent(this)
         }
     }
 
@@ -69,13 +65,9 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         setContent {
-            val context = LocalContext.current
-
-            val commandQueue = rememberCommandQueue()
-            val riveFileResult = rememberRiveFile(
-                RiveFileSource.RawRes(R.raw.snapshot_test, context.resources),
-                commandQueue
-            )
+            val riveWorker = rememberRiveWorker()
+            val riveFileResult =
+                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), riveWorker)
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 when (riveFileResult) {
@@ -131,16 +123,24 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
                         }
 
                         val dpSize = with(LocalDensity.current) { 100.toDp() }
+                        val fit = when (config) {
+                            is SnapshotActivityConfig.Layout -> if (config.useLayout) {
+                                Fit.Layout(config.layoutScale)
+                            } else {
+                                Fit.None()
+                            }
 
-                        RiveUI(
+                            else -> Fit.None() // Default to no layout for other scenarios
+                        }
+
+                        Rive(
                             file = riveFile,
+                            modifier = Modifier.requiredSize(dpSize),
                             playing = false,
                             artboard = artboard,
                             stateMachine = stateMachine,
                             viewModelInstance = vmi,
-                            fit = Fit.NONE,
-                            alignment = RiveAlignment.CENTER,
-                            modifier = Modifier.requiredSize(dpSize),
+                            fit = fit,
                             onBitmapAvailable = { bitmapFn ->
                                 RiveLog.i("SnapshotComposeActivity") { "Bitmap available" }
                                 // Get the bitmap and store it

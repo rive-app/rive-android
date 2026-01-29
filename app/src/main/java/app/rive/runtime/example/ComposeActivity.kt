@@ -42,26 +42,24 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.rive.ExperimentalRiveComposeAPI
+import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.andThen
+import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.RiveUI
 import app.rive.ViewModelSource
 import app.rive.rememberArtboard
-import app.rive.rememberCommandQueueOrNull
 import app.rive.rememberRegisteredFont
 import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorkerOrNull
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Fit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
-import app.rive.runtime.kotlin.core.Alignment as RiveAlignment
+import app.rive.Alignment as RiveAlignment
 
 class ComposeActivity : ComponentActivity() {
-    @OptIn(ExperimentalRiveComposeAPI::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -73,15 +71,15 @@ class ComposeActivity : ComponentActivity() {
             val context = LocalContext.current
 
             /**
-             * Create a command queue (worker thread) to run Rive. This uses the safe version,
-             * `rememberCommandQueueOrNull`, which returns null if it fails to create the command
-             * queue, allowing us to handle the error gracefully. Ideally it should never fail, but
-             * this is a safeguard for production deployments.
+             * Create a Rive worker (worker thread) to run Rive. This uses the safe version,
+             * `rememberRiveWorkerOrNull`, which returns null if it fails to create the Rive worker,
+             * allowing us to handle the error gracefully. Ideally it should never fail, but this is
+             * a safeguard for production deployments.
              */
             val errorState = remember { mutableStateOf<Throwable?>(null) }
-            val commandQueue = rememberCommandQueueOrNull(errorState)
-            if (commandQueue == null) {
-                // If the command queue could not be created, show an error
+            val riveWorker = rememberRiveWorkerOrNull(errorState)
+            if (riveWorker == null) {
+                // If the Rive worker could not be created, show an error
                 ErrorMessage(errorState.value!!)
                 return@setContent
             }
@@ -94,19 +92,19 @@ class ComposeActivity : ComponentActivity() {
                 }
             }
 
-            // Decode and register the font with the command queue (available to all Rive files on
-            // this queue). Only register after the bytes are loaded.
+            // Decode and register the font with the Rive worker (available to all Rive files on
+            // this worker). Only register after the bytes are loaded.
             // The key, "Inter-594377", is the name in the zip produced by exporting from Rive
             val font = fontBytes.andThen { bytes ->
-                rememberRegisteredFont(commandQueue, "Inter-594377", bytes)
+                rememberRegisteredFont(riveWorker, "Inter-594377", bytes)
             }
 
             // Gate file loading on the font being ready, otherwise propagate the loading or error state
             val riveFileResult = font.andThen {
                 rememberRiveFile(
                     // Point to the Rive raw resource file
-                    RiveFileSource.RawRes(R.raw.rating_animation_all, context.resources),
-                    commandQueue
+                    RiveFileSource.RawRes.from(R.raw.rating_animation_all),
+                    riveWorker
                 )
             }
 
@@ -118,12 +116,12 @@ class ComposeActivity : ComponentActivity() {
                         .fillMaxSize()
                 ) {
                     // Switch on the status of the loading Rive file
-                    when (val file = riveFileResult) {
+                    when (riveFileResult) {
                         is Result.Loading -> LoadingIndicator()
-                        is Result.Error -> ErrorMessage(file.throwable)
+                        is Result.Error -> ErrorMessage(riveFileResult.throwable)
                         is Result.Success -> {
                             // On success, we can use the Rive file
-                            val riveFile = file.value
+                            val riveFile = riveFileResult.value
 
                             // Query the Rive file for artboard names
                             val artboardNames by produceState<List<String>>(emptyList(), riveFile) {
@@ -135,10 +133,10 @@ class ComposeActivity : ComponentActivity() {
                             val artboard = rememberArtboard(riveFile, artboardName)
 
                             // Store fit and alignment as strings, map to Rive types
-                            var fitString by rememberSaveable { mutableStateOf("Contain") }
-                            val fit = fitMap[fitString] ?: Fit.CONTAIN
                             var alignmentString by rememberSaveable { mutableStateOf("Center") }
-                            val alignment = alignmentMap[alignmentString] ?: RiveAlignment.CENTER
+                            val alignment = alignmentMap[alignmentString] ?: RiveAlignment.Center
+                            var fitString by rememberSaveable { mutableStateOf("Contain") }
+                            val fit = fitFrom(fitString, alignment)
 
                             // Create a view model instance that can be used by all 3 artboards
                             val vmi = rememberViewModelInstance(
@@ -150,12 +148,11 @@ class ComposeActivity : ComponentActivity() {
                                 .collectAsStateWithLifecycle(0f)
 
                             // Render the Rive UI
-                            RiveUI(
+                            Rive(
                                 file = riveFile,
                                 artboard = artboard,
                                 viewModelInstance = vmi,
                                 fit = fit,
-                                alignment = alignment,
                                 modifier = Modifier
                                     .height(300.dp)
                                     .semantics {
@@ -183,7 +180,7 @@ class ComposeActivity : ComponentActivity() {
 
                             LabelledDropdown(
                                 label = "Fit",
-                                options = fitMap.keys.toList(),
+                                options = fitTypes,
                                 selectedOption = fitString,
                                 onOptionSelected = { selectedFit ->
                                     fitString = selectedFit
@@ -204,27 +201,41 @@ class ComposeActivity : ComponentActivity() {
     }
 
     // Map of Fit and Alignment options for presenting to the user
-    private val fitMap = mapOf<String, Fit>(
-        "Contain" to Fit.CONTAIN,
-        "Cover" to Fit.COVER,
-        "Fill" to Fit.FILL,
-        "Fit Width" to Fit.FIT_WIDTH,
-        "Fit Height" to Fit.FIT_HEIGHT,
-        "Layout" to Fit.LAYOUT,
-        "Scale Down" to Fit.SCALE_DOWN,
-        "None" to Fit.NONE
+    private val fitTypes = listOf(
+        "Layout",
+        "Contain",
+        "Scale Down",
+        "Cover",
+        "Fit Width",
+        "Fit Height",
+        "Fill",
+        "None"
     )
 
+    private fun fitFrom(name: String, alignment: RiveAlignment): Fit {
+        return when (name) {
+            "Layout" -> Fit.Layout()
+            "Contain" -> Fit.Contain(alignment)
+            "Scale Down" -> Fit.ScaleDown(alignment)
+            "Cover" -> Fit.Cover(alignment)
+            "Fit Width" -> Fit.FitWidth(alignment)
+            "Fit Height" -> Fit.FitHeight(alignment)
+            "Fill" -> Fit.Fill
+            "None" -> Fit.None(alignment)
+            else -> throw IllegalArgumentException("Unknown fit type: $name")
+        }
+    }
+
     private val alignmentMap = mapOf<String, RiveAlignment>(
-        "Top Left" to RiveAlignment.TOP_LEFT,
-        "Top Center" to RiveAlignment.TOP_CENTER,
-        "Top Right" to RiveAlignment.TOP_RIGHT,
-        "Center Left" to RiveAlignment.CENTER_LEFT,
-        "Center" to RiveAlignment.CENTER,
-        "Center Right" to RiveAlignment.CENTER_RIGHT,
-        "Bottom Left" to RiveAlignment.BOTTOM_LEFT,
-        "Bottom Center" to RiveAlignment.BOTTOM_CENTER,
-        "Bottom Right" to RiveAlignment.BOTTOM_RIGHT
+        "Top Left" to RiveAlignment.TopLeft,
+        "Top Center" to RiveAlignment.TopCenter,
+        "Top Right" to RiveAlignment.TopRight,
+        "Center Left" to RiveAlignment.CenterLeft,
+        "Center" to RiveAlignment.Center,
+        "Center Right" to RiveAlignment.CenterRight,
+        "Bottom Left" to RiveAlignment.BottomLeft,
+        "Bottom Center" to RiveAlignment.BottomCenter,
+        "Bottom Right" to RiveAlignment.BottomRight
     )
 }
 

@@ -1,11 +1,12 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
-class MeshesActivity : AppCompatActivity() {
+class MeshesActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_meshes)
+        setEdgeToEdgeContent(R.layout.activity_meshes)
     }
 }

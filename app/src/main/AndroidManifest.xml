@@ -12,10 +12,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity
-            android:name=".FontFallback"
-            android:exported="false" />
-
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -40,51 +36,139 @@
             android:name=".ComposeActivity"
             android:exported="true" />
         <activity
-            android:name=".RiveUIViewActivity"
+            android:name=".ComposeDataBindingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeLayoutActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeAudioActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeTouchPassThroughActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeScrollActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeImageBindingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeArtboardBindingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeListActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ScriptingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".LegacyScriptingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".RiveViewActivity"
             android:exported="true" />
         <activity
             android:name=".RiveSnapshotActivity"
             android:exported="true" />
         <activity
+            android:name=".LegacyDataBindingActivity"
+            android:exported="true" />
+        <activity
             android:name=".SimpleActivity"
             android:exported="true" />
-        <activity android:name=".EventsActivity" />
-        <activity android:name=".InteractiveSamplesActivity" />
+        <activity
+            android:name=".EventsActivity"
+            android:exported="true" />
+        <activity
+            android:name=".InteractiveSamplesActivity"
+            android:exported="true" />
         <activity
             android:name=".MultiTouchActivity"
             android:exported="true" />
-        <activity android:name=".MultipleArtboardsActivity" />
-        <activity android:name=".AndroidPlayerActivity" />
-        <activity android:name=".LoopModeActivity" />
-        <activity android:name=".LayoutActivity" />
-        <activity android:name=".RiveFragmentActivity" />
-        <activity android:name=".LowLevelActivity" />
-        <activity android:name=".SimpleStateMachineActivity" />
-        <activity android:name=".NestedInputActivity" />
-        <activity android:name=".NestedTextRunActivity" />
-        <activity android:name=".HttpActivity" />
-        <activity android:name=".ButtonActivity" />
-        <activity android:name=".BlendActivity" />
+        <activity
+            android:name=".MultipleArtboardsActivity"
+            android:exported="true" />
+        <activity
+            android:name=".AndroidPlayerActivity"
+            android:exported="true" />
+        <activity
+            android:name=".LoopModeActivity"
+            android:exported="true" />
+        <activity
+            android:name=".LayoutActivity"
+            android:exported="true" />
+        <activity
+            android:name=".RiveFragmentActivity"
+            android:exported="true" />
+        <activity
+            android:name=".LowLevelActivity"
+            android:exported="true" />
+        <activity
+            android:name=".SimpleStateMachineActivity"
+            android:exported="true" />
+        <activity
+            android:name=".NestedInputActivity"
+            android:exported="true" />
+        <activity
+            android:name=".NestedTextRunActivity"
+            android:exported="true" />
+        <activity
+            android:name=".HttpActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ButtonActivity"
+            android:exported="true" />
+        <activity
+            android:name=".BlendActivity"
+            android:exported="true" />
         <activity
             android:name=".MetricsActivity"
             android:exported="true" />
-        <activity android:name=".AssetsActivity" />
-        <activity android:name=".RecyclerActivity" />
-        <activity android:name=".MeshesActivity" />
-        <activity android:name=".ViewStubActivity" />
-        <activity android:name=".ViewPagerActivity" />
+        <activity
+            android:name=".AssetsActivity"
+            android:exported="true" />
+        <activity
+            android:name=".RecyclerActivity"
+            android:exported="true" />
+        <activity
+            android:name=".MeshesActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ViewStubActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ViewPagerActivity"
+            android:exported="true" />
         <activity
             android:name=".LegacyComposeActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/title_activity_compose"
             android:theme="@style/AppTheme" />
-        <activity android:name=".FrameActivity" />
-        <activity android:name=".DynamicTextActivity" />
-        <activity android:name=".AssetLoaderActivity" />
-        <activity android:name=".StressTestActivity" />
-        <activity android:name=".FontLoadActivity" />
-        <activity android:name=".AudioAssetActivity" />
-        <activity android:name=".AudioExternalAssetActivity" />
+        <activity
+            android:name=".FrameActivity"
+            android:exported="true" />
+        <activity
+            android:name=".DynamicTextActivity"
+            android:exported="true" />
+        <activity
+            android:name=".AssetLoaderActivity"
+            android:exported="true" />
+        <activity
+            android:name=".StressTestActivity"
+            android:exported="true" />
+        <activity
+            android:name=".FontLoadActivity"
+            android:exported="true" />
+        <activity
+            android:name=".AudioAssetActivity"
+            android:exported="true" />
+        <activity
+            android:name=".AudioExternalAssetActivity"
+            android:exported="true" />
+        <activity
+            android:name=".FontFallback"
+            android:exported="true" />
         <activity
             android:name=".TouchPassthroughActivity"
             android:exported="true" />
@@ -95,7 +179,9 @@
         <activity
             android:name=".SingleActivity"
             android:exported="true" />
-        <activity android:name=".EmptyActivity" />
+        <activity
+            android:name=".EmptyActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

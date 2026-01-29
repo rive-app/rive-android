@@ -4,20 +4,21 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.ComponentActivity
 import androidx.annotation.RawRes
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 import app.rive.runtime.kotlin.core.File
 
 @ControllerStateManagement
-class RecyclerActivity : AppCompatActivity() {
+class RecyclerActivity : ComponentActivity() {
 
     companion object {
         const val holderCount = 200
@@ -31,7 +32,7 @@ class RecyclerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_recycler)
+        setEdgeToEdgeContent(R.layout.activity_recycler)
 
         sharedFile = resources.openRawResource(R.raw.basketball).use { File(it.readBytes()) }
 

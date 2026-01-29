@@ -3,15 +3,20 @@ package app.rive.runtime.example
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,7 +28,7 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Fit
 
 /**
- * Demonstrates how a full‑screen RiveAnimationView can optionally allow touches to “pass through”
+ * Demonstrates how a full‑screen RiveAnimationView can optionally allow touches to "pass through"
  * to Views or Composables drawn underneath it.
  *
  * Note: The [Button] below zeroes out its elevation because, by default, it has built in elevation
@@ -32,12 +37,17 @@ import app.rive.runtime.kotlin.core.Fit
 class TouchPassthroughActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
-            var clickCount by remember { mutableStateOf(0) }
+            var clickCount by remember { mutableIntStateOf(0) }
             var passThrough by remember { mutableStateOf(false) }
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+            ) {
 
                 // 1 - Background button to test clicks
                 Button(

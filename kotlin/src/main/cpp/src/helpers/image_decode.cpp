@@ -15,7 +15,8 @@ const uint32_t LSB_MASK = 0xFFu;
 
 rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     Span<const uint8_t> encodedBytes,
-    bool isPremultiplied)
+    bool isPremultiplied,
+    RenderContext* renderContext)
 {
     auto env = GetJNIEnv();
 
@@ -29,7 +30,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     auto encoded = env->NewByteArray(SizeTTOInt(encodedBytes.size()));
     if (!encoded)
     {
-        LOGE("Failed to allocate NewByteArray");
+        RiveLogE("RiveN/ImageDecode", "Failed to allocate NewByteArray");
         return nullptr;
     }
 
@@ -46,7 +47,8 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
 
     if (jPixels == nullptr)
     {
-        LOGE("ImageDecoder.decodeToBitmap returned null");
+        RiveLogE("RiveN/ImageDecode",
+                 "ImageDecoder.decodeToBitmap returned null");
         return nullptr;
     }
 
@@ -56,7 +58,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     jsize arrayCount = env->GetArrayLength(jPixels);
     if (arrayCount < 2)
     {
-        LOGE("Bad array length (unexpected)");
+        RiveLogE("RiveN/ImageDecode", "Bad array length (unexpected)");
         env->DeleteLocalRef(jPixels);
         return nullptr;
     }
@@ -67,14 +69,15 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     const size_t pixelCount = static_cast<size_t>(rawWidth) * rawHeight;
     if (pixelCount == 0)
     {
-        LOGE("Unsupported empty image (zero dimension)");
+        RiveLogE("RiveN/ImageDecode",
+                 "Unsupported empty image (zero dimension)");
         env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
         env->DeleteLocalRef(jPixels);
         return nullptr;
     }
     if (static_cast<size_t>(arrayCount) < 2u + pixelCount)
     {
-        LOGE("Not enough elements in pixel array");
+        RiveLogE("RiveN/ImageDecode", "Not enough elements in pixel array");
         env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
         env->DeleteLocalRef(jPixels);
         return nullptr;
@@ -103,6 +106,11 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     }
     env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
     env->DeleteLocalRef(jPixels);
+
+    if (renderContext != nullptr)
+    {
+        return renderContext->makeImage(rawWidth, rawHeight, std::move(out));
+    }
 
     return make_rcp<AndroidImage>(static_cast<int>(rawWidth),
                                   static_cast<int>(rawHeight),

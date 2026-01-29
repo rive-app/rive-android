@@ -1,32 +1,23 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.activity.ComponentActivity
 import app.rive.runtime.example.databinding.ActivityFontFallbackBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.fonts.FontBytes
 import app.rive.runtime.kotlin.fonts.FontFallbackStrategy
 import app.rive.runtime.kotlin.fonts.FontHelper
 import app.rive.runtime.kotlin.fonts.Fonts
 
-class FontFallback : AppCompatActivity(), FontFallbackStrategy {
+class FontFallback : ComponentActivity(), FontFallbackStrategy {
 
     private lateinit var binding: ActivityFontFallbackBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
         binding = ActivityFontFallbackBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        setEdgeToEdgeContent(binding.root)
 
         updateTextRuns()
         updateThaiText()

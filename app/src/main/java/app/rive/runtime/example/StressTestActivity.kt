@@ -6,10 +6,11 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.activity.ComponentActivity
 import androidx.annotation.WorkerThread
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleObserver
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveTextureView
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Artboard
@@ -20,13 +21,10 @@ import app.rive.runtime.kotlin.renderers.Renderer
 import java.util.Locale
 import kotlin.math.min
 
-class StressTestActivity : AppCompatActivity() {
+class StressTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_stress_test)
-
-        // Hides the app/action bar
-        supportActionBar?.hide()
+        setEdgeToEdgeContent(R.layout.activity_stress_test)
 
         // Attach the Rive view to the activity's root layout
         val layout = findViewById<ViewGroup>(R.id.low_level_view_root)

@@ -15,8 +15,10 @@ private:
         s_pickFontCache;
     static std::mutex s_fallbackFontsMutex;
 
-    static const std::vector<rive::rcp<rive::Font>>& pick_fonts(
-        uint16_t weight);
+    static const std::vector<rive::rcp<rive::Font>>& PickFonts(uint16_t weight);
+
+    static std::string DebugCodepoint(rive::Unichar cp);
+    static std::string UTF8FromCodepoint(rive::Unichar cp);
 
 public:
     static std::vector<rive::rcp<rive::Font>> s_fallbackFonts;

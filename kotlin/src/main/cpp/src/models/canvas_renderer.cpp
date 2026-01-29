@@ -13,12 +13,17 @@ void CanvasRenderer::save()
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
     GetJNIEnv()->CallIntMethod(m_ktCanvas, GetCanvasSaveMethodId());
+    m_opacityStack.push_back(m_opacityStack.back());
 }
 void CanvasRenderer::restore()
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
     GetJNIEnv()->CallVoidMethod(m_ktCanvas, GetCanvasRestoreMethodId());
+    if (m_opacityStack.size() > 1)
+    {
+        m_opacityStack.pop_back();
+    }
 }
 void CanvasRenderer::transform(const rive::Mat2D& transform)
 {
@@ -63,16 +68,78 @@ void CanvasRenderer::clipPath(rive::RenderPath* path)
                                    GetCanvasClipPathMethodId(),
                                    canvasPath->ktPath());
 }
+// Creates and applies a ColorMatrixColorFilter for opacity modulation.
+// Uses premultiplied alpha: scales R, G, B, A channels by the same opacity.
+static void ApplyOpacityColorFilter(JNIEnv* env, jobject ktPaint, float opacity)
+{
+    // Create the 4x5 color matrix for premultiplied alpha opacity
+    // [opacity,    0,       0,       0, 0]
+    // [0,          opacity, 0,       0, 0]
+    // [0,          0,       opacity, 0, 0]
+    // [0,          0,       0,       opacity, 0]
+    float colorMatrix[20] = {
+        opacity, 0,       0,       0,       0, // R
+        0,       opacity, 0,       0,       0, // G
+        0,       0,       opacity, 0,       0, // B
+        0,       0,       0,       opacity, 0  // A
+    };
+
+    jclass colorMatrixClass = GetColorMatrixClass();
+    jobject ktColorMatrix =
+        env->NewObject(colorMatrixClass, GetColorMatrixInitMethodId());
+
+    jfloatArray matrixArray = env->NewFloatArray(20);
+    env->SetFloatArrayRegion(matrixArray, 0, 20, colorMatrix);
+    JNIExceptionHandler::CallVoidMethod(env,
+                                        ktColorMatrix,
+                                        GetColorMatrixSetMethodId(),
+                                        matrixArray);
+
+    jclass colorFilterClass = GetColorMatrixColorFilterClass();
+    jobject ktColorFilter =
+        env->NewObject(colorFilterClass,
+                       GetColorMatrixColorFilterInitMethodId(),
+                       ktColorMatrix);
+
+    env->CallObjectMethod(ktPaint, GetSetColorFilterMethodId(), ktColorFilter);
+
+    env->DeleteLocalRef(colorFilterClass);
+    env->DeleteLocalRef(matrixArray);
+    env->DeleteLocalRef(ktColorMatrix);
+    env->DeleteLocalRef(colorMatrixClass);
+    env->DeleteLocalRef(ktColorFilter);
+}
+
+static void ClearColorFilter(JNIEnv* env, jobject ktPaint)
+{
+    env->CallObjectMethod(ktPaint, GetSetColorFilterMethodId(), nullptr);
+}
+
 void CanvasRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* paint)
 {
     // bind m_ktCanvas before calling these methods.
     assert(m_ktCanvas != nullptr);
     auto* canvasPath = static_cast<CanvasRenderPath*>(path);
     auto* canvasPaint = static_cast<CanvasRenderPaint*>(paint);
-    GetJNIEnv()->CallVoidMethod(m_ktCanvas,
-                                GetCanvasDrawPathMethodId(),
-                                canvasPath->ktPath(),
-                                canvasPaint->ktPaint());
+
+    JNIEnv* env = GetJNIEnv();
+    jobject ktPaint = canvasPaint->ktPaint();
+    float opacity = currentOpacity();
+
+    if (opacity < 1.0f)
+    {
+        ApplyOpacityColorFilter(env, ktPaint, opacity);
+    }
+
+    env->CallVoidMethod(m_ktCanvas,
+                        GetCanvasDrawPathMethodId(),
+                        canvasPath->ktPath(),
+                        ktPaint);
+
+    if (opacity < 1.0f)
+    {
+        ClearColorFilter(env, ktPaint);
+    }
 }
 void CanvasRenderer::drawImage(const rive::RenderImage* image,
                                const rive::ImageSampler options,
@@ -84,8 +151,11 @@ void CanvasRenderer::drawImage(const rive::RenderImage* image,
 
     const auto* canvasImage = static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
+    // Combine with modulated opacity
+    float finalOpacity = opacity * currentOpacity();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
-    CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));
+    CanvasRenderPaint::SetPaintAlpha(ktPaint,
+                                     static_cast<int>(finalOpacity * 255));
     CanvasRenderPaint::SetBlendMode(ktPaint, blendMode);
     GetJNIEnv()->CallVoidMethod(ktPaint, GetSetAntiAliasMethodId(), JNI_TRUE);
 
@@ -111,8 +181,11 @@ void CanvasRenderer::drawImageMesh(const rive::RenderImage* image,
     assert(m_ktCanvas != nullptr);
     const auto* canvasImage = static_cast<const CanvasRenderImage*>(image);
     jobject ktPaint = canvasImage->ktPaint();
+    // Combine with modulated opacity
+    float finalOpacity = opacity * currentOpacity();
     // Opacity is [0.0f..1.0f] while setAlpha() needs [0..255]
-    CanvasRenderPaint::SetPaintAlpha(ktPaint, static_cast<int>(opacity * 255));
+    CanvasRenderPaint::SetPaintAlpha(ktPaint,
+                                     static_cast<int>(finalOpacity * 255));
     CanvasRenderPaint::SetBlendMode(ktPaint, blendMode);
 
     JNIEnv* env = GetJNIEnv();

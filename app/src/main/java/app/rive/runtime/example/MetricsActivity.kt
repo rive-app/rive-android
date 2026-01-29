@@ -2,12 +2,13 @@ package app.rive.runtime.example
 
 import android.os.Bundle
 import android.view.Choreographer
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import app.rive.runtime.example.databinding.ActivityMetricsBinding
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import java.util.Locale
 
-class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
+class MetricsActivity : ComponentActivity(), Choreographer.FrameCallback {
 
     private lateinit var binding: ActivityMetricsBinding
 
@@ -31,7 +32,7 @@ class MetricsActivity : AppCompatActivity(), Choreographer.FrameCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMetricsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setEdgeToEdgeContent(binding.root)
     }
 
     override fun onResume() {

@@ -156,6 +156,14 @@ extern jfieldID GetPdOverlay();
 
 extern jclass GetBitmapShaderClass();
 extern jmethodID GetBitmapShaderConstructor();
+
+extern jclass GetColorMatrixClass();
+extern jmethodID GetColorMatrixInitMethodId();
+extern jmethodID GetColorMatrixSetMethodId();
+extern jclass GetColorMatrixColorFilterClass();
+extern jmethodID GetColorMatrixColorFilterInitMethodId();
+extern jmethodID GetSetColorFilterMethodId();
+
 extern jclass GetAndroidBitmapClass();
 extern jclass GetAndroidBitmapConfigClass();
 extern jclass GetAndroidBitmapFactoryClass();

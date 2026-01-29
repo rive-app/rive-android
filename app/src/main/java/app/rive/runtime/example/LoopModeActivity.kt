@@ -1,13 +1,14 @@
 package app.rive.runtime.example
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.appcompat.widget.AppCompatButton
+import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Direction
 import app.rive.runtime.kotlin.core.Loop
 
-class LoopModeActivity : AppCompatActivity() {
+class LoopModeActivity : ComponentActivity() {
     var direction: Direction = Direction.AUTO
     val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.loop_mode_view)
@@ -15,7 +16,7 @@ class LoopModeActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.loop_mode)
+        setEdgeToEdgeContent(R.layout.loop_mode)
 
         findViewById<AppCompatButton>(R.id.reset).setOnClickListener { _ ->
             animationView.reset()

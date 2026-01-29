@@ -44,8 +44,10 @@ jlong Import(uint8_t*,
              RendererType = RendererType::Rive,
              rive::FileAssetLoader* = nullptr);
 
-rive::Alignment GetAlignment(JNIEnv*, jobject);
+rive::Fit GetFit(uint8_t ordinal);
 rive::Fit GetFit(JNIEnv*, jobject);
+rive::Alignment GetAlignment(uint8_t ordinal);
+rive::Alignment GetAlignment(JNIEnv*, jobject);
 rive::Factory* GetFactory(RendererType);
 JNIEnv* GetJNIEnv();
 

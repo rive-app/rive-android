@@ -33,7 +33,6 @@ import app.rive.runtime.kotlin.core.Rive
  * Alternatively, you can call Rive.init(context) once when your app starts up and before Rive is
  * used. In fact, if you want to provide a custom renderer type you'll need to init Rive manually.
  */
-
 class RiveInitializer : Initializer<Unit> {
     override fun create(context: Context) {
         return Rive.init(context)

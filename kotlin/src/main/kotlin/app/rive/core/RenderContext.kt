@@ -19,8 +19,12 @@ import app.rive.RiveShutdownException
  * A backend agnostic rendering context base class. Implementers contain the necessary state for
  * Rive to render, both in Kotlin and with associated native objects.
  *
- * As it contains native resources, it implements [CheckableAutoCloseable] and should be
- * [closed][CheckableAutoCloseable.close] when no longer needed.
+ * Meant for use with a single [CommandQueue].
+ *
+ * ⚠️ As it contains native resources, it implements [CheckableAutoCloseable] and should be
+ * [closed][CheckableAutoCloseable.close] when no longer needed, unless it is passed to a
+ * [CommandQueue], in which case it assumes ownership of this object and will close it when it is
+ * disposed.
  */
 abstract class RenderContext : CheckableAutoCloseable {
     /**
@@ -40,6 +44,9 @@ abstract class RenderContext : CheckableAutoCloseable {
     /**
      * Creates a backend-specific [RiveSurface].
      *
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
+     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     *
      * @param surfaceTexture The Android SurfaceTexture to render against, likely created from a
      *    [TextureView].
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
@@ -57,6 +64,9 @@ abstract class RenderContext : CheckableAutoCloseable {
      * Creates an off-screen [RiveSurface] that renders into a pixel buffer instead of an Android
      * [Surface]. This surface can be used to capture rendered output for tasks such as snapshot
      * testing.
+     *
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
+     * [CommandQueue.destroyRiveSurface] when no longer needed.
      *
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
@@ -79,8 +89,10 @@ abstract class RenderContext : CheckableAutoCloseable {
  *
  * It creates and manages an EGL display, config, and context for rendering with OpenGL ES 2.0.
  *
- * As it contains native resources, it implements [CheckableAutoCloseable] and should be
- * [closed][CheckableAutoCloseable.close] when no longer needed.
+ * ⚠️ As it contains native resources, it implements [CheckableAutoCloseable] and should be
+ * [closed][CheckableAutoCloseable.close] when no longer needed, unless it is passed to a
+ * [CommandQueue], in which case it assumes ownership of this object and will close it when it is
+ * disposed.
  *
  * @param display The EGL display.
  * @param config The EGL config.
@@ -261,7 +273,10 @@ internal data class RenderContextGL(
     }
 
     /**
-     * Creates an [RiveEGLSurface] from the given Android [Surface].
+     * Creates an [RiveEGLSurface] from the given Android [SurfaceTexture].
+     *
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
+     * [CommandQueue.destroyRiveSurface] when no longer needed.
      *
      * @param surfaceTexture The Android [SurfaceTexture] to render against, likely created from a
      *    [TextureView].
@@ -325,6 +340,9 @@ internal data class RenderContextGL(
      * [SurfaceTexture]. This surface can be used to capture rendered output for tasks such as
      * snapshot testing.
      *
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
+     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     *
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
@@ -372,8 +390,8 @@ internal data class RenderContextGL(
  *
  * It also stores the width and height of the surface.
  *
- * This class assumes ownership of all resources and should be [closed][RiveSurface.close] when no
- * longer needed.
+ * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] when
+ * no longer needed.
  *
  * Alone it is not sufficient for rendering, as it lacks a backend-specific surface, which is
  * provided by sub-classes.
@@ -436,10 +454,12 @@ abstract class RiveSurface(
  * - A Rive render target, created natively which renders to the GL framebuffer
  * - A draw key, which uniquely identifies draw operations in the CommandQueue
  *
+ * Meant for use with and created from a [RenderContextGL].
+ *
  * It also stores the width and height of the surface.
  *
- * This class assumes ownership of all resources and should be [closed][RiveSurface.close] when no
- * longer needed.
+ * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] using
+ * [CommandQueue.destroyRiveSurface] when no longer needed.
  *
  * @param surfaceTexture The Android SurfaceTexture to render against, likely created from a
  *    [TextureView].
@@ -500,7 +520,14 @@ class RiveEGLSurface(
         get() = eglSurface.nativeHandle
 }
 
-/** A PBuffer-backed EGL surface used for off-screen rendering and image capture. */
+/**
+ * A PBuffer-backed EGL surface used for off-screen rendering and image capture.
+ *
+ * Meant for use with and created from a [RenderContextGL].
+ *
+ * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] using
+ * [CommandQueue.destroyRiveSurface] when no longer needed.
+ */
 class RiveEGLPBufferSurface(
     private val eglSurface: EGLSurface,
     private val display: EGLDisplay,
@@ -516,7 +543,7 @@ class RiveEGLPBufferSurface(
     /**
      * Destroys the EGLSurface and calls the super class to dispose of other resources.
      *
-     * Runs on the command server thread. See the note in [close].
+     * Runs on the command server thread. See the note in [RiveSurface.close].
      *
      * @param renderTargetPointer The native pointer to the Rive render target. Passed to the base
      *    class implementation for deletion.

@@ -697,6 +697,45 @@ jmethodID GetBitmapShaderConstructor()
         "graphics/Shader$TileMode;)V");
 }
 
+jclass GetColorMatrixClass()
+{
+    return GetClass("android/graphics/ColorMatrix");
+}
+jmethodID GetColorMatrixInitMethodId()
+{
+    return GetMethodId(GetColorMatrixClass(), "<init>", "()V");
+}
+jmethodID GetColorMatrixSetMethodId()
+{
+    /** Kotlin signature: void set(float[] src) */
+    return GetMethodId(GetColorMatrixClass(), "set", "([F)V");
+}
+jclass GetColorMatrixColorFilterClass()
+{
+    return GetClass("android/graphics/ColorMatrixColorFilter");
+}
+jmethodID GetColorMatrixColorFilterInitMethodId()
+{
+    /**
+     * Kotlin signature:
+     * ColorMatrixColorFilter(ColorMatrix matrix)
+     */
+    return GetMethodId(GetColorMatrixColorFilterClass(),
+                       "<init>",
+                       "(Landroid/graphics/ColorMatrix;)V");
+}
+jmethodID GetSetColorFilterMethodId()
+{
+    /**
+     * Kotlin signature:
+     * ColorFilter setColorFilter(ColorFilter filter)
+     */
+    return GetMethodId(
+        GetPaintClass(),
+        "setColorFilter",
+        "(Landroid/graphics/ColorFilter;)Landroid/graphics/ColorFilter;");
+}
+
 jclass GetAndroidBitmapClass() { return GetClass("android/graphics/Bitmap"); }
 jclass GetAndroidBitmapConfigClass()
 {

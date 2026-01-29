@@ -23,5 +23,6 @@ do
         'rive_sheenbidi',
         'rive_yoga',
         'miniaudio',
+        'luau_vm',
     })
 end
