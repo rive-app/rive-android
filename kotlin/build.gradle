@@ -142,6 +142,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.foundation.layout)
     androidTestImplementation(libs.androidx.compose.material3)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // See note in libs.versions.toml
+    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.ext.junit.ktx)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlin.test.junit)
