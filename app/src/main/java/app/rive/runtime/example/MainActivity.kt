@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.ComponentActivity
+import app.rive.RiveLog
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
@@ -57,6 +58,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setEdgeToEdgeContent(R.layout.main)
+
+        RiveLog.logger = RiveLog.LogcatLogger()
 
         buttonsData.forEach { pair ->
             findViewById<Button>(pair.first).setOnClickListener {

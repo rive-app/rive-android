@@ -1,6 +1,9 @@
 #include "helpers/worker_ref.hpp"
+
 #include "helpers/general.hpp"
+#include "helpers/rive_log.hpp"
 #include "helpers/thread_state_pls.hpp"
+
 #include <thread>
 
 using namespace rive;
@@ -10,6 +13,8 @@ namespace rive_android
 static std::mutex s_refWorkerMutex;
 
 static std::unique_ptr<RefWorker> s_canvasWorker;
+
+const auto TAG = "RiveN/RefWorker";
 
 rcp<RefWorker> RefWorker::RiveWorker()
 {
@@ -21,7 +26,7 @@ rcp<RefWorker> RefWorker::RiveWorker()
     if (s_isSupported == RiveRendererSupport::unknown)
     {
         assert(s_riveWorker == nullptr);
-        LOGI("Creating *Rive* RefWorker");
+        RiveLogI(TAG, "Creating *Rive* RefWorker");
 
         std::unique_ptr<RefWorker> candidateWorker(
             new RefWorker(RendererType::Rive));
@@ -42,7 +47,9 @@ rcp<RefWorker> RefWorker::RiveWorker()
         }
         else
         {
-            LOGI("Rive renderer is not supported. Falling back on Canvas.");
+            RiveLogI(
+                TAG,
+                "Rive renderer is not supported. Falling back to Canvas renderer.");
         }
     }
 
@@ -58,7 +65,7 @@ rcp<RefWorker> RefWorker::CanvasWorker()
     std::lock_guard lock(s_refWorkerMutex);
     if (s_canvasWorker == nullptr)
     {
-        LOGI("Creating *Canvas* RefWorker");
+        RiveLogI(TAG, "Creating *Canvas* RefWorker");
         s_canvasWorker =
             std::unique_ptr<RefWorker>(new RefWorker(RendererType::Canvas));
     }
@@ -82,12 +89,23 @@ rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
             currentOrFallback = CanvasWorker();
             break;
     }
+    // If we specify RendererType::Rive above, RefWorker::RiveWorker() may not
+    // initialize the global static Rive worker if `s_isSupported` is not true,
+    // i.e. if the render context failed to build and is uninitialized. In this
+    // case, fall back to the canvas worker.
+    if (currentOrFallback == nullptr)
+    {
+        RiveLogE(TAG, "Falling back to Canvas worker");
+        currentOrFallback = CanvasWorker();
+    }
     return currentOrFallback;
 }
 
 RefWorker::~RefWorker()
 {
-    LOGI("Deleting the RefWorker with %s", RendererName(rendererType()));
+    RiveLogI(TAG,
+             "Deleting the RefWorker with %s",
+             RendererName(rendererType()));
     terminateThread();
 }
 
@@ -129,7 +147,7 @@ void RefWorker::externalRefCountDidReachZero()
                     plsThreadState->renderContext();
                 if (renderContext != nullptr)
                 {
-                    LOGI("Releasing resources on the Rive renderer");
+                    RiveLogI(TAG, "Releasing resources on the Rive renderer");
                     renderContext->releaseResources();
                 }
             });

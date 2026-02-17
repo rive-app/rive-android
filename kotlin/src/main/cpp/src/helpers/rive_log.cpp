@@ -18,6 +18,30 @@ static jmethodID g_riveLogEMethod = nullptr;
 static std::mutex g_riveLogMutex;
 static bool g_riveLogInitialized = false;
 
+static void FallbackToNativeLog(int androidLogLevel,
+                                const char* tag,
+                                const char* message)
+{
+    switch (androidLogLevel)
+    {
+        // LOGV is not defined in general.hpp, so map verbose to debug.
+        case ANDROID_LOG_VERBOSE:
+        case ANDROID_LOG_DEBUG:
+            LOGD("[%s] %s", tag, message);
+            break;
+        case ANDROID_LOG_INFO:
+            LOGI("[%s] %s", tag, message);
+            break;
+        case ANDROID_LOG_WARN:
+            LOGW("[%s] %s", tag, message);
+            break;
+        case ANDROID_LOG_ERROR:
+        default:
+            LOGE("[%s] %s", tag, message);
+            break;
+    }
+}
+
 void InitializeRiveLog()
 {
     std::lock_guard<std::mutex> lock(g_riveLogMutex);
@@ -113,44 +137,51 @@ static void LogMessage(jmethodID methodID,
         buffer[sizeof(buffer) - 1] = '\0';
     }
 
-    // Try to use RiveLog if initialized, otherwise fallback to android log
-    if (methodID != nullptr && g_riveLogInitialized)
+    // If the logging isn't ready, fallback to native logging
+    if (methodID == nullptr || !g_riveLogInitialized)
     {
-        JNIEnv* env = nullptr;
-        auto getEnvStat = g_JVM->GetEnv((void**)&env, JNI_VERSION_1_6);
-        if (getEnvStat != JNI_OK)
-        {
-            LOGE("Logging error: Unable to get JNIEnv for RiveLog");
-            return;
-        }
-
-        // Create Kotlin strings for tag and message
-        auto jTag = MakeJString(env, tag);
-        auto jMessage = MakeJString(env, buffer);
-
-        // Call the static method
-        env->CallStaticVoidMethod(g_riveLogClass,
-                                  methodID,
-                                  jTag.get(),
-                                  jMessage.get());
-
-        // Check for exceptions (but don't throw - logging shouldn't crash)
-        if (env->ExceptionCheck())
-        {
-            LOGE("Logging error: Exception occurred in RiveLog method");
-            env->ExceptionDescribe(); // Log the exception details
-            env->ExceptionClear();
-            // Fall through to Android logging fallback
-        }
-        else
-        {
-            return; // Successfully logged via RiveLog
-        }
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
     }
 
-    // Fallback to Android logging if RiveLog isn't initialized or failed
-    // This could happen during early initialization
-    __android_log_print(androidLogLevel, tag, "%s", buffer);
+    JNIEnv* env = nullptr;
+    auto getEnvStat = g_JVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+    // Happens on native-created threads that were never attached to the
+    // JVM (e.g. short-lived cleanup std::thread paths). In that case,
+    // skip RiveLog and fall back to native logging.
+    if (getEnvStat == JNI_EDETACHED)
+    {
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
+    }
+    else if (getEnvStat != JNI_OK)
+    {
+        LOGE(
+            "Logging error: Unable to get JNIEnv for RiveLog. JNI Error Code: %d",
+            getEnvStat);
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
+    }
+
+    // Create Kotlin strings for tag and message
+    auto jTag = MakeJString(env, tag);
+    auto jMessage = MakeJString(env, buffer);
+
+    // Call the static method
+    env->CallStaticVoidMethod(g_riveLogClass,
+                              methodID,
+                              jTag.get(),
+                              jMessage.get());
+
+    // Check for exceptions (but don't throw - logging shouldn't crash)
+    if (env->ExceptionCheck())
+    {
+        LOGE("Logging error: Exception occurred in RiveLog method");
+        env->ExceptionDescribe(); // Log the exception details
+        env->ExceptionClear();
+        // Fall through to Android logging fallback
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+    }
 }
 
 void RiveLogV(const char* tag, const char* format, ...)
