@@ -14,8 +14,10 @@
 
 #include "rive/renderer/rive_renderer.hpp"
 
-// Either ANativeWindow* or a Kotlin Surface.
-// std::monostate holds an 'empty' variant.
+// std::variant that holds different surface types:
+// - ANativeWindow*: for Rive Renderer
+// - Kotlin Surface jobject: for the Canvas Renderer
+// - std::monostate: for no assigned surface
 using SurfaceVariant = std::variant<std::monostate, ANativeWindow*, jobject>;
 
 namespace rive_android

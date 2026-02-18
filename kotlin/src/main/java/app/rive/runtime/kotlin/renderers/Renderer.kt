@@ -8,6 +8,7 @@ import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
@@ -21,6 +22,10 @@ abstract class Renderer(
     val trace: Boolean = false,
 ) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
+    companion object {
+        private const val TAG = "RiveL/Renderer"
+    }
+
     // From NativeObject
     external override fun cppDelete(pointer: Long)
 
@@ -185,22 +190,57 @@ abstract class Renderer(
     @CallSuper
     fun stop() {
         stopThread()
-        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
-            Choreographer.getInstance().removeFrameCallback(this@Renderer)
-        }
+        removeFrameCallback()
     }
 
-    private fun destroySurface() {
+    /**
+     * Destroys the held surface asynchronously by enqueuing destruction in the C++ JNIRenderer.
+     * Also halts further frame callbacks to break the Choreographer loop.
+     */
+    internal fun destroySurfaceAsync() {
         synchronized(frameLock) {
-            isAttached = false
-            stop()
+            RiveLog.d(TAG) { "Surface destroy requested" }
+            destroySurfaceLocked()
+        }
+        removeFrameCallback()
+    }
+
+    /**
+     * Implementation of destroying the surface. Called either by:
+     * - [onSurfaceTextureDestroyed][app.rive.runtime.kotlin.RiveTextureView.onSurfaceTextureDestroyed]
+     *   -> [destroySurfaceAsync] or
+     * - [onDetachedFromWindow][app.rive.runtime.kotlin.RiveTextureView.onDetachedFromWindow] ->
+     *   [delete]
+     *
+     * ⚠️ Must be called within `frameLock`, hence the `Locked` part of the name.
+     *
+     * Performs the following:
+     * - Marks the isAttached state as false, gating play and frame operations
+     * - Stops the JNIRenderer
+     * - Enqueues the surface destruction in the C++ JNIRenderer
+     * - Releases and nulls the Kotlin reference to the surface
+     */
+    private fun destroySurfaceLocked() {
+        isAttached = false
+        stopThread()
+        if (hasCppObject) {
             cppDestroySurface(cppPointer)
         }
+        sharedSurface?.release()
+        sharedSurface = null
     }
 
+    /** Schedule a new frame callback to the Choreographer loop, calling back to [doFrame]. */
     open fun scheduleFrame() {
         Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
             Choreographer.getInstance().postFrameCallback(this@Renderer)
+        }
+    }
+
+    /** Remove the active frame callback, breaking the Choreographer loop. */
+    private fun removeFrameCallback() {
+        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+            Choreographer.getInstance().removeFrameCallback(this@Renderer)
         }
     }
 
@@ -252,7 +292,7 @@ abstract class Renderer(
 
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
-        if (isPlaying) {
+        if (isPlaying && isAttached) {
             // This `synchronized` block ensures that the `delete()` method (called on the UI thread)
             // cannot proceed while a frame is being processed on the render thread.
             // It prevents a race where `cppPointer` could be nullified while `cppDoFrame` is
@@ -261,12 +301,12 @@ abstract class Renderer(
                 // We must re-check `hasCppObject` inside the lock. It's possible for `delete()`
                 // to have acquired the lock, nullified the pointer, and released the lock just
                 // before this thread acquired it. This check prevents us from using a null pointer.
-                if (hasCppObject) {
+                if (hasCppObject && isPlaying && isAttached) {
                     cppDoFrame(cppPointer)
                 }
             }
             // Check `isPlaying` again, as stop() could have been called during cppDoFrame.
-            if (isPlaying) {
+            if (isPlaying && isAttached) {
                 scheduleFrame()
             }
         }
@@ -290,7 +330,7 @@ abstract class Renderer(
         // will block until that frame completes. Once this lock is acquired, we have a guarantee
         // that no part of `doFrame` is executing.
         synchronized(frameLock) {
-            destroySurface()
+            destroySurfaceLocked()
 
             // We manually manage disposal rather than using `release()` here because we want
             // our dependencies to be cleaned up on the background render thread

@@ -104,6 +104,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onDetachedFromWindow() {
+        sharedSurface?.release()
+        sharedSurface = null
         // If we delete, we must have a Renderer.
         renderer!!.delete()
         renderer = null
@@ -120,6 +122,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+        renderer?.destroySurfaceAsync()
         sharedSurface?.release()
         sharedSurface = null
         return false

@@ -1,9 +1,12 @@
 #include "models/jni_renderer.hpp"
+#include "helpers/rive_log.hpp"
 
 using namespace std::chrono_literals;
 
 namespace rive_android
 {
+constexpr const char* TAG = "RiveLN/JNIRenderer";
+
 JNIRenderer::JNIRenderer(
     jobject ktRenderer,
     bool trace /* = false */,
@@ -56,28 +59,46 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
     {
         return;
     }
-    SurfaceVariant oldSurface = m_surface;
-    acquireSurface(surface);
-    m_worker->run([this,
-                   /**
-                    * Explicitly capture `oldSurface` here to ensure that the
-                    * lambda has the right value.Since our inner functions
-                    * require a non-const pointer, make this lambda mutable
-                    *
-                    */
-                   oldSurface](DrawableThreadState* threadState) mutable {
+
+    // Acquire a reference to the surface
+    // Released in the below worker thread lambda when the surface is replaced
+    SurfaceVariant acquiredSurface = acquireSurface(surface);
+
+    bool detachingSurface =
+        std::holds_alternative<std::monostate>(acquiredSurface);
+    if (detachingSurface)
+    {
+        RiveLogD(TAG, "Main thread: Surface destroy enqueued");
+    }
+
+    m_worker->run([this, acquiredSurface, detachingSurface](
+                      DrawableThreadState* threadState) mutable {
         m_workerThreadID = std::this_thread::get_id();
+
+        // Destroy the old surface
+        SurfaceVariant oldSurface = m_surface;
         if (m_workerImpl)
         {
             m_workerImpl->destroy(threadState);
             m_workerImpl.reset();
-            releaseSurface(&oldSurface);
         }
-        if (m_surface.index() > 0)
+        // Release the above main thread reference to the old surface
+        releaseSurface(&oldSurface);
+
+        // Important: Only assign m_surface in this worker thread lambda to
+        // preserve work item ordering of the "current surface".
+        m_surface = acquiredSurface;
+
+        // Create the new worker with the new surface
+        if (!std::holds_alternative<std::monostate>(m_surface))
         {
             m_workerImpl = WorkerImpl::Make(m_surface,
                                             threadState,
                                             m_worker->rendererType());
+        }
+        if (detachingSurface)
+        {
+            RiveLogD(TAG, "Worker thread: Surface destroy complete");
         }
     });
 }

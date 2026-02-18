@@ -82,6 +82,9 @@ private:
     rive::rcp<RefWorker> m_worker;
     jobject m_ktRenderer;
 
+    // The current surface from Android
+    // Important: only assign in this worker thread lambda to preserve work
+    // item ordering.
     SurfaceVariant m_surface = std::monostate{};
 
     std::thread::id m_workerThreadID;
@@ -102,24 +105,35 @@ private:
 
     void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
 
-    void acquireSurface(SurfaceVariant& surface)
+    /* Acquire a reference to the given surface, normalizing for each variant
+     * type.
+     *
+     * - Rive Renderer `ANativeWindow*`: increment native ref count
+     * - Canvas Renderer `jobject` Surface: promote to a global JNI ref
+     * - `std::monostate` sentinel: no change necessary
+     */
+    static SurfaceVariant acquireSurface(SurfaceVariant surface)
     {
         if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_acquire(*window);
-            m_surface = *window;
+            return *window;
         }
-        else if (jobject* ktSurface = std::get_if<jobject>(&surface))
+        if (auto* ktSurface = std::get_if<jobject>(&surface))
         {
-            m_surface = GetJNIEnv()->NewGlobalRef(*ktSurface);
+            return GetJNIEnv()->NewGlobalRef(*ktSurface);
         }
-        else
-        {
-            m_surface = surface;
-        }
+        return std::monostate{};
     }
 
-    void releaseSurface(SurfaceVariant* surface)
+    /* Release a reference to the given surface, normalizing for each variant
+     * type.
+     *
+     * - Rive Renderer `ANativeWindow*`: decrement native ref count
+     * - Canvas Renderer `jobject` Surface: delete global JNI ref
+     * - `std::monostate` sentinel: no change necessary
+     */
+    static void releaseSurface(SurfaceVariant* surface)
     {
         if (ANativeWindow** window = std::get_if<ANativeWindow*>(surface))
         {
