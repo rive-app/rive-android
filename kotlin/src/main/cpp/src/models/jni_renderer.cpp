@@ -1,5 +1,4 @@
 #include "models/jni_renderer.hpp"
-#include "helpers/rive_log.hpp"
 
 using namespace std::chrono_literals;
 
@@ -68,7 +67,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         std::holds_alternative<std::monostate>(acquiredSurface);
     if (detachingSurface)
     {
-        RiveLogD(TAG, "Main thread: Surface destroy enqueued");
+        LOGD("%s: Main thread: Surface destroy enqueued", TAG);
     }
 
     m_worker->run([this, acquiredSurface, detachingSurface](
@@ -98,7 +97,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         }
         if (detachingSurface)
         {
-            RiveLogD(TAG, "Worker thread: Surface destroy complete");
+            LOGD("%s: Worker thread: Surface destroy complete", TAG);
         }
     });
 }
