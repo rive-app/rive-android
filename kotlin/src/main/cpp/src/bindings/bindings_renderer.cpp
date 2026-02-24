@@ -10,14 +10,10 @@
 #include "rive/artboard.hpp"
 #include "helpers/jni_resource.hpp"
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
-
     using namespace rive_android;
 
-    // Renderer
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_renderers_Renderer_constructor(
         JNIEnv* env,
@@ -95,6 +91,9 @@ extern "C"
             {
                 // Release this handle.
                 // If the renderer grabbed a reference it won't deallocate.
+                RiveLogD(
+                    "RiveLN/Renderer",
+                    "Releasing ANativeWindow handle after passing to JNIRenderer.");
                 ANativeWindow_release(surfaceWindow);
             }
         }
@@ -198,7 +197,4 @@ extern "C"
     {
         return reinterpret_cast<JNIRenderer*>(rendererRef)->averageFps();
     }
-
-#ifdef __cplusplus
 }
-#endif

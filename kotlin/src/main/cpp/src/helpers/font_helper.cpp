@@ -2,9 +2,12 @@
 #include "helpers/font_helper.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
+constexpr auto* TAG = "RiveN/FontHelper";
+
 /* static */ std::vector<rive::rcp<rive::Font>> FontHelper::s_fallbackFonts;
 /* static */ std::unordered_map<uint16_t, std::vector<rive::rcp<rive::Font>>>
     FontHelper::s_pickFontCache;
@@ -17,7 +20,7 @@ namespace rive_android
     rive::rcp<rive::Font> fallback = HBFont::Decode(bytes);
     if (!fallback)
     {
-        LOGE("RegisterFallbackFont - failed to decode byte fonts");
+        RiveLogE(TAG, "RegisterFallbackFont - failed to decode byte fonts");
         return false;
     }
 
@@ -32,7 +35,7 @@ namespace rive_android
         FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper");
     if (!fontHelperClass.get())
     {
-        LOGE("FontHelper class not found");
+        RiveLogE(TAG, "FontHelper class not found");
         return {};
     }
 
@@ -43,7 +46,7 @@ namespace rive_android
         "Lapp/rive/runtime/kotlin/fonts/FontHelper$Companion;");
     if (!fontCompanionField)
     {
-        LOGE("FontHelper Companion field not found");
+        RiveLogE(TAG, "FontHelper Companion field not found");
         return {};
     }
 
@@ -52,7 +55,7 @@ namespace rive_android
         GetStaticObjectField(env, fontHelperClass.get(), fontCompanionField);
     if (!companionObject.get())
     {
-        LOGE("Could not get FontHelper Companion object");
+        RiveLogE(TAG, "Could not get FontHelper Companion object");
         return {};
     }
 
@@ -61,7 +64,7 @@ namespace rive_android
         FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
     if (!fontHelperCompanionClass.get())
     {
-        LOGE("FontHelper Companion class not found");
+        RiveLogE(TAG, "FontHelper Companion class not found");
         return {};
     }
 
@@ -72,7 +75,7 @@ namespace rive_android
                          "(Lapp/rive/runtime/kotlin/fonts/Fonts$FontOpts;)[B");
     if (!getFontBytesMethodId)
     {
-        LOGE("FontHelper did not find getFallbackFontBytes() method");
+        RiveLogE(TAG, "FontHelper did not find getFallbackFontBytes() method");
         return {};
     }
 
@@ -86,7 +89,7 @@ namespace rive_android
         env);
     if (!fontBytes.get())
     {
-        LOGE("FontHelper couldn't load fallback font from the system");
+        RiveLogE(TAG, "FontHelper couldn't load fallback font from the system");
         return {};
     }
 
@@ -167,9 +170,10 @@ namespace rive_android
         }
         else
         {
-            LOGE("Failed to decode fallback font at index %d for weight %d",
-                 i,
-                 weight);
+            RiveLogE(TAG,
+                     "Failed to decode fallback font at index %d for weight %d",
+                     i,
+                     weight);
         }
     }
 
@@ -259,24 +263,24 @@ namespace rive_android
     std::vector<uint8_t> fontBytes = FontHelper::GetSystemFontBytes();
     if (fontBytes.empty())
     {
-        LOGW("FindFontFallback - No system font found");
+        RiveLogW(TAG, "FindFontFallback - No system font found");
         return nullptr;
     }
 
     rive::rcp<rive::Font> systemFont = HBFont::Decode(fontBytes);
     if (!systemFont)
     {
-        LOGE("FindFontFallback - failed to decode system font bytes");
+        RiveLogE(TAG, "FindFontFallback - failed to decode system font bytes");
         return nullptr;
     }
 
     if (!systemFont->hasGlyph(missing))
     {
-        LOGE("FindFontFallback - no fallback found");
+        RiveLogE(TAG, "FindFontFallback - no fallback found");
         return nullptr;
     }
 
-    LOGD("FindFontFallback - found a system fallback");
+    RiveLogD(TAG, "FindFontFallback - found a system fallback");
     return systemFont;
 }
 

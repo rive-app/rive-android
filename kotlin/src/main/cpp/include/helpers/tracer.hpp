@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 
 #include "helpers/general.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
@@ -44,7 +45,7 @@ public:
         }
         else
         {
-            LOGE("Tracer cannot load libandroid.so!");
+            RiveLogE("Tracer", "Tracer cannot load libandroid.so!");
         }
     }
     ~Tracer() {}

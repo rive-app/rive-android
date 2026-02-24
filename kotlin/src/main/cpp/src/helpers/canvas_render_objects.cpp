@@ -4,6 +4,7 @@
 
 #include "helpers/canvas_render_objects.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
@@ -582,6 +583,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
 }
 
 /* CanvasRenderImage */
+constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
+
 /* static */ jobject CanvasRenderImage::CreateKtBitmapFrom(
     JNIEnv* env,
     rive::Span<const uint8_t>& encodedBytes)
@@ -589,7 +592,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     jbyteArray byteArray = env->NewByteArray(encodedBytes.size());
     if (byteArray == nullptr)
     {
-        LOGE("CreateKtBitmapFrom() - NewByteArray() failed.");
+        RiveLogE(TAG_RENDER_IMAGE,
+                 "CreateKtBitmapFrom() - NewByteArray() failed.");
         return nullptr;
     }
 
@@ -613,7 +617,8 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     env->DeleteLocalRef(bitmapFactoryClass);
     if (bitmap == nullptr)
     {
-        LOGE("CreateKtBitmapFrom() - decodeByteArray() failed.");
+        RiveLogE(TAG_RENDER_IMAGE,
+                 "CreateKtBitmapFrom() - decodeByteArray() failed.");
         return nullptr;
     }
     return bitmap;
@@ -626,7 +631,8 @@ CanvasRenderImage::CanvasRenderImage(rive::Span<const uint8_t> encodedBytes)
     jobject bitmap = CreateKtBitmapFrom(env, encodedBytes);
     if (bitmap == nullptr)
     {
-        LOGE("CanvasRenderImage() - Failed to create a Bitmap.");
+        RiveLogE(TAG_RENDER_IMAGE,
+                 "CanvasRenderImage() - Failed to create a Bitmap.");
         return;
     }
 

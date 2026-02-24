@@ -38,10 +38,10 @@ class JCommandQueue
 {
 public:
     JCommandQueue(JNIEnv* env, jobject jQueue) :
-        m_env(env),
-        m_class(static_cast<jclass>(
-            env->NewGlobalRef(env->FindClass("app/rive/core/CommandQueue")))),
-        m_jQueue(env->NewGlobalRef(jQueue))
+            m_env(env),
+            m_class(static_cast<jclass>(
+                            env->NewGlobalRef(env->FindClass("app/rive/core/CommandQueue")))),
+            m_jQueue(env->NewGlobalRef(jQueue))
     {}
 
     ~JCommandQueue()
@@ -76,7 +76,7 @@ class FileListener : public rive::CommandQueue::FileListener
 {
 public:
     FileListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::FileListener(), m_queue(env, jQueue)
+            rive::CommandQueue::FileListener(), m_queue(env, jQueue)
     {}
 
     virtual ~FileListener() = default;
@@ -121,10 +121,10 @@ public:
     }
 
     void onViewModelInstanceNamesListed(
-        const rive::FileHandle,
-        uint64_t requestID,
-        std::string,
-        std::vector<std::string> instanceNames) override
+            const rive::FileHandle,
+            uint64_t requestID,
+            std::string,
+            std::vector<std::string> instanceNames) override
     {
         auto jList = VecStringToJStringList(m_queue.env(), instanceNames);
         m_queue.call("onViewModelInstancesListed",
@@ -134,47 +134,47 @@ public:
     }
 
     void onViewModelPropertiesListed(
-        const rive::FileHandle,
-        uint64_t requestID,
-        std::string viewModelName,
-        std::vector<rive::CommandQueue::FileListener::ViewModelPropertyData>
+            const rive::FileHandle,
+            uint64_t requestID,
+            std::string viewModelName,
+            std::vector<rive::CommandQueue::FileListener::ViewModelPropertyData>
             properties) override
     {
         auto env = m_queue.env();
         auto arrayListClass = FindClass(env, "java/util/ArrayList");
         auto arrayListConstructor =
-            env->GetMethodID(arrayListClass.get(), "<init>", "()V");
+                env->GetMethodID(arrayListClass.get(), "<init>", "()V");
         auto arrayListAddFn = env->GetMethodID(arrayListClass.get(),
                                                "add",
                                                "(Ljava/lang/Object;)Z");
 
         auto propertyClass =
-            FindClass(env, "app/rive/runtime/kotlin/core/ViewModel$Property");
+                FindClass(env, "app/rive/runtime/kotlin/core/ViewModel$Property");
         auto constructor =
-            env->GetMethodID(propertyClass.get(),
-                             "<init>",
-                             "(Lapp/rive/runtime/kotlin/core/"
-                             "ViewModel$PropertyDataType;Ljava/lang/String;)V");
+                env->GetMethodID(propertyClass.get(),
+                                 "<init>",
+                                 "(Lapp/rive/runtime/kotlin/core/"
+                                 "ViewModel$PropertyDataType;Ljava/lang/String;)V");
 
         auto dataTypeClass = FindClass(
-            env,
-            "app/rive/runtime/kotlin/core/ViewModel$PropertyDataType");
+                env,
+                "app/rive/runtime/kotlin/core/ViewModel$PropertyDataType");
         auto fromIntFn = env->GetStaticMethodID(
-            dataTypeClass.get(),
-            "fromInt",
-            "(I)Lapp/rive/runtime/kotlin/core/ViewModel$PropertyDataType;");
+                dataTypeClass.get(),
+                "fromInt",
+                "(I)Lapp/rive/runtime/kotlin/core/ViewModel$PropertyDataType;");
 
         auto jPropertyList =
-            MakeObject(env, arrayListClass.get(), arrayListConstructor);
+                MakeObject(env, arrayListClass.get(), arrayListConstructor);
 
         for (const auto& property : properties)
         {
             auto jName = MakeJString(env, property.name);
             auto jDataType = JniResource(
-                env->CallStaticObjectMethod(dataTypeClass.get(),
-                                            fromIntFn,
-                                            static_cast<jint>(property.type)),
-                env);
+                    env->CallStaticObjectMethod(dataTypeClass.get(),
+                                                fromIntFn,
+                                                static_cast<jint>(property.type)),
+                    env);
             auto propertyObject = MakeObject(env,
                                              propertyClass.get(),
                                              constructor,
@@ -199,28 +199,28 @@ public:
         auto env = m_queue.env();
         auto arrayListClass = FindClass(env, "java/util/ArrayList");
         auto arrayListConstructor =
-            env->GetMethodID(arrayListClass.get(), "<init>", "()V");
+                env->GetMethodID(arrayListClass.get(), "<init>", "()V");
         auto arrayListAddFn = env->GetMethodID(arrayListClass.get(),
                                                "add",
                                                "(Ljava/lang/Object;)Z");
 
         auto enumClass =
-            FindClass(env, "app/rive/runtime/kotlin/core/File$Enum");
+                FindClass(env, "app/rive/runtime/kotlin/core/File$Enum");
         auto enumConstructor =
-            env->GetMethodID(enumClass.get(),
-                             "<init>",
-                             "(Ljava/lang/String;Ljava/util/List;)V");
+                env->GetMethodID(enumClass.get(),
+                                 "<init>",
+                                 "(Ljava/lang/String;Ljava/util/List;)V");
 
         // Outer list of enums to be returned
         auto jEnumsList =
-            MakeObject(env, arrayListClass.get(), arrayListConstructor);
+                MakeObject(env, arrayListClass.get(), arrayListConstructor);
 
         for (const auto& enumItem : enums)
         {
             auto jName = MakeJString(env, enumItem.name);
             // Inner list of enum values
             auto jValuesList =
-                MakeObject(env, arrayListClass.get(), arrayListConstructor);
+                    MakeObject(env, arrayListClass.get(), arrayListConstructor);
 
             // For each value in the enum item, add it to the inner list
             for (const auto& value : enumItem.enumerants)
@@ -257,15 +257,15 @@ class ArtboardListener : public rive::CommandQueue::ArtboardListener
 {
 public:
     ArtboardListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::ArtboardListener(), m_queue(env, jQueue)
+            rive::CommandQueue::ArtboardListener(), m_queue(env, jQueue)
     {}
 
     virtual ~ArtboardListener() = default;
 
     void onStateMachinesListed(
-        const rive::ArtboardHandle,
-        uint64_t requestID,
-        std::vector<std::string> stateMachineNames) override
+            const rive::ArtboardHandle,
+            uint64_t requestID,
+            std::vector<std::string> stateMachineNames) override
     {
         auto jList = VecStringToJStringList(m_queue.env(), stateMachineNames);
         m_queue.call("onStateMachinesListed",
@@ -282,7 +282,7 @@ class StateMachineListener : public rive::CommandQueue::StateMachineListener
 {
 public:
     StateMachineListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::StateMachineListener(), m_queue(env, jQueue)
+            rive::CommandQueue::StateMachineListener(), m_queue(env, jQueue)
     {}
 
     virtual ~StateMachineListener() = default;
@@ -298,19 +298,19 @@ private:
 };
 
 class ViewModelInstanceListener
-    : public rive::CommandQueue::ViewModelInstanceListener
+        : public rive::CommandQueue::ViewModelInstanceListener
 {
 public:
     ViewModelInstanceListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::ViewModelInstanceListener(), m_queue(env, jQueue)
+            rive::CommandQueue::ViewModelInstanceListener(), m_queue(env, jQueue)
     {}
 
     virtual ~ViewModelInstanceListener() = default;
 
     void onViewModelDataReceived(
-        const rive::ViewModelInstanceHandle vmiHandle,
-        uint64_t requestID,
-        rive::CommandQueue::ViewModelInstanceData data) override
+            const rive::ViewModelInstanceHandle vmiHandle,
+            uint64_t requestID,
+            rive::CommandQueue::ViewModelInstanceData data) override
     {
         auto env = m_queue.env();
         auto jPropertyName = MakeJString(env, data.metaData.name);
@@ -380,7 +380,7 @@ class ImageListener : public rive::CommandQueue::RenderImageListener
 {
 public:
     ImageListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::RenderImageListener(), m_queue(env, jQueue)
+            rive::CommandQueue::RenderImageListener(), m_queue(env, jQueue)
     {}
 
     virtual ~ImageListener() = default;
@@ -413,7 +413,7 @@ class AudioListener : public rive::CommandQueue::AudioSourceListener
 {
 public:
     AudioListener(JNIEnv* env, jobject queue) :
-        rive::CommandQueue::AudioSourceListener(), m_queue(env, queue)
+            rive::CommandQueue::AudioSourceListener(), m_queue(env, queue)
     {}
 
     virtual ~AudioListener() = default;
@@ -446,7 +446,7 @@ class FontListener : public rive::CommandQueue::FontListener
 {
 public:
     FontListener(JNIEnv* env, jobject jQueue) :
-        rive::CommandQueue::FontListener(), m_queue(env, jQueue)
+            rive::CommandQueue::FontListener(), m_queue(env, jQueue)
     {}
 
     virtual ~FontListener() = default;
@@ -478,10 +478,10 @@ private:
 /** Typedef for the below setProperty function. */
 template <typename T>
 using PropertySetter =
-    void (rive::CommandQueue::*)(rive::ViewModelInstanceHandle,
-                                 std::string,
-                                 T,
-                                 uint64_t);
+        void (rive::CommandQueue::*)(rive::ViewModelInstanceHandle,
+                                     std::string,
+                                     T,
+                                     uint64_t);
 /** A generic setter for all property types. */
 template <typename T>
 void setProperty(JNIEnv* env,
@@ -493,7 +493,7 @@ void setProperty(JNIEnv* env,
 {
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto viewModelInstanceHandle =
-        handleFromLong<rive::ViewModelInstanceHandle>(jViewModelInstanceHandle);
+            handleFromLong<rive::ViewModelInstanceHandle>(jViewModelInstanceHandle);
     auto propertyPath = JStringToString(env, jPropertyPath);
 
     (commandQueue->*setter)(viewModelInstanceHandle,
@@ -504,9 +504,9 @@ void setProperty(JNIEnv* env,
 
 /** Typedef for the below getProperty function. */
 using PropertyGetter =
-    void (rive::CommandQueue::*)(rive::ViewModelInstanceHandle,
-                                 std::string,
-                                 uint64_t);
+        void (rive::CommandQueue::*)(rive::ViewModelInstanceHandle,
+                                     std::string,
+                                     uint64_t);
 /** A generic getter for all property types. */
 void getProperty(JNIEnv* env,
                  jlong ref,
@@ -517,7 +517,7 @@ void getProperty(JNIEnv* env,
 {
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto viewModelInstanceHandle =
-        handleFromLong<rive::ViewModelInstanceHandle>(jViewModelInstanceHandle);
+            handleFromLong<rive::ViewModelInstanceHandle>(jViewModelInstanceHandle);
     auto propertyPath = JStringToString(env, jPropertyPath);
 
     (commandQueue->*getter)(viewModelInstanceHandle, propertyPath, requestID);
@@ -549,193 +549,193 @@ EGLSurface createPBufferSurface(EGLDisplay eglDisplay, EGLContext eglContext)
 
 extern "C"
 {
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppConstructor(JNIEnv* env,
-                                                   jobject,
-                                                   jlong display,
-                                                   jlong context)
-    {
-        auto commandQueue =
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppConstructor(JNIEnv* env,
+                                               jobject,
+                                               jlong display,
+                                               jlong context)
+{
+    auto commandQueue =
             rive::rcp<rive::CommandQueue>(new rive::CommandQueue());
-        auto eglDisplay = reinterpret_cast<EGLDisplay>(display);
-        auto eglContext = reinterpret_cast<EGLContext>(context);
+    auto eglDisplay = reinterpret_cast<EGLDisplay>(display);
+    auto eglContext = reinterpret_cast<EGLContext>(context);
 
-        struct StartupResult
+    struct StartupResult
+    {
+        bool success;
+        EGLint eglError;
+        std::string message;
+    };
+    // Used by the CommandServer thread to signal startup success or failure
+    std::promise<StartupResult> promise;
+    // Blocks the main thread until the CommandServer is ready
+    std::future<StartupResult> f = promise.get_future();
+
+    // Setup the C++ thread that drives the CommandServer
+    std::thread([eglDisplay,
+                        eglContext,
+                        commandQueue,
+                        // Move the promise into the thread and mark mutable so we
+                        // can `set_value`
+                        promise = std::move(promise)]() mutable {
+        JNIEnv* env = nullptr;
+        JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
+                .name = "Rive CmdServer",
+                .group = nullptr};
+        auto attachResult = g_JVM->AttachCurrentThread(&env, &args);
+        if (attachResult != JNI_OK)
         {
-            bool success;
-            EGLint eglError;
-            std::string message;
-        };
-        // Used by the CommandServer thread to signal startup success or failure
-        std::promise<StartupResult> promise;
-        // Blocks the main thread until the CommandServer is ready
-        std::future<StartupResult> f = promise.get_future();
-
-        // Setup the C++ thread that drives the CommandServer
-        std::thread([eglDisplay,
-                     eglContext,
-                     commandQueue,
-                     // Move the promise into the thread and mark mutable so we
-                     // can `set_value`
-                     promise = std::move(promise)]() mutable {
-            JNIEnv* env = nullptr;
-            JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
-                                  .name = "Rive CmdServer",
-                                  .group = nullptr};
-            auto attachResult = g_JVM->AttachCurrentThread(&env, &args);
-            if (attachResult != JNI_OK)
-            {
-                LOGE("Failed to attach thread to JVM: %d", attachResult);
-                promise.set_value(
+            LOGE("Failed to attach thread to JVM: %d", attachResult);
+            promise.set_value(
                     {false, EGL_BAD_ALLOC, "Failed to attach thread to JVM"});
-                return;
-            }
+            return;
+        }
 
-            // Create a 1x1 PBuffer to bind to the context (some devices do not
-            // support surface-less bindings)
-            // We must have a valid binding for `MakeContext` to succeed,
-            auto pBuffer = createPBufferSurface(eglDisplay, eglContext);
-            if (pBuffer == EGL_NO_SURFACE)
-            {
-                auto error = eglGetError();
-                LOGE("Failed to create PBuffer surface. Error: (0x%04x)",
-                     error);
-                promise.set_value(
+        // Create a 1x1 PBuffer to bind to the context (some devices do not
+        // support surface-less bindings)
+        // We must have a valid binding for `MakeContext` to succeed,
+        auto pBuffer = createPBufferSurface(eglDisplay, eglContext);
+        if (pBuffer == EGL_NO_SURFACE)
+        {
+            auto error = eglGetError();
+            LOGE("Failed to create PBuffer surface. Error: (0x%04x)",
+                 error);
+            promise.set_value(
                     {false, error, "Failed to create PBuffer surface"});
 
-                // Cleanup JVM thread attachment
-                g_JVM->DetachCurrentThread();
-                return;
-            }
+            // Cleanup JVM thread attachment
+            g_JVM->DetachCurrentThread();
+            return;
+        }
 
-            auto contextCurrentSuccess =
+        auto contextCurrentSuccess =
                 eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext);
-            if (!contextCurrentSuccess)
-            {
-                auto error = eglGetError();
-                LOGE("Failed to make EGL context current. Error: (0x%04x)",
-                     error);
-                promise.set_value(
+        if (!contextCurrentSuccess)
+        {
+            auto error = eglGetError();
+            LOGE("Failed to make EGL context current. Error: (0x%04x)",
+                 error);
+            promise.set_value(
                     {false, error, "Failed to make EGL context current"});
 
-                // Cleanup PBuffer and JVM thread attachment
-                if (pBuffer != EGL_NO_SURFACE)
-                {
-                    eglDestroySurface(eglDisplay, pBuffer);
-                }
-                g_JVM->DetachCurrentThread();
-                return;
-            }
-
-            auto riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
-            if (!riveContext)
-            {
-                auto error = eglGetError();
-                LOGE("Failed to create Rive RenderContextGL. Error: (0x%04x)",
-                     error);
-                promise.set_value(
-                    {false, error, "Failed to create Rive RenderContextGL"});
-
-                // Cleanup PBuffer and JVM thread attachment
-                if (pBuffer != EGL_NO_SURFACE)
-                {
-                    eglDestroySurface(eglDisplay, pBuffer);
-                }
-                g_JVM->DetachCurrentThread();
-                return;
-            }
-
-            auto commandServer =
-                std::make_unique<rive::CommandServer>(commandQueue,
-                                                      riveContext.get());
-
-            // Signal success and unblock the main thread
-            promise.set_value(
-                {true, EGL_SUCCESS, "Command Server started successfully"});
-
-            // Begin the serving loop. This will "block" the thread until the
-            // server receives the disconnect command.
-            commandServer->serveUntilDisconnect();
-
-            // Matching unref from constructor since we release()'d.
-            // Ensures the command queue outlives the command server's run.
-            commandQueue->unref();
-
-            // Cleanup the EGL context and surface
-            eglMakeCurrent(eglDisplay,
-                           EGL_NO_SURFACE,
-                           EGL_NO_SURFACE,
-                           EGL_NO_CONTEXT);
+            // Cleanup PBuffer and JVM thread attachment
             if (pBuffer != EGL_NO_SURFACE)
             {
                 eglDestroySurface(eglDisplay, pBuffer);
             }
-
-            // Cleanup JVM thread attachment
             g_JVM->DetachCurrentThread();
-        }).detach();
-
-        // Wait for the command server to start and return the result
-        auto result = f.get();
-        if (!result.success)
-        {
-            // Surface error to Java
-            auto jRTEClass = FindClass(env, "java/lang/RuntimeException");
-            char messageBuffer[256];
-            snprintf(messageBuffer,
-                     sizeof(messageBuffer),
-                     "CommandQueue startup failed (EGL 0x%04x): %s",
-                     result.eglError,
-                     result.message.c_str());
-            env->ThrowNew(jRTEClass.get(), messageBuffer);
-
-            // Return null pointer
-            return 0L;
+            return;
         }
 
-        // Ref count is currently 1, unref'd on disconnect.
-        return reinterpret_cast<jlong>(commandQueue.release());
+        auto riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
+        if (!riveContext)
+        {
+            auto error = eglGetError();
+            LOGE("Failed to create Rive RenderContextGL. Error: (0x%04x)",
+                 error);
+            promise.set_value(
+                    {false, error, "Failed to create Rive RenderContextGL"});
+
+            // Cleanup PBuffer and JVM thread attachment
+            if (pBuffer != EGL_NO_SURFACE)
+            {
+                eglDestroySurface(eglDisplay, pBuffer);
+            }
+            g_JVM->DetachCurrentThread();
+            return;
+        }
+
+        auto commandServer =
+                std::make_unique<rive::CommandServer>(commandQueue,
+                                                      riveContext.get());
+
+        // Signal success and unblock the main thread
+        promise.set_value(
+                {true, EGL_SUCCESS, "Command Server started successfully"});
+
+        // Begin the serving loop. This will "block" the thread until the
+        // server receives the disconnect command.
+        commandServer->serveUntilDisconnect();
+
+        // Matching unref from constructor since we release()'d.
+        // Ensures the command queue outlives the command server's run.
+        commandQueue->unref();
+
+        // Cleanup the EGL context and surface
+        eglMakeCurrent(eglDisplay,
+                       EGL_NO_SURFACE,
+                       EGL_NO_SURFACE,
+                       EGL_NO_CONTEXT);
+        if (pBuffer != EGL_NO_SURFACE)
+        {
+            eglDestroySurface(eglDisplay, pBuffer);
+        }
+
+        // Cleanup JVM thread attachment
+        g_JVM->DetachCurrentThread();
+    }).detach();
+
+    // Wait for the command server to start and return the result
+    auto result = f.get();
+    if (!result.success)
+    {
+        // Surface error to Java
+        auto jRTEClass = FindClass(env, "java/lang/RuntimeException");
+        char messageBuffer[256];
+        snprintf(messageBuffer,
+                 sizeof(messageBuffer),
+                 "CommandQueue startup failed (EGL 0x%04x): %s",
+                 result.eglError,
+                 result.message.c_str());
+        env->ThrowNew(jRTEClass.get(), messageBuffer);
+
+        // Return null pointer
+        return 0L;
     }
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppDelete(JNIEnv*,
-                                                                     jobject,
-                                                                     jlong ref)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->disconnect();
-    }
+    // Ref count is currently 1, unref'd on disconnect.
+    return reinterpret_cast<jlong>(commandQueue.release());
+}
 
-    JNIEXPORT jobject JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateListeners(JNIEnv* env,
-                                                       jobject jCommandQueue,
-                                                       jlong ref)
-    {
-        auto listenersClass = FindClass(env, "app/rive/core/Listeners");
-        auto listenersConstructor =
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppDelete(JNIEnv*,
+                                                                 jobject,
+                                                                 jlong ref)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->disconnect();
+}
+
+JNIEXPORT jobject JNICALL
+Java_app_rive_core_CommandQueue_cppCreateListeners(JNIEnv* env,
+                                                   jobject jCommandQueue,
+                                                   jlong ref)
+{
+    auto listenersClass = FindClass(env, "app/rive/core/Listeners");
+    auto listenersConstructor =
             env->GetMethodID(listenersClass.get(), "<init>", "(JJJJJJJ)V");
 
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
-        auto fileListener = new FileListener(env, jCommandQueue);
-        auto artboardListener = new ArtboardListener(env, jCommandQueue);
-        auto stateMachineListener =
+    auto fileListener = new FileListener(env, jCommandQueue);
+    auto artboardListener = new ArtboardListener(env, jCommandQueue);
+    auto stateMachineListener =
             new StateMachineListener(env, jCommandQueue);
-        auto viewModelInstanceListener =
+    auto viewModelInstanceListener =
             new ViewModelInstanceListener(env, jCommandQueue);
-        auto imageListener = new ImageListener(env, jCommandQueue);
-        auto audioListener = new AudioListener(env, jCommandQueue);
-        auto fontListener = new FontListener(env, jCommandQueue);
+    auto imageListener = new ImageListener(env, jCommandQueue);
+    auto audioListener = new AudioListener(env, jCommandQueue);
+    auto fontListener = new FontListener(env, jCommandQueue);
 
-        commandQueue->setGlobalFileListener(fileListener);
-        commandQueue->setGlobalArtboardListener(artboardListener);
-        commandQueue->setGlobalStateMachineListener(stateMachineListener);
-        commandQueue->setGlobalViewModelInstanceListener(
+    commandQueue->setGlobalFileListener(fileListener);
+    commandQueue->setGlobalArtboardListener(artboardListener);
+    commandQueue->setGlobalStateMachineListener(stateMachineListener);
+    commandQueue->setGlobalViewModelInstanceListener(
             viewModelInstanceListener);
-        commandQueue->setGlobalRenderImageListener(imageListener);
-        commandQueue->setGlobalAudioSourceListener(audioListener);
-        commandQueue->setGlobalFontListener(fontListener);
+    commandQueue->setGlobalRenderImageListener(imageListener);
+    commandQueue->setGlobalAudioSourceListener(audioListener);
+    commandQueue->setGlobalFontListener(fontListener);
 
-        auto listeners =
+    auto listeners =
             MakeObject(env,
                        listenersClass.get(),
                        listenersConstructor,
@@ -746,344 +746,344 @@ extern "C"
                        reinterpret_cast<jlong>(imageListener),
                        reinterpret_cast<jlong>(audioListener),
                        reinterpret_cast<jlong>(fontListener));
-        return listeners.release();
-    }
+    return listeners.release();
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateRenderTarget(JNIEnv* env,
-                                                          jobject,
-                                                          jint width,
-                                                          jint height)
-    {
-        // TODO: Move this off the main thread.
-        GLint sampleCount;
-        glGetIntegerv(GL_SAMPLES, &sampleCount);
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateRenderTarget(JNIEnv* env,
+                                                      jobject,
+                                                      jint width,
+                                                      jint height)
+{
+    // TODO: Move this off the main thread.
+    GLint sampleCount;
+    glGetIntegerv(GL_SAMPLES, &sampleCount);
 
-        auto renderTarget =
+    auto renderTarget =
             new rive::gpu::FramebufferRenderTargetGL(width,
                                                      height,
                                                      0, // externalFramebufferID
                                                      sampleCount);
-        return reinterpret_cast<jlong>(renderTarget);
-    }
+    return reinterpret_cast<jlong>(renderTarget);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppLoadFile(JNIEnv* env,
-                                                jobject,
-                                                jlong ref,
-                                                jlong requestID,
-                                                jbyteArray bytes)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto byteVec = ByteArrayToUint8Vec(env, bytes);
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppLoadFile(JNIEnv* env,
+                                            jobject,
+                                            jlong ref,
+                                            jlong requestID,
+                                            jbyteArray bytes)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->loadFile(byteVec, nullptr, requestID);
-    }
+    commandQueue->loadFile(byteVec, nullptr, requestID);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteFile(JNIEnv*,
-                                                  jobject,
-                                                  jlong ref,
-                                                  jlong requestID,
-                                                  jlong jFileHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->deleteFile(handleFromLong<rive::FileHandle>(jFileHandle),
-                                 requestID);
-    }
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteFile(JNIEnv*,
+                                              jobject,
+                                              jlong ref,
+                                              jlong requestID,
+                                              jlong jFileHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->deleteFile(handleFromLong<rive::FileHandle>(jFileHandle),
+                             requestID);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetArtboardNames(JNIEnv*,
-                                                        jobject,
-                                                        jlong ref,
-                                                        jlong requestID,
-                                                        jlong jFileHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetArtboardNames(JNIEnv*,
+                                                    jobject,
+                                                    jlong ref,
+                                                    jlong requestID,
+                                                    jlong jFileHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
 
-        commandQueue->requestArtboardNames(fileHandle, requestID);
-    }
+    commandQueue->requestArtboardNames(fileHandle, requestID);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetStateMachineNames(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetStateMachineNames(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jArtboardHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto artboardHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto artboardHandle =
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
 
-        commandQueue->requestStateMachineNames(artboardHandle, requestID);
-    }
+    commandQueue->requestStateMachineNames(artboardHandle, requestID);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetViewModelNames(JNIEnv*,
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetViewModelNames(JNIEnv*,
+                                                     jobject,
+                                                     jlong ref,
+                                                     jlong requestID,
+                                                     jlong jFileHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+
+    commandQueue->requestViewModelNames(fileHandle, requestID);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetViewModelInstanceNames(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jFileHandle,
+        jstring jViewModelName)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto name = JStringToString(env, jViewModelName);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+
+    commandQueue->requestViewModelInstanceNames(fileHandle,
+                                                name,
+                                                requestID);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetViewModelProperties(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jFileHandle,
+        jstring jViewModelName)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto name = JStringToString(env, jViewModelName);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+
+    commandQueue->requestViewModelPropertyDefinitions(fileHandle,
+                                                      name,
+                                                      requestID);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetEnums(JNIEnv*,
+                                            jobject,
+                                            jlong ref,
+                                            jlong requestID,
+                                            jlong jFileHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+
+    commandQueue->requestViewModelEnums(fileHandle, requestID);
+}
+
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateDefaultArtboard(JNIEnv*,
                                                          jobject,
                                                          jlong ref,
                                                          jlong requestID,
                                                          jlong jFileHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
-        commandQueue->requestViewModelNames(fileHandle, requestID);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetViewModelInstanceNames(
-        JNIEnv* env,
-        jobject,
-        jlong ref,
-        jlong requestID,
-        jlong jFileHandle,
-        jstring jViewModelName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto name = JStringToString(env, jViewModelName);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-
-        commandQueue->requestViewModelInstanceNames(fileHandle,
-                                                    name,
-                                                    requestID);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetViewModelProperties(
-        JNIEnv* env,
-        jobject,
-        jlong ref,
-        jlong requestID,
-        jlong jFileHandle,
-        jstring jViewModelName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto name = JStringToString(env, jViewModelName);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-
-        commandQueue->requestViewModelPropertyDefinitions(fileHandle,
-                                                          name,
-                                                          requestID);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetEnums(JNIEnv*,
-                                                jobject,
-                                                jlong ref,
-                                                jlong requestID,
-                                                jlong jFileHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-
-        commandQueue->requestViewModelEnums(fileHandle, requestID);
-    }
-
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateDefaultArtboard(JNIEnv*,
-                                                             jobject,
-                                                             jlong ref,
-                                                             jlong requestID,
-                                                             jlong jFileHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-
-        auto artboard = commandQueue->instantiateDefaultArtboard(
+    auto artboard = commandQueue->instantiateDefaultArtboard(
             handleFromLong<rive::FileHandle>(jFileHandle),
             nullptr,
             requestID);
-        return longFromHandle(artboard);
-    }
+    return longFromHandle(artboard);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateArtboardByName(JNIEnv* env,
-                                                            jobject,
-                                                            jlong ref,
-                                                            jlong requestID,
-                                                            jlong jFileHandle,
-                                                            jstring name)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto nativeName = JStringToString(env, name);
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateArtboardByName(JNIEnv* env,
+                                                        jobject,
+                                                        jlong ref,
+                                                        jlong requestID,
+                                                        jlong jFileHandle,
+                                                        jstring name)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto nativeName = JStringToString(env, name);
 
-        auto artboard = commandQueue->instantiateArtboardNamed(
+    auto artboard = commandQueue->instantiateArtboardNamed(
             handleFromLong<rive::FileHandle>(jFileHandle),
             nativeName,
             nullptr,
             requestID);
-        return longFromHandle(artboard);
-    }
+    return longFromHandle(artboard);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteArtboard(JNIEnv*,
-                                                      jobject,
-                                                      jlong ref,
-                                                      jlong requestID,
-                                                      jlong jArtboardHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->deleteArtboard(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteArtboard(JNIEnv*,
+                                                  jobject,
+                                                  jlong ref,
+                                                  jlong requestID,
+                                                  jlong jArtboardHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->deleteArtboard(
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle),
             requestID);
-    }
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateDefaultStateMachine(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateDefaultStateMachine(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jArtboardHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
-        auto stateMachine = commandQueue->instantiateDefaultStateMachine(
+    auto stateMachine = commandQueue->instantiateDefaultStateMachine(
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle),
             nullptr,
             requestID);
-        return longFromHandle(stateMachine);
-    }
+    return longFromHandle(stateMachine);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateStateMachineByName(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateStateMachineByName(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jArtboardHandle,
         jstring name)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto nativeName = JStringToString(env, name);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto nativeName = JStringToString(env, name);
 
-        auto stateMachine = commandQueue->instantiateStateMachineNamed(
+    auto stateMachine = commandQueue->instantiateStateMachineNamed(
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle),
             nativeName,
             nullptr,
             requestID);
-        return longFromHandle(stateMachine);
-    }
+    return longFromHandle(stateMachine);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteStateMachine(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteStateMachine(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong stateMachineHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->deleteStateMachine(
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->deleteStateMachine(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
             requestID);
-    }
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppAdvanceStateMachine(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppAdvanceStateMachine(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong stateMachineHandle,
         jlong deltaTimeNs)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto deltaSeconds = static_cast<float_t>(deltaTimeNs) / 1e9f; // NS to S
-        commandQueue->advanceStateMachine(
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto deltaSeconds = static_cast<float_t>(deltaTimeNs) / 1e9f; // NS to S
+    commandQueue->advanceStateMachine(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
             deltaSeconds);
-    }
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppNamedVMCreateBlankVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppNamedVMCreateBlankVMI(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jFileHandle,
         jstring jViewModelName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto viewModelName = JStringToString(env, jViewModelName);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto viewModelName = JStringToString(env, jViewModelName);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateBlankViewModelInstance(fileHandle,
                                                             viewModelName,
                                                             nullptr,
                                                             requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppDefaultVMCreateBlankVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppDefaultVMCreateBlankVMI(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jFileHandle,
         jlong jArtboardHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto artboardHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto artboardHandle =
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateBlankViewModelInstance(fileHandle,
                                                             artboardHandle,
                                                             nullptr,
                                                             requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppNamedVMCreateDefaultVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppNamedVMCreateDefaultVMI(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jFileHandle,
         jstring jViewModelName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto viewModelName = JStringToString(env, jViewModelName);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto viewModelName = JStringToString(env, jViewModelName);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateDefaultViewModelInstance(fileHandle,
                                                               viewModelName,
                                                               nullptr,
                                                               requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppDefaultVMCreateDefaultVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppDefaultVMCreateDefaultVMI(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jFileHandle,
         jlong jArtboardHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto artboardHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto artboardHandle =
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateDefaultViewModelInstance(fileHandle,
                                                               artboardHandle,
                                                               nullptr,
                                                               requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppNamedVMCreateNamedVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppNamedVMCreateNamedVMI(
         JNIEnv* env,
         jobject,
         jlong ref,
@@ -1091,23 +1091,23 @@ extern "C"
         jlong jFileHandle,
         jstring jViewModelName,
         jstring jInstanceName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto viewModelName = JStringToString(env, jViewModelName);
-        auto instanceName = JStringToString(env, jInstanceName);
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto viewModelName = JStringToString(env, jViewModelName);
+    auto instanceName = JStringToString(env, jInstanceName);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateViewModelInstanceNamed(fileHandle,
                                                             viewModelName,
                                                             instanceName,
                                                             nullptr,
                                                             requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppDefaultVMCreateNamedVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppDefaultVMCreateNamedVMI(
         JNIEnv* env,
         jobject,
         jlong ref,
@@ -1115,557 +1115,479 @@ extern "C"
         jlong jFileHandle,
         jlong jArtboardHandle,
         jstring jInstanceName)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
-        auto artboardHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+    auto artboardHandle =
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
-        auto instanceName = JStringToString(env, jInstanceName);
+    auto instanceName = JStringToString(env, jInstanceName);
 
-        auto viewModelInstance =
+    auto viewModelInstance =
             commandQueue->instantiateViewModelInstanceNamed(fileHandle,
                                                             artboardHandle,
                                                             instanceName,
                                                             nullptr,
                                                             requestID);
-        return longFromHandle(viewModelInstance);
-    }
+    return longFromHandle(viewModelInstance);
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppReferenceNestedVMI(
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppReferenceNestedVMI(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPath)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto viewModelInstanceHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto viewModelInstanceHandle =
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle);
-        auto path = JStringToString(env, jPath);
+                    jViewModelInstanceHandle);
+    auto path = JStringToString(env, jPath);
 
-        auto nestedViewModelInstance =
+    auto nestedViewModelInstance =
             commandQueue->referenceNestedViewModelInstance(
-                viewModelInstanceHandle,
-                path,
-                nullptr,
-                requestID);
-        return longFromHandle(nestedViewModelInstance);
-    }
+                    viewModelInstanceHandle,
+                    path,
+                    nullptr,
+                    requestID);
+    return longFromHandle(nestedViewModelInstance);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteViewModelInstance(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteViewModelInstance(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->deleteViewModelInstance(
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->deleteViewModelInstance(
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle),
+                    jViewModelInstanceHandle),
             requestID);
-    }
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppBindViewModelInstance(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppBindViewModelInstance(
         JNIEnv*,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jStateMachineHandle,
         jlong jViewModelInstanceHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto stateMachineHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto stateMachineHandle =
             handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
-        auto viewModelInstanceHandle =
+    auto viewModelInstanceHandle =
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle);
+                    jViewModelInstanceHandle);
 
-        commandQueue->bindViewModelInstance(stateMachineHandle,
-                                            viewModelInstanceHandle,
-                                            requestID);
-    }
+    commandQueue->bindViewModelInstance(stateMachineHandle,
+                                        viewModelInstanceHandle,
+                                        requestID);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetNumberProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetNumberProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jfloat value)
-    {
-        setProperty(env,
-                    ref,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    value,
-                    &rive::CommandQueue::setViewModelInstanceNumber);
-    }
+{
+    setProperty(env,
+                ref,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                value,
+                &rive::CommandQueue::setViewModelInstanceNumber);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetNumberProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetNumberProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        getProperty(env,
-                    ref,
-                    requestID,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    &rive::CommandQueue::requestViewModelInstanceNumber);
-    }
+{
+    getProperty(env,
+                ref,
+                requestID,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                &rive::CommandQueue::requestViewModelInstanceNumber);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetStringProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetStringProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jstring jValue)
-    {
-        auto value = JStringToString(env, jValue);
-        setProperty(env,
-                    ref,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    value,
-                    &rive::CommandQueue::setViewModelInstanceString);
-    }
+{
+    auto value = JStringToString(env, jValue);
+    setProperty(env,
+                ref,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                value,
+                &rive::CommandQueue::setViewModelInstanceString);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetStringProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetStringProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        getProperty(env,
-                    ref,
-                    requestID,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    &rive::CommandQueue::requestViewModelInstanceString);
-    }
+{
+    getProperty(env,
+                ref,
+                requestID,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                &rive::CommandQueue::requestViewModelInstanceString);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppSetBooleanProperty(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppSetBooleanProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jboolean jValue)
-    {
-        setProperty<bool>(env,
-                          ref,
-                          jViewModelInstanceHandle,
-                          jPropertyPath,
-                          jValue,
-                          &rive::CommandQueue::setViewModelInstanceBool);
-    }
+{
+    setProperty<bool>(env,
+                      ref,
+                      jViewModelInstanceHandle,
+                      jPropertyPath,
+                      jValue,
+                      &rive::CommandQueue::setViewModelInstanceBool);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppGetBooleanProperty(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppGetBooleanProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        getProperty(env,
-                    ref,
-                    requestID,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    &rive::CommandQueue::requestViewModelInstanceBool);
-    }
+{
+    getProperty(env,
+                ref,
+                requestID,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                &rive::CommandQueue::requestViewModelInstanceBool);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetEnumProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetEnumProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jstring jValue)
-    {
-        auto value = JStringToString(env, jValue);
-        setProperty(env,
-                    ref,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    value,
-                    &rive::CommandQueue::setViewModelInstanceEnum);
-    }
+{
+    auto value = JStringToString(env, jValue);
+    setProperty(env,
+                ref,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                value,
+                &rive::CommandQueue::setViewModelInstanceEnum);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetEnumProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetEnumProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        getProperty(env,
-                    ref,
-                    requestID,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    &rive::CommandQueue::requestViewModelInstanceEnum);
-    }
+{
+    getProperty(env,
+                ref,
+                requestID,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                &rive::CommandQueue::requestViewModelInstanceEnum);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetColorProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppSetColorProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jint jValue)
-    {
-        // ColorInt is uint32_t in C++
-        auto value = static_cast<uint32_t>(jValue);
-        setProperty(env,
-                    ref,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    value,
-                    &rive::CommandQueue::setViewModelInstanceColor);
-    }
+{
+    // ColorInt is uint32_t in C++
+    auto value = static_cast<uint32_t>(jValue);
+    setProperty(env,
+                ref,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                value,
+                &rive::CommandQueue::setViewModelInstanceColor);
+}
 
-    JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetColorProperty(
+JNIEXPORT void JNICALL Java_app_rive_core_CommandQueue_cppGetColorProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong requestID,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        getProperty(env,
-                    ref,
-                    requestID,
-                    jViewModelInstanceHandle,
-                    jPropertyPath,
-                    &rive::CommandQueue::requestViewModelInstanceColor);
-    }
+{
+    getProperty(env,
+                ref,
+                requestID,
+                jViewModelInstanceHandle,
+                jPropertyPath,
+                &rive::CommandQueue::requestViewModelInstanceColor);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppFireTriggerProperty(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppFireTriggerProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto viewModelInstanceHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto viewModelInstanceHandle =
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle);
-        auto propertyPath = JStringToString(env, jPropertyPath);
+                    jViewModelInstanceHandle);
+    auto propertyPath = JStringToString(env, jPropertyPath);
 
-        commandQueue->fireViewModelTrigger(viewModelInstanceHandle,
-                                           propertyPath);
-    }
+    commandQueue->fireViewModelTrigger(viewModelInstanceHandle,
+                                       propertyPath);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppSubscribeToProperty(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppSubscribeToProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jint propertyType)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto viewModelInstanceHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto viewModelInstanceHandle =
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle);
-        auto propertyPath = JStringToString(env, jPropertyPath);
-        auto dataType = static_cast<rive::DataType>(propertyType);
+                    jViewModelInstanceHandle);
+    auto propertyPath = JStringToString(env, jPropertyPath);
+    auto dataType = static_cast<rive::DataType>(propertyType);
 
-        commandQueue->subscribeToViewModelProperty(viewModelInstanceHandle,
-                                                   propertyPath,
-                                                   dataType);
-    }
+    commandQueue->subscribeToViewModelProperty(viewModelInstanceHandle,
+                                               propertyPath,
+                                               dataType);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppUnsubscribeFromProperty(
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppUnsubscribeFromProperty(
         JNIEnv* env,
         jobject,
         jlong ref,
         jlong jViewModelInstanceHandle,
         jstring jPropertyPath,
         jint propertyType)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto viewModelInstanceHandle =
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto viewModelInstanceHandle =
             handleFromLong<rive::ViewModelInstanceHandle>(
-                jViewModelInstanceHandle);
-        auto propertyPath = JStringToString(env, jPropertyPath);
-        auto dataType = static_cast<rive::DataType>(propertyType);
+                    jViewModelInstanceHandle);
+    auto propertyPath = JStringToString(env, jPropertyPath);
+    auto dataType = static_cast<rive::DataType>(propertyType);
 
-        commandQueue->unsubscribeToViewModelProperty(viewModelInstanceHandle,
-                                                     propertyPath,
-                                                     dataType);
-    }
+    commandQueue->unsubscribeToViewModelProperty(viewModelInstanceHandle,
+                                                 propertyPath,
+                                                 dataType);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDecodeImage(JNIEnv* env,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong requestID,
-                                                   jbyteArray bytes)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto byteVec = ByteArrayToUint8Vec(env, bytes);
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDecodeImage(JNIEnv* env,
+                                               jobject,
+                                               jlong ref,
+                                               jlong requestID,
+                                               jbyteArray bytes)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->decodeImage(byteVec, nullptr, requestID);
-    }
+    commandQueue->decodeImage(byteVec, nullptr, requestID);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteImage(JNIEnv*,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong jImageHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto imageHandle =
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteImage(JNIEnv*,
+                                               jobject,
+                                               jlong ref,
+                                               jlong jImageHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto imageHandle =
             handleFromLong<rive::RenderImageHandle>(jImageHandle);
 
-        commandQueue->deleteImage(imageHandle);
-    }
+    commandQueue->deleteImage(imageHandle);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppRegisterImage(JNIEnv* env,
-                                                     jobject,
-                                                     jlong ref,
-                                                     jstring jPath,
-                                                     jlong jImageHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-        auto imageHandle =
-            handleFromLong<rive::RenderImageHandle>(jImageHandle);
-
-        commandQueue->addGlobalImageAsset(path, imageHandle);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppUnregisterImage(JNIEnv* env,
-                                                       jobject,
-                                                       jlong ref,
-                                                       jstring jPath)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-
-        commandQueue->removeGlobalImageAsset(path);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDecodeAudio(JNIEnv* env,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong requestID,
-                                                   jbyteArray bytes)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto byteVec = ByteArrayToUint8Vec(env, bytes);
-
-        commandQueue->decodeAudio(byteVec, nullptr, requestID);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteAudio(JNIEnv*,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong jAudioHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto audioHandle =
-            handleFromLong<rive::AudioSourceHandle>(jAudioHandle);
-
-        commandQueue->deleteAudio(audioHandle);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppRegisterAudio(JNIEnv* env,
-                                                     jobject,
-                                                     jlong ref,
-                                                     jstring jPath,
-                                                     jlong jAudioHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-        auto audioHandle =
-            handleFromLong<rive::AudioSourceHandle>(jAudioHandle);
-
-        commandQueue->addGlobalAudioAsset(path, audioHandle);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppUnregisterAudio(JNIEnv* env,
-                                                       jobject,
-                                                       jlong ref,
-                                                       jstring jPath)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-
-        commandQueue->removeGlobalAudioAsset(path);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDecodeFont(JNIEnv* env,
-                                                  jobject,
-                                                  jlong ref,
-                                                  jlong requestID,
-                                                  jbyteArray bytes)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto byteVec = ByteArrayToUint8Vec(env, bytes);
-
-        commandQueue->decodeFont(byteVec, nullptr, requestID);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDeleteFont(JNIEnv*,
-                                                  jobject,
-                                                  jlong ref,
-                                                  jlong jFontHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
-
-        commandQueue->deleteFont(fontHandle);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppRegisterFont(JNIEnv* env,
-                                                    jobject,
-                                                    jlong ref,
-                                                    jstring jPath,
-                                                    jlong jFontHandle)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-        auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
-
-        commandQueue->addGlobalFontAsset(path, fontHandle);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppUnregisterFont(JNIEnv* env,
-                                                      jobject,
-                                                      jlong ref,
-                                                      jstring jPath)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto path = JStringToString(env, jPath);
-
-        commandQueue->removeGlobalFontAsset(path);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPointerMove(JNIEnv* env,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
-                                                   jfloat surfaceWidth,
-                                                   jfloat surfaceHeight,
-                                                   jfloat pointerX,
-                                                   jfloat pointerY)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
-            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
-                                        static_cast<float_t>(surfaceHeight)),
-            .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
-
-        commandQueue->pointerMove(
-            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
-            event);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPointerDown(JNIEnv* env,
-                                                   jobject,
-                                                   jlong ref,
-                                                   jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
-                                                   jfloat surfaceWidth,
-                                                   jfloat surfaceHeight,
-                                                   jfloat pointerX,
-                                                   jfloat pointerY)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
-            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
-                                        static_cast<float_t>(surfaceHeight)),
-            .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
-
-        commandQueue->pointerDown(
-            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
-            event);
-    }
-
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPointerUp(JNIEnv* env,
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppRegisterImage(JNIEnv* env,
                                                  jobject,
                                                  jlong ref,
-                                                 jlong stateMachineHandle,
-                                                 jobject jFit,
-                                                 jobject jAlignment,
-                                                 jfloat surfaceWidth,
-                                                 jfloat surfaceHeight,
-                                                 jfloat pointerX,
-                                                 jfloat pointerY)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        rive::CommandQueue::PointerEvent event{
-            .fit = GetFit(env, jFit),
-            .alignment = GetAlignment(env, jAlignment),
-            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
-                                        static_cast<float_t>(surfaceHeight)),
-            .position = rive::Vec2D(static_cast<float_t>(pointerX),
-                                    static_cast<float_t>(pointerY))};
+                                                 jstring jPath,
+                                                 jlong jImageHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+    auto imageHandle =
+            handleFromLong<rive::RenderImageHandle>(jImageHandle);
 
-        commandQueue->pointerUp(
-            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
-            event);
-    }
+    commandQueue->addGlobalImageAsset(path, imageHandle);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPointerExit(JNIEnv* env,
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppUnregisterImage(JNIEnv* env,
                                                    jobject,
                                                    jlong ref,
-                                                   jlong stateMachineHandle,
-                                                   jobject jFit,
-                                                   jobject jAlignment,
-                                                   jfloat surfaceWidth,
-                                                   jfloat surfaceHeight,
-                                                   jfloat pointerX,
-                                                   jfloat pointerY)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        rive::CommandQueue::PointerEvent event{
+                                                   jstring jPath)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+
+    commandQueue->removeGlobalImageAsset(path);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDecodeAudio(JNIEnv* env,
+                                               jobject,
+                                               jlong ref,
+                                               jlong requestID,
+                                               jbyteArray bytes)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto byteVec = ByteArrayToUint8Vec(env, bytes);
+
+    commandQueue->decodeAudio(byteVec, nullptr, requestID);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteAudio(JNIEnv*,
+                                               jobject,
+                                               jlong ref,
+                                               jlong jAudioHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto audioHandle =
+            handleFromLong<rive::AudioSourceHandle>(jAudioHandle);
+
+    commandQueue->deleteAudio(audioHandle);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppRegisterAudio(JNIEnv* env,
+                                                 jobject,
+                                                 jlong ref,
+                                                 jstring jPath,
+                                                 jlong jAudioHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+    auto audioHandle =
+            handleFromLong<rive::AudioSourceHandle>(jAudioHandle);
+
+    commandQueue->addGlobalAudioAsset(path, audioHandle);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppUnregisterAudio(JNIEnv* env,
+                                                   jobject,
+                                                   jlong ref,
+                                                   jstring jPath)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+
+    commandQueue->removeGlobalAudioAsset(path);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDecodeFont(JNIEnv* env,
+                                              jobject,
+                                              jlong ref,
+                                              jlong requestID,
+                                              jbyteArray bytes)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto byteVec = ByteArrayToUint8Vec(env, bytes);
+
+    commandQueue->decodeFont(byteVec, nullptr, requestID);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDeleteFont(JNIEnv*,
+                                              jobject,
+                                              jlong ref,
+                                              jlong jFontHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
+
+    commandQueue->deleteFont(fontHandle);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppRegisterFont(JNIEnv* env,
+                                                jobject,
+                                                jlong ref,
+                                                jstring jPath,
+                                                jlong jFontHandle)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+    auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
+
+    commandQueue->addGlobalFontAsset(path, fontHandle);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppUnregisterFont(JNIEnv* env,
+                                                  jobject,
+                                                  jlong ref,
+                                                  jstring jPath)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto path = JStringToString(env, jPath);
+
+    commandQueue->removeGlobalFontAsset(path);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppPointerMove(JNIEnv* env,
+                                               jobject,
+                                               jlong ref,
+                                               jlong stateMachineHandle,
+                                               jobject jFit,
+                                               jobject jAlignment,
+                                               jfloat surfaceWidth,
+                                               jfloat surfaceHeight,
+                                               jfloat pointerX,
+                                               jfloat pointerY)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    rive::CommandQueue::PointerEvent event{
             .fit = GetFit(env, jFit),
             .alignment = GetAlignment(env, jAlignment),
             .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
@@ -1673,164 +1595,242 @@ extern "C"
             .position = rive::Vec2D(static_cast<float_t>(pointerX),
                                     static_cast<float_t>(pointerY))};
 
-        commandQueue->pointerExit(
+    commandQueue->pointerMove(
             handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
             event);
-    }
+}
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueue_cppCreateDrawKey(JNIEnv*,
-                                                     jobject,
-                                                     jlong ref)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto drawKey = commandQueue->createDrawKey();
-        return longFromHandle(drawKey);
-    }
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppPointerDown(JNIEnv* env,
+                                               jobject,
+                                               jlong ref,
+                                               jlong stateMachineHandle,
+                                               jobject jFit,
+                                               jobject jAlignment,
+                                               jfloat surfaceWidth,
+                                               jfloat surfaceHeight,
+                                               jfloat pointerX,
+                                               jfloat pointerY)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    rive::CommandQueue::PointerEvent event{
+            .fit = GetFit(env, jFit),
+            .alignment = GetAlignment(env, jAlignment),
+            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
+                                        static_cast<float_t>(surfaceHeight)),
+            .position = rive::Vec2D(static_cast<float_t>(pointerX),
+                                    static_cast<float_t>(pointerY))};
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppPollMessages(JNIEnv*, jobject, jlong ref)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        commandQueue->processMessages();
-    }
+    commandQueue->pointerDown(
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
+            event);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueue_cppDraw(JNIEnv* env,
-                                            jobject,
-                                            jlong ref,
-                                            jlong eglDisplayRef,
-                                            jlong eglSurfaceRef,
-                                            jlong eglContextRef,
-                                            jlong drawKey,
-                                            jlong artboardHandleRef,
-                                            jlong stateMachineHandleRef,
-                                            jlong renderTargetRef,
-                                            jint width,
-                                            jint height,
-                                            jobject jFit,
-                                            jobject jAlignment,
-                                            jint jClearColor)
-    {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-        auto eglDisplay = reinterpret_cast<EGLDisplay>(eglDisplayRef);
-        auto eglSurface = reinterpret_cast<EGLSurface>(eglSurfaceRef);
-        auto eglContext = reinterpret_cast<EGLContext>(eglContextRef);
-        auto renderTarget =
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppPointerUp(JNIEnv* env,
+                                             jobject,
+                                             jlong ref,
+                                             jlong stateMachineHandle,
+                                             jobject jFit,
+                                             jobject jAlignment,
+                                             jfloat surfaceWidth,
+                                             jfloat surfaceHeight,
+                                             jfloat pointerX,
+                                             jfloat pointerY)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    rive::CommandQueue::PointerEvent event{
+            .fit = GetFit(env, jFit),
+            .alignment = GetAlignment(env, jAlignment),
+            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
+                                        static_cast<float_t>(surfaceHeight)),
+            .position = rive::Vec2D(static_cast<float_t>(pointerX),
+                                    static_cast<float_t>(pointerY))};
+
+    commandQueue->pointerUp(
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
+            event);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppPointerExit(JNIEnv* env,
+                                               jobject,
+                                               jlong ref,
+                                               jlong stateMachineHandle,
+                                               jobject jFit,
+                                               jobject jAlignment,
+                                               jfloat surfaceWidth,
+                                               jfloat surfaceHeight,
+                                               jfloat pointerX,
+                                               jfloat pointerY)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    rive::CommandQueue::PointerEvent event{
+            .fit = GetFit(env, jFit),
+            .alignment = GetAlignment(env, jAlignment),
+            .screenBounds = rive::Vec2D(static_cast<float_t>(surfaceWidth),
+                                        static_cast<float_t>(surfaceHeight)),
+            .position = rive::Vec2D(static_cast<float_t>(pointerX),
+                                    static_cast<float_t>(pointerY))};
+
+    commandQueue->pointerExit(
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
+            event);
+}
+
+JNIEXPORT jlong JNICALL
+Java_app_rive_core_CommandQueue_cppCreateDrawKey(JNIEnv*,
+                                                 jobject,
+                                                 jlong ref)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto drawKey = commandQueue->createDrawKey();
+    return longFromHandle(drawKey);
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppPollMessages(JNIEnv*, jobject, jlong ref)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    commandQueue->processMessages();
+}
+
+JNIEXPORT void JNICALL
+Java_app_rive_core_CommandQueue_cppDraw(JNIEnv* env,
+                                        jobject,
+                                        jlong ref,
+                                        jlong eglDisplayRef,
+                                        jlong eglSurfaceRef,
+                                        jlong eglContextRef,
+                                        jlong drawKey,
+                                        jlong artboardHandleRef,
+                                        jlong stateMachineHandleRef,
+                                        jlong renderTargetRef,
+                                        jint width,
+                                        jint height,
+                                        jobject jFit,
+                                        jobject jAlignment,
+                                        jint jClearColor)
+{
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto eglDisplay = reinterpret_cast<EGLDisplay>(eglDisplayRef);
+    auto eglSurface = reinterpret_cast<EGLSurface>(eglSurfaceRef);
+    auto eglContext = reinterpret_cast<EGLContext>(eglContextRef);
+    auto renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        auto fit = GetFit(env, jFit);
-        auto alignment = GetAlignment(env, jAlignment);
-        auto clearColor = static_cast<uint32_t>(jClearColor);
+    auto fit = GetFit(env, jFit);
+    auto alignment = GetAlignment(env, jAlignment);
+    auto clearColor = static_cast<uint32_t>(jClearColor);
 
-        auto loop = [eglDisplay,
-                     eglSurface,
-                     eglContext,
-                     artboardHandleRef,
-                     stateMachineHandleRef,
-                     renderTarget,
-                     width,
-                     height,
-                     fit,
-                     alignment,
-                     clearColor](rive::DrawKey, rive::CommandServer* server) {
-            auto artboard = server->getArtboardInstance(
+    auto loop = [eglDisplay,
+            eglSurface,
+            eglContext,
+            artboardHandleRef,
+            stateMachineHandleRef,
+            renderTarget,
+            width,
+            height,
+            fit,
+            alignment,
+            clearColor](rive::DrawKey, rive::CommandServer* server) {
+        auto artboard = server->getArtboardInstance(
                 handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
-            if (artboard == nullptr)
-            {
-                return;
-            }
+        if (artboard == nullptr)
+        {
+            return;
+        }
 
-            auto stateMachine = server->getStateMachineInstance(
+        auto stateMachine = server->getStateMachineInstance(
                 handleFromLong<rive::StateMachineHandle>(
-                    stateMachineHandleRef));
-            if (stateMachine == nullptr)
-            {
-                return;
-            }
+                        stateMachineHandleRef));
+        if (stateMachine == nullptr)
+        {
+            return;
+        }
 
-            // Make the EGL surface current
-            eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+        // Make the EGL surface current
+        eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 
-            auto error = eglGetError();
-            if (error != EGL_SUCCESS)
-            {
-                LOGE("EGL error setting context (SetSurface): %d", error);
-                return;
-            }
+        auto error = eglGetError();
+        if (error != EGL_SUCCESS)
+        {
+            LOGE("EGL error setting context (SetSurface): %d", error);
+            return;
+        }
 
-            // Stack allocate a Rive Renderer
-            auto riveContext =
+        // Stack allocate a Rive Renderer
+        auto riveContext =
                 static_cast<rive::gpu::RenderContext*>(server->factory());
 
-            riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
+        riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
                 .renderTargetWidth = static_cast<uint32_t>(width),
                 .renderTargetHeight = static_cast<uint32_t>(height),
                 .loadAction = rive::gpu::LoadAction::clear,
                 .clearColor = clearColor,
-            });
+        });
 
-            auto renderer = rive::RiveRenderer(riveContext);
+        auto renderer = rive::RiveRenderer(riveContext);
 
-            // Draw the .riv
-            renderer.align(fit,
-                           alignment,
-                           rive::AABB(0.0f,
-                                      0.0f,
-                                      static_cast<float_t>(width),
-                                      static_cast<float_t>(height)),
-                           artboard->bounds());
-            artboard->draw(&renderer);
+        // Draw the .riv
+        renderer.align(fit,
+                       alignment,
+                       rive::AABB(0.0f,
+                                  0.0f,
+                                  static_cast<float_t>(width),
+                                  static_cast<float_t>(height)),
+                       artboard->bounds());
+        artboard->draw(&renderer);
 
-            // Flush the draw commands
-            riveContext->flush({
-                .renderTarget = renderTarget,
-            });
+        // Flush the draw commands
+        riveContext->flush({
+                                   .renderTarget = renderTarget,
+                           });
 
-            // Swap buffers
-            eglSwapBuffers(eglDisplay, eglSurface);
-        };
-        commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), loop);
-    }
+        // Swap buffers
+        eglSwapBuffers(eglDisplay, eglSurface);
+    };
+    commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), loop);
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_RiveSurface_cppDelete(JNIEnv*,
-                                             jobject,
-                                             jlong renderTargetRef)
-    {
-        auto renderTarget =
+JNIEXPORT void JNICALL
+Java_app_rive_core_RiveSurface_cppDelete(JNIEnv*,
+                                         jobject,
+                                         jlong renderTargetRef)
+{
+    auto renderTarget =
             reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        delete renderTarget;
-    }
+    delete renderTarget;
+}
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_Listeners_cppDelete(JNIEnv*,
-                                           jobject,
-                                           jlong fileListenerRef,
-                                           jlong artboardListenerRef,
-                                           jlong stateMachineListenerRef,
-                                           jlong viewModelInstanceListenerRef,
-                                           jlong imageListenerRef,
-                                           jlong audioListenerRef,
-                                           jlong fontListenerRef)
-    {
-        auto fileListener = reinterpret_cast<FileListener*>(fileListenerRef);
-        auto artboardListener =
+JNIEXPORT void JNICALL
+Java_app_rive_core_Listeners_cppDelete(JNIEnv*,
+                                       jobject,
+                                       jlong fileListenerRef,
+                                       jlong artboardListenerRef,
+                                       jlong stateMachineListenerRef,
+                                       jlong viewModelInstanceListenerRef,
+                                       jlong imageListenerRef,
+                                       jlong audioListenerRef,
+                                       jlong fontListenerRef)
+{
+    auto fileListener = reinterpret_cast<FileListener*>(fileListenerRef);
+    auto artboardListener =
             reinterpret_cast<ArtboardListener*>(artboardListenerRef);
-        auto stateMachineListener =
+    auto stateMachineListener =
             reinterpret_cast<StateMachineListener*>(stateMachineListenerRef);
-        auto viewModelInstanceListener =
+    auto viewModelInstanceListener =
             reinterpret_cast<ViewModelInstanceListener*>(
-                viewModelInstanceListenerRef);
-        auto imageListener = reinterpret_cast<ImageListener*>(imageListenerRef);
-        auto audioListener = reinterpret_cast<AudioListener*>(audioListenerRef);
-        auto fontListener = reinterpret_cast<FontListener*>(fontListenerRef);
+                    viewModelInstanceListenerRef);
+    auto imageListener = reinterpret_cast<ImageListener*>(imageListenerRef);
+    auto audioListener = reinterpret_cast<AudioListener*>(audioListenerRef);
+    auto fontListener = reinterpret_cast<FontListener*>(fontListenerRef);
 
-        delete fileListener;
-        delete artboardListener;
-        delete stateMachineListener;
-        delete viewModelInstanceListener;
-        delete imageListener;
-        delete audioListener;
-        delete fontListener;
-    }
+    delete fileListener;
+    delete artboardListener;
+    delete stateMachineListener;
+    delete viewModelInstanceListener;
+    delete imageListener;
+    delete audioListener;
+    delete fontListener;
+}
 }

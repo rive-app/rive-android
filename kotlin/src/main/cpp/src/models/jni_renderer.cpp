@@ -1,10 +1,12 @@
 #include "models/jni_renderer.hpp"
 
+#include "helpers/rive_log.hpp"
+
 using namespace std::chrono_literals;
 
 namespace rive_android
 {
-constexpr const char* TAG = "RiveLN/JNIRenderer";
+constexpr auto* TAG = "RiveLN/JNIRenderer";
 
 JNIRenderer::JNIRenderer(
     jobject ktRenderer,
@@ -16,7 +18,9 @@ JNIRenderer::JNIRenderer(
     //  rather than the UI thread.
     m_ktRenderer(GetJNIEnv()->NewGlobalRef(ktRenderer)),
     m_tracer(makeTracer(trace))
-{}
+{
+    RiveLogD(TAG, "Creating JNIRenderer.");
+}
 
 JNIRenderer::~JNIRenderer()
 {
@@ -25,6 +29,7 @@ JNIRenderer::~JNIRenderer()
     // We assert here to ensure that the asynchronous disposal path was taken.
     assert(m_isDisposeScheduled &&
            "JNIRenderer was deleted directly instead of scheduling disposal!");
+    RiveLogD(TAG, "Deleting JNIRenderer.");
 }
 
 void JNIRenderer::scheduleDispose()
@@ -48,6 +53,7 @@ void JNIRenderer::scheduleDispose()
         env->DeleteGlobalRef(m_ktRenderer);
         releaseSurface(&m_surface);
 
+        RiveLogD(TAG, "Worker thread: Deleting JNIRenderer.");
         delete this;
     });
 }
@@ -56,6 +62,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
 {
     if (m_isDisposeScheduled)
     {
+        RiveLogW(TAG, "setSurface() called after scheduleDisposal()");
         return;
     }
 
@@ -67,11 +74,13 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         std::holds_alternative<std::monostate>(acquiredSurface);
     if (detachingSurface)
     {
-        LOGD("%s: Main thread: Surface destroy enqueued", TAG);
+        RiveLogD(TAG, "Main thread: Surface destroy enqueued.");
     }
 
     m_worker->run([this, acquiredSurface, detachingSurface](
                       DrawableThreadState* threadState) mutable {
+        RiveLogD(TAG, "Worker thread: Setting surface.");
+
         m_workerThreadID = std::this_thread::get_id();
 
         // Destroy the old surface
@@ -97,7 +106,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         }
         if (detachingSurface)
         {
-            LOGD("%s: Worker thread: Surface destroy complete", TAG);
+            RiveLogD(TAG, "Worker thread: Surface destroy complete.");
         }
     });
 }
@@ -114,13 +123,19 @@ rive::Renderer* JNIRenderer::getRendererOnWorkerThread() const
 
 void JNIRenderer::start()
 {
+    RiveLogD(TAG, "Main thread: start()");
     if (m_isDisposeScheduled)
     {
+        RiveLogW(TAG, "start() called after scheduleDisposal()");
         return;
     }
     m_worker->run([this](DrawableThreadState* threadState) {
+        RiveLogD(TAG, "Worker thread: start()");
         if (!m_workerImpl)
+        {
+            RiveLogW(TAG, "Worker thread: start() called before setSurface()");
             return;
+        }
         auto now = std::chrono::steady_clock::now();
         m_fpsLastFrameTime = now;
         m_workerImpl->start(m_ktRenderer, now);
@@ -129,13 +144,19 @@ void JNIRenderer::start()
 
 void JNIRenderer::stop()
 {
+    RiveLogD(TAG, "Main thread: stop()");
     if (m_isDisposeScheduled)
     {
+        RiveLogW(TAG, "stop() called after scheduleDisposal()");
         return;
     }
     m_worker->run([this](DrawableThreadState* threadState) {
+        RiveLogD(TAG, "Worker thread: stop()");
         if (!m_workerImpl)
+        {
+            RiveLogW(TAG, "Worker thread: stop() called before setSurface()");
             return;
+        }
         m_workerImpl->stop();
     });
 }
@@ -144,17 +165,29 @@ void JNIRenderer::doFrame()
 {
     if (m_isDisposeScheduled)
     {
+        RiveLogW(TAG, "doFrame() called after scheduleDisposal()");
         return;
     }
 
     if (m_numScheduledFrames >= kMaxScheduledFrames)
     {
+        auto numScheduled =
+            m_numScheduledFrames.load(std::memory_order_relaxed);
+        RiveLogV(
+            TAG,
+            "Main thread: doFrame() called too many times in a row; skipping. (Scheduled: %d vs. Max: %d)",
+            numScheduled,
+            kMaxScheduledFrames);
         return;
     }
 
     m_worker->run([this](DrawableThreadState* threadState) {
         if (!m_workerImpl)
+        {
+            RiveLogW(TAG,
+                     "Worker thread: doFrame() called before setSurface()");
             return;
+        }
         auto now = std::chrono::high_resolution_clock::now();
         m_workerImpl->doFrame(m_tracer.get(), threadState, m_ktRenderer, now);
         m_numScheduledFrames--;
@@ -177,9 +210,10 @@ std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace) const
     }
     else
     {
-        LOGE("JNIRenderer cannot enable tracing on API <23. Api "
-             "version is %d",
-             android_get_device_api_level());
+        RiveLogE(TAG,
+                 "JNIRenderer cannot enable tracing on API <23. API "
+                 "version is %d.",
+                 android_get_device_api_level());
         return std::make_unique<NoopTracer>();
     }
 }

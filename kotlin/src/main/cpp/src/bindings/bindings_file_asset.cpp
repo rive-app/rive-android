@@ -131,6 +131,8 @@ extern "C"
         return image->height();
     }
 
+    constexpr auto* TAG_IMAGE = "RiveLN/RiveRenderImage";
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_RiveRenderImage_00024Companion_cppMakeImage(
         JNIEnv* env,

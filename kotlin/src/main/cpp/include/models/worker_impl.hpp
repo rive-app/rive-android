@@ -34,6 +34,7 @@ public:
     {
         // Call destroy() first!
         assert(!m_isStarted);
+        RiveLogD("RiveLN/WorkerImpl", "Deleting WorkerImpl.");
     }
 
     void start(jobject ktRenderer,
@@ -69,15 +70,21 @@ public:
     {
         // Call destroy() first!
         assert(m_eglSurface == EGL_NO_SURFACE);
+        RiveLogD(TAG, "Deleting EGLWorkerImpl.");
     }
 
     virtual void destroy(DrawableThreadState* threadState) override
     {
         if (m_eglSurface != EGL_NO_SURFACE)
         {
+            RiveLogD(TAG, "Destroying EGL surface.");
             auto eglThreadState = static_cast<EGLThreadState*>(threadState);
             eglThreadState->destroySurface(m_eglSurface);
             m_eglSurface = EGL_NO_SURFACE;
+        }
+        else
+        {
+            RiveLogW(TAG, "Surface already destroyed.");
         }
     }
 
@@ -96,15 +103,22 @@ protected:
                   DrawableThreadState* threadState,
                   bool* success)
     {
+        RiveLogD(TAG, "Creating EGLWorkerImpl.");
         *success = false;
         auto eglThreadState = static_cast<EGLThreadState*>(threadState);
         m_eglSurface = eglThreadState->createEGLSurface(window);
         if (m_eglSurface == EGL_NO_SURFACE)
+        {
+            RiveLogE(TAG, "Failed to create EGL surface.");
             return;
+        }
         *success = true;
     }
 
     void* m_eglSurface = EGL_NO_SURFACE;
+
+private:
+    static constexpr auto* TAG = "RiveLN/EGLWorkerImpl";
 };
 
 class PLSWorkerImpl : public EGLWorkerImpl

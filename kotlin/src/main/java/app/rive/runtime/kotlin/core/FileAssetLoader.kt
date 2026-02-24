@@ -1,8 +1,8 @@
 package app.rive.runtime.kotlin.core
 
 import android.content.Context
-import android.util.Log
 import androidx.annotation.VisibleForTesting
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.RiveAnimationView
 import com.android.volley.NetworkResponse
 import com.android.volley.ParseError
@@ -101,7 +101,7 @@ class FallbackAssetLoader(
 }
 
 open class CDNAssetLoader(context: Context) : FileAssetLoader() {
-    private val tag = javaClass.simpleName
+    private val TAG = "RiveL/CDNAssetLoader"
 
     private val queue by lazy { Volley.newRequestQueue(context) }
 
@@ -113,7 +113,7 @@ open class CDNAssetLoader(context: Context) : FileAssetLoader() {
             url,
             { bytes -> asset.decode(bytes) },
             {
-                Log.e(tag, "onAssetLoaded: loading image failed.")
+                RiveLog.e(TAG) { "onAssetLoaded: loading image failed." }
                 it.printStackTrace()
             }
         )

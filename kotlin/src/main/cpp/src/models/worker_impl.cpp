@@ -6,6 +6,7 @@
 
 namespace rive_android
 {
+constexpr auto* WORKER_TAG = "RiveLN/WorkerImpl";
 
 std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
                                              DrawableThreadState* threadState,
@@ -19,6 +20,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
     {
         case RendererType::Rive:
         {
+            RiveLogD(WORKER_TAG, "Making Rive WorkerImpl.");
             ANativeWindow* window = std::get<ANativeWindow*>(surface);
             impl =
                 std::make_unique<PLSWorkerImpl>(window, threadState, &success);
@@ -26,6 +28,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
         }
         case RendererType::Canvas:
         {
+            RiveLogD(WORKER_TAG, "Making Canvas WorkerImpl.");
             jobject ktSurface = std::get<jobject>(surface);
             impl = std::make_unique<CanvasWorkerImpl>(ktSurface, &success);
         }
@@ -34,6 +37,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
     }
     if (!success)
     {
+        RiveLogE(WORKER_TAG, "Failed to make WorkerImpl. Destroying impl.");
         impl->destroy(threadState);
         impl.reset();
     }
@@ -43,6 +47,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
 void WorkerImpl::start(jobject ktRenderer,
                        std::chrono::high_resolution_clock::time_point frameTime)
 {
+    RiveLogD(WORKER_TAG, "Starting WorkerImpl.");
     auto env = GetJNIEnv();
     jclass ktClass = env->GetObjectClass(ktRenderer);
     m_ktRendererClass =
@@ -89,6 +94,7 @@ void WorkerImpl::doFrame(
 {
     if (!m_isStarted)
     {
+        RiveLogW(WORKER_TAG, "Trying to doFrame before WorkerImpl is started.");
         return;
     }
 
@@ -120,6 +126,8 @@ void WorkerImpl::doFrame(
 }
 
 /* PLSWorkerImpl */
+constexpr auto* PLS_TAG = "RiveLN/PLSWorkerImpl";
+
 PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
                              DrawableThreadState* threadState,
                              bool* success) :
@@ -127,6 +135,7 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
 {
     if (!success)
     {
+        RiveLogE(PLS_TAG, "Failed to make PLS WorkerImpl.");
         return;
     }
 
@@ -137,6 +146,7 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
         PLSWorkerImpl::PlsThreadState(eglThreadState)->renderContext();
     if (renderContext == nullptr)
     {
+        RiveLogE(PLS_TAG, "Failed to make Rive Renderer RenderContext.");
         return; // PLS was not supported.
     }
     int width = ANativeWindow_getWidth(window);
@@ -144,17 +154,20 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     GLint sampleCount;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glGetIntegerv(GL_SAMPLES, &sampleCount);
+    RiveLogD(PLS_TAG, "Creating Rive Framebuffer Render Target.");
     m_renderTarget =
         rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width,
                                                              height,
                                                              0,
                                                              sampleCount);
+    RiveLogD(PLS_TAG, "Creating Rive Renderer.");
     m_plsRenderer = std::make_unique<rive::RiveRenderer>(renderContext);
     *success = true;
 }
 
 void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 {
+    RiveLogD(PLS_TAG, "Destroying Rive WorkerImpl.");
     m_plsRenderer.reset();
     m_renderTarget.reset();
     EGLWorkerImpl::destroy(threadState);
@@ -184,6 +197,7 @@ rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
 /* CanvasWorkerImpl */
 void CanvasWorkerImpl::destroy(DrawableThreadState*)
 {
+    RiveLogD("RiveLN/CanvasWorkerImpl", "Destroying Canvas WorkerImpl.");
     assert(m_ktSurface != nullptr);
 
     m_canvasRenderer.reset();

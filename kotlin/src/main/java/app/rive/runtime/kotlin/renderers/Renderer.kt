@@ -64,6 +64,7 @@ abstract class Renderer(
     @CallSuper
     open fun make() {
         if (!hasCppObject) {
+            RiveLog.d(TAG) { "Making Renderer." }
             cppPointer = constructor(trace, type.value)
             refs.incrementAndGet()
         }
@@ -115,9 +116,19 @@ abstract class Renderer(
      *   [FrameCallbacks][Choreographer.FrameCallback] when stop is called by users
      */
     fun start() {
-        if (isPlaying) return
-        if (!isAttached) return
-        if (!hasCppObject) return
+        RiveLog.d(TAG) { "Starting Renderer." }
+        if (isPlaying) {
+            RiveLog.v(TAG) { "Already playing - returning." }
+            return
+        }
+        if (!isAttached) {
+            RiveLog.v(TAG) { "Not attached - returning." }
+            return
+        }
+        if (!hasCppObject) {
+            RiveLog.e(TAG) { "Native object disposed - returning." }
+            return
+        }
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
@@ -150,6 +161,7 @@ abstract class Renderer(
      */
     internal fun setSurface(surface: SharedSurface) {
         synchronized(frameLock) {
+            RiveLog.d(TAG) { "Setting surface." }
             sharedSurface?.release()
             surface.acquire()
             sharedSurface = surface
@@ -173,8 +185,15 @@ abstract class Renderer(
      */
     @CallSuper
     internal fun stopThread() {
-        if (!isPlaying) return
-        if (!hasCppObject) return
+        RiveLog.d(TAG) { "Stopping Renderer thread." }
+        if (!isPlaying) {
+            RiveLog.w(TAG) { "Already stopped - returning." }
+            return
+        }
+        if (!hasCppObject) {
+            RiveLog.e(TAG) { "Native object disposed - returning." }
+            return
+        }
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
@@ -189,6 +208,7 @@ abstract class Renderer(
      */
     @CallSuper
     fun stop() {
+        RiveLog.d(TAG) { "Stopping Renderer." }
         stopThread()
         removeFrameCallback()
     }
@@ -199,7 +219,7 @@ abstract class Renderer(
      */
     internal fun destroySurfaceAsync() {
         synchronized(frameLock) {
-            RiveLog.d(TAG) { "Surface destroy requested" }
+            RiveLog.d(TAG) { "Surface destroy requested." }
             destroySurfaceLocked()
         }
         removeFrameCallback()
@@ -224,8 +244,10 @@ abstract class Renderer(
         isAttached = false
         stopThread()
         if (hasCppObject) {
+            RiveLog.d(TAG) { "Destroying surface." }
             cppDestroySurface(cppPointer)
         }
+        RiveLog.d(TAG) { "destroySurfaceLocked - releasing shared surface." }
         sharedSurface?.release()
         sharedSurface = null
     }
@@ -308,6 +330,12 @@ abstract class Renderer(
             // Check `isPlaying` again, as stop() could have been called during cppDoFrame.
             if (isPlaying && isAttached) {
                 scheduleFrame()
+            } else {
+                RiveLog.d(TAG) {
+                    "doFrame - " +
+                            "isPlaying: $isPlaying, isAttached: $isAttached - one or both are false; " +
+                            "not scheduling any new frames"
+                }
             }
         }
     }
@@ -325,6 +353,7 @@ abstract class Renderer(
      */
     @CallSuper
     open fun delete() {
+        RiveLog.d(TAG) { "Deleting Renderer." }
         stop()
         // Acquire the `frameLock`: If the render thread is currently inside `doFrame`, this call
         // will block until that frame completes. Once this lock is acquired, we have a guarantee

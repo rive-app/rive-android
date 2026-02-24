@@ -1,10 +1,13 @@
+#include "helpers/thread_state_egl.hpp"
+
+#include "helpers/rive_log.hpp"
 #include <thread>
 #include <vector>
 
-#include "helpers/thread_state_egl.hpp"
-
 namespace rive_android
 {
+constexpr auto* TAG = "RiveLN/EGLThreadState";
+
 static bool config_has_attribute(EGLDisplay display,
                                  EGLConfig config,
                                  EGLint attribute,
@@ -19,21 +22,23 @@ static bool config_has_attribute(EGLDisplay display,
 
 EGLThreadState::EGLThreadState()
 {
+    RiveLogD(TAG, "Creating EGLThreadState. Initializing display.");
     m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (m_display == EGL_NO_DISPLAY)
     {
         EGL_ERR_CHECK();
-        LOGE("eglGetDisplay() failed.");
+        RiveLogE(TAG, "eglGetDisplay() failed.");
         return;
     }
 
     if (!eglInitialize(m_display, 0, 0))
     {
         EGL_ERR_CHECK();
-        LOGE("eglInitialize() failed.");
+        RiveLogE(TAG, "eglInitialize() failed.");
         return;
     }
 
+    RiveLogD(TAG, "Initializing EGL config.");
     const EGLint configAttributes[] = {EGL_RENDERABLE_TYPE,
                                        EGL_OPENGL_ES2_BIT,
                                        EGL_BLUE_SIZE,
@@ -54,7 +59,10 @@ EGLThreadState::EGLThreadState()
     if (!eglChooseConfig(m_display, configAttributes, nullptr, 0, &num_configs))
     {
         EGL_ERR_CHECK();
-        LOGE("eglChooseConfig() didn't find any (%d)", num_configs);
+        RiveLogE(
+            TAG,
+            "eglChooseConfig() didn't find any suitable configurations. Number found: %d.",
+            num_configs);
         return;
     }
 
@@ -90,30 +98,34 @@ EGLThreadState::EGLThreadState()
                                         2,
                                         EGL_NONE};
 
+    RiveLogD(TAG, "Creating EGL context.");
     m_context =
         eglCreateContext(m_display, m_config, nullptr, contextAttributes);
     if (m_context == EGL_NO_CONTEXT)
     {
-        LOGE("eglCreateContext() failed.");
+        RiveLogE(TAG, "eglCreateContext() failed.");
         EGL_ERR_CHECK();
     }
 }
 
 EGLThreadState::~EGLThreadState()
 {
-    LOGD("EGLThreadState getting destroyed! 🧨");
+    RiveLogD(TAG, "EGLThreadState getting destroyed! 🧨");
 
     if (m_context != EGL_NO_CONTEXT)
     {
+        RiveLogD(TAG, "Destroying context.");
         eglDestroyContext(m_display, m_context);
         EGL_ERR_CHECK();
     }
 
+    RiveLogD(TAG, "Releasing thread.");
     eglReleaseThread();
     EGL_ERR_CHECK();
 
     if (m_display != EGL_NO_DISPLAY)
     {
+        RiveLogD(TAG, "Terminating display.");
         eglTerminate(m_display);
         EGL_ERR_CHECK();
     }
@@ -123,10 +135,11 @@ EGLSurface EGLThreadState::createEGLSurface(ANativeWindow* window)
 {
     if (!window)
     {
+        RiveLogD(TAG, "Window is null - returning EGL_NO_SURFACE.");
         return EGL_NO_SURFACE;
     }
 
-    LOGD("eglCreateWindowSurface()");
+    RiveLogD(TAG, "Creating EGL surface.");
     auto res = eglCreateWindowSurface(m_display, m_config, window, nullptr);
     EGL_ERR_CHECK();
     return res;

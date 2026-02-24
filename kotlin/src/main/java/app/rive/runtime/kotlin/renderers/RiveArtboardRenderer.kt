@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.renderers
 
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
@@ -15,12 +16,16 @@ open class RiveArtboardRenderer(
     rendererType: RendererType = Rive.defaultRendererType,
     private var controller: RiveFileController,
 ) : Renderer(rendererType, trace) {
+    companion object {
+        const val TAG = "RiveL/RiveArtboardRenderer"
+    }
 
     private val fit get() = controller.fit
     private val alignment get() = controller.alignment
     private val scaleFactor get() = controller.layoutScaleFactorActive
 
     init {
+        RiveLog.d(TAG) { "Initializing." }
         controller.also {
             it.onStart = ::start
             it.acquire()
@@ -80,6 +85,7 @@ open class RiveArtboardRenderer(
     }
 
     fun reset() {
+        RiveLog.d(TAG) { "Reset." }
         controller.stopAnimations()
         controller.reset()
         stop()
