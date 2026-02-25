@@ -74,7 +74,6 @@ void PLSThreadState::makeCurrent(EGLSurface eglSurface)
 {
     if (eglSurface == m_currentSurface)
     {
-        RiveLogV(TAG, "Surface is already current.");
         return;
     }
 
