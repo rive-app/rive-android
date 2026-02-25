@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
 @ControllerStateManagement
@@ -45,6 +46,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        RiveLog.logger = RiveLog.LogcatLogger()
+
         setContentView(R.layout.main)
 
         buttonsData.forEach { pair ->
