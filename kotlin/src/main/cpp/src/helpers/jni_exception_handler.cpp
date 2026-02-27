@@ -1,6 +1,8 @@
-#include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+
+#include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
@@ -34,7 +36,7 @@ namespace rive_android
                          "()[Ljava/lang/StackTraceElement;");
 
     // Append the error message.
-    jstring msgObj = (jstring)env->CallObjectMethod(throwable, midToString);
+    auto msgObj = (jstring)env->CallObjectMethod(throwable, midToString);
     if (msgObj != nullptr)
     {
         const char* msgStr = env->GetStringUTFChars(msgObj, nullptr);
@@ -64,7 +66,7 @@ namespace rive_android
     jmethodID midFrameToString =
         env->GetMethodID(frameClass.get(), "toString", "()Ljava/lang/String;");
 
-    jobjectArray framesArray = reinterpret_cast<jobjectArray>(frames.get());
+    auto framesArray = reinterpret_cast<jobjectArray>(frames.get());
     jsize framesLength = env->GetArrayLength(framesArray);
     for (jsize i = 0; i < framesLength; i++)
     {
@@ -80,7 +82,7 @@ namespace rive_android
             GetObjectFromMethod(env, frame.get(), midFrameToString);
         if (frameString.get())
         {
-            jstring toJString = reinterpret_cast<jstring>(frameString.get());
+            auto toJString = reinterpret_cast<jstring>(frameString.get());
             const char* frameStr = env->GetStringUTFChars(toJString, nullptr);
             errorMsg << "\n    " << frameStr;
             env->ReleaseStringUTFChars(toJString, frameStr);
@@ -123,6 +125,25 @@ namespace rive_android
 
     // Detach thread so the app can end.
     DetachThread();
+}
+
+/* static  */ bool JNIExceptionHandler::ClearAndLogErrors(JNIEnv* env,
+                                                          const char* tag,
+                                                          const char* message)
+{
+    if (!env->ExceptionCheck())
+    {
+        return false;
+    }
+
+    // Grab the throwable and clear it
+    auto throwable = MakeJniResource(env->ExceptionOccurred(), env);
+    env->ExceptionClear();
+
+    auto errorString =
+        JNIExceptionHandler::get_exception_message(env, throwable.get());
+    RiveLogE(tag, "%s\n%s", message, errorString.c_str());
+    return true;
 }
 
 /* static  */ jobject JNIExceptionHandler::CallObjectMethod(JNIEnv* env,
