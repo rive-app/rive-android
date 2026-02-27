@@ -1,6 +1,10 @@
 #include "models/jni_renderer.hpp"
 
+#include "helpers/jni_exception_handler.hpp"
+#include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
+
+#include <algorithm>
 
 using namespace std::chrono_literals;
 
@@ -42,11 +46,12 @@ void JNIRenderer::scheduleDispose()
     m_worker->run([this](DrawableThreadState* threadState) {
         if (m_workerImpl)
         {
+            m_workerImpl->stop();
             m_workerImpl->destroy(threadState);
         }
 
         auto env = GetJNIEnv();
-        jclass ktClass = env->GetObjectClass(m_ktRenderer);
+        auto ktClass = env->GetObjectClass(m_ktRenderer);
         auto disposeDeps =
             env->GetMethodID(ktClass, "disposeDependencies", "()V");
         env->CallVoidMethod(m_ktRenderer, disposeDeps);
@@ -98,7 +103,7 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         m_surface = acquiredSurface;
 
         // Create the new worker with the new surface
-        if (!std::holds_alternative<std::monostate>(m_surface))
+        if (hasSurface() && !isRecovering())
         {
             m_workerImpl = WorkerImpl::Make(m_surface,
                                             threadState,
@@ -133,7 +138,9 @@ void JNIRenderer::start()
         RiveLogD(TAG, "Worker thread: start()");
         if (!m_workerImpl)
         {
-            RiveLogW(TAG, "Worker thread: start() called before setSurface()");
+            RiveLogW(
+                TAG,
+                "Worker thread: start() called before setSurface() or while recovering.");
             return;
         }
         auto now = std::chrono::steady_clock::now();
@@ -182,21 +189,196 @@ void JNIRenderer::doFrame()
     }
 
     m_worker->run([this](DrawableThreadState* threadState) {
+        // RAII guard that balances `m_numScheduledFrames++` from the caller
+        // path. The counter tracks queued frame work, not draw success, so it
+        // must be decremented on every exit path (including early returns).
+        struct FrameCountGuard
+        {
+            std::atomic_uint8_t& counter;
+            ~FrameCountGuard() { counter--; }
+        } frameCountGuard{m_numScheduledFrames};
+
+        auto now = std::chrono::steady_clock::now();
+
+        if (isRecovering())
+        {
+            // In recovering mode, normal draw/flush is suspended. Use this
+            // frame tick to drive one recovery attempt instead.
+            attemptRecovery(threadState, now);
+            return;
+        }
+
         if (!m_workerImpl)
         {
             RiveLogW(TAG,
                      "Worker thread: doFrame() called before setSurface()");
             return;
         }
-        auto now = std::chrono::high_resolution_clock::now();
-        m_workerImpl->doFrame(m_tracer.get(), threadState, m_ktRenderer, now);
-        m_numScheduledFrames--;
-        calculateFps(now);
+
+        auto frameResult = m_workerImpl->doFrame(m_tracer.get(),
+                                                 threadState,
+                                                 m_ktRenderer,
+                                                 now);
+        if (!frameResult.eglResult.isSuccess())
+        {
+            RiveLogW(TAG,
+                     "Frame aborted due to EGL error: %s",
+                     frameResult.eglResult.summary().c_str());
+            if (frameResult.eglResult.isFatal())
+            {
+                enterRecoveringState(threadState, frameResult.eglResult, now);
+            }
+            return;
+        }
+
+        if (frameResult.didDraw)
+        {
+            calculateFps(now);
+        }
     });
     m_numScheduledFrames++;
 }
 
-std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace) const
+void JNIRenderer::notifyRenderContextEvent(int eventType,
+                                           const EGLResult& result) const
+{
+    auto env = GetJNIEnv();
+    auto jRendererClass = GetObjectClass(env, m_ktRenderer);
+    if (jRendererClass.get() == nullptr)
+    {
+        RiveLogE(TAG, "Failed to get renderer class for context event.");
+        JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "notifyRenderContextEvent: GetObjectClass failed");
+        return;
+    }
+
+    auto jCallbackMID = env->GetMethodID(jRendererClass.get(),
+                                         "onNativeRenderContextEvent",
+                                         "(IILjava/lang/String;)V");
+    if (jCallbackMID == nullptr)
+    {
+        JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "notifyRenderContextEvent: jCallbackMID lookup failed");
+        return;
+    }
+
+    auto jOperationName =
+        MakeJString(env, EGLResult::FailureOperationName(result.operation));
+    env->CallVoidMethod(m_ktRenderer,
+                        jCallbackMID,
+                        static_cast<jint>(eventType),
+                        static_cast<jint>(result.error),
+                        jOperationName.get());
+    JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "notifyRenderContextEvent: jCallbackMID invocation failed");
+}
+
+void JNIRenderer::enterRecoveringState(
+    DrawableThreadState* threadState,
+    const EGLResult& failure,
+    std::chrono::steady_clock::time_point now)
+{
+    if (isRecovering())
+    {
+        assert(false &&
+               "enterRecoveringState called while already in recovering state");
+        return;
+    }
+
+    RiveLogW(TAG,
+             "Entering recovery state after fatal EGL error: %s",
+             failure.summary().c_str());
+
+    RecoveringState recovering;
+    recovering.lastResult = failure;
+    recovering.backoff = kRecoveryBackoffInitial;
+    recovering.nextAttempt = now + recovering.backoff;
+
+    m_renderLoopState = recovering;
+
+    notifyRenderContextEvent(kContextEventLost, failure);
+
+    if (m_workerImpl != nullptr)
+    {
+        m_workerImpl->stop();
+        m_workerImpl->destroy(threadState);
+        m_workerImpl.reset();
+    }
+}
+
+bool JNIRenderer::attemptRecovery(DrawableThreadState* threadState,
+                                  std::chrono::steady_clock::time_point now)
+{
+    auto* recoveryState = std::get_if<RecoveringState>(&m_renderLoopState);
+    if (recoveryState == nullptr)
+    {
+        // Not in recovering state: treat as already healthy/no-op.
+        return true;
+    }
+    if (now < recoveryState->nextAttempt)
+    {
+        // Still backing off; keep recovering state and try again on a later
+        // frame tick.
+        return false;
+    }
+    if (!hasSurface())
+    {
+        // No surface attached, so no recovery attempt right now.
+        recoveryState->nextAttempt = now + recoveryState->backoff;
+        return false;
+    }
+
+    EGLResult recoverResult = threadState->recoverAfterContextLoss();
+    if (!recoverResult.isSuccess())
+    {
+        // EGL state rebuild failed. Stay in recovering mode and exponentially
+        // back off to avoid hammering EGL/driver code every frame.
+        recoveryState->lastResult = recoverResult;
+        recoveryState->backoff =
+            std::min(recoveryState->backoff * 2, kRecoveryBackoffMax);
+        recoveryState->nextAttempt = now + recoveryState->backoff;
+        RiveLogW(TAG,
+                 "Recovery attempt failed: %s. Retrying in %lldms",
+                 recoverResult.summary().c_str(),
+                 static_cast<long long>(recoveryState->backoff.count()));
+        return false;
+    }
+
+    m_workerImpl =
+        WorkerImpl::Make(m_surface, threadState, m_worker->rendererType());
+    if (m_workerImpl == nullptr)
+    {
+        // EGL recovered, but renderer resources failed to rebind. Keep
+        // recovering mode active and retry with backoff until WorkerImpl is
+        // recreated.
+        recoveryState->backoff =
+            std::min(recoveryState->backoff * 2, kRecoveryBackoffMax);
+        recoveryState->nextAttempt = now + recoveryState->backoff;
+        RiveLogW(
+            TAG,
+            "Recovery created EGL state but failed to recreate WorkerImpl. Retrying in %lldms",
+            static_cast<long long>(recoveryState->backoff.count()));
+        return false;
+    }
+
+    // Recovery succeeded end-to-end: resume renderer lifecycle, emit the
+    // recovered event, and transition back to healthy rendering.
+    m_workerImpl->start(m_ktRenderer, now);
+    EGLResult recovered = EGLResult::Ok();
+    recovered.operation = EGLResult::FailureOperation::recover;
+    notifyRenderContextEvent(kContextEventRecovered, recovered);
+    m_renderLoopState = HealthyState{};
+    RiveLogI(TAG, "Successfully recovered EGL context and resumed rendering.");
+    return true;
+}
+
+std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace)
 {
     if (!trace)
     {
@@ -221,8 +403,7 @@ std::unique_ptr<ITracer> JNIRenderer::makeTracer(bool trace) const
 /**
  * Calculate FPS over an average of 10 samples
  */
-void JNIRenderer::calculateFps(
-    std::chrono::high_resolution_clock::time_point frameTime)
+void JNIRenderer::calculateFps(std::chrono::steady_clock::time_point frameTime)
 {
     m_tracer->beginSection("calculateFps()");
     static constexpr int FPS_SAMPLES = 10;

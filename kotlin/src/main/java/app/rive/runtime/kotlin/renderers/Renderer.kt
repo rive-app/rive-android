@@ -5,16 +5,44 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Choreographer
 import android.view.Surface
+import androidx.annotation.AnyThread
 import androidx.annotation.CallSuper
+import androidx.annotation.Keep
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.RiveLog
+import app.rive.core.EGLError
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
+
+/** Lifecycle state transitions for the native render context. */
+enum class RenderContextEventType {
+    /** Rendering context was lost and drawing has entered recovery mode. */
+    Lost,
+
+    /** Rendering context was rebuilt and normal drawing resumed. */
+    Recovered
+}
+
+/**
+ * Event payload emitted from native rendering when EGL context incidents occur.
+ *
+ * @property type High-level context lifecycle event (`Lost` or `Recovered`).
+ * @property eglErrorCode Raw EGL error code associated with the event.
+ * @property eglErrorName Human-readable EGL error string for [eglErrorCode].
+ * @property operation Native operation where the event originated (`makeCurrent`, `swapBuffers`, or
+ *    `recover`).
+ */
+data class RenderContextEvent(
+    val type: RenderContextEventType,
+    val eglErrorCode: Int,
+    val eglErrorName: String,
+    val operation: String,
+)
 
 abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
@@ -24,6 +52,8 @@ abstract class Renderer(
     Choreographer.FrameCallback {
     companion object {
         private const val TAG = "RiveL/Renderer"
+        private const val CONTEXT_EVENT_LOST = 0
+        private const val CONTEXT_EVENT_RECOVERED = 1
     }
 
     // From NativeObject
@@ -61,6 +91,42 @@ abstract class Renderer(
     /** Instantiates JNIRenderer in C++ */
     private external fun constructor(trace: Boolean, type: Int): Long
 
+    /**
+     * JNI callback entrypoint invoked by native renderer code when EGL context
+     * lifecycle events occur.
+     *
+     * This method may be called from any thread. It maps native event values
+     * to [RenderContextEvent], then dispatches to [onRenderContextEvent] on the
+     * main thread.
+     */
+    @Keep
+    @AnyThread
+    @Suppress("unused")
+    private fun onNativeRenderContextEvent(type: Int, eglErrorCode: Int, operation: String) {
+        val eventType = when (type) {
+            CONTEXT_EVENT_LOST -> RenderContextEventType.Lost
+            CONTEXT_EVENT_RECOVERED -> RenderContextEventType.Recovered
+            else -> {
+                RiveLog.e(TAG) { "Unknown render context event type: $type" }
+                return
+            }
+        }
+        val listener = onRenderContextEvent ?: return
+        val event = RenderContextEvent(
+            type = eventType,
+            eglErrorCode = eglErrorCode,
+            eglErrorName = EGLError.errorString(eglErrorCode),
+            operation = operation
+        )
+        // Preserve the public API contract: callbacks are always delivered on
+        // the main thread, even when the native event arrives from a worker.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            listener(event)
+        } else {
+            Handler(Looper.getMainLooper()).post { listener(event) }
+        }
+    }
+
     @CallSuper
     open fun make() {
         if (!hasCppObject) {
@@ -87,6 +153,18 @@ abstract class Renderer(
     var isAttached: Boolean = false
 
     private var sharedSurface: SharedSurface? = null
+
+    /**
+     * Optional callback for EGL context-loss lifecycle events (`Lost`/`Recovered`).
+     *
+     * This is useful for production handling and observability when GPU context incidents occur:
+     * for example logging diagnostics, pausing dependent UI, or surfacing a fallback state until
+     * recovery completes.
+     *
+     * The callback is always invoked on the main thread.
+     */
+    @Volatile
+    var onRenderContextEvent: ((RenderContextEvent) -> Unit)? = null
 
     /**
      * A lock to synchronize access to the C++ renderer object between the UI thread (which handles

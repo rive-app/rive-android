@@ -1,5 +1,8 @@
-#ifndef _RIVE_ANDROID_JNI_RENDERER_HPP_
-#define _RIVE_ANDROID_JNI_RENDERER_HPP_
+#pragma once
+
+#include <chrono>
+#include <variant>
+
 #include <android/native_window.h>
 #include <GLES3/gl3.h>
 #include <jni.h>
@@ -14,7 +17,7 @@ class JNIRenderer
 public:
     explicit JNIRenderer(jobject ktRenderer,
                          bool trace = false,
-                         const RendererType rendererType = RendererType::Rive);
+                         RendererType rendererType = RendererType::Rive);
 
     ~JNIRenderer();
 
@@ -78,6 +81,26 @@ public:
 private:
     static constexpr uint8_t kMaxScheduledFrames = 2;
     static constexpr int INVALID_DIMENSION = -1;
+    static constexpr int kContextEventLost = 0;
+    static constexpr int kContextEventRecovered = 1;
+    static constexpr std::chrono::milliseconds kRecoveryBackoffInitial{50};
+    static constexpr std::chrono::milliseconds kRecoveryBackoffMax{1000};
+
+    /* Render loop state sum type (limiting recovery-specific data to that
+     * state). `HealthyState` runs normal draw/flush. `RecoveringState`
+     * suppresses drawing and uses frame ticks for backoff- based
+     * context-recovery attempts. */
+    struct HealthyState
+    {};
+    struct RecoveringState
+    {
+        EGLResult lastResult = EGLResult::Ok();
+        std::chrono::steady_clock::time_point nextAttempt =
+            std::chrono::steady_clock::time_point::min();
+        std::chrono::milliseconds backoff = kRecoveryBackoffInitial;
+    };
+    using RenderLoopState = std::variant<HealthyState, RecoveringState>;
+    RenderLoopState m_renderLoopState = HealthyState{};
 
     rive::rcp<RefWorker> m_worker;
     jobject m_ktRenderer;
@@ -101,9 +124,50 @@ private:
 
     std::unique_ptr<ITracer> m_tracer;
 
-    std::unique_ptr<ITracer> makeTracer(bool trace) const;
+    static std::unique_ptr<ITracer> makeTracer(bool trace);
 
-    void calculateFps(std::chrono::high_resolution_clock::time_point frameTime);
+    void calculateFps(std::chrono::steady_clock::time_point frameTime);
+    bool hasSurface() const
+    {
+        return !std::holds_alternative<std::monostate>(m_surface);
+    }
+    bool isRecovering() const
+    {
+        return std::holds_alternative<RecoveringState>(m_renderLoopState);
+    }
+
+    /**
+     * Emits a render-context lifecycle event to the Kotlin renderer callback.
+     *
+     * @param eventType Native event discriminator (`lost` or `recovered`).
+     * @param result EGL operation + error details for this event.
+     */
+    void notifyRenderContextEvent(int eventType, const EGLResult& result) const;
+
+    /**
+     * Transitions the render loop into recovering state after a fatal EGL
+     * failure, notifies the app once, and tears down the current worker
+     * instance.
+     *
+     * @param threadState Worker-thread drawable state used for teardown.
+     * @param failure Fatal EGL failure that triggered recovery.
+     * @param now Current monotonic time used to seed retry scheduling.
+     */
+    void enterRecoveringState(DrawableThreadState* threadState,
+                              const EGLResult& failure,
+                              std::chrono::steady_clock::time_point now);
+
+    /**
+     * Runs one recovery tick when in recovering state, subject to backoff and
+     * surface availability.
+     *
+     * @param threadState Worker-thread drawable state used for EGL recovery.
+     * @param now Current monotonic time used for backoff checks.
+     * @return `true` when renderer is healthy after this call; `false` when it
+     *         remains in recovering state.
+     */
+    bool attemptRecovery(DrawableThreadState* threadState,
+                         std::chrono::steady_clock::time_point now);
 
     /* Acquire a reference to the given surface, normalizing for each variant
      * type.
@@ -114,7 +178,7 @@ private:
      */
     static SurfaceVariant acquireSurface(SurfaceVariant surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(&surface))
+        if (auto** window = std::get_if<ANativeWindow*>(&surface))
         {
             ANativeWindow_acquire(*window);
             return *window;
@@ -135,11 +199,11 @@ private:
      */
     static void releaseSurface(SurfaceVariant* surface)
     {
-        if (ANativeWindow** window = std::get_if<ANativeWindow*>(surface))
+        if (auto** window = std::get_if<ANativeWindow*>(surface))
         {
             ANativeWindow_release(*window);
         }
-        else if (jobject* ktSurface = std::get_if<jobject>(surface))
+        else if (auto* ktSurface = std::get_if<jobject>(surface))
         {
             GetJNIEnv()->DeleteGlobalRef(*ktSurface);
         }
@@ -147,4 +211,3 @@ private:
     }
 };
 } // namespace rive_android
-#endif // _RIVE_ANDROID_JNI_RENDERER_HPP_

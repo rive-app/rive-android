@@ -1,9 +1,4 @@
-//
-// Created by Umberto Sonnino on 7/10/23.
-//
-
-#ifndef RIVE_ANDROID_WORKER_IMPL_HPP
-#define RIVE_ANDROID_WORKER_IMPL_HPP
+#pragma once
 
 #include <variant>
 
@@ -22,13 +17,25 @@ using SurfaceVariant = std::variant<std::monostate, ANativeWindow*, jobject>;
 
 namespace rive_android
 {
+/**
+ * Per-frame wrapper around EGLResult, including whether a frame was rendered.
+ *
+ * This is needed because frame execution can abort at multiple stages
+ * (`makeCurrent`, draw/flush, `swapBuffers`) and callers need one unified
+ * status object to drive render-loop behavior and recovery decisions.
+ */
+struct WorkerFrameResult
+{
+    bool didDraw = false;
+    EGLResult eglResult = EGLResult::Ok();
+};
 
 class WorkerImpl
 {
 public:
     static std::unique_ptr<WorkerImpl> Make(SurfaceVariant,
                                             DrawableThreadState*,
-                                            const RendererType);
+                                            RendererType);
 
     virtual ~WorkerImpl()
     {
@@ -37,43 +44,42 @@ public:
         RiveLogD("RiveLN/WorkerImpl", "Deleting WorkerImpl.");
     }
 
-    void start(jobject ktRenderer,
-               std::chrono::high_resolution_clock::time_point);
+    void start(jobject ktRenderer, std::chrono::steady_clock::time_point);
 
     void stop();
 
-    void doFrame(ITracer*,
-                 DrawableThreadState*,
-                 jobject ktRenderer,
-                 std::chrono::high_resolution_clock::time_point);
+    WorkerFrameResult doFrame(ITracer*,
+                              DrawableThreadState*,
+                              jobject ktRenderer,
+                              std::chrono::steady_clock::time_point);
 
-    virtual void prepareForDraw(DrawableThreadState*) const = 0;
+    virtual EGLResult prepareForDraw(DrawableThreadState*) const = 0;
 
     virtual void destroy(DrawableThreadState*) = 0;
 
     virtual void flush(DrawableThreadState*) const = 0;
 
-    virtual rive::Renderer* renderer() const = 0;
+    [[nodiscard]] virtual rive::Renderer* renderer() const = 0;
 
 protected:
     jclass m_ktRendererClass = nullptr;
     jmethodID m_ktDrawCallback = nullptr;
     jmethodID m_ktAdvanceCallback = nullptr;
-    std::chrono::high_resolution_clock::time_point m_lastFrameTime;
+    std::chrono::steady_clock::time_point m_lastFrameTime;
     bool m_isStarted = false;
 };
 
 class EGLWorkerImpl : public WorkerImpl
 {
 public:
-    virtual ~EGLWorkerImpl()
+    ~EGLWorkerImpl() override
     {
         // Call destroy() first!
         assert(m_eglSurface == EGL_NO_SURFACE);
         RiveLogD(TAG, "Deleting EGLWorkerImpl.");
     }
 
-    virtual void destroy(DrawableThreadState* threadState) override
+    void destroy(DrawableThreadState* threadState) override
     {
         if (m_eglSurface != EGL_NO_SURFACE)
         {
@@ -88,12 +94,17 @@ public:
         }
     }
 
-    virtual void prepareForDraw(DrawableThreadState* threadState) const override
+    EGLResult prepareForDraw(DrawableThreadState* threadState) const override
     {
         auto eglThreadState = static_cast<EGLThreadState*>(threadState);
         // Bind context to this thread.
-        eglThreadState->makeCurrent(m_eglSurface);
+        EGLResult makeCurrentResult = eglThreadState->makeCurrent(m_eglSurface);
+        if (!makeCurrentResult.isSuccess())
+        {
+            return makeCurrentResult;
+        }
         clear(threadState);
+        return EGLResult::Ok();
     }
 
     virtual void clear(DrawableThreadState*) const = 0;
@@ -132,7 +143,7 @@ public:
 
     void flush(DrawableThreadState* threadState) const override;
 
-    rive::Renderer* renderer() const override;
+    [[nodiscard]] rive::Renderer* renderer() const override;
 
 private:
     rive::rcp<rive::gpu::RenderTargetGL> m_renderTarget;
@@ -159,17 +170,20 @@ public:
         *success = true;
     }
 
-    ~CanvasWorkerImpl()
+    ~CanvasWorkerImpl() override
     {
         // Call destroy() first!
         assert(m_ktSurface == nullptr);
     }
 
-    rive::Renderer* renderer() const override { return m_canvasRenderer.get(); }
+    [[nodiscard]] rive::Renderer* renderer() const override
+    {
+        return m_canvasRenderer.get();
+    }
 
     void flush(DrawableThreadState*) const override;
 
-    void prepareForDraw(DrawableThreadState*) const override;
+    EGLResult prepareForDraw(DrawableThreadState*) const override;
 
     void destroy(DrawableThreadState*) override;
 
@@ -179,4 +193,3 @@ private:
 };
 
 } // namespace rive_android
-#endif // RIVE_ANDROID_WORKER_IMPL_HPP
