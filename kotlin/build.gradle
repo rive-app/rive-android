@@ -27,14 +27,6 @@ android {
         }
     }
 
-    buildTypes {
-        debug {
-            packagingOptions {
-                doNotStrip "**/*.so"
-            }
-        }
-    }
-
     // Enable removing miniaudio to reduce binary size
     def audioEnabled = !project.hasProperty("noAudio")
     // Enable removing scripting to reduce binary size
