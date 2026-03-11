@@ -2,6 +2,7 @@ package app.rive.runtime.kotlin.controllers
 
 import android.graphics.PointF
 import android.graphics.RectF
+import android.os.Trace
 import android.util.Log
 import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
@@ -57,6 +58,16 @@ class ControllerState internal constructor(
 }
 
 typealias OnStartCallback = () -> Unit
+
+private inline fun <T> traceSection(sectionName: String, block: () -> T): T {
+    Trace.beginSection(sectionName)
+    // Intentionally no catch: exceptions from block() propagate after endSection.
+    return try {
+        block()
+    } finally {
+        Trace.endSection()
+    }
+}
 
 @OpenForTesting
 class RiveFileController internal constructor(
@@ -315,64 +326,72 @@ class RiveFileController internal constructor(
         synchronized(mLock) {
             activeArtboard?.let { ab ->
                 // Process all the inputs right away.
-                processAllInputs()
+                traceSection("Rive/Frame/Advance/ProcessInputs") {
+                    processAllInputs()
+                }
 
                 // animations could change, lets cut a list.
                 // order of animations is important.....
                 var shouldArtboardAdvance = false
-                animations.forEach { animationInstance ->
-                    if (playingAnimations.contains(animationInstance)) {
-                        val advanceResult = animationInstance.advanceAndGetResult(elapsed)
-                        animationInstance.apply()
+                traceSection("Rive/Frame/Advance/Animations") {
+                    animations.forEach { animationInstance ->
+                        if (playingAnimations.contains(animationInstance)) {
+                            val advanceResult = animationInstance.advanceAndGetResult(elapsed)
+                            animationInstance.apply()
 
-                        when (advanceResult) {
-                            AdvanceResult.ONESHOT -> {
-                                stop(animationInstance)
+                            when (advanceResult) {
+                                AdvanceResult.ONESHOT -> {
+                                    stop(animationInstance)
+                                }
+
+                                AdvanceResult.LOOP, AdvanceResult.PINGPONG -> {
+                                    notifyLoop(animationInstance)
+                                }
+
+                                AdvanceResult.ADVANCED -> {
+                                    // The controller needs to explicitly call `artboard.advance()`
+                                    // only if there are no State Machines playing. That is because
+                                    // `StateMachineInstance`s call `advanceAndApply()` that will
+                                    // internally advance the artboard.
+                                    shouldArtboardAdvance = playingStateMachines.isEmpty()
+                                }
+
+                                AdvanceResult.NONE -> Unit // NOP
                             }
-
-                            AdvanceResult.LOOP, AdvanceResult.PINGPONG -> {
-                                notifyLoop(animationInstance)
-                            }
-
-                            AdvanceResult.ADVANCED -> {
-                                // The controller needs to explicitly call `artboard.advance()`
-                                // only if there are no State Machines playing. That is because
-                                // `StateMachineInstance`s call `advanceAndApply()` that will
-                                // internally advance the artboard.
-                                shouldArtboardAdvance = playingStateMachines.isEmpty()
-                            }
-
-                            AdvanceResult.NONE -> Unit // NOP
                         }
                     }
-                }
 
-                if (shouldArtboardAdvance) {
-                    ab.advance(elapsed)
+                    if (shouldArtboardAdvance) {
+                        ab.advance(elapsed)
+                    }
                 }
 
                 val stateMachinesToPause = mutableListOf<StateMachineInstance>()
-                stateMachines.forEach { stateMachineInstance ->
-                    if (playingStateMachines.contains(stateMachineInstance)) {
-                        val stillPlaying =
-                            resolveStateMachineAdvance(stateMachineInstance, elapsed)
+                traceSection("Rive/Frame/Advance/StateMachines") {
+                    stateMachines.forEach { stateMachineInstance ->
+                        if (playingStateMachines.contains(stateMachineInstance)) {
+                            val stillPlaying =
+                                resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
-                        if (!stillPlaying) {
-                            stateMachinesToPause.add(stateMachineInstance)
+                            if (!stillPlaying) {
+                                stateMachinesToPause.add(stateMachineInstance)
+                            }
                         }
+                    }
+
+                    // Only remove the state machines if the elapsed time was
+                    // greater than 0. 0 elapsed time causes no changes so it's
+                    // no-op advance.
+                    if (elapsed > 0.0) {
+                        stateMachinesToPause.forEach { pause(stateMachine = it) }
                     }
                 }
 
-                // Only remove the state machines if the elapsed time was
-                // greater than 0. 0 elapsed time causes no changes so it's
-                // no-op advance.
-                if (elapsed > 0.0) {
-                    stateMachinesToPause.forEach { pause(stateMachine = it) }
-                }
-
                 // Poll the assigned view model instances for changes.
-                playingStateMachines.mapNotNull { it.viewModelInstance }
-                    .forEach { it.pollChanges() }
+                traceSection("Rive/Frame/Advance/PollViewModelChanges") {
+                    playingStateMachines.mapNotNull { it.viewModelInstance }
+                        .forEach { it.pollChanges() }
+                }
 
                 notifyAdvance(elapsed)
             }
@@ -918,43 +937,45 @@ class RiveFileController internal constructor(
     }
 
     fun pointerEvent(eventType: PointerEvents, pointerID: Int, x: Float, y: Float) {
-        /// TODO: once we start composing artboards we may need x,y offsets here...
-        val artboardEventLocation = Helpers.convertToArtboardSpace(
-            touchBounds = targetBounds,
-            touchLocation = PointF(x, y),
-            fit = fit,
-            alignment = alignment,
-            artboardBounds = activeArtboard?.bounds ?: RectF(),
-            scaleFactor = layoutScaleFactorActive
-        )
-        stateMachines.forEach {
+        traceSection("Rive/PointerInput") {
+            /// TODO: once we start composing artboards we may need x,y offsets here...
+            val artboardEventLocation = Helpers.convertToArtboardSpace(
+                touchBounds = targetBounds,
+                touchLocation = PointF(x, y),
+                fit = fit,
+                alignment = alignment,
+                artboardBounds = activeArtboard?.bounds ?: RectF(),
+                scaleFactor = layoutScaleFactorActive
+            )
+            stateMachines.forEach {
 
-            when (eventType) {
-                PointerEvents.POINTER_DOWN -> it.pointerDown(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                when (eventType) {
+                    PointerEvents.POINTER_DOWN -> it.pointerDown(
+                        pointerID,
+                        artboardEventLocation.x,
+                        artboardEventLocation.y
+                    )
 
-                PointerEvents.POINTER_UP -> it.pointerUp(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_UP -> it.pointerUp(
+                        pointerID,
+                        artboardEventLocation.x,
+                        artboardEventLocation.y
+                    )
 
-                PointerEvents.POINTER_MOVE -> it.pointerMove(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_MOVE -> it.pointerMove(
+                        pointerID,
+                        artboardEventLocation.x,
+                        artboardEventLocation.y
+                    )
 
-                PointerEvents.POINTER_EXIT -> it.pointerExit(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_EXIT -> it.pointerExit(
+                        pointerID,
+                        artboardEventLocation.x,
+                        artboardEventLocation.y
+                    )
+                }
+                play(it, settleStateMachineState = false)
             }
-            play(it, settleStateMachineState = false)
         }
     }
 

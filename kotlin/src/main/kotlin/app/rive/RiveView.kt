@@ -2,6 +2,7 @@ package app.rive
 
 import android.content.Context
 import android.graphics.SurfaceTexture
+import android.os.Trace
 import android.util.AttributeSet
 import android.view.TextureView
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -54,21 +55,37 @@ class RiveView @JvmOverloads constructor(
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 var lastFrameTime = 0.nanoseconds
                 while (isActive) {
-                    val deltaTime = withFrameNanosChoreographer { frameTimeNs ->
-                        val frameTime = frameTimeNs.nanoseconds
-                        (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
-                            lastFrameTime = frameTime
+                    Trace.beginSection("Rive/Frame")
+                    try {
+                        val deltaTime = withFrameNanosChoreographer { frameTimeNs ->
+                            val frameTime = frameTimeNs.nanoseconds
+                            (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
+                                lastFrameTime = frameTime
+                            }
                         }
+
+                        val file = riveFile ?: break
+                        val cq = file.riveWorker
+                        val art = artboardHandle ?: break
+                        val sm = stateMachineHandle ?: break
+                        val rs = riveSurface ?: break
+
+                        Trace.beginSection("Rive/Frame/Advance")
+                        try {
+                            cq.advanceStateMachine(sm, deltaTime)
+                        } finally {
+                            Trace.endSection()
+                        }
+
+                        Trace.beginSection("Rive/Frame/Draw")
+                        try {
+                            cq.draw(art, sm, rs, Fit.Contain())
+                        } finally {
+                            Trace.endSection()
+                        }
+                    } finally {
+                        Trace.endSection()
                     }
-
-                    val file = riveFile ?: break
-                    val cq = file.riveWorker
-                    val art = artboardHandle ?: break
-                    val sm = stateMachineHandle ?: break
-                    val rs = riveSurface ?: break
-
-                    cq.advanceStateMachine(sm, deltaTime)
-                    cq.draw(art, sm, rs, Fit.Contain())
                 }
             }
         }

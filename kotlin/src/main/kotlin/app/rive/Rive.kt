@@ -2,6 +2,7 @@ package app.rive
 
 import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
+import android.os.Trace
 import android.view.Surface
 import android.view.TextureView
 import androidx.compose.runtime.Composable
@@ -40,6 +41,15 @@ import kotlin.time.Duration.Companion.nanoseconds
 private const val GENERAL_TAG = "Rive/UI"
 private const val STATE_MACHINE_TAG = "Rive/UI/SM"
 private const val DRAW_TAG = "Rive/UI/Draw"
+
+private inline fun <T> traceSection(sectionName: String, block: () -> T): T {
+    Trace.beginSection(sectionName)
+    return try {
+        block()
+    } finally {
+        Trace.endSection()
+    }
+}
 
 /**
  * Represents the result of an operation - typically loading - that can be in a loading, error,
@@ -273,13 +283,17 @@ fun Rive(
         if (surface == null) return@LaunchedEffect
         when (fit) {
             is Fit.Layout -> {
-                RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
-                artboardToUse.resizeArtboard(surface!!, fit.scaleFactor)
+                traceSection("Rive/Layout/ResizeArtboard") {
+                    RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
+                    artboardToUse.resizeArtboard(surface!!, fit.scaleFactor)
+                }
             }
 
             else -> {
-                RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
-                artboardToUse.resetArtboardSize()
+                traceSection("Rive/Layout/ResetArtboardSize") {
+                    RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
+                    artboardToUse.resetArtboardSize()
+                }
             }
         }
     }
@@ -304,16 +318,25 @@ fun Rive(
                 "Playing is false. Advancing by 0, drawing once, and skipping advancement loop."
             }
 
-            //Advance the state machine once to exit the "Entry" state and apply initial values,
-            // including any pending artboard resizes from the fit mode.
-            stateMachineToUse.advance(0.nanoseconds)
-            riveWorker.draw(
-                artboardHandle,
-                stateMachineHandle,
-                surface!!,
-                fit,
-                backgroundColor
-            )
+            Trace.beginSection("Rive/Frame")
+            try {
+                traceSection("Rive/Frame/Advance") {
+                    //Advance the state machine once to exit the "Entry" state and apply initial values,
+                    // including any pending artboard resizes from the fit mode.
+                    stateMachineToUse.advance(0.nanoseconds)
+                }
+                traceSection("Rive/Frame/Draw") {
+                    riveWorker.draw(
+                        artboardHandle,
+                        stateMachineHandle,
+                        surface!!,
+                        fit,
+                        backgroundColor
+                    )
+                }
+            } finally {
+                Trace.endSection()
+            }
 
             return@LaunchedEffect
         }
@@ -321,26 +344,35 @@ fun Rive(
             RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
             var lastFrameTime = 0.nanoseconds
             while (isActive) {
-                val deltaTime = withFrameNanos { frameTimeNs ->
-                    val frameTime = frameTimeNs.nanoseconds
-                    (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
-                        lastFrameTime = frameTime
+                Trace.beginSection("Rive/Frame")
+                try {
+                    val deltaTime = withFrameNanos { frameTimeNs ->
+                        val frameTime = frameTimeNs.nanoseconds
+                        (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
+                            lastFrameTime = frameTime
+                        }
                     }
-                }
 
-                // Skip advance and draw when settled
-                if (isSettled) {
-                    continue
+                    // Skip advance and draw when settled.
+                    if (isSettled) {
+                        traceSection("Rive/Frame/SettledSkip") { Unit }
+                    } else {
+                        traceSection("Rive/Frame/Advance") {
+                            riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                        }
+                        traceSection("Rive/Frame/Draw") {
+                            riveWorker.draw(
+                                artboardHandle,
+                                stateMachineHandle,
+                                surface!!,
+                                fit,
+                                backgroundColor
+                            )
+                        }
+                    }
+                } finally {
+                    Trace.endSection()
                 }
-
-                riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
-                riveWorker.draw(
-                    artboardHandle,
-                    stateMachineHandle,
-                    surface!!,
-                    fit,
-                    backgroundColor
-                )
             }
             RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
         }
@@ -375,42 +407,47 @@ fun Rive(
                     pass: PointerEventPass,
                     bounds: IntSize
                 ) {
-                    // Only handle the main pass so we don't double-dispatch.
-                    if (pass != PointerEventPass.Main) return
+                    Trace.beginSection("Rive/PointerInput")
+                    try {
+                        // Only handle the main pass so we don't double-dispatch.
+                        if (pass != PointerEventPass.Main) return
 
-                    // Pointer events unsettle the state machine.
-                    isSettled = false
+                        // Pointer events unsettle the state machine.
+                        isSettled = false
 
-                    val pointerFns = when (pointerEvent.type) {
-                        PointerEventType.Move -> listOf(riveWorker::pointerMove)
-                        // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
-                        PointerEventType.Release -> listOf(
-                            riveWorker::pointerUp,
-                            riveWorker::pointerExit
-                        )
-
-                        PointerEventType.Press -> listOf(riveWorker::pointerDown)
-                        PointerEventType.Exit -> listOf(riveWorker::pointerExit)
-                        else -> return // Ignore other pointer events
-                    }
-
-                    pointerEvent.changes.forEach { change ->
-                        val pointerPosition = change.position
-                        pointerFns.forEach { fn ->
-                            fn(
-                                stateMachineHandle,
-                                fit,
-                                surfaceWidth.toFloat(),
-                                surfaceHeight.toFloat(),
-                                change.id.value.toInt(),
-                                pointerPosition.x,
-                                pointerPosition.y
+                        val pointerFns = when (pointerEvent.type) {
+                            PointerEventType.Move -> listOf(riveWorker::pointerMove)
+                            // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
+                            PointerEventType.Release -> listOf(
+                                riveWorker::pointerUp,
+                                riveWorker::pointerExit
                             )
+
+                            PointerEventType.Press -> listOf(riveWorker::pointerDown)
+                            PointerEventType.Exit -> listOf(riveWorker::pointerExit)
+                            else -> return // Ignore other pointer events
                         }
-                        // Only consume in Consume mode. Observe/PassThrough do not consume.
-                        if (pointerInputMode == Consume) {
-                            change.consume()
+
+                        pointerEvent.changes.forEach { change ->
+                            val pointerPosition = change.position
+                            pointerFns.forEach { fn ->
+                                fn(
+                                    stateMachineHandle,
+                                    fit,
+                                    surfaceWidth.toFloat(),
+                                    surfaceHeight.toFloat(),
+                                    change.id.value.toInt(),
+                                    pointerPosition.x,
+                                    pointerPosition.y
+                                )
+                            }
+                            // Only consume in Consume mode. Observe/PassThrough do not consume.
+                            if (pointerInputMode == Consume) {
+                                change.consume()
+                            }
                         }
+                    } finally {
+                        Trace.endSection()
                     }
                 }
 

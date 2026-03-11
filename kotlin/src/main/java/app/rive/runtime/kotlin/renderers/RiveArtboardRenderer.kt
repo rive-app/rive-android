@@ -1,5 +1,6 @@
 package app.rive.runtime.kotlin.renderers
 
+import android.os.Trace
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.controllers.RiveFileController
@@ -9,6 +10,15 @@ import app.rive.runtime.kotlin.core.Rive
 
 enum class PointerEvents {
     POINTER_DOWN, POINTER_UP, POINTER_MOVE, POINTER_EXIT
+}
+
+private inline fun <T> traceSection(sectionName: String, block: () -> T): T {
+    Trace.beginSection(sectionName)
+    return try {
+        block()
+    } finally {
+        Trace.endSection()
+    }
 }
 
 open class RiveArtboardRenderer(
@@ -37,14 +47,18 @@ open class RiveArtboardRenderer(
         if (!hasCppObject) return
 
         if (fit == Fit.LAYOUT) {
-            val newWidth = width / scaleFactor
-            val newHeight = height / scaleFactor
-            controller.activeArtboard?.apply {
-                width = newWidth
-                height = newHeight
+            traceSection("Rive/Layout/ResizeArtboard") {
+                val newWidth = width / scaleFactor
+                val newHeight = height / scaleFactor
+                controller.activeArtboard?.apply {
+                    width = newWidth
+                    height = newHeight
+                }
             }
         } else {
-            controller.activeArtboard?.resetArtboardSize()
+            traceSection("Rive/Layout/ResetArtboardSize") {
+                controller.activeArtboard?.resetArtboardSize()
+            }
         }
     }
 

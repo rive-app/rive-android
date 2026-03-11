@@ -2,6 +2,7 @@ package app.rive.core
 
 import android.graphics.Color
 import android.graphics.SurfaceTexture
+import android.os.Trace
 import android.view.TextureView
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
@@ -326,7 +327,14 @@ class CommandQueue(
      * @see [beginPolling]
      */
     @Throws(IllegalStateException::class)
-    fun pollMessages() = bridge.cppPollMessages(cppPointer.pointer)
+    fun pollMessages() {
+        Trace.beginSection("Rive/PollMessages")
+        try {
+            bridge.cppPollMessages(cppPointer.pointer)
+        } finally {
+            Trace.endSection()
+        }
+    }
 
     /**
      * Create a Rive rendering surface for Rive to draw into.
