@@ -270,11 +270,11 @@ fun Rive(
 
     /** Resize artboard based on fit parameter. */
     LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight) {
-        if (surface == null) return@LaunchedEffect
+        val activeSurface = surface ?: return@LaunchedEffect
         when (fit) {
             is Fit.Layout -> {
                 RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
-                artboardToUse.resizeArtboard(surface!!, fit.scaleFactor)
+                artboardToUse.resizeArtboard(activeSurface, fit.scaleFactor)
             }
 
             else -> {
@@ -307,10 +307,14 @@ fun Rive(
             //Advance the state machine once to exit the "Entry" state and apply initial values,
             // including any pending artboard resizes from the fit mode.
             stateMachineToUse.advance(0.nanoseconds)
+            val drawSurface = surface ?: run {
+                RiveLog.d(DRAW_TAG) { "Surface was released before draw, skipping frame" }
+                return@LaunchedEffect
+            }
             riveWorker.draw(
                 artboardHandle,
                 stateMachineHandle,
-                surface!!,
+                drawSurface,
                 fit,
                 backgroundColor
             )
@@ -333,11 +337,17 @@ fun Rive(
                     continue
                 }
 
+                // Guard against the surface being released mid-frame.
+                val drawSurface = surface ?: run {
+                    RiveLog.d(DRAW_TAG) { "Surface was released mid-frame, stopping draw loop" }
+                    return@repeatOnLifecycle
+                }
+
                 riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
                 riveWorker.draw(
                     artboardHandle,
                     stateMachineHandle,
-                    surface!!,
+                    drawSurface,
                     fit,
                     backgroundColor
                 )
