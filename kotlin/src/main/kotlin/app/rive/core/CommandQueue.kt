@@ -561,6 +561,51 @@ class CommandQueue(
     }
 
     /**
+     * Query the default view model info for an artboard. Returns on
+     * [onDefaultViewModelInfoReceived].
+     *
+     * @param fileHandle The handle of the file containing the artboard.
+     * @param artboardHandle The handle of the artboard to query.
+     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     * @throws RuntimeException If the artboard or file handle is invalid, or no default view model
+     *    is found.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getDefaultViewModelInfo(
+        fileHandle: FileHandle,
+        artboardHandle: ArtboardHandle
+    ): DefaultViewModelInfo =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetDefaultViewModelInfo(
+                cppPointer.pointer,
+                requestID,
+                fileHandle.handle,
+                artboardHandle.handle
+            )
+        }
+
+    /**
+     * Callback when the default view model info is received, from [getDefaultViewModelInfo].
+     *
+     * @param requestID The request ID used when querying, used to complete the continuation.
+     * @param viewModelName The name of the default view model for the artboard.
+     * @param instanceName The name of the default view model instance for the artboard.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onDefaultViewModelInfoReceived")
+    internal fun onDefaultViewModelInfoReceived(
+        requestID: Long,
+        viewModelName: String,
+        instanceName: String
+    ) {
+        (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo>)
+            ?.resume(DefaultViewModelInfo(viewModelName, instanceName))
+    }
+
+    /**
      * Query the file for available view model names. Returns on [onViewModelsListed].
      *
      * @param fileHandle The handle of the file to query.
@@ -2346,6 +2391,20 @@ value class AudioHandle(val handle: Long) {
 value class FontHandle(val handle: Long) {
     override fun toString(): String = "FontHandle($handle)"
 }
+
+/**
+ * Information about the default view model for an artboard.
+ *
+ * Returned by [CommandQueue.getDefaultViewModelInfo]. Contains the name of the default view model
+ * and the name of its default instance, as assigned in the Rive editor.
+ *
+ * @param viewModelName The name of the default view model type for the artboard.
+ * @param instanceName The name of the default view model instance for the artboard.
+ */
+data class DefaultViewModelInfo(
+    val viewModelName: String,
+    val instanceName: String
+)
 
 /**
  * A key used to uniquely identify a draw operation in the CommandQueue. This is useful when the

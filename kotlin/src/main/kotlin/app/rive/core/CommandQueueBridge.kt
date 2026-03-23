@@ -30,6 +30,13 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
+    fun cppGetDefaultViewModelInfo(
+        pointer: Long,
+        requestID: Long,
+        fileHandle: Long,
+        artboardHandle: Long
+    )
+
     fun cppGetViewModelNames(
         pointer: Long,
         requestID: Long,
@@ -463,6 +470,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppGetStateMachineNames(
         pointer: Long,
         requestID: Long,
+        artboardHandle: Long
+    )
+
+    external override fun cppGetDefaultViewModelInfo(
+        pointer: Long,
+        requestID: Long,
+        fileHandle: Long,
         artboardHandle: Long
     )
 
