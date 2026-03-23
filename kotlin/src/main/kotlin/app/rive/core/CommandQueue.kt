@@ -2392,13 +2392,6 @@ value class FontHandle(val handle: Long) {
     override fun toString(): String = "FontHandle($handle)"
 }
 
-/**
- * Information about the default view model for an artboard. Returned by
- * [CommandQueue.getDefaultViewModelInfo].
- *
- * @param viewModelName The name of the default view model type for the artboard.
- * @param instanceName The name of the default view model instance for the artboard.
- */
 data class DefaultViewModelInfo(
     val viewModelName: String,
     val instanceName: String
