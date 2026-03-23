@@ -147,20 +147,8 @@ class RiveFile internal constructor(
     }
 
     /**
-     * Retrieves the default view model information for an artboard.
-     *
-     * View models define the data structure and bindings for an artboard. This method allows
-     * discovery of which view model and instance are associated with the artboard by default,
-     * as assigned in the Rive editor.
-     *
-     * This is useful when using [ViewModelSource.DefaultForArtboard] to create a view model
-     * instance, since that path does not reveal the view model name. The name is required for
-     * file-level queries like [getViewModelProperties] and [getViewModelInstanceNames].
-     *
      * @param artboard The artboard to query for default view model information.
      * @return A [DefaultViewModelInfo] containing the view model name and instance name.
-     * @throws RuntimeException If no default view model is found for the artboard.
-     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo =
         riveWorker.getDefaultViewModelInfo(fileHandle, artboard.artboardHandle)

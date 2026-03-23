@@ -2393,10 +2393,8 @@ value class FontHandle(val handle: Long) {
 }
 
 /**
- * Information about the default view model for an artboard.
- *
- * Returned by [CommandQueue.getDefaultViewModelInfo]. Contains the name of the default view model
- * and the name of its default instance, as assigned in the Rive editor.
+ * Information about the default view model for an artboard. Returned by
+ * [CommandQueue.getDefaultViewModelInfo].
  *
  * @param viewModelName The name of the default view model type for the artboard.
  * @param instanceName The name of the default view model instance for the artboard.
