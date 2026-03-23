@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import app.rive.core.CloseOnce
+import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
@@ -144,6 +145,13 @@ class RiveFile internal constructor(
     private val enumsCache = SuspendLazy {
         riveWorker.getEnums(fileHandle)
     }
+
+    /**
+     * @param artboard The artboard to query for default view model information.
+     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     */
+    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo =
+        riveWorker.getDefaultViewModelInfo(fileHandle, artboard.artboardHandle)
 }
 
 /**
