@@ -2496,18 +2496,6 @@ data class DefaultViewModelInfo(
 )
 
 /**
- * Information about the default view model for an artboard. Returned by
- * [CommandQueue.getDefaultViewModelInfo].
- *
- * @param viewModelName The name of the default view model type for the artboard.
- * @param instanceName The name of the default view model instance for the artboard.
- */
-data class DefaultViewModelInfo(
-    val viewModelName: String,
-    val instanceName: String
-)
-
-/**
  * A key used to uniquely identify a draw operation in the CommandQueue. This is useful when the
  * same CommandQueue issues multiple draw calls. If the same key is used before the render loop
  * flushes the queue, the previous draw call will be replaced with the new one.
