@@ -1,7 +1,9 @@
 package app.rive
 
+import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.CommandQueueBridge
+import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import app.rive.core.Listeners
 import app.rive.core.RenderContext
@@ -26,6 +28,7 @@ import kotlinx.coroutines.test.setMain
 const val COMMAND_QUEUE_ADDR = 1L
 const val RENDER_CONTEXT_ADDR = 2L
 const val HANDLE_NUM = 123L
+const val ARTBOARD_HANDLE_NUM = 456L
 val FILE_BYTES = byteArrayOf(0, 1, 2)
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
@@ -157,6 +160,72 @@ class CommandQueueUnitTest : FunSpec({
             commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
         }
         requestIDs[0] shouldBeLessThan requestIDs[1]
+    }
+
+    test("Get default view model info returns name and instance") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onDefaultViewModelInfoReceived(
+                requestID.captured,
+                "Test All",
+                "default"
+            )
+        }
+
+        val result = commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
+
+        result shouldBe DefaultViewModelInfo("Test All", "default")
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Get default view model info failure throws artboard error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+        val errorMessage = "Failed to get default view model info"
+
+        every {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onArtboardError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RuntimeException> {
+            commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
+        }.message shouldContain errorMessage
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
     }
 
     test("Delete file invokes native") {
