@@ -2223,8 +2223,8 @@ extern "C"
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
-        auto* renderTarget =
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
+        auto renderTarget = rive::ref_rcp(
+            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef));
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
@@ -2301,7 +2301,7 @@ extern "C"
 
             // Flush the draw commands
             riveContext->flush({
-                .renderTarget = renderTarget,
+                .renderTarget = renderTarget.get(),
             });
 
             // Render context specific - swap buffers
@@ -2333,8 +2333,8 @@ extern "C"
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
-        auto* renderTarget =
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
+        auto renderTarget = rive::ref_rcp(
+            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef));
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
@@ -2436,7 +2436,7 @@ extern "C"
             artboard->draw(&renderer);
 
             riveContext->flush({
-                .renderTarget = renderTarget,
+                .renderTarget = renderTarget.get(),
             });
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
