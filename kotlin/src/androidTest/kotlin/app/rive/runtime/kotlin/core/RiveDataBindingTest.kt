@@ -11,23 +11,23 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Ignore
-import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore
+import kotlin.test.Test
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,18 +53,18 @@ class RiveDataBindingTest {
     @Suppress("SpellCheckingInspection")
     // World's smallest PNG, 1x1 black pixel
     val image =
-        Base64.Default.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==")
+        Base64.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==")
     val imageAsset = RiveRenderImage.fromEncoded(image)
 
     private fun String.toColor(): Color = Color.fromString(this)
 
-    @Before
+    @BeforeTest
     fun init() {
         view = TestUtils.MockRiveAnimationView(appContext)
 
         // Most common setup. For variants, the view will need `setRiveResource` called again
         view.setRiveResource(R.raw.data_bind_test_impl)
-        vm = view.controller.file?.getViewModelByName("Test All")!!
+        vm = view.file!!.getViewModelByName("Test All")
         vmi = vm.createInstanceFromName("Test Default")
         view.controller.activeArtboard?.viewModelInstance = vmi
     }
@@ -254,7 +254,7 @@ class RiveDataBindingTest {
         // Apply the values by advancing
         view.play()
         view.controller.advance(0.016f)
-        // Manually poll since the state machine is no considered playing
+        // Manually poll since the state machine is not considered playing
         // This clears the image and artboard property changes
         vmi.pollChanges()
         advanceUntilIdle()
@@ -282,7 +282,7 @@ class RiveDataBindingTest {
     @Test
     fun vm_by_index() {
         val vmCount = view.controller.file?.viewModelCount!!
-        assertEquals(8, vmCount)
+        assertEquals(10, vmCount)
 
         // Iterate indices and verify all VM names are present
         assertEquals(
@@ -295,6 +295,8 @@ class RiveDataBindingTest {
                 "Test Slash",
                 "Test List VM",
                 "Test List Item VM",
+                "Test Bound Artboard Child VM",
+                "Test Bound Artboard Parent VM",
             ).sorted().toList(),
             (0 until vmCount).map { view.controller.file?.getViewModelByIndex(it)!!.name }
                 .sorted().toList()
@@ -317,23 +319,23 @@ class RiveDataBindingTest {
     @Test
     fun non_existent_vm_throws() {
         // Missing ViewModel
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             view.controller.file?.getViewModelByName("Non Existent")
         }
 
         // Missing ViewModelInstance
-        assertThrows(ViewModelException::class.java) { vm.createInstanceFromName("Non Existent") }
+        assertFailsWith<ViewModelException> { vm.createInstanceFromName("Non Existent") }
 
         // Missing properties
-        assertThrows(ViewModelException::class.java) { vmi.getNumberProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getStringProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getBooleanProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getEnumProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getColorProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getTriggerProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getImageProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getArtboardProperty("Non Existent") }
-        assertThrows(ViewModelException::class.java) { vmi.getInstanceProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getNumberProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getStringProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getBooleanProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getEnumProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getColorProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getTriggerProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getImageProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getArtboardProperty("Non Existent") }
+        assertFailsWith<ViewModelException> { vmi.getInstanceProperty("Non Existent") }
     }
 
     @Test
@@ -351,7 +353,7 @@ class RiveDataBindingTest {
 
         view.controller.activeArtboard?.viewModelInstance = vmi
 
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.getNumberProperty("Test Num")
         }
 
@@ -434,7 +436,7 @@ class RiveDataBindingTest {
         view.controller.activeArtboard?.viewModelInstance = vmi
 
         // The property name is "/Nes/ted/", which contains the delimiter character '/'
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.getNumberProperty("Test Nested/Nested Number")
         }
     }
@@ -449,7 +451,7 @@ class RiveDataBindingTest {
 
         assertEquals(200f, vmi.getNumberProperty("Test Nested/Nested Number").value)
 
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.setInstanceProperty("Non Existent", vmiAlt)
         }
     }
@@ -460,7 +462,7 @@ class RiveDataBindingTest {
         val nestedEmptyVM = view.controller.file?.getViewModelByName("Empty VM")!!
         val vmiBlank = nestedEmptyVM.createBlankInstance()
 
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.setInstanceProperty("Test Nested", vmiBlank)
         }
 
@@ -469,7 +471,7 @@ class RiveDataBindingTest {
         val vmiAlt = nestedAltVM.createInstanceFromName("Alternate Nested")
         vmi.setInstanceProperty("Test Nested", vmiAlt)
 
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.setInstanceProperty("Test Nested/Non Existent", vmiAlt)
         }
     }
@@ -787,8 +789,8 @@ class RiveDataBindingTest {
 
         // Both the ViewModel and ViewModelInstance have been transitively disposed
         // RiveAnimationView -> RiveFileController -> File -> ViewModel -> ViewModelInstance
-        assertThrows(RiveException::class.java) { vm.name }
-        assertThrows(RiveException::class.java) { vmi.name }
+        assertFailsWith<RiveException> { vm.name }
+        assertFailsWith<RiveException> { vmi.name }
     }
 
     @Test
@@ -935,10 +937,10 @@ class RiveDataBindingTest {
         view.mockDetach(destroy = true)
 
         // Accessing `cppPointer` after final reference was released
-        assertThrows(RiveException::class.java) {
+        assertFailsWith<RiveException> {
             view2.controller.activeArtboard?.viewModelInstance = vmi
         }
-        assertThrows(RiveException::class.java) {
+        assertFailsWith<RiveException> {
             view2.controller.stateMachines.first().viewModelInstance = vmi
         }
     }
@@ -955,22 +957,22 @@ class RiveDataBindingTest {
         transfer.dispose()
 
         assertEquals(0, vmi.refCount)
-        assertThrows(RiveException::class.java) {
+        assertFailsWith<RiveException> {
             vmi.name
         }
 
         // Cannot dispose twice
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             transfer.dispose()
         }
 
         // Cannot transfer after dispose
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.transfer()
         }
 
         // Cannot receive after dispose
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             view2.controller.activeArtboard?.receiveViewModelInstance(transfer)
         }
     }
@@ -979,7 +981,7 @@ class RiveDataBindingTest {
     fun transfer_after_delete() {
         view.mockDetach(destroy = true)
 
-        assertThrows(ViewModelException::class.java) {
+        assertFailsWith<ViewModelException> {
             vmi.transfer()
         }
     }
@@ -997,11 +999,11 @@ class RiveDataBindingTest {
         assertEquals(2f, list.elementAt(1).getNumberProperty("Test Item Number").value)
         assertEquals(2f, list[1].getNumberProperty("Test Item Number").value)
 
-        assertThrows(IndexOutOfBoundsException::class.java) { list.elementAt(2) }
-        assertThrows(IndexOutOfBoundsException::class.java) { list[2] }
+        assertFailsWith<IndexOutOfBoundsException> { list.elementAt(2) }
+        assertFailsWith<IndexOutOfBoundsException> { list[2] }
 
-        assertThrows(IndexOutOfBoundsException::class.java) { list.elementAt(-1) }
-        assertThrows(IndexOutOfBoundsException::class.java) { list[-1] }
+        assertFailsWith<IndexOutOfBoundsException> { list.elementAt(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { list[-1] }
     }
 
     @Test
@@ -1019,8 +1021,8 @@ class RiveDataBindingTest {
         assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
         assertEquals(1f, list[1].getNumberProperty("Test Item Number").value)
 
-        assertThrows(IndexOutOfBoundsException::class.java) { list.swap(-1, 0) }
-        assertThrows(IndexOutOfBoundsException::class.java) { list.swap(0, 2) }
+        assertFailsWith<IndexOutOfBoundsException> { list.swap(-1, 0) }
+        assertFailsWith<IndexOutOfBoundsException> { list.swap(0, 2) }
     }
 
     @Test
@@ -1058,8 +1060,8 @@ class RiveDataBindingTest {
         assertEquals(3f, list[1].getNumberProperty("Test Item Number").value)
         assertEquals(1f, list[2].getNumberProperty("Test Item Number").value)
 
-        assertThrows(IndexOutOfBoundsException::class.java) { list.add(-1, itemVMIs[0]) }
-        assertThrows(IndexOutOfBoundsException::class.java) { list.add(4, itemVMIs[0]) }
+        assertFailsWith<IndexOutOfBoundsException> { list.add(-1, itemVMIs[0]) }
+        assertFailsWith<IndexOutOfBoundsException> { list.add(4, itemVMIs[0]) }
     }
 
     @Test
@@ -1096,8 +1098,8 @@ class RiveDataBindingTest {
         // Removing a non-existent item does nothing
         list.remove(items[0])
 
-        assertThrows(IndexOutOfBoundsException::class.java) { list.removeAt(1) }
-        assertThrows(IndexOutOfBoundsException::class.java) { list.removeAt(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { list.removeAt(1) }
+        assertFailsWith<IndexOutOfBoundsException> { list.removeAt(-1) }
     }
 
     @Test
@@ -1138,9 +1140,9 @@ class RiveDataBindingTest {
         // Dispose the item before adding it to the list
         itemVMI.release()
 
-        assertThrows(IllegalArgumentException::class.java) { list.add(itemVMI) }
-        assertThrows(IllegalArgumentException::class.java) { list.add(0, itemVMI) }
-        assertThrows(IllegalArgumentException::class.java) { list.remove(itemVMI) }
+        assertFailsWith<IllegalArgumentException> { list.add(itemVMI) }
+        assertFailsWith<IllegalArgumentException> { list.add(0, itemVMI) }
+        assertFailsWith<IllegalArgumentException> { list.remove(itemVMI) }
     }
 
     @Test
@@ -1226,7 +1228,7 @@ class RiveDataBindingTest {
         // Release the user's reference
         bindableArtboard.release()
         assertEquals(0, bindableArtboard.refCount)
-        assertThrows(RiveException::class.java) { bindableArtboard.name }
+        assertFailsWith<RiveException> { bindableArtboard.name }
     }
 
     @Test
@@ -1277,6 +1279,65 @@ class RiveDataBindingTest {
         assertEquals(3, bindableArtboard2.refCount)
 
         bindableArtboard2.release()
+    }
+
+    @Test
+    fun bindable_artboard_with_VMI() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Bindable Artboard Host", autoBind = true)
+        val vmi = view.file!!.getViewModelByName("Test Bound Artboard Child VM")
+            .createInstanceFromName("Override")
+        val bindableArtboard =
+            view.file!!.createBindableArtboardByName("Bindable Artboard With VM", vmi)
+        val artboardProperty =
+            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty("Child Artboard")
+
+        artboardProperty.set(bindableArtboard)
+
+        view.controller.advance(0f)
+        view.controller.advance(0f)
+
+        assertEquals("Overridden", vmi.getStringProperty("Echo String").value)
+    }
+
+    @Test
+    fun bindable_artboard_with_closed_VMI() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Bindable Artboard Host", autoBind = true)
+        val vmi = view.file!!.getViewModelByName("Test Bound Artboard Child VM")
+            .createInstanceFromName("Override")
+
+        // Intentional release one too many times
+        vmi.release()
+        assert(!vmi.hasCppObject)
+
+        assertFailsWith<IllegalArgumentException> {
+            view.file!!.createBindableArtboardByName("Bindable Artboard With VM", vmi)
+        }
+    }
+
+    @Test
+    fun bindable_artboard_with_VMI_lifecycle() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Bindable Artboard Host", autoBind = true)
+        val vmi = view.file!!.getViewModelByName("Test Bound Artboard Child VM")
+            .createInstanceFromName("Override")
+        val bindableArtboard =
+            view.file!!.createBindableArtboardByName("Bindable Artboard With VM", vmi)
+        val artboardProperty =
+            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty("Child Artboard")
+
+        artboardProperty.set(bindableArtboard)
+
+        // One for the file, one for the bindable artboard
+        assertEquals(2, vmi.refCount)
+        // One for the file, one for the artboard property, one for the user
+        assertEquals(3, bindableArtboard.refCount)
+
+        // Release all 3 holders
+        bindableArtboard.release()
+        artboardProperty.set(null)
+        view.controller.file = null
+
+        assertEquals(0, vmi.refCount)
+        assertEquals(0, bindableArtboard.refCount)
     }
 
     /**

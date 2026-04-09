@@ -383,7 +383,7 @@ abstract class ViewModelProperty<T>(unsafeCppPointer: Long) : NativeObject(unsaf
     /** A flow of the property's value. Use for observing changes. */
     val valueFlow = _valueFlow.asStateFlow()
 
-    internal fun pollChanges() {
+    internal open fun pollChanges() {
         if (cppHasChanged(cppPointer)) {
             _valueFlow.value = nativeGetValue()
             cppFlushChanges(cppPointer)
@@ -681,7 +681,11 @@ class ViewModelArtboardProperty(unsafeCppPointer: Long) :
         artboardCppPointer: Long
     )
 
-    private external fun cppSetBindableArtboard(cppPointer: Long, bindableArtboardCppPointer: Long)
+    private external fun cppSetBindableArtboard(
+        cppPointer: Long,
+        bindableArtboardCppPointer: Long,
+        boundInstancePointer: Long
+    )
 
     /**
      * Set the [artboard] for this property.
@@ -698,7 +702,7 @@ class ViewModelArtboardProperty(unsafeCppPointer: Long) :
     @Deprecated(
         "This method is unsafe as the Artboard's lifetime is bound to that of the File " +
                 "that created it. Use a BindableArtboard to ensure proper lifetimes.",
-        ReplaceWith("set(BindableArtboard?)")
+        ReplaceWith("set(bindableArtboard)")
     )
     fun set(artboard: Artboard) {
         if (!artboard.hasCppObject) {
@@ -726,7 +730,11 @@ class ViewModelArtboardProperty(unsafeCppPointer: Long) :
      * @throws RiveException if [bindableArtboard] has been disposed.
      */
     fun set(bindableArtboard: BindableArtboard?) {
-        cppSetBindableArtboard(cppPointer, bindableArtboard?.cppPointer ?: NULL_POINTER)
+        cppSetBindableArtboard(
+            cppPointer,
+            bindableArtboard?.cppPointer ?: NULL_POINTER,
+            bindableArtboard?.viewModelInstance?.cppPointer ?: NULL_POINTER
+        )
 
         // Remove any existing BindableArtboard dependency
         dependencies.filterIsInstance<BindableArtboard>().forEach {
@@ -738,6 +746,14 @@ class ViewModelArtboardProperty(unsafeCppPointer: Long) :
         bindableArtboard?.let {
             bindableArtboard.acquire()
             dependencies.add(it)
+        }
+    }
+
+    /** The set [BindableArtboard] may contain a view model instance that requires polling. */
+    override fun pollChanges() {
+        super.pollChanges()
+        dependencies.filterIsInstance<BindableArtboard>().forEach {
+            it.viewModelInstance?.pollChanges()
         }
     }
 

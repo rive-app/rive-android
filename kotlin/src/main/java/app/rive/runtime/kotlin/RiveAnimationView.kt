@@ -244,7 +244,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         companion object {
             /**
              * When a [name] is provided, it tries to build a [FileAssetLoader]. [name] needs to be
-             * a full class name, including the package (e.g. `java.lang.Thread`)
+             * a full class name, including the package (e.g. `java.lang.Thread`).
              *
              * This function expects that the classname provided is either a [FileAssetLoader], for
              * which the class has a constructor with no parameters, or a [ContextAssetLoader],

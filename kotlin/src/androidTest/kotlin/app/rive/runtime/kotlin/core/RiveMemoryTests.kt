@@ -309,8 +309,8 @@ class RiveMemoryTests {
             }
 
             assertTrue(
-                "Exception message should include 'Failed requirement.'",
-                exception.message?.contains("Failed requirement.") == true
+                "Exception message should include 'Cannot acquire a disposed object.'",
+                exception.message?.contains("Cannot acquire a disposed object.") == true
             )
             assertTrue(
                 "StackTrace should contain 'acquire'",

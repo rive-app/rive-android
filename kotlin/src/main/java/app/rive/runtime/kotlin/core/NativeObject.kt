@@ -105,7 +105,7 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
     @Synchronized
     override fun acquire(): Int {
         val count = super.acquire()
-        require(count > 1) // Never acquire a disposed object.
+        require(count > 1) { "Cannot acquire a disposed object." }
         return count
     }
 
@@ -119,7 +119,7 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
     @Synchronized
     override fun release(): Int {
         val count = super.release()
-        require(count >= 0) // Never release a disposed object.
+        require(count >= 0) { "Cannot release a disposed object." }
 
         if (count == 0 && hasCppObject) {
             dispose()
@@ -138,7 +138,7 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
     @Throws(IllegalArgumentException::class)
     @Synchronized
     private fun dispose() {
-        require(refs.get() == 0)
+        require(refs.get() == 0) { "Cannot dispose an object with a non-zero reference count." }
 
         disposeStackTrace =
             Thread.currentThread().stackTrace.asSequence()

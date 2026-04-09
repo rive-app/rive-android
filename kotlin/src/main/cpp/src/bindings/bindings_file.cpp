@@ -7,10 +7,8 @@
 #include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
     using namespace rive_android;
 
     // FILE
@@ -112,6 +110,7 @@ extern "C"
         auto file = reinterpret_cast<rive::File*>(ref);
         auto bindableArtboard =
             file->bindableArtboardNamed(JStringToString(env, name));
+        // Released object is un-ref'd in BindableArtboard's cppDelete
         return reinterpret_cast<jlong>(bindableArtboard.release());
     }
 
@@ -123,6 +122,7 @@ extern "C"
     {
         auto file = reinterpret_cast<rive::File*>(ref);
         auto bindableArtboard = file->bindableArtboardDefault();
+        // Released object is un-ref'd in BindableArtboard's cppDelete
         return reinterpret_cast<jlong>(bindableArtboard.release());
     }
 
@@ -225,7 +225,4 @@ extern "C"
         auto viewModel = file->defaultArtboardViewModel(artboard);
         return reinterpret_cast<jlong>(viewModel);
     }
-
-#ifdef __cplusplus
 }
-#endif

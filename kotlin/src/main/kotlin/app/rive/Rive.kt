@@ -304,7 +304,7 @@ fun Rive(
                 "Playing is false. Advancing by 0, drawing once, and skipping advancement loop."
             }
 
-            //Advance the state machine once to exit the "Entry" state and apply initial values,
+            // Advance the state machine once to exit the "Entry" state and apply initial values,
             // including any pending artboard resizes from the fit mode.
             stateMachineToUse.advance(0.nanoseconds)
             val drawSurface = surface ?: run {

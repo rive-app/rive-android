@@ -141,15 +141,19 @@ class File(
      * done with it, otherwise it will leak memory.
      *
      * @param name The name of the artboard in the Rive file to create.
+     * @param viewModelInstance The view model instance to apply to the artboard when bound.
      * @return A new [BindableArtboard] instance.
      * @throws ArtboardException If no artboard with the given name exists.
      */
-    fun createBindableArtboardByName(name: String): BindableArtboard {
+    fun createBindableArtboardByName(
+        name: String,
+        viewModelInstance: ViewModelInstance? = null
+    ): BindableArtboard {
         val artboardPointer = cppCreateBindableArtboardByName(cppPointer, name)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No BindableArtboard found with name $name.")
         }
-        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
+        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /**
@@ -160,15 +164,16 @@ class File(
      * it has an extra reference count. You need to call [BindableArtboard.release] when you are
      * done with it, otherwise it will leak memory.
      *
+     * @param viewModelInstance The view model instance to apply to the artboard when bound.
      * @return A new [BindableArtboard] instance.
      * @throws ArtboardException If no default artboard exists.
      */
-    fun createDefaultBindableArtboard(): BindableArtboard {
+    fun createDefaultBindableArtboard(viewModelInstance: ViewModelInstance? = null): BindableArtboard {
         val artboardPointer = cppCreateDefaultBindableArtboard(cppPointer)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No default BindableArtboard.")
         }
-        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
+        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /** Get the number of artboards in the file. Useful for index-based iteration. */

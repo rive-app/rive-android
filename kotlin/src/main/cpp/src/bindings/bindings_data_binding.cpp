@@ -11,10 +11,8 @@
 #include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
     using namespace rive_android;
 
     // ViewModel
@@ -601,21 +599,36 @@ extern "C"
         JNIEnv*,
         jobject,
         jlong ref,
-        jlong bindableArtboardRef)
+        jlong bindableArtboardRef,
+        jlong boundInstanceRef)
     {
         auto* property =
             reinterpret_cast<rive::ViewModelInstanceArtboardRuntime*>(ref);
         auto* bindableArtboard =
             reinterpret_cast<rive::BindableArtboard*>(bindableArtboardRef);
+        auto* boundInstance =
+            reinterpret_cast<rive::ViewModelInstanceRuntime*>(boundInstanceRef);
 
+        // Early return by clearing the property if the raw pointer is null
+        if (bindableArtboard == nullptr)
+        {
+            property->value(nullptr);
+            return;
+        }
+
+        // Wrap the raw pointer once more in an RCP. This doesn't immediately
+        // increase the ref count, but it will when copying this RCP when
+        // assigning to the property, giving the runtime its own ref.
         auto rcpBindableArtboard = rive::rcp(bindableArtboard);
         property->value(rcpBindableArtboard);
 
-        // We need to release the rcp of the the bindable artboard so that when
-        // the rcp goes out of scope it doesn't un-ref.
+        if (boundInstance != nullptr)
+        {
+            property->viewModelInstance(boundInstance->instance());
+        }
+
+        // We need to release the RCP of the the bindable artboard so that when
+        // the RCP goes out of scope it doesn't un-ref.
         rcpBindableArtboard.release();
     }
-
-#ifdef __cplusplus
 }
-#endif
