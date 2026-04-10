@@ -185,6 +185,9 @@
         <activity
             android:name=".EmptyActivity"
             android:exported="true" />
+        <activity
+            android:name=".FitLayoutReproActivity"
+            android:exported="true" />
     </application>
 
 </manifest>
