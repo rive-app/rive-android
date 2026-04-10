@@ -41,6 +41,13 @@ private const val GENERAL_TAG = "Rive/UI"
 private const val STATE_MACHINE_TAG = "Rive/UI/SM"
 private const val DRAW_TAG = "Rive/UI/Draw"
 
+internal object RiveInitialDrawPolicy {
+    fun shouldDrawBeforeLifecycleLoop(
+        surfaceAvailable: Boolean,
+        firstDrawRequestedForSurface: Boolean,
+    ): Boolean = surfaceAvailable && !firstDrawRequestedForSurface
+}
+
 /**
  * Represents the result of an operation - typically loading - that can be in a loading, error,
  * or success state. This includes Rive file loading. The Success result must be unwrapped to the
@@ -206,6 +213,7 @@ fun Rive(
 
     val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
     var bitmapCallbackSent by remember { mutableStateOf(false) }
+    var firstDrawRequested by remember(surface) { mutableStateOf(false) }
 
     // In debug builds, output the reasons for recomposition
     RebuggerWrapper(
@@ -295,6 +303,18 @@ fun Rive(
         backgroundColor,
         playing,
     ) {
+        fun drawFrame(drawSurface: RiveSurface, deltaTime: kotlin.time.Duration) {
+            firstDrawRequested = true
+            riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+            riveWorker.draw(
+                artboardHandle,
+                stateMachineHandle,
+                drawSurface,
+                fit,
+                backgroundColor
+            )
+        }
+
         if (surface == null) {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
             return@LaunchedEffect
@@ -311,15 +331,18 @@ fun Rive(
                 RiveLog.d(DRAW_TAG) { "Surface was released before draw, skipping frame" }
                 return@LaunchedEffect
             }
-            riveWorker.draw(
-                artboardHandle,
-                stateMachineHandle,
-                drawSurface,
-                fit,
-                backgroundColor
-            )
+            drawFrame(drawSurface, 0.nanoseconds)
 
             return@LaunchedEffect
+        }
+        val initialSurface = surface
+        if (RiveInitialDrawPolicy.shouldDrawBeforeLifecycleLoop(
+                surfaceAvailable = initialSurface != null,
+                firstDrawRequestedForSurface = firstDrawRequested,
+            )
+        ) {
+            RiveLog.d(DRAW_TAG) { "Drawing initial visible frame before lifecycle animation loop" }
+            drawFrame(initialSurface!!, 0.nanoseconds)
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
@@ -343,14 +366,7 @@ fun Rive(
                     return@repeatOnLifecycle
                 }
 
-                riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
-                riveWorker.draw(
-                    artboardHandle,
-                    stateMachineHandle,
-                    drawSurface,
-                    fit,
-                    backgroundColor
-                )
+                drawFrame(drawSurface, deltaTime)
             }
             RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
         }
