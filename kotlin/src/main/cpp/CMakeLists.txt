@@ -33,7 +33,10 @@ target_compile_options(rive-android PRIVATE
         -Wall # Enable all warnings
         -fno-exceptions # Disable C++ exceptions
         -fno-rtti # Disable C++ RTTI
-        $<$<CONFIG:Release>:-Oz>) # Optimize for size with -Oz in release
+        $<$<CONFIG:Release>:-Oz> # Optimize for size with -Oz in release
+        # Use emulated TLS on 32-bit ARM to avoid R_ARM_TLS_DTPMOD32 relocations
+        # (type 17) that the Android dynamic linker cannot handle on API < 29.
+        $<$<STREQUAL:${CMAKE_ANDROID_ARCH_ABI},armeabi-v7a>:-femulated-tls>)
 target_compile_definitions(rive-android PRIVATE
         RIVE_ANDROID=
         YOGA_EXPORT=
