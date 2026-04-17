@@ -123,6 +123,8 @@ extern "C"
         return image->height();
     }
 
+    constexpr auto* TAG_IMAGE = "RiveLN/RiveRenderImage";
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_runtime_kotlin_core_RiveRenderImage_00024Companion_cppFromRGBABytes(
         JNIEnv* env,
@@ -138,7 +140,7 @@ extern "C"
             static_cast<size_t>(jWidth) * static_cast<size_t>(jHeight) * 4u;
         if (jWidth <= 0 || jHeight <= 0 || count != expected)
         {
-            LOGE("RiveRenderImage::cppFromRGBABytes - Invalid args.");
+            RiveLogE(TAG_IMAGE, "cppFromRGBABytes - Invalid args.");
             return 0;
         }
 
@@ -179,7 +181,7 @@ extern "C"
         if (jWidth <= 0 || jHeight <= 0 ||
             static_cast<size_t>(count) != expected)
         {
-            LOGE("RiveRenderImage::cppFromARGBInts - Invalid args.");
+            RiveLogE(TAG_IMAGE, "cppFromARGBInts - Invalid args.");
             return 0;
         }
         auto* jColors = env->GetIntArrayElements(jPixelArray, nullptr);

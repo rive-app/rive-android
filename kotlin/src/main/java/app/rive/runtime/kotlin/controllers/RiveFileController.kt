@@ -2,10 +2,10 @@ package app.rive.runtime.kotlin.controllers
 
 import android.graphics.PointF
 import android.graphics.RectF
-import android.util.Log
 import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.Observable
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -80,7 +80,11 @@ class RiveFileController internal constructor(
     ) : this(loop, autoplay, file, activeArtboard, onStart, ConcurrentLinkedQueue())
 
     companion object {
-        const val TAG = "RiveFileController"
+        const val TAG = "RiveL/RiveFileController"
+    }
+
+    init {
+        RiveLog.d(TAG) { "Initializing." }
     }
 
     /**
@@ -155,18 +159,21 @@ class RiveFileController internal constructor(
     var file: File? = file
         set(value) {
             if (value == field) {
+                RiveLog.w(TAG) { "Assigning the same file; ignoring." }
                 return
             }
 
             synchronized(field?.lock ?: this) {
                 // If we have an old file remove all the old values.
                 field?.let {
+                    RiveLog.d(TAG) { "File set; releasing old file: $it" }
                     reset()
                     it.release()
                 }
                 field = value
                 // We only need to acquire the reference to the [file] since all the other components
                 // will be fetched from this file (and will, in fact, become a dependency of [file])
+                RiveLog.d(TAG) { "File set; acquiring new file (if it exists): $value" }
                 field?.acquire()
             }
         }
@@ -177,8 +184,10 @@ class RiveFileController internal constructor(
                 return
             }
             synchronized(file?.lock ?: this) {
+                RiveLog.d(TAG) { "Artboard set; releasing old artboard (if it exists): $field" }
                 field?.release()
                 field = value
+                RiveLog.d(TAG) { "Artboard set; acquiring new artboard (if it exists): $field" }
                 field?.acquire()
                 userSetVolume?.let { activeArtboard?.volume = it }
             }
@@ -238,7 +247,8 @@ class RiveFileController internal constructor(
     internal val startStopLock = ReentrantLock()
 
     val isAdvancing: Boolean
-        get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
+        get() =
+            playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
 
     val artboardBounds: RectF
         get() = activeArtboard?.bounds ?: RectF()
@@ -400,17 +410,25 @@ class RiveFileController internal constructor(
      */
     fun selectArtboard(name: String? = null) {
         file?.let {
-            val artboard = if (name != null) it.artboard(name) else it.firstArtboard
+            val artboard = if (name != null) {
+                RiveLog.d(TAG) { "Selecting artboard: $name" }
+                it.artboard(name)
+            } else {
+                RiveLog.d(TAG) { "Selecting null artboard - choosing first." }
+                it.firstArtboard
+            }
             setArtboard(artboard)
         } ?: run {
-            Log.w(TAG, "selectArtboard: cannot select an Artboard without a valid File.")
+            RiveLog.w(TAG) { "selectArtboard: cannot select an Artboard without a valid File." }
         }
     }
 
     fun autoplay() {
         if (autoplay) {
+            RiveLog.d(TAG) { "autoplay() with autoplay enabled. Playing all state machines and animations." }
             play(settleInitialState = true)
         } else {
+            RiveLog.d(TAG) { "autoplay() with autoplay disabled. Advancing the artboard by 0." }
             // advance() locks on the file lock internally
             activeArtboard?.advance(0f)
             synchronized(startStopLock) { onStart?.invoke() }
@@ -429,9 +447,10 @@ class RiveFileController internal constructor(
      * animation/state machine specified by [rendererAttributes] animationName or stateMachine name.
      */
     internal fun setupScene(rendererAttributes: RiveAnimationView.RendererAttributes) {
+        RiveLog.d(TAG) { "setupScene" }
         val mFile = file
         if (mFile == null) {
-            Log.w(TAG, "Cannot init without a file")
+            RiveLog.w(TAG) { "Cannot setupScene without a file." }
             return
         }
         // If anything has been previously set up, remove it.
@@ -446,6 +465,7 @@ class RiveFileController internal constructor(
         activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
 
         if (rendererAttributes.autoBind && activeArtboard != null) {
+            RiveLog.d(TAG) { "Auto-binding to the artboard and all state machines." }
             val activeArtboard = activeArtboard!!
             val defaultInstance =
                 mFile.defaultViewModelForArtboard(activeArtboard).createDefaultInstance()
@@ -464,13 +484,17 @@ class RiveFileController internal constructor(
             val smName = rendererAttributes.stateMachineName
 
             if (animName != null) {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing animation: $animName." }
                 play(animName)
             } else if (smName != null) {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing state machine: $smName." }
                 play(smName, settleInitialState = true, isStateMachine = true)
             } else {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing all state machines and animations." }
                 play(settleInitialState = true)
             }
         } else {
+            RiveLog.d(TAG) { "Autoplay disabled. Advancing the artboard by 0." }
             activeArtboard?.advance(0f)
             // Schedule a single frame.
             synchronized(startStopLock) { onStart?.invoke() }
@@ -526,7 +550,10 @@ class RiveFileController internal constructor(
                     play(animationInstance = it, direction = direction, loop = loop)
                 }
                 stateMachines.forEach {
-                    play(stateMachineInstance = it, settleStateMachineState = settleInitialState)
+                    play(
+                        stateMachineInstance = it,
+                        settleStateMachineState = settleInitialState
+                    )
                 }
             } else {
                 val animationNames = activeArtboard.animationNames
@@ -655,7 +682,8 @@ class RiveFileController internal constructor(
                     }
                 }
             } else {
-                when (val smiInput = activeArtboard?.input(input.name, input.nestedArtboardPath)) {
+                when (val smiInput =
+                    activeArtboard?.input(input.name, input.nestedArtboardPath)) {
                     is SMITrigger -> {
                         smiInput.fire()
                     }
@@ -959,7 +987,8 @@ class RiveFileController internal constructor(
     }
 
     // == Listeners ==
-    private var _listeners: MutableSet<Listener> = Collections.synchronizedSet(HashSet<Listener>())
+    private var _listeners: MutableSet<Listener> =
+        Collections.synchronizedSet(HashSet<Listener>())
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val listeners: HashSet<Listener>
@@ -1028,7 +1057,8 @@ class RiveFileController internal constructor(
     }
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
-        listeners.toList().forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
+        listeners.toList()
+            .forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
     }
 
     private fun notifyEvent(event: RiveEvent) {
@@ -1039,6 +1069,7 @@ class RiveFileController internal constructor(
      * We want to clear out all references to objects with potentially stale native counterparts.
      */
     internal fun reset() {
+        RiveLog.d(TAG) { "Resetting." }
         playingAnimationSet.clear()
         animationList.clear()
         playingStateMachineSet.clear()
@@ -1055,12 +1086,15 @@ class RiveFileController internal constructor(
      */
     @Throws(IllegalStateException::class)
     override fun release(): Int {
+        val old = refs.get()
+        RiveLog.d(TAG) { "Releasing. Old: ${old}; New: ${old - 1}" }
         val count = super.release()
         require(count >= 0)
 
         if (count == 0) {
             require(!isActive)
             // Will `release()` the file if one was set
+            RiveLog.d(TAG) { "Final count is 0. Setting file to null." }
             file = null
         }
         return count

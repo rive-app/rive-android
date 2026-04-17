@@ -3,6 +3,7 @@
 #include <jni.h>
 
 #include "helpers/general.hpp"
+#include "helpers/rive_log.hpp"
 #include "rive/factory.hpp"
 #include "rive/file_asset_loader.hpp"
 #include "rive/assets/image_asset.hpp"
@@ -51,13 +52,14 @@ public:
         }
         else
         {
-            LOGW("Trying to make unknown file asset type %d", asset.typeKey);
+            RiveLogW(TAG,
+                     "Trying to make unknown file asset type %d",
+                     asset.typeKey);
         }
 
         if (!assetClass)
         {
-            LOGE("JNIFileAssetLoader::MakeKtAsset() failed to find FileAsset "
-                 "class");
+            RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset class");
             return nullptr;
         }
 
@@ -65,8 +67,7 @@ public:
             env->GetMethodID(assetClass, "<init>", "(JI)V");
         if (!fileAssetConstructor)
         {
-            LOGE("JNIFileAssetLoader::MakeKtAsset() failed to find FileAsset "
-                 "constructor");
+            RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset constructor");
             env->DeleteLocalRef(assetClass);
             return nullptr;
         }
@@ -80,8 +81,7 @@ public:
                                              static_cast<int>(rendererType));
         if (!ktFileAsset)
         {
-            LOGE(
-                "JNIFileAssetLoader::MakeKtAsset() failed to create FileAsset");
+            RiveLogE(TAG, "MakeKtAsset() failed to create FileAsset");
             env->DeleteLocalRef(assetClass);
             return nullptr;
         }
@@ -89,6 +89,8 @@ public:
     }
 
 private:
+    static constexpr auto* TAG = "RiveLN/JNIFileAssetLoader";
+
     jobject m_ktFileAssetLoader = nullptr;
     jmethodID m_ktLoadContentsFn;
 

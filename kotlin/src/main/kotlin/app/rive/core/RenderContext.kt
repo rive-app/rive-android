@@ -36,7 +36,7 @@ abstract class RenderContext : CheckableAutoCloseable {
     val nativeObjectPointer: Long
         get() = cppPointer.pointer
 
-    // Implemented by delegating to the unique pointer
+    // Implemented by delegating to the unique pointer.
     override fun close() = cppPointer.close()
     override val closed: Boolean
         get() = cppPointer.closed

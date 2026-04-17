@@ -54,6 +54,7 @@ JNIEnv* GetJNIEnv()
 
 void DetachThread()
 {
+    RiveLogD("RiveLN/DetachThread", "Detaching thread.");
     if (g_JVM->DetachCurrentThread() != JNI_OK)
     {
         RiveLogE("RiveN/GetJNIEnv", "DetachCurrentThread failed.");
@@ -270,7 +271,9 @@ size_t JIntToSizeT(jint jintValue)
 {
     if (jintValue < 0)
     {
-        LOGW("JIntToSizeT() - value is a negative number %d", jintValue);
+        RiveLogW("RiveLN/JIntToSizeT",
+                 "Value is a negative number %d",
+                 jintValue);
         return 0;
     }
     return jintValue > SIZE_T_MAX ? SIZE_T_MAX : static_cast<size_t>(jintValue);
@@ -293,6 +296,8 @@ size_t JIntToSizeT(jint jintValue)
 
 void _check_egl_error(const char* file, int line)
 {
+    static constexpr auto* TAG = "RiveLN/check_egl_error";
+
     EGLenum err(eglGetError());
 
     while (true)
@@ -346,10 +351,10 @@ void _check_egl_error(const char* file, int line)
                 error = "EGL_CONTEXT_LOST";
                 break;
             default:
-                LOGE("(%d) %s - %s:%d", err, "Unknown", file, line);
+                RiveLogE(TAG, "(%d) %s - %s:%d", err, "Unknown", file, line);
                 return;
         }
-        LOGE("(%d) %s - %s:%d", err, error.c_str(), file, line);
+        RiveLogE(TAG, "(%d) %s - %s:%d", err, error.c_str(), file, line);
         err = eglGetError();
     }
 }

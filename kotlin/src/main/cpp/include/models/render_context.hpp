@@ -1,6 +1,7 @@
 #pragma once
 #include <GLES3/gl3.h>
 
+#include "helpers/egl_error.hpp"
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
@@ -26,39 +27,9 @@ struct StartupResult
     std::string message;
 };
 
-/** Map of EGL error codes to their string representations. */
-static const std::unordered_map<int32_t, std::string> eglErrorMessages = {
-    {EGL_SUCCESS, "EGL_SUCCESS"},
-    {EGL_NOT_INITIALIZED, "EGL_NOT_INITIALIZED"},
-    {EGL_BAD_ACCESS, "EGL_BAD_ACCESS"},
-    {EGL_BAD_ALLOC, "EGL_BAD_ALLOC"},
-    {EGL_BAD_ATTRIBUTE, "EGL_BAD_ATTRIBUTE"},
-    {EGL_BAD_CONTEXT, "EGL_BAD_CONTEXT"},
-    {EGL_BAD_CONFIG, "EGL_BAD_CONFIG"},
-    {EGL_BAD_CURRENT_SURFACE, "EGL_BAD_CURRENT_SURFACE"},
-    {EGL_BAD_DISPLAY, "EGL_BAD_DISPLAY"},
-    {EGL_BAD_SURFACE, "EGL_BAD_SURFACE"},
-    {EGL_BAD_MATCH, "EGL_BAD_MATCH"},
-    {EGL_BAD_PARAMETER, "EGL_BAD_PARAMETER"},
-    {EGL_BAD_NATIVE_PIXMAP, "EGL_BAD_NATIVE_PIXMAP"},
-    {EGL_BAD_NATIVE_WINDOW, "EGL_BAD_NATIVE_WINDOW"},
-    {EGL_CONTEXT_LOST, "EGL_CONTEXT_LOST"},
-};
-
 static std::string errorString(int32_t errorCode)
 {
-    auto it = eglErrorMessages.find(errorCode);
-    if (it != eglErrorMessages.end())
-        return it->second;
-
-    char buffer[64];
-    auto n = std::snprintf(buffer,
-                           sizeof(buffer),
-                           "Unknown EGL error (0x%04x)",
-                           errorCode);
-    if (n < 0)
-        return "Unknown EGL error";
-    return {buffer, static_cast<std::size_t>(n)};
+    return EGLErrorString(static_cast<EGLint>(errorCode));
 }
 
 /**

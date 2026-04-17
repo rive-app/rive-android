@@ -6,6 +6,7 @@
 #include "jni_refs.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/rive_log.hpp"
 #include "rive/renderer.hpp"
 
 namespace rive_android
@@ -19,6 +20,8 @@ protected:
     std::vector<float> m_opacityStack{1.0f};
 
 private:
+    static constexpr auto* TAG = "RiveLN/CanvasRenderer";
+
     static jobject GetCanvas(jobject ktSurface)
     {
         return GetJNIEnv()->CallObjectMethod(ktSurface,
@@ -36,7 +39,7 @@ private:
         env->DeleteLocalRef(porterDuffModeClass);
         if (clearMode == nullptr)
         {
-            LOGE("Failed to get PorterDuff.Mode.CLEAR.");
+            RiveLogE(TAG, "Failed to get PorterDuff.Mode.CLEAR.");
             return;
         }
 

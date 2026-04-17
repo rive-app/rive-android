@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseBooleanArray
 import android.view.MotionEvent
 import android.view.View
@@ -22,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.ResourceType.Companion.makeMaybeResource
 import app.rive.runtime.kotlin.controllers.ControllerState
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
@@ -75,7 +75,7 @@ import kotlin.math.min
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs), Observable<RiveFileController.Listener> {
     companion object {
-        const val TAG = "RiveAnimationView"
+        const val TAG = "RiveL/RiveAnimationView"
 
         const val SINGLE_TOUCH_ID = 0
 
@@ -267,10 +267,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         if (it is FileAssetLoader) return it
                     }
 
-                    Log.e(TAG, "Failed to initialize AssetLoader: No suitable constructor in $name")
+                    RiveLog.e(TAG) { "Failed to initialize AssetLoader: No suitable constructor in $name" }
                     null
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to initialize AssetLoader from name: $name", e)
+                    RiveLog.e(TAG) { "Failed to initialize AssetLoader from name: $name (exception: ${e.message})" }
                     null
                 }
             }
@@ -327,6 +327,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     init {
+        RiveLog.d(TAG) { "Creating RiveAnimationView." }
+
         context.theme.obtainStyledAttributes(
             attrs, R.styleable.RiveAnimationView, 0, 0
         ).apply {
@@ -406,6 +408,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 resourceFromValue?.let {
                     // Immediately set these values on the controller:
                     // this is either going to be a [ResourceId] or a [ResourceUrl]
+                    RiveLog.d(TAG) { "Resource available - loading file immediately." }
                     loadFileFromResource {
                         controller.file = it
                         controller.setupScene(rendererAttributes)
@@ -453,12 +456,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
     private fun loadFileFromResource(onComplete: (File) -> Unit) {
         when (val resource = rendererAttributes.resource) {
-            null -> Log.w(TAG, "loadResource: no resource to load")
+            null -> RiveLog.w(TAG) { "loadResource: no resource to load" }
             // Passes the resource through: ownership is coming from elsewhere.
-            is ResourceType.ResourceRiveFile -> onComplete(resource.file)
+            is ResourceType.ResourceRiveFile -> {
+                RiveLog.d(TAG) { "Loading Rive file from existing Rive File. No extra work required." }
+                onComplete(resource.file)
+            }
             // loadFromNetwork() releases after onComplete() is called.
             is ResourceType.ResourceUrl -> loadFromNetwork(resource.url, onComplete)
             is ResourceType.ResourceBytes -> {
+                RiveLog.d(TAG) { "Loading Rive file from bytes with length: ${resource.bytes.size}" }
                 val file = File(
                     bytes = resource.bytes,
                     rendererType = rendererAttributes.rendererType,
@@ -469,20 +476,24 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 file.release()
             }
 
-            is ResourceType.ResourceId -> resources.openRawResource(resource.id).use {
-                val file = File(
-                    bytes = it.readBytes(),
-                    rendererType = rendererAttributes.rendererType,
-                    fileAssetLoader = rendererAttributes.assetLoader,
-                )
-                onComplete(file)
-                // Don't retain the handle.
-                file.release()
+            is ResourceType.ResourceId -> {
+                RiveLog.d(TAG) { "Loading Rive file from resource ID: ${resource.id}" }
+                resources.openRawResource(resource.id).use {
+                    val file = File(
+                        bytes = it.readBytes(),
+                        rendererType = rendererAttributes.rendererType,
+                        fileAssetLoader = rendererAttributes.assetLoader,
+                    )
+                    onComplete(file)
+                    // Don't retain the handle.
+                    file.release()
+                }
             }
         }
     }
 
     private fun loadFromNetwork(url: String, onComplete: (File) -> Unit) {
+        RiveLog.d(TAG) { "Loading Rive file from network: $url" }
         val queue = Volley.newRequestQueue(context.applicationContext)
         val stringRequest = RiveFileRequest(
             url,
@@ -795,6 +806,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
         loop: Loop = Loop.fromIndex(loopIndexDefault),
     ) {
+        RiveLog.d(TAG) { "setRiveResource with resId: $resId" }
         rendererAttributes.apply {
             this.artboardName = artboardName
             this.animationName = animationName
@@ -832,6 +844,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         alignment: Alignment = Alignment.fromIndex(alignmentIndexDefault),
         loop: Loop = Loop.fromIndex(loopIndexDefault),
     ) {
+        RiveLog.d(TAG) { "setRiveBytes with bytes length: ${bytes.size}" }
         rendererAttributes.apply {
             this.artboardName = artboardName
             this.animationName = animationName
@@ -875,6 +888,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 "Incompatible Renderer types: file initialized with ${file.rendererType.name}" + " but View is set up for ${rendererAttributes.rendererType.name}"
             )
         }
+        RiveLog.d(TAG) { "setRiveFile with file: $file" }
         rendererAttributes.apply {
             this.artboardName = artboardName
             this.animationName = animationName
@@ -899,8 +913,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun setAssetLoader(assetLoader: FileAssetLoader?) {
         if (assetLoader == rendererAttributes.assetLoader) {
+            RiveLog.w(TAG) { "setAssetLoader: assetLoader is already set to $assetLoader" }
             return
         }
+        RiveLog.d(TAG) { "setAssetLoader: $assetLoader" }
 
         val currentAssetLoader = rendererAttributes.assetLoader
         rendererAttributes.assetLoader = assetLoader
@@ -918,6 +934,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Called from TextureView.onAttachedToWindow() - override for implementing a custom renderer.
      */
     override fun createRenderer(): Renderer {
+        RiveLog.d(TAG) { "Creating RiveArtboardRenderer." }
         return RiveArtboardRenderer(
             trace = rendererAttributes.riveTraceAnimations,
             controller = controller,
@@ -926,6 +943,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun createObserver(): LifecycleObserver {
+        RiveLog.d(TAG) { "Creating lifecycle observer." }
         return RiveViewLifecycleObserver(
             dependencies = listOfNotNull(controller, rendererAttributes.assetLoader).toMutableList()
         )
@@ -998,7 +1016,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 )
             }
         } else {
-            Log.w(TAG, "FrameMetrics is available with Android SDK 24 (Nougat) and higher")
+            RiveLog.w(TAG) { "FrameMetrics is available with Android SDK 24 (Nougat) and higher" }
         }
     }
 
@@ -1014,7 +1032,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (renderer == null) {
-            Log.w(TAG, "onMeasure(): Renderer not instantiated yet.")
+            RiveLog.w(TAG) { "onMeasure(): Renderer not instantiated yet." }
             return
         }
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
@@ -1171,7 +1189,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             }
 
             else -> {
-                Log.w(TAG, "onTouchEvent(): Renderer not instantiated yet.")
+                RiveLog.w(TAG) { "onTouchEvent(): Renderer not instantiated yet." }
             }
         }
 

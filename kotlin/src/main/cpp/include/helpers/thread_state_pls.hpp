@@ -20,13 +20,18 @@ public:
 
     void destroySurface(EGLSurface eglSurface) override;
 
-    void makeCurrent(EGLSurface eglSurface) override;
+    EGLResult makeCurrent(EGLSurface eglSurface) override;
+
+    EGLResult recoverAfterContextLoss() override;
 
 private:
+    EGLResult initializePLSResources();
+    void teardownPLSResources();
+
     std::unique_ptr<rive::gpu::RenderContext> m_renderContext;
 
     // 1x1 Pbuffer surface that allows us to make the GL context current without
     // a window surface.
-    EGLSurface m_backgroundSurface;
+    EGLSurface m_backgroundSurface = EGL_NO_SURFACE;
 };
 } // namespace rive_android

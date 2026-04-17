@@ -36,7 +36,7 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
         JNIFileAssetLoader::MakeKtAsset(env, asset, m_rendererType);
     if (!ktFileAsset)
     {
-        LOGE("JNIFileAssetLoader::loadContents() failed to create FileAsset");
+        RiveLogE(TAG, "loadContents() failed to create FileAsset");
         return false;
     }
 
@@ -45,8 +45,7 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
         env->NewByteArray(rive_android::SizeTTOInt(inBandBytes.size()));
     if (!byteArray)
     {
-        LOGE("JNIFileAssetLoader::loadContents() failed to allocate "
-             "NewByteArray");
+        RiveLogE(TAG, "loadContents() failed to allocate NewByteArray");
         return false;
     }
     env->SetByteArrayRegion(byteArray,

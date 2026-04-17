@@ -5,9 +5,13 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Choreographer
 import android.view.Surface
+import androidx.annotation.AnyThread
 import androidx.annotation.CallSuper
+import androidx.annotation.Keep
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
+import app.rive.core.EGLError
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
@@ -15,12 +19,43 @@ import app.rive.runtime.kotlin.core.NativeObject
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 
+/** Lifecycle state transitions for the native render context. */
+enum class RenderContextEventType {
+    /** Rendering context was lost and drawing has entered recovery mode. */
+    Lost,
+
+    /** Rendering context was rebuilt and normal drawing resumed. */
+    Recovered
+}
+
+/**
+ * Event payload emitted from native rendering when EGL context incidents occur.
+ *
+ * @property type High-level context lifecycle event (`Lost` or `Recovered`).
+ * @property eglErrorCode Raw EGL error code associated with the event.
+ * @property eglErrorName Human-readable EGL error string for [eglErrorCode].
+ * @property operation Native operation where the event originated (`makeCurrent`, `swapBuffers`, or
+ *    `recover`).
+ */
+data class RenderContextEvent(
+    val type: RenderContextEventType,
+    val eglErrorCode: Int,
+    val eglErrorName: String,
+    val operation: String,
+)
+
 abstract class Renderer(
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     var type: RendererType = Rive.defaultRendererType,
     val trace: Boolean = false,
 ) : NativeObject(NULL_POINTER),
     Choreographer.FrameCallback {
+    companion object {
+        private const val TAG = "RiveL/Renderer"
+        private const val CONTEXT_EVENT_LOST = 0
+        private const val CONTEXT_EVENT_RECOVERED = 1
+    }
+
     // From NativeObject
     external override fun cppDelete(pointer: Long)
 
@@ -56,9 +91,46 @@ abstract class Renderer(
     /** Instantiates JNIRenderer in C++ */
     private external fun constructor(trace: Boolean, type: Int): Long
 
+    /**
+     * JNI callback entrypoint invoked by native renderer code when EGL context
+     * lifecycle events occur.
+     *
+     * This method may be called from any thread. It maps native event values
+     * to [RenderContextEvent], then dispatches to [onRenderContextEvent] on the
+     * main thread.
+     */
+    @Keep
+    @AnyThread
+    @Suppress("unused")
+    private fun onNativeRenderContextEvent(type: Int, eglErrorCode: Int, operation: String) {
+        val eventType = when (type) {
+            CONTEXT_EVENT_LOST -> RenderContextEventType.Lost
+            CONTEXT_EVENT_RECOVERED -> RenderContextEventType.Recovered
+            else -> {
+                RiveLog.e(TAG) { "Unknown render context event type: $type" }
+                return
+            }
+        }
+        val listener = onRenderContextEvent ?: return
+        val event = RenderContextEvent(
+            type = eventType,
+            eglErrorCode = eglErrorCode,
+            eglErrorName = EGLError.errorString(eglErrorCode),
+            operation = operation
+        )
+        // Preserve the public API contract: callbacks are always delivered on
+        // the main thread, even when the native event arrives from a worker.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            listener(event)
+        } else {
+            Handler(Looper.getMainLooper()).post { listener(event) }
+        }
+    }
+
     @CallSuper
     open fun make() {
         if (!hasCppObject) {
+            RiveLog.d(TAG) { "Making Renderer." }
             cppPointer = constructor(trace, type.value)
             refs.incrementAndGet()
         }
@@ -81,6 +153,18 @@ abstract class Renderer(
     var isAttached: Boolean = false
 
     private var sharedSurface: SharedSurface? = null
+
+    /**
+     * Optional callback for EGL context-loss lifecycle events (`Lost`/`Recovered`).
+     *
+     * This is useful for production handling and observability when GPU context incidents occur:
+     * for example logging diagnostics, pausing dependent UI, or surfacing a fallback state until
+     * recovery completes.
+     *
+     * The callback is always invoked on the main thread.
+     */
+    @Volatile
+    var onRenderContextEvent: ((RenderContextEvent) -> Unit)? = null
 
     /**
      * A lock to synchronize access to the C++ renderer object between the UI thread (which handles
@@ -109,9 +193,19 @@ abstract class Renderer(
      *   [FrameCallbacks][Choreographer.FrameCallback] when stop is called by users
      */
     fun start() {
-        if (isPlaying) return
-        if (!isAttached) return
-        if (!hasCppObject) return
+        RiveLog.d(TAG) { "Starting Renderer." }
+        if (isPlaying) {
+            RiveLog.v(TAG) { "Already playing - returning." }
+            return
+        }
+        if (!isAttached) {
+            RiveLog.v(TAG) { "Not attached - returning." }
+            return
+        }
+        if (!hasCppObject) {
+            RiveLog.e(TAG) { "Native object disposed - returning." }
+            return
+        }
         isPlaying = true
         cppStart(cppPointer)
         // Register for a new frame.
@@ -144,6 +238,7 @@ abstract class Renderer(
      */
     internal fun setSurface(surface: SharedSurface) {
         synchronized(frameLock) {
+            RiveLog.d(TAG) { "Setting surface." }
             sharedSurface?.release()
             surface.acquire()
             sharedSurface = surface
@@ -167,8 +262,15 @@ abstract class Renderer(
      */
     @CallSuper
     internal fun stopThread() {
-        if (!isPlaying) return
-        if (!hasCppObject) return
+        RiveLog.d(TAG) { "Stopping Renderer thread." }
+        if (!isPlaying) {
+            RiveLog.w(TAG) { "Already stopped - returning." }
+            return
+        }
+        if (!hasCppObject) {
+            RiveLog.e(TAG) { "Native object disposed - returning." }
+            return
+        }
         // Prevent any other frame to be scheduled.
         isPlaying = false
         cppStop(cppPointer)
@@ -183,23 +285,61 @@ abstract class Renderer(
      */
     @CallSuper
     fun stop() {
+        RiveLog.d(TAG) { "Stopping Renderer." }
         stopThread()
-        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
-            Choreographer.getInstance().removeFrameCallback(this@Renderer)
-        }
+        removeFrameCallback()
     }
 
-    private fun destroySurface() {
+    /**
+     * Destroys the held surface asynchronously by enqueuing destruction in the C++ JNIRenderer.
+     * Also halts further frame callbacks to break the Choreographer loop.
+     */
+    internal fun destroySurfaceAsync() {
         synchronized(frameLock) {
-            isAttached = false
-            stop()
+            RiveLog.d(TAG) { "Surface destroy requested." }
+            destroySurfaceLocked()
+        }
+        removeFrameCallback()
+    }
+
+    /**
+     * Implementation of destroying the surface. Called either by:
+     * - [onSurfaceTextureDestroyed][app.rive.runtime.kotlin.RiveTextureView.onSurfaceTextureDestroyed]
+     *   -> [destroySurfaceAsync] or
+     * - [onDetachedFromWindow][app.rive.runtime.kotlin.RiveTextureView.onDetachedFromWindow] ->
+     *   [delete]
+     *
+     * ⚠️ Must be called within `frameLock`, hence the `Locked` part of the name.
+     *
+     * Performs the following:
+     * - Marks the isAttached state as false, gating play and frame operations
+     * - Stops the JNIRenderer
+     * - Enqueues the surface destruction in the C++ JNIRenderer
+     * - Releases and nulls the Kotlin reference to the surface
+     */
+    private fun destroySurfaceLocked() {
+        isAttached = false
+        stopThread()
+        if (hasCppObject) {
+            RiveLog.d(TAG) { "Destroying surface." }
             cppDestroySurface(cppPointer)
         }
+        RiveLog.d(TAG) { "destroySurfaceLocked - releasing shared surface." }
+        sharedSurface?.release()
+        sharedSurface = null
     }
 
+    /** Schedule a new frame callback to the Choreographer loop, calling back to [doFrame]. */
     open fun scheduleFrame() {
         Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
             Choreographer.getInstance().postFrameCallback(this@Renderer)
+        }
+    }
+
+    /** Remove the active frame callback, breaking the Choreographer loop. */
+    private fun removeFrameCallback() {
+        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+            Choreographer.getInstance().removeFrameCallback(this@Renderer)
         }
     }
 
@@ -251,7 +391,7 @@ abstract class Renderer(
 
     @CallSuper
     override fun doFrame(frameTimeNanos: Long) {
-        if (isPlaying) {
+        if (isPlaying && isAttached) {
             // This `synchronized` block ensures that the `delete()` method (called on the UI thread)
             // cannot proceed while a frame is being processed on the render thread.
             // It prevents a race where `cppPointer` could be nullified while `cppDoFrame` is
@@ -260,13 +400,19 @@ abstract class Renderer(
                 // We must re-check `hasCppObject` inside the lock. It's possible for `delete()`
                 // to have acquired the lock, nullified the pointer, and released the lock just
                 // before this thread acquired it. This check prevents us from using a null pointer.
-                if (hasCppObject) {
+                if (hasCppObject && isPlaying && isAttached) {
                     cppDoFrame(cppPointer)
                 }
             }
             // Check `isPlaying` again, as stop() could have been called during cppDoFrame.
-            if (isPlaying) {
+            if (isPlaying && isAttached) {
                 scheduleFrame()
+            } else {
+                RiveLog.d(TAG) {
+                    "doFrame - " +
+                            "isPlaying: $isPlaying, isAttached: $isAttached - one or both are false; " +
+                            "not scheduling any new frames"
+                }
             }
         }
     }
@@ -283,12 +429,13 @@ abstract class Renderer(
      */
     @CallSuper
     open fun delete() {
+        RiveLog.d(TAG) { "Deleting Renderer." }
         stop()
         // Acquire the `frameLock`: If the render thread is currently inside `doFrame`, this call
         // will block until that frame completes. Once this lock is acquired, we have a guarantee
         // that no part of `doFrame` is executing.
         synchronized(frameLock) {
-            destroySurface()
+            destroySurfaceLocked()
 
             // We manually manage disposal rather than using `release()` here because we want
             // our dependencies to be cleaned up on the background render thread

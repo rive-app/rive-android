@@ -11,6 +11,7 @@ using namespace rive;
 
 namespace rive_android
 {
+constexpr auto* TAG = "RiveLN/ImageDecode";
 const uint32_t LSB_MASK = 0xFFu;
 
 rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
@@ -30,7 +31,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     auto encoded = env->NewByteArray(SizeTTOInt(encodedBytes.size()));
     if (!encoded)
     {
-        RiveLogE("RiveN/ImageDecode", "Failed to allocate NewByteArray");
+        RiveLogE(TAG, "Failed to allocate NewByteArray");
         return nullptr;
     }
 
@@ -125,7 +126,7 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesRive(
 {
     if (width == 0 || height == 0 || pixelBytes == nullptr)
     {
-        LOGE("renderImageFromRGBABytesRive() - Invalid args.");
+        RiveLogE(TAG, "renderImageFromRGBABytesRive() - Invalid args.");
         return nullptr;
     }
 
@@ -165,7 +166,7 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesCanvas(
 {
     if (width == 0 || height == 0 || pixelBytes == nullptr)
     {
-        LOGE("renderImageFromRGBABytesCanvas() - Invalid args.");
+        RiveLogE(TAG, "renderImageFromRGBABytesCanvas() - Invalid args.");
         return nullptr;
     }
     const auto pixelCount = static_cast<size_t>(width) * height;
@@ -181,8 +182,9 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesCanvas(
         jConfig);
     if (jBitmap == nullptr)
     {
-        LOGE("renderImageFromRGBABytesCanvas() - Bitmap.createBitmap(...) "
-             "failed.");
+        RiveLogE(
+            TAG,
+            "renderImageFromRGBABytesCanvas() - Bitmap.createBitmap(...) failed.");
         return nullptr;
     }
     auto jCount = static_cast<jsize>(pixelCount);
@@ -190,7 +192,7 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesCanvas(
     if (pixels == nullptr)
     {
         env->DeleteLocalRef(jBitmap);
-        LOGE("renderImageFromRGBABytesCanvas() - NewIntArray failed.");
+        RiveLogE(TAG, "renderImageFromRGBABytesCanvas() - NewIntArray failed.");
         return nullptr;
     }
     auto* out = env->GetIntArrayElements(pixels, nullptr);
@@ -234,7 +236,7 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsRive(uint32_t width,
 {
     if (width == 0 || height == 0 || pixels == nullptr)
     {
-        LOGE("renderImageFromARGBIntsRive() - Invalid args.");
+        RiveLogE(TAG, "renderImageFromARGBIntsRive() - Invalid args.");
         return nullptr;
     }
     const auto pixelCount = static_cast<size_t>(width) * height;
@@ -270,7 +272,7 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
 {
     if (width == 0 || height == 0 || pixels == nullptr)
     {
-        LOGE("renderImageFromARGBIntsCanvas() - Invalid args.");
+        RiveLogE(TAG, "renderImageFromARGBIntsCanvas() - Invalid args.");
         return nullptr;
     }
     const auto pixelCount = static_cast<size_t>(width) * height;
@@ -286,8 +288,9 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
         jConfig);
     if (jBitmap == nullptr)
     {
-        LOGE("renderImageFromARGBIntsCanvas() - Bitmap.createBitmap(...) "
-             "failed.");
+        RiveLogE(
+            TAG,
+            "renderImageFromARGBIntsCanvas() - Bitmap.createBitmap(...) failed.");
         return nullptr;
     }
     auto count = static_cast<jsize>(pixelCount);
@@ -295,7 +298,7 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
     if (dstPixels == nullptr)
     {
         env->DeleteLocalRef(jBitmap);
-        LOGE("renderImageFromARGBIntsCanvas() - NewIntArray failed.");
+        RiveLogE(TAG, "renderImageFromARGBIntsCanvas() - NewIntArray failed.");
         return nullptr;
     }
     if (!isPremultiplied)
@@ -346,7 +349,7 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapRive(jobject jBitmap,
 {
     if (jBitmap == nullptr)
     {
-        LOGE("renderImageFromBitmapRive() - Bitmap was null.");
+        RiveLogE(TAG, "renderImageFromBitmapRive() - Bitmap was null.");
         return nullptr;
     }
     auto* env = GetJNIEnv();
@@ -354,7 +357,8 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapRive(jobject jBitmap,
     const uint32_t* srcPixels = nullptr;
     if (!lockBitmapRGBA8888(env, jBitmap, &info, &srcPixels))
     {
-        LOGE("renderImageFromBitmapRive() - Failed to lock srcPixels.");
+        RiveLogE(TAG,
+                 "renderImageFromBitmapRive() - Failed to lock srcPixels.");
         return nullptr;
     }
 
@@ -403,7 +407,7 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapCanvas(jobject jBitmap)
 {
     if (jBitmap == nullptr)
     {
-        LOGE("renderImageFromBitmapCanvas() - Bitmap was null.");
+        RiveLogE(TAG, "renderImageFromBitmapCanvas() - Bitmap was null.");
         return nullptr;
     }
     return make_rcp<CanvasRenderImage>(jBitmap);
@@ -439,17 +443,17 @@ bool lockBitmapRGBA8888(JNIEnv* env,
     if (AndroidBitmap_getInfo(env, jBitmap, info) !=
         ANDROID_BITMAP_RESULT_SUCCESS)
     {
-        LOGE("lockBitmapRGBA8888() - AndroidBitmap_getInfo failed.");
+        RiveLogE(TAG, "lockBitmapRGBA8888() - AndroidBitmap_getInfo failed.");
         return false;
     }
     if (info->format != ANDROID_BITMAP_FORMAT_RGBA_8888)
     {
-        LOGE("lockBitmapRGBA8888() - Unexpected bitmap format.");
+        RiveLogE(TAG, "lockBitmapRGBA8888() - Unexpected bitmap format.");
         return false;
     }
     if (info->width == 0 || info->height == 0)
     {
-        LOGE("lockBitmapRGBA8888() - Invalid dimensions.");
+        RiveLogE(TAG, "lockBitmapRGBA8888() - Invalid dimensions.");
         return false;
     }
     void* lockedPixelsPtr = nullptr;
@@ -459,24 +463,28 @@ bool lockBitmapRGBA8888(JNIEnv* env,
     {
         if (lockResult == ANDROID_BITMAP_RESULT_BAD_PARAMETER)
         {
-            LOGE("lockBitmapRGBA8888() - Failed to lock pixes: bad "
-                 "parameter.");
+            RiveLogE(
+                TAG,
+                "lockBitmapRGBA8888() - Failed to lock pixes: bad parameter.");
         }
         else if (lockResult == ANDROID_BITMAP_RESULT_JNI_EXCEPTION)
         {
-            LOGE("lockBitmapRGBA8888() - Failed to lock pixes: JNI exception "
-                 "occurred.");
+            RiveLogE(
+                TAG,
+                "lockBitmapRGBA8888() - Failed to lock pixes: JNI exception occurred.");
         }
         else if (lockResult == ANDROID_BITMAP_RESULT_ALLOCATION_FAILED)
         {
-            LOGE("lockBitmapRGBA8888() - Failed to lock pixes: allocation "
-                 "failed.");
+            RiveLogE(
+                TAG,
+                "lockBitmapRGBA8888() - Failed to lock pixes: allocation failed.");
         }
         else
         {
-            LOGE("lockBitmapRGBA8888() - Failed to lock pixes: unknown "
-                 "error: %d",
-                 lockResult);
+            RiveLogE(
+                TAG,
+                "lockBitmapRGBA8888() - Failed to lock pixes: unknown error: %d",
+                lockResult);
         }
 
         return false;

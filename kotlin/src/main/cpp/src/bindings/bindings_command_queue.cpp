@@ -436,7 +436,7 @@ public:
     }
 
 private:
-    constexpr static const char* TAG = "RiveN/VMIListener";
+    constexpr static auto* TAG = "RiveN/VMIListener";
     JCommandQueue m_queue;
 };
 
@@ -587,7 +587,7 @@ void getProperty(JNIEnv* env,
     (commandQueue->*getter)(viewModelInstanceHandle, propertyPath, requestID);
 }
 
-constexpr static const char* TAG_CQ = "RiveN/CQ";
+constexpr static auto* TAG_CQ = "RiveN/CQ";
 
 /**
  * A factory for use with the command server.
