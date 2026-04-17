@@ -37,12 +37,19 @@ open class RiveArtboardRenderer(
         if (!hasCppObject) return
 
         if (fit == Fit.LAYOUT) {
+            val artboard = controller.activeArtboard
+            if (artboard == null) {
+                controller.requireArtboardResize.set(true)
+                return
+            }
             val newWidth = width / scaleFactor
             val newHeight = height / scaleFactor
-            controller.activeArtboard?.apply {
-                width = newWidth
-                height = newHeight
+            if (newWidth <= 0f || newHeight <= 0f) {
+                controller.requireArtboardResize.set(true)
+                return
             }
+            artboard.width = newWidth
+            artboard.height = newHeight
         } else {
             controller.activeArtboard?.resetArtboardSize()
         }
@@ -51,7 +58,7 @@ open class RiveArtboardRenderer(
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        if (controller.requireArtboardResize.getAndSet(false)) {
+        if (controller.requireArtboardResize.getAndSet(false) || fit == Fit.LAYOUT) {
             synchronized(controller.file?.lock ?: this) { resizeArtboard() }
         }
 

@@ -442,6 +442,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.requireArtboardResize.set(true)
     }
 
     override fun onSurfaceTextureAvailable(
@@ -449,6 +450,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.requireArtboardResize.set(true)
     }
 
     private fun loadFileFromResource(onComplete: (File) -> Unit) {
