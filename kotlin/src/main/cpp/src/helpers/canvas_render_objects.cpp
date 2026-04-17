@@ -113,7 +113,7 @@ void CanvasRenderPath::addRawPath(const rive::RawPath& path)
     addRawPathToCanvasPath(m_ktPath, path);
 }
 
-void CanvasRenderPath::addRenderPath(rive::RenderPath* path,
+void CanvasRenderPath::addRenderPath(const rive::RenderPath* path,
                                      const rive::Mat2D& transform)
 {
     JNIEnv* env = GetJNIEnv();
@@ -142,7 +142,7 @@ void CanvasRenderPath::addRenderPath(rive::RenderPath* path,
         env,
         m_ktPath,
         GetAddPathMethodId(),
-        reinterpret_cast<CanvasRenderPath*>(path)->m_ktPath,
+        static_cast<const CanvasRenderPath*>(path)->m_ktPath,
         matrix);
 
     env->DeleteLocalRef(matrixClass);
