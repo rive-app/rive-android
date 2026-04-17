@@ -39,17 +39,26 @@ open class RiveArtboardRenderer(
     @WorkerThread
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     open fun resizeArtboard() {
-        if (!hasCppObject) return
-
         if (fit == Fit.LAYOUT) {
-            val newWidth = width / scaleFactor
-            val newHeight = height / scaleFactor
-            controller.activeArtboard?.apply {
-                width = newWidth
-                height = newHeight
+            // Read surface dimensions under frameLock so delete() cannot null cppPointer between
+            // hasCppObject checks and width/height dereference.
+            val (newWidth, newHeight) = synchronized(frameLock) {
+                if (!hasCppObject || !controller.isActive) return
+                Pair(width / scaleFactor, height / scaleFactor)
+            }
+
+            // Acquire file lock only after the frameLock section to avoid lock-order inversion and
+            // serialize artboard mutations with controller/file lifecycle operations.
+            synchronized(controller.file?.lock ?: this) {
+                controller.activeArtboard?.apply {
+                    width = newWidth
+                    height = newHeight
+                }
             }
         } else {
-            controller.activeArtboard?.resetArtboardSize()
+            synchronized(controller.file?.lock ?: this) {
+                controller.activeArtboard?.resetArtboardSize()
+            }
         }
     }
 
@@ -57,7 +66,7 @@ open class RiveArtboardRenderer(
     @WorkerThread
     override fun draw() {
         if (controller.requireArtboardResize.getAndSet(false)) {
-            synchronized(controller.file?.lock ?: this) { resizeArtboard() }
+            resizeArtboard()
         }
 
         // Deref and draw under frameLock

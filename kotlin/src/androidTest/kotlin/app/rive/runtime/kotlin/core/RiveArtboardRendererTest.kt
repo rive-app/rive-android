@@ -7,6 +7,7 @@ import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
@@ -60,6 +61,9 @@ class RiveArtboardRendererTest {
      */
     @Test
     fun deleteRendererDuringFrame() {
+        // Ensure native libraries are loaded for JNI calls.
+        testUtils.context
+
         // Keep this low, as the test times out during non-critical activeArtboard access.
         val timeout = 100L
         // Latch to block signal we are passed the `hasCppObject` check in the draw() method
@@ -124,6 +128,9 @@ class RiveArtboardRendererTest {
      */
     @Test
     fun disposeArtboardDuringFrameAfterEnteringSyncBlock() {
+        // Ensure native libraries are loaded for JNI calls.
+        testUtils.context
+
         // Keep this low, as we expect it to timeout.
         val timeout = 1000L
         // Signals that the artboard has entered draw() and is about to dereference the cppPointer.
@@ -193,6 +200,9 @@ class RiveArtboardRendererTest {
      */
     @Test
     fun disposeArtboardDuringFrameBeforeEnteringSyncBlock() {
+        // Ensure native libraries are loaded for JNI calls.
+        testUtils.context
+
         val timeout = 1000L
         // Signals that the artboard has entered draw() and is about to dereference the cppPointer.
         val readyForRelease = CountDownLatch(1)
@@ -258,12 +268,16 @@ class RiveArtboardRendererTest {
     }
 
     /**
-     * Tests that the renderer can be safely deleted while resizeArtboard() is executing.
-     * The fix adds a hasCppObject check at the start of resizeArtboard() to prevent
-     * accessing disposed C++ objects when accessing width/height properties.
+     * Tests that the renderer can be safely deleted while resizeArtboard() is executing. The fix
+     * reads renderer liveness and surface dimensions together under frameLock (in the Fit.LAYOUT
+     * case where this is required), then applies artboard mutations under the file lock to avoid
+     * disposal races.
      */
     @Test
     fun deleteRendererDuringResizeArtboard() {
+        // Ensure native libraries are loaded for JNI calls.
+        testUtils.context
+
         val timeout = 1000L
         // Latch to signal we've entered resizeArtboard()
         val duringResizeLatch = CountDownLatch(1)
@@ -323,5 +337,64 @@ class RiveArtboardRendererTest {
             "Expected no exception when renderer is deleted during resizeArtboard(). " +
                     "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
         }
+    }
+
+    /**
+     * Regression test for a race where resizeArtboard() reads hasCppObject, then the renderer is
+     * deleted before width/height are read.
+     *
+     * The fit getter is used as a deterministic pause point between those operations.
+     */
+    @Test
+    fun deleteRendererBetweenCppObjectCheckAndDimensionRead_doesNotCrash() {
+        // Ensure native libraries are loaded for JNI calls.
+        testUtils.context
+
+        val timeoutMs = 1000L
+        val readyForDelete = CountDownLatch(1)
+        val resumeAfterDelete = CountDownLatch(1)
+        val exceptionRef = AtomicReference<Throwable?>(null)
+
+        val controller = object : RiveFileController() {
+            override var fit: Fit
+                get() {
+                    readyForDelete.countDown()
+                    resumeAfterDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+                    return super.fit
+                }
+                set(value) {
+                    super.fit = value
+                }
+        }
+        controller.fit = Fit.LAYOUT // Sets requireArtboardResize = true
+
+        val renderer = RiveArtboardRenderer(controller = controller)
+        renderer.make()
+
+        val drawThread = Thread {
+            try {
+                renderer.draw()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        drawThread.start()
+
+        assertTrue(
+            "draw() did not reach the fit getter in time; race was not induced.",
+            readyForDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+        )
+
+        renderer.delete()
+        resumeAfterDelete.countDown()
+
+        drawThread.join(timeoutMs)
+
+        val exception = exceptionRef.get()
+        assertTrue(
+            "Expected no exception when deleting renderer during resize race, " +
+                    "but got: ${exception?.javaClass?.simpleName}: ${exception?.message}",
+            exception == null
+        )
     }
 }
