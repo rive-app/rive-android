@@ -17,8 +17,8 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 
 // Enable thread safety attributes only with clang.
 // The attributes can be safely erased when compiling with other compilers.

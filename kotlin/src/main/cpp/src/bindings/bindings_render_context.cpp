@@ -1,11 +1,10 @@
+#include <EGL/egl.h>
 #include <GLES3/gl3.h>
+#include <android/native_window_jni.h>
+#include <jni.h>
 
 #include "models/render_context.hpp"
 #include "rive/renderer/gl/render_target_gl.hpp"
-
-#include <android/native_window_jni.h>
-#include <EGL/egl.h>
-#include <jni.h>
 
 namespace rive_android
 {

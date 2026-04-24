@@ -1,12 +1,21 @@
 #include <jni.h>
-#include <cstdio>
+#include <memory>
+#include <string>
 
+#include "helpers/conversions.hpp"
+#include "helpers/general.hpp"
 #include "models/jni_renderer.hpp"
-#include "rive/artboard.hpp"
+#include "rive/animation/linear_animation.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
+#include "rive/animation/state_machine.hpp"
 #include "rive/animation/state_machine_instance.hpp"
-#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
+#include "rive/artboard.hpp"
+#include "rive/layout.hpp"
+#include "rive/math/aabb.hpp"
+#include "rive/renderer.hpp"
 #include "rive/text/text_value_run.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
+#include "rive/viewmodel/viewmodel_instance.hpp"
 
 #ifdef __cplusplus
 extern "C"

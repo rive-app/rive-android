@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "thread_state_egl.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
+#include "thread_state_egl.hpp"
 
 namespace rive_android
 {

@@ -1,14 +1,13 @@
-#include <jni.h>
 #include <android/native_window_jni.h>
+#include <jni.h>
 
-#include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "helpers/worker_thread.hpp"
-
-#include "models/jni_renderer.hpp"
-#include "rive/layout.hpp"
-#include "rive/artboard.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/worker_thread.hpp"
+#include "jni_refs.hpp"
+#include "models/jni_renderer.hpp"
+#include "rive/artboard.hpp"
+#include "rive/layout.hpp"
 
 extern "C"
 {

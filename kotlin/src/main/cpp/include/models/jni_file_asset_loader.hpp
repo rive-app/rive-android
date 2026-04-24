@@ -1,14 +1,15 @@
 #pragma once
 
 #include <jni.h>
+#include <stdint.h>
 
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
-#include "rive/factory.hpp"
-#include "rive/file_asset_loader.hpp"
-#include "rive/assets/image_asset.hpp"
-#include "rive/assets/font_asset.hpp"
 #include "rive/assets/audio_asset.hpp"
+#include "rive/assets/file_asset.hpp"
+#include "rive/assets/font_asset.hpp"
+#include "rive/assets/image_asset.hpp"
+#include "rive/file_asset_loader.hpp"
 
 namespace rive_android
 {

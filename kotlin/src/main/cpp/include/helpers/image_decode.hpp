@@ -1,14 +1,14 @@
 #pragma once
 
-#include "models/render_context.hpp"
-#include "rive/refcnt.hpp"
-#include "rive/renderer.hpp"
-#include "rive/span.hpp"
-
 #include <android/bitmap.h>
 #include <cstdint>
 #include <jni.h>
 #include <vector>
+
+#include "models/render_context.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/renderer.hpp"
+#include "rive/span.hpp"
 
 namespace rive_android
 {

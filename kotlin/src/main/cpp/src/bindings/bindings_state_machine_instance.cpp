@@ -1,8 +1,14 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
-#include "rive/animation/state_machine_instance.hpp"
-#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 #include <jni.h>
+#include <string>
+
+#include "helpers/conversions.hpp"
+#include "jni_refs.hpp"
+#include "rive/animation/state_machine.hpp"
+#include "rive/animation/state_machine_instance.hpp"
+#include "rive/event_report.hpp"
+#include "rive/math/vec2d.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
+#include "rive/viewmodel/viewmodel_instance.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -30,7 +36,7 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTTOInt(stateMachineInstance->stateChangedCount());
+        return SizeTToInt(stateMachineInstance->stateChangedCount());
     }
 
     JNIEXPORT jlong JNICALL
@@ -53,7 +59,7 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTTOInt(stateMachineInstance->reportedEventCount());
+        return SizeTToInt(stateMachineInstance->reportedEventCount());
     }
 
     JNIEXPORT jobject JNICALL
@@ -95,7 +101,7 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTTOInt(stateMachineInstance->inputCount());
+        return SizeTToInt(stateMachineInstance->inputCount());
     }
 
     // ANIMATION

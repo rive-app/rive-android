@@ -1,6 +1,7 @@
 #pragma once
 
 #include <jni.h>
+
 #include "rive/math/aabb.hpp"
 
 namespace rive_android

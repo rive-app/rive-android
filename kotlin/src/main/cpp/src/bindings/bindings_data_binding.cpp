@@ -1,15 +1,26 @@
 #include <jni.h>
+#include <stddef.h>
+#include <string>
+#include <vector>
 
+#include "helpers/conversions.hpp"
 #include "helpers/jni_resource.hpp"
-#include "models/jni_renderer.hpp"
-#include "rive/animation/linear_animation_instance.hpp"
-#include "rive/animation/state_machine_instance.hpp"
-#include "rive/artboard.hpp"
+#include "rive/bindable_artboard.hpp"
+#include "rive/file.hpp"
 #include "rive/refcnt.hpp"
-#include "rive/text/text_value_run.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_artboard_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_asset_image_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_boolean_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_color_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_enum_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_list_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_number_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_string_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_trigger_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_value_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
+#include "rive/viewmodel/viewmodel_instance.hpp"
 
 extern "C"
 {

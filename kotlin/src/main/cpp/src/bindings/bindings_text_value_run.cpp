@@ -1,7 +1,8 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
-#include "rive/text/text_value_run.hpp"
 #include <jni.h>
+#include <string>
+
+#include "helpers/conversions.hpp"
+#include "rive/text/text_value_run.hpp"
 
 #ifdef __cplusplus
 extern "C"

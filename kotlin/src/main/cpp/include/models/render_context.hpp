@@ -1,5 +1,7 @@
 #pragma once
+#include <EGL/egl.h>
 #include <GLES3/gl3.h>
+#include <cstdint>
 
 #include "helpers/egl_error.hpp"
 #include "helpers/general.hpp"
@@ -7,9 +9,6 @@
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/rive_render_image.hpp"
-
-#include <cstdint>
-#include <EGL/egl.h>
 
 namespace rive_android
 {

@@ -1,5 +1,6 @@
-#include "helpers/thread_state_pls.hpp"
 #include "helpers/worker_thread.hpp"
+
+#include "helpers/thread_state_pls.hpp"
 
 namespace rive_android
 {

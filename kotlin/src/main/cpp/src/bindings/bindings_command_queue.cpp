@@ -1,13 +1,20 @@
-#include <jni.h>
-#include <android/native_window_jni.h>
 #include <GLES3/gl3.h>
+#include <android/native_window_jni.h>
+#include <atomic>
+#include <cstring>
+#include <future>
+#include <jni.h>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "models/render_context.hpp"
 #include "helpers/android_factories.hpp"
+#include "helpers/conversions.hpp"
 #include "helpers/image_decode.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
 #include "models/jni_renderer.hpp"
+#include "models/render_context.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/command_queue.hpp"
 #include "rive/command_server.hpp"
@@ -16,13 +23,6 @@
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/gl/render_target_gl.hpp"
 #include "rive/renderer/rive_render_image.hpp"
-
-#include <future>
-#include <string>
-#include <utility>
-#include <vector>
-#include <cstring>
-#include <atomic>
 
 using namespace rive_android;
 

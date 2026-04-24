@@ -1,10 +1,10 @@
 #include "helpers/worker_ref.hpp"
 
+#include <thread>
+
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/thread_state_pls.hpp"
-
-#include <thread>
 
 using namespace rive;
 

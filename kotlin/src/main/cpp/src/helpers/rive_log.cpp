@@ -1,9 +1,11 @@
 #include "helpers/rive_log.hpp"
-#include "helpers/general.hpp"
-#include "helpers/jni_resource.hpp"
+
+#include <android/log.h>
 #include <cstdio>
 #include <cstring>
-#include <android/log.h>
+
+#include "helpers/general.hpp"
+#include "helpers/jni_resource.hpp"
 
 namespace rive_android
 {

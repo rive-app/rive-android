@@ -1,11 +1,18 @@
 #include <jni.h>
+#include <memory>
+#include <stdint.h>
+#include <string>
+#include <vector>
 
+#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
-#include "jni_refs.hpp"
+#include "rive/artboard.hpp"
+#include "rive/bindable_artboard.hpp"
 #include "rive/file.hpp"
-#include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
-#include "rive/viewmodel/viewmodel.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/viewmodel/data_enum.hpp"
+#include "rive/viewmodel/data_enum_value.hpp"
 
 extern "C"
 {

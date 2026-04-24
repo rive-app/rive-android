@@ -1,7 +1,8 @@
 #pragma once
 
-#include "rive/renderer.hpp"
 #include <jni.h>
+
+#include "rive/renderer.hpp"
 
 namespace rive_android
 {

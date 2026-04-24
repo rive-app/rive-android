@@ -1,9 +1,9 @@
 #pragma once
 
-#include <jni.h>
 #include <android/log.h>
-#include <string>
+#include <jni.h>
 #include <sstream>
+#include <string>
 
 namespace rive_android
 {

@@ -2,6 +2,7 @@
 
 #include "helpers/android_factories.hpp"
 #include "helpers/canvas_render_objects.hpp"
+#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
@@ -28,7 +29,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
                                                  "decodeToBitmap",
                                                  "([B)[I");
 
-    auto encoded = env->NewByteArray(SizeTTOInt(encodedBytes.size()));
+    auto encoded = env->NewByteArray(SizeTToInt(encodedBytes.size()));
     if (!encoded)
     {
         RiveLogE(TAG, "Failed to allocate NewByteArray");
@@ -37,7 +38,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
 
     env->SetByteArrayRegion(encoded,
                             0,
-                            SizeTTOInt(encodedBytes.size()),
+                            SizeTToInt(encodedBytes.size()),
                             (jbyte*)encodedBytes.data());
     auto jPixels = (jintArray)JNIExceptionHandler::CallStaticObjectMethod(
         env,

@@ -1,14 +1,22 @@
-#include "jni_refs.hpp"
+#include <jni.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string>
+
 #include "helpers/android_factories.hpp"
+#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/image_decode.hpp"
-
-#include "rive/assets/image_asset.hpp"
-#include "rive/simple_array.hpp"
-#include "rive/assets/font_asset.hpp"
+#include "helpers/rive_log.hpp"
 #include "rive/assets/audio_asset.hpp"
-
-#include <jni.h>
+#include "rive/assets/file_asset.hpp"
+#include "rive/assets/font_asset.hpp"
+#include "rive/assets/image_asset.hpp"
+#include "rive/audio/audio_source.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/renderer.hpp"
+#include "rive/simple_array.hpp"
+#include "rive/text_engine.hpp"
 
 extern "C"
 {

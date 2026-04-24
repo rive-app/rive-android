@@ -2,7 +2,6 @@
 
 #include "helpers/general.hpp"
 #include "helpers/worker_ref.hpp"
-
 #include "rive/refcnt.hpp"
 #include "rive/renderer/rive_render_factory.hpp"
 #include "rive/renderer/rive_render_image.hpp"

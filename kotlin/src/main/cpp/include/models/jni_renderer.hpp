@@ -1,14 +1,13 @@
 #pragma once
 
+#include <GLES3/gl3.h>
+#include <android/native_window.h>
 #include <chrono>
+#include <jni.h>
 #include <variant>
 
-#include <android/native_window.h>
-#include <GLES3/gl3.h>
-#include <jni.h>
-
-#include "models/worker_impl.hpp"
 #include "helpers/worker_ref.hpp"
+#include "models/worker_impl.hpp"
 
 namespace rive_android
 {

@@ -1,8 +1,10 @@
+#include "helpers/canvas_render_objects.hpp"
+
+#include <android/bitmap.h>
 #include <jni.h>
 #include <memory>
-#include <android/bitmap.h>
 
-#include "helpers/canvas_render_objects.hpp"
+#include "helpers/conversions.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/rive_log.hpp"
 
@@ -216,7 +218,7 @@ LinearGradientCanvasShader::LinearGradientCanvasShader(
 {
     JNIEnv* env = GetJNIEnv();
 
-    auto intCount = SizeTTOInt(count);
+    auto intCount = SizeTToInt(count);
     jintArray jcolors = env->NewIntArray(intCount);
     jfloatArray jstops = env->NewFloatArray(intCount);
     env->SetIntArrayRegion(jcolors, 0, intCount, (const jint*)colors);
@@ -256,7 +258,7 @@ RadialGradientCanvasShader::RadialGradientCanvasShader(
 {
     JNIEnv* env = GetJNIEnv();
 
-    auto intCount = SizeTTOInt(count);
+    auto intCount = SizeTToInt(count);
     jintArray jcolors = env->NewIntArray(intCount);
     jfloatArray jstops = env->NewFloatArray(intCount);
     env->SetIntArrayRegion(jcolors, 0, intCount, (const jint*)colors);
@@ -617,7 +619,7 @@ constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
         jDecodeByteArrayMethodID,
         jByteArray,
         0,
-        SizeTTOInt(encodedBytes.size()));
+        SizeTToInt(encodedBytes.size()));
     env->DeleteLocalRef(jByteArray);
     env->DeleteLocalRef(jBitmapFactoryClass);
     if (jBitmap == nullptr)

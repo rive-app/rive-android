@@ -1,7 +1,6 @@
 #pragma once
 
 #include <EGL/egl.h>
-
 #include <cstdio>
 #include <string>
 

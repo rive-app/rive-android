@@ -1,8 +1,10 @@
-#include <jni.h>
-#include <android/log.h>
-#include <sys/system_properties.h>
-#include <cstdlib>
 #include "jni_refs.hpp"
+
+#include <android/log.h>
+#include <cstdlib>
+#include <jni.h>
+#include <sys/system_properties.h>
+
 #include "helpers/general.hpp"
 
 namespace rive_android

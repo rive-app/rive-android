@@ -1,17 +1,17 @@
 #include "helpers/general.hpp"
 
-#include "jni_refs.hpp"
 #include "helpers/android_factories.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/worker_ref.hpp"
+#include "jni_refs.hpp"
 #include "rive/file.hpp"
 
 #if defined(DEBUG) || defined(LOG)
+#include <EGL/egl.h>
 #include <cerrno>
 #include <cstdio>
 #include <unistd.h>
-#include <EGL/egl.h>
 #endif
 
 namespace rive_android
@@ -248,35 +248,6 @@ jlong Import(uint8_t* bytes,
     {
         return ThrowRiveException("Unknown error loading file.");
     }
-}
-
-std::string JStringToString(JNIEnv* env, jstring jStr)
-{
-    if (jStr == nullptr)
-    {
-        return {};
-    }
-    auto* cStr = env->GetStringUTFChars(jStr, nullptr);
-    auto str = std::string(cStr);
-    env->ReleaseStringUTFChars(jStr, cStr);
-    return str;
-}
-
-int SizeTTOInt(size_t sizeT)
-{
-    return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT);
-}
-
-size_t JIntToSizeT(jint jintValue)
-{
-    if (jintValue < 0)
-    {
-        RiveLogW("RiveLN/JIntToSizeT",
-                 "Value is a negative number %d",
-                 jintValue);
-        return 0;
-    }
-    return jintValue > SIZE_T_MAX ? SIZE_T_MAX : static_cast<size_t>(jintValue);
 }
 
 #if defined(DEBUG) || defined(LOG)

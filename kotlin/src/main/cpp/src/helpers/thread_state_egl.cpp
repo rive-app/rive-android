@@ -1,11 +1,11 @@
 #include "helpers/thread_state_egl.hpp"
 
-#include "helpers/egl_error.hpp"
-#include "helpers/rive_log.hpp"
-
 #include <algorithm>
 #include <thread>
 #include <vector>
+
+#include "helpers/egl_error.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {

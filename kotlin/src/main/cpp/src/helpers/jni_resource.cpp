@@ -1,10 +1,13 @@
 #include "helpers/jni_resource.hpp"
 
-#include "helpers/general.hpp"
-#include "helpers/rive_log.hpp"
-#include "helpers/jni_exception_handler.hpp"
-
+#include <algorithm>
+#include <assert.h>
+#include <stdarg.h>
 #include <string>
+
+#include "helpers/conversions.hpp"
+#include "helpers/jni_exception_handler.hpp"
+#include "helpers/rive_log.hpp"
 
 namespace rive_android
 {

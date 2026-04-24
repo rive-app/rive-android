@@ -1,10 +1,10 @@
 #include "models/jni_renderer.hpp"
 
+#include <algorithm>
+
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
-
-#include <algorithm>
 
 using namespace std::chrono_literals;
 

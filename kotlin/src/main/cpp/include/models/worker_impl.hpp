@@ -2,11 +2,9 @@
 
 #include <variant>
 
-#include "jni_refs.hpp"
 #include "canvas_renderer.hpp"
-
 #include "helpers/thread_state_pls.hpp"
-
+#include "jni_refs.hpp"
 #include "rive/renderer/rive_renderer.hpp"
 
 // std::variant that holds different surface types:

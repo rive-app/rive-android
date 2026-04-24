@@ -3,10 +3,11 @@
 #include <algorithm>
 #include <jni.h>
 #include <vector>
-#include "jni_refs.hpp"
+
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/rive_log.hpp"
+#include "jni_refs.hpp"
 #include "rive/renderer.hpp"
 
 namespace rive_android

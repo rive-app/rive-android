@@ -1,13 +1,13 @@
 #pragma once
 
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+#include <android/native_window.h>
+#include <jni.h>
+
 #include "helpers/general.hpp"
 #include "helpers/tracer.hpp"
 #include "models/egl_result.hpp"
-
-#include <android/native_window.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include <jni.h>
 
 namespace rive_android
 {

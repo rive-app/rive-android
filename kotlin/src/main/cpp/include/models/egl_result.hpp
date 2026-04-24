@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cassert>
 #include <EGL/egl.h>
+#include <cassert>
 #include <string>
 
 namespace rive_android

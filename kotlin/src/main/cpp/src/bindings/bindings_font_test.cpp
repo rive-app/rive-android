@@ -4,11 +4,17 @@
 #ifdef DEBUG
 
 #include <jni.h>
+#include <stdint.h>
+#include <vector>
 
+#include "helpers/conversions.hpp"
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
-#include "rive/text/utf.hpp"
 #include "helpers/jni_resource.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/span.hpp"
+#include "rive/text/font_hb.hpp"
+#include "rive/text_engine.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -31,7 +37,7 @@ extern "C"
         jobject)
     {
         std::vector<uint8_t> bytes = FontHelper::GetSystemFontBytes();
-        auto len = SizeTTOInt(bytes.size());
+        auto len = SizeTToInt(bytes.size());
         if (len == 0)
         {
             LOGE("cppGetSystemFontBytes - GetSystemFontBytes() returned no "
