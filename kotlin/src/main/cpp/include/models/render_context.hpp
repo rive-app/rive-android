@@ -9,6 +9,7 @@
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/rive_render_image.hpp"
+#include "rive/texture_archive.hpp"
 
 namespace rive_android
 {
@@ -208,11 +209,12 @@ struct RenderContextGL : RenderContext
     {
         auto mipLevelCount = rive::math::msb(height | width);
         RiveLogD(TAG_RC, "Creating RiveRenderImage");
-        auto texture =
-            riveContext->impl()->makeImageTexture(width,
-                                                  height,
-                                                  mipLevelCount,
-                                                  imageDataRGBA.get());
+        auto texture = riveContext->impl()->makeImageTexture(
+            width,
+            height,
+            mipLevelCount,
+            rive::GPUTextureFormat::rgba32,
+            imageDataRGBA.get());
         return rive::make_rcp<rive::RiveRenderImage>(texture);
     }
 

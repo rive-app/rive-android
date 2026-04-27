@@ -176,10 +176,12 @@ AndroidImage::AndroidImage(int width,
             auto* renderContextImpl =
                 plsState->renderContext()
                     ->static_impl_cast<RenderContextGLImpl>();
-            resetTexture(renderContextImpl->makeImageTexture(m_Width,
-                                                             m_Height,
-                                                             mipLevelCount,
-                                                             imageDataRGBA));
+            resetTexture(renderContextImpl->makeImageTexture(
+                m_Width,
+                m_Height,
+                mipLevelCount,
+                rive::GPUTextureFormat::rgba32,
+                imageDataRGBA));
             delete[] imageDataRGBA;
         });
 }
