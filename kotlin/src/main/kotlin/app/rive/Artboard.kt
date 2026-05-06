@@ -58,6 +58,16 @@ class Artboard internal constructor(
         }
     }
 
+    /**
+     * Whether this artboard is owned by [worker].
+     *
+     * Useful for validating that multiple Rive resources can safely be used together.
+     *
+     * @param worker A worker reference to check ownership against.
+     * @return true if this artboard is owned by [worker], false otherwise.
+     */
+    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+
     /** @return A list of all state machine names on this artboard. */
     suspend fun getStateMachineNames(): List<String> = stateMachineNamesCache.await()
     private val stateMachineNamesCache = SuspendLazy {
@@ -78,7 +88,7 @@ class Artboard internal constructor(
      * @param surface The surface whose width and height will be used to resize the artboard.
      * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
      *    surface dimensions divided by this factor. Defaults to 1f.
-     * @throws IllegalStateException If the Rive worker has been released.
+     * @throws IllegalStateException If the Rive worker has been released or [surface] is closed.
      */
     @Throws(IllegalStateException::class)
     fun resizeArtboard(

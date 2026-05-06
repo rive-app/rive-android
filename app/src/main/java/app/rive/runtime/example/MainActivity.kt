@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
         Pair(R.id.go_layout, LayoutActivity::class.java),
         Pair(R.id.go_fragment, RiveFragmentActivity::class.java),
         Pair(R.id.go_low_level, LowLevelActivity::class.java),
+        Pair(R.id.go_hardware_bitmap_canvas, HardwareBitmapCanvasActivity::class.java),
         Pair(R.id.go_http, HttpActivity::class.java),
         Pair(R.id.go_simple_state_machine, SimpleStateMachineActivity::class.java),
         Pair(R.id.go_nested_input, NestedInputActivity::class.java),

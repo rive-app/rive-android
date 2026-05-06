@@ -1,0 +1,40 @@
+# Perfetto trace config for profiling Rive Android runtime rendering.
+
+buffers {
+  # 64 MB ring buffer to reduce event loss during short captures.
+  size_kb: 65536
+  fill_policy: RING_BUFFER
+}
+
+data_sources {
+  config {
+    # Required Perfetto data source id for ftrace/atrace collection.
+    name: "linux.ftrace"
+    ftrace_config {
+      # Target app package to include in atrace slices. Update this for your app.
+      atrace_apps: "app.rive.runtime.example"
+
+      # Android framework tracing categories that are useful for UI/frame analysis.
+      # gfx: Frame production/render pipeline slices (jank and pacing context).
+      atrace_categories: "gfx"
+      # view: View traversal/layout/draw work on the main thread.
+      atrace_categories: "view"
+      # wm: Window Manager - Window transitions/focus/visibility changes that affect rendering cadence.
+      atrace_categories: "wm"
+      # am: Activity Manager - Lifecycle/process events to correlate resume/background transitions.
+      atrace_categories: "am"
+
+      # Scheduler and CPU frequency events for spotting thread wake-ups and contention.
+      # sched_switch: Which thread ran on each CPU and when context switches occurred.
+      ftrace_events: "sched/sched_switch"
+      # sched_wakeup: Which task woke a thread and when it became runnable.
+      ftrace_events: "sched/sched_wakeup"
+      # cpu_frequency: Dynamic Voltage & Frequency Scaling (DVFS) changes.
+      #   May explain throughput/latency shifts.
+      ftrace_events: "power/cpu_frequency"
+    }
+  }
+}
+
+# Capture duration in milliseconds.
+duration_ms: 15000

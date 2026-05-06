@@ -108,32 +108,42 @@ WorkerFrameResult WorkerImpl::doFrame(
     m_lastFrameTime = frameTime;
 
     auto env = GetJNIEnv();
+    tracer->beginSection("Rive/Frame");
+
+    tracer->beginSection("Rive/Frame/Advance");
     JNIExceptionHandler::CallVoidMethod(env,
                                         ktRenderer,
                                         m_ktAdvanceCallback,
                                         fElapsedMs);
+    tracer->endSection(); // Rive/Frame/Advance
 
-    tracer->beginSection("draw()");
+    tracer->beginSection("Rive/Frame/Draw");
 
+    tracer->beginSection("Rive/Frame/Draw/Begin");
     EGLResult prepareResult = prepareForDraw(threadState);
+    tracer->endSection(); // Rive/Frame/Draw/Begin
     if (!prepareResult.isSuccess())
     {
-        tracer->endSection(); // draw
+        tracer->endSection(); // Rive/Frame/Draw
+        tracer->endSection(); // Rive/Frame
         result.eglResult = prepareResult;
         return result;
     }
+
+    tracer->beginSection("Rive/Frame/Draw/Render");
     // Kotlin callback.
     JNIExceptionHandler::CallVoidMethod(env, ktRenderer, m_ktDrawCallback);
+    tracer->endSection(); // Rive/Frame/Draw/Render
 
-    tracer->beginSection("flush()");
+    tracer->beginSection("Rive/Frame/Draw/Flush");
     flush(threadState);
-    tracer->endSection(); // flush
+    tracer->endSection(); // Rive/Frame/Draw/Flush
 
-    tracer->beginSection("swapBuffers()");
+    tracer->beginSection("Rive/Frame/Draw/Present");
     EGLResult swapResult = threadState->swapBuffers();
-
-    tracer->endSection(); // swapBuffers
-    tracer->endSection(); // draw()
+    tracer->endSection(); // Rive/Frame/Draw/Present
+    tracer->endSection(); // Rive/Frame/Draw
+    tracer->endSection(); // Rive/Frame
     if (!swapResult.isSuccess())
     {
         result.eglResult = swapResult;

@@ -1,0 +1,44 @@
+plugins {
+    alias(libs.plugins.android.test)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = "app.rive.benchmark"
+    compileSdk = 36
+
+    targetProjectPath = ":app"
+    experimentalProperties["android.experimental.self-instrumenting"] = true
+
+    defaultConfig {
+        minSdk = 29
+        targetSdk = 36
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["androidx.benchmark.enabledRules"] = "Macrobenchmark"
+        // Keep benchmark runnable on local emulator-based development loops.
+        testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR,LOW-BATTERY"
+    }
+
+    buildTypes {
+        benchmark {
+            debuggable = false
+            matchingFallbacks = ["benchmark", "release"]
+            signingConfig = signingConfigs.debug
+        }
+    }
+
+    def javaVersion = JavaVersion.VERSION_11
+    compileOptions {
+        sourceCompatibility javaVersion
+        targetCompatibility javaVersion
+    }
+    kotlinOptions {
+        jvmTarget = javaVersion.toString()
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.benchmark.macro.junit4)
+    implementation(libs.androidx.test.ext.junit)
+    implementation(libs.androidx.test.uiautomator)
+}

@@ -14,6 +14,8 @@ interface CommandQueueBridge {
     fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
 
     fun cppPollMessages(pointer: Long)
+    fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
+    fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray)
     fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
@@ -426,6 +428,8 @@ interface CommandQueueBridge {
         clearColor: Int
     )
 
+    fun cppCancelDraw(pointer: Long, drawKey: Long)
+
     fun cppDrawToBuffer(
         pointer: Long,
         renderContextPointer: Long,
@@ -453,6 +457,8 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
 
     external override fun cppPollMessages(pointer: Long)
+    external override fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
+    external override fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray)
     external override fun cppDeleteFile(
@@ -868,6 +874,8 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         scaleFactor: Float,
         clearColor: Int
     )
+
+    external override fun cppCancelDraw(pointer: Long, drawKey: Long)
 
     external override fun cppDrawToBuffer(
         pointer: Long,

@@ -66,6 +66,27 @@ class StateMachine internal constructor(
     }
 
     /**
+     * Whether this state machine is owned by [worker].
+     *
+     * Useful for validating that multiple Rive resources can safely be used together.
+     *
+     * @param worker A worker reference to check ownership against.
+     * @return true if this state machine is owned by [worker], false otherwise.
+     */
+    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+
+    /**
+     * Whether this state machine was created from [artboard].
+     *
+     * Useful for validating resource compatibility before rendering.
+     *
+     * @param artboard An artboard to check the state machine's artboard against.
+     * @return true if this state machine was created from [artboard], false otherwise.
+     */
+    internal fun isFromArtboard(artboard: Artboard): Boolean =
+        artboardHandle == artboard.artboardHandle
+
+    /**
      * Advance the state machine by the given delta time in nanoseconds.
      *
      * @param deltaTime The delta time to advance the state machine by.

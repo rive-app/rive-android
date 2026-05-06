@@ -7,11 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.Fit
-import app.rive.RenderBuffer
 import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
+import app.rive.SoftwareRenderBuffer
 import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
@@ -100,7 +100,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
             else -> Fit.None() // Default to no layout for other scenarios
         }
 
-        RenderBuffer(width, height, file.riveWorker).use { buffer ->
+        SoftwareRenderBuffer(width, height, file.riveWorker).use { buffer ->
             Artboard.fromFile(file, config.artboardName).use { artboard ->
                 StateMachine.fromArtboard(artboard).use { stateMachine ->
                     ViewModelInstance.fromFile(
@@ -145,9 +145,13 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                                 stateMachine.advance(0.milliseconds)
                             }
                         }
-                        resultBitmap =
-                            buffer.snapshot(artboard, stateMachine, fit)
-                                .toBitmap()
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        resultBitmap = buffer.renderInto(
+                            bitmap = bitmap,
+                            artboard = artboard,
+                            stateMachine = stateMachine,
+                            fit = fit
+                        )
                     }
                 }
             }

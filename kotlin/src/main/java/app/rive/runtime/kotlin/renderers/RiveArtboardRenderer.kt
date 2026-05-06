@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.renderers
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.RiveLog
+import app.rive.core.traceSection
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
@@ -40,24 +41,28 @@ open class RiveArtboardRenderer(
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     open fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
-            // Read surface dimensions under frameLock so delete() cannot null cppPointer between
-            // hasCppObject checks and width/height dereference.
-            val (newWidth, newHeight) = synchronized(frameLock) {
-                if (!hasCppObject || !controller.isActive) return
-                Pair(width / scaleFactor, height / scaleFactor)
-            }
+            traceSection("Rive/Layout/ResizeArtboard") {
+                // Read surface dimensions under frameLock so delete() cannot null cppPointer between
+                // hasCppObject checks and width/height dereference.
+                val (newWidth, newHeight) = synchronized(frameLock) {
+                    if (!hasCppObject || !controller.isActive) return
+                    Pair(width / scaleFactor, height / scaleFactor)
+                }
 
-            // Acquire file lock only after the frameLock section to avoid lock-order inversion and
-            // serialize artboard mutations with controller/file lifecycle operations.
-            synchronized(controller.file?.lock ?: this) {
-                controller.activeArtboard?.apply {
-                    width = newWidth
-                    height = newHeight
+                // Acquire file lock only after the frameLock section to avoid lock-order inversion and
+                // serialize artboard mutations with controller/file lifecycle operations.
+                synchronized(controller.file?.lock ?: this) {
+                    controller.activeArtboard?.apply {
+                        width = newWidth
+                        height = newHeight
+                    }
                 }
             }
         } else {
-            synchronized(controller.file?.lock ?: this) {
-                controller.activeArtboard?.resetArtboardSize()
+            traceSection("Rive/Layout/ResetArtboardSize") {
+                synchronized(controller.file?.lock ?: this) {
+                    controller.activeArtboard?.resetArtboardSize()
+                }
             }
         }
     }

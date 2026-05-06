@@ -62,6 +62,16 @@ class ViewModelInstance internal constructor(
         }
     }
 
+    /**
+     * Whether this view model instance is owned by [worker].
+     *
+     * Useful for validating that multiple Rive resources can safely be used together.
+     *
+     * @param worker A worker reference to check ownership against.
+     * @return true if this view model instance is owned by [worker], false otherwise.
+     */
+    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+
     private val _dirtyFlow = MutableSharedFlow<Unit>(
         replay = 1,
         extraBufferCapacity = 1,

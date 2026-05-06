@@ -12,11 +12,11 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.Fit
-import app.rive.RenderBuffer
 import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
+import app.rive.SoftwareRenderBuffer
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
@@ -60,7 +60,7 @@ class RiveSnapshotActivity : ComponentActivity() {
 
     private suspend fun renderSnapshot(file: RiveFile) {
         val (width, height) = snapshotView.awaitSize()
-        RenderBuffer(width, height, file.riveWorker).use { buffer ->
+        SoftwareRenderBuffer(width, height, file.riveWorker).use { buffer ->
             Artboard.fromFile(file).use { artboard ->
                 StateMachine.fromArtboard(artboard).use { stateMachine ->
                     val targetTime = 500.milliseconds
@@ -68,12 +68,14 @@ class RiveSnapshotActivity : ComponentActivity() {
                     stateMachine.advance(0.milliseconds)
                     stateMachine.advance(targetTime)
 
-                    val bitmap = buffer.snapshot(
+                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    buffer.renderInto(
+                        bitmap = bitmap,
                         artboard = artboard,
                         stateMachine = stateMachine,
                         fit = Fit.Contain(),
                         clearColor = Color.WHITE
-                    ).toBitmap()
+                    )
 
                     snapshotView.updateBitmap(bitmap)
                 }

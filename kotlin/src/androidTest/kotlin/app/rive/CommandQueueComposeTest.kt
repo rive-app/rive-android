@@ -6,22 +6,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.core.CommandQueue
-import app.rive.runtime.kotlin.core.Rive
-import org.junit.Before
 import org.junit.Rule
 import org.junit.runner.RunWith
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @RunWith(AndroidJUnit4::class)
-class CommandQueueComposeTest {
-    @Before
+class CommandQueueComposeTest : RiveAndroidTest() {
+    @BeforeTest
     fun setup() {
-        Rive.init(InstrumentationRegistry.getInstrumentation().targetContext)
         // Disable frames to avoid tests not terminating due to rememberCommandQueue's polling loop
         composeRule.mainClock.autoAdvance = false
     }

@@ -1,102 +1,133 @@
+@file:Suppress("DEPRECATION")
+
 package app.rive
 
 import android.graphics.Bitmap
-import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
+import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
+import app.rive.core.traceSection
 
 /**
- * Represents the pixels produced by rendering a frame off-screen.
+ * Deprecated software-only legacy render buffer.
  *
- * Pixels are stored in RGBA byte order, top-left origin.
+ * This type remains for source compatibility and keeps the historical software render->read API.
+ * For new usage:
+ * - Use [SoftwareRenderBuffer] for synchronous CPU-backed rendering.
+ * - Use [HardwareRenderBuffer] for asynchronous GPU-backed rendering on API 29+.
  *
- * ⚠️ This class must be [closed][close] when you no longer need it to free its resources. The
- * buffer creates and manages its own image surface, which is closed when the buffer is closed.
- *
- * The buffer is initially empty; use [snapshot] to fill it with rendered content, then access the
- * image as a bitmap through [toBitmap] or [copyInto].
- *
- * @param width The width of the buffer in pixels.
- * @param height The height of the buffer in pixels.
- * @param riveWorker The Rive worker used to create the underlying image surface.
- * @throws IllegalArgumentException if [width] or [height] are not greater than zero.
+ * @see SoftwareRenderBuffer
+ * @see HardwareRenderBuffer
  */
+@Deprecated(
+    message = "RenderBuffer is deprecated. Use SoftwareRenderBuffer for software rendering or HardwareRenderBuffer for hardware rendering.",
+    replaceWith = ReplaceWith("SoftwareRenderBuffer(width, height, riveWorker)"),
+    level = DeprecationLevel.WARNING
+)
 class RenderBuffer(
     val width: Int,
     val height: Int,
-    riveWorker: RiveWorker
+    private val riveWorker: RiveWorker
 ) : CheckableAutoCloseable {
     init {
         require(width > 0 && height > 0) { "RenderBuffer width/height must be > 0" }
     }
 
-    private val closer = CloseOnce("RenderBuffer", { surface.close() })
-    override val closed = closer.closed
-    override fun close() = closer.close()
-
-    /**
-     * The underlying image surface for rendering. Useful to pass to [Artboard.resizeArtboard] when
-     * using [Fit.Layout]. See note in [snapshot].
-     */
+    /** Surface used for rendering and layout operations such as [Artboard.resizeArtboard]. */
     val surface: RiveSurface = riveWorker.createImageSurface(width, height)
 
-    /** The pixel data in RGBA byte order, top-left origin. */
+    private val closer = CloseOnce("RenderBuffer") {
+        surface.close()
+    }
+    override val closed: Boolean
+        get() = closer.closed
+
+    override fun close() = closer.close()
+
+    /** RGBA bytes filled by native drawToBuffer calls. */
     private val pixels: ByteArray = ByteArray(width * height * 4)
 
-    /** Scratch array for ARGB conversion. */
+    /** Scratch array reused for RGBA->ARGB conversion. */
     private val argbScratch by lazy(LazyThreadSafetyMode.NONE) { IntArray(width * height) }
 
     /**
-     * Fills the buffer with rendered content from the given artboard and state machine.
+     * Synchronously renders the artboard/state-machine into this software buffer.
      *
-     * The user is responsible for advancing the state machine to the desired time before calling
-     * this method.
-     *
-     * ⚠️ If you use [Fit.Layout] as your fit mode, first call [Artboard.resizeArtboard] with your
-     * given [Fit.Layout.scaleFactor] to layout the artboard within your given width and height. If
-     * you need to restore the dimensions afterwards, you can call [Artboard.resetArtboardSize].
-     * Also note that after calling either of these methods, you will need to
-     * [advance the state machine][StateMachine.advance], even if only by 0.
-     *
-     * @param artboard The artboard to snapshot.
-     * @param stateMachine The state machine to snapshot.
-     * @param fit The fit mode to use when rendering. Defaults to [Fit.Contain].
-     * @param clearColor The background color to use. Defaults to transparent.
-     * @return This buffer instance for method chaining.
+     * @throws IllegalArgumentException If [artboard] or [stateMachine] are not owned by this
+     *    buffer's worker, or if [stateMachine] was not created from [artboard].
+     * @throws IllegalStateException If this buffer's surface has been closed or the worker has
+     *    been released.
+     * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
      */
-    fun snapshot(
+    @Throws(
+        IllegalArgumentException::class,
+        IllegalStateException::class,
+        RiveDrawToBufferException::class
+    )
+    fun render(
         artboard: Artboard,
         stateMachine: StateMachine,
-        fit: Fit = Fit.Contain(),
-        clearColor: Int = Color.TRANSPARENT
+        fit: Fit = RenderingDefaults.defaultFit(),
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR
     ): RenderBuffer {
-        artboard.riveWorker.drawToBuffer(
-            artboard.artboardHandle,
-            stateMachine.stateMachineHandle,
-            surface,
-            pixels,
-            width,
-            height,
-            fit,
-            clearColor
-        )
+        require(artboard.isOwnedBy(riveWorker)) {
+            "RenderBuffer and Artboard must use the same RiveWorker"
+        }
+        require(stateMachine.isOwnedBy(riveWorker)) {
+            "RenderBuffer and StateMachine must use the same RiveWorker"
+        }
+        require(stateMachine.isFromArtboard(artboard)) {
+            "RenderBuffer StateMachine must be created from the supplied Artboard"
+        }
+        traceSection("Rive/RenderBuffer/Render") {
+            traceSection("Rive/RenderBuffer/Software/DrawToBuffer") {
+                artboard.riveWorker.drawToBuffer(
+                    artboard.artboardHandle,
+                    stateMachine.stateMachineHandle,
+                    surface,
+                    pixels,
+                    width,
+                    height,
+                    fit,
+                    clearColor
+                )
+            }
+        }
         return this
     }
 
     /**
-     * Fill an existing bitmap with the contents of the buffer. The supplied bitmap must match the
-     * existing width, height, and ARGB_8888 format.
+     * Backward-compatible alias for [render].
      *
-     * @param bitmap The bitmap to fill.
-     * @return The same filled bitmap.
-     * @throws IllegalArgumentException if the bitmap does not match the buffer's dimensions or
-     *    format.
+     * @throws IllegalArgumentException If [artboard] or [stateMachine] are not owned by this
+     *    buffer's worker, or if [stateMachine] was not created from [artboard].
+     * @throws IllegalStateException If this buffer's surface has been closed or the worker has
+     *    been released.
+     * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
+     * @see render
      */
-    @Throws(IllegalArgumentException::class)
-    fun copyInto(bitmap: Bitmap): Bitmap {
+    @Deprecated(
+        message = "Use render(...) instead.",
+        replaceWith = ReplaceWith("render(artboard, stateMachine, fit, clearColor)"),
+        level = DeprecationLevel.WARNING
+    )
+    @Throws(
+        IllegalArgumentException::class,
+        IllegalStateException::class,
+        RiveDrawToBufferException::class
+    )
+    fun snapshot(
+        artboard: Artboard,
+        stateMachine: StateMachine,
+        fit: Fit = RenderingDefaults.defaultFit(),
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR
+    ): RenderBuffer = render(artboard, stateMachine, fit, clearColor)
+
+    /** Copies this buffer's latest rendered software pixels into [bitmap]. */
+    fun copyInto(bitmap: Bitmap): Bitmap = traceSection("Rive/RenderBuffer/CopyInto") {
         require(
             bitmap.width == width &&
                     bitmap.height == height &&
@@ -104,29 +135,26 @@ class RenderBuffer(
         ) { "Bitmap must be ${width}x$height ARGB_8888" }
 
         val argb = argbScratch
-        var i = 0
-        var pixel = 0
-        while (i < pixels.size) {
-            val r = pixels[i].toInt() and 0xFF
-            val g = pixels[i + 1].toInt() and 0xFF
-            val b = pixels[i + 2].toInt() and 0xFF
-            val a = pixels[i + 3].toInt() and 0xFF
-            argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
-            i += 4
+        traceSection("Rive/RenderBuffer/Software/ConvertRgbaToArgb") {
+            var i = 0
+            var pixel = 0
+            while (i < pixels.size) {
+                val r = pixels[i].toInt() and 0xFF
+                val g = pixels[i + 1].toInt() and 0xFF
+                val b = pixels[i + 2].toInt() and 0xFF
+                val a = pixels[i + 3].toInt() and 0xFF
+                argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
+                i += 4
+            }
         }
-        bitmap.setPixels(argb, 0, width, 0, 0, width, height)
-        return bitmap
+        traceSection("Rive/RenderBuffer/Software/SetPixels") {
+            bitmap.setPixels(argb, 0, width, 0, 0, width, height)
+        }
+        bitmap
     }
 
-    /**
-     * Converts the buffer into an [Bitmap.Config.ARGB_8888] bitmap.
-     *
-     * If you already have a bitmap to reuse, consider using [copyInto] instead to avoid
-     * allocations.
-     *
-     * @return A new bitmap with the contents of the buffer.
-     * @see copyInto
-     */
-    fun toBitmap(): Bitmap =
+    /** Returns a new ARGB_8888 bitmap containing the latest rendered software pixels. */
+    fun toBitmap(): Bitmap = traceSection("Rive/RenderBuffer/ToBitmap") {
         copyInto(createBitmap(width, height, Bitmap.Config.ARGB_8888))
+    }
 }

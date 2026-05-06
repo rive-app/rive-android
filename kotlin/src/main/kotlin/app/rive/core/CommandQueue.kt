@@ -16,6 +16,7 @@ import app.rive.RiveFile
 import app.rive.RiveFileException
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
+import app.rive.RiveRenderException
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
@@ -101,11 +102,13 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  *    supported. The CommandQueue takes ownership of the passed context.
  * @param bridge The [CommandQueueBridge] to use for native implementation. Leave as default - used
  *    for testing.
+ * @param tracingEnabled Whether native command server tracing should start enabled for this worker.
  * @throws RiveInitializationException If the command queue cannot be created for any reason.
  */
 class CommandQueue(
     private val renderContext: RenderContext = RenderContextGL(),
     private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
+    tracingEnabled: Boolean = false,
 ) : RefCounted {
     companion object {
         /**
@@ -121,6 +124,10 @@ class CommandQueue(
         ::dispose
     )
     private var listeners = bridge.cppCreateListeners(cppPointer.pointer, this)
+
+    init {
+        setTracingEnabled(tracingEnabled)
+    }
 
     /**
      * Cleanup to be performed when the ref count reaches 0.
@@ -142,11 +149,27 @@ class CommandQueue(
 
     // Implement the RefCounted interface by delegating to cppPointer
     override fun acquire(source: String) = cppPointer.acquire(source)
-    override fun release(source: String, reason: String) = cppPointer.release(source, reason)
+    override fun release(source: String, reason: String) {
+        check(!bridge.isCurrentThreadCommandServer(cppPointer.pointer)) {
+            "CommandQueue.release() cannot be called from the command server thread as then it " +
+                    "may attempt to join itself. Source: $source. Reason: $reason"
+        }
+        cppPointer.release(source, reason)
+    }
+
     override val refCount: Int
         get() = cppPointer.refCount
     override val isDisposed: Boolean
         get() = cppPointer.isDisposed
+
+    /**
+     * Enables or disables native command-server tracing for draw and advance work.
+     *
+     * This setting applies to the entire worker and takes effect for subsequent draw/advance calls.
+     */
+    fun setTracingEnabled(enabled: Boolean) {
+        bridge.cppSetTracingEnabled(cppPointer.pointer, enabled)
+    }
 
     /**
      * Tie this CommandQueue's lifetime to a LifecycleOwner. This will call [release] when the
@@ -326,42 +349,94 @@ class CommandQueue(
      * @see [beginPolling]
      */
     @Throws(IllegalStateException::class)
-    fun pollMessages() = bridge.cppPollMessages(cppPointer.pointer)
+    fun pollMessages() {
+        traceSection("Rive/PollMessages") {
+            bridge.cppPollMessages(cppPointer.pointer)
+        }
+    }
 
     /**
      * Create a Rive rendering surface for Rive to draw into.
      *
+     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
+     *
      * @param surfaceTexture The Android [SurfaceTexture], likely coming from a [TextureView].
      * @return A [RiveSurface] that can be used for rendering.
-     * @throws RuntimeException If the surface could not be created.
+     * @throws RiveRenderException If the underlying Android or backend surface cannot be created.
+     * @throws IllegalStateException If this command queue has been released.
      */
-    @Throws(RuntimeException::class)
+    @Deprecated(
+        "Use createRiveSurface(SurfaceTextureSurface(surfaceTexture)) instead.",
+        ReplaceWith("createRiveSurface(SurfaceTextureSurface(surfaceTexture))")
+    )
+    @Throws(RiveRenderException::class, IllegalStateException::class)
     fun createRiveSurface(surfaceTexture: SurfaceTexture): RiveSurface =
-        renderContext.createSurface(surfaceTexture, nextDrawKey(), this)
+        createRiveSurface(SurfaceTextureSurface(surfaceTexture))
+
+    /**
+     * Create a Rive rendering surface for Rive to draw into.
+     *
+     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
+     *
+     * Uses the concrete render context to create an appropriate surface for the backend.
+     *
+     * @param surface Owned Android surface source. This command queue takes ownership and closes it
+     *    if surface creation fails or when the created [RiveSurface] is destroyed on the command
+     *    server thread.
+     * @return A [RiveSurface] that can be used for rendering.
+     * @throws RiveRenderException If the underlying Android or backend surface cannot be created.
+     * @throws IllegalStateException If this command queue has been released.
+     */
+    @Throws(RiveRenderException::class, IllegalStateException::class)
+    fun createRiveSurface(
+        surface: CloseableSurface
+    ): RiveSurface {
+        return try {
+            renderContext.createSurface(surface, nextDrawKey(), this)
+        } catch (e: Throwable) {
+            // Do not leak the Android resources if surface creation fails.
+            surface.close()
+            throw e
+        }
+    }
 
     /**
      * Create an off-screen image surface for rendering to a buffer.
      *
+     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
+     *
+     * Uses the concrete render context to create an appropriate surface for the backend.
+     *
      * @param width The width of the image surface in pixels.
      * @param height The height of the image surface in pixels.
      * @return A [RiveSurface] that can be used for off-screen rendering.
-     * @throws RuntimeException If the surface could not be created.
+     * @throws IllegalArgumentException If [width] or [height] is not positive.
+     * @throws RiveRenderException If the backend cannot create an off-screen surface.
+     * @throws IllegalStateException If this command queue has been released.
      */
-    @Throws(RuntimeException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        RiveRenderException::class,
+        IllegalStateException::class
+    )
     fun createImageSurface(width: Int, height: Int): RiveSurface =
         renderContext.createImageSurface(width, height, nextDrawKey(), this)
 
     /**
      * Destroy a Rive rendering surface. The surface will not be valid for use after this call.
      *
-     * This runs on the command server thread to ensure that any in-flight draw commands finish with
-     * a valid [SurfaceTexture].
+     * [RiveSurface.close] is safe to call directly and schedules ordered disposal on this surface's
+     * owning command queue.
      *
      * @param surface The [RiveSurface] to destroy.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Deprecated(
+        "Call RiveSurface.close() directly.",
+        ReplaceWith("surface.close()")
+    )
     @Throws(IllegalStateException::class)
-    fun destroyRiveSurface(surface: RiveSurface) = runOnCommandServer { surface.close() }
+    fun destroyRiveSurface(surface: RiveSurface) = surface.close()
 
     /**
      * Creates a Rive render target on the command server thread. This is a synchronous call that
@@ -2131,20 +2206,23 @@ class CommandQueue(
      * @param surface The surface whose width and height will be used to resize the artboard.
      * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
      *    surface dimensions divided by this factor.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(IllegalStateException::class)
     fun resizeArtboard(
         artboardHandle: ArtboardHandle,
         surface: RiveSurface,
         scaleFactor: Float = 1f
-    ) = bridge.cppResizeArtboard(
-        cppPointer.pointer,
-        artboardHandle.handle,
-        surface.width,
-        surface.height,
-        scaleFactor
-    )
+    ) {
+        check(!surface.closed) { "Cannot resize a closed RiveSurface" }
+        bridge.cppResizeArtboard(
+            cppPointer.pointer,
+            artboardHandle.handle,
+            surface.width,
+            surface.height,
+            scaleFactor
+        )
+    }
 
     /**
      * Resets an artboard to its original dimensions.
@@ -2171,7 +2249,7 @@ class CommandQueue(
      * @param surface The surface to draw to.
      * @param fit The fit mode of the artboard.
      * @param clearColor The color to clear the surface with before drawing, in AARRGGBB format.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(IllegalStateException::class)
     fun draw(
@@ -2180,21 +2258,38 @@ class CommandQueue(
         surface: RiveSurface,
         fit: Fit,
         clearColor: Int = Color.TRANSPARENT
-    ) = bridge.cppDraw(
-        cppPointer.pointer,
-        renderContext.nativeObjectPointer,
-        surface.surfaceNativePointer,
-        surface.drawKey.handle,
-        artboardHandle.handle,
-        stateMachineHandle.handle,
-        surface.renderTargetPointer.pointer,
-        surface.width,
-        surface.height,
-        fit.nativeMapping,
-        fit.alignment.nativeMapping,
-        fit.scaleFactor,
-        clearColor
-    )
+    ) {
+        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        bridge.cppDraw(
+            cppPointer.pointer,
+            renderContext.nativeObjectPointer,
+            surface.surfaceNativePointer,
+            surface.drawKey.handle,
+            artboardHandle.handle,
+            stateMachineHandle.handle,
+            surface.renderTargetPointer.pointer,
+            surface.width,
+            surface.height,
+            fit.nativeMapping,
+            fit.alignment.nativeMapping,
+            fit.scaleFactor,
+            clearColor
+        )
+    }
+
+    /**
+     * Cancel a pending coalesced draw for the given draw key.
+     *
+     * This is used by [RiveSurface.close] to prevent a queued draw from presenting to a surface
+     * that is being disposed. Cancellation is best-effort within command-server batching: draws
+     * already admitted to execution may still complete.
+     *
+     * @param drawKey The draw key to cancel.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    internal fun cancelDraw(drawKey: DrawKey) =
+        bridge.cppCancelDraw(cppPointer.pointer, drawKey.handle)
 
     /**
      * Renders the current state of an artboard/state machine pair into an off-screen buffer that
@@ -2214,7 +2309,7 @@ class CommandQueue(
      * @param clearColor Clear color used prior to drawing, defaults to transparent.
      * @throws RiveDrawToBufferException If the buffer could not be drawn to for any reason. Further
      *    details can be found in the exception message.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(RiveDrawToBufferException::class, IllegalStateException::class)
     fun drawToBuffer(
@@ -2226,22 +2321,25 @@ class CommandQueue(
         height: Int,
         fit: Fit = Fit.Contain(),
         clearColor: Int = Color.TRANSPARENT
-    ) = bridge.cppDrawToBuffer(
-        cppPointer.pointer,
-        renderContext.nativeObjectPointer,
-        surface.surfaceNativePointer,
-        surface.drawKey.handle,
-        artboardHandle.handle,
-        stateMachineHandle.handle,
-        surface.renderTargetPointer.pointer,
-        width,
-        height,
-        fit.nativeMapping,
-        fit.alignment.nativeMapping,
-        fit.scaleFactor,
-        clearColor,
-        buffer
-    )
+    ) {
+        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        bridge.cppDrawToBuffer(
+            cppPointer.pointer,
+            renderContext.nativeObjectPointer,
+            surface.surfaceNativePointer,
+            surface.drawKey.handle,
+            artboardHandle.handle,
+            stateMachineHandle.handle,
+            surface.renderTargetPointer.pointer,
+            width,
+            height,
+            fit.nativeMapping,
+            fit.alignment.nativeMapping,
+            fit.scaleFactor,
+            clearColor,
+            buffer
+        )
+    }
 
     /**
      * Enqueue arbitrary Kotlin code to be run on the command server thread.
@@ -2256,7 +2354,7 @@ class CommandQueue(
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
-    private fun runOnCommandServer(work: () -> Unit) =
+    internal fun runOnCommandServer(work: () -> Unit) =
         bridge.cppRunOnCommandServer(cppPointer.pointer, work)
 
     /**

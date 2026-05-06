@@ -31,6 +31,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             signingConfig = signingConfigs.debug
         }
+        benchmark {
+            initWith(release)
+            matchingFallbacks = ['release']
+            debuggable false
+            profileable true
+            signingConfig = signingConfigs.debug
+        }
         preview {
             debuggable true
             minifyEnabled false
@@ -86,6 +93,7 @@ dependencies {
     implementation(libs.google.material)
 
     debugImplementation project(path: ":kotlin")
+    benchmarkImplementation project(path: ":kotlin")
     releaseImplementation project(path: ":kotlin")
     previewImplementation(libs.rive.android.preview)
 

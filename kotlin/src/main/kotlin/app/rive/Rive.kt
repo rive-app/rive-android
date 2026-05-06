@@ -2,7 +2,6 @@ package app.rive
 
 import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
-import android.view.Surface
 import android.view.TextureView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -15,8 +14,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -29,10 +26,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.RivePointerInputMode.Consume
-import app.rive.RivePointerInputMode.Observe
 import app.rive.RivePointerInputMode.PassThrough
 import app.rive.core.RebuggerWrapper
+import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
+import app.rive.core.SurfaceTextureSurface
+import app.rive.core.traceSection
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.nanoseconds
@@ -173,8 +172,8 @@ fun Rive(
     artboard: Artboard? = null,
     stateMachine: StateMachine? = null,
     viewModelInstance: ViewModelInstance? = null,
-    fit: Fit = Fit.Contain(),
-    backgroundColor: Int = Color.Transparent.toArgb(),
+    fit: Fit = RenderingDefaults.defaultFit(),
+    backgroundColor: Int = RenderingDefaults.CLEAR_COLOR,
     pointerInputMode: RivePointerInputMode = Consume,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
@@ -200,7 +199,7 @@ fun Rive(
     DisposableEffect(surface) {
         val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
         onDispose {
-            riveWorker.destroyRiveSurface(nonNullSurface)
+            nonNullSurface.close()
         }
     }
 
@@ -273,13 +272,17 @@ fun Rive(
         val activeSurface = surface ?: return@LaunchedEffect
         when (fit) {
             is Fit.Layout -> {
-                RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
-                artboardToUse.resizeArtboard(activeSurface, fit.scaleFactor)
+                traceSection("Rive/Layout/ResizeArtboard") {
+                    RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
+                    artboardToUse.resizeArtboard(activeSurface, fit.scaleFactor)
+                }
             }
 
             else -> {
-                RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
-                artboardToUse.resetArtboardSize()
+                traceSection("Rive/Layout/ResetArtboardSize") {
+                    RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
+                    artboardToUse.resetArtboardSize()
+                }
             }
         }
     }
@@ -304,20 +307,26 @@ fun Rive(
                 "Playing is false. Advancing by 0, drawing once, and skipping advancement loop."
             }
 
-            // Advance the state machine once to exit the "Entry" state and apply initial values,
-            // including any pending artboard resizes from the fit mode.
-            stateMachineToUse.advance(0.nanoseconds)
-            val drawSurface = surface ?: run {
-                RiveLog.d(DRAW_TAG) { "Surface was released before draw, skipping frame" }
-                return@LaunchedEffect
+            traceSection("Rive/Frame") {
+                traceSection("Rive/Frame/Advance") {
+                    // Advance the state machine once to exit the "Entry" state and apply initial values,
+                    // including any pending artboard resizes from the fit mode.
+                    stateMachineToUse.advance(0.nanoseconds)
+                }
+                val drawSurface = surface ?: run {
+                    RiveLog.d(DRAW_TAG) { "Surface was released before draw, skipping frame" }
+                    return@traceSection
+                }
+                traceSection("Rive/Frame/Draw") {
+                    riveWorker.draw(
+                        artboardHandle,
+                        stateMachineHandle,
+                        drawSurface,
+                        fit,
+                        backgroundColor
+                    )
+                }
             }
-            riveWorker.draw(
-                artboardHandle,
-                stateMachineHandle,
-                drawSurface,
-                fit,
-                backgroundColor
-            )
 
             return@LaunchedEffect
         }
@@ -325,6 +334,9 @@ fun Rive(
             RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
             var lastFrameTime = 0.nanoseconds
             while (isActive) {
+                // Because we cannot break the outer loop directly from inside a traceSection lambda
+                var stopDrawLoop = false
+
                 val deltaTime = withFrameNanos { frameTimeNs ->
                     val frameTime = frameTimeNs.nanoseconds
                     (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
@@ -332,25 +344,34 @@ fun Rive(
                     }
                 }
 
-                // Skip advance and draw when settled
-                if (isSettled) {
-                    continue
+                traceSection("Rive/Frame") {
+                    // Skip advance and draw when settled.
+                    if (isSettled) {
+                        traceSection("Rive/Frame/SettledSkip") { Unit }
+                    } else {
+                        val drawSurface = surface
+                        if (drawSurface == null) {
+                            RiveLog.d(DRAW_TAG) { "Surface was released during draw, stopping draw loop" }
+                            stopDrawLoop = true
+                            return@traceSection
+                        }
+                        traceSection("Rive/Frame/Advance") {
+                            riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                        }
+                        traceSection("Rive/Frame/Draw") {
+                            riveWorker.draw(
+                                artboardHandle,
+                                stateMachineHandle,
+                                drawSurface,
+                                fit,
+                                backgroundColor
+                            )
+                        }
+                    }
                 }
-
-                // Guard against the surface being released mid-frame.
-                val drawSurface = surface ?: run {
-                    RiveLog.d(DRAW_TAG) { "Surface was released mid-frame, stopping draw loop" }
+                if (stopDrawLoop) {
                     return@repeatOnLifecycle
                 }
-
-                riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
-                riveWorker.draw(
-                    artboardHandle,
-                    stateMachineHandle,
-                    drawSurface,
-                    fit,
-                    backgroundColor
-                )
             }
             RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
         }
@@ -385,41 +406,43 @@ fun Rive(
                     pass: PointerEventPass,
                     bounds: IntSize
                 ) {
-                    // Only handle the main pass so we don't double-dispatch.
-                    if (pass != PointerEventPass.Main) return
+                    traceSection("Rive/PointerInput") {
+                        // Only handle the main pass so we don't double-dispatch.
+                        if (pass != PointerEventPass.Main) return@traceSection
 
-                    // Pointer events unsettle the state machine.
-                    isSettled = false
+                        // Pointer events unsettle the state machine.
+                        isSettled = false
 
-                    val pointerFns = when (pointerEvent.type) {
-                        PointerEventType.Move -> listOf(riveWorker::pointerMove)
-                        // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
-                        PointerEventType.Release -> listOf(
-                            riveWorker::pointerUp,
-                            riveWorker::pointerExit
-                        )
-
-                        PointerEventType.Press -> listOf(riveWorker::pointerDown)
-                        PointerEventType.Exit -> listOf(riveWorker::pointerExit)
-                        else -> return // Ignore other pointer events
-                    }
-
-                    pointerEvent.changes.forEach { change ->
-                        val pointerPosition = change.position
-                        pointerFns.forEach { fn ->
-                            fn(
-                                stateMachineHandle,
-                                fit,
-                                surfaceWidth.toFloat(),
-                                surfaceHeight.toFloat(),
-                                change.id.value.toInt(),
-                                pointerPosition.x,
-                                pointerPosition.y
+                        val pointerFns = when (pointerEvent.type) {
+                            PointerEventType.Move -> listOf(riveWorker::pointerMove)
+                            // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
+                            PointerEventType.Release -> listOf(
+                                riveWorker::pointerUp,
+                                riveWorker::pointerExit
                             )
+
+                            PointerEventType.Press -> listOf(riveWorker::pointerDown)
+                            PointerEventType.Exit -> listOf(riveWorker::pointerExit)
+                            else -> return@traceSection // Ignore other pointer events
                         }
-                        // Only consume in Consume mode. Observe/PassThrough do not consume.
-                        if (pointerInputMode == Consume) {
-                            change.consume()
+
+                        pointerEvent.changes.forEach { change ->
+                            val pointerPosition = change.position
+                            pointerFns.forEach { fn ->
+                                fn(
+                                    stateMachineHandle,
+                                    fit,
+                                    surfaceWidth.toFloat(),
+                                    surfaceHeight.toFloat(),
+                                    change.id.value.toInt(),
+                                    pointerPosition.x,
+                                    pointerPosition.y
+                                )
+                            }
+                            // Only consume in Consume mode. Observe/PassThrough do not consume.
+                            if (pointerInputMode == Consume) {
+                                change.consume()
+                            }
                         }
                     }
                 }
@@ -443,7 +466,9 @@ fun Rive(
                             height: Int
                         ) {
                             RiveLog.d(GENERAL_TAG) { "Surface texture available ($width x $height)" }
-                            surface = riveWorker.createRiveSurface(newSurfaceTexture)
+                            surface = riveWorker.createRiveSurface(
+                                SurfaceTextureSurface(newSurfaceTexture)
+                            )
                             surfaceWidth = width
                             surfaceHeight = height
                             // Because this is a new surface, we send a fresh callback
@@ -454,8 +479,8 @@ fun Rive(
                             RiveLog.d(GENERAL_TAG) { "Surface texture destroyed (final release deferred to RenderContext disposal)" }
                             surface = null
                             bitmapCallbackSent = false
-                            // False here means that we are responsible for destroying the surface texture
-                            // This happens in RenderContext::close(), called from RiveWorker::destroyRiveSurface
+                            // False here means that we are responsible for destroying the surface texture.
+                            // This happens when the RiveSurface is closed.
                             return false
                         }
 

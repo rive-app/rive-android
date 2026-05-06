@@ -34,6 +34,8 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * This function throws a [RuntimeException] if the Rive worker cannot be created. If you want to
  * handle failure gracefully, use [rememberRiveWorkerOrNull] instead.
  *
+ * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
+ * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  * @see RiveWorker
@@ -41,9 +43,12 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  */
 @Composable
 @Throws(RiveInitializationException::class)
-fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
+fun rememberRiveWorker(
+    autoPoll: Boolean = true,
+    tracingEnabled: Boolean = false,
+): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
-    val riveWorker = rememberRiveWorkerOrNull(errorState, autoPoll)
+    val riveWorker = rememberRiveWorkerOrNull(errorState, autoPoll, tracingEnabled)
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
         errorState.value
@@ -59,6 +64,8 @@ fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
  *
  * @param errorState A mutable state that holds the error if the Rive worker creation fails. Useful
  *    if you want to display or pass the error.
+ * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
+ * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @return The created [RiveWorker], or null if creation failed.
  * @see rememberRiveWorker
  */
@@ -66,16 +73,23 @@ fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
 fun rememberRiveWorkerOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null),
     autoPoll: Boolean = true,
+    tracingEnabled: Boolean = false,
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
     val worker = remember {
-        runCatching { RiveWorker() }
+        runCatching { RiveWorker(tracingEnabled = tracingEnabled) }
             .onFailure {
                 if (errorState.value == null) {
                     errorState.value = it
                 }
                 RiveLog.e(RIVE_WORKER_TAG) { "Failed to create Rive worker: ${it.message}" }
             }.getOrNull()
+    }
+
+    // Apply runtime tracing toggle changes without recreating the worker.
+    LaunchedEffect(worker, tracingEnabled) {
+        if (worker == null) return@LaunchedEffect
+        worker.setTracingEnabled(tracingEnabled)
     }
 
     /**

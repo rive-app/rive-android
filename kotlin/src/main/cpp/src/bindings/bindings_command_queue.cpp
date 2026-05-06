@@ -13,6 +13,7 @@
 #include "helpers/image_decode.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
+#include "helpers/tracer.hpp"
 #include "models/jni_renderer.hpp"
 #include "models/render_context.hpp"
 #include "rive/animation/state_machine_instance.hpp"
@@ -671,6 +672,7 @@ public:
                                              self,
                                              promise =
                                                  std::move(promise)]() mutable {
+            self->m_commandServerThreadId = std::this_thread::get_id();
             const auto THREAD_NAME = "Rive CmdServer";
             JNIEnv* env = nullptr;
             JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
@@ -782,6 +784,13 @@ public:
         }
     }
 
+    void setTracingEnabled(bool enabled) { m_tracingEnabled = enabled; }
+    bool tracingEnabled() const { return m_tracingEnabled; }
+    bool isCurrentThreadCommandServer() const
+    {
+        return std::this_thread::get_id() == m_commandServerThreadId;
+    }
+
     /**
      * Check if we've logged a missing artboard error already for this draw
      * key.
@@ -802,10 +811,149 @@ public:
 
 private:
     std::thread m_commandServerThread;
+    std::thread::id m_commandServerThreadId;
+    // CommandQueue JNI calls are currently required to run on the main
+    // thread, so this remains a plain bool. If it changes to accept commands
+    // from other threads, this should become atomic.
+    bool m_tracingEnabled = false;
     // Holds that an error has been reported, to avoid log spam
     std::unordered_set<rive::DrawKey> m_artboardNullKeys;
     std::unordered_set<rive::DrawKey> m_stateMachineNullKeys;
 };
+
+/**
+ * Execute one traced state machine advance on the command server thread.
+ *
+ * Necessary because command server's advance command cannot be extended to
+ * include tracing. To avoid three queued messages for trace begin/advance/end,
+ * we advance directly in one runOnce callback.
+ *
+ * If the passed state machine handle fails to resolve or if the advance would
+ * cause a settle, we send an additional advance command to ensure the error or
+ * settled handlers respectively are called.
+ */
+static void executeTracedAdvanceWork(
+    const Tracer* tracer,
+    rive::CommandQueue* commandQueue,
+    rive::CommandServer* server,
+    rive::StateMachineHandle stateMachineHandle,
+    float_t deltaSeconds)
+{
+    TraceScope<Tracer> advanceTrace(*tracer, "Rive/Frame/Advance");
+    auto* stateMachine = server->getStateMachineInstance(stateMachineHandle);
+
+    // When the state machine handle fails to resolve, preserve existing error
+    // callback behavior through the standard command.
+    if (stateMachine == nullptr)
+    {
+        commandQueue->advanceStateMachine(stateMachineHandle, deltaSeconds);
+        return;
+    }
+
+    // If the advance results in the state machine settling, preserve settled
+    // callback behavior with an extra command to advance by 0.
+    if (!stateMachine->advanceAndApply(deltaSeconds))
+    {
+        commandQueue->advanceStateMachine(stateMachineHandle, 0.0f);
+    }
+}
+
+/**
+ * Execute one draw on the command-server thread.
+ *
+ * This helper is templated so traced and non-traced paths share one draw
+ * implementation without duplicating frame logic. The tracer type is chosen
+ * at the call site (`Tracer` or `NoopTracer`).
+ */
+template <typename TracerType>
+static void executeDrawWork(const TracerType* tracer,
+                            CommandQueueWithThread* commandQueue,
+                            RenderContext* renderContext,
+                            void* nativeSurface,
+                            jlong artboardHandleRef,
+                            jlong stateMachineHandleRef,
+                            rive::gpu::RenderTargetGL* renderTarget,
+                            int width,
+                            int height,
+                            rive::Fit fit,
+                            rive::Alignment alignment,
+                            uint32_t clearColor,
+                            float_t scaleFactor,
+                            rive::DrawKey drawKey,
+                            rive::CommandServer* server)
+{
+    auto artboard = server->getArtboardInstance(
+        handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
+    if (artboard == nullptr)
+    {
+        if (commandQueue->shouldLogArtboardNull(drawKey))
+        {
+            RiveLogE(
+                TAG_CQ,
+                "Draw failed: Artboard instance is null (only reported once)");
+        }
+        return;
+    }
+
+    auto stateMachine = server->getStateMachineInstance(
+        handleFromLong<rive::StateMachineHandle>(stateMachineHandleRef));
+    if (stateMachine == nullptr)
+    {
+        if (commandQueue->shouldLogStateMachineNull(drawKey))
+        {
+            RiveLogE(
+                TAG_CQ,
+                "Draw failed: State machine instance is null (only reported once)");
+        }
+        return;
+    }
+
+    [[maybe_unused]]
+    TraceScope<TracerType> drawTrace(*tracer, "Rive/Frame/Draw");
+
+    auto factory = reinterpret_cast<CommandServerFactory*>(server->factory());
+    auto riveContext = factory->getRenderContext()->riveContext.get();
+    {
+        [[maybe_unused]]
+        TraceScope<TracerType> beginTrace(*tracer, "Rive/Frame/Draw/Begin");
+        renderContext->beginFrame(nativeSurface);
+        riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
+            .renderTargetWidth = static_cast<uint32_t>(width),
+            .renderTargetHeight = static_cast<uint32_t>(height),
+            .loadAction = rive::gpu::LoadAction::clear,
+            .clearColor = clearColor,
+        });
+    }
+
+    {
+        [[maybe_unused]]
+        TraceScope<TracerType> renderTrace(*tracer, "Rive/Frame/Draw/Render");
+        auto renderer = rive::RiveRenderer(riveContext);
+        renderer.align(fit,
+                       alignment,
+                       rive::AABB(0.0f,
+                                  0.0f,
+                                  static_cast<float_t>(width),
+                                  static_cast<float_t>(height)),
+                       artboard->bounds(),
+                       scaleFactor);
+        artboard->draw(&renderer);
+    }
+
+    {
+        [[maybe_unused]]
+        TraceScope<TracerType> flushTrace(*tracer, "Rive/Frame/Draw/Flush");
+        riveContext->flush({
+            .renderTarget = renderTarget,
+        });
+    }
+
+    {
+        [[maybe_unused]]
+        TraceScope<TracerType> presentTrace(*tracer, "Rive/Frame/Draw/Present");
+        renderContext->present(nativeSurface);
+    }
+}
 
 extern "C"
 {
@@ -892,6 +1040,17 @@ extern "C"
         commandQueue->unref();
     }
 
+    JNIEXPORT jboolean JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_isCurrentThreadCommandServer(
+        JNIEnv*,
+        jobject,
+        jlong ref)
+    {
+        auto commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        return commandQueue->isCurrentThreadCommandServer() ? JNI_TRUE
+                                                            : JNI_FALSE;
+    }
+
     JNIEXPORT jobject JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppCreateListeners(
         JNIEnv* env,
@@ -944,6 +1103,17 @@ extern "C"
     {
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         commandQueue->processMessages();
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetTracingEnabled(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jboolean enabled)
+    {
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        commandQueue->setTracingEnabled(static_cast<bool>(enabled));
     }
 
     JNIEXPORT void JNICALL
@@ -1192,11 +1362,33 @@ extern "C"
         jlong stateMachineHandle,
         jlong deltaTimeNs)
     {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        auto stateMachine =
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandle);
         auto deltaSeconds = static_cast<float_t>(deltaTimeNs) / 1e9f; // NS to S
-        commandQueue->advanceStateMachine(
-            handleFromLong<rive::StateMachineHandle>(stateMachineHandle),
-            deltaSeconds);
+
+        const bool enableTracing = commandQueue->tracingEnabled();
+
+        // When tracing, we want to measure the execution on the command server
+        // thread, but we can't extend that command. So we instead use runOnce
+        // to replicate the implementation.
+        if (enableTracing)
+        {
+            const Tracer* tracerPtr = &defaultTracer();
+            commandQueue->runOnce(
+                [tracerPtr, commandQueue, stateMachine, deltaSeconds](
+                    rive::CommandServer* server) {
+                    executeTracedAdvanceWork(tracerPtr,
+                                             commandQueue,
+                                             server,
+                                             stateMachine,
+                                             deltaSeconds);
+                });
+        }
+        else
+        {
+            commandQueue->advanceStateMachine(stateMachine, deltaSeconds);
+        }
     }
 
     JNIEXPORT jlong JNICALL
@@ -2229,85 +2421,61 @@ extern "C"
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
+        const bool enableTracing = commandQueue->tracingEnabled();
 
-        auto drawWork = [commandQueue,
-                         renderContext,
-                         nativeSurface,
-                         artboardHandleRef,
-                         stateMachineHandleRef,
-                         renderTarget,
-                         width,
-                         height,
-                         fit,
-                         alignment,
-                         clearColor,
-                         scaleFactor](rive::DrawKey drawKey,
-                                      rive::CommandServer* server) {
-            auto artboard = server->getArtboardInstance(
-                handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
-            if (artboard == nullptr)
-            {
-                if (commandQueue->shouldLogArtboardNull(drawKey))
-                {
-                    RiveLogE(
-                        TAG_CQ,
-                        "Draw failed: Artboard instance is null (only reported once)");
-                }
-                return;
-            }
-
-            auto stateMachine = server->getStateMachineInstance(
-                handleFromLong<rive::StateMachineHandle>(
-                    stateMachineHandleRef));
-            if (stateMachine == nullptr)
-            {
-                if (commandQueue->shouldLogStateMachineNull(drawKey))
-                {
-                    RiveLogE(
-                        TAG_CQ,
-                        "Draw failed: State machine instance is null (only reported once)");
-                }
-                return;
-            }
-
-            // Render backend specific - make the context current
-            renderContext->beginFrame(nativeSurface);
-
-            // Retrieve the Rive RenderContext from the CommandServer
-            auto factory =
-                reinterpret_cast<CommandServerFactory*>(server->factory());
-            auto riveContext = factory->getRenderContext()->riveContext.get();
-
-            riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
-                .renderTargetWidth = static_cast<uint32_t>(width),
-                .renderTargetHeight = static_cast<uint32_t>(height),
-                .loadAction = rive::gpu::LoadAction::clear,
-                .clearColor = clearColor,
-            });
-
-            // Stack allocate a Rive Renderer
-            auto renderer = rive::RiveRenderer(riveContext);
-
-            // Draw the .riv
-            renderer.align(fit,
-                           alignment,
-                           rive::AABB(0.0f,
-                                      0.0f,
-                                      static_cast<float_t>(width),
-                                      static_cast<float_t>(height)),
-                           artboard->bounds(),
-                           scaleFactor);
-            artboard->draw(&renderer);
-
-            // Flush the draw commands
-            riveContext->flush({
-                .renderTarget = renderTarget.get(),
-            });
-
-            // Render context specific - swap buffers
-            renderContext->present(nativeSurface);
+        auto submitDrawWork = [&](const auto* tracerPtr) {
+            auto drawWork = [commandQueue,
+                             renderContext,
+                             nativeSurface,
+                             artboardHandleRef,
+                             stateMachineHandleRef,
+                             renderTarget,
+                             width,
+                             height,
+                             fit,
+                             alignment,
+                             clearColor,
+                             scaleFactor,
+                             tracerPtr](rive::DrawKey drawKey,
+                                        rive::CommandServer* server) {
+                executeDrawWork(tracerPtr,
+                                commandQueue,
+                                renderContext,
+                                nativeSurface,
+                                artboardHandleRef,
+                                stateMachineHandleRef,
+                                renderTarget.get(),
+                                width,
+                                height,
+                                fit,
+                                alignment,
+                                clearColor,
+                                scaleFactor,
+                                drawKey,
+                                server);
+            };
+            commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey),
+                               drawWork);
         };
-        commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), drawWork);
+
+        if (enableTracing)
+        {
+            submitDrawWork(&defaultTracer());
+        }
+        else
+        {
+            submitDrawWork(&noopTracer());
+        }
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppCancelDraw(JNIEnv*,
+                                                           jobject,
+                                                           jlong ref,
+                                                           jlong drawKey)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->cancelDraw(handleFromLong<rive::DrawKey>(drawKey));
     }
 
     JNIEXPORT void JNICALL

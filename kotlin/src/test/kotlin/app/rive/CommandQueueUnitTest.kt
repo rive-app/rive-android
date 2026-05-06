@@ -48,12 +48,15 @@ class CommandQueueUnitTest : FunSpec({
 
         every { commandQueueBridgeMock.cppConstructor(any()) } returns COMMAND_QUEUE_ADDR
         every { commandQueueBridgeMock.cppDelete(any()) } just runs
+        every { commandQueueBridgeMock.isCurrentThreadCommandServer(any()) } returns false
         every {
             commandQueueBridgeMock.cppCreateListeners(
                 COMMAND_QUEUE_ADDR,
                 any()
             )
         } returns listenersMock
+        every { commandQueueBridgeMock.cppSetTracingEnabled(any(), any()) } just runs
+        every { commandQueueBridgeMock.cppCancelDraw(any(), any()) } just runs
     }
 
     afterTest {
@@ -68,9 +71,41 @@ class CommandQueueUnitTest : FunSpec({
         commandQueue.isDisposed shouldBe false
         verify(exactly = 1) { commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR) }
         verify(exactly = 1) {
-            commandQueueBridgeMock.cppCreateListeners(
+            commandQueueBridgeMock.cppSetTracingEnabled(COMMAND_QUEUE_ADDR, false)
+        }
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppCreateListeners(COMMAND_QUEUE_ADDR, commandQueue)
+        }
+    }
+
+    test("Constructor propagates tracing enabled when requested") {
+        CommandQueue(renderContextMock, commandQueueBridgeMock, tracingEnabled = true)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetTracingEnabled(
                 COMMAND_QUEUE_ADDR,
-                commandQueue
+                true
+            )
+        }
+    }
+
+    test("setTracingEnabled forwards each call") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        commandQueue.setTracingEnabled(false)
+        commandQueue.setTracingEnabled(true)
+        commandQueue.setTracingEnabled(true)
+
+        verify(exactly = 2) {
+            commandQueueBridgeMock.cppSetTracingEnabled(
+                COMMAND_QUEUE_ADDR,
+                false
+            )
+        }
+        verify(exactly = 2) {
+            commandQueueBridgeMock.cppSetTracingEnabled(
+                COMMAND_QUEUE_ADDR,
+                true
             )
         }
     }
