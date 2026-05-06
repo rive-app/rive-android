@@ -1541,6 +1541,27 @@ class CommandQueue(
     )
 
     /**
+     * Assign a view model instance to a nested view model property on the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param valueHandle The handle of the view model instance to assign.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setViewModelInstanceProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        valueHandle: ViewModelInstanceHandle
+    ) = bridge.cppSetViewModelInstanceProperty(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        valueHandle.handle
+    )
+
+    /**
      * Gets the size of a list property on the view model instance.
      *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
