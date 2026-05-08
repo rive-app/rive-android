@@ -311,8 +311,11 @@ class Artboard(
     var viewModelInstance: ViewModelInstance? = null
         set(value) {
             value?.let {
-                cppSetViewModelInstance(cppPointer, it.cppPointer)
-                field = value
+                synchronized(lock) {
+                    // Binding mutates the native graph and must not overlap with advance().
+                    cppSetViewModelInstance(cppPointer, it.cppPointer)
+                    field = value
+                }
             }
         }
 

@@ -13,6 +13,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -1446,5 +1449,77 @@ class RiveDataBindingTest {
         mapMutated.countDown()
 
         worker.join()
+    }
+
+    @Test
+    fun bind_view_model_instance_while_advancing() {
+        view.setRiveResource(R.raw.looping_with_bind, autoplay = false)
+        view.play()
+
+        val artboard = view.controller.activeArtboard!!
+        val stateMachine = view.controller.stateMachines.first()
+        val viewModel = view.controller.file!!.defaultViewModelForArtboard(artboard)
+        val instances = List(32) { viewModel.createDefaultInstance() }
+        stateMachine.viewModelInstance = instances.first()
+
+        // Latch to start the worker thread at the same time as the binding loop.
+        val start = CountDownLatch(1)
+        // Stop marker - first to reach their iteration limit or exception will set this to stop the
+        // other.
+        val stop = AtomicBoolean(false)
+        // Capture any exception from either thread to rethrow on the main thread after joining.
+        val failure = AtomicReference<Throwable?>(null)
+
+        // Simulate renderer's worker thread advances. MockRiveAnimationView does not use the real
+        // renderer frame loop, so the test drives controller.advance() directly.
+        val advanceThread = thread(name = "rive-advance-worker") {
+            try {
+                start.await()
+                for (i in 0 until 20_000) {
+                    if (stop.get()) {
+                        break
+                    }
+                    view.controller.advance(1f / 60f)
+                    if (i % 16 == 0) {
+                        Thread.yield()
+                    }
+                }
+            } catch (throwable: Throwable) {
+                failure.compareAndSet(null, throwable)
+            } finally {
+                stop.set(true)
+            }
+        }
+
+        // Allow the worker to begin.
+        start.countDown()
+        // Meanwhile, on the test thread, rapidly reassign the VMI on the state machine, looking for
+        // a collision.
+        try {
+            for (i in 0 until 20_000) {
+                if (stop.get()) {
+                    break
+                }
+                stateMachine.viewModelInstance = instances[i % instances.size]
+                if (i % 16 == 0) {
+                    Thread.yield()
+                }
+            }
+        } catch (throwable: Throwable) {
+            failure.compareAndSet(null, throwable)
+        } finally {
+            stop.set(true)
+        }
+
+        val joinTimeout = TimeUnit.SECONDS.toMillis(10)
+        advanceThread.join(joinTimeout)
+        if (advanceThread.isAlive) {
+            stop.set(true)
+            advanceThread.interrupt()
+            advanceThread.join(joinTimeout)
+        }
+        assertFalse(advanceThread.isAlive, "advance thread timed out")
+        // Rethrow any exception from either thread.
+        failure.get()?.let { throw it }
     }
 }
