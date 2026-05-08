@@ -28,6 +28,7 @@ import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
+import app.rive.runtime.kotlin.core.errors.ViewModelException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -476,16 +477,24 @@ class RiveFileController internal constructor(
         if (rendererAttributes.autoBind && activeArtboard != null) {
             RiveLog.d(TAG) { "Auto-binding to the artboard and all state machines." }
             val activeArtboard = activeArtboard!!
-            val defaultInstance =
+            val defaultInstance = try {
                 mFile.defaultViewModelForArtboard(activeArtboard).createDefaultInstance()
-            activeArtboard.viewModelInstance = defaultInstance
+            } catch (e: ViewModelException) {
+                RiveLog.e(TAG, e) {
+                    "Could not auto-bind artboard ${activeArtboard.name}: ${e.message}"
+                }
+                null
+            }
+            if (defaultInstance != null) {
+                activeArtboard.viewModelInstance = defaultInstance
 
-            // Since state machines aren't created until play(),
-            // we need to check if they need to be created now.
-            val stateMachineName = rendererAttributes.stateMachineName
-                ?: activeArtboard.stateMachineNames.firstOrNull()
-            stateMachineName?.let { getOrCreateStateMachines(it) }
-            stateMachines.forEach { it.viewModelInstance = defaultInstance }
+                // Since state machines aren't created until play(),
+                // we need to check if they need to be created now.
+                val stateMachineName = rendererAttributes.stateMachineName
+                    ?: activeArtboard.stateMachineNames.firstOrNull()
+                stateMachineName?.let { getOrCreateStateMachines(it) }
+                stateMachines.forEach { it.viewModelInstance = defaultInstance }
+            }
         }
 
         if (autoplay) {
