@@ -410,7 +410,6 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
-    fun cppCreateRiveRenderTarget(pointer: Long, width: Int, height: Int): Long
     fun cppCreateDrawKey(pointer: Long): Long
     fun cppDraw(
         pointer: Long,
@@ -857,7 +856,6 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         artboardHandle: Long
     )
 
-    external override fun cppCreateRiveRenderTarget(pointer: Long, width: Int, height: Int): Long
     external override fun cppCreateDrawKey(pointer: Long): Long
     external override fun cppDraw(
         pointer: Long,

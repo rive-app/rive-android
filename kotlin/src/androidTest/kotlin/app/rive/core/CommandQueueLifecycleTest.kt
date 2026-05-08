@@ -45,11 +45,11 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
 
         assertTrue(
             releaseAttempted.await(2, TimeUnit.SECONDS),
-            "Command-server release callback did not run"
+            "Command server release callback did not run"
         )
         assertTrue(
             thrown.get() is IllegalStateException,
-            "Expected command-server release to throw IllegalStateException"
+            "Expected command server release to throw IllegalStateException"
         )
         assertFalse(
             commandQueue.isDisposed,

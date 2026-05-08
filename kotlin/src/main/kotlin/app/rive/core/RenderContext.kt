@@ -46,12 +46,11 @@ abstract class RenderContext : CheckableAutoCloseable {
      *
      * @param surface Owned Android surface source to render against.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
      * @throws RiveRenderException If the backend cannot create a renderable surface.
-     * @throws IllegalStateException If the command queue cannot create the associated render
-     *    target.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
     @Throws(RiveRenderException::class, IllegalStateException::class)
     internal abstract fun createSurface(
@@ -70,13 +69,12 @@ abstract class RenderContext : CheckableAutoCloseable {
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
      * @throws IllegalArgumentException If the requested dimensions are invalid.
      * @throws RiveRenderException If the backend cannot create an off-screen surface.
-     * @throws IllegalStateException If the command queue cannot create the associated render
-     *    target.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
     @Throws(
         IllegalArgumentException::class,
@@ -113,6 +111,15 @@ internal data class RenderContextGL(
 ) : RenderContext(), CheckableAutoCloseable {
     private external fun cppConstructor(display: Long, context: Long): Long
     private external fun cppDelete(pointer: Long)
+
+    /**
+     * Creates an opaque native render target handle for a [RiveSurface].
+     *
+     * The handle is safe to pass to later draw commands immediately. Backend-specific GL resources
+     * are created lazily on the command server thread when the surface is first used for rendering.
+     */
+    private external fun cppCreateRiveRenderTarget(width: Int, height: Int): Long
+    private external fun cppDeleteRiveRenderTarget(pointer: Long)
 
     companion object {
         const val TAG = "Rive/RenderContextGL"
@@ -286,13 +293,12 @@ internal data class RenderContextGL(
      *
      * @param surface Owned Android surface source to render against.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveEGLSurface].
      * @throws RiveRenderException If the backing Android surface is invalid or EGL window surface
      *    creation fails.
-     * @throws IllegalStateException If the command queue cannot create the associated render
-     *    target.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
     @Throws(RiveRenderException::class, IllegalStateException::class)
     override fun createSurface(
@@ -318,6 +324,7 @@ internal data class RenderContextGL(
             throw RiveRenderException("Unable to create EGL surface", Throwable(error))
         }
 
+        var renderTarget = 0L
         return try {
             val dimensions = IntArray(2)
             EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_WIDTH, dimensions, 0)
@@ -326,9 +333,9 @@ internal data class RenderContextGL(
             val height = dimensions[1]
             RiveLog.d(TAG) { "Created EGL surface ($width x $height)" }
 
-            val renderTarget = commandQueue.createRiveRenderTarget(width, height)
+            renderTarget = cppCreateRiveRenderTarget(width, height)
 
-            RiveEGLSurface(
+            val riveSurface = RiveEGLSurface(
                 eglSurface,
                 display,
                 surface,
@@ -338,8 +345,14 @@ internal data class RenderContextGL(
                 width,
                 height
             )
+            renderTarget = 0L
+            riveSurface
         } catch (e: Throwable) {
-            // Do not leak the EGL surface if we failed to create the RiveEGLSurface wrapper.
+            // Do not leak the render target or EGL surface if we failed to create the
+            // RiveEGLSurface wrapper.
+            if (renderTarget != 0L) {
+                cppDeleteRiveRenderTarget(renderTarget)
+            }
             EGL14.eglDestroySurface(display, eglSurface)
             throw e
         }
@@ -354,13 +367,12 @@ internal data class RenderContextGL(
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
      * @throws IllegalArgumentException If [width] or [height] is not positive.
      * @throws RiveRenderException If EGL PBuffer surface creation fails.
-     * @throws IllegalStateException If the command queue cannot create the associated render
-     *    target.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
     @Throws(
         IllegalArgumentException::class,
@@ -387,23 +399,35 @@ internal data class RenderContextGL(
             throw RiveRenderException("Unable to create EGL PBuffer surface", Throwable(error))
         }
 
-        val renderTarget = commandQueue.createRiveRenderTarget(width, height)
-
-        return RiveEGLPBufferSurface(
-            eglSurface,
-            display,
-            commandQueue,
-            renderTarget,
-            drawKey,
-            width,
-            height
-        )
+        var renderTarget = 0L
+        return try {
+            renderTarget = cppCreateRiveRenderTarget(width, height)
+            val riveSurface = RiveEGLPBufferSurface(
+                eglSurface,
+                display,
+                commandQueue,
+                renderTarget,
+                drawKey,
+                width,
+                height
+            )
+            renderTarget = 0L
+            riveSurface
+        } catch (e: Throwable) {
+            // Do not leak the render target or EGL surface if we failed to create the
+            // RiveEGLPBufferSurface wrapper.
+            if (renderTarget != 0L) {
+                cppDeleteRiveRenderTarget(renderTarget)
+            }
+            EGL14.eglDestroySurface(display, eglSurface)
+            throw e
+        }
     }
 }
 
 /**
  * A backend agnostic collection of surface properties needed for rendering.
- * - A Rive render target, created natively which renders to the GL framebuffer
+ * - An opaque native Rive render target handle
  * - A draw key, which uniquely identifies draw operations in the CommandQueue
  *
  * It also stores the width and height of the surface.
@@ -416,7 +440,7 @@ internal data class RenderContextGL(
  *
  * @param owningCommandQueue Command queue that owns this surface and performs ordered disposal. The
  *    surface acquires its own reference so the queue stays alive until surface disposal has run.
- * @param renderTargetPointer The native pointer to the Rive render target.
+ * @param renderTargetPointer Opaque native render target handle owned by this surface.
  * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
  * @param width The width of the surface in pixels.
  * @param height The height of the surface in pixels.
@@ -442,7 +466,7 @@ abstract class RiveSurface(
             dispose()
         }
         // Matching release to acquire in the constructor. If this is the final reference, release
-        // queues command-server shutdown after the disposal work above.
+        // queues command server shutdown after the disposal work above.
         commandQueue.release("RiveSurface", "Surface closed")
     }
 
@@ -469,7 +493,12 @@ abstract class RiveSurface(
     @WorkerThread
     protected open fun dispose() = renderTargetPointer.close()
 
-    /** The native pointer to the Rive render target, held in a unique pointer. */
+    /**
+     * Opaque native render target handle.
+     *
+     * The concrete backend target is created lazily on the command server thread. This handle is
+     * owned by the surface and disposed through command queue ordering when [close] is called.
+     */
     val renderTargetPointer: UniquePointer = UniquePointer(
         renderTargetPointer,
         "Rive/RenderTarget"
@@ -485,7 +514,7 @@ abstract class RiveSurface(
 /**
  * A collection of three surface properties needed for rendering.
  * - An EGLSurface, created from an Android Surface
- * - A Rive render target, created natively which renders to the GL framebuffer
+ * - An opaque native Rive render target handle
  * - A draw key, which uniquely identifies draw operations in the CommandQueue
  *
  * Meant for use with and created from a [RenderContextGL].
@@ -499,7 +528,7 @@ abstract class RiveSurface(
  * @param display The EGLDisplay used to create the EGLSurface, used for destroying it.
  * @param closeableSurface Android surface source closed after the EGL surface is destroyed.
  * @param commandQueue Command queue that owns this surface and performs ordered disposal.
- * @param renderTargetPointer The native pointer to the Rive render target.
+ * @param renderTargetPointer Opaque native render target handle owned by this surface.
  * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
  * @param width The width of the surface in pixels.
  * @param height The height of the surface in pixels.

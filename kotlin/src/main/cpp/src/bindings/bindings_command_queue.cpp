@@ -15,6 +15,7 @@
 #include "helpers/rive_log.hpp"
 #include "helpers/tracer.hpp"
 #include "models/jni_renderer.hpp"
+#include "models/lazy_framebuffer_render_target_gl.hpp"
 #include "models/render_context.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/command_queue.hpp"
@@ -859,7 +860,7 @@ static void executeTracedAdvanceWork(
 }
 
 /**
- * Execute one draw on the command-server thread.
+ * Execute one draw on the command server thread.
  *
  * This helper is templated so traced and non-traced paths share one draw
  * implementation without duplicating frame logic. The tracer type is chosen
@@ -870,9 +871,9 @@ static void executeDrawWork(const TracerType* tracer,
                             CommandQueueWithThread* commandQueue,
                             RenderContext* renderContext,
                             void* nativeSurface,
-                            jlong artboardHandleRef,
-                            jlong stateMachineHandleRef,
-                            rive::gpu::RenderTargetGL* renderTarget,
+                            rive::ArtboardHandle artboardHandle,
+                            rive::StateMachineHandle stateMachineHandle,
+                            LazyFramebufferRenderTargetGL* renderTarget,
                             int width,
                             int height,
                             rive::Fit fit,
@@ -882,8 +883,7 @@ static void executeDrawWork(const TracerType* tracer,
                             rive::DrawKey drawKey,
                             rive::CommandServer* server)
 {
-    auto artboard = server->getArtboardInstance(
-        handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
+    auto artboard = server->getArtboardInstance(artboardHandle);
     if (artboard == nullptr)
     {
         if (commandQueue->shouldLogArtboardNull(drawKey))
@@ -895,8 +895,7 @@ static void executeDrawWork(const TracerType* tracer,
         return;
     }
 
-    auto stateMachine = server->getStateMachineInstance(
-        handleFromLong<rive::StateMachineHandle>(stateMachineHandleRef));
+    auto stateMachine = server->getStateMachineInstance(stateMachineHandle);
     if (stateMachine == nullptr)
     {
         if (commandQueue->shouldLogStateMachineNull(drawKey))
@@ -913,10 +912,12 @@ static void executeDrawWork(const TracerType* tracer,
 
     auto factory = reinterpret_cast<CommandServerFactory*>(server->factory());
     auto riveContext = factory->getRenderContext()->riveContext.get();
+    rive::gpu::RenderTargetGL* concreteRenderTarget = nullptr;
     {
         [[maybe_unused]]
         TraceScope<TracerType> beginTrace(*tracer, "Rive/Frame/Draw/Begin");
         renderContext->beginFrame(nativeSurface);
+        concreteRenderTarget = renderTarget->getOrCreate();
         riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
             .renderTargetWidth = static_cast<uint32_t>(width),
             .renderTargetHeight = static_cast<uint32_t>(height),
@@ -944,7 +945,7 @@ static void executeDrawWork(const TracerType* tracer,
         [[maybe_unused]]
         TraceScope<TracerType> flushTrace(*tracer, "Rive/Frame/Draw/Flush");
         riveContext->flush({
-            .renderTarget = renderTarget,
+            .renderTarget = concreteRenderTarget,
         });
     }
 
@@ -2346,45 +2347,6 @@ extern "C"
     }
 
     JNIEXPORT jlong JNICALL
-    Java_app_rive_core_CommandQueueJNIBridge_cppCreateRiveRenderTarget(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint width,
-        jint height)
-    {
-        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
-
-        // Use a promise/future to make this synchronous
-        auto promise = std::make_shared<std::promise<jlong>>();
-        std::future<jlong> future = promise->get_future();
-
-        // Use runOnce to execute on the command server thread where GL context
-        // is active
-        commandQueue->runOnce([width, height, promise](
-                                  rive::CommandServer* server) {
-            // Query sample count from the current GL context
-            GLint actualSampleCount = 1;
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glGetIntegerv(GL_SAMPLES, &actualSampleCount);
-            RiveLogD(TAG_CQ,
-                     "Creating render target on command server "
-                     "(sample count: %d)",
-                     actualSampleCount);
-
-            auto renderTarget =
-                new rive::gpu::FramebufferRenderTargetGL(width,
-                                                         height,
-                                                         0, // Framebuffer ID
-                                                         actualSampleCount);
-            promise->set_value(reinterpret_cast<jlong>(renderTarget));
-        });
-
-        // Wait for the result. Blocks the main thread until complete.
-        return future.get();
-    }
-
-    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppCreateDrawKey(JNIEnv*,
                                                               jobject,
                                                               jlong ref)
@@ -2415,8 +2377,12 @@ extern "C"
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
-        auto renderTarget = rive::ref_rcp(
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef));
+        auto artboardHandle =
+            handleFromLong<rive::ArtboardHandle>(artboardHandleRef);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandleRef);
+        auto renderTarget =
+            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
@@ -2427,8 +2393,8 @@ extern "C"
             auto drawWork = [commandQueue,
                              renderContext,
                              nativeSurface,
-                             artboardHandleRef,
-                             stateMachineHandleRef,
+                             artboardHandle,
+                             stateMachineHandle,
                              renderTarget,
                              width,
                              height,
@@ -2442,9 +2408,9 @@ extern "C"
                                 commandQueue,
                                 renderContext,
                                 nativeSurface,
-                                artboardHandleRef,
-                                stateMachineHandleRef,
-                                renderTarget.get(),
+                                artboardHandle,
+                                stateMachineHandle,
+                                renderTarget,
                                 width,
                                 height,
                                 fit,
@@ -2501,8 +2467,8 @@ extern "C"
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
         auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
-        auto renderTarget = rive::ref_rcp(
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef));
+        auto renderTarget =
+            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
@@ -2578,6 +2544,7 @@ extern "C"
             }
 
             renderContext->beginFrame(nativeSurface);
+            auto concreteRenderTarget = renderTarget->getOrCreate();
 
             // Retrieve the Rive RenderContext from the CommandServer
             auto factory =
@@ -2604,7 +2571,7 @@ extern "C"
             artboard->draw(&renderer);
 
             riveContext->flush({
-                .renderTarget = renderTarget.get(),
+                .renderTarget = concreteRenderTarget,
             });
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);

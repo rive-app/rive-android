@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 /**
  * Runs [block] while a temporary background thread continuously polls this command queue.
  *
- * Android instrumentation tests that enqueue command-server work need polling even when the code
+ * Android instrumentation tests that enqueue command server work need polling even when the code
  * under test is not running inside the normal lifecycle-driven polling loop. Polling is stopped in
  * `finally` so failures inside [block] do not leak the helper thread.
  */
@@ -115,6 +115,7 @@ private suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): R
         is Result.Success -> result.value
         is Result.Error ->
             throw AssertionError("Failed to load Rive file: ${result.throwable.message}")
+
         is Result.Loading ->
             throw AssertionError("RiveFile.fromSource should not return Loading")
     }

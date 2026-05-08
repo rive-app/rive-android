@@ -3,8 +3,8 @@
 #include <android/native_window_jni.h>
 #include <jni.h>
 
+#include "models/lazy_framebuffer_render_target_gl.hpp"
 #include "models/render_context.hpp"
-#include "rive/renderer/gl/render_target_gl.hpp"
 
 namespace rive_android
 {
@@ -31,14 +31,36 @@ extern "C"
         delete renderContextGl;
     }
 
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_RenderContextGL_cppCreateRiveRenderTarget(JNIEnv*,
+                                                                 jobject,
+                                                                 jint width,
+                                                                 jint height)
+    {
+        return reinterpret_cast<jlong>(
+            new LazyFramebufferRenderTargetGL(static_cast<uint32_t>(width),
+                                              static_cast<uint32_t>(height)));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_RenderContextGL_cppDeleteRiveRenderTarget(
+        JNIEnv*,
+        jobject,
+        jlong renderTargetRef)
+    {
+        auto renderTarget =
+            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
+        delete renderTarget;
+    }
+
     JNIEXPORT void JNICALL
     Java_app_rive_core_RiveSurface_cppDeleteRenderTarget(JNIEnv*,
                                                          jobject,
                                                          jlong renderTargetRef)
     {
         auto renderTarget =
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        renderTarget->unref();
+            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
+        delete renderTarget;
     }
 }
 

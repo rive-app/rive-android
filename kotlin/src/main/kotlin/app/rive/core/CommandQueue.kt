@@ -163,7 +163,7 @@ class CommandQueue(
         get() = cppPointer.isDisposed
 
     /**
-     * Enables or disables native command-server tracing for draw and advance work.
+     * Enables or disables native command server tracing for draw and advance work.
      *
      * This setting applies to the entire worker and takes effect for subsequent draw/advance calls.
      */
@@ -437,21 +437,6 @@ class CommandQueue(
     )
     @Throws(IllegalStateException::class)
     fun destroyRiveSurface(surface: RiveSurface) = surface.close()
-
-    /**
-     * Creates a Rive render target on the command server thread. This is a synchronous call that
-     * blocks until the render target is created.
-     *
-     * @param width The width of the render target in pixels.
-     * @param height The height of the render target in pixels.
-     * @return The native pointer to the created render target.
-     * @throws IllegalStateException If the CommandQueue has been released.
-     */
-    @Throws(IllegalStateException::class)
-    fun createRiveRenderTarget(width: Int, height: Int): Long {
-        RiveLog.d(TAG) { "Creating Rive render target on command server thread" }
-        return bridge.cppCreateRiveRenderTarget(cppPointer.pointer, width, height)
-    }
 
     private fun nextDrawKey() = DrawKey(bridge.cppCreateDrawKey(cppPointer.pointer))
 
@@ -2281,7 +2266,7 @@ class CommandQueue(
      * Cancel a pending coalesced draw for the given draw key.
      *
      * This is used by [RiveSurface.close] to prevent a queued draw from presenting to a surface
-     * that is being disposed. Cancellation is best-effort within command-server batching: draws
+     * that is being disposed. Cancellation is best-effort within command server batching: draws
      * already admitted to execution may still complete.
      *
      * @param drawKey The draw key to cancel.

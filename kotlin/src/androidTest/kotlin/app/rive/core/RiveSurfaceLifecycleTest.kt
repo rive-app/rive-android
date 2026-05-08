@@ -12,6 +12,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.Fit
 import app.rive.RiveAndroidTest
 import app.rive.runtime.kotlin.test.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -19,7 +23,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
+
+private val TEST_TIMEOUT = 3.seconds.inWholeMilliseconds
 
 @RunWith(AndroidJUnit4::class)
 class RiveSurfaceLifecycleTest : RiveAndroidTest() {
@@ -30,10 +38,7 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
 
         surface.close()
 
-        assertTrue(
-            closeableSurface.awaitClosed(),
-            "Surface-backed resources were not closed before CommandQueue disposal completed"
-        )
+        assertClosed(closeableSurface)
     }
 
     @Test
@@ -55,10 +60,42 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
         surface.close()
 
         assertDisposed(commandQueue)
-        assertTrue(
-            closeableSurface.awaitClosed(),
-            "Surface-backed resources were not closed before CommandQueue disposal completed"
-        )
+        assertClosed(closeableSurface)
+    }
+
+    @Test
+    fun createRiveSurface_returnsImmediately() = runBlocking {
+        val blockEntered = CountDownLatch(1)
+        val blockMayExit = CountDownLatch(1)
+
+        // Block the command server before surface creation. Surface creation should only allocate
+        // the lazy render target holder and must not wait for this queued work to complete.
+        riveWorker.runOnCommandServer {
+            blockEntered.countDown()
+            blockMayExit.await()
+        }
+
+        val closeableSurface = LatchingImageReaderSurface()
+        try {
+            assertTrue(
+                blockEntered.await(TEST_TIMEOUT, TimeUnit.MILLISECONDS),
+                "Command server did not enter blocking test work"
+            )
+
+            val createSurface = async(Dispatchers.Default) {
+                riveWorker.createRiveSurface(closeableSurface)
+            }
+            assertNotNull(
+                withTimeoutOrNull(TEST_TIMEOUT) {
+                    createSurface.await()
+                },
+                "Surface creation did not complete before command server block was allowed to exit"
+            ).close()
+        } finally {
+            blockMayExit.countDown()
+        }
+
+        assertClosed(closeableSurface)
     }
 
     @Test
@@ -86,10 +123,7 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
         surface.close()
         gate.countDown()
 
-        assertTrue(
-            closeableSurface.awaitClosed(),
-            "Surface-backed resources were not closed before CommandQueue disposal completed"
-        )
+        assertClosed(closeableSurface)
         assertFalse(
             closeableSurface.awaitFrameAvailable(timeoutMillis = 200),
             "Expected draw queued before surface close to be canceled before producing a frame"
@@ -197,5 +231,12 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
             frameAvailable.await(timeoutMillis, TimeUnit.MILLISECONDS)
 
         fun awaitClosed(): Boolean = closed.await(2, TimeUnit.SECONDS)
+    }
+
+    private fun assertClosed(surface: LatchingImageReaderSurface) {
+        assertTrue(
+            surface.awaitClosed(),
+            "Surface-backed resources were not closed before CommandQueue disposal completed"
+        )
     }
 }
