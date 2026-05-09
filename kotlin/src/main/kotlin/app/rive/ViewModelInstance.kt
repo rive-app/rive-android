@@ -346,6 +346,23 @@ class ViewModelInstance internal constructor(
         setProperty(propertyPath, artboard.artboardHandle, riveWorker::setArtboardProperty)
     }
 
+    /**
+     * Replaces a nested view model instance property with another instance.
+     *
+     * After replacement, both the original and the replacement refer to the same underlying
+     * instance — changing one changes the other.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * @param propertyPath The path to the view model property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @param instance The view model instance to assign to the property.
+     */
+    fun setViewModelInstance(propertyPath: String, instance: ViewModelInstance) {
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $instance to $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, instance.instanceHandle, riveWorker::setViewModelInstanceProperty)
+    }
+
     suspend fun getListSize(propertyPath: String): Int =
         riveWorker.getListSize(instanceHandle, propertyPath)
 

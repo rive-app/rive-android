@@ -7,6 +7,7 @@ import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import app.rive.core.Listeners
 import app.rive.core.RenderContext
+import app.rive.core.ViewModelInstanceHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.comparables.shouldBeLessThan
@@ -29,6 +30,7 @@ const val COMMAND_QUEUE_ADDR = 1L
 const val RENDER_CONTEXT_ADDR = 2L
 const val HANDLE_NUM = 123L
 const val ARTBOARD_HANDLE_NUM = 456L
+const val VALUE_HANDLE_NUM = 789L
 val FILE_BYTES = byteArrayOf(0, 1, 2)
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
@@ -259,6 +261,46 @@ class CommandQueueUnitTest : FunSpec({
                 requestID.captured,
                 HANDLE_NUM,
                 ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Set view model instance property invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val valueHandle = ViewModelInstanceHandle(VALUE_HANDLE_NUM)
+        val propertyPath = "nested/path"
+
+        every {
+            commandQueueBridgeMock.cppSetViewModelInstanceProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                VALUE_HANDLE_NUM
+            )
+        } just runs
+
+        commandQueue.setViewModelInstanceProperty(instanceHandle, propertyPath, valueHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetViewModelInstanceProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                VALUE_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Set view model instance property throws when released") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        commandQueue.release("")
+
+        shouldThrow<IllegalStateException> {
+            commandQueue.setViewModelInstanceProperty(
+                ViewModelInstanceHandle(HANDLE_NUM),
+                "path",
+                ViewModelInstanceHandle(VALUE_HANDLE_NUM)
             )
         }
     }

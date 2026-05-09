@@ -274,6 +274,13 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
+    fun cppSetViewModelInstanceProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        valueHandle: Long
+    )
+
     fun cppGetListSize(
         pointer: Long,
         requestID: Long,
@@ -718,6 +725,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         artboardHandle: Long
+    )
+
+    external override fun cppSetViewModelInstanceProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        valueHandle: Long
     )
 
     external override fun cppGetListSize(
