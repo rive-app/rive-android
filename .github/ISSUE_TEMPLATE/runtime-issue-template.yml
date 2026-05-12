@@ -111,7 +111,7 @@ body:
       required: true
 
   - type: input
-    id: device
+    id: device_os
     attributes:
       label: Device OS
       placeholder: "e.g. Android 13, Android 12"
