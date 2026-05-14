@@ -6,10 +6,10 @@
 #include "helpers/egl_error.hpp"
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
+#include "rive/gpu_texture_format.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/rive_render_image.hpp"
-#include "rive/texture_archive.hpp"
 
 namespace rive_android
 {
