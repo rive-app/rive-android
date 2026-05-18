@@ -95,13 +95,17 @@ internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
     }
 }
 
-/** Verifies that final release synchronously completed command queue teardown. */
+/** Verifies that final release started and completed command queue teardown. */
 internal fun assertDisposed(commandQueue: CommandQueue) {
     assertTrue(
         commandQueue.isDisposed,
         "CommandQueue was not disposed after final release"
     )
     assertEquals(0, commandQueue.refCount)
+    assertTrue(
+        commandQueue.awaitShutdown(2_000),
+        "CommandQueue native shutdown did not complete after final release"
+    )
 }
 
 private suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): RiveFile {

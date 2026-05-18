@@ -5,6 +5,7 @@ import android.graphics.SurfaceTexture
 import android.view.TextureView
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -20,7 +21,6 @@ import app.rive.RiveRenderException
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
-import app.rive.core.RenderContextGL.Companion.TAG
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.runtime.kotlin.core.File.Enum
@@ -34,6 +34,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.cancellation.CancellationException
@@ -116,8 +118,22 @@ class CommandQueue(
          * concurrently.
          */
         const val MAX_CONCURRENT_SUBSCRIBERS = 32
+
+        /**
+         * Timeout to log a warning if native shutdown has not completed, in seconds. This does not
+         * affect the actual shutdown process.
+         */
+        private const val SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS = 10L
+
+        /** Monotonically increasing ID for naming shutdown threads and their watchdogs. */
+        private val nextShutdownThreadID = AtomicLong()
     }
 
+    /**
+     * Used to signal the shutdown watchdog thread that it can stop watching. Also used by tests to
+     * verify shutdown completed as expected.
+     */
+    private val shutdownComplete = CountDownLatch(1)
     private val cppPointer = RCPointer(
         bridge.cppConstructor(renderContext.nativeObjectPointer),
         COMMAND_QUEUE_TAG,
@@ -132,19 +148,66 @@ class CommandQueue(
     /**
      * Cleanup to be performed when the ref count reaches 0.
      *
-     * Any pending continuations are cancelled to avoid callers hanging indefinitely.
+     * Any pending continuations are canceled to avoid callers hanging indefinitely.
+     *
+     * Native teardown is asynchronous from the caller's perspective. [CommandQueueBridge.cppDelete]
+     * disconnects and joins the command server thread, so it runs on a named daemon shutdown
+     * thread instead of the releasing thread, ensuring it does not block the caller.
+     *
+     * Listener and render context cleanup run on that same shutdown thread after the native join
+     * completes because the command server can still use those resources while it is draining.
+     *
+     * A short-lived watchdog thread observes the shutdown latch and logs if native teardown takes
+     * unusually long, without adding another synchronous wait to release.
      */
     private fun dispose(cppPointer: Long) {
-        bridge.cppDelete(cppPointer)
+        cancelPendingContinuations()
 
-        listeners.close()
-        renderContext.close()
+        val shutdownThreadID = nextShutdownThreadID.getAndIncrement()
+        val shutdownThreadName = "RiveWorkerShutdown-$shutdownThreadID"
+        val shutdownThread = Thread({
+            val startTimeNs = System.nanoTime()
+            try {
+                RiveLog.d(COMMAND_QUEUE_TAG) {
+                    "Starting command queue native shutdown on $shutdownThreadName"
+                }
+                bridge.cppDelete(cppPointer)
+            } catch (t: Throwable) {
+                RiveLog.e(COMMAND_QUEUE_TAG, t) {
+                    "Command queue native shutdown failed. " +
+                            "Listener and render context cleanup skipped."
+                }
+                shutdownComplete.countDown()
+                return@Thread
+            }
 
-        // Cancel and clear any pending JNI continuations so callers don't hang.
-        pendingContinuations.values.toList().forEach { cont ->
-            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
+            try {
+                listeners.close()
+                // May throw RiveShutdownException - still need to count down the latch.
+                renderContext.close()
+            } finally {
+                shutdownComplete.countDown()
+            }
+            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs)
+            RiveLog.d(COMMAND_QUEUE_TAG) {
+                "Command queue native shutdown completed in ${durationMs}ms"
+            }
+        }, shutdownThreadName)
+
+        Thread({
+            if (!shutdownComplete.await(SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                RiveLog.w(COMMAND_QUEUE_TAG) {
+                    "Command queue native shutdown is taking unusually long and has not " +
+                            "completed after ${SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS}s"
+                }
+            }
+        }, "$shutdownThreadName-Watchdog").also {
+            it.isDaemon = true
+            it.start()
         }
-        pendingContinuations.clear()
+
+        shutdownThread.isDaemon = true
+        shutdownThread.start()
     }
 
     // Implement the RefCounted interface by delegating to cppPointer
@@ -161,6 +224,20 @@ class CommandQueue(
         get() = cppPointer.refCount
     override val isDisposed: Boolean
         get() = cppPointer.isDisposed
+
+    /**
+     * Blocks the calling thread until asynchronous native shutdown completes or [timeoutMillis]
+     * elapses.
+     *
+     * This is only for tests that must assert post-join cleanup such as listener and render-context
+     * disposal.
+     *
+     * @param timeoutMillis Maximum time to block the caller.
+     * @return `true` if shutdown completed before the timeout, otherwise `false`.
+     */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun awaitShutdown(timeoutMillis: Long): Boolean =
+        shutdownComplete.await(timeoutMillis, TimeUnit.MILLISECONDS)
 
     /**
      * Enables or disables native command server tracing for draw and advance work.
@@ -316,7 +393,7 @@ class CommandQueue(
      * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
      *
      * The polling will automatically start and stop based on the lifecycle state, only polling when
-     * the lifecycle is in the RESUMED state.
+     * the lifecycle is in the RESUMED state and while this CommandQueue has not been disposed.
      *
      * @param lifecycle The lifecycle bounding the polling.
      * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
@@ -327,14 +404,31 @@ class CommandQueue(
     suspend fun beginPolling(
         lifecycle: Lifecycle,
         ticker: FrameTicker = ChoreographerFrameTicker
-    ) = lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-        RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-        while (isActive) {
-            ticker.withFrame {
-                pollMessages()
+    ) {
+        check(!isDisposed) { "CommandQueue has been released." }
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
+            while (isActive && !isDisposed) {
+                var disposedDuringPoll = false
+                ticker.withFrame {
+                    try {
+                        pollMessages()
+                    } catch (e: IllegalStateException) {
+                        // Disposal can happen after the checks above but before pollMessages() reads
+                        // the native pointer. Only swallow that expected disposal race.
+                        // Preserve unrelated IllegalStateExceptions so polling does not hide bugs.
+                        if (!isDisposed) {
+                            throw e
+                        }
+                        disposedDuringPoll = true
+                    }
+                }
+                if (disposedDuringPoll) {
+                    break
+                }
             }
+            RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
         }
-        RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
     }
 
     /**
@@ -2372,6 +2466,17 @@ class CommandQueue(
     private val pendingContinuations = ConcurrentHashMap<Long, CancellableContinuation<Any>>()
 
     /**
+     * Cancels all pending native requests because command queue disposal prevents any later JNI
+     * callback from completing them.
+     */
+    private fun cancelPendingContinuations() {
+        pendingContinuations.values.toList().forEach { cont ->
+            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
+        }
+        pendingContinuations.clear()
+    }
+
+    /**
      * A monotonically increasing request ID used to identify JNI requests. This allows pairing
      * outgoing requests with incoming callbacks.
      *
@@ -2412,7 +2517,14 @@ class CommandQueue(
                 pendingContinuations.remove(requestID)
             }
 
-            nativeFn(requestID)
+            try {
+                nativeFn(requestID)
+            } catch (t: Throwable) {
+                // Bridge calls can fail before native work is accepted, for example if JNI raises
+                // an exception. Do not leave a continuation waiting for a callback that cannot come.
+                pendingContinuations.remove(requestID)
+                throw t
+            }
         }
     }
 }

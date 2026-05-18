@@ -72,7 +72,7 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
         // the lazy render target holder and must not wait for this queued work to complete.
         riveWorker.runOnCommandServer {
             blockEntered.countDown()
-            blockMayExit.await()
+            blockMayExit.await(TEST_TIMEOUT, TimeUnit.MILLISECONDS)
         }
 
         val closeableSurface = LatchingImageReaderSurface()

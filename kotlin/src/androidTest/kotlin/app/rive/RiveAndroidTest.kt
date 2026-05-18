@@ -1,12 +1,12 @@
 package app.rive
 
 import android.content.Context
+import app.rive.core.assertDisposed
 import app.rive.core.RiveWorker
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.core.Rive
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
-import kotlin.test.assertTrue
 
 /**
  * Base class for androidTest cases that require the native Rive runtime to be initialized.
@@ -35,10 +35,7 @@ abstract class RiveAndroidTest {
             if (!activeWorker.isDisposed) {
                 activeWorker.release(javaClass.simpleName, "Test cleanup")
             }
-            assertTrue(
-                activeWorker.isDisposed,
-                "RiveWorker still had retained references after test cleanup"
-            )
+            assertDisposed(activeWorker)
         }
         worker = null
     }
