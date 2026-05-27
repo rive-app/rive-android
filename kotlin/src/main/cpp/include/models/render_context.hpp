@@ -214,7 +214,11 @@ struct RenderContextGL : RenderContext
             height,
             mipLevelCount,
             rive::GPUTextureFormat::rgba32,
-            imageDataRGBA.get());
+            imageDataRGBA.get(),
+            /*blockWidth=*/1,
+            /*blockHeight=*/1,
+            /*srgb=*/false,
+            /*generateRemainingMips=*/true);
         return rive::make_rcp<rive::RiveRenderImage>(texture);
     }
 

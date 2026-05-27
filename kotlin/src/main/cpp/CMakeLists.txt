@@ -144,7 +144,8 @@ endif ()
 target_include_directories(rive-android PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${RIVE_RUNTIME_DIR}/include
-        ${RIVE_RUNTIME_DIR}/renderer/include)
+        ${RIVE_RUNTIME_DIR}/renderer/include
+        ${RIVE_RUNTIME_DIR}/decoders/include)
 
 # Link each static library
 foreach (X IN LISTS static_libs)

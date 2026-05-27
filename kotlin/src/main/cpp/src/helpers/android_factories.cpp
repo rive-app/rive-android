@@ -181,7 +181,11 @@ AndroidImage::AndroidImage(int width,
                 m_Height,
                 mipLevelCount,
                 rive::GPUTextureFormat::rgba32,
-                imageDataRGBA));
+                imageDataRGBA,
+                /*blockWidth=*/1,
+                /*blockHeight=*/1,
+                /*srgb=*/false,
+                /*generateRemainingMips=*/true));
             delete[] imageDataRGBA;
         });
 }
