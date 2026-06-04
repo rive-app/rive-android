@@ -1678,24 +1678,25 @@ class CommandQueue(
     )
 
     /**
-     * Assign an artboard to a bindable artboard property on the view model instance.
+     * Assign an artboard to a bindable artboard property on the view model instance, or clear the
+     * property if [artboardHandle] is null.
      *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
-     * @param artboardHandle The handle of the artboard to assign.
+     * @param artboardHandle The handle of the artboard to assign, or null to clear the property.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
     fun setArtboardProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        artboardHandle: ArtboardHandle
+        artboardHandle: ArtboardHandle?
     ) = bridge.cppSetArtboardProperty(
         cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
-        artboardHandle.handle
+        artboardHandle?.handle ?: 0L
     )
 
     /**

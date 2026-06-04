@@ -372,6 +372,59 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Set artboard property invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+        val propertyPath = "artboard/path"
+
+        every {
+            commandQueueBridgeMock.cppSetArtboardProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                ARTBOARD_HANDLE_NUM
+            )
+        } just runs
+
+        commandQueue.setArtboardProperty(instanceHandle, propertyPath, artboardHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetArtboardProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Set artboard property with null clears native property") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val propertyPath = "artboard/path"
+
+        every {
+            commandQueueBridgeMock.cppSetArtboardProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
+            )
+        } just runs
+
+        commandQueue.setArtboardProperty(instanceHandle, propertyPath, null)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetArtboardProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
+            )
+        }
+    }
+
     test("Set view model instance property invokes native") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)

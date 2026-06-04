@@ -333,17 +333,19 @@ class ViewModelInstance internal constructor(
     }
 
     /**
-     * Assigns the given artboard to the bindable artboard property on this view model instance.
+     * Assigns the given artboard to the bindable artboard property on this view model instance, or
+     * clears the property if [artboard] is null.
      *
      * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param artboard The artboard to assign to the property.
+     * @param artboard The artboard to assign to the property, or null to clear the property.
      */
-    fun setArtboard(propertyPath: String, artboard: Artboard) {
-        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $artboard to $propertyPath (${fileHandle})" }
-        setProperty(propertyPath, artboard.artboardHandle, riveWorker::setArtboardProperty)
+    fun setArtboard(propertyPath: String, artboard: Artboard?) {
+        val message = artboard?.let { "Assigning $it" } ?: "Clearing artboard"
+        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, artboard?.artboardHandle, riveWorker::setArtboardProperty)
     }
 
     /**
