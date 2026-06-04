@@ -24,8 +24,9 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * assets ([images][ImageHandle], [audio][AudioHandle], and [fonts][FontHandle]), [RiveFile]s,
  * [artboards][Artboard], state machines, and [view model instances][ViewModelInstance].
  *
- * The lifetime of the Rive worker is managed by this composable. It will release the resources
- * allocated to the Rive worker when it falls out of scope.
+ * The lifetime of the Rive worker reference created by this composable is managed by this
+ * composable. It releases that reference when it falls out of scope. The worker fully disposes once
+ * any other Rive resources that acquired it, such as files, assets, or surfaces, are also closed.
  *
  * A Rive worker needs to be polled to receive messages from the command server. This composable
  * creates a poll loop that runs while the [Lifecycle] is in the [Lifecycle.State.RESUMED] state.

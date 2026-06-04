@@ -75,6 +75,10 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * a disposed command queue will throw an [IllegalStateException]. Any pending operations will be
  * notified with a [CancellationException].
  *
+ * Rive resources such as manually-created files, assets, and surfaces may acquire references to
+ * the command queue. Releasing the command queue's own reference is not enough to fully dispose the
+ * worker while those resources remain open; close each resource when you no longer need it.
+ *
  * The command queue normally is passed into [rememberRiveFile] or, alternatively, created by
  * default if one is not supplied. This is then transitively supplied to other Rive elements, such
  * as artboards, when the Rive file is passed in.
