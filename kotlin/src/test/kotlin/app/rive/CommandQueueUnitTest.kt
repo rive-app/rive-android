@@ -1,17 +1,21 @@
 package app.rive
 
+import android.os.Build
 import androidx.lifecycle.Lifecycle
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.CommandQueueBridge
 import app.rive.core.DefaultViewModelInfo
+import app.rive.core.DrawKey
 import app.rive.core.FileHandle
 import app.rive.core.FrameTicker
 import app.rive.core.Listeners
 import app.rive.core.RenderContext
+import app.rive.core.RiveSurface
 import app.rive.core.ViewModelInstanceHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -22,6 +26,7 @@ import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +42,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 const val COMMAND_QUEUE_ADDR = 1L
 const val RENDER_CONTEXT_ADDR = 2L
+const val VULKAN_RENDER_CONTEXT_ADDR = 3L
+const val OPENGL_RENDER_CONTEXT_ADDR = 4L
 const val HANDLE_NUM = 123L
 const val ARTBOARD_HANDLE_NUM = 456L
 const val VALUE_HANDLE_NUM = 789L
@@ -69,6 +76,7 @@ class CommandQueueUnitTest : FunSpec({
         } returns listenersMock
         every { commandQueueBridgeMock.cppSetTracingEnabled(any(), any()) } just runs
         every { commandQueueBridgeMock.cppCancelDraw(any(), any()) } just runs
+        every { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) } just runs
     }
 
     afterTest {
@@ -88,6 +96,138 @@ class CommandQueueUnitTest : FunSpec({
         verify(exactly = 1) {
             commandQueueBridgeMock.cppCreateListeners(COMMAND_QUEUE_ADDR, commandQueue)
         }
+    }
+
+    test("Constructor closes render context when native startup fails") {
+        val expectedError = RiveInitializationException("Command server failed to start")
+        every { commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR) } throws expectedError
+
+        val error = shouldThrow<RiveInitializationException> {
+            CommandQueue(renderContextMock, commandQueueBridgeMock)
+        }
+
+        error shouldBe expectedError
+        verify(exactly = 1) { renderContextMock.close() }
+        verify(exactly = 0) { commandQueueBridgeMock.cppCreateListeners(any(), any()) }
+        verify(exactly = 0) { commandQueueBridgeMock.cppSetTracingEnabled(any(), any()) }
+        verify(exactly = 0) { commandQueueBridgeMock.cppDelete(any()) }
+    }
+
+    test("Constructor suppresses render context close failure on native startup failure") {
+        val startupError = RiveInitializationException("Command server failed to start")
+        val closeError = RiveShutdownException("Render context close failed")
+        every { commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR) } throws startupError
+        every { renderContextMock.close() } throws closeError
+
+        val error = shouldThrow<RiveInitializationException> {
+            CommandQueue(renderContextMock, commandQueueBridgeMock)
+        }
+
+        error shouldBe startupError
+        error.suppressed shouldHaveSize 1
+        error.suppressed.single() shouldBe closeError
+        verify(exactly = 1) { renderContextMock.close() }
+        verify(exactly = 0) { commandQueueBridgeMock.cppCreateListeners(any(), any()) }
+    }
+
+    test("Render backend constructor retries OpenGL when Vulkan startup fails") {
+        val vulkanRenderContextMock = mockk<RenderContext>()
+        val openGLRenderContextMock = mockk<RenderContext>()
+        every { vulkanRenderContextMock.nativeObjectPointer } returns VULKAN_RENDER_CONTEXT_ADDR
+        every { vulkanRenderContextMock.close() } just runs
+        every { openGLRenderContextMock.nativeObjectPointer } returns OPENGL_RENDER_CONTEXT_ADDR
+        every { openGLRenderContextMock.close() } just runs
+        every {
+            commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)
+        } throws RiveInitializationException("Vulkan startup failed")
+        every {
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+        } returns COMMAND_QUEUE_ADDR
+
+        val commandQueue = CommandQueue(
+            renderBackend = RenderBackend.Vulkan,
+            bridge = commandQueueBridgeMock,
+            sdkInt = Build.VERSION_CODES.Q,
+            renderContextFactory = { backend ->
+                when (backend) {
+                    RenderBackend.Vulkan -> vulkanRenderContextMock
+                    RenderBackend.OpenGL -> openGLRenderContextMock
+                }
+            }
+        )
+
+        commandQueue.refCount shouldBe 1
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)
+        }
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+        }
+        verify(exactly = 1) { vulkanRenderContextMock.close() }
+        verify(exactly = 0) { openGLRenderContextMock.close() }
+    }
+
+    test("Render backend constructor skips Vulkan below API 29") {
+        val openGLRenderContextMock = mockk<RenderContext>()
+        every { openGLRenderContextMock.nativeObjectPointer } returns OPENGL_RENDER_CONTEXT_ADDR
+        every { openGLRenderContextMock.close() } just runs
+        every {
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+        } returns COMMAND_QUEUE_ADDR
+
+        CommandQueue(
+            renderBackend = RenderBackend.Vulkan,
+            bridge = commandQueueBridgeMock,
+            sdkInt = Build.VERSION_CODES.P,
+            renderContextFactory = { backend ->
+                backend shouldBe RenderBackend.OpenGL
+                openGLRenderContextMock
+            }
+        )
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+        }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)
+        }
+    }
+
+    test("Render backend constructor suppresses Vulkan failure when OpenGL retry fails") {
+        val vulkanRenderContextMock = mockk<RenderContext>()
+        val openGLRenderContextMock = mockk<RenderContext>()
+        val vulkanFailure = RiveInitializationException("Vulkan startup failed")
+        val openGLFailure = RiveInitializationException("OpenGL startup failed")
+        every { vulkanRenderContextMock.nativeObjectPointer } returns VULKAN_RENDER_CONTEXT_ADDR
+        every { vulkanRenderContextMock.close() } just runs
+        every { openGLRenderContextMock.nativeObjectPointer } returns OPENGL_RENDER_CONTEXT_ADDR
+        every { openGLRenderContextMock.close() } just runs
+        every {
+            commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)
+        } throws vulkanFailure
+        every {
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+        } throws openGLFailure
+
+        val error = shouldThrow<RiveInitializationException> {
+            CommandQueue(
+                renderBackend = RenderBackend.Vulkan,
+                bridge = commandQueueBridgeMock,
+                sdkInt = Build.VERSION_CODES.Q,
+                renderContextFactory = { backend ->
+                    when (backend) {
+                        RenderBackend.Vulkan -> vulkanRenderContextMock
+                        RenderBackend.OpenGL -> openGLRenderContextMock
+                    }
+                }
+            )
+        }
+
+        error shouldBe openGLFailure
+        error.suppressed shouldHaveSize 1
+        error.suppressed.single() shouldBe vulkanFailure
+        verify(exactly = 1) { vulkanRenderContextMock.close() }
+        verify(exactly = 1) { openGLRenderContextMock.close() }
     }
 
     test("Constructor propagates tracing enabled when requested") {
@@ -464,4 +604,66 @@ class CommandQueueUnitTest : FunSpec({
             )
         }
     }
+
+    test("RiveSurface resize updates dimensions and invalidates render target after canceling draw") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
+
+        surface.resize(300, 400)
+
+        surface.width shouldBe 300
+        surface.height shouldBe 400
+        verifyOrder {
+            commandQueueBridgeMock.cppCancelDraw(COMMAND_QUEUE_ADDR, surface.drawKey.handle)
+            commandQueueBridgeMock.cppRunOnCommandServer(COMMAND_QUEUE_ADDR, any())
+        }
+    }
+
+    test("RiveSurface same-size resize is a no-op") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
+
+        surface.resize(100, 200)
+
+        verify(exactly = 0) { commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle) }
+        verify(exactly = 0) { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) }
+    }
+
+    test("RiveSurface resize rejects fixed-size surfaces") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200, resizable = false)
+
+        shouldThrow<IllegalStateException> {
+            surface.resize(300, 400)
+        }.message shouldContain "fixed-size RiveSurface"
+
+        surface.width shouldBe 100
+        surface.height shouldBe 200
+        verify(exactly = 0) { commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle) }
+        verify(exactly = 0) { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) }
+    }
+
+    test("RiveSurface resize rejects closed surfaces") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
+        surface.close()
+
+        shouldThrow<IllegalStateException> {
+            surface.resize(300, 400)
+        }.message shouldContain "closed RiveSurface"
+    }
 })
+
+private class TestRiveSurface(
+    commandQueue: CommandQueue,
+    width: Int,
+    height: Int,
+    resizable: Boolean = true,
+) : RiveSurface(
+    commandQueue,
+    surfaceNativePointer = 30L,
+    drawKey = DrawKey(20L),
+    width = width,
+    height = height,
+    resizable = resizable
+)

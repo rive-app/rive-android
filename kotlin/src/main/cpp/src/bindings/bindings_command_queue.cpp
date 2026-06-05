@@ -1,4 +1,3 @@
-#include <GLES3/gl3.h>
 #include <android/native_window_jni.h>
 #include <atomic>
 #include <cstring>
@@ -15,15 +14,12 @@
 #include "helpers/rive_log.hpp"
 #include "helpers/tracer.hpp"
 #include "models/jni_renderer.hpp"
-#include "models/lazy_framebuffer_render_target_gl.hpp"
 #include "models/render_context.hpp"
+#include "models/render_surface.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/command_queue.hpp"
 #include "rive/command_server.hpp"
 #include "rive/file.hpp"
-#include "rive/renderer/gl/render_buffer_gl_impl.hpp"
-#include "rive/renderer/gl/render_context_gl_impl.hpp"
-#include "rive/renderer/gl/render_target_gl.hpp"
 #include "rive/renderer/rive_render_image.hpp"
 
 using namespace rive_android;
@@ -690,6 +686,22 @@ public:
                     {false, EGL_BAD_ALLOC, "Failed to attach thread to JVM"});
                 return;
             }
+            // RAII guard to detach the command server thread from the JVM on
+            // every exit path after a successful attachment.
+            struct ScopedJVMThreadDetach
+            {
+                ~ScopedJVMThreadDetach()
+                {
+                    RiveLogD(TAG_CQ,
+                             "Detaching command server thread from JVM");
+                    if (g_JVM->DetachCurrentThread() != JNI_OK)
+                    {
+                        RiveLogE(TAG_CQ,
+                                 "Failed to detach command server thread "
+                                 "from JVM");
+                    }
+                }
+            } detachThread;
 
             RiveLogD(TAG_CQ, "Setting command server thread name");
             // Set the native thread name
@@ -723,6 +735,7 @@ public:
             {
                 RiveLogE(TAG_CQ,
                          "Failed to initialize the Rive render context");
+                renderContext->destroy();
                 promise.set_value(result);
                 return;
             }
@@ -764,10 +777,6 @@ public:
                     "    3. Command server rcp, stack allocated and about to fall from scope",
                     refCnt);
             }
-
-            // Cleanup JVM thread attachment
-            RiveLogD(TAG_CQ, "Detaching command server thread from JVM");
-            g_JVM->DetachCurrentThread();
         });
     }
 
@@ -870,12 +879,9 @@ template <typename TracerType>
 static void executeDrawWork(const TracerType* tracer,
                             CommandQueueWithThread* commandQueue,
                             RenderContext* renderContext,
-                            void* nativeSurface,
+                            RenderSurface* nativeSurface,
                             rive::ArtboardHandle artboardHandle,
                             rive::StateMachineHandle stateMachineHandle,
-                            LazyFramebufferRenderTargetGL* renderTarget,
-                            int width,
-                            int height,
                             rive::Fit fit,
                             rive::Alignment alignment,
                             uint32_t clearColor,
@@ -912,15 +918,30 @@ static void executeDrawWork(const TracerType* tracer,
 
     auto factory = reinterpret_cast<CommandServerFactory*>(server->factory());
     auto riveContext = factory->getRenderContext()->riveContext.get();
-    rive::gpu::RenderTargetGL* concreteRenderTarget = nullptr;
+    rive::gpu::RenderTarget* concreteRenderTarget = nullptr;
     {
         [[maybe_unused]]
         TraceScope<TracerType> beginTrace(*tracer, "Rive/Frame/Draw/Begin");
-        renderContext->beginFrame(nativeSurface);
-        concreteRenderTarget = renderTarget->getOrCreate();
+        concreteRenderTarget = renderContext->beginFrame(nativeSurface);
+        if (concreteRenderTarget == nullptr)
+        {
+            RiveLogE(TAG_CQ, "Draw skipped: render target unavailable");
+            return;
+        }
+        auto targetWidth = concreteRenderTarget->width();
+        auto targetHeight = concreteRenderTarget->height();
+        if (targetWidth == 0 || targetHeight == 0)
+        {
+            RiveLogE(TAG_CQ,
+                     "Draw skipped: render target has invalid dimensions "
+                     "(target: %u x %u)",
+                     targetWidth,
+                     targetHeight);
+            return;
+        }
         riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
-            .renderTargetWidth = static_cast<uint32_t>(width),
-            .renderTargetHeight = static_cast<uint32_t>(height),
+            .renderTargetWidth = targetWidth,
+            .renderTargetHeight = targetHeight,
             .loadAction = rive::gpu::LoadAction::clear,
             .clearColor = clearColor,
         });
@@ -930,29 +951,34 @@ static void executeDrawWork(const TracerType* tracer,
         [[maybe_unused]]
         TraceScope<TracerType> renderTrace(*tracer, "Rive/Frame/Draw/Render");
         auto renderer = rive::RiveRenderer(riveContext);
-        renderer.align(fit,
-                       alignment,
-                       rive::AABB(0.0f,
-                                  0.0f,
-                                  static_cast<float_t>(width),
-                                  static_cast<float_t>(height)),
-                       artboard->bounds(),
-                       scaleFactor);
+        renderer.align(
+            fit,
+            alignment,
+            rive::AABB(0.0f,
+                       0.0f,
+                       static_cast<float_t>(concreteRenderTarget->width()),
+                       static_cast<float_t>(concreteRenderTarget->height())),
+            artboard->bounds(),
+            scaleFactor);
         artboard->draw(&renderer);
     }
 
     {
         [[maybe_unused]]
         TraceScope<TracerType> flushTrace(*tracer, "Rive/Frame/Draw/Flush");
-        riveContext->flush({
-            .renderTarget = concreteRenderTarget,
-        });
+        if (!renderContext->flush(nativeSurface))
+        {
+            return;
+        }
     }
 
     {
         [[maybe_unused]]
         TraceScope<TracerType> presentTrace(*tracer, "Rive/Frame/Draw/Present");
-        renderContext->present(nativeSurface);
+        if (!renderContext->present(nativeSurface))
+        {
+            return;
+        }
     }
 }
 
@@ -2388,9 +2414,8 @@ extern "C"
         jlong drawKey,
         jlong artboardHandleRef,
         jlong stateMachineHandleRef,
-        jlong renderTargetRef,
-        jint width,
-        jint height,
+        jint,
+        jint,
         jbyte jFit,
         jbyte jAlignment,
         jfloat jScaleFactor,
@@ -2399,13 +2424,11 @@ extern "C"
         auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
-        auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
+        auto* nativeSurface = reinterpret_cast<RenderSurface*>(surfaceRef);
         auto artboardHandle =
             handleFromLong<rive::ArtboardHandle>(artboardHandleRef);
         auto stateMachineHandle =
             handleFromLong<rive::StateMachineHandle>(stateMachineHandleRef);
-        auto renderTarget =
-            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
@@ -2418,9 +2441,6 @@ extern "C"
                              nativeSurface,
                              artboardHandle,
                              stateMachineHandle,
-                             renderTarget,
-                             width,
-                             height,
                              fit,
                              alignment,
                              clearColor,
@@ -2433,9 +2453,6 @@ extern "C"
                                 nativeSurface,
                                 artboardHandle,
                                 stateMachineHandle,
-                                renderTarget,
-                                width,
-                                height,
                                 fit,
                                 alignment,
                                 clearColor,
@@ -2477,7 +2494,6 @@ extern "C"
         jlong drawKey,
         jlong artboardHandleRef,
         jlong stateMachineHandleRef,
-        jlong renderTargetRef,
         jint jWidth,
         jint jHeight,
         jbyte jFit,
@@ -2489,19 +2505,24 @@ extern "C"
         auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
         auto* renderContext =
             reinterpret_cast<RenderContext*>(renderContextRef);
-        auto* nativeSurface = reinterpret_cast<void*>(surfaceRef);
-        auto renderTarget =
-            reinterpret_cast<LazyFramebufferRenderTargetGL*>(renderTargetRef);
+        auto* nativeSurface = reinterpret_cast<RenderSurface*>(surfaceRef);
         auto fit = GetFit(static_cast<uint8_t>(jFit));
         auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
         auto scaleFactor = static_cast<float_t>(jScaleFactor);
         auto clearColor = static_cast<uint32_t>(jClearColor);
-        auto width = static_cast<int>(jWidth);
-        auto height = static_cast<int>(jHeight);
-        auto* pixels = reinterpret_cast<uint8_t*>(
-            env->GetByteArrayElements(jBuffer, nullptr));
         auto jExceptionClass =
             FindClass(env, "app/rive/RiveDrawToBufferException");
+        if (jWidth <= 0 || jHeight <= 0)
+        {
+            env->ThrowNew(jExceptionClass.get(),
+                          "Failed to draw into buffer: dimensions must be "
+                          "positive");
+            return;
+        }
+        auto width = static_cast<uint32_t>(jWidth);
+        auto height = static_cast<uint32_t>(jHeight);
+        auto* pixels = reinterpret_cast<uint8_t*>(
+            env->GetByteArrayElements(jBuffer, nullptr));
         if (pixels == nullptr)
         {
             RiveLogE(TAG_CQ,
@@ -2517,6 +2538,7 @@ extern "C"
             Success,
             ArtboardNull,
             StateMachineNull,
+            RenderTargetUnavailable,
         };
 
         // Be sure all pathways signal completion with `set_value` before
@@ -2527,7 +2549,6 @@ extern "C"
                          nativeSurface,
                          artboardHandleRef,
                          stateMachineHandleRef,
-                         renderTarget,
                          width,
                          height,
                          fit,
@@ -2566,62 +2587,52 @@ extern "C"
                 return;
             }
 
-            renderContext->beginFrame(nativeSurface);
-            auto concreteRenderTarget = renderTarget->getOrCreate();
-
+            auto concreteRenderTarget =
+                renderContext->beginFrame(nativeSurface);
+            if (concreteRenderTarget == nullptr ||
+                concreteRenderTarget->width() == 0 ||
+                concreteRenderTarget->height() == 0)
+            {
+                completionPromise->set_value(
+                    DrawResult::RenderTargetUnavailable);
+                return;
+            }
             // Retrieve the Rive RenderContext from the CommandServer
             auto factory =
                 reinterpret_cast<CommandServerFactory*>(server->factory());
             auto riveContext = factory->getRenderContext()->riveContext.get();
 
             riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
-                .renderTargetWidth = static_cast<uint32_t>(width),
-                .renderTargetHeight = static_cast<uint32_t>(height),
+                .renderTargetWidth = concreteRenderTarget->width(),
+                .renderTargetHeight = concreteRenderTarget->height(),
                 .loadAction = rive::gpu::LoadAction::clear,
                 .clearColor = clearColor,
             });
 
             auto renderer = rive::RiveRenderer(riveContext);
 
-            renderer.align(fit,
-                           alignment,
-                           rive::AABB(0.0f,
-                                      0.0f,
-                                      static_cast<float_t>(width),
-                                      static_cast<float_t>(height)),
-                           artboard->bounds(),
-                           scaleFactor);
+            renderer.align(
+                fit,
+                alignment,
+                rive::AABB(
+                    0.0f,
+                    0.0f,
+                    static_cast<float_t>(concreteRenderTarget->width()),
+                    static_cast<float_t>(concreteRenderTarget->height())),
+                artboard->bounds(),
+                scaleFactor);
             artboard->draw(&renderer);
 
-            riveContext->flush({
-                .renderTarget = concreteRenderTarget,
-            });
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glFinish();
-            glPixelStorei(GL_PACK_ALIGNMENT, 1);
-            glReadPixels(0,
-                         0,
-                         width,
-                         height,
-                         GL_RGBA,
-                         GL_UNSIGNED_BYTE,
-                         pixels);
-
-            auto rowBytes = static_cast<size_t>(width) * 4;
-            std::vector<uint8_t> row(rowBytes);
-            auto* data = pixels;
-            for (int y = 0; y < height / 2; ++y)
+            if (!renderContext->flush(nativeSurface) ||
+                !renderContext->readPixels(nativeSurface,
+                                           width,
+                                           height,
+                                           pixels))
             {
-                auto* top = data + (static_cast<size_t>(y) * rowBytes);
-                auto* bottom =
-                    data + (static_cast<size_t>(height - 1 - y) * rowBytes);
-                std::memcpy(row.data(), top, rowBytes);
-                std::memcpy(top, bottom, rowBytes);
-                std::memcpy(bottom, row.data(), rowBytes);
+                completionPromise->set_value(
+                    DrawResult::RenderTargetUnavailable);
+                return;
             }
-
-            renderContext->present(nativeSurface);
             completionPromise->set_value(DrawResult::Success);
         };
 
@@ -2644,6 +2655,11 @@ extern "C"
                 env->ThrowNew(
                     jExceptionClass.get(),
                     "Failed to draw into buffer: State machine instance is null");
+                break;
+            case DrawResult::RenderTargetUnavailable:
+                env->ThrowNew(
+                    jExceptionClass.get(),
+                    "Failed to draw into buffer: render target is unavailable");
                 break;
         }
     }

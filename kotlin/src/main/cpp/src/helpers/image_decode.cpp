@@ -109,9 +109,14 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
     env->DeleteLocalRef(jPixels);
 
+    // New runtime: create backend-specific render images through the active
+    // render context.
+    // Legacy falls through to AndroidImage below.
     if (renderContext != nullptr)
     {
-        return renderContext->makeImage(rawWidth, rawHeight, std::move(out));
+        return renderContext->createRenderImage(rawWidth,
+                                                rawHeight,
+                                                std::move(out));
     }
 
     return make_rcp<AndroidImage>(static_cast<int>(rawWidth),

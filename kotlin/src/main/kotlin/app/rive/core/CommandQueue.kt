@@ -1,8 +1,7 @@
 package app.rive.core
 
 import android.graphics.Color
-import android.graphics.SurfaceTexture
-import android.view.TextureView
+import android.os.Build
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
 import androidx.annotation.VisibleForTesting
@@ -12,15 +11,18 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.Fit
+import app.rive.RenderBackend
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileException
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
+import app.rive.RiveShutdownException
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
+import app.rive.effectiveRenderBackend
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.runtime.kotlin.core.File.Enum
@@ -104,18 +106,108 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * A command queue needs to be polled to receive messages from the command server. This is handled
  * by the [rememberRiveWorker] composable or by calling [beginPolling].
  *
- * @param renderContext The [RenderContext] to use for rendering. Currently only OpenGL is
- *    supported. The CommandQueue takes ownership of the passed context.
- * @param bridge The [CommandQueueBridge] to use for native implementation. Leave as default - used
- *    for testing.
- * @param tracingEnabled Whether native command server tracing should start enabled for this worker.
- * @throws RiveInitializationException If the command queue cannot be created for any reason.
+ * @param renderContext Render context owned by this command queue after native startup succeeds.
+ * @param bridge Native bridge used to create and communicate with the command queue. This is
+ *    injectable so unit tests can mock JNI calls without loading native code.
+ * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+ * @param nativePointer Allocated native command queue created by
+ *    `createNativeCommandQueueResources`. Supplying it lets backend fallback finish native startup
+ *    before ownership is transferred to this instance.
  */
-class CommandQueue(
-    private val renderContext: RenderContext = RenderContextGL(),
+class CommandQueue internal constructor(
+    private val renderContext: RenderContext,
     private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
     tracingEnabled: Boolean = false,
+    nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
 ) : RefCounted {
+    /**
+     * Creates a command queue using the requested render backend.
+     *
+     * @param renderBackend Preferred render backend. If Vulkan is requested below the minimum
+     *    supported Android API level, or Vulkan native initialization fails, OpenGL is used
+     *    instead.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @throws RiveInitializationException If the command queue cannot be created.
+     */
+    @Throws(RiveInitializationException::class)
+    constructor(
+        renderBackend: RenderBackend = RenderBackend.OpenGL,
+        tracingEnabled: Boolean = false,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = CommandQueueJNIBridge(),
+        ),
+        tracingEnabled = tracingEnabled
+    )
+
+    /**
+     * Creates a command queue with injectable backend construction for unit tests.
+     *
+     * @param renderBackend Preferred backend for the command queue.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @param bridge Native bridge mock used to start the command server without loading JNI.
+     * @param sdkInt Android API level to use for backend selection.
+     * @param renderContextFactory Factory that creates the requested concrete render context.
+     * @throws RiveInitializationException If no backend can start.
+     */
+    @VisibleForTesting
+    internal constructor(
+        renderBackend: RenderBackend,
+        tracingEnabled: Boolean = false,
+        bridge: CommandQueueBridge,
+        sdkInt: Int = Build.VERSION.SDK_INT,
+        renderContextFactory: (RenderBackend) -> RenderContext,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = bridge,
+            sdkInt = sdkInt,
+            renderContextFactory = renderContextFactory,
+        ),
+        tracingEnabled = tracingEnabled,
+    )
+
+    /**
+     * Completes construction from resources that already passed native startup.
+     *
+     * Kotlin delegated constructors cannot wrap a `this(...)` call in fallback logic. The public
+     * backend constructor therefore creates the render context and native command queue first, then
+     * delegates through this constructor so ownership transfers only after a backend succeeds.
+     *
+     * @param resources Render context, bridge, and native pointer produced by backend startup.
+     * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+     */
+    // Used by the public renderBackend constructor's delegated this(...) call.
+    // Flagged as "unused" by the linter for an unknown reason.
+    @Suppress("unused")
+    private constructor(
+        resources: NativeCommandQueueResources,
+        tracingEnabled: Boolean,
+    ) : this(
+        renderContext = resources.renderContext,
+        bridge = resources.bridge,
+        tracingEnabled = tracingEnabled,
+        nativePointer = resources.nativePointer,
+    )
+
+    /**
+     * Resources created before final [CommandQueue] construction.
+     *
+     * The bundle keeps the chosen render context paired with the bridge and native pointer created
+     * from it so fallback can retry another backend before ownership reaches the main constructor.
+     * By default, constructing this bundle allocates [nativePointer] immediately.
+     *
+     * @property renderContext Render context selected for the command queue.
+     * @property bridge Native bridge used to create [nativePointer].
+     * @property nativePointer Native command queue pointer created from [renderContext].
+     */
+    private data class NativeCommandQueueResources(
+        val renderContext: RenderContext,
+        val bridge: CommandQueueBridge,
+        val nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
+    )
+
     companion object {
         /**
          * Maximum number of Rive components that can safely use this CommandQueue instance
@@ -131,6 +223,93 @@ class CommandQueue(
 
         /** Monotonically increasing ID for naming shutdown threads and their watchdogs. */
         private val nextShutdownThreadID = AtomicLong()
+
+        /**
+         * Creates command queue resources for a requested render backend.
+         *
+         * This method owns public backend fallback policy: Vulkan is attempted only on supported
+         * Android API levels, and OpenGL is retried if Vulkan native startup fails.
+         *
+         * @param renderBackend Preferred backend for the command queue.
+         * @return Resources for the backend that successfully started.
+         * @throws RiveInitializationException If no backend can start.
+         */
+        private fun createNativeCommandQueueResources(
+            renderBackend: RenderBackend,
+            bridge: CommandQueueBridge,
+            sdkInt: Int = Build.VERSION.SDK_INT,
+            renderContextFactory: (RenderBackend) -> RenderContext = ::createRenderContext,
+        ): NativeCommandQueueResources {
+            if (effectiveRenderBackend(renderBackend, sdkInt) == RenderBackend.OpenGL) {
+                return NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.OpenGL),
+                    bridge
+                )
+            }
+
+            val vulkanFailure = runCatching {
+                NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.Vulkan),
+                    bridge
+                )
+            }.fold(
+                onSuccess = { return it },
+                onFailure = { it }
+            )
+
+            RiveLog.e(COMMAND_QUEUE_TAG) {
+                "Failed to initialize Vulkan render backend, falling back to OpenGL: " +
+                        vulkanFailure.message
+            }
+
+            return runCatching {
+                NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.OpenGL),
+                    bridge
+                )
+            }.fold(
+                onSuccess = { it },
+                onFailure = { openGLFailure ->
+                    openGLFailure.addSuppressed(vulkanFailure)
+                    throw openGLFailure
+                }
+            )
+        }
+
+        private fun createRenderContext(renderBackend: RenderBackend): RenderContext =
+            when (renderBackend) {
+                RenderBackend.Vulkan -> RenderContextVulkan()
+                RenderBackend.OpenGL -> RenderContextGL()
+            }
+
+        /**
+         * Creates the native command queue and transfers [renderContext] ownership on success.
+         *
+         * If native startup fails, the Kotlin [CommandQueue] instance is never fully constructed,
+         * so normal [release] cleanup cannot run. In that case this method closes [renderContext]
+         * before rethrowing the startup failure.
+         *
+         * @param renderContext Render context passed to the native command server.
+         * @param bridge Native bridge used to create the command queue.
+         * @return The native command queue pointer.
+         * @throws RiveInitializationException The original startup failure. If render context
+         *    cleanup also fails, the cleanup failure is added as a suppressed exception.
+         */
+        private fun createNativeCommandQueue(
+            renderContext: RenderContext,
+            bridge: CommandQueueBridge
+        ): Long {
+            try {
+                return bridge.cppConstructor(renderContext.nativeObjectPointer)
+            } catch (startupFailure: RiveInitializationException) {
+                try {
+                    renderContext.close()
+                } catch (closeFailure: RiveShutdownException) {
+                    startupFailure.addSuppressed(closeFailure)
+                }
+                throw startupFailure
+            }
+        }
     }
 
     /**
@@ -139,7 +318,7 @@ class CommandQueue(
      */
     private val shutdownComplete = CountDownLatch(1)
     private val cppPointer = RCPointer(
-        bridge.cppConstructor(renderContext.nativeObjectPointer),
+        nativePointer,
         COMMAND_QUEUE_TAG,
         ::dispose
     )
@@ -452,24 +631,6 @@ class CommandQueue(
             bridge.cppPollMessages(cppPointer.pointer)
         }
     }
-
-    /**
-     * Create a Rive rendering surface for Rive to draw into.
-     *
-     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
-     *
-     * @param surfaceTexture The Android [SurfaceTexture], likely coming from a [TextureView].
-     * @return A [RiveSurface] that can be used for rendering.
-     * @throws RiveRenderException If the underlying Android or backend surface cannot be created.
-     * @throws IllegalStateException If this command queue has been released.
-     */
-    @Deprecated(
-        "Use createRiveSurface(SurfaceTextureSurface(surfaceTexture)) instead.",
-        ReplaceWith("createRiveSurface(SurfaceTextureSurface(surfaceTexture))")
-    )
-    @Throws(RiveRenderException::class, IllegalStateException::class)
-    fun createRiveSurface(surfaceTexture: SurfaceTexture): RiveSurface =
-        createRiveSurface(SurfaceTextureSurface(surfaceTexture))
 
     /**
      * Create a Rive rendering surface for Rive to draw into.
@@ -2368,11 +2529,10 @@ class CommandQueue(
         bridge.cppDraw(
             cppPointer.pointer,
             renderContext.nativeObjectPointer,
-            surface.surfaceNativePointer,
+            surface.surfaceNativePointer.pointer,
             surface.drawKey.handle,
             artboardHandle.handle,
             stateMachineHandle.handle,
-            surface.renderTargetPointer.pointer,
             surface.width,
             surface.height,
             fit.nativeMapping,
@@ -2431,11 +2591,10 @@ class CommandQueue(
         bridge.cppDrawToBuffer(
             cppPointer.pointer,
             renderContext.nativeObjectPointer,
-            surface.surfaceNativePointer,
+            surface.surfaceNativePointer.pointer,
             surface.drawKey.handle,
             artboardHandle.handle,
             stateMachineHandle.handle,
-            surface.renderTargetPointer.pointer,
             width,
             height,
             fit.nativeMapping,

@@ -203,6 +203,9 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
         }
 
         override val surface: Surface = imageReader.surface
+        override val width: Int = imageReader.width
+        override val height: Int = imageReader.height
+        override val resizable: Boolean = false
 
         init {
             imageReader.setOnImageAvailableListener(

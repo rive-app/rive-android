@@ -37,6 +37,10 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  *
  * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
+ * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
+ *    compatibility. Vulkan is available for higher performance and may become the default in a
+ *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
+ *    initialization fails, the worker falls back to OpenGL.
  * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  * @see RiveWorker
@@ -47,9 +51,15 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
 fun rememberRiveWorker(
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
 ): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
-    val riveWorker = rememberRiveWorkerOrNull(errorState, autoPoll, tracingEnabled)
+    val riveWorker = rememberRiveWorkerOrNull(
+        errorState,
+        autoPoll,
+        tracingEnabled,
+        renderBackend
+    )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
         errorState.value
@@ -67,6 +77,10 @@ fun rememberRiveWorker(
  *    if you want to display or pass the error.
  * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
+ * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
+ *    compatibility. Vulkan is available for higher performance and may become the default in a
+ *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
+ *    initialization fails, the worker falls back to OpenGL.
  * @return The created [RiveWorker], or null if creation failed.
  * @see rememberRiveWorker
  */
@@ -75,10 +89,11 @@ fun rememberRiveWorkerOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null),
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val worker = remember {
-        runCatching { RiveWorker(tracingEnabled = tracingEnabled) }
+    val worker = remember(renderBackend) {
+        runCatching { createRiveWorker(renderBackend, tracingEnabled) }
             .onFailure {
                 if (errorState.value == null) {
                     errorState.value = it
@@ -135,3 +150,11 @@ fun rememberRiveWorkerOrNull(
 
     return worker
 }
+
+private fun createRiveWorker(
+    renderBackend: RenderBackend,
+    tracingEnabled: Boolean,
+): RiveWorker = RiveWorker(
+    renderBackend = renderBackend,
+    tracingEnabled = tracingEnabled
+)

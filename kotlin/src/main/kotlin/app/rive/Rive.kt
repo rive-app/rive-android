@@ -466,11 +466,11 @@ fun Rive(
                             height: Int
                         ) {
                             RiveLog.d(GENERAL_TAG) { "Surface texture available ($width x $height)" }
-                            surface = riveWorker.createRiveSurface(
-                                SurfaceTextureSurface(newSurfaceTexture)
-                            )
                             surfaceWidth = width
                             surfaceHeight = height
+                            surface = riveWorker.createRiveSurface(
+                                SurfaceTextureSurface(newSurfaceTexture, width, height)
+                            )
                             // Because this is a new surface, we send a fresh callback
                             bitmapCallbackSent = false
                         }
@@ -492,6 +492,8 @@ fun Rive(
                             RiveLog.d(GENERAL_TAG) { "Surface texture size changed ($width x $height)" }
                             surfaceWidth = width
                             surfaceHeight = height
+                            surface?.resize(width, height)
+                            bitmapCallbackSent = false
                         }
 
                         override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {
@@ -515,6 +517,7 @@ fun Rive(
                         }
                     }
                 }
-            })
+            }
+        )
     }
 }

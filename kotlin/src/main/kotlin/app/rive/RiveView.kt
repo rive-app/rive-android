@@ -129,7 +129,10 @@ class RiveView @JvmOverloads constructor(
             override fun onSurfaceTextureSizeChanged(
                 surfaceTexture: SurfaceTexture, width: Int, height: Int
             ) {
-                TODO("Not yet implemented")
+                this@RiveView.surfaceTexture = surfaceTexture
+                surfaceWidth = width
+                surfaceHeight = height
+                riveSurface?.resize(width, height)
             }
 
             override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {}
@@ -159,6 +162,8 @@ class RiveView @JvmOverloads constructor(
     }
 
     private fun createRiveSurface(file: RiveFile, surfaceTexture: SurfaceTexture): RiveSurface {
-        return file.riveWorker.createRiveSurface(SurfaceTextureSurface(surfaceTexture))
+        return file.riveWorker.createRiveSurface(
+            SurfaceTextureSurface(surfaceTexture, surfaceWidth, surfaceHeight)
+        )
     }
 }
