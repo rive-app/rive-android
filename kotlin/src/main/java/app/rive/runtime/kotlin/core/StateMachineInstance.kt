@@ -26,8 +26,20 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     private external fun cppReportedEventAt(cppPointer: Long, index: Int): RiveEventReport
     private external fun cppName(cppPointer: Long): String
     private external fun cppLayerCount(cppPointer: Long): Int
-    private external fun cppPointerDown(cppPointer: Long, pointerID: Int, x: Float, y: Float)
-    private external fun cppPointerUp(cppPointer: Long, pointerID: Int, x: Float, y: Float)
+    private external fun cppPointerDown(
+        cppPointer: Long,
+        pointerID: Int,
+        x: Float,
+        y: Float
+    ): Boolean
+
+    private external fun cppPointerUp(
+        cppPointer: Long,
+        pointerID: Int,
+        x: Float,
+        y: Float
+    ): Boolean
+
     private external fun cppPointerMove(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppPointerExit(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppSetViewModelInstance(cppPointer: Long, viewModel: Long)

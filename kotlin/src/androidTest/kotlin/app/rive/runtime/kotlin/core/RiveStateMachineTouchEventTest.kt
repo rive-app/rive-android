@@ -7,6 +7,8 @@ import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -211,5 +213,55 @@ class RiveStateMachineTouchEventTest {
 
             assertEquals("x25updown", observer.states[0].stateName)
         }
+    }
+
+    /**
+     * Tests that we do not miss VMI state changes that happen when touch down and up happen on the
+     * same frame. This was an edge case that was fixed by advancing by 0 after touch down and up
+     * events.
+     */
+    @Test
+    fun rapidDownUpProcessesDownVMIState() = UiThreadStatement.runOnUiThread {
+        (mockView as TestUtils.MockNoopRiveAnimationView).setBounds(500f, 500f)
+        mockView.setRiveResource(
+            R.raw.rapid_pointer_events,
+            autoplay = true,
+            autoBind = true
+        )
+        assert(mockView.artboardRenderer != null)
+        val renderer = mockView.artboardRenderer!!
+        val hasReached = mockView.controller.stateMachines.first()
+            .viewModelInstance!!
+            .getBooleanProperty("hasReached")
+        renderer.advance(0f)
+        assertFalse(hasReached.value)
+
+        val downTime = SystemClock.uptimeMillis()
+        val down = MotionEvent.obtain(
+            downTime,
+            downTime,
+            MotionEvent.ACTION_DOWN,
+            250f,
+            250f,
+            0
+        )
+        val up = MotionEvent.obtain(
+            downTime,
+            downTime,
+            MotionEvent.ACTION_UP,
+            250f,
+            250f,
+            0
+        )
+        try {
+            mockView.dispatchTouchEvent(down)
+            assertTrue(hasReached.value)
+            mockView.dispatchTouchEvent(up)
+        } finally {
+            down.recycle()
+            up.recycle()
+        }
+
+        assertTrue(hasReached.value)
     }
 }

@@ -974,34 +974,48 @@ class RiveFileController internal constructor(
                 artboardBounds = activeArtboard?.bounds ?: RectF(),
                 scaleFactor = layoutScaleFactorActive
             )
-            stateMachines.forEach {
+            stateMachines.forEach { stateMachine ->
 
-                when (eventType) {
-                    PointerEvents.POINTER_DOWN -> it.pointerDown(
-                        pointerID,
-                        artboardEventLocation.x,
-                        artboardEventLocation.y
-                    )
+                val shouldAdvance = when (eventType) {
+                    PointerEvents.POINTER_DOWN -> {
+                        stateMachine.pointerDown(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                    }
 
-                    PointerEvents.POINTER_UP -> it.pointerUp(
-                        pointerID,
-                        artboardEventLocation.x,
-                        artboardEventLocation.y
-                    )
+                    PointerEvents.POINTER_UP -> {
+                        stateMachine.pointerUp(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                    }
 
-                    PointerEvents.POINTER_MOVE -> it.pointerMove(
-                        pointerID,
-                        artboardEventLocation.x,
-                        artboardEventLocation.y
-                    )
+                    PointerEvents.POINTER_MOVE -> {
+                        stateMachine.pointerMove(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                        false
+                    }
 
-                    PointerEvents.POINTER_EXIT -> it.pointerExit(
-                        pointerID,
-                        artboardEventLocation.x,
-                        artboardEventLocation.y
-                    )
+                    PointerEvents.POINTER_EXIT -> {
+                        stateMachine.pointerExit(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                        false
+                    }
                 }
-                play(it, settleStateMachineState = false)
+                play(stateMachine, settleStateMachineState = false)
+                if (shouldAdvance) {
+                    resolveStateMachineAdvance(stateMachine, 0f)
+                    stateMachine.viewModelInstance?.pollChanges()
+                }
             }
         }
     }

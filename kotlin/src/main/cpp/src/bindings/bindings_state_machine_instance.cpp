@@ -6,6 +6,7 @@
 #include "rive/animation/state_machine.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/event_report.hpp"
+#include "rive/hit_result.hpp"
 #include "rive/math/vec2d.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 #include "rive/viewmodel/viewmodel_instance.hpp"
@@ -127,7 +128,7 @@ extern "C"
         return (jint)stateMachineInstance->stateMachine()->layerCount();
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerDown(
         JNIEnv*,
         jobject,
@@ -138,7 +139,9 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerDown(rive::Vec2D(x, y), pointerID);
+        return stateMachineInstance->pointerDown(rive::Vec2D(x, y),
+                                                 pointerID) !=
+               rive::HitResult::none;
     }
 
     JNIEXPORT void JNICALL
@@ -155,7 +158,7 @@ extern "C"
         stateMachineInstance->pointerMove(rive::Vec2D(x, y), 0.0f, pointerID);
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jboolean JNICALL
     Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerUp(
         JNIEnv*,
         jobject,
@@ -166,7 +169,8 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerUp(rive::Vec2D(x, y), pointerID);
+        return stateMachineInstance->pointerUp(rive::Vec2D(x, y), pointerID) !=
+               rive::HitResult::none;
     }
 
     JNIEXPORT void JNICALL
