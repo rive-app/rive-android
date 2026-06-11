@@ -72,7 +72,7 @@ class RiveArtboardRendererTest {
         val afterDeleteLatch = CountDownLatch(1)
 
         // The renderer needs a valid artboard to proceed to accessing the cppPointer
-        val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, lock = ReentrantLock()) {
+        val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = ReentrantLock()) {
             // Override draw to do nothing, avoiding the thread affinity checks in the real draw().
             override fun draw(
                 rendererAddress: Long,
@@ -138,12 +138,12 @@ class RiveArtboardRendererTest {
         // Signals that the main thread has released the artboard, and draw() can continue.
         val afterRelease = CountDownLatch(1)
 
-        // A lock we can reference, unlike the default private Artboard lock.
+        // A lock we can reference, unlike the default private Artboard file lock.
         val artboardLock = ReentrantLock()
 
         // An artboard that synchronizes with the main thread to simulate being released while
         // being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, lock = artboardLock) {
+        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
@@ -209,12 +209,12 @@ class RiveArtboardRendererTest {
         // Signals that the main thread has released the artboard, and draw() can continue.
         val afterRelease = CountDownLatch(1)
 
-        // A lock we can reference, unlike the default private Artboard lock.
+        // A lock we can reference, unlike the default private Artboard file lock.
         val artboardLock = ReentrantLock()
 
         // An artboard that synchronizes with the main thread to simulate being released right
         // before being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, lock = artboardLock) {
+        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,

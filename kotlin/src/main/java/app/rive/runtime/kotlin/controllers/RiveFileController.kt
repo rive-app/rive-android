@@ -165,7 +165,7 @@ class RiveFileController internal constructor(
                 return
             }
 
-            synchronized(field?.lock ?: this) {
+            synchronized(field?.fileLock ?: this) {
                 // If we have an old file remove all the old values.
                 field?.let {
                     RiveLog.d(TAG) { "File set; releasing old file: $it" }
@@ -185,7 +185,7 @@ class RiveFileController internal constructor(
             if (value == field) {
                 return
             }
-            synchronized(file?.lock ?: this) {
+            synchronized(file?.fileLock ?: this) {
                 RiveLog.d(TAG) { "Artboard set; releasing old artboard (if it exists): $field" }
                 field?.release()
                 field = value
@@ -268,7 +268,7 @@ class RiveFileController internal constructor(
     fun saveControllerState(): ControllerState? {
         val mFile = this.file ?: return null
         val mArtboard = this.activeArtboard ?: return null
-        synchronized(mFile.lock) {
+        synchronized(mFile.fileLock) {
             // This resource had already been released.
             if (!mFile.hasCppObject) {
                 return null
@@ -298,7 +298,7 @@ class RiveFileController internal constructor(
      */
     @ControllerStateManagement
     fun restoreControllerState(state: ControllerState) {
-        synchronized(file?.lock ?: this) {
+        synchronized(file?.fileLock ?: this) {
             // Remove all old values.
             reset()
             // Restore all the previous values.
@@ -323,7 +323,7 @@ class RiveFileController internal constructor(
     @WorkerThread
     fun advance(elapsed: Float) {
         // We need a file to advance.
-        val mLock = this.file?.lock ?: return
+        val mLock = this.file?.fileLock ?: return
         synchronized(mLock) {
             activeArtboard?.let { ab ->
                 // Process all the inputs right away.
@@ -684,7 +684,7 @@ class RiveFileController internal constructor(
     private fun processAllInputs() {
         // Gather all state machines that need playing and do that only once.
         val playableSet = mutableSetOf<StateMachineInstance>()
-        // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
+        // No need to lock this: this is being called from `advance()` which holds the file lock.
         while (changedInputs.isNotEmpty()) {
             // There is a small chance that the queue will be emptied by another thread before removing.
             // Null checking the removed item protects against that scenario.

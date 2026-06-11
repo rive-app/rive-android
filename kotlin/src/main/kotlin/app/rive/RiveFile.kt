@@ -212,7 +212,7 @@ sealed interface RiveFileSource {
 fun rememberRiveFile(
     source: RiveFileSource,
     riveWorker: RiveWorker,
-): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source) {
+): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source, riveWorker) {
     val result = RiveFile.fromSource(source, riveWorker)
     value = result
 

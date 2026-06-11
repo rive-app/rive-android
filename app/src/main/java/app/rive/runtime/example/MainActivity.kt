@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
         Pair(R.id.go_compose_data_binding_lists, ComposeListActivity::class.java),
         Pair(R.id.go_compose_layout, ComposeLayoutActivity::class.java),
         Pair(R.id.go_compose_audio, ComposeAudioActivity::class.java),
+        Pair(R.id.go_compose_capped_fps, ComposeCappedFPSActivity::class.java),
         Pair(R.id.go_compose_touch_pass_through, ComposeTouchPassThroughActivity::class.java),
         Pair(R.id.go_compose_scrolling, ComposeScrollActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),

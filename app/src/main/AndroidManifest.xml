@@ -48,6 +48,9 @@
             android:name=".ComposeAudioActivity"
             android:exported="true" />
         <activity
+            android:name=".ComposeCappedFPSActivity"
+            android:exported="true" />
+        <activity
             android:name=".ComposeTouchPassThroughActivity"
             android:exported="true" />
         <activity

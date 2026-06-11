@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEvent
@@ -32,8 +33,11 @@ import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.nanoseconds
 
 private const val GENERAL_TAG = "Rive/UI"
@@ -135,7 +139,8 @@ enum class RivePointerInputMode {
 /**
  * The main composable for rendering a Rive file's artboard and state machine.
  *
- * Internally, Rive uses a [TextureView] to create and manage a [Surface] for rendering.
+ * Internally, Rive uses a [TextureView] to create and manage a [android.view.Surface] for
+ * rendering.
  *
  * The composable will advance the state machine and draw the artboard on every frame while the
  * [Lifecycle] is in the [Lifecycle.State.RESUMED] state. It will also handle pointer input events
@@ -159,6 +164,9 @@ enum class RivePointerInputMode {
  *    transparent.
  * @param pointerInputMode Controls how pointer events are handled and consumed by Rive. See
  *    [RivePointerInputMode]. Default is [RivePointerInputMode.Consume].
+ * @param frameRate Controls how often Rive advances and draws while [playing] is true. Defaults to
+ *    [RiveFrameRate.Unbounded], which renders on every platform frame callback. On supported
+ *    Android versions, capped rates are also used as an advisory view frame-rate hint.
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
@@ -175,6 +183,7 @@ fun Rive(
     fit: Fit = RenderingDefaults.defaultFit(),
     backgroundColor: Int = RenderingDefaults.CLEAR_COLOR,
     pointerInputMode: RivePointerInputMode = Consume,
+    frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
     RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
@@ -211,6 +220,7 @@ fun Rive(
         trackMap = mapOf(
             "file" to file,
             "playing" to playing,
+            "frameRate" to frameRate,
             "artboard" to artboard,
             "artboardHandle" to artboardHandle,
             "stateMachine" to stateMachine,
@@ -297,6 +307,7 @@ fun Rive(
         fit,
         backgroundColor,
         playing,
+        frameRate,
     ) {
         if (surface == null) {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
@@ -332,41 +343,65 @@ fun Rive(
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
-            var lastFrameTime = 0.nanoseconds
+            val framePacer = RiveFramePacer(frameRate)
+            var lastFrameTimeNs = 0L
             while (isActive) {
+                if (isSettled) {
+                    traceSection("Rive/Frame/SettledSuspend") {
+                        snapshotFlow { isSettled }.first { !it }
+                    }
+                    lastFrameTimeNs = 0L
+                    framePacer.reset()
+                    continue
+                }
+
+                val frameDelay = framePacer.delayBeforeNextFrame(System.nanoTime())
+                if (frameDelay > ZERO) {
+                    delay(frameDelay)
+                }
+                if (isSettled) {
+                    continue
+                }
+
                 // Because we cannot break the outer loop directly from inside a traceSection lambda
                 var stopDrawLoop = false
 
-                val deltaTime = withFrameNanos { frameTimeNs ->
-                    val frameTime = frameTimeNs.nanoseconds
-                    (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
-                        lastFrameTime = frameTime
-                    }
+                val frameTimeNs = withFrameNanos { frameTimeNs -> frameTimeNs }
+
+                // Settled events can arrive while withFrameNanos is suspended.
+                if (isSettled) {
+                    continue
+                }
+                // FPS cap gate: skip platform frames that arrive before the next Rive frame is due.
+                if (!framePacer.tryScheduleFrame(frameTimeNs)) {
+                    continue
                 }
 
+                val deltaTime = if (lastFrameTimeNs == 0L) {
+                    ZERO
+                } else {
+                    (frameTimeNs - lastFrameTimeNs).nanoseconds
+                }
+                lastFrameTimeNs = frameTimeNs
+
                 traceSection("Rive/Frame") {
-                    // Skip advance and draw when settled.
-                    if (isSettled) {
-                        traceSection("Rive/Frame/SettledSkip") { Unit }
-                    } else {
-                        val drawSurface = surface
-                        if (drawSurface == null) {
-                            RiveLog.d(DRAW_TAG) { "Surface was released during draw, stopping draw loop" }
-                            stopDrawLoop = true
-                            return@traceSection
-                        }
-                        traceSection("Rive/Frame/Advance") {
-                            riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
-                        }
-                        traceSection("Rive/Frame/Draw") {
-                            riveWorker.draw(
-                                artboardHandle,
-                                stateMachineHandle,
-                                drawSurface,
-                                fit,
-                                backgroundColor
-                            )
-                        }
+                    val drawSurface = surface
+                    if (drawSurface == null) {
+                        RiveLog.d(DRAW_TAG) { "Surface was released during draw, stopping draw loop" }
+                        stopDrawLoop = true
+                        return@traceSection
+                    }
+                    traceSection("Rive/Frame/Advance") {
+                        riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                    }
+                    traceSection("Rive/Frame/Draw") {
+                        riveWorker.draw(
+                            artboardHandle,
+                            stateMachineHandle,
+                            drawSurface,
+                            fit,
+                            backgroundColor
+                        )
                     }
                 }
                 if (stopDrawLoop) {
@@ -517,6 +552,12 @@ fun Rive(
                         }
                     }
                 }
+            },
+            update = { textureView ->
+                textureView.applyRequestedFrameRateHint(
+                    frameRate = frameRate,
+                    active = playing && !isSettled
+                )
             }
         )
     }
