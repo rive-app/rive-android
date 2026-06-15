@@ -25,6 +25,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Ignore dirty runtime submodule worktree
+      shell: bash
+      run: git config --local submodule.submodules/rive-runtime.ignore dirty
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:

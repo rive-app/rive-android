@@ -21,6 +21,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Ignore dirty runtime submodule worktree
+      shell: bash
+      run: git config --local submodule.submodules/rive-runtime.ignore dirty
     - name: Install dependencies
       shell: bash
       run: npm ci

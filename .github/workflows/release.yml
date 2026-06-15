@@ -26,6 +26,9 @@ jobs:
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
 
+      - name: Ignore dirty runtime submodule worktree
+        run: git config --local submodule.submodules/rive-runtime.ignore dirty
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
