@@ -1,11 +1,12 @@
-#include "helpers/audio_engine.hpp"
-#include "helpers/jni_exception_handler.hpp"
 #include "models/worker_impl.hpp"
 
+#include "helpers/audio_engine.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "rive/renderer/gl/render_target_gl.hpp"
 
 namespace rive_android
 {
+constexpr auto* WORKER_TAG = "RiveLN/WorkerImpl";
 
 std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
                                              DrawableThreadState* threadState,
@@ -19,6 +20,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
     {
         case RendererType::Rive:
         {
+            RiveLogD(WORKER_TAG, "Making Rive WorkerImpl.");
             ANativeWindow* window = std::get<ANativeWindow*>(surface);
             impl =
                 std::make_unique<PLSWorkerImpl>(window, threadState, &success);
@@ -26,6 +28,7 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
         }
         case RendererType::Canvas:
         {
+            RiveLogD(WORKER_TAG, "Making Canvas WorkerImpl.");
             jobject ktSurface = std::get<jobject>(surface);
             impl = std::make_unique<CanvasWorkerImpl>(ktSurface, &success);
         }
@@ -34,15 +37,25 @@ std::unique_ptr<WorkerImpl> WorkerImpl::Make(SurfaceVariant surface,
     }
     if (!success)
     {
-        impl->destroy(threadState);
-        impl.reset();
+        RiveLogE(WORKER_TAG, "Failed to make WorkerImpl. Destroying impl.");
+        if (impl != nullptr)
+        {
+            impl->destroy(threadState);
+            impl.reset();
+        }
     }
     return impl;
 }
 
 void WorkerImpl::start(jobject ktRenderer,
-                       std::chrono::high_resolution_clock::time_point frameTime)
+                       std::chrono::steady_clock::time_point frameTime)
 {
+    if (m_isStarted)
+    {
+        RiveLogV(WORKER_TAG, "WorkerImpl already started.");
+        return;
+    }
+    RiveLogD(WORKER_TAG, "Starting WorkerImpl.");
     auto env = GetJNIEnv();
     jclass ktClass = env->GetObjectClass(ktRenderer);
     m_ktRendererClass =
@@ -58,6 +71,12 @@ void WorkerImpl::start(jobject ktRenderer,
 
 void WorkerImpl::stop()
 {
+    if (!m_isStarted)
+    {
+        RiveLogV(WORKER_TAG, "WorkerImpl already stopped.");
+        return;
+    }
+    RiveLogD(WORKER_TAG, "Stopping WorkerImpl.");
     // Release the reference to the audio engine to allow it to stop
     AudioEngine::Instance().release();
     auto env = GetJNIEnv();
@@ -71,15 +90,17 @@ void WorkerImpl::stop()
     m_isStarted = false;
 }
 
-void WorkerImpl::doFrame(
+WorkerFrameResult WorkerImpl::doFrame(
     ITracer* tracer,
     DrawableThreadState* threadState,
     jobject ktRenderer,
-    std::chrono::high_resolution_clock::time_point frameTime)
+    std::chrono::steady_clock::time_point frameTime)
 {
+    WorkerFrameResult result;
     if (!m_isStarted)
     {
-        return;
+        RiveLogW(WORKER_TAG, "Trying to doFrame before WorkerImpl is started.");
+        return result;
     }
 
     float fElapsedMs =
@@ -87,46 +108,82 @@ void WorkerImpl::doFrame(
     m_lastFrameTime = frameTime;
 
     auto env = GetJNIEnv();
+    tracer->beginSection("Rive/Frame");
+
+    tracer->beginSection("Rive/Frame/Advance");
     JNIExceptionHandler::CallVoidMethod(env,
                                         ktRenderer,
                                         m_ktAdvanceCallback,
                                         fElapsedMs);
+    tracer->endSection(); // Rive/Frame/Advance
 
-    tracer->beginSection("draw()");
+    tracer->beginSection("Rive/Frame/Draw");
 
-    prepareForDraw(threadState);
+    tracer->beginSection("Rive/Frame/Draw/Begin");
+    EGLResult prepareResult = prepareForDraw(threadState);
+    tracer->endSection(); // Rive/Frame/Draw/Begin
+    if (!prepareResult.isSuccess())
+    {
+        tracer->endSection(); // Rive/Frame/Draw
+        tracer->endSection(); // Rive/Frame
+        result.eglResult = prepareResult;
+        return result;
+    }
+
+    tracer->beginSection("Rive/Frame/Draw/Render");
     // Kotlin callback.
     JNIExceptionHandler::CallVoidMethod(env, ktRenderer, m_ktDrawCallback);
+    tracer->endSection(); // Rive/Frame/Draw/Render
 
-    tracer->beginSection("flush()");
+    tracer->beginSection("Rive/Frame/Draw/Flush");
     flush(threadState);
-    tracer->endSection(); // flush
+    tracer->endSection(); // Rive/Frame/Draw/Flush
 
-    tracer->beginSection("swapBuffers()");
-    threadState->swapBuffers();
-
-    tracer->endSection(); // swapBuffers
-    tracer->endSection(); // draw()
+    tracer->beginSection("Rive/Frame/Draw/Present");
+    EGLResult swapResult = threadState->swapBuffers();
+    tracer->endSection(); // Rive/Frame/Draw/Present
+    tracer->endSection(); // Rive/Frame/Draw
+    tracer->endSection(); // Rive/Frame
+    if (!swapResult.isSuccess())
+    {
+        result.eglResult = swapResult;
+        return result;
+    }
+    result.didDraw = true;
+    return result;
 }
 
 /* PLSWorkerImpl */
+constexpr auto* PLS_TAG = "RiveLN/PLSWorkerImpl";
+
 PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
                              DrawableThreadState* threadState,
                              bool* success) :
     EGLWorkerImpl(window, threadState, success)
 {
-    if (!success)
+    if (!*success)
     {
+        RiveLogE(PLS_TAG, "Failed to make PLS WorkerImpl.");
         return;
     }
 
     auto eglThreadState = static_cast<EGLThreadState*>(threadState);
 
-    eglThreadState->makeCurrent(m_eglSurface);
+    EGLResult makeCurrentResult = eglThreadState->makeCurrent(m_eglSurface);
+    if (!makeCurrentResult.isSuccess())
+    {
+        *success = false;
+        RiveLogE(
+            PLS_TAG,
+            "Failed to make context current while creating PLS WorkerImpl.");
+        return;
+    }
     rive::gpu::RenderContext* renderContext =
         PLSWorkerImpl::PlsThreadState(eglThreadState)->renderContext();
     if (renderContext == nullptr)
     {
+        *success = false;
+        RiveLogE(PLS_TAG, "Failed to make Rive Renderer RenderContext.");
         return; // PLS was not supported.
     }
     int width = ANativeWindow_getWidth(window);
@@ -134,17 +191,20 @@ PLSWorkerImpl::PLSWorkerImpl(struct ANativeWindow* window,
     GLint sampleCount;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glGetIntegerv(GL_SAMPLES, &sampleCount);
+    RiveLogD(PLS_TAG, "Creating Rive Framebuffer Render Target.");
     m_renderTarget =
         rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width,
                                                              height,
                                                              0,
                                                              sampleCount);
+    RiveLogD(PLS_TAG, "Creating Rive Renderer.");
     m_plsRenderer = std::make_unique<rive::RiveRenderer>(renderContext);
     *success = true;
 }
 
 void PLSWorkerImpl::destroy(DrawableThreadState* threadState)
 {
+    RiveLogD(PLS_TAG, "Destroying Rive WorkerImpl.");
     m_plsRenderer.reset();
     m_renderTarget.reset();
     EGLWorkerImpl::destroy(threadState);
@@ -174,6 +234,7 @@ rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
 /* CanvasWorkerImpl */
 void CanvasWorkerImpl::destroy(DrawableThreadState*)
 {
+    RiveLogD("RiveLN/CanvasWorkerImpl", "Destroying Canvas WorkerImpl.");
     assert(m_ktSurface != nullptr);
 
     m_canvasRenderer.reset();
@@ -181,9 +242,10 @@ void CanvasWorkerImpl::destroy(DrawableThreadState*)
     m_ktSurface = nullptr;
 }
 
-void CanvasWorkerImpl::prepareForDraw(DrawableThreadState*) const
+EGLResult CanvasWorkerImpl::prepareForDraw(DrawableThreadState*) const
 {
     m_canvasRenderer->bindCanvas(m_ktSurface);
+    return EGLResult::Ok();
 }
 
 void CanvasWorkerImpl::flush(DrawableThreadState*) const

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.ComponentActivity
+import app.rive.RiveLog
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
 
@@ -18,6 +19,7 @@ class MainActivity : ComponentActivity() {
         Pair(R.id.go_compose_data_binding_lists, ComposeListActivity::class.java),
         Pair(R.id.go_compose_layout, ComposeLayoutActivity::class.java),
         Pair(R.id.go_compose_audio, ComposeAudioActivity::class.java),
+        Pair(R.id.go_compose_capped_fps, ComposeCappedFPSActivity::class.java),
         Pair(R.id.go_compose_touch_pass_through, ComposeTouchPassThroughActivity::class.java),
         Pair(R.id.go_compose_scrolling, ComposeScrollActivity::class.java),
         Pair(R.id.go_simple, SimpleActivity::class.java),
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
         Pair(R.id.go_layout, LayoutActivity::class.java),
         Pair(R.id.go_fragment, RiveFragmentActivity::class.java),
         Pair(R.id.go_low_level, LowLevelActivity::class.java),
+        Pair(R.id.go_hardware_bitmap_canvas, HardwareBitmapCanvasActivity::class.java),
         Pair(R.id.go_http, HttpActivity::class.java),
         Pair(R.id.go_simple_state_machine, SimpleStateMachineActivity::class.java),
         Pair(R.id.go_nested_input, NestedInputActivity::class.java),
@@ -57,6 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setEdgeToEdgeContent(R.layout.main)
+
+        RiveLog.logger = RiveLog.LogcatLogger()
 
         buttonsData.forEach { pair ->
             findViewById<Button>(pair.first).setOnClickListener {

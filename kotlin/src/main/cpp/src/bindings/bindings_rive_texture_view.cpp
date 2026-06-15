@@ -1,5 +1,5 @@
-#include <string>
 #include <jni.h>
+#include <string>
 
 #include "models/jni_renderer.hpp"
 

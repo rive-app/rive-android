@@ -1,6 +1,8 @@
 package app.rive.runtime.kotlin.renderers
 
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
+import app.rive.core.traceSection
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
@@ -15,12 +17,16 @@ open class RiveArtboardRenderer(
     rendererType: RendererType = Rive.defaultRendererType,
     private var controller: RiveFileController,
 ) : Renderer(rendererType, trace) {
+    companion object {
+        const val TAG = "RiveL/RiveArtboardRenderer"
+    }
 
     private val fit get() = controller.fit
     private val alignment get() = controller.alignment
     private val scaleFactor get() = controller.layoutScaleFactorActive
 
     init {
+        RiveLog.d(TAG) { "Initializing." }
         controller.also {
             it.onStart = ::start
             it.acquire()
@@ -33,14 +39,18 @@ open class RiveArtboardRenderer(
     @WorkerThread
     private fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
-            val newWidth = width / scaleFactor
-            val newHeight = height / scaleFactor
-            controller.activeArtboard?.apply {
-                width = newWidth
-                height = newHeight
+            traceSection("Rive/Layout/ResizeArtboard") {
+                val newWidth = width / scaleFactor
+                val newHeight = height / scaleFactor
+                controller.activeArtboard?.apply {
+                    width = newWidth
+                    height = newHeight
+                }
             }
         } else {
-            controller.activeArtboard?.resetArtboardSize()
+            traceSection("Rive/Layout/ResetArtboardSize") {
+                controller.activeArtboard?.resetArtboardSize()
+            }
         }
     }
 
@@ -54,11 +64,10 @@ open class RiveArtboardRenderer(
             // hasCppObject can only change while holding frameLock
             if (!hasCppObject || !controller.isActive) return
 
-            // Protect both resize and draw operations with file.lock to prevent race conditions
+            // Protect both resize and draw operations with fileLock to prevent race conditions
             // with file/artboard changes on the UI thread. This matches the locking strategy
-            // used in controller.advance()
-            synchronized(controller.file?.lock ?: this) {
-                // No need to check hasCppObject again here.
+            // used in controller.advance(). Always acquire frameLock before fileLock.
+            synchronized(controller.file?.fileLock ?: this) {
                 if (!controller.isActive) return
                 if (controller.requireArtboardResize.getAndSet(false)) {
                     resizeArtboard()
@@ -93,11 +102,11 @@ open class RiveArtboardRenderer(
     }
 
     fun reset() {
+        RiveLog.d(TAG) { "Reset." }
         controller.stopAnimations()
         controller.reset()
         stop()
         controller.selectArtboard()
         start()
     }
-
 }

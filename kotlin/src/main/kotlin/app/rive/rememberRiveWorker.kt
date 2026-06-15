@@ -24,8 +24,9 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * assets ([images][ImageHandle], [audio][AudioHandle], and [fonts][FontHandle]), [RiveFile]s,
  * [artboards][Artboard], state machines, and [view model instances][ViewModelInstance].
  *
- * The lifetime of the Rive worker is managed by this composable. It will release the resources
- * allocated to the Rive worker when it falls out of scope.
+ * The lifetime of the Rive worker reference created by this composable is managed by this
+ * composable. It releases that reference when it falls out of scope. The worker fully disposes once
+ * any other Rive resources that acquired it, such as files, assets, or surfaces, are also closed.
  *
  * A Rive worker needs to be polled to receive messages from the command server. This composable
  * creates a poll loop that runs while the [Lifecycle] is in the [Lifecycle.State.RESUMED] state.
@@ -34,6 +35,12 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * This function throws a [RuntimeException] if the Rive worker cannot be created. If you want to
  * handle failure gracefully, use [rememberRiveWorkerOrNull] instead.
  *
+ * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
+ * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
+ * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
+ *    compatibility. Vulkan is available for higher performance and may become the default in a
+ *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
+ *    initialization fails, the worker falls back to OpenGL.
  * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  * @see RiveWorker
@@ -41,9 +48,18 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  */
 @Composable
 @Throws(RiveInitializationException::class)
-fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
+fun rememberRiveWorker(
+    autoPoll: Boolean = true,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
+): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
-    val riveWorker = rememberRiveWorkerOrNull(errorState, autoPoll)
+    val riveWorker = rememberRiveWorkerOrNull(
+        errorState,
+        autoPoll,
+        tracingEnabled,
+        renderBackend
+    )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
         errorState.value
@@ -59,6 +75,12 @@ fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
  *
  * @param errorState A mutable state that holds the error if the Rive worker creation fails. Useful
  *    if you want to display or pass the error.
+ * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
+ * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
+ * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
+ *    compatibility. Vulkan is available for higher performance and may become the default in a
+ *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
+ *    initialization fails, the worker falls back to OpenGL.
  * @return The created [RiveWorker], or null if creation failed.
  * @see rememberRiveWorker
  */
@@ -66,16 +88,24 @@ fun rememberRiveWorker(autoPoll: Boolean = true): RiveWorker {
 fun rememberRiveWorkerOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null),
     autoPoll: Boolean = true,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val worker = remember {
-        runCatching { RiveWorker() }
+    val worker = remember(renderBackend) {
+        runCatching { createRiveWorker(renderBackend, tracingEnabled) }
             .onFailure {
                 if (errorState.value == null) {
                     errorState.value = it
                 }
                 RiveLog.e(RIVE_WORKER_TAG) { "Failed to create Rive worker: ${it.message}" }
             }.getOrNull()
+    }
+
+    // Apply runtime tracing toggle changes without recreating the worker.
+    LaunchedEffect(worker, tracingEnabled) {
+        if (worker == null) return@LaunchedEffect
+        worker.setTracingEnabled(tracingEnabled)
     }
 
     /**
@@ -120,3 +150,11 @@ fun rememberRiveWorkerOrNull(
 
     return worker
 }
+
+private fun createRiveWorker(
+    renderBackend: RenderBackend,
+    tracingEnabled: Boolean,
+): RiveWorker = RiveWorker(
+    renderBackend = renderBackend,
+    tracingEnabled = tracingEnabled
+)

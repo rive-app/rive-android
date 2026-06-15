@@ -309,8 +309,8 @@ class RiveMemoryTests {
             }
 
             assertTrue(
-                "Exception message should include 'Failed requirement.'",
-                exception.message?.contains("Failed requirement.") == true
+                "Exception message should include 'Cannot acquire a disposed object.'",
+                exception.message?.contains("Cannot acquire a disposed object.") == true
             )
             assertTrue(
                 "StackTrace should contain 'acquire'",
@@ -399,9 +399,9 @@ class RiveMemoryTests {
         // Allows override of the draw method to synchronize with the main thread
         class PhasedArtboard(
             unsafeCppPointer: Long,
-            lock: ReentrantLock,
+            fileLock: ReentrantLock,
             private val phaser: Phaser,
-        ) : Artboard(unsafeCppPointer, lock) {
+        ) : Artboard(unsafeCppPointer, fileLock) {
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
@@ -434,7 +434,7 @@ class RiveMemoryTests {
         class PhasedFile(bytes: ByteArray, private val phaser: Phaser) : File(bytes) {
             override fun artboard(index: Int): Artboard {
                 val artboardPointer = cppArtboardByIndex(cppPointer, index)
-                val ab = PhasedArtboard(artboardPointer, lock, phaser)
+                val ab = PhasedArtboard(artboardPointer, fileLock, phaser)
                 dependencies.add(ab)
                 return ab
             }

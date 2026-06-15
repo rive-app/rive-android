@@ -1,10 +1,11 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
+#include <jni.h>
+
 #include "helpers/font_helper.hpp"
+#include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
+#include "jni_refs.hpp"
 #include "models/dimensions_helper.hpp"
-#include <jni.h>
 
 #if defined(DEBUG) || defined(LOG)
 

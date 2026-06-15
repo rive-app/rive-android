@@ -13,8 +13,11 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * Use this to keep track of a state machine's current state and progress, and to help [apply]
  * changes that the state machine makes to components in an [Artboard].
+ *
+ * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @param fileLock Lock shared by the [File] and native graph this state machine belongs to.
  */
-class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLock) :
+class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
     PlayableInstance,
     NativeObject(unsafeCppPointer) {
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
@@ -26,8 +29,20 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
     private external fun cppReportedEventAt(cppPointer: Long, index: Int): RiveEventReport
     private external fun cppName(cppPointer: Long): String
     private external fun cppLayerCount(cppPointer: Long): Int
-    private external fun cppPointerDown(cppPointer: Long, pointerID: Int, x: Float, y: Float)
-    private external fun cppPointerUp(cppPointer: Long, pointerID: Int, x: Float, y: Float)
+    private external fun cppPointerDown(
+        cppPointer: Long,
+        pointerID: Int,
+        x: Float,
+        y: Float
+    ): Boolean
+
+    private external fun cppPointerUp(
+        cppPointer: Long,
+        pointerID: Int,
+        x: Float,
+        y: Float
+    ): Boolean
+
     private external fun cppPointerMove(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppPointerExit(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppSetViewModelInstance(cppPointer: Long, viewModel: Long)
@@ -43,7 +58,7 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
         get() = cppLayerCount(cppPointer)
 
     /**
-     * The [ViewModelInstance] assigned to this artboard. Once assigned, modifications to the.
+     * The [ViewModelInstance] assigned to this state machine. Once assigned, modifications to the
      * properties of the instance will be reflected in the bindings of this state machine.
      *
      * Assigning will apply to both the [StateMachineInstance] and the parent [Artboard]. Assigning
@@ -51,8 +66,12 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
      */
     var viewModelInstance: ViewModelInstance? = null
         set(value) {
-            value?.let { cppSetViewModelInstance(cppPointer, it.cppPointer) }
-            field = value
+            value?.updateFileLock(fileLock)
+            synchronized(fileLock) {
+                // Binding mutates the native graph and must not overlap with advance().
+                value?.let { cppSetViewModelInstance(cppPointer, it.cppPointer) }
+                field = value
+            }
         }
 
     /**
@@ -73,19 +92,19 @@ class StateMachineInstance(unsafeCppPointer: Long, private val lock: ReentrantLo
      * @return `true` if the state machine will continue to animate after this advance.
      */
     fun advance(elapsed: Float): Boolean =
-        synchronized(lock) { cppAdvance(cppPointer, elapsed) }
+        synchronized(fileLock) { cppAdvance(cppPointer, elapsed) }
 
     fun pointerDown(pointerID: Int, x: Float, y: Float) =
-        synchronized(lock) { cppPointerDown(cppPointer, pointerID, x, y) }
+        synchronized(fileLock) { cppPointerDown(cppPointer, pointerID, x, y) }
 
     fun pointerUp(pointerID: Int, x: Float, y: Float) =
-        synchronized(lock) { cppPointerUp(cppPointer, pointerID, x, y) }
+        synchronized(fileLock) { cppPointerUp(cppPointer, pointerID, x, y) }
 
     fun pointerMove(pointerID: Int, x: Float, y: Float) =
-        synchronized(lock) { cppPointerMove(cppPointer, pointerID, x, y) }
+        synchronized(fileLock) { cppPointerMove(cppPointer, pointerID, x, y) }
 
     fun pointerExit(pointerID: Int, x: Float, y: Float) =
-        synchronized(lock) { cppPointerExit(cppPointer, pointerID, x, y) }
+        synchronized(fileLock) { cppPointerExit(cppPointer, pointerID, x, y) }
 
     /** @return The number of inputs configured for the state machine. */
     val inputCount: Int

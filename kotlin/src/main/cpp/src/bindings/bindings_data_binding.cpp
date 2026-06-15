@@ -1,20 +1,29 @@
 #include <jni.h>
+#include <stddef.h>
+#include <string>
+#include <vector>
 
+#include "helpers/conversions.hpp"
 #include "helpers/jni_resource.hpp"
-#include "models/jni_renderer.hpp"
-#include "rive/animation/linear_animation_instance.hpp"
-#include "rive/animation/state_machine_instance.hpp"
-#include "rive/artboard.hpp"
+#include "rive/bindable_artboard.hpp"
+#include "rive/file.hpp"
 #include "rive/refcnt.hpp"
-#include "rive/text/text_value_run.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_artboard_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_asset_image_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_boolean_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_color_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_enum_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_list_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_number_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_string_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_trigger_runtime.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_value_runtime.hpp"
 #include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
+#include "rive/viewmodel/viewmodel_instance.hpp"
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
     using namespace rive_android;
 
     // ViewModel
@@ -601,21 +610,36 @@ extern "C"
         JNIEnv*,
         jobject,
         jlong ref,
-        jlong bindableArtboardRef)
+        jlong bindableArtboardRef,
+        jlong boundInstanceRef)
     {
         auto* property =
             reinterpret_cast<rive::ViewModelInstanceArtboardRuntime*>(ref);
         auto* bindableArtboard =
             reinterpret_cast<rive::BindableArtboard*>(bindableArtboardRef);
+        auto* boundInstance =
+            reinterpret_cast<rive::ViewModelInstanceRuntime*>(boundInstanceRef);
 
+        // Early return by clearing the property if the raw pointer is null
+        if (bindableArtboard == nullptr)
+        {
+            property->value(nullptr);
+            return;
+        }
+
+        // Wrap the raw pointer once more in an RCP. This doesn't immediately
+        // increase the ref count, but it will when copying this RCP when
+        // assigning to the property, giving the runtime its own ref.
         auto rcpBindableArtboard = rive::rcp(bindableArtboard);
         property->value(rcpBindableArtboard);
 
-        // We need to release the rcp of the the bindable artboard so that when
-        // the rcp goes out of scope it doesn't un-ref.
+        if (boundInstance != nullptr)
+        {
+            property->viewModelInstance(boundInstance->instance());
+        }
+
+        // We need to release the RCP of the the bindable artboard so that when
+        // the RCP goes out of scope it doesn't un-ref.
         rcpBindableArtboard.release();
     }
-
-#ifdef __cplusplus
 }
-#endif

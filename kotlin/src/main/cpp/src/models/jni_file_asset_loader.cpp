@@ -1,5 +1,10 @@
 #include "models/jni_file_asset_loader.hpp"
+
+#include <assert.h>
+
+#include "helpers/conversions.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "rive/span.hpp"
 
 namespace rive_android
 {
@@ -36,22 +41,21 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
         JNIFileAssetLoader::MakeKtAsset(env, asset, m_rendererType);
     if (!ktFileAsset)
     {
-        LOGE("JNIFileAssetLoader::loadContents() failed to create FileAsset");
+        RiveLogE(TAG, "loadContents() failed to create FileAsset");
         return false;
     }
 
     // Is inBandBytes always defined? Can it ever be a nullptr?
     jbyteArray byteArray =
-        env->NewByteArray(rive_android::SizeTTOInt(inBandBytes.size()));
+        env->NewByteArray(rive_android::SizeTToInt(inBandBytes.size()));
     if (!byteArray)
     {
-        LOGE("JNIFileAssetLoader::loadContents() failed to allocate "
-             "NewByteArray");
+        RiveLogE(TAG, "loadContents() failed to allocate NewByteArray");
         return false;
     }
     env->SetByteArrayRegion(byteArray,
                             0,
-                            rive_android::SizeTTOInt(inBandBytes.size()),
+                            rive_android::SizeTToInt(inBandBytes.size()),
                             (jbyte*)inBandBytes.data());
     jboolean result =
         JNIExceptionHandler::CallBooleanMethod(env,

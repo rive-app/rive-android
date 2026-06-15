@@ -57,7 +57,24 @@ class File(
         refs.incrementAndGet()
     }
 
-    val lock = ReentrantLock()
+    /**
+     * Serializes access to native objects that belong to this file.
+     *
+     * The legacy runtime can touch a file's artboards, state machines, and view model instances
+     * from both the main thread and the Rive worker thread. Wrappers created from this file use this
+     * same lock so native mutations and frame advancement cannot overlap.
+     */
+    internal val fileLock = ReentrantLock()
+
+    /**
+     * Public compatibility alias for [fileLock].
+     *
+     * Low-level integrations may use this lock to group custom native access, but must do so with
+     * `synchronized(file.lock)`. Do not call [ReentrantLock.lock] or [ReentrantLock.unlock]
+     * directly; those APIs do not coordinate with the monitor used by `synchronized`.
+     */
+    val lock: ReentrantLock
+        get() = fileLock
 
     private external fun import(
         bytes: ByteArray,
@@ -110,7 +127,7 @@ class File(
             )
         }
 
-        val ab = Artboard(artboardPointer, lock, this)
+        val ab = Artboard(artboardPointer, fileLock, this)
         dependencies.add(ab)
         return ab
     }
@@ -127,7 +144,7 @@ class File(
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        val ab = Artboard(artboardPointer, lock, this)
+        val ab = Artboard(artboardPointer, fileLock, this)
         dependencies.add(ab)
         return ab
     }
@@ -141,15 +158,19 @@ class File(
      * done with it, otherwise it will leak memory.
      *
      * @param name The name of the artboard in the Rive file to create.
+     * @param viewModelInstance The view model instance to apply to the artboard when bound.
      * @return A new [BindableArtboard] instance.
      * @throws ArtboardException If no artboard with the given name exists.
      */
-    fun createBindableArtboardByName(name: String): BindableArtboard {
+    fun createBindableArtboardByName(
+        name: String,
+        viewModelInstance: ViewModelInstance? = null
+    ): BindableArtboard {
         val artboardPointer = cppCreateBindableArtboardByName(cppPointer, name)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No BindableArtboard found with name $name.")
         }
-        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
+        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /**
@@ -160,15 +181,16 @@ class File(
      * it has an extra reference count. You need to call [BindableArtboard.release] when you are
      * done with it, otherwise it will leak memory.
      *
+     * @param viewModelInstance The view model instance to apply to the artboard when bound.
      * @return A new [BindableArtboard] instance.
      * @throws ArtboardException If no default artboard exists.
      */
-    fun createDefaultBindableArtboard(): BindableArtboard {
+    fun createDefaultBindableArtboard(viewModelInstance: ViewModelInstance? = null): BindableArtboard {
         val artboardPointer = cppCreateDefaultBindableArtboard(cppPointer)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No default BindableArtboard.")
         }
-        return BindableArtboard(artboardPointer).also { dependencies.add(it) }
+        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /** Get the number of artboards in the file. Useful for index-based iteration. */
@@ -202,7 +224,7 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found at index $viewModelIdx.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -217,7 +239,7 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found with name $viewModelName.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -233,12 +255,12 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No default ViewModel found for artboard ${artboard.name}.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     override fun release(): Int {
-        // `super.release()` is already @Synchronized, but wrap this in its own lock.
-        synchronized(lock) { return super.release() }
+        // `super.release()` is already @Synchronized, but wrap this in the file lock.
+        synchronized(fileLock) { return super.release() }
     }
 
     /** The name and values of an enum, whether system or user defined. */

@@ -3,8 +3,8 @@
 
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
-#include "rive/text/utf.hpp"
 #include "helpers/jni_resource.hpp"
+#include "rive/text/utf.hpp"
 
 #ifdef __cplusplus
 extern "C"

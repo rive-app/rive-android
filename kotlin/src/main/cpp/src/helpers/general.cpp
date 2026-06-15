@@ -1,17 +1,17 @@
 #include "helpers/general.hpp"
 
-#include "jni_refs.hpp"
 #include "helpers/android_factories.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/worker_ref.hpp"
+#include "jni_refs.hpp"
 #include "rive/file.hpp"
 
 #if defined(DEBUG) || defined(LOG)
+#include <EGL/egl.h>
 #include <cerrno>
 #include <cstdio>
 #include <unistd.h>
-#include <EGL/egl.h>
 #endif
 
 namespace rive_android
@@ -54,6 +54,7 @@ JNIEnv* GetJNIEnv()
 
 void DetachThread()
 {
+    RiveLogD("RiveLN/DetachThread", "Detaching thread.");
     if (g_JVM->DetachCurrentThread() != JNI_OK)
     {
         RiveLogE("RiveN/GetJNIEnv", "DetachCurrentThread failed.");
@@ -249,33 +250,6 @@ jlong Import(uint8_t* bytes,
     }
 }
 
-std::string JStringToString(JNIEnv* env, jstring jStr)
-{
-    if (jStr == nullptr)
-    {
-        return {};
-    }
-    auto* cStr = env->GetStringUTFChars(jStr, nullptr);
-    auto str = std::string(cStr);
-    env->ReleaseStringUTFChars(jStr, cStr);
-    return str;
-}
-
-int SizeTTOInt(size_t sizeT)
-{
-    return sizeT > INT_MAX ? INT_MAX : static_cast<int>(sizeT);
-}
-
-size_t JIntToSizeT(jint jintValue)
-{
-    if (jintValue < 0)
-    {
-        LOGW("JIntToSizeT() - value is a negative number %d", jintValue);
-        return 0;
-    }
-    return jintValue > SIZE_T_MAX ? SIZE_T_MAX : static_cast<size_t>(jintValue);
-}
-
 #if defined(DEBUG) || defined(LOG)
 [[noreturn]] void LogThread()
 {
@@ -293,6 +267,8 @@ size_t JIntToSizeT(jint jintValue)
 
 void _check_egl_error(const char* file, int line)
 {
+    static constexpr auto* TAG = "RiveLN/check_egl_error";
+
     EGLenum err(eglGetError());
 
     while (true)
@@ -346,10 +322,10 @@ void _check_egl_error(const char* file, int line)
                 error = "EGL_CONTEXT_LOST";
                 break;
             default:
-                LOGE("(%d) %s - %s:%d", err, "Unknown", file, line);
+                RiveLogE(TAG, "(%d) %s - %s:%d", err, "Unknown", file, line);
                 return;
         }
-        LOGE("(%d) %s - %s:%d", err, error.c_str(), file, line);
+        RiveLogE(TAG, "(%d) %s - %s:%d", err, error.c_str(), file, line);
         err = eglGetError();
     }
 }

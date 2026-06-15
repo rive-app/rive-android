@@ -5,7 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
+import app.rive.core.ArtboardHandle
 import app.rive.core.CloseOnce
+import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
@@ -25,9 +27,11 @@ private const val FILE_TAG = "Rive/File"
  *
  * Create an instance of this class using [rememberRiveFile] or [RiveFile.fromSource]. When using
  * the latter, make sure to call [close] when you are done with the file to release its resources.
+ * A manually-created file holds a reference to its [RiveWorker], so releasing the worker alone is
+ * not enough to purge the file or worker memory while this file remains open.
  *
- * The this object can be used to query the file for its contents, such as artboards names. It can
- * then be passed to [rememberArtboard] to create an [Artboard], and then to [Rive] for rendering.
+ * This object can be used to query the file for its contents, such as artboards names. It can then
+ * be passed to [rememberArtboard] to create an [Artboard], and then to [Rive] for rendering.
  *
  * Queries are cached for performance.
  *
@@ -49,7 +53,9 @@ class RiveFile internal constructor(
          * Loads a [RiveFile] from the given [source].
          *
          * ⚠️ The lifetime of the [RiveFile] is managed by the caller. Make sure to call [close]
-         * when you are done with the file to release its resources.
+         * when you are done with the file to release its resources. The returned file holds a
+         * reference to [riveWorker], so closing it is required before the worker can fully release
+         * memory associated with this file.
          *
          * @param source The source of the Rive file.
          * @param riveWorker The Rive worker that owns the file.
@@ -144,6 +150,22 @@ class RiveFile internal constructor(
     private val enumsCache = SuspendLazy {
         riveWorker.getEnums(fileHandle)
     }
+
+    /**
+     * @param artboard The artboard to query for default view model information.
+     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     */
+    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo =
+        synchronized(defaultViewModelInfoCache) {
+            defaultViewModelInfoCache.getOrPut(artboard.artboardHandle) {
+                SuspendLazy {
+                    riveWorker.getDefaultViewModelInfo(fileHandle, artboard.artboardHandle)
+                }
+            }
+        }.await()
+
+    private val defaultViewModelInfoCache =
+        mutableMapOf<ArtboardHandle, SuspendLazy<DefaultViewModelInfo>>()
 }
 
 /**
@@ -179,7 +201,7 @@ sealed interface RiveFileSource {
  * Loads a [RiveFile] from the given [source].
  *
  * The lifetime of the [RiveFile] is managed by this composable. It will release the resources
- * allocated to the file when it falls out of scope.
+ * allocated to the file, including its reference to [riveWorker], when it falls out of scope.
  *
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
  * @param riveWorker The Rive worker that owns the file.
@@ -190,7 +212,7 @@ sealed interface RiveFileSource {
 fun rememberRiveFile(
     source: RiveFileSource,
     riveWorker: RiveWorker,
-): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source) {
+): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source, riveWorker) {
     val result = RiveFile.fromSource(source, riveWorker)
     value = result
 

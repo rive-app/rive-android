@@ -2,10 +2,11 @@ package app.rive.runtime.kotlin.controllers
 
 import android.graphics.PointF
 import android.graphics.RectF
-import android.util.Log
 import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
+import app.rive.RiveLog
+import app.rive.core.traceSection
 import app.rive.runtime.kotlin.ChangedInput
 import app.rive.runtime.kotlin.Observable
 import app.rive.runtime.kotlin.RiveAnimationView
@@ -27,6 +28,7 @@ import app.rive.runtime.kotlin.core.SMINumber
 import app.rive.runtime.kotlin.core.SMITrigger
 import app.rive.runtime.kotlin.core.StateMachineInstance
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
+import app.rive.runtime.kotlin.core.errors.ViewModelException
 import app.rive.runtime.kotlin.renderers.PointerEvents
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -80,7 +82,11 @@ class RiveFileController internal constructor(
     ) : this(loop, autoplay, file, activeArtboard, onStart, ConcurrentLinkedQueue())
 
     companion object {
-        const val TAG = "RiveFileController"
+        const val TAG = "RiveL/RiveFileController"
+    }
+
+    init {
+        RiveLog.d(TAG) { "Initializing." }
     }
 
     /**
@@ -155,18 +161,21 @@ class RiveFileController internal constructor(
     var file: File? = file
         set(value) {
             if (value == field) {
+                RiveLog.w(TAG) { "Assigning the same file; ignoring." }
                 return
             }
 
-            synchronized(field?.lock ?: this) {
+            synchronized(field?.fileLock ?: this) {
                 // If we have an old file remove all the old values.
                 field?.let {
+                    RiveLog.d(TAG) { "File set; releasing old file: $it" }
                     reset()
                     it.release()
                 }
                 field = value
                 // We only need to acquire the reference to the [file] since all the other components
                 // will be fetched from this file (and will, in fact, become a dependency of [file])
+                RiveLog.d(TAG) { "File set; acquiring new file (if it exists): $value" }
                 field?.acquire()
             }
         }
@@ -176,9 +185,11 @@ class RiveFileController internal constructor(
             if (value == field) {
                 return
             }
-            synchronized(file?.lock ?: this) {
+            synchronized(file?.fileLock ?: this) {
+                RiveLog.d(TAG) { "Artboard set; releasing old artboard (if it exists): $field" }
                 field?.release()
                 field = value
+                RiveLog.d(TAG) { "Artboard set; acquiring new artboard (if it exists): $field" }
                 field?.acquire()
                 userSetVolume?.let { activeArtboard?.volume = it }
             }
@@ -238,7 +249,8 @@ class RiveFileController internal constructor(
     internal val startStopLock = ReentrantLock()
 
     val isAdvancing: Boolean
-        get() = playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
+        get() =
+            playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
 
     val artboardBounds: RectF
         get() = activeArtboard?.bounds ?: RectF()
@@ -256,7 +268,7 @@ class RiveFileController internal constructor(
     fun saveControllerState(): ControllerState? {
         val mFile = this.file ?: return null
         val mArtboard = this.activeArtboard ?: return null
-        synchronized(mFile.lock) {
+        synchronized(mFile.fileLock) {
             // This resource had already been released.
             if (!mFile.hasCppObject) {
                 return null
@@ -286,7 +298,7 @@ class RiveFileController internal constructor(
      */
     @ControllerStateManagement
     fun restoreControllerState(state: ControllerState) {
-        synchronized(file?.lock ?: this) {
+        synchronized(file?.fileLock ?: this) {
             // Remove all old values.
             reset()
             // Restore all the previous values.
@@ -311,68 +323,76 @@ class RiveFileController internal constructor(
     @WorkerThread
     fun advance(elapsed: Float) {
         // We need a file to advance.
-        val mLock = this.file?.lock ?: return
+        val mLock = this.file?.fileLock ?: return
         synchronized(mLock) {
             activeArtboard?.let { ab ->
                 // Process all the inputs right away.
-                processAllInputs()
+                traceSection("Rive/Frame/Advance/ProcessInputs") {
+                    processAllInputs()
+                }
 
                 // animations could change, lets cut a list.
                 // order of animations is important.....
                 var shouldArtboardAdvance = false
-                animations.forEach { animationInstance ->
-                    if (playingAnimations.contains(animationInstance)) {
-                        val advanceResult = animationInstance.advanceAndGetResult(elapsed)
-                        animationInstance.apply()
+                traceSection("Rive/Frame/Advance/Animations") {
+                    animations.forEach { animationInstance ->
+                        if (playingAnimations.contains(animationInstance)) {
+                            val advanceResult = animationInstance.advanceAndGetResult(elapsed)
+                            animationInstance.apply()
 
-                        when (advanceResult) {
-                            AdvanceResult.ONESHOT -> {
-                                stop(animationInstance)
+                            when (advanceResult) {
+                                AdvanceResult.ONESHOT -> {
+                                    stop(animationInstance)
+                                }
+
+                                AdvanceResult.LOOP, AdvanceResult.PINGPONG -> {
+                                    notifyLoop(animationInstance)
+                                }
+
+                                AdvanceResult.ADVANCED -> {
+                                    // The controller needs to explicitly call `artboard.advance()`
+                                    // only if there are no State Machines playing. That is because
+                                    // `StateMachineInstance`s call `advanceAndApply()` that will
+                                    // internally advance the artboard.
+                                    shouldArtboardAdvance = playingStateMachines.isEmpty()
+                                }
+
+                                AdvanceResult.NONE -> Unit // NOP
                             }
-
-                            AdvanceResult.LOOP, AdvanceResult.PINGPONG -> {
-                                notifyLoop(animationInstance)
-                            }
-
-                            AdvanceResult.ADVANCED -> {
-                                // The controller needs to explicitly call `artboard.advance()`
-                                // only if there are no State Machines playing. That is because
-                                // `StateMachineInstance`s call `advanceAndApply()` that will
-                                // internally advance the artboard.
-                                shouldArtboardAdvance = playingStateMachines.isEmpty()
-                            }
-
-                            AdvanceResult.NONE -> Unit // NOP
                         }
                     }
-                }
 
-                if (shouldArtboardAdvance) {
-                    ab.advance(elapsed)
+                    if (shouldArtboardAdvance) {
+                        ab.advance(elapsed)
+                    }
                 }
 
                 val stateMachinesToPause = mutableListOf<StateMachineInstance>()
-                stateMachines.forEach { stateMachineInstance ->
-                    if (playingStateMachines.contains(stateMachineInstance)) {
-                        val stillPlaying =
-                            resolveStateMachineAdvance(stateMachineInstance, elapsed)
+                traceSection("Rive/Frame/Advance/StateMachines") {
+                    stateMachines.forEach { stateMachineInstance ->
+                        if (playingStateMachines.contains(stateMachineInstance)) {
+                            val stillPlaying =
+                                resolveStateMachineAdvance(stateMachineInstance, elapsed)
 
-                        if (!stillPlaying) {
-                            stateMachinesToPause.add(stateMachineInstance)
+                            if (!stillPlaying) {
+                                stateMachinesToPause.add(stateMachineInstance)
+                            }
                         }
+                    }
+
+                    // Only remove the state machines if the elapsed time was
+                    // greater than 0. 0 elapsed time causes no changes so it's
+                    // no-op advance.
+                    if (elapsed > 0.0) {
+                        stateMachinesToPause.forEach { pause(stateMachine = it) }
                     }
                 }
 
-                // Only remove the state machines if the elapsed time was
-                // greater than 0. 0 elapsed time causes no changes so it's
-                // no-op advance.
-                if (elapsed > 0.0) {
-                    stateMachinesToPause.forEach { pause(stateMachine = it) }
-                }
-
                 // Poll the assigned view model instances for changes.
-                playingStateMachines.mapNotNull { it.viewModelInstance }
-                    .forEach { it.pollChanges() }
+                traceSection("Rive/Frame/Advance/PollViewModelChanges") {
+                    playingStateMachines.mapNotNull { it.viewModelInstance }
+                        .forEach { it.pollChanges() }
+                }
 
                 notifyAdvance(elapsed)
             }
@@ -400,17 +420,25 @@ class RiveFileController internal constructor(
      */
     fun selectArtboard(name: String? = null) {
         file?.let {
-            val artboard = if (name != null) it.artboard(name) else it.firstArtboard
+            val artboard = if (name != null) {
+                RiveLog.d(TAG) { "Selecting artboard: $name" }
+                it.artboard(name)
+            } else {
+                RiveLog.d(TAG) { "Selecting null artboard - choosing first." }
+                it.firstArtboard
+            }
             setArtboard(artboard)
         } ?: run {
-            Log.w(TAG, "selectArtboard: cannot select an Artboard without a valid File.")
+            RiveLog.w(TAG) { "selectArtboard: cannot select an Artboard without a valid File." }
         }
     }
 
     fun autoplay() {
         if (autoplay) {
+            RiveLog.d(TAG) { "autoplay() with autoplay enabled. Playing all state machines and animations." }
             play(settleInitialState = true)
         } else {
+            RiveLog.d(TAG) { "autoplay() with autoplay disabled. Advancing the artboard by 0." }
             // advance() locks on the file lock internally
             activeArtboard?.advance(0f)
             synchronized(startStopLock) { onStart?.invoke() }
@@ -429,9 +457,10 @@ class RiveFileController internal constructor(
      * animation/state machine specified by [rendererAttributes] animationName or stateMachine name.
      */
     internal fun setupScene(rendererAttributes: RiveAnimationView.RendererAttributes) {
+        RiveLog.d(TAG) { "setupScene" }
         val mFile = file
         if (mFile == null) {
-            Log.w(TAG, "Cannot init without a file")
+            RiveLog.w(TAG) { "Cannot setupScene without a file." }
             return
         }
         // If anything has been previously set up, remove it.
@@ -446,17 +475,26 @@ class RiveFileController internal constructor(
         activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
 
         if (rendererAttributes.autoBind && activeArtboard != null) {
+            RiveLog.d(TAG) { "Auto-binding to the artboard and all state machines." }
             val activeArtboard = activeArtboard!!
-            val defaultInstance =
+            val defaultInstance = try {
                 mFile.defaultViewModelForArtboard(activeArtboard).createDefaultInstance()
-            activeArtboard.viewModelInstance = defaultInstance
+            } catch (e: ViewModelException) {
+                RiveLog.e(TAG, e) {
+                    "Could not auto-bind artboard ${activeArtboard.name}: ${e.message}"
+                }
+                null
+            }
+            if (defaultInstance != null) {
+                activeArtboard.viewModelInstance = defaultInstance
 
-            // Since state machines aren't created until play(),
-            // we need to check if they need to be created now.
-            val stateMachineName = rendererAttributes.stateMachineName
-                ?: activeArtboard.stateMachineNames.firstOrNull()
-            stateMachineName?.let { getOrCreateStateMachines(it) }
-            stateMachines.forEach { it.viewModelInstance = defaultInstance }
+                // Since state machines aren't created until play(),
+                // we need to check if they need to be created now.
+                val stateMachineName = rendererAttributes.stateMachineName
+                    ?: activeArtboard.stateMachineNames.firstOrNull()
+                stateMachineName?.let { getOrCreateStateMachines(it) }
+                stateMachines.forEach { it.viewModelInstance = defaultInstance }
+            }
         }
 
         if (autoplay) {
@@ -464,13 +502,17 @@ class RiveFileController internal constructor(
             val smName = rendererAttributes.stateMachineName
 
             if (animName != null) {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing animation: $animName." }
                 play(animName)
             } else if (smName != null) {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing state machine: $smName." }
                 play(smName, settleInitialState = true, isStateMachine = true)
             } else {
+                RiveLog.d(TAG) { "Autoplay enabled. Playing all state machines and animations." }
                 play(settleInitialState = true)
             }
         } else {
+            RiveLog.d(TAG) { "Autoplay disabled. Advancing the artboard by 0." }
             activeArtboard?.advance(0f)
             // Schedule a single frame.
             synchronized(startStopLock) { onStart?.invoke() }
@@ -526,7 +568,10 @@ class RiveFileController internal constructor(
                     play(animationInstance = it, direction = direction, loop = loop)
                 }
                 stateMachines.forEach {
-                    play(stateMachineInstance = it, settleStateMachineState = settleInitialState)
+                    play(
+                        stateMachineInstance = it,
+                        settleStateMachineState = settleInitialState
+                    )
                 }
             } else {
                 val animationNames = activeArtboard.animationNames
@@ -639,7 +684,7 @@ class RiveFileController internal constructor(
     private fun processAllInputs() {
         // Gather all state machines that need playing and do that only once.
         val playableSet = mutableSetOf<StateMachineInstance>()
-        // No need to lock this: this is being called from `advance()` which is `synchronized(file)`
+        // No need to lock this: this is being called from `advance()` which holds the file lock.
         while (changedInputs.isNotEmpty()) {
             // There is a small chance that the queue will be emptied by another thread before removing.
             // Null checking the removed item protects against that scenario.
@@ -655,7 +700,8 @@ class RiveFileController internal constructor(
                     }
                 }
             } else {
-                when (val smiInput = activeArtboard?.input(input.name, input.nestedArtboardPath)) {
+                when (val smiInput =
+                    activeArtboard?.input(input.name, input.nestedArtboardPath)) {
                     is SMITrigger -> {
                         smiInput.fire()
                     }
@@ -918,48 +964,65 @@ class RiveFileController internal constructor(
     }
 
     fun pointerEvent(eventType: PointerEvents, pointerID: Int, x: Float, y: Float) {
-        /// TODO: once we start composing artboards we may need x,y offsets here...
-        val artboardEventLocation = Helpers.convertToArtboardSpace(
-            touchBounds = targetBounds,
-            touchLocation = PointF(x, y),
-            fit = fit,
-            alignment = alignment,
-            artboardBounds = activeArtboard?.bounds ?: RectF(),
-            scaleFactor = layoutScaleFactorActive
-        )
-        stateMachines.forEach {
+        traceSection("Rive/PointerInput") {
+            /// TODO: once we start composing artboards we may need x,y offsets here...
+            val artboardEventLocation = Helpers.convertToArtboardSpace(
+                touchBounds = targetBounds,
+                touchLocation = PointF(x, y),
+                fit = fit,
+                alignment = alignment,
+                artboardBounds = activeArtboard?.bounds ?: RectF(),
+                scaleFactor = layoutScaleFactorActive
+            )
+            stateMachines.forEach { stateMachine ->
 
-            when (eventType) {
-                PointerEvents.POINTER_DOWN -> it.pointerDown(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                val shouldAdvance = when (eventType) {
+                    PointerEvents.POINTER_DOWN -> {
+                        stateMachine.pointerDown(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                    }
 
-                PointerEvents.POINTER_UP -> it.pointerUp(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_UP -> {
+                        stateMachine.pointerUp(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                    }
 
-                PointerEvents.POINTER_MOVE -> it.pointerMove(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_MOVE -> {
+                        stateMachine.pointerMove(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                        false
+                    }
 
-                PointerEvents.POINTER_EXIT -> it.pointerExit(
-                    pointerID,
-                    artboardEventLocation.x,
-                    artboardEventLocation.y
-                )
+                    PointerEvents.POINTER_EXIT -> {
+                        stateMachine.pointerExit(
+                            pointerID,
+                            artboardEventLocation.x,
+                            artboardEventLocation.y
+                        )
+                        false
+                    }
+                }
+                play(stateMachine, settleStateMachineState = false)
+                if (shouldAdvance) {
+                    resolveStateMachineAdvance(stateMachine, 0f)
+                    stateMachine.viewModelInstance?.pollChanges()
+                }
             }
-            play(it, settleStateMachineState = false)
         }
     }
 
     // == Listeners ==
-    private var _listeners: MutableSet<Listener> = Collections.synchronizedSet(HashSet<Listener>())
+    private var _listeners: MutableSet<Listener> =
+        Collections.synchronizedSet(HashSet<Listener>())
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val listeners: HashSet<Listener>
@@ -1028,7 +1091,8 @@ class RiveFileController internal constructor(
     }
 
     private fun notifyStateChanged(stateMachine: StateMachineInstance, state: LayerState) {
-        listeners.toList().forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
+        listeners.toList()
+            .forEach { it.notifyStateChanged(stateMachine.name, state.toString()) }
     }
 
     private fun notifyEvent(event: RiveEvent) {
@@ -1039,6 +1103,7 @@ class RiveFileController internal constructor(
      * We want to clear out all references to objects with potentially stale native counterparts.
      */
     internal fun reset() {
+        RiveLog.d(TAG) { "Resetting." }
         playingAnimationSet.clear()
         animationList.clear()
         playingStateMachineSet.clear()
@@ -1055,12 +1120,15 @@ class RiveFileController internal constructor(
      */
     @Throws(IllegalStateException::class)
     override fun release(): Int {
+        val old = refs.get()
+        RiveLog.d(TAG) { "Releasing. Old: ${old}; New: ${old - 1}" }
         val count = super.release()
         require(count >= 0)
 
         if (count == 0) {
             require(!isActive)
             // Will `release()` the file if one was set
+            RiveLog.d(TAG) { "Final count is 0. Setting file to null." }
             file = null
         }
         return count

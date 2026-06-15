@@ -1,6 +1,8 @@
 #pragma once
 
 #include <jni.h>
+#include <stdint.h>
+#include <string>
 #include <vector>
 
 namespace rive_android

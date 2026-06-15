@@ -1,25 +1,28 @@
 package app.rive.core
 
 import android.graphics.Color
-import android.graphics.SurfaceTexture
-import android.view.TextureView
+import android.os.Build
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.Fit
+import app.rive.RenderBackend
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileException
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
+import app.rive.RiveRenderException
+import app.rive.RiveShutdownException
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
-import app.rive.core.RenderContextGL.Companion.TAG
+import app.rive.effectiveRenderBackend
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.runtime.kotlin.core.File.Enum
@@ -33,6 +36,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.cancellation.CancellationException
@@ -72,6 +77,10 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * a disposed command queue will throw an [IllegalStateException]. Any pending operations will be
  * notified with a [CancellationException].
  *
+ * Rive resources such as manually-created files, assets, and surfaces may acquire references to
+ * the command queue. Releasing the command queue's own reference is not enough to fully dispose the
+ * worker while those resources remain open; close each resource when you no longer need it.
+ *
  * The command queue normally is passed into [rememberRiveFile] or, alternatively, created by
  * default if one is not supplied. This is then transitively supplied to other Rive elements, such
  * as artboards, when the Rive file is passed in.
@@ -97,56 +106,330 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * A command queue needs to be polled to receive messages from the command server. This is handled
  * by the [rememberRiveWorker] composable or by calling [beginPolling].
  *
- * @param renderContext The [RenderContext] to use for rendering. Currently only OpenGL is
- *    supported. The CommandQueue takes ownership of the passed context.
- * @param bridge The [CommandQueueBridge] to use for native implementation. Leave as default - used
- *    for testing.
- * @throws RiveInitializationException If the command queue cannot be created for any reason.
+ * @param renderContext Render context owned by this command queue after native startup succeeds.
+ * @param bridge Native bridge used to create and communicate with the command queue. This is
+ *    injectable so unit tests can mock JNI calls without loading native code.
+ * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+ * @param nativePointer Allocated native command queue created by
+ *    `createNativeCommandQueueResources`. Supplying it lets backend fallback finish native startup
+ *    before ownership is transferred to this instance.
  */
-class CommandQueue(
-    private val renderContext: RenderContext = RenderContextGL(),
+class CommandQueue internal constructor(
+    private val renderContext: RenderContext,
     private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
+    tracingEnabled: Boolean = false,
+    nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
 ) : RefCounted {
+    /**
+     * Creates a command queue using the requested render backend.
+     *
+     * @param renderBackend Preferred render backend. If Vulkan is requested below the minimum
+     *    supported Android API level, or Vulkan native initialization fails, OpenGL is used
+     *    instead.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @throws RiveInitializationException If the command queue cannot be created.
+     */
+    @Throws(RiveInitializationException::class)
+    constructor(
+        renderBackend: RenderBackend = RenderBackend.OpenGL,
+        tracingEnabled: Boolean = false,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = CommandQueueJNIBridge(),
+        ),
+        tracingEnabled = tracingEnabled
+    )
+
+    /**
+     * Creates a command queue with injectable backend construction for unit tests.
+     *
+     * @param renderBackend Preferred backend for the command queue.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @param bridge Native bridge mock used to start the command server without loading JNI.
+     * @param sdkInt Android API level to use for backend selection.
+     * @param renderContextFactory Factory that creates the requested concrete render context.
+     * @throws RiveInitializationException If no backend can start.
+     */
+    @VisibleForTesting
+    internal constructor(
+        renderBackend: RenderBackend,
+        tracingEnabled: Boolean = false,
+        bridge: CommandQueueBridge,
+        sdkInt: Int = Build.VERSION.SDK_INT,
+        renderContextFactory: (RenderBackend) -> RenderContext,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = bridge,
+            sdkInt = sdkInt,
+            renderContextFactory = renderContextFactory,
+        ),
+        tracingEnabled = tracingEnabled,
+    )
+
+    /**
+     * Completes construction from resources that already passed native startup.
+     *
+     * Kotlin delegated constructors cannot wrap a `this(...)` call in fallback logic. The public
+     * backend constructor therefore creates the render context and native command queue first, then
+     * delegates through this constructor so ownership transfers only after a backend succeeds.
+     *
+     * @param resources Render context, bridge, and native pointer produced by backend startup.
+     * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+     */
+    // Used by the public renderBackend constructor's delegated this(...) call.
+    // Flagged as "unused" by the linter for an unknown reason.
+    @Suppress("unused")
+    private constructor(
+        resources: NativeCommandQueueResources,
+        tracingEnabled: Boolean,
+    ) : this(
+        renderContext = resources.renderContext,
+        bridge = resources.bridge,
+        tracingEnabled = tracingEnabled,
+        nativePointer = resources.nativePointer,
+    )
+
+    /**
+     * Resources created before final [CommandQueue] construction.
+     *
+     * The bundle keeps the chosen render context paired with the bridge and native pointer created
+     * from it so fallback can retry another backend before ownership reaches the main constructor.
+     * By default, constructing this bundle allocates [nativePointer] immediately.
+     *
+     * @property renderContext Render context selected for the command queue.
+     * @property bridge Native bridge used to create [nativePointer].
+     * @property nativePointer Native command queue pointer created from [renderContext].
+     */
+    private data class NativeCommandQueueResources(
+        val renderContext: RenderContext,
+        val bridge: CommandQueueBridge,
+        val nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
+    )
+
     companion object {
         /**
          * Maximum number of Rive components that can safely use this CommandQueue instance
          * concurrently.
          */
         const val MAX_CONCURRENT_SUBSCRIBERS = 32
+
+        /**
+         * Timeout to log a warning if native shutdown has not completed, in seconds. This does not
+         * affect the actual shutdown process.
+         */
+        private const val SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS = 10L
+
+        /** Monotonically increasing ID for naming shutdown threads and their watchdogs. */
+        private val nextShutdownThreadID = AtomicLong()
+
+        /**
+         * Creates command queue resources for a requested render backend.
+         *
+         * This method owns public backend fallback policy: Vulkan is attempted only on supported
+         * Android API levels, and OpenGL is retried if Vulkan native startup fails.
+         *
+         * @param renderBackend Preferred backend for the command queue.
+         * @return Resources for the backend that successfully started.
+         * @throws RiveInitializationException If no backend can start.
+         */
+        private fun createNativeCommandQueueResources(
+            renderBackend: RenderBackend,
+            bridge: CommandQueueBridge,
+            sdkInt: Int = Build.VERSION.SDK_INT,
+            renderContextFactory: (RenderBackend) -> RenderContext = ::createRenderContext,
+        ): NativeCommandQueueResources {
+            if (effectiveRenderBackend(renderBackend, sdkInt) == RenderBackend.OpenGL) {
+                return NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.OpenGL),
+                    bridge
+                )
+            }
+
+            val vulkanFailure = runCatching {
+                NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.Vulkan),
+                    bridge
+                )
+            }.fold(
+                onSuccess = { return it },
+                onFailure = { it }
+            )
+
+            RiveLog.e(COMMAND_QUEUE_TAG) {
+                "Failed to initialize Vulkan render backend, falling back to OpenGL: " +
+                        vulkanFailure.message
+            }
+
+            return runCatching {
+                NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.OpenGL),
+                    bridge
+                )
+            }.fold(
+                onSuccess = { it },
+                onFailure = { openGLFailure ->
+                    openGLFailure.addSuppressed(vulkanFailure)
+                    throw openGLFailure
+                }
+            )
+        }
+
+        private fun createRenderContext(renderBackend: RenderBackend): RenderContext =
+            when (renderBackend) {
+                RenderBackend.Vulkan -> RenderContextVulkan()
+                RenderBackend.OpenGL -> RenderContextGL()
+            }
+
+        /**
+         * Creates the native command queue and transfers [renderContext] ownership on success.
+         *
+         * If native startup fails, the Kotlin [CommandQueue] instance is never fully constructed,
+         * so normal [release] cleanup cannot run. In that case this method closes [renderContext]
+         * before rethrowing the startup failure.
+         *
+         * @param renderContext Render context passed to the native command server.
+         * @param bridge Native bridge used to create the command queue.
+         * @return The native command queue pointer.
+         * @throws RiveInitializationException The original startup failure. If render context
+         *    cleanup also fails, the cleanup failure is added as a suppressed exception.
+         */
+        private fun createNativeCommandQueue(
+            renderContext: RenderContext,
+            bridge: CommandQueueBridge
+        ): Long {
+            try {
+                return bridge.cppConstructor(renderContext.nativeObjectPointer)
+            } catch (startupFailure: RiveInitializationException) {
+                try {
+                    renderContext.close()
+                } catch (closeFailure: RiveShutdownException) {
+                    startupFailure.addSuppressed(closeFailure)
+                }
+                throw startupFailure
+            }
+        }
     }
 
+    /**
+     * Used to signal the shutdown watchdog thread that it can stop watching. Also used by tests to
+     * verify shutdown completed as expected.
+     */
+    private val shutdownComplete = CountDownLatch(1)
     private val cppPointer = RCPointer(
-        bridge.cppConstructor(renderContext.nativeObjectPointer),
+        nativePointer,
         COMMAND_QUEUE_TAG,
         ::dispose
     )
     private var listeners = bridge.cppCreateListeners(cppPointer.pointer, this)
 
+    init {
+        setTracingEnabled(tracingEnabled)
+    }
+
     /**
      * Cleanup to be performed when the ref count reaches 0.
      *
-     * Any pending continuations are cancelled to avoid callers hanging indefinitely.
+     * Any pending continuations are canceled to avoid callers hanging indefinitely.
+     *
+     * Native teardown is asynchronous from the caller's perspective. [CommandQueueBridge.cppDelete]
+     * disconnects and joins the command server thread, so it runs on a named daemon shutdown
+     * thread instead of the releasing thread, ensuring it does not block the caller.
+     *
+     * Listener and render context cleanup run on that same shutdown thread after the native join
+     * completes because the command server can still use those resources while it is draining.
+     *
+     * A short-lived watchdog thread observes the shutdown latch and logs if native teardown takes
+     * unusually long, without adding another synchronous wait to release.
      */
     private fun dispose(cppPointer: Long) {
-        bridge.cppDelete(cppPointer)
+        cancelPendingContinuations()
 
-        listeners.close()
-        renderContext.close()
+        val shutdownThreadID = nextShutdownThreadID.getAndIncrement()
+        val shutdownThreadName = "RiveWorkerShutdown-$shutdownThreadID"
+        val shutdownThread = Thread({
+            val startTimeNs = System.nanoTime()
+            try {
+                RiveLog.d(COMMAND_QUEUE_TAG) {
+                    "Starting command queue native shutdown on $shutdownThreadName"
+                }
+                bridge.cppDelete(cppPointer)
+            } catch (t: Throwable) {
+                RiveLog.e(COMMAND_QUEUE_TAG, t) {
+                    "Command queue native shutdown failed. " +
+                            "Listener and render context cleanup skipped."
+                }
+                shutdownComplete.countDown()
+                return@Thread
+            }
 
-        // Cancel and clear any pending JNI continuations so callers don't hang.
-        pendingContinuations.values.toList().forEach { cont ->
-            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
+            try {
+                listeners.close()
+                // May throw RiveShutdownException - still need to count down the latch.
+                renderContext.close()
+            } finally {
+                shutdownComplete.countDown()
+            }
+            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs)
+            RiveLog.d(COMMAND_QUEUE_TAG) {
+                "Command queue native shutdown completed in ${durationMs}ms"
+            }
+        }, shutdownThreadName)
+
+        Thread({
+            if (!shutdownComplete.await(SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                RiveLog.w(COMMAND_QUEUE_TAG) {
+                    "Command queue native shutdown is taking unusually long and has not " +
+                            "completed after ${SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS}s"
+                }
+            }
+        }, "$shutdownThreadName-Watchdog").also {
+            it.isDaemon = true
+            it.start()
         }
-        pendingContinuations.clear()
+
+        shutdownThread.isDaemon = true
+        shutdownThread.start()
     }
 
     // Implement the RefCounted interface by delegating to cppPointer
     override fun acquire(source: String) = cppPointer.acquire(source)
-    override fun release(source: String, reason: String) = cppPointer.release(source, reason)
+    override fun release(source: String, reason: String) {
+        check(!bridge.isCurrentThreadCommandServer(cppPointer.pointer)) {
+            "CommandQueue.release() cannot be called from the command server thread as then it " +
+                    "may attempt to join itself. Source: $source. Reason: $reason"
+        }
+        cppPointer.release(source, reason)
+    }
+
     override val refCount: Int
         get() = cppPointer.refCount
     override val isDisposed: Boolean
         get() = cppPointer.isDisposed
+
+    /**
+     * Blocks the calling thread until asynchronous native shutdown completes or [timeoutMillis]
+     * elapses.
+     *
+     * This is only for tests that must assert post-join cleanup such as listener and render-context
+     * disposal.
+     *
+     * @param timeoutMillis Maximum time to block the caller.
+     * @return `true` if shutdown completed before the timeout, otherwise `false`.
+     */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun awaitShutdown(timeoutMillis: Long): Boolean =
+        shutdownComplete.await(timeoutMillis, TimeUnit.MILLISECONDS)
+
+    /**
+     * Enables or disables native command server tracing for draw and advance work.
+     *
+     * This setting applies to the entire worker and takes effect for subsequent draw/advance calls.
+     */
+    fun setTracingEnabled(enabled: Boolean) {
+        bridge.cppSetTracingEnabled(cppPointer.pointer, enabled)
+    }
 
     /**
      * Tie this CommandQueue's lifetime to a LifecycleOwner. This will call [release] when the
@@ -293,7 +576,7 @@ class CommandQueue(
      * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
      *
      * The polling will automatically start and stop based on the lifecycle state, only polling when
-     * the lifecycle is in the RESUMED state.
+     * the lifecycle is in the RESUMED state and while this CommandQueue has not been disposed.
      *
      * @param lifecycle The lifecycle bounding the polling.
      * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
@@ -304,14 +587,31 @@ class CommandQueue(
     suspend fun beginPolling(
         lifecycle: Lifecycle,
         ticker: FrameTicker = ChoreographerFrameTicker
-    ) = lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-        RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-        while (isActive) {
-            ticker.withFrame {
-                pollMessages()
+    ) {
+        check(!isDisposed) { "CommandQueue has been released." }
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
+            while (isActive && !isDisposed) {
+                var disposedDuringPoll = false
+                ticker.withFrame {
+                    try {
+                        pollMessages()
+                    } catch (e: IllegalStateException) {
+                        // Disposal can happen after the checks above but before pollMessages() reads
+                        // the native pointer. Only swallow that expected disposal race.
+                        // Preserve unrelated IllegalStateExceptions so polling does not hide bugs.
+                        if (!isDisposed) {
+                            throw e
+                        }
+                        disposedDuringPoll = true
+                    }
+                }
+                if (disposedDuringPoll) {
+                    break
+                }
             }
+            RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
         }
-        RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
     }
 
     /**
@@ -326,57 +626,76 @@ class CommandQueue(
      * @see [beginPolling]
      */
     @Throws(IllegalStateException::class)
-    fun pollMessages() = bridge.cppPollMessages(cppPointer.pointer)
+    fun pollMessages() {
+        traceSection("Rive/PollMessages") {
+            bridge.cppPollMessages(cppPointer.pointer)
+        }
+    }
 
     /**
      * Create a Rive rendering surface for Rive to draw into.
      *
-     * @param surfaceTexture The Android [SurfaceTexture], likely coming from a [TextureView].
+     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
+     *
+     * Uses the concrete render context to create an appropriate surface for the backend.
+     *
+     * @param surface Owned Android surface source. This command queue takes ownership and closes it
+     *    if surface creation fails or when the created [RiveSurface] is destroyed on the command
+     *    server thread.
      * @return A [RiveSurface] that can be used for rendering.
-     * @throws RuntimeException If the surface could not be created.
+     * @throws RiveRenderException If the underlying Android or backend surface cannot be created.
+     * @throws IllegalStateException If this command queue has been released.
      */
-    @Throws(RuntimeException::class)
-    fun createRiveSurface(surfaceTexture: SurfaceTexture): RiveSurface =
-        renderContext.createSurface(surfaceTexture, nextDrawKey(), this)
+    @Throws(RiveRenderException::class, IllegalStateException::class)
+    fun createRiveSurface(
+        surface: CloseableSurface
+    ): RiveSurface {
+        return try {
+            renderContext.createSurface(surface, nextDrawKey(), this)
+        } catch (e: Throwable) {
+            // Do not leak the Android resources if surface creation fails.
+            surface.close()
+            throw e
+        }
+    }
 
     /**
      * Create an off-screen image surface for rendering to a buffer.
      *
+     * ⚠️ The returned surface must be [closed][RiveSurface.close] when no longer needed.
+     *
+     * Uses the concrete render context to create an appropriate surface for the backend.
+     *
      * @param width The width of the image surface in pixels.
      * @param height The height of the image surface in pixels.
      * @return A [RiveSurface] that can be used for off-screen rendering.
-     * @throws RuntimeException If the surface could not be created.
+     * @throws IllegalArgumentException If [width] or [height] is not positive.
+     * @throws RiveRenderException If the backend cannot create an off-screen surface.
+     * @throws IllegalStateException If this command queue has been released.
      */
-    @Throws(RuntimeException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        RiveRenderException::class,
+        IllegalStateException::class
+    )
     fun createImageSurface(width: Int, height: Int): RiveSurface =
         renderContext.createImageSurface(width, height, nextDrawKey(), this)
 
     /**
      * Destroy a Rive rendering surface. The surface will not be valid for use after this call.
      *
-     * This runs on the command server thread to ensure that any in-flight draw commands finish with
-     * a valid [SurfaceTexture].
+     * [RiveSurface.close] is safe to call directly and schedules ordered disposal on this surface's
+     * owning command queue.
      *
      * @param surface The [RiveSurface] to destroy.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
+    @Deprecated(
+        "Call RiveSurface.close() directly.",
+        ReplaceWith("surface.close()")
+    )
     @Throws(IllegalStateException::class)
-    fun destroyRiveSurface(surface: RiveSurface) = runOnCommandServer { surface.close() }
-
-    /**
-     * Creates a Rive render target on the command server thread. This is a synchronous call that
-     * blocks until the render target is created.
-     *
-     * @param width The width of the render target in pixels.
-     * @param height The height of the render target in pixels.
-     * @return The native pointer to the created render target.
-     * @throws IllegalStateException If the CommandQueue has been released.
-     */
-    @Throws(IllegalStateException::class)
-    fun createRiveRenderTarget(width: Int, height: Int): Long {
-        RiveLog.d(TAG) { "Creating Rive render target on command server thread" }
-        return bridge.cppCreateRiveRenderTarget(cppPointer.pointer, width, height)
-    }
+    fun destroyRiveSurface(surface: RiveSurface) = surface.close()
 
     private fun nextDrawKey() = DrawKey(bridge.cppCreateDrawKey(cppPointer.pointer))
 
@@ -558,6 +877,51 @@ class CommandQueue(
     @JvmName("onStateMachinesListed")
     internal fun onStateMachinesListed(requestID: Long, names: List<String>) {
         (pendingContinuations.remove(requestID) as? Continuation<List<String>>)?.resume(names)
+    }
+
+    /**
+     * Query the default view model info for an artboard. Returns on
+     * [onDefaultViewModelInfoReceived].
+     *
+     * @param fileHandle The handle of the file containing the artboard.
+     * @param artboardHandle The handle of the artboard to query.
+     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     * @throws RuntimeException If the artboard or file handle is invalid, or no default view model
+     *    is found.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getDefaultViewModelInfo(
+        fileHandle: FileHandle,
+        artboardHandle: ArtboardHandle
+    ): DefaultViewModelInfo =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetDefaultViewModelInfo(
+                cppPointer.pointer,
+                requestID,
+                fileHandle.handle,
+                artboardHandle.handle
+            )
+        }
+
+    /**
+     * Callback when the default view model info is received, from [getDefaultViewModelInfo].
+     *
+     * @param requestID The request ID used when querying, used to complete the continuation.
+     * @param viewModelName The name of the default view model for the artboard.
+     * @param instanceName The name of the default view model instance for the artboard.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onDefaultViewModelInfoReceived")
+    internal fun onDefaultViewModelInfoReceived(
+        requestID: Long,
+        viewModelName: String,
+        instanceName: String
+    ) {
+        (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo>)
+            ?.resume(DefaultViewModelInfo(viewModelName, instanceName))
     }
 
     /**
@@ -1475,24 +1839,46 @@ class CommandQueue(
     )
 
     /**
-     * Assign an artboard to a bindable artboard property on the view model instance.
+     * Assign an artboard to a bindable artboard property on the view model instance, or clear the
+     * property if [artboardHandle] is null.
      *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
-     * @param artboardHandle The handle of the artboard to assign.
+     * @param artboardHandle The handle of the artboard to assign, or null to clear the property.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
     fun setArtboardProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        artboardHandle: ArtboardHandle
+        artboardHandle: ArtboardHandle?
     ) = bridge.cppSetArtboardProperty(
         cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
-        artboardHandle.handle
+        artboardHandle?.handle ?: 0L
+    )
+
+    /**
+     * Assign a view model instance to a nested view model property on the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param valueHandle The handle of the view model instance to assign.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setViewModelInstanceProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        valueHandle: ViewModelInstanceHandle
+    ) = bridge.cppSetViewModelInstanceProperty(
+        cppPointer.pointer,
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        valueHandle.handle
     )
 
     /**
@@ -2086,20 +2472,23 @@ class CommandQueue(
      * @param surface The surface whose width and height will be used to resize the artboard.
      * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
      *    surface dimensions divided by this factor.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(IllegalStateException::class)
     fun resizeArtboard(
         artboardHandle: ArtboardHandle,
         surface: RiveSurface,
         scaleFactor: Float = 1f
-    ) = bridge.cppResizeArtboard(
-        cppPointer.pointer,
-        artboardHandle.handle,
-        surface.width,
-        surface.height,
-        scaleFactor
-    )
+    ) {
+        check(!surface.closed) { "Cannot resize a closed RiveSurface" }
+        bridge.cppResizeArtboard(
+            cppPointer.pointer,
+            artboardHandle.handle,
+            surface.width,
+            surface.height,
+            scaleFactor
+        )
+    }
 
     /**
      * Resets an artboard to its original dimensions.
@@ -2126,7 +2515,7 @@ class CommandQueue(
      * @param surface The surface to draw to.
      * @param fit The fit mode of the artboard.
      * @param clearColor The color to clear the surface with before drawing, in AARRGGBB format.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(IllegalStateException::class)
     fun draw(
@@ -2135,21 +2524,37 @@ class CommandQueue(
         surface: RiveSurface,
         fit: Fit,
         clearColor: Int = Color.TRANSPARENT
-    ) = bridge.cppDraw(
-        cppPointer.pointer,
-        renderContext.nativeObjectPointer,
-        surface.surfaceNativePointer,
-        surface.drawKey.handle,
-        artboardHandle.handle,
-        stateMachineHandle.handle,
-        surface.renderTargetPointer.pointer,
-        surface.width,
-        surface.height,
-        fit.nativeMapping,
-        fit.alignment.nativeMapping,
-        fit.scaleFactor,
-        clearColor
-    )
+    ) {
+        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        bridge.cppDraw(
+            cppPointer.pointer,
+            renderContext.nativeObjectPointer,
+            surface.surfaceNativePointer.pointer,
+            surface.drawKey.handle,
+            artboardHandle.handle,
+            stateMachineHandle.handle,
+            surface.width,
+            surface.height,
+            fit.nativeMapping,
+            fit.alignment.nativeMapping,
+            fit.scaleFactor,
+            clearColor
+        )
+    }
+
+    /**
+     * Cancel a pending coalesced draw for the given draw key.
+     *
+     * This is used by [RiveSurface.close] to prevent a queued draw from presenting to a surface
+     * that is being disposed. Cancellation is best-effort within command server batching: draws
+     * already admitted to execution may still complete.
+     *
+     * @param drawKey The draw key to cancel.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    internal fun cancelDraw(drawKey: DrawKey) =
+        bridge.cppCancelDraw(cppPointer.pointer, drawKey.handle)
 
     /**
      * Renders the current state of an artboard/state machine pair into an off-screen buffer that
@@ -2169,7 +2574,7 @@ class CommandQueue(
      * @param clearColor Clear color used prior to drawing, defaults to transparent.
      * @throws RiveDrawToBufferException If the buffer could not be drawn to for any reason. Further
      *    details can be found in the exception message.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
      */
     @Throws(RiveDrawToBufferException::class, IllegalStateException::class)
     fun drawToBuffer(
@@ -2181,22 +2586,24 @@ class CommandQueue(
         height: Int,
         fit: Fit = Fit.Contain(),
         clearColor: Int = Color.TRANSPARENT
-    ) = bridge.cppDrawToBuffer(
-        cppPointer.pointer,
-        renderContext.nativeObjectPointer,
-        surface.surfaceNativePointer,
-        surface.drawKey.handle,
-        artboardHandle.handle,
-        stateMachineHandle.handle,
-        surface.renderTargetPointer.pointer,
-        width,
-        height,
-        fit.nativeMapping,
-        fit.alignment.nativeMapping,
-        fit.scaleFactor,
-        clearColor,
-        buffer
-    )
+    ) {
+        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        bridge.cppDrawToBuffer(
+            cppPointer.pointer,
+            renderContext.nativeObjectPointer,
+            surface.surfaceNativePointer.pointer,
+            surface.drawKey.handle,
+            artboardHandle.handle,
+            stateMachineHandle.handle,
+            width,
+            height,
+            fit.nativeMapping,
+            fit.alignment.nativeMapping,
+            fit.scaleFactor,
+            clearColor,
+            buffer
+        )
+    }
 
     /**
      * Enqueue arbitrary Kotlin code to be run on the command server thread.
@@ -2211,7 +2618,7 @@ class CommandQueue(
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
-    private fun runOnCommandServer(work: () -> Unit) =
+    internal fun runOnCommandServer(work: () -> Unit) =
         bridge.cppRunOnCommandServer(cppPointer.pointer, work)
 
     /**
@@ -2221,6 +2628,17 @@ class CommandQueue(
      * @see [suspendNativeRequest]
      */
     private val pendingContinuations = ConcurrentHashMap<Long, CancellableContinuation<Any>>()
+
+    /**
+     * Cancels all pending native requests because command queue disposal prevents any later JNI
+     * callback from completing them.
+     */
+    private fun cancelPendingContinuations() {
+        pendingContinuations.values.toList().forEach { cont ->
+            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
+        }
+        pendingContinuations.clear()
+    }
 
     /**
      * A monotonically increasing request ID used to identify JNI requests. This allows pairing
@@ -2263,7 +2681,14 @@ class CommandQueue(
                 pendingContinuations.remove(requestID)
             }
 
-            nativeFn(requestID)
+            try {
+                nativeFn(requestID)
+            } catch (t: Throwable) {
+                // Bridge calls can fail before native work is accepted, for example if JNI raises
+                // an exception. Do not leave a continuation waiting for a callback that cannot come.
+                pendingContinuations.remove(requestID)
+                throw t
+            }
         }
     }
 }
@@ -2346,6 +2771,11 @@ value class AudioHandle(val handle: Long) {
 value class FontHandle(val handle: Long) {
     override fun toString(): String = "FontHandle($handle)"
 }
+
+data class DefaultViewModelInfo(
+    val viewModelName: String,
+    val instanceName: String
+)
 
 /**
  * A key used to uniquely identify a draw operation in the CommandQueue. This is useful when the

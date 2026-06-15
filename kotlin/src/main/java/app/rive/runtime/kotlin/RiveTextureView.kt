@@ -10,25 +10,24 @@ import android.view.TextureView
 import android.view.View
 import androidx.annotation.CallSuper
 import androidx.lifecycle.LifecycleObserver
+import app.rive.RiveLog
 import app.rive.runtime.kotlin.core.RefCount
 import app.rive.runtime.kotlin.renderers.Renderer
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * A reference-counted wrapper around an Android [Surface]. It ensures that the
- * underlying `Surface` is released only when it's no longer needed by anyone.
+ * A reference-counted wrapper around an Android [Surface]. It ensures that the underlying `Surface`
+ * is released only when it's no longer needed by anyone.
  *
- * This class is crucial for managing the lifecycle of a `Surface` shared
- * between the UI thread (via [RiveTextureView]) and the Rive renderer thread. The
- * [RiveTextureView] creates the `Surface` and holds the initial reference. When
- * the `Surface` is passed to the [Renderer], the renderer also acquires a
- * reference.
+ * This class is crucial for managing the lifecycle of a `Surface` shared between the UI thread (via
+ * [RiveTextureView]) and the Rive renderer thread. The [RiveTextureView] creates the `Surface` and
+ * holds the initial reference. When the `Surface` is passed to the [Renderer], the renderer also
+ * acquires a reference.
  *
- * This mechanism prevents the `Surface` from being prematurely released by the
- * UI thread (e.g., during view detachment) while the renderer thread might still
- * be in the process of drawing to it. The `release()` method decrements the
- * reference count, and the underlying [Surface.release] is only called when the
- * count drops to zero.
+ * This mechanism prevents the `Surface` from being prematurely released by the UI thread (e.g.,
+ * during view detachment) while the renderer thread might still be in the process of drawing to it.
+ * The `release()` method decrements the reference count, and the underlying [Surface.release] is
+ * only called when the count drops to zero.
  *
  * @param surface The underlying Android [Surface] to be managed.
  */
@@ -49,6 +48,10 @@ internal class SharedSurface(val surface: Surface) : RefCount {
 abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     TextureView(context, attrs),
     TextureView.SurfaceTextureListener {
+
+    companion object {
+        private const val TAG = "RiveL/RiveTextureView"
+    }
 
     protected val activity by lazy(LazyThreadSafetyMode.NONE) {
         // If this fails we have a problem.
@@ -73,11 +76,13 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {} // called every time when swapBuffers is called
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+        RiveLog.d(TAG) { "onSurfaceTextureSizeChanged: $width x $height" }
         onSurfaceTextureAvailable(surface, width, height)
     }
 
     @CallSuper
     override fun onAttachedToWindow() {
+        RiveLog.d(TAG) { "onAttachedToWindow" }
         super.onAttachedToWindow()
         // Register this SurfaceView for the SurfaceHolder callbacks below
         surfaceTextureListener = this
@@ -93,6 +98,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         width: Int,
         height: Int,
     ) {
+        RiveLog.d(TAG) { "onSurfaceTextureAvailable: $width x $height" }
         sharedSurface?.release()
         renderer?.apply {
             stop()
@@ -104,6 +110,9 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onDetachedFromWindow() {
+        RiveLog.d(TAG) { "onDetachedFromWindow" }
+        sharedSurface?.release()
+        sharedSurface = null
         // If we delete, we must have a Renderer.
         renderer!!.delete()
         renderer = null
@@ -111,6 +120,7 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        RiveLog.d(TAG) { "onVisibilityChanged: $visibility" }
         super.onVisibilityChanged(changedView, visibility)
         when (visibility) {
             VISIBLE -> renderer?.start()
@@ -120,6 +130,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
 
     @CallSuper
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+        RiveLog.d(TAG) { "onSurfaceTextureDestroyed" }
+        renderer?.destroySurfaceAsync()
         sharedSurface?.release()
         sharedSurface = null
         return false

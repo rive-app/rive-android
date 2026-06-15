@@ -1,7 +1,7 @@
 #pragma once
 
-#include <jni.h>
 #include <cstdarg>
+#include <jni.h>
 #include <mutex>
 
 namespace rive_android

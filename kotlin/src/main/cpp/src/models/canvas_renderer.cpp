@@ -1,9 +1,10 @@
 /*
  * Copyright 2023 Rive
  */
-#include "jni_refs.hpp"
 #include "models/canvas_renderer.hpp"
+
 #include "helpers/canvas_render_objects.hpp"
+#include "jni_refs.hpp"
 #include "utils/factory_utils.hpp"
 
 namespace rive_android

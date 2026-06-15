@@ -50,6 +50,21 @@ endif ()
 # Pass the resolved runtime directory to the environment for Premake
 set(ENV{RIVE_RUNTIME_DIR} "${RIVE_RUNTIME_DIR}")
 
+# These dependency directories are populated by the runtime dependency
+# fetch/Premake flow. Resolve by dependency identity so version bumps remain
+# centralized in the runtime dependency declarations.
+function(find_single_dependency_dir out_var glob_pattern description)
+    file(GLOB dependency_dirs CONFIGURE_DEPENDS "${glob_pattern}")
+    list(LENGTH dependency_dirs dependency_dir_count)
+    if (NOT dependency_dir_count EQUAL 1)
+        message(FATAL_ERROR
+                "Expected exactly one ${description} dependency directory matching "
+                "'${glob_pattern}', but found ${dependency_dir_count}: ${dependency_dirs}")
+    endif ()
+    list(GET dependency_dirs 0 dependency_dir)
+    set(${out_var} "${dependency_dir}" PARENT_SCOPE)
+endfunction()
+
 # Add an option to remove miniaudio
 # Passed from Gradle with -DWITH_RIVE_AUDIO=ON|OFF
 option(WITH_RIVE_AUDIO "Enable Rive audio support" ON)
@@ -73,6 +88,8 @@ option(WITH_SCRIPTING "Enable Rive scripting support" ON)
 if (WITH_SCRIPTING)
     # Flag for Premake
     set(RIVE_SCRIPTING_ARG "--with_rive_scripting")
+    # Keep JNI translation units ABI-compatible with the static runtime.
+    target_compile_definitions(rive-android PRIVATE WITH_RIVE_SCRIPTING)
     # Add to the list of static libraries
     list(APPEND static_libs luau_vm)
 endif ()
@@ -128,7 +145,7 @@ set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
 # Build the Rive C++ runtime and its dependencies as static .a libs
 execute_process(
-        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
+        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
@@ -138,11 +155,41 @@ if (NOT SCRIPT_RESULT EQUAL "0")
     message(FATAL_ERROR "Script returned with error: '${SCRIPT_OUTPUT}' - '${SCRIPT_RESULT}'")
 endif ()
 
+find_single_dependency_dir(
+        VULKAN_HEADERS_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/KhronosGroup_Vulkan-Headers_*"
+        "Vulkan Headers")
+find_single_dependency_dir(
+        VULKAN_MEMORY_ALLOCATOR_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/GPUOpen-LibrariesAndSDKs_VulkanMemoryAllocator_*"
+        "Vulkan Memory Allocator")
+
 # Add header files
 target_include_directories(rive-android PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${RIVE_RUNTIME_DIR}/include
-        ${RIVE_RUNTIME_DIR}/renderer/include)
+        ${RIVE_RUNTIME_DIR}/renderer/include
+        ${RIVE_RUNTIME_DIR}/decoders/include
+        ${RIVE_RUNTIME_DIR}/renderer/src
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/include
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src
+        ${VULKAN_HEADERS_DIR}/include
+        ${VULKAN_MEMORY_ALLOCATOR_DIR}/include)
+
+target_compile_definitions(rive-android PRIVATE
+        RIVE_VULKAN
+        VK_NO_PROTOTYPES
+        VMA_STATIC_VULKAN_FUNCTIONS=0
+        VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
+
+target_sources(rive-android PRIVATE
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_debug_callbacks.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_device.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_frame_synchronizer.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_headless_frame_synchronizer.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_instance.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_library.cpp
+        ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_swapchain.cpp)
 
 # Link each static library
 foreach (X IN LISTS static_libs)
@@ -160,6 +207,7 @@ endforeach ()
 # Find additional libraries
 find_library(log-lib log)
 find_library(android-lib android)
+find_library(dl-lib dl)
 find_library(egl-lib EGL)
 find_library(gles-lib GLESv3)
 
@@ -167,6 +215,7 @@ find_library(gles-lib GLESv3)
 target_link_libraries(rive-android
         ${log-lib}
         ${android-lib}
+        ${dl-lib}
         ${egl-lib}
         ${gles-lib}
         jnigraphics

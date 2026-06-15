@@ -19,14 +19,14 @@ import java.util.concurrent.locks.ReentrantLock
  * canvas.
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
- * @param lock A lock that is used to synchronize access to the underlying C++ object.
+ * @param fileLock Lock shared by the [File] and native graph this artboard belongs to.
  * @param file The [File] that created this artboard. Used only to promote an artboard to a bindable
  *    artboard.
  */
 @OpenForTesting
 class Artboard(
     unsafeCppPointer: Long,
-    private val lock: ReentrantLock,
+    private val fileLock: ReentrantLock,
     internal val file: File? = null
 ) :
     NativeObject(unsafeCppPointer) {
@@ -97,7 +97,7 @@ class Artboard(
 
     external override fun cppDelete(pointer: Long)
 
-    override fun release(): Int = synchronized(lock) {
+    override fun release(): Int = synchronized(fileLock) {
         super.release()
     }
 
@@ -127,7 +127,7 @@ class Artboard(
         if (animationPointer == NULL_POINTER) {
             throw AnimationException("No Animation found at index $index.")
         }
-        val lai = LinearAnimationInstance(animationPointer, lock)
+        val lai = LinearAnimationInstance(animationPointer, fileLock)
         dependencies.add(lai)
         return lai
     }
@@ -146,7 +146,7 @@ class Artboard(
                         "Available Animations: ${animationNames.map { "\"$it\"" }}\""
             )
         }
-        val lai = LinearAnimationInstance(animationPointer, lock)
+        val lai = LinearAnimationInstance(animationPointer, fileLock)
         dependencies.add(lai)
         return lai
     }
@@ -173,7 +173,7 @@ class Artboard(
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, lock)
+        val smi = StateMachineInstance(stateMachinePointer, fileLock)
         dependencies.add(smi)
         return smi
     }
@@ -189,7 +189,7 @@ class Artboard(
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, lock)
+        val smi = StateMachineInstance(stateMachinePointer, fileLock)
         dependencies.add(smi)
         return smi
     }
@@ -311,8 +311,12 @@ class Artboard(
     var viewModelInstance: ViewModelInstance? = null
         set(value) {
             value?.let {
-                cppSetViewModelInstance(cppPointer, it.cppPointer)
-                field = value
+                it.updateFileLock(fileLock)
+                synchronized(fileLock) {
+                    // Binding mutates the native graph and must not overlap with advance().
+                    cppSetViewModelInstance(cppPointer, it.cppPointer)
+                    field = value
+                }
             }
         }
 
@@ -344,11 +348,11 @@ class Artboard(
      * [elapsedTime] is currently not taken into account.
      */
     fun advance(elapsedTime: Float): Boolean =
-        synchronized(lock) { cppAdvance(cppPointer, elapsedTime) }
+        synchronized(fileLock) { cppAdvance(cppPointer, elapsedTime) }
 
     /** Draw the the artboard to the [renderer][app.rive.runtime.kotlin.renderers.Renderer]. */
     @WorkerThread
-    fun draw(rendererAddress: Long) = synchronized(lock) {
+    fun draw(rendererAddress: Long) = synchronized(fileLock) {
         if (!hasCppObject) return
         cppDraw(cppPointer, rendererAddress)
     }
@@ -359,7 +363,7 @@ class Artboard(
      */
     @WorkerThread
     fun draw(rendererAddress: Long, fit: Fit, alignment: Alignment, scaleFactor: Float = 1.0f) =
-        synchronized(lock) {
+        synchronized(fileLock) {
             if (!hasCppObject) return
 
             cppDrawAligned(

@@ -2,10 +2,10 @@ package app.rive.runtime.kotlin.renderers
 
 import android.app.Activity
 import android.os.Build
-import android.util.Log
 import android.view.FrameMetrics
 import android.view.Window
 import androidx.annotation.RequiresApi
+import app.rive.RiveLog
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Locale
@@ -13,7 +13,7 @@ import java.util.Locale
 @RequiresApi(Build.VERSION_CODES.N)
 class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListener {
     companion object {
-        private const val TAG = "RendererMetrics"
+        private const val TAG = "RiveL/RendererMetrics"
         private const val ONE_MS_IN_NS: Double = 1000000.toDouble()
         const val SAMPLES = 30
     }
@@ -35,7 +35,7 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
                 @Suppress("DEPRECATION")
                 window.windowManager.defaultDisplay.refreshRate
             }
-        Log.i(TAG, String.format("Refresh rate: %.1f Hz", refreshRateHz))
+        RiveLog.i(TAG) { String.format(Locale.US, "Refresh rate: %.1f Hz", refreshRateHz) }
 
         refreshRateMs = 1000 / refreshRateHz
     }
@@ -46,11 +46,11 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
         dropCountSinceLastInvocation: Int
     ) {
         if (window == null) {
-            Log.w(TAG, "Invalid Window reference")
+            RiveLog.w(TAG) { "Invalid Window reference." }
             return
         }
         if (frameMetrics == null) {
-            Log.w(TAG, "Invalid FrameMetrics reference")
+            RiveLog.w(TAG) { "Invalid FrameMetrics reference." }
             return
         }
         val frameMetricsCopy = FrameMetrics(frameMetrics)
@@ -91,7 +91,7 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
                 totalTime.divide(allFrames.toBigDecimal(), 2, RoundingMode.HALF_UP)
             )
 
-            Log.i(TAG, frameValues)
+            RiveLog.i(TAG) { frameValues }
         }
     }
 }

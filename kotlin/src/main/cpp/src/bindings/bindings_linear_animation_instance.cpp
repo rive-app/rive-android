@@ -1,8 +1,9 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
-#include "rive/animation/loop.hpp"
-#include "rive/animation/linear_animation_instance.hpp"
 #include <jni.h>
+
+#include "helpers/general.hpp"
+#include "jni_refs.hpp"
+#include "rive/animation/linear_animation_instance.hpp"
+#include "rive/animation/loop.hpp"
 
 #ifdef __cplusplus
 extern "C"

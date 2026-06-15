@@ -2,15 +2,16 @@
 // Created by Peter G Hayes on 23/08/2023.
 //
 
-#include "jni_refs.hpp"
+#include <jni.h>
+
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "jni_refs.hpp"
+#include "rive/custom_property_boolean.hpp"
+#include "rive/custom_property_number.hpp"
+#include "rive/custom_property_string.hpp"
 #include "rive/event.hpp"
 #include "rive/open_url_event.hpp"
-#include "rive/custom_property_boolean.hpp"
-#include "rive/custom_property_string.hpp"
-#include "rive/custom_property_number.hpp"
-#include <jni.h>
 
 #ifdef __cplusplus
 extern "C"

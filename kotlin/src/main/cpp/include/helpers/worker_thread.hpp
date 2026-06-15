@@ -47,10 +47,18 @@ public:
     {
         // Don't launch the worker thread until all of our objects are fully
         // initialized.
+        RiveLogD(
+            TAG,
+            "Main thread: WorkerThread constructed. Launching threadMain.");
         mThread = std::thread([this]() { threadMain(); });
     }
 
-    virtual ~WorkerThread() { terminateThread(); }
+    virtual ~WorkerThread()
+    {
+        RiveLogD(TAG,
+                 "Main thread: Destroying worker - terminating worker thread.");
+        terminateThread();
+    }
 
     const std::thread::id threadID() const { return mThread.get_id(); }
 
@@ -131,11 +139,14 @@ protected:
     const RendererType m_RendererType;
 
 private:
+    static constexpr auto* TAG = "RiveLN/WorkerThread";
+
     static std::unique_ptr<DrawableThreadState> MakeThreadState(
         const RendererType type);
 
     void threadMain()
     {
+        RiveLogD(TAG, "Worker thread: Beginning of worker threadMain.");
         setAffinity(mAffinity);
         pthread_setname_np(pthread_self(), mName.c_str());
 
@@ -143,6 +154,7 @@ private:
         m_threadState = MakeThreadState(m_RendererType);
 
         std::unique_lock lock(mWorkMutex);
+        RiveLogD(TAG, "Worker thread: Beginning work loop.");
         for (;;)
         {
             while (mWorkQueue.empty())
@@ -156,6 +168,9 @@ private:
             {
                 // A null function is a special token that tells the thread to
                 // terminate.
+                RiveLogD(
+                    TAG,
+                    "Worker thread: Encountered null work item - terminating loop.");
                 break;
             }
 
@@ -168,6 +183,8 @@ private:
         }
         lock.unlock();
         m_threadState.reset();
+        RiveLogD(TAG,
+                 "Worker thread: End of worker threadMain. Detaching thread.");
         DetachThread();
     }
 

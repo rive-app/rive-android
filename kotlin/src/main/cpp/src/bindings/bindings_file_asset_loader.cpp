@@ -1,9 +1,9 @@
-#include "jni_refs.hpp"
-#include "helpers/general.hpp"
-#include "models/jni_file_asset_loader.hpp"
-
-#include "rive/assets/file_asset.hpp"
 #include <jni.h>
+
+#include "helpers/general.hpp"
+#include "jni_refs.hpp"
+#include "models/jni_file_asset_loader.hpp"
+#include "rive/assets/file_asset.hpp"
 
 #ifdef __cplusplus
 extern "C"

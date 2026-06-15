@@ -1,14 +1,37 @@
 #pragma once
-#include <GLES3/gl3.h>
 
-#include "helpers/general.hpp"
-#include "helpers/rive_log.hpp"
-#include "rive/renderer/gl/render_context_gl_impl.hpp"
+#include <EGL/egl.h>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "models/render_surface.hpp"
 #include "rive/renderer/render_context.hpp"
+#include "rive/renderer/render_target.hpp"
 #include "rive/renderer/rive_render_image.hpp"
 
-#include <cstdint>
-#include <EGL/egl.h>
+#ifdef RIVE_VULKAN
+#include "models/render_surface_vulkan.hpp"
+#endif
+
+struct ANativeWindow;
+
+namespace rive_vkb
+{
+class VulkanDevice;
+class VulkanInstance;
+} // namespace rive_vkb
+
+#ifdef RIVE_VULKAN
+namespace rive
+{
+namespace gpu
+{
+class RenderContextVulkanImpl;
+class VulkanContext;
+} // namespace gpu
+} // namespace rive
+#endif
 
 namespace rive_android
 {
@@ -25,41 +48,6 @@ struct StartupResult
     int32_t errorCode;
     std::string message;
 };
-
-/** Map of EGL error codes to their string representations. */
-static const std::unordered_map<int32_t, std::string> eglErrorMessages = {
-    {EGL_SUCCESS, "EGL_SUCCESS"},
-    {EGL_NOT_INITIALIZED, "EGL_NOT_INITIALIZED"},
-    {EGL_BAD_ACCESS, "EGL_BAD_ACCESS"},
-    {EGL_BAD_ALLOC, "EGL_BAD_ALLOC"},
-    {EGL_BAD_ATTRIBUTE, "EGL_BAD_ATTRIBUTE"},
-    {EGL_BAD_CONTEXT, "EGL_BAD_CONTEXT"},
-    {EGL_BAD_CONFIG, "EGL_BAD_CONFIG"},
-    {EGL_BAD_CURRENT_SURFACE, "EGL_BAD_CURRENT_SURFACE"},
-    {EGL_BAD_DISPLAY, "EGL_BAD_DISPLAY"},
-    {EGL_BAD_SURFACE, "EGL_BAD_SURFACE"},
-    {EGL_BAD_MATCH, "EGL_BAD_MATCH"},
-    {EGL_BAD_PARAMETER, "EGL_BAD_PARAMETER"},
-    {EGL_BAD_NATIVE_PIXMAP, "EGL_BAD_NATIVE_PIXMAP"},
-    {EGL_BAD_NATIVE_WINDOW, "EGL_BAD_NATIVE_WINDOW"},
-    {EGL_CONTEXT_LOST, "EGL_CONTEXT_LOST"},
-};
-
-static std::string errorString(int32_t errorCode)
-{
-    auto it = eglErrorMessages.find(errorCode);
-    if (it != eglErrorMessages.end())
-        return it->second;
-
-    char buffer[64];
-    auto n = std::snprintf(buffer,
-                           sizeof(buffer),
-                           "Unknown EGL error (0x%04x)",
-                           errorCode);
-    if (n < 0)
-        return "Unknown EGL error";
-    return {buffer, static_cast<std::size_t>(n)};
-}
 
 /**
  * Abstract base class for native RenderContext implementations.
@@ -85,7 +73,13 @@ public:
      * thread.
      */
     virtual StartupResult initialize() = 0;
-    /** Destroy the RenderContext's resources. Call on the render thread. */
+
+    /**
+     * Destroy backend resources owned by this RenderContext.
+     *
+     * Must be called on the render thread. Implementations must tolerate being
+     * called after failed or partial initialization, and must be idempotent.
+     */
     virtual void destroy() = 0;
 
     /**
@@ -97,179 +91,98 @@ public:
      * @return A renderable rive::RenderImage backed by the underlying
      *   renderer's texture type.
      */
-    virtual rive::rcp<rive::RenderImage> makeImage(
+    virtual rive::rcp<rive::RenderImage> createRenderImage(
         uint32_t width,
         uint32_t height,
         std::unique_ptr<const uint8_t[]> imageDataRGBA) = 0;
 
-    /** Begin a frame by binding the context to the provided surface. */
-    virtual void beginFrame(void* surface) = 0;
-    /** Present the frame by swapping buffers on the provided surface. */
-    virtual void present(void* surface) = 0;
+    /**
+     * Create a render target for a backend-specific surface.
+     *
+     * Width and height are requested dimensions supplied by the runtime.
+     * Backends may adjust or ignore them when the final drawable extent is
+     * defined by prepared surface resources.
+     *
+     * @param surface Backend-specific surface pointer.
+     * @param width Requested render target width in pixels.
+     * @param height Requested render target height in pixels.
+     * @return The created render target, or nullptr if the backend cannot
+     * create a compatible target.
+     */
+    virtual rive::gpu::RenderTarget* createRenderTarget(RenderSurface* surface,
+                                                        uint32_t width,
+                                                        uint32_t height) = 0;
+
+    // Frame rendering calls these in sequence:
+    // beginFrame(), flush(), present().
+
+    /**
+     * Prepare a backend surface for drawing and return its concrete render
+     * target.
+     *
+     * @param surface Backend-specific surface pointer.
+     * @return The concrete render target for this frame, or nullptr if drawing
+     * cannot proceed.
+     */
+    virtual rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) = 0;
+    /**
+     * Flush backend-specific render commands to the surface's current target.
+     *
+     * @param surface Backend-specific surface pointer.
+     * @return true if the frame was flushed.
+     */
+    virtual bool flush(RenderSurface* surface) = 0;
+    /**
+     * Present the frame by swapping buffers on the provided surface.
+     *
+     * @param surface Backend-specific surface pointer.
+     * @return true if the frame was presented.
+     */
+    virtual bool present(RenderSurface* surface) = 0;
+
+    /**
+     * Read pixels from the current render target into an RGBA buffer.
+     *
+     * @param surface Backend-specific surface pointer.
+     * @param width Width to read in pixels.
+     * @param height Height to read in pixels.
+     * @param pixels Destination RGBA buffer.
+     * @return true if pixels were read into the destination buffer.
+     */
+    virtual bool readPixels(RenderSurface* surface,
+                            uint32_t width,
+                            uint32_t height,
+                            uint8_t* pixels) = 0;
 
     std::unique_ptr<rive::gpu::RenderContext> riveContext;
 };
 
-/** Create a 1x1 PBuffer surface to bind before Android provides a surface. */
-static EGLSurface createPBufferSurface(EGLDisplay eglDisplay,
-                                       EGLContext eglContext)
-{
-    RiveLogD(TAG_RC, "Creating 1x1 PBuffer surface for EGL context");
-
-    EGLint configID = 0;
-    eglQueryContext(eglDisplay, eglContext, EGL_CONFIG_ID, &configID);
-
-    EGLConfig config;
-    EGLint configCount = 0;
-    EGLint configAttributes[] = {EGL_CONFIG_ID, configID, EGL_NONE};
-    eglChooseConfig(eglDisplay, configAttributes, &config, 1, &configCount);
-
-    // We expect only one config.
-    if (configCount == 1)
-    {
-        EGLint pBufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-        auto surface =
-            eglCreatePbufferSurface(eglDisplay, config, pBufferAttributes);
-        if (surface != EGL_NO_SURFACE)
-        {
-            RiveLogD(TAG_RC, "Successfully created PBuffer surface");
-            return surface;
-        }
-        else
-        {
-            RiveLogE(TAG_RC,
-                     "Failed to create PBuffer surface. Error: %s",
-                     errorString(eglGetError()).c_str());
-            return EGL_NO_SURFACE;
-        }
-    }
-    else
-    {
-        RiveLogE(TAG_RC, "Failed to choose EGL config for PBuffer surface");
-        return EGL_NO_SURFACE;
-    }
-}
-
 /** Native RenderContext implementation for EGL/OpenGL ES. */
 struct RenderContextGL : RenderContext
 {
-    RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext) :
-        RenderContext(),
-        eglDisplay(eglDisplay),
-        eglContext(eglContext),
-        pBuffer(createPBufferSurface(eglDisplay, eglContext))
-    {}
+    RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext);
+    ~RenderContextGL() override = default;
 
-    /**
-     * Initialize the RenderContextGL by making the context current with the 1x1
-     * PBuffer surface and creating the Rive RenderContextGL.
-     *
-     * @return Whether initialization succeeded, and the error code/message if
-     * not.
-     */
-    StartupResult initialize() override
-    {
-        if (pBuffer == EGL_NO_SURFACE)
-        {
-            auto error = eglGetError();
-            RiveLogE(TAG_RC,
-                     "Failed to create PBuffer surface. Error: %s",
-                     errorString(eglGetError()).c_str());
-            return {false, error, "Failed to create PBuffer surface"};
-        }
+    StartupResult initialize() override;
+    void destroy() override;
 
-        RiveLogD(TAG_RC, "Making EGL context current with PBuffer surface");
-        auto contextCurrentSuccess =
-            eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext);
-        if (!contextCurrentSuccess)
-        {
-            auto error = eglGetError();
-            RiveLogE(TAG_RC,
-                     "Failed to make EGL context current. Error: %s",
-                     errorString(eglGetError()).c_str());
-            return {false, error, "Failed to make EGL context current"};
-        }
-
-        RiveLogD(TAG_RC, "Creating Rive RenderContextGL");
-        riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
-        if (!riveContext)
-        {
-            auto error = eglGetError();
-            RiveLogE(TAG_RC,
-                     "Failed to create Rive RenderContextGL. Error: %s",
-                     errorString(eglGetError()).c_str());
-            return {false, error, "Failed to create Rive RenderContextGL"};
-        }
-
-        return {true, EGL_SUCCESS, "RenderContextGL initialized successfully"};
-    }
-
-    /**
-     * Destroy the RenderContextGL by releasing the EGL context and destroying
-     * the PBuffer surface.
-     */
-    void destroy() override
-    {
-        // Cleanup the EGL context and surface
-        RiveLogD(TAG_RC, "Releasing EGL context and surface bindings");
-        eglMakeCurrent(eglDisplay,
-                       EGL_NO_SURFACE,
-                       EGL_NO_SURFACE,
-                       EGL_NO_CONTEXT);
-        if (pBuffer != EGL_NO_SURFACE)
-        {
-            RiveLogD(TAG_RC, "Destroying PBuffer surface");
-            eglDestroySurface(eglDisplay, pBuffer);
-            pBuffer = EGL_NO_SURFACE;
-            if (auto error = eglGetError(); error != EGL_SUCCESS)
-            {
-                RiveLogE(TAG_RC,
-                         "Failed to destroy PBuffer surface. Error: %s",
-                         errorString(error).c_str());
-            }
-        }
-    }
-
-    /** Make a RiveRenderImage from RenderContextImplGL's makeImageTexture. */
-    rive::rcp<rive::RenderImage> makeImage(
+    rive::rcp<rive::RenderImage> createRenderImage(
         uint32_t width,
         uint32_t height,
-        std::unique_ptr<const uint8_t[]> imageDataRGBA) override
-    {
-        auto mipLevelCount = rive::math::msb(height | width);
-        RiveLogD(TAG_RC, "Creating RiveRenderImage");
-        auto texture =
-            riveContext->impl()->makeImageTexture(width,
-                                                  height,
-                                                  mipLevelCount,
-                                                  imageDataRGBA.get());
-        return rive::make_rcp<rive::RiveRenderImage>(texture);
-    }
+        std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
 
-    /** Bind the EGL context to the provided surface for rendering. */
-    void beginFrame(void* surface) override
-    {
-        auto eglSurface = static_cast<EGLSurface>(surface);
-        if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
-        {
-            RiveLogE(
-                TAG_RC,
-                "Failed to make EGL context current in beginFrame. Error: %s",
-                errorString(eglGetError()).c_str());
-        }
-    }
+    rive::gpu::RenderTarget* createRenderTarget(RenderSurface*,
+                                                uint32_t width,
+                                                uint32_t height) override;
 
-    /** Swap the EGL buffers on the provided surface to present the frame. */
-    void present(void* surface) override
-    {
-        auto eglSurface = static_cast<EGLSurface>(surface);
-        if (!eglSwapBuffers(eglDisplay, eglSurface))
-        {
-            RiveLogE(TAG_RC,
-                     "Failed to swap EGL buffers in present. Error: %s",
-                     errorString(eglGetError()).c_str());
-        }
-    }
+    rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) override;
+    bool flush(RenderSurface* surface) override;
+    bool present(RenderSurface* surface) override;
+
+    bool readPixels(RenderSurface* surface,
+                    uint32_t width,
+                    uint32_t height,
+                    uint8_t* pixels) override;
 
     EGLDisplay eglDisplay;
     EGLContext eglContext;
@@ -280,5 +193,53 @@ private:
      * We must have a valid binding for `MakeContext` to succeed. */
     EGLSurface pBuffer;
 };
+
+#ifdef RIVE_VULKAN
+
+/** Native RenderContext implementation for Vulkan. */
+struct RenderContextVulkan : RenderContext
+{
+    RenderContextVulkan();
+    ~RenderContextVulkan() override;
+
+    StartupResult initialize() override;
+    void destroy() override;
+
+    RenderSurfaceVulkan* createWindowSurface(ANativeWindow* nativeWindow,
+                                             int width,
+                                             int height);
+
+    static RenderSurfaceVulkan* createImageSurface(int width, int height);
+
+    rive::rcp<rive::RenderImage> createRenderImage(
+        uint32_t width,
+        uint32_t height,
+        std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
+
+    rive::gpu::RenderTarget* createRenderTarget(RenderSurface* nativeSurface,
+                                                uint32_t width,
+                                                uint32_t height) override;
+
+    rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
+    bool flush(RenderSurface* nativeSurface) override;
+    bool present(RenderSurface* nativeSurface) override;
+
+    bool readPixels(RenderSurface* nativeSurface,
+                    uint32_t width,
+                    uint32_t height,
+                    uint8_t* pixels) override;
+
+private:
+    [[nodiscard]] rive::gpu::RenderContextVulkanImpl* impl() const;
+    [[nodiscard]] rive::gpu::VulkanContext* vk() const;
+    bool ensureFrameSurface(RenderSurfaceVulkan* surface);
+    bool ensureSwapchain(VulkanWindowSurface& window);
+    bool ensureHeadlessFrameSynchronizer(VulkanImageSurface& image);
+
+    std::unique_ptr<rive_vkb::VulkanInstance> m_instance;
+    std::unique_ptr<rive_vkb::VulkanDevice> m_device;
+};
+
+#endif
 
 } // namespace rive_android

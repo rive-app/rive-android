@@ -76,6 +76,16 @@ class RiveViewTest {
     }
 
     @Test
+    fun viewAutoBindWithoutDataBindingDoesNotThrow() = UiThreadStatement.runOnUiThread {
+        mockView.setRiveResource(R.raw.no_db, autoplay = false, autoBind = true)
+        assertNotNull(mockView.controller.file)
+        assertNotNull(mockView.controller.activeArtboard)
+        assertNull(mockView.controller.activeArtboard?.viewModelInstance)
+        // We skip creating a state machine when auto binding fails
+        assertTrue(mockView.controller.stateMachines.isEmpty())
+    }
+
+    @Test
     fun viewDefaultsChangeArtboard() {
         UiThreadStatement.runOnUiThread {
             mockView.setRiveResource(R.raw.multipleartboards)

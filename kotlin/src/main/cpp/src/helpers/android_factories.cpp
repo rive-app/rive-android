@@ -1,20 +1,20 @@
+#include "helpers/android_factories.hpp"
+
 #include <android/bitmap.h>
 #include <jni.h>
 #include <vector>
 
-#include "helpers/android_factories.hpp"
 #include "helpers/canvas_render_objects.hpp"
-#include "helpers/worker_ref.hpp"
 #include "helpers/general.hpp"
 #include "helpers/image_decode.hpp"
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/thread_state_pls.hpp"
-
+#include "helpers/worker_ref.hpp"
 #include "rive/math/math_types.hpp"
-#include "rive/renderer/rive_render_image.hpp"
 #include "rive/renderer/gl/render_buffer_gl_impl.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
+#include "rive/renderer/rive_render_image.hpp"
 #include "utils/factory_utils.hpp"
 
 using namespace rive;
@@ -176,10 +176,16 @@ AndroidImage::AndroidImage(int width,
             auto* renderContextImpl =
                 plsState->renderContext()
                     ->static_impl_cast<RenderContextGLImpl>();
-            resetTexture(renderContextImpl->makeImageTexture(m_Width,
-                                                             m_Height,
-                                                             mipLevelCount,
-                                                             imageDataRGBA));
+            resetTexture(renderContextImpl->makeImageTexture(
+                m_Width,
+                m_Height,
+                mipLevelCount,
+                rive::GPUTextureFormat::rgba32,
+                imageDataRGBA,
+                /*blockWidth=*/1,
+                /*blockHeight=*/1,
+                /*srgb=*/false,
+                /*generateRemainingMips=*/true));
             delete[] imageDataRGBA;
         });
 }

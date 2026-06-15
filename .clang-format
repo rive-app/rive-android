@@ -1,0 +1,10 @@
+BasedOnStyle: InheritParentConfig
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeIsMainRegex: '([-_](test|unittest))?$'
+IncludeIsMainSourceRegex: '(\\.cpp|\\.cc|\\.cxx|\\.mm)$'
+IncludeCategories:
+  - Regex: '^<.*>$'
+    Priority: 1
+  - Regex: '^".*"$'
+    Priority: 2

@@ -13,6 +13,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.rive.core.ArtboardHandle
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
+import app.rive.core.SurfaceTextureSurface
+import app.rive.core.traceSection
 import app.rive.core.withFrameNanosChoreographer
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -54,6 +56,7 @@ class RiveView @JvmOverloads constructor(
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 var lastFrameTime = 0.nanoseconds
                 while (isActive) {
+                    var shouldBreak = false
                     val deltaTime = withFrameNanosChoreographer { frameTimeNs ->
                         val frameTime = frameTimeNs.nanoseconds
                         (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
@@ -61,14 +64,34 @@ class RiveView @JvmOverloads constructor(
                         }
                     }
 
-                    val file = riveFile ?: break
-                    val cq = file.riveWorker
-                    val art = artboardHandle ?: break
-                    val sm = stateMachineHandle ?: break
-                    val rs = riveSurface ?: break
+                    traceSection("Rive/Frame") {
+                        val file = riveFile ?: run {
+                            shouldBreak = true
+                            return@traceSection
+                        }
+                        val art = artboardHandle ?: run {
+                            shouldBreak = true
+                            return@traceSection
+                        }
+                        val sm = stateMachineHandle ?: run {
+                            shouldBreak = true
+                            return@traceSection
+                        }
+                        val rs = riveSurface ?: run {
+                            shouldBreak = true
+                            return@traceSection
+                        }
+                        val cq = file.riveWorker
 
-                    cq.advanceStateMachine(sm, deltaTime)
-                    cq.draw(art, sm, rs, Fit.Contain())
+                        traceSection("Rive/Frame/Advance") {
+                            cq.advanceStateMachine(sm, deltaTime)
+                        }
+
+                        traceSection("Rive/Frame/Draw") {
+                            cq.draw(art, sm, rs, Fit.Contain())
+                        }
+                    }
+                    if (shouldBreak) break
                 }
             }
         }
@@ -92,21 +115,24 @@ class RiveView @JvmOverloads constructor(
                 surfaceWidth = width
                 surfaceHeight = height
                 riveFile?.let { file ->
-                    riveSurface = file.riveWorker.createRiveSurface(newSurfaceTexture)
+                    riveSurface = createRiveSurface(file, newSurfaceTexture)
                 }
             }
 
             override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
                 riveSurface = null
-                // False here means that we are responsible for destroying the surface texture
-                // This happens in RenderContext::close(), called from RiveWorker::destroyRiveSurface
+                // False here means that we are responsible for destroying the surface texture.
+                // This happens when the RiveSurface is closed.
                 return false
             }
 
             override fun onSurfaceTextureSizeChanged(
                 surfaceTexture: SurfaceTexture, width: Int, height: Int
             ) {
-                TODO("Not yet implemented")
+                this@RiveView.surfaceTexture = surfaceTexture
+                surfaceWidth = width
+                surfaceHeight = height
+                riveSurface?.resize(width, height)
             }
 
             override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {}
@@ -131,7 +157,13 @@ class RiveView @JvmOverloads constructor(
             file.riveWorker.createDefaultStateMachine(artboardHandle!!)
 
         if (surfaceTexture != null && riveSurface == null) {
-            riveSurface = file.riveWorker.createRiveSurface(surfaceTexture!!)
+            riveSurface = createRiveSurface(file, surfaceTexture!!)
         }
+    }
+
+    private fun createRiveSurface(file: RiveFile, surfaceTexture: SurfaceTexture): RiveSurface {
+        return file.riveWorker.createRiveSurface(
+            SurfaceTextureSurface(surfaceTexture, surfaceWidth, surfaceHeight)
+        )
     }
 }

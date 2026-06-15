@@ -1,16 +1,21 @@
 #include <jni.h>
+#include <memory>
+#include <stdint.h>
+#include <string>
+#include <vector>
 
+#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
-#include "jni_refs.hpp"
+#include "rive/artboard.hpp"
+#include "rive/bindable_artboard.hpp"
 #include "rive/file.hpp"
-#include "rive/viewmodel/runtime/viewmodel_runtime.hpp"
-#include "rive/viewmodel/viewmodel.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/viewmodel/data_enum.hpp"
+#include "rive/viewmodel/data_enum_value.hpp"
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
     using namespace rive_android;
 
     // FILE
@@ -112,6 +117,7 @@ extern "C"
         auto file = reinterpret_cast<rive::File*>(ref);
         auto bindableArtboard =
             file->bindableArtboardNamed(JStringToString(env, name));
+        // Released object is un-ref'd in BindableArtboard's cppDelete
         return reinterpret_cast<jlong>(bindableArtboard.release());
     }
 
@@ -123,6 +129,7 @@ extern "C"
     {
         auto file = reinterpret_cast<rive::File*>(ref);
         auto bindableArtboard = file->bindableArtboardDefault();
+        // Released object is un-ref'd in BindableArtboard's cppDelete
         return reinterpret_cast<jlong>(bindableArtboard.release());
     }
 
@@ -225,7 +232,4 @@ extern "C"
         auto viewModel = file->defaultArtboardViewModel(artboard);
         return reinterpret_cast<jlong>(viewModel);
     }
-
-#ifdef __cplusplus
 }
-#endif

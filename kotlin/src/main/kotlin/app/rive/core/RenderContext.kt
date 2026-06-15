@@ -1,15 +1,10 @@
 package app.rive.core
 
-import android.graphics.SurfaceTexture
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
-import android.opengl.EGLSurface
 import android.view.Surface
-import android.view.TextureView
-import androidx.annotation.CallSuper
-import androidx.annotation.WorkerThread
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
@@ -26,36 +21,37 @@ import app.rive.RiveShutdownException
  * [CommandQueue], in which case it assumes ownership of this object and will close it when it is
  * disposed.
  */
-abstract class RenderContext : CheckableAutoCloseable {
-    /**
-     * The native pointer to the backend-specific RenderContext object, held in a unique pointer.
-     */
-    protected abstract val cppPointer: UniquePointer
-
+internal abstract class RenderContext : CheckableAutoCloseable {
     /** The native pointer to the backend-specific RenderContext object. */
-    val nativeObjectPointer: Long
-        get() = cppPointer.pointer
+    abstract val nativeObjectPointer: Long
 
-    // Implemented by delegating to the unique pointer
-    override fun close() = cppPointer.close()
+    private val closer = CloseOnce("RenderContext") {
+        dispose()
+    }
+
+    /** Disposes backend-specific resources. */
+    protected abstract fun dispose()
+
+    override fun close() = closer.close()
     override val closed: Boolean
-        get() = cppPointer.closed
+        get() = closer.closed
 
     /**
-     * Creates a backend-specific [RiveSurface].
+     * Creates a backend-specific [RiveSurface] from an Android [CloseableSurface].
      *
-     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
-     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] when no longer needed.
      *
-     * @param surfaceTexture The Android SurfaceTexture to render against, likely created from a
-     *    [TextureView].
+     * @param surface Owned Android surface source to render against.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
+     * @throws RiveRenderException If the backend cannot create a renderable surface.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
-    abstract fun createSurface(
-        surfaceTexture: SurfaceTexture,
+    @Throws(RiveRenderException::class, IllegalStateException::class)
+    internal abstract fun createSurface(
+        surface: CloseableSurface,
         drawKey: DrawKey,
         commandQueue: CommandQueue
     ): RiveSurface
@@ -65,18 +61,24 @@ abstract class RenderContext : CheckableAutoCloseable {
      * [Surface]. This surface can be used to capture rendered output for tasks such as snapshot
      * testing.
      *
-     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
-     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] when no longer needed.
      *
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    * server thread.
-     *
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
+     * @throws IllegalArgumentException If the requested dimensions are invalid.
+     * @throws RiveRenderException If the backend cannot create an off-screen surface.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
-    abstract fun createImageSurface(
+    @Throws(
+        IllegalArgumentException::class,
+        RiveRenderException::class,
+        IllegalStateException::class
+    )
+    internal abstract fun createImageSurface(
         width: Int,
         height: Int,
         drawKey: DrawKey,
@@ -106,6 +108,9 @@ internal data class RenderContextGL(
 ) : RenderContext(), CheckableAutoCloseable {
     private external fun cppConstructor(display: Long, context: Long): Long
     private external fun cppDelete(pointer: Long)
+
+    /** Creates a native GL surface wrapper for an EGL surface. */
+    private external fun cppCreateSurface(eglSurface: Long, width: Int, height: Int): Long
 
     companion object {
         const val TAG = "Rive/RenderContextGL"
@@ -237,13 +242,17 @@ internal data class RenderContextGL(
         }
     }
 
-    /** The native pointer to the RenderContextGL object, held in a unique pointer. */
-    override val cppPointer =
-        UniquePointer(
-            cppConstructor(display.nativeHandle, context.nativeHandle),
-            TAG,
-            ::dispose
-        )
+    private val cppPointer = UniquePointer(
+        cppConstructor(display.nativeHandle, context.nativeHandle),
+        TAG
+    ) { pointer ->
+        RiveLog.d(TAG) { "Deleting RenderContextGL native object" }
+        cppDelete(pointer)
+    }
+
+    /** The native pointer to the RenderContextGL object. */
+    override val nativeObjectPointer: Long
+        get() = cppPointer.pointer
 
     /**
      * Disposes of the EGL context and display, and deletes the native RenderContextGL object.
@@ -251,7 +260,7 @@ internal data class RenderContextGL(
      * @throws RiveShutdownException If unable to destroy the EGL context or terminate the EGL
      *    display.
      */
-    private fun dispose(address: Long) {
+    override fun dispose() {
         RiveLog.d(TAG) { "Destroying EGL context" }
         val destroyed = EGL14.eglDestroyContext(display, context)
         if (!destroyed) {
@@ -268,40 +277,38 @@ internal data class RenderContextGL(
             throw RiveShutdownException("Unable to terminate EGL display", Throwable(error))
         }
 
-        RiveLog.d(TAG) { "Deleting RenderContextGL native object" }
-        cppDelete(address)
+        cppPointer.close()
     }
 
     /**
-     * Creates an [RiveEGLSurface] from the given Android [SurfaceTexture].
+     * Creates a [RiveSurfaceGL] from the given Android [CloseableSurface].
      *
-     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
-     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] when no longer needed.
      *
-     * @param surfaceTexture The Android [SurfaceTexture] to render against, likely created from a
-     *    [TextureView].
+     * @param surface Owned Android surface source to render against.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
-     * @return The created [RiveEGLSurface].
-     * @throws RiveRenderException If unable to create the EGL surface or Rive render target.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
+     * @return The created [RiveSurfaceGL].
+     * @throws RiveRenderException If the backing Android surface is invalid or EGL window surface
+     *    creation fails.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
+    @Throws(RiveRenderException::class, IllegalStateException::class)
     override fun createSurface(
-        surfaceTexture: SurfaceTexture,
+        surface: CloseableSurface,
         drawKey: DrawKey,
         commandQueue: CommandQueue
     ): RiveSurface {
-        RiveLog.d(TAG) { "Creating Android Surface" }
-        val surface = Surface(surfaceTexture)
-        if (!surface.isValid) {
-            throw RiveRenderException("Unable to create Android Surface from SurfaceTexture")
+        if (!surface.surface.isValid) {
+            throw RiveRenderException("Unable to create Android Surface")
         }
 
-        RiveLog.d(TAG) { "Creating EGL surface" }
+        RiveLog.d(TAG) { "Creating EGL window surface" }
         val eglSurface = EGL14.eglCreateWindowSurface(
             display,
             config,
-            surface,
+            surface.surface,
             intArrayOf(EGL14.EGL_NONE),
             0
         )
@@ -311,45 +318,58 @@ internal data class RenderContextGL(
             throw RiveRenderException("Unable to create EGL surface", Throwable(error))
         }
 
-        // The EGLSurface holds a reference to the underlying ANativeWindow, so we can release our
-        // reference to it. The final reference is released when the EGLSurface is destroyed.
-        surface.release()
+        var nativeSurface = 0L
+        return try {
+            val width = surface.width
+            val height = surface.height
+            RiveLog.d(TAG) { "Created EGL surface ($width x $height)" }
 
-        val dimensions = IntArray(2)
-        EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_WIDTH, dimensions, 0)
-        EGL14.eglQuerySurface(display, eglSurface, EGL14.EGL_HEIGHT, dimensions, 1)
-        val width = dimensions[0]
-        val height = dimensions[1]
-        RiveLog.d(TAG) { "Created EGL surface ($width x $height)" }
+            nativeSurface = cppCreateSurface(eglSurface.nativeHandle, width, height)
 
-        val renderTarget = commandQueue.createRiveRenderTarget(width, height)
-
-        return RiveEGLSurface(
-            surfaceTexture,
-            eglSurface,
-            display,
-            renderTarget,
-            drawKey,
-            width,
-            height
-        )
+            val riveSurface = RiveSurfaceGL(
+                eglSurface,
+                display,
+                surface,
+                commandQueue,
+                nativeSurface,
+                drawKey,
+                width,
+                height,
+                surface.resizable
+            )
+            nativeSurface = 0L
+            riveSurface
+        } catch (e: Throwable) {
+            // Do not leak the EGL surface if we failed to create the RiveSurfaceGL wrapper.
+            EGL14.eglDestroySurface(display, eglSurface)
+            if (nativeSurface != 0L) {
+                RiveSurface.cppDeleteSurface(nativeSurface)
+            }
+            throw e
+        }
     }
 
     /**
-     * Creates an off-screen [RiveSurface] that renders into an EGL PBuffer instead of an Android
-     * [SurfaceTexture]. This surface can be used to capture rendered output for tasks such as
-     * snapshot testing.
+     * Creates an off-screen [RiveSurface] that renders into an EGL PBuffer. This surface can be
+     * used to capture rendered output for tasks such as snapshot testing.
      *
-     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] with
-     * [CommandQueue.destroyRiveSurface] when no longer needed.
+     * ⚠️ The returned [RiveSurface] must be [closed][RiveSurface.close] when no longer needed.
      *
      * @param width The width of the surface in pixels.
      * @param height The height of the surface in pixels.
      * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
-     * @param commandQueue The owning command queue, used to create render targets on the command
-     *    server thread.
+     * @param commandQueue The owning command queue. The created surface acquires a reference so it
+     *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
+     * @throws IllegalArgumentException If [width] or [height] is not positive.
+     * @throws RiveRenderException If EGL PBuffer surface creation fails.
+     * @throws IllegalStateException If the surface cannot acquire the command queue.
      */
+    @Throws(
+        IllegalArgumentException::class,
+        RiveRenderException::class,
+        IllegalStateException::class
+    )
     override fun createImageSurface(
         width: Int,
         height: Int,
@@ -370,198 +390,75 @@ internal data class RenderContextGL(
             throw RiveRenderException("Unable to create EGL PBuffer surface", Throwable(error))
         }
 
-        val renderTarget = commandQueue.createRiveRenderTarget(width, height)
-
-        return RiveEGLPBufferSurface(
-            eglSurface,
-            display,
-            renderTarget,
-            drawKey,
-            width,
-            height
-        )
-    }
-}
-
-/**
- * A backend agnostic collection of surface properties needed for rendering.
- * - A Rive render target, created natively which renders to the GL framebuffer
- * - A draw key, which uniquely identifies draw operations in the CommandQueue
- *
- * It also stores the width and height of the surface.
- *
- * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] when
- * no longer needed.
- *
- * Alone it is not sufficient for rendering, as it lacks a backend-specific surface, which is
- * provided by sub-classes.
- *
- * @param renderTargetPointer The native pointer to the Rive render target.
- * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
- * @param width The width of the surface in pixels.
- * @param height The height of the surface in pixels.
- */
-abstract class RiveSurface(
-    renderTargetPointer: Long,
-    val drawKey: DrawKey,
-    val width: Int,
-    val height: Int
-) : CheckableAutoCloseable {
-    private external fun cppDeleteRenderTarget(pointer: Long)
-
-    /**
-     * Closes the render target unique pointer, which in turn disposes the RiveSurface at large.
-     *
-     * ⚠️ Do not call this directly from the main thread. It is meant to be called on the command
-     * server thread as a scheduled close using [CommandQueue.destroyRiveSurface]. This ensures that
-     * any draw calls in flight have a valid [TextureView] until completed.
-     */
-    @WorkerThread
-    override fun close() = renderTargetPointer.close()
-    override val closed: Boolean
-        get() = renderTargetPointer.closed
-
-    /**
-     * Deletes the native render target.
-     *
-     * Sub-classes should override this method to dispose of any additional resources, calling
-     * `super.dispose(pointer)` at the end.
-     *
-     * Called from the [render target's unique pointer][renderTargetPointer]. Runs on the command
-     * server thread. See the note in [close].
-     *
-     * @param renderTargetPointer The native pointer to the Rive render target.
-     */
-    @CallSuper
-    @WorkerThread
-    protected open fun dispose(renderTargetPointer: Long) {
-        RiveLog.d("Rive/RenderTarget") { "Deleting Rive render target" }
-        cppDeleteRenderTarget(renderTargetPointer)
-    }
-
-    /** The native pointer to the Rive render target, held in a unique pointer. */
-    val renderTargetPointer: UniquePointer =
-        UniquePointer(renderTargetPointer, "Rive/RenderTarget", ::dispose)
-
-    /** The native pointer to the backend-specific surface, e.g. EGLSurface for OpenGL. */
-    abstract val surfaceNativePointer: Long
-}
-
-/**
- * A collection of four surface properties needed for rendering.
- * - An Android SurfaceTexture, provided by an Android SurfaceTextureListener
- * - An EGLSurface, created from a Surface which is is in turn created from the SurfaceTexture
- * - A Rive render target, created natively which renders to the GL framebuffer
- * - A draw key, which uniquely identifies draw operations in the CommandQueue
- *
- * Meant for use with and created from a [RenderContextGL].
- *
- * It also stores the width and height of the surface.
- *
- * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] using
- * [CommandQueue.destroyRiveSurface] when no longer needed.
- *
- * @param surfaceTexture The Android SurfaceTexture to render against, likely created from a
- *    [TextureView].
- * @param eglSurface The EGLSurface created from the Android Surface.
- * @param display The EGLDisplay used to create the EGLSurface, used for destroying it.
- * @param renderTargetPointer The native pointer to the Rive render target.
- * @param drawKey The key used to uniquely identify the draw operation in the CommandQueue.
- * @param width The width of the surface in pixels.
- * @param height The height of the surface in pixels.
- */
-class RiveEGLSurface(
-    private val surfaceTexture: SurfaceTexture,
-    private val eglSurface: EGLSurface,
-    private val display: EGLDisplay,
-    renderTargetPointer: Long,
-    drawKey: DrawKey,
-    width: Int,
-    height: Int
-) : RiveSurface(renderTargetPointer, drawKey, width, height), AutoCloseable {
-    companion object {
-        const val TAG = "Rive/EGLSurface"
-    }
-
-    /**
-     * Destroys the EGLSurface, releases the SurfaceTexture, and calls the super class to dispose of
-     * its resources.
-     *
-     * Runs on the command server thread. See the note in [close].
-     *
-     * @param renderTargetPointer The native pointer to the Rive render target. Passed to the base
-     *    class implementation for deletion.
-     * @throws RiveShutdownException If unable to destroy the EGL surface.
-     */
-    @WorkerThread
-    override fun dispose(renderTargetPointer: Long) {
-        // Destroy the EGL surface first...
-        RiveLog.d(TAG) { "Destroying EGL surface" }
-        val destroyed = EGL14.eglDestroySurface(display, eglSurface)
-        if (!destroyed) {
-            throw RiveShutdownException("Unable to destroy EGL surface")
+        var nativeSurface = 0L
+        return try {
+            nativeSurface = cppCreateSurface(eglSurface.nativeHandle, width, height)
+            val riveSurface = RiveSurfaceGLPBuffer(
+                eglSurface,
+                display,
+                commandQueue,
+                nativeSurface,
+                drawKey,
+                width,
+                height
+            )
+            nativeSurface = 0L
+            riveSurface
+        } catch (e: Throwable) {
+            // Do not leak the EGL surface if we failed to create the RiveSurfaceGLPBuffer wrapper.
+            EGL14.eglDestroySurface(display, eglSurface)
+            if (nativeSurface != 0L) {
+                RiveSurface.cppDeleteSurface(nativeSurface)
+            }
+            throw e
         }
-
-        /**
-         * This originally came from [TextureView.SurfaceTextureListener.onSurfaceTextureAvailable].
-         * In [TextureView.SurfaceTextureListener.onSurfaceTextureDestroyed], we return `false`,
-         * which means we are responsible for releasing the texture. We do this to ensure the
-         * texture lives long enough to complete any active draws, avoiding teardown races.
-         */
-        RiveLog.d(TAG) { "Releasing SurfaceTexture" }
-        surfaceTexture.release()
-
-        // ... Then dispose of base class resources
-        super.dispose(renderTargetPointer)
     }
-
-    /** The native pointer to the EGLSurface. */
-    override val surfaceNativePointer: Long
-        get() = eglSurface.nativeHandle
 }
 
 /**
- * A PBuffer-backed EGL surface used for off-screen rendering and image capture.
+ * Vulkan rendering context implementation of [RenderContext].
  *
- * Meant for use with and created from a [RenderContextGL].
+ * Native code owns the Vulkan instance, device, Android surface, swapchain, and Rive Vulkan
+ * context. Kotlin owns only the Android [Surface] wrapper lifetime and opaque native handles.
  *
- * ⚠️ This class assumes ownership of all resources and should be [closed][RiveSurface.close] using
- * [CommandQueue.destroyRiveSurface] when no longer needed.
+ * @throws RiveInitializationException If native Vulkan resources cannot be initialized.
  */
-class RiveEGLPBufferSurface(
-    private val eglSurface: EGLSurface,
-    private val display: EGLDisplay,
-    renderTargetPointer: Long,
-    drawKey: DrawKey,
-    width: Int,
-    height: Int
-) : RiveSurface(renderTargetPointer, drawKey, width, height), AutoCloseable {
+internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
+    private external fun cppConstructor(): Long
+    private external fun cppDelete(pointer: Long)
+
     companion object {
-        const val TAG = "Rive/EGLPBufferSurface"
+        const val TAG = "Rive/RenderContextVulkan"
     }
 
-    /**
-     * Destroys the EGLSurface and calls the super class to dispose of other resources.
-     *
-     * Runs on the command server thread. See the note in [RiveSurface.close].
-     *
-     * @param renderTargetPointer The native pointer to the Rive render target. Passed to the base
-     *    class implementation for deletion.
-     * @throws RiveShutdownException If unable to destroy the EGL surface.
-     */
-    @WorkerThread
-    override fun dispose(renderTargetPointer: Long) {
-        // Destroy the EGL PBuffer surface first...
-        RiveLog.d(TAG) { "Destroying EGL PBuffer surface" }
-        val destroyed = EGL14.eglDestroySurface(display, eglSurface)
-        if (!destroyed) {
-            throw RiveShutdownException("Unable to destroy EGL PBuffer surface")
-        }
-
-        // ... Then dispose of other resources
-        super.dispose(renderTargetPointer)
+    private val cppPointer = UniquePointer(cppConstructor(), TAG) { pointer ->
+        RiveLog.d(TAG) { "Deleting RenderContextVulkan native object" }
+        cppDelete(pointer)
     }
 
-    override val surfaceNativePointer: Long
-        get() = eglSurface.nativeHandle
+    /** The native pointer to the RenderContextVulkan object. */
+    override val nativeObjectPointer: Long
+        get() = cppPointer.pointer
+
+    override fun dispose() = cppPointer.close()
+
+    @Throws(RiveRenderException::class, IllegalStateException::class)
+    override fun createSurface(
+        surface: CloseableSurface,
+        drawKey: DrawKey,
+        commandQueue: CommandQueue
+    ): RiveSurface = RiveSurfaceVulkan.create(this, surface, commandQueue, drawKey)
+
+    @Throws(
+        IllegalArgumentException::class,
+        RiveRenderException::class,
+        IllegalStateException::class
+    )
+    override fun createImageSurface(
+        width: Int,
+        height: Int,
+        drawKey: DrawKey,
+        commandQueue: CommandQueue,
+    ): RiveSurface = RiveSurfaceVulkanImage.create(this, width, height, commandQueue, drawKey)
+
 }

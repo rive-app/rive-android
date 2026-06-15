@@ -1,7 +1,8 @@
-#include "models/dimensions_helper.hpp"
+#include <jni.h>
+
 #include "helpers/general.hpp"
 #include "jni_refs.hpp"
-#include <jni.h>
+#include "models/dimensions_helper.hpp"
 
 #ifdef __cplusplus
 extern "C"

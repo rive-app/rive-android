@@ -42,6 +42,10 @@ internal interface AssetOps<H, A : Asset<H>> {
  *
  * Uses [ops] to perform operations specific to the asset type.
  *
+ * Each asset holds a reference to its [RiveWorker]. When creating assets manually, call [close]
+ * when you no longer need the asset; releasing the worker alone is not enough to purge asset or
+ * worker memory while the asset remains open.
+ *
  * @param handle The handle to the asset on the command server.
  * @param riveWorker The Rive worker that owns the asset.
  * @param ops The operations for managing the asset type.
@@ -133,7 +137,9 @@ class ImageAsset(
          * Must be registered with [ImageAsset.register] to be used for referenced images.
          *
          * ⚠️ The lifetime of the returned image is managed by the caller. Make sure to call [close]
-         * when you are done with it to release its resources.
+         * when you are done with it to release its resources. The returned image holds a reference
+         * to [riveWorker], so closing it is required before the worker can fully release memory
+         * associated with this image.
          *
          * @param riveWorker The Rive worker that owns the image.
          * @param bytes The byte array containing the image data to decode.
@@ -181,7 +187,9 @@ class AudioAsset(
          * Must be registered with [AudioAsset.register] to be used for referenced audio.
          *
          * ⚠️ The lifetime of the returned audio is managed by the caller. Make sure to call [close]
-         * when you are done with it to release its resources.
+         * when you are done with it to release its resources. The returned audio holds a reference
+         * to [riveWorker], so closing it is required before the worker can fully release memory
+         * associated with this audio.
          *
          * @param riveWorker The Rive worker that owns the audio.
          * @param bytes The byte array containing the audio data to decode.
@@ -229,7 +237,9 @@ class FontAsset(
          * Must be registered with [FontAsset.register] to be used for referenced fonts.
          *
          * ⚠️ The lifetime of the returned font is managed by the caller. Make sure to call [close]
-         * when you are done with it to release its resources.
+         * when you are done with it to release its resources. The returned font holds a reference
+         * to [riveWorker], so closing it is required before the worker can fully release memory
+         * associated with this font.
          *
          * @param riveWorker The Rive worker that owns the font.
          * @param bytes The byte array containing the font data to decode.
@@ -266,7 +276,8 @@ class FontAsset(
  * times with [ImageAsset.register]. If you want to decode and register in one step, use
  * [rememberRegisteredImage] instead.
  *
- * The image will be deleted when the composable leaves the composition.
+ * The image will be deleted and its [RiveWorker] reference released when the composable leaves the
+ * composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this image.
  * @param bytes The byte array containing the image data to decode.
@@ -286,7 +297,8 @@ fun rememberImage(
  * This function is intended for use with images that are registered once, as a convenience. If you
  * want to register multiple times, use [rememberImage] and [ImageAsset.register] instead.
  *
- * The image will be deleted and unregistered when the composable leaves the composition.
+ * The image will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this image.
  * @param key The key of the referenced image. This comes from the zip file created when exporting a
@@ -310,7 +322,8 @@ fun rememberRegisteredImage(
  * times with [AudioAsset.register]. If you want to decode and register in one step, use
  * [rememberRegisteredAudio] instead.
  *
- * The audio will be deleted when the composable leaves the composition.
+ * The audio will be deleted and its [RiveWorker] reference released when the composable leaves the
+ * composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this audio.
  * @param bytes The byte array containing the audio data to decode.
@@ -330,7 +343,8 @@ fun rememberAudio(
  * This function is intended for use with audio that is registered once, as a convenience. If you
  * want to register multiple times, use [rememberAudio] and [AudioAsset.register] instead.
  *
- * The audio will be deleted and unregistered when the composable leaves the composition.
+ * The audio will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this audio.
  * @param key The key of the referenced audio. This comes from the zip file created when exporting a
@@ -354,7 +368,8 @@ fun rememberRegisteredAudio(
  * times with [FontAsset.register]. If you want to decode and register in one step, use
  * [rememberRegisteredFont] instead.
  *
- * The font will be deleted when the composable leaves the composition.
+ * The font will be deleted and its [RiveWorker] reference released when the composable leaves the
+ * composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this font.
  * @param bytes The byte array containing the font data to decode.
@@ -374,7 +389,8 @@ fun rememberFont(
  * This function is intended for use with fonts that are registered once, as a convenience. If you
  * want to register multiple times, use [rememberFont] and [FontAsset.register] instead.
  *
- * The font will be deleted and unregistered when the composable leaves the composition.
+ * The font will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this font.
  * @param name The name of the referenced font. This comes from the zip file created when exporting

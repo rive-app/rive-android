@@ -1,14 +1,31 @@
-#include <GLES3/gl3.h>
+#include <EGL/egl.h>
+#include <android/native_window_jni.h>
+#include <jni.h>
 
 #include "models/render_context.hpp"
-#include "rive/renderer/gl/render_target_gl.hpp"
-
-#include <android/native_window_jni.h>
-#include <EGL/egl.h>
-#include <jni.h>
+#include "models/render_surface.hpp"
+#include "models/render_surface_gl.hpp"
 
 namespace rive_android
 {
+
+namespace
+{
+void throwRenderException(JNIEnv* env, const char* message)
+{
+    auto exceptionClass = env->FindClass("app/rive/RiveRenderException");
+    env->ThrowNew(exceptionClass, message);
+}
+
+/**
+ * Store surface JNI handles as RenderSurface pointers so later base-pointer
+ * recovery does not depend on concrete class inheritance layout.
+ */
+template <typename SurfaceT> jlong surfaceToLong(SurfaceT* surface)
+{
+    return reinterpret_cast<jlong>(static_cast<RenderSurface*>(surface));
+}
+} // namespace
 
 extern "C"
 {
@@ -32,15 +49,105 @@ extern "C"
         delete renderContextGl;
     }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_core_RiveSurface_cppDeleteRenderTarget(JNIEnv*,
-                                                         jobject,
-                                                         jlong renderTargetRef)
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_RenderContextGL_cppCreateSurface(JNIEnv*,
+                                                        jobject,
+                                                        jlong eglSurface,
+                                                        jint width,
+                                                        jint height)
     {
-        auto renderTarget =
-            reinterpret_cast<rive::gpu::RenderTargetGL*>(renderTargetRef);
-        renderTarget->unref();
+        return surfaceToLong(
+            new RenderSurfaceGL(reinterpret_cast<EGLSurface>(eglSurface),
+                                static_cast<uint32_t>(width),
+                                static_cast<uint32_t>(height)));
     }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_RiveSurface_cppDeleteSurfaceNative(JNIEnv*,
+                                                          jclass,
+                                                          jlong surfaceRef)
+    {
+        auto surface = reinterpret_cast<RenderSurface*>(surfaceRef);
+        delete surface;
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_RiveSurface_cppResizeSurface(JNIEnv*,
+                                                    jclass,
+                                                    jlong surfaceRef,
+                                                    jint width,
+                                                    jint height)
+    {
+        auto surface = reinterpret_cast<RenderSurface*>(surfaceRef);
+        surface->resize(static_cast<uint32_t>(width),
+                        static_cast<uint32_t>(height));
+    }
+
+#ifdef RIVE_VULKAN
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_RenderContextVulkan_cppConstructor(JNIEnv*, jobject)
+    {
+        auto* contextVulkan = new RenderContextVulkan();
+        return reinterpret_cast<jlong>(contextVulkan);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_RenderContextVulkan_cppDelete(JNIEnv*,
+                                                     jobject,
+                                                     jlong ref)
+    {
+        auto* renderContextVulkan = reinterpret_cast<RenderContextVulkan*>(ref);
+        delete renderContextVulkan;
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_RiveSurfaceVulkan_cppCreateSurface(JNIEnv* env,
+                                                          jclass,
+                                                          jlong ref,
+                                                          jobject jSurface,
+                                                          jint width,
+                                                          jint height)
+    {
+        auto* renderContextVulkan = reinterpret_cast<RenderContextVulkan*>(ref);
+        auto* nativeWindow = ANativeWindow_fromSurface(env, jSurface);
+        if (nativeWindow == nullptr)
+        {
+            throwRenderException(env, "Unable to create ANativeWindow");
+            return 0;
+        }
+
+        auto* surface =
+            renderContextVulkan->createWindowSurface(nativeWindow,
+                                                     static_cast<int>(width),
+                                                     static_cast<int>(height));
+        ANativeWindow_release(nativeWindow);
+        if (surface == nullptr)
+        {
+            throwRenderException(env, "Unable to create Vulkan surface");
+            return 0;
+        }
+        return surfaceToLong(surface);
+    }
+
+    JNIEXPORT jlong JNICALL
+    Java_app_rive_core_RiveSurfaceVulkanImage_cppCreateImageSurface(JNIEnv* env,
+                                                                    jclass,
+                                                                    jlong,
+                                                                    jint width,
+                                                                    jint height)
+    {
+        auto* surface =
+            RenderContextVulkan::createImageSurface(static_cast<int>(width),
+                                                    static_cast<int>(height));
+        if (surface == nullptr)
+        {
+            throwRenderException(env, "Unable to create Vulkan image surface");
+            return 0;
+        }
+        return surfaceToLong(surface);
+    }
+
+#endif
 }
 
 } // namespace rive_android

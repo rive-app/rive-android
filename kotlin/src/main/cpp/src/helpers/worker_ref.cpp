@@ -1,7 +1,10 @@
 #include "helpers/worker_ref.hpp"
-#include "helpers/general.hpp"
-#include "helpers/thread_state_pls.hpp"
+
 #include <thread>
+
+#include "helpers/general.hpp"
+#include "helpers/rive_log.hpp"
+#include "helpers/thread_state_pls.hpp"
 
 using namespace rive;
 
@@ -11,17 +14,21 @@ static std::mutex s_refWorkerMutex;
 
 static std::unique_ptr<RefWorker> s_canvasWorker;
 
+constexpr auto* REF_TAG = "RiveLN/RefWorker";
+
 rcp<RefWorker> RefWorker::RiveWorker()
 {
     static enum class RiveRendererSupport { unknown, no, yes } s_isSupported;
     static std::unique_ptr<RefWorker> s_riveWorker;
+
+    RiveLogD(REF_TAG, "Creating Rive RefWorker.");
 
     std::lock_guard lock(s_refWorkerMutex);
 
     if (s_isSupported == RiveRendererSupport::unknown)
     {
         assert(s_riveWorker == nullptr);
-        LOGI("Creating *Rive* RefWorker");
+        RiveLogD(REF_TAG, "Checking if Rive renderer is supported.");
 
         std::unique_ptr<RefWorker> candidateWorker(
             new RefWorker(RendererType::Rive));
@@ -33,16 +40,30 @@ rcp<RefWorker> RefWorker::RiveWorker()
                 s_isSupported = plsThreadState->renderContext() != nullptr
                                     ? RiveRendererSupport::yes
                                     : RiveRendererSupport::no;
+
+                if (s_isSupported == RiveRendererSupport::yes)
+                {
+                    RiveLogD(REF_TAG,
+                             "Worker thread: Rive renderer is supported.");
+                }
+                else
+                {
+                    RiveLogD(REF_TAG,
+                             "Worker thread: Rive renderer is not supported.");
+                }
             });
         assert(s_isSupported != RiveRendererSupport::unknown);
         if (s_isSupported == RiveRendererSupport::yes)
         {
             // The Rive renderer is supported!
+            RiveLogI(REF_TAG, "Main thread: Rive Renderer is supported.");
             s_riveWorker = std::move(candidateWorker);
         }
         else
         {
-            LOGI("Rive renderer is not supported. Falling back on Canvas.");
+            RiveLogI(
+                REF_TAG,
+                "Rive Renderer is not supported. Falling back to Canvas renderer.");
         }
     }
 
@@ -58,7 +79,7 @@ rcp<RefWorker> RefWorker::CanvasWorker()
     std::lock_guard lock(s_refWorkerMutex);
     if (s_canvasWorker == nullptr)
     {
-        LOGI("Creating *Canvas* RefWorker");
+        RiveLogI(REF_TAG, "Creating *Canvas* RefWorker.");
         s_canvasWorker =
             std::unique_ptr<RefWorker>(new RefWorker(RendererType::Canvas));
     }
@@ -82,18 +103,33 @@ rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
             currentOrFallback = CanvasWorker();
             break;
     }
+    // If we specify RendererType::Rive above, RefWorker::RiveWorker() may not
+    // initialize the global static Rive worker if `s_isSupported` is not true,
+    // i.e. if the render context failed to build and is uninitialized. In this
+    // case, fall back to the canvas worker.
+    if (currentOrFallback == nullptr)
+    {
+        RiveLogE(REF_TAG, "Falling back to Canvas worker.");
+        currentOrFallback = CanvasWorker();
+    }
     return currentOrFallback;
 }
 
 RefWorker::~RefWorker()
 {
-    LOGI("Deleting the RefWorker with %s", RendererName(rendererType()));
+    RiveLogI(REF_TAG,
+             "Deleting the RefWorker with %s",
+             RendererName(rendererType()));
     terminateThread();
 }
 
 void RefWorker::ref()
 {
     std::lock_guard lock(s_refWorkerMutex);
+    RiveLogV(REF_TAG,
+             "Incrementing ref count; old: %d; new: %d.",
+             m_externalRefCount,
+             m_externalRefCount + 1);
     ++m_externalRefCount;
 }
 
@@ -101,6 +137,10 @@ void RefWorker::unref()
 {
     std::lock_guard lock(s_refWorkerMutex);
     assert(m_externalRefCount > 0);
+    RiveLogV(REF_TAG,
+             "Decrementing ref count; old: %d; new: %d.",
+             m_externalRefCount,
+             m_externalRefCount - 1);
     if (--m_externalRefCount == 0)
     {
         externalRefCountDidReachZero();
@@ -122,15 +162,26 @@ void RefWorker::externalRefCountDidReachZero()
             // alive. We have simple way to release GPU resources here instead,
             // without having to pay the hefty price of destroying and
             // re-creating the entire GL context.
+            RiveLogD(
+                REF_TAG,
+                "Main thread: Rive Renderer ref count reached 0. Releasing resources.");
             run([](rive_android::DrawableThreadState* threadState) {
+                RiveLogD(
+                    REF_TAG,
+                    "Worker thread: Rive Renderer ref count reached 0. Releasing resources.");
                 auto* plsThreadState =
                     static_cast<PLSThreadState*>(threadState);
                 rive::gpu::RenderContext* renderContext =
                     plsThreadState->renderContext();
                 if (renderContext != nullptr)
                 {
-                    LOGI("Releasing resources on the Rive renderer");
                     renderContext->releaseResources();
+                }
+                else
+                {
+                    RiveLogW(
+                        REF_TAG,
+                        "Failed to release resources on the Rive renderer - rive::RenderContext is null.");
                 }
             });
             break;

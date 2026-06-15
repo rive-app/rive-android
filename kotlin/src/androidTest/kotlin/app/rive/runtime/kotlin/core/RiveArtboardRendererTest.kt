@@ -8,6 +8,7 @@ import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,18 +63,18 @@ class RiveArtboardRendererTest {
 
     /**
      * Tests that the renderer cannot be deleted while draw() is executing.
-     * The delete() call should block until file.lock is released when draw() completes.
+     * The delete() call should block until frameLock is released when draw() completes.
      */
     @Test
     fun deleteRendererDuringFrame() {
         val timeout = 1000L
-        // Latch to signal we are inside the file.lock synchronized block during draw()
+        // Latch to signal we are inside the fileLock synchronized block during draw()
         val insideDrawLatch = CountDownLatch(1)
         // Latch to allow draw() to complete
         val releaseDrawLatch = CountDownLatch(1)
 
         // The renderer needs a valid artboard
-        val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, lock = ReentrantLock()) {
+        val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = ReentrantLock()) {
             // Override draw to add blocking and signal we're inside the synchronized block
             override fun draw(
                 rendererAddress: Long,
@@ -81,9 +82,9 @@ class RiveArtboardRendererTest {
                 alignment: Alignment,
                 scaleFactor: Float
             ) {
-                // Signal that we're inside draw (holding file.lock)
+                // Signal that we're inside draw (holding fileLock)
                 insideDrawLatch.countDown()
-                // Block to hold the file.lock
+                // Block to hold the fileLock
                 releaseDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
             }
         }
@@ -96,7 +97,7 @@ class RiveArtboardRendererTest {
         // Capture any exception thrown in the background threads
         val exceptionRef = AtomicReference<Throwable>()
 
-        // Start draw() in a background thread - this will hold file.lock
+        // Start draw() in a background thread - this will hold frameLock and fileLock
         val drawThread = Thread {
             try {
                 renderer.draw()
@@ -106,10 +107,10 @@ class RiveArtboardRendererTest {
         }
         drawThread.start()
 
-        // Wait until we're inside draw() (holding file.lock)
+        // Wait until we're inside draw() (holding fileLock)
         insideDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
 
-        // Start delete() in a separate thread - it should block trying to acquire file.lock
+        // Start delete() in a separate thread - it should block trying to acquire frameLock
         val deleteThread = Thread {
             try {
                 renderer.delete()
@@ -122,15 +123,15 @@ class RiveArtboardRendererTest {
         // Give delete a chance to try acquiring the lock
         Thread.sleep(200)
 
-        // Verify delete is still blocked waiting for file.lock (thread should still be alive)
+        // Verify delete is still blocked waiting for frameLock (thread should still be alive)
         assert(deleteThread.isAlive) {
-            "Expected delete to be blocked waiting for file.lock while draw is executing"
+            "Expected delete to be blocked waiting for frameLock while draw is executing"
         }
 
         // Now allow draw() to complete and release the lock
         releaseDrawLatch.countDown()
 
-        // Wait for draw thread to finish (releases file.lock)
+        // Wait for draw thread to finish (releases frameLock and fileLock)
         drawThread.join(timeout)
 
         // Now delete should be able to complete
@@ -138,7 +139,7 @@ class RiveArtboardRendererTest {
 
         // Verify delete completed successfully (thread is no longer alive)
         assertFalse(
-            "Expected delete to complete after file.lock was released",
+            "Expected delete to complete after frameLock was released",
             deleteThread.isAlive
         )
 
@@ -163,12 +164,12 @@ class RiveArtboardRendererTest {
         // Signals that the main thread has released the artboard, and draw() can continue.
         val afterRelease = CountDownLatch(1)
 
-        // A lock we can reference, unlike the default private Artboard lock.
+        // A lock we can reference, unlike the default private Artboard file lock.
         val artboardLock = ReentrantLock()
 
         // An artboard that synchronizes with the main thread to simulate being released while
         // being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, lock = artboardLock) {
+        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
@@ -231,12 +232,12 @@ class RiveArtboardRendererTest {
         // Signals that the main thread has released the artboard, and draw() can continue.
         val afterRelease = CountDownLatch(1)
 
-        // A lock we can reference, unlike the default private Artboard lock.
+        // A lock we can reference, unlike the default private Artboard file lock.
         val artboardLock = ReentrantLock()
 
         // An artboard that synchronizes with the main thread to simulate being released right
         // before being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, lock = artboardLock) {
+        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
@@ -289,4 +290,59 @@ class RiveArtboardRendererTest {
         drawThread.join(timeout)
     }
 
+    /**
+     * Regression test for a race where resizeArtboard() reads renderer dimensions after the renderer
+     * has been deleted.
+     *
+     * The fit getter is used as a deterministic pause point during resize inside draw().
+     */
+    @Test
+    fun deleteRendererBetweenCppObjectCheckAndDimensionRead_doesNotCrash() {
+        val timeoutMs = 1000L
+        val readyForDelete = CountDownLatch(1)
+        val resumeAfterDelete = CountDownLatch(1)
+        val exceptionRef = AtomicReference<Throwable?>(null)
+
+        val controller = object : RiveFileController() {
+            override var fit: Fit
+                get() {
+                    readyForDelete.countDown()
+                    resumeAfterDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+                    return super.fit
+                }
+                set(value) {
+                    super.fit = value
+                }
+        }
+        controller.fit = Fit.LAYOUT // Sets requireArtboardResize = true
+
+        val renderer = RiveArtboardRenderer(controller = controller)
+        renderer.make()
+
+        val drawThread = Thread {
+            try {
+                renderer.draw()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        drawThread.start()
+
+        assertTrue(
+            "draw() did not reach the fit getter in time; race was not induced.",
+            readyForDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+        )
+
+        renderer.delete()
+        resumeAfterDelete.countDown()
+
+        drawThread.join(timeoutMs)
+
+        val exception = exceptionRef.get()
+        assertTrue(
+            "Expected no exception when deleting renderer during resize race, " +
+                    "but got: ${exception?.javaClass?.simpleName}: ${exception?.message}",
+            exception == null
+        )
+    }
 }

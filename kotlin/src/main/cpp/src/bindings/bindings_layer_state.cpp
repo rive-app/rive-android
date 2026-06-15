@@ -1,14 +1,13 @@
-#include "jni_refs.hpp"
 #include "helpers/general.hpp"
-#include "rive/animation/layer_state.hpp"
-#include "rive/animation/exit_state.hpp"
-#include "rive/animation/entry_state.hpp"
-#include "rive/animation/blend_state.hpp"
-#include "rive/animation/blend_state_direct.hpp"
-#include "rive/animation/blend_state_1d.hpp"
-#include "rive/animation/any_state.hpp"
+#include "jni_refs.hpp"
 #include "rive/animation/animation_state.hpp"
-
+#include "rive/animation/any_state.hpp"
+#include "rive/animation/blend_state.hpp"
+#include "rive/animation/blend_state_1d.hpp"
+#include "rive/animation/blend_state_direct.hpp"
+#include "rive/animation/entry_state.hpp"
+#include "rive/animation/exit_state.hpp"
+#include "rive/animation/layer_state.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 
 #ifdef __cplusplus

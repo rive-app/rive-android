@@ -1,8 +1,8 @@
 #pragma once
 
+#include <android/log.h>
 #include <jni.h>
 #include <string>
-#include <android/log.h>
 
 #include "rive/factory.hpp"
 #include "rive/file_asset_loader.hpp"
@@ -52,10 +52,6 @@ rive::Factory* GetFactory(RendererType);
 JNIEnv* GetJNIEnv();
 
 void DetachThread();
-
-std::string JStringToString(JNIEnv*, jstring);
-int SizeTTOInt(size_t);
-size_t JIntToSizeT(jint);
 
 #if defined(DEBUG) || defined(LOG)
 // luigi: this redirects stderr to android log (probably want to ifdef this
