@@ -1,16 +1,24 @@
 name: Release
+run-name: Android ${{ inputs.bump }} release from ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
     inputs:
-      major:
-        description: "Major"
-        type: boolean
-        default: false
-      minor:
-        description: "Minor"
-        type: boolean
-        default: false
+      bump:
+        description: "Version bump"
+        type: choice
+        required: true
+        default: Patch
+        options:
+          - Patch
+          - Minor
+          - Major
+
+# Do not allow two releases from the same branch to mutate its VERSION, changelog, or tags at once.
+# Runs from different release lines, such as master and a maintenance branch, can proceed independently.
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -23,8 +31,70 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
           token: ${{ secrets.PAT_GITHUB }}
+
+      - name: Validate release
+        id: release
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+
+          # Tags are immutable release outputs, not valid branches on which to create a release commit.
+          if [[ "$REF_TYPE" != "branch" ]]; then
+            echo "Releases must be run from a branch; '$REF_NAME' is a $REF_TYPE." >&2
+            exit 1
+          fi
+
+          # Major and minor releases advance the main release line. Maintenance branches only patch.
+          if [[ "$BUMP" != "Patch" && "$REF_NAME" != "$DEFAULT_BRANCH" ]]; then
+            echo "$BUMP releases must be run from the default branch '$DEFAULT_BRANCH'." >&2
+            exit 1
+          fi
+
+          # The release tooling only supports stable X.Y.Z versions in the Android VERSION file.
+          current_version="$(tr -d '[:space:]' < VERSION)"
+          semver_component='(0|[1-9][0-9]*)'
+          if [[ ! "$current_version" =~ ^${semver_component}\.${semver_component}\.${semver_component}$ ]]; then
+            echo "VERSION must contain a stable SemVer version; found '$current_version'." >&2
+            exit 1
+          fi
+
+          # Extract the validated SemVer components and apply the selected increment.
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          case "$BUMP" in
+            Major) target_version="$((major + 1)).0.0" ;;
+            Minor) target_version="${major}.$((minor + 1)).0" ;;
+            Patch) target_version="${major}.${minor}.$((patch + 1))" ;;
+            *)
+              echo "Unsupported version bump '$BUMP'." >&2
+              exit 1
+              ;;
+          esac
+
+          # Maven Central and GitHub releases cannot safely reuse an existing version tag.
+          if git show-ref --tags --verify --quiet "refs/tags/$target_version"; then
+            echo "Tag '$target_version' already exists." >&2
+            exit 1
+          fi
+
+          # Step outputs make the validated versions available to subsequent workflow steps.
+          echo "current_version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "target_version=$target_version" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Android release"
+            echo "- Branch: \`$REF_NAME\`"
+            echo "- Version: \`$current_version\` → \`$target_version\`"
+            echo "- Bump: \`$BUMP\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ignore dirty runtime submodule worktree
         run: git config --local submodule.submodules/rive-runtime.ignore dirty
@@ -76,7 +146,6 @@ jobs:
           GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
           SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
         run: |
-          git fetch --unshallow
           sudo bash -c "echo '$GPG_KEY_CONTENTS' | base64 -d > '$SIGNING_SECRET_KEY_RING_FILE'"
 
       # Run "release-it", the Node tool that bumps our version number, updates the changelog, and tags the release
@@ -88,24 +157,14 @@ jobs:
           git config --local user.email 'hello@rive.app'
           git config --local user.name ${{ github.actor }}
 
-      - if: ${{ inputs.major == true }}
-        name: Major Release - Bump version number, update changelog, push and tag
-        run: npm run release -- major --ci
+      # The validation step writes target_version to GITHUB_OUTPUT. GitHub resolves the expression
+      # below and supplies it to release-it as the TARGET_VERSION environment variable.
+      - name: ${{ inputs.bump }} release - Bump version number, update changelog, push and tag
+        run: npm run release -- "$TARGET_VERSION" --ci
         working-directory: ./.github/scripts/release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - if: ${{ inputs.major == false && inputs.minor == true }}
-        name: Minor release - Bump version number, update changelog, push and tag
-        run: npm run release -- minor --ci
-        working-directory: ./.github/scripts/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - if: ${{ inputs.major == false && inputs.minor == false }}
-        name: Build release - Bump version number, update changelog, push and tag
-        run: npm run release -- --ci
-        working-directory: ./.github/scripts/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_VERSION: ${{ steps.release.outputs.target_version }}
 
       # Builds the release artifacts of the library, this depends on the TAGs set in release-it
       - name: Build Android
