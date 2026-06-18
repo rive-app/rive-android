@@ -57,7 +57,24 @@ class File(
         refs.incrementAndGet()
     }
 
-    val lock = ReentrantLock()
+    /**
+     * Serializes access to native objects that belong to this file.
+     *
+     * The legacy runtime can touch a file's artboards, state machines, and view model instances
+     * from both the main thread and the Rive worker thread. Wrappers created from this file use this
+     * same lock so native mutations and frame advancement cannot overlap.
+     */
+    internal val fileLock = ReentrantLock()
+
+    /**
+     * Public compatibility alias for [fileLock].
+     *
+     * Low-level integrations may use this lock to group custom native access, but must do so with
+     * `synchronized(file.lock)`. Do not call [ReentrantLock.lock] or [ReentrantLock.unlock]
+     * directly; those APIs do not coordinate with the monitor used by `synchronized`.
+     */
+    val lock: ReentrantLock
+        get() = fileLock
 
     private external fun import(
         bytes: ByteArray,
@@ -110,7 +127,7 @@ class File(
             )
         }
 
-        val ab = Artboard(artboardPointer, lock, this)
+        val ab = Artboard(artboardPointer, fileLock, this)
         dependencies.add(ab)
         return ab
     }
@@ -127,7 +144,7 @@ class File(
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        val ab = Artboard(artboardPointer, lock, this)
+        val ab = Artboard(artboardPointer, fileLock, this)
         dependencies.add(ab)
         return ab
     }
@@ -207,7 +224,7 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found at index $viewModelIdx.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -222,7 +239,7 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found with name $viewModelName.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -238,12 +255,12 @@ class File(
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No default ViewModel found for artboard ${artboard.name}.")
         }
-        return ViewModel(vmPointer).also { dependencies.add(it) }
+        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
     override fun release(): Int {
-        // `super.release()` is already @Synchronized, but wrap this in its own lock.
-        synchronized(lock) { return super.release() }
+        // `super.release()` is already @Synchronized, but wrap this in the file lock.
+        synchronized(fileLock) { return super.release() }
     }
 
     /** The name and values of an enum, whether system or user defined. */

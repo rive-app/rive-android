@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import androidx.annotation.OpenForTesting
 import androidx.annotation.VisibleForTesting
 import app.rive.runtime.kotlin.core.errors.ViewModelException
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * A description of a ViewModel in the Rive file. It can be used to retrieve property definitions
@@ -10,9 +11,13 @@ import app.rive.runtime.kotlin.core.errors.ViewModelException
  * the createInstance methods to create an instance with mutable properties from this ViewModel.
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @param fileLock Lock shared by this view model's [File] and native objects derived from it.
  */
 @OpenForTesting
-class ViewModel internal constructor(unsafeCppPointer: Long) :
+class ViewModel internal constructor(
+    unsafeCppPointer: Long,
+    protected val fileLock: ReentrantLock
+) :
     NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppInstanceCount(cppPointer: Long): Int
@@ -59,11 +64,11 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
      * @throws ViewModelException If a blank instance cannot be created.
      */
     fun createBlankInstance(): ViewModelInstance {
-        val instancePointer = cppCreateBlankInstance(cppPointer)
+        val instancePointer = synchronized(fileLock) { cppCreateBlankInstance(cppPointer) }
         if (instancePointer == NULL_POINTER) {
             throw ViewModelException("Could not create a blank ViewModel instance")
         }
-        return ViewModelInstance(instancePointer).also { dependencies.add(it) }
+        return ViewModelInstance(instancePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -75,11 +80,11 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
      * @throws ViewModelException If the default instance cannot be created.
      */
     fun createDefaultInstance(): ViewModelInstance {
-        val instancePointer = cppCreateDefaultInstance(cppPointer)
+        val instancePointer = synchronized(fileLock) { cppCreateDefaultInstance(cppPointer) }
         if (instancePointer == NULL_POINTER) {
             throw ViewModelException("Could not create default ViewModel instance")
         }
-        return ViewModelInstance(instancePointer).also { dependencies.add(it) }
+        return ViewModelInstance(instancePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -93,11 +98,11 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
      * @throws ViewModelException If the instance is not found.
      */
     fun createInstanceFromIndex(index: Int): ViewModelInstance {
-        val instancePointer = cppCreateInstanceFromIndex(cppPointer, index)
+        val instancePointer = synchronized(fileLock) { cppCreateInstanceFromIndex(cppPointer, index) }
         if (instancePointer == NULL_POINTER) {
             throw ViewModelException("ViewModel instance not found: $index")
         }
-        return ViewModelInstance(instancePointer).also { dependencies.add(it) }
+        return ViewModelInstance(instancePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -111,11 +116,11 @@ class ViewModel internal constructor(unsafeCppPointer: Long) :
      * @throws ViewModelException If the instance is not found.
      */
     fun createInstanceFromName(name: String): ViewModelInstance {
-        val instancePointer = cppCreateInstanceFromName(cppPointer, name)
+        val instancePointer = synchronized(fileLock) { cppCreateInstanceFromName(cppPointer, name) }
         if (instancePointer == NULL_POINTER) {
             throw ViewModelException("ViewModel instance not found: $name")
         }
-        return ViewModelInstance(instancePointer).also { dependencies.add(it) }
+        return ViewModelInstance(instancePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**

@@ -51,7 +51,7 @@ open class RiveArtboardRenderer(
 
                 // Acquire file lock only after the frameLock section to avoid lock-order inversion and
                 // serialize artboard mutations with controller/file lifecycle operations.
-                synchronized(controller.file?.lock ?: this) {
+                synchronized(controller.file?.fileLock ?: this) {
                     controller.activeArtboard?.apply {
                         width = newWidth
                         height = newHeight
@@ -60,7 +60,7 @@ open class RiveArtboardRenderer(
             }
         } else {
             traceSection("Rive/Layout/ResetArtboardSize") {
-                synchronized(controller.file?.lock ?: this) {
+                synchronized(controller.file?.fileLock ?: this) {
                     controller.activeArtboard?.resetArtboardSize()
                 }
             }
@@ -113,6 +113,6 @@ open class RiveArtboardRenderer(
 
     override fun disposeDependencies() {
         // Lock to make sure things are disposed in an orderly manner.
-        synchronized(controller.file?.lock ?: this) { super.disposeDependencies() }
+        synchronized(controller.file?.fileLock ?: this) { super.disposeDependencies() }
     }
 }

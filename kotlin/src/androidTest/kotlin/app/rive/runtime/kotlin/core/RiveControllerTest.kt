@@ -182,8 +182,8 @@ class RiveControllerTest {
         // No assertions. The intent is to run without throwing a NoSuchElementException.
     }
 
-    private class ArtboardSpy(unsafeCppPointer: Long, lock: ReentrantLock) :
-        Artboard(unsafeCppPointer, lock) {
+    private class ArtboardSpy(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+        Artboard(unsafeCppPointer, fileLock) {
         final var advanceCount = 0
             private set
 
@@ -204,7 +204,7 @@ class RiveControllerTest {
             if (artboardPointer == NULL_POINTER) {
                 throw ArtboardException("No Artboard found at index $index.")
             }
-            val ab = ArtboardSpy(artboardPointer, lock) // Instantiate the spy
+            val ab = ArtboardSpy(artboardPointer, fileLock) // Instantiate the spy
             dependencies.add(ab)
             return ab
         }

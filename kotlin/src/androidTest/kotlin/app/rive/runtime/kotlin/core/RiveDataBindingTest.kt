@@ -16,6 +16,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -344,7 +345,8 @@ class RiveDataBindingTest {
     @Test
     fun empty_vm() {
         val vm = view.controller.file?.getViewModelByName("Empty VM")!!
-        assertEquals(0, vm.instanceCount)
+        // All VMs have a default, undeletable instance, so instance count is 1 even for an empty VM
+        assertEquals(1, vm.instanceCount)
         assertEquals(0, vm.propertyCount)
     }
 
@@ -1356,8 +1358,9 @@ class RiveDataBindingTest {
         class LatchedViewModelInstance(
             private val iterationStarted: CountDownLatch,
             private val mapMutated: CountDownLatch,
-            unsafeCppPointer: Long
-        ) : ViewModelInstance(unsafeCppPointer) {
+            unsafeCppPointer: Long,
+            fileLock: ReentrantLock
+        ) : ViewModelInstance(unsafeCppPointer, fileLock) {
             /**
              * This version creates an iterator over the map and holds it. If the operation
              * is unsafe, any structural change while this iterator is in use will cause a
@@ -1388,14 +1391,16 @@ class RiveDataBindingTest {
         class LatchedViewModel(
             private val iterationStarted: CountDownLatch,
             private val mapMutated: CountDownLatch,
-            unsafeCppPointer: Long
-        ) : ViewModel(unsafeCppPointer) {
+            unsafeCppPointer: Long,
+            fileLock: ReentrantLock
+        ) : ViewModel(unsafeCppPointer, fileLock) {
             override fun createBlankInstance(): ViewModelInstance {
                 val instancePointer = cppCreateBlankInstance(cppPointer)
                 return LatchedViewModelInstance(
                     iterationStarted,
                     mapMutated,
-                    instancePointer
+                    instancePointer,
+                    fileLock
                 ).also {
                     dependencies.add(it)
                 }
@@ -1412,7 +1417,8 @@ class RiveDataBindingTest {
                 return LatchedViewModel(
                     iterationStarted,
                     mapMutated,
-                    vm
+                    vm,
+                    fileLock
                 ).also { dependencies.add(it) }
             }
         }
@@ -1519,6 +1525,111 @@ class RiveDataBindingTest {
             advanceThread.join(joinTimeout)
         }
         assertFalse(advanceThread.isAlive, "advance thread timed out")
+        // Rethrow any exception from either thread.
+        failure.get()?.let { throw it }
+    }
+
+    @Test
+    fun set_view_model_property_while_advancing() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test Observation", autoBind = true)
+        view.play()
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val numberProperty = vmi.getNumberProperty("Test Num")
+        val stringProperty = vmi.getStringProperty("Test String")
+        val booleanProperty = vmi.getBooleanProperty("Test Bool")
+        val enumProperty = vmi.getEnumProperty("Test Enum")
+        val colorProperty = vmi.getColorProperty("Test Color")
+        val triggerProperty = vmi.getTriggerProperty("Test Trigger")
+        val nestedNumberProperty = vmi.getNumberProperty("Test Nested/Nested Number")
+
+        // Latch to start the worker thread at the same time as the property mutation loop.
+        val start = CountDownLatch(1)
+        // Stop marker - first to reach their iteration limit or exception will set this to stop the
+        // other.
+        val stop = AtomicBoolean(false)
+        // Capture any exception from either thread to rethrow on the main thread after joining.
+        val failure = AtomicReference<Throwable?>(null)
+
+        // Simulate renderer's worker thread advances. MockRiveAnimationView does not use the real
+        // renderer frame loop, so the test drives controller.advance() directly.
+        val advanceThread = thread(name = "rive-advance-worker") {
+            try {
+                start.await()
+                for (i in 0 until 500_000) {
+                    if (stop.get()) {
+                        break
+                    }
+                    if (i % 3 == 0) {
+                        // Cycle the state machine between VM-change states so worker advance
+                        // repeatedly applies bound output changes while writer threads mutate VMI
+                        // properties.
+                        view.controller.fireState("Output", "Advance")
+                    }
+                    view.controller.advance(0f)
+                    view.controller.advance(1f / 240f)
+                    if (i % 8 == 0) {
+                        // Give writer threads more chances to interleave with worker advancement.
+                        Thread.yield()
+                    }
+                }
+            } catch (throwable: Throwable) {
+                failure.compareAndSet(null, throwable)
+            } finally {
+                stop.set(true)
+            }
+        }
+
+        val writerThreads = (0 until 4).map { writerIndex ->
+            thread(name = "rive-vmi-writer-$writerIndex") {
+                try {
+                    start.await()
+                    for (i in 0 until 500_000) {
+                        if (stop.get()) {
+                            break
+                        }
+                        val value = (i + writerIndex * 1000).toFloat()
+                        numberProperty.value = value
+                        stringProperty.value = "writer-$writerIndex-$i"
+                        booleanProperty.value = i % 2 == 0
+                        enumProperty.value = if (i % 2 == 0) "Value 1" else "Value 2"
+                        colorProperty.value = 0xFF000000.toInt() or (i and 0x00FFFFFF)
+                        nestedNumberProperty.value = value + 1f
+                        triggerProperty.trigger()
+                        if (i % 8 == 0) {
+                            Thread.yield()
+                        }
+                    }
+                } catch (throwable: Throwable) {
+                    failure.compareAndSet(null, throwable)
+                } finally {
+                    stop.set(true)
+                }
+            }
+        }
+
+        // Allow all threads to begin together.
+        start.countDown()
+
+        val joinTimeout = TimeUnit.SECONDS.toMillis(30)
+        advanceThread.join(joinTimeout)
+        if (advanceThread.isAlive) {
+            stop.set(true)
+            advanceThread.interrupt()
+            advanceThread.join(joinTimeout)
+        }
+        writerThreads.forEach { writerThread ->
+            writerThread.join(joinTimeout)
+            if (writerThread.isAlive) {
+                stop.set(true)
+                writerThread.interrupt()
+                writerThread.join(joinTimeout)
+            }
+        }
+        assertFalse(advanceThread.isAlive, "advance thread timed out")
+        writerThreads.forEach { writerThread ->
+            assertFalse(writerThread.isAlive, "${writerThread.name} timed out")
+        }
         // Rethrow any exception from either thread.
         failure.get()?.let { throw it }
     }
