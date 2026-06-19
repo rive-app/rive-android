@@ -2,7 +2,7 @@
   "git": {
     "commitMessage": "chore: release v${version}",
     "tagName": "${version}",
-    "changelog": "npx auto-changelog --stdout --commit-limit false --unreleased --latest-version ${latestVersion} --template https://raw.githubusercontent.com/release-it/release-it/master/templates/changelog-compact.hbs"
+    "changelog": "npx auto-changelog --stdout --commit-limit false --unreleased --latest-version \"$CURRENT_VERSION\" --template https://raw.githubusercontent.com/release-it/release-it/master/templates/changelog-compact.hbs"
   },
   "github": {
     "release": true,
@@ -26,7 +26,7 @@
   },
   "hooks": {
     "after:bump": [
-      "npx auto-changelog --latest-version ${version} -o ../../../CHANGELOG.md --hide-empty-releases",
+      "npx auto-changelog --latest-version \"$TARGET_VERSION\" -o ../../../CHANGELOG.md --hide-empty-releases",
       "git add ../../../CHANGELOG.md",
       "git add ../../../VERSION"
     ]
