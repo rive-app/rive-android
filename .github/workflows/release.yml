@@ -157,12 +157,13 @@ jobs:
           git config --local user.email 'hello@rive.app'
           git config --local user.name ${{ github.actor }}
 
-      # The validation step writes target_version to GITHUB_OUTPUT. GitHub resolves the expression
-      # below and supplies it to release-it as the TARGET_VERSION environment variable.
+      # The validation step writes both versions to GITHUB_OUTPUT. GitHub resolves the expressions
+      # below and supplies them to release-it as environment variables.
       - name: ${{ inputs.bump }} release - Bump version number, update changelog, push and tag
         run: npm run release -- "$TARGET_VERSION" --ci
         working-directory: ./.github/scripts/release
         env:
+          CURRENT_VERSION: ${{ steps.release.outputs.current_version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_VERSION: ${{ steps.release.outputs.target_version }}
 
