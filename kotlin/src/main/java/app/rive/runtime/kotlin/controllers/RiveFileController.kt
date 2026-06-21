@@ -100,7 +100,9 @@ class RiveFileController internal constructor(
     /**
      * Whether this controller is active or not. If this is false, it will prevent advancing or
      * drawing.
+     * Marked as `@Volatile` to ensure immediate visibility across worker & UI threads
      */
+    @Volatile
     var isActive = false
 
     /**

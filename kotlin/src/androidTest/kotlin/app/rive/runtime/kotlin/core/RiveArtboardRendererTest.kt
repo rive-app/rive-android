@@ -4,6 +4,7 @@ import android.graphics.SurfaceTexture
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.runtime.kotlin.test.R
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
@@ -20,9 +21,15 @@ import java.util.concurrent.locks.ReentrantLock
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
 
+    companion object {
+        private const val TIMEOUT_MS = 1000L
+        private const val POLL_INTERVAL_MS = 10L
+    }
+
     @Before
     fun setup() {
-        Rive.init(InstrumentationRegistry.getInstrumentation().targetContext)
+        // Ensure native libraries are loaded for JNI calls.
+        TestUtils().context
     }
 
     @Test
@@ -62,31 +69,39 @@ class RiveArtboardRendererTest {
     }
 
     /**
-     * Tests that the renderer cannot be deleted while draw() is executing.
-     * The delete() call should block until frameLock is released when draw() completes.
+     * Verifies delete() cannot run concurrently with draw().
+     *
+     * Blocks inside [Artboard.draw] under [Renderer.frameLock], starts [RiveArtboardRenderer.delete]
+     * on another thread, and asserts delete blocks until draw releases the lock.
+     *
+     * Intentionally uses [RiveFileController] **without** a [File]: this test targets
+     * [Renderer.frameLock] only, not [File.fileLock].
      */
     @Test
     fun deleteRendererDuringFrame() {
-        val timeout = 1000L
-        // Latch to signal we are inside the fileLock synchronized block during draw()
+        // Latch: draw has entered the blocking artboard override (draw() holds frameLock).
         val insideDrawLatch = CountDownLatch(1)
-        // Latch to allow draw() to complete
+        // Latch: test releases this to let draw() finish and exit frameLock.
         val releaseDrawLatch = CountDownLatch(1)
 
-        // The renderer needs a valid artboard
+        // The renderer needs a valid artboard to proceed with accessing the cppPointer
         val dummyArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = ReentrantLock()) {
-            // Override draw to add blocking and signal we're inside the synchronized block
+            // Override draw to add blocking and signal we're inside the synchronized block;
+            // this avoids the thread affinity checks in the real draw()
             override fun draw(
                 rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
                 scaleFactor: Float
             ) {
-                // Signal that we're inside draw (holding fileLock)
+                // Signal that draw reached Artboard.draw (frameLock still held by draw()).
                 insideDrawLatch.countDown()
-                // Block to hold the fileLock
-                releaseDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
+                // Hold frameLock until the test releases releaseDrawLatch.
+                releaseDrawLatch.awaitOrFail("Timed out waiting for test to release draw latch")
             }
+
+            // Prevent any delete on fake pointer (1L).
+            override fun cppDelete(pointer: Long) {}
         }
 
         val controller = RiveFileController(activeArtboard = dummyArtboard)
@@ -97,7 +112,7 @@ class RiveArtboardRendererTest {
         // Capture any exception thrown in the background threads
         val exceptionRef = AtomicReference<Throwable>()
 
-        // Start draw() in a background thread - this will hold frameLock and fileLock
+        // Start draw() in a background thread - this will hold frameLock for the duration of draw()
         val drawThread = Thread {
             try {
                 renderer.draw()
@@ -107,12 +122,15 @@ class RiveArtboardRendererTest {
         }
         drawThread.start()
 
-        // Wait until we're inside draw() (holding fileLock)
-        insideDrawLatch.await(timeout, TimeUnit.MILLISECONDS)
+        insideDrawLatch.awaitOrFail("draw() did not reach Artboard.draw in time")
 
+        // Counted down at the start of delete() so waitUntil knows the thread entered delete
+        // (and is blocked on frameLock, not still starting up).
+        val deleteInvoked = CountDownLatch(1)
         // Start delete() in a separate thread - it should block trying to acquire frameLock
         val deleteThread = Thread {
             try {
+                deleteInvoked.countDown()
                 renderer.delete()
             } catch (e: Throwable) {
                 exceptionRef.set(e)
@@ -120,22 +138,20 @@ class RiveArtboardRendererTest {
         }
         deleteThread.start()
 
-        // Give delete a chance to try acquiring the lock
-        Thread.sleep(200)
-
-        // Verify delete is still blocked waiting for frameLock (thread should still be alive)
-        assert(deleteThread.isAlive) {
-            "Expected delete to be blocked waiting for frameLock while draw is executing"
+        waitUntil(
+            message = "Expected delete to be blocked waiting for frameLock while draw is executing"
+        ) {
+            deleteInvoked.count == 0L && deleteThread.state == Thread.State.BLOCKED
         }
 
         // Now allow draw() to complete and release the lock
         releaseDrawLatch.countDown()
 
-        // Wait for draw thread to finish (releases frameLock and fileLock)
-        drawThread.join(timeout)
+        // Wait for draw thread to finish (releases frameLock)
+        drawThread.join(TIMEOUT_MS)
 
         // Now delete should be able to complete
-        deleteThread.join(timeout)
+        deleteThread.join(TIMEOUT_MS)
 
         // Verify delete completed successfully (thread is no longer alive)
         assertFalse(
@@ -152,153 +168,50 @@ class RiveArtboardRendererTest {
     }
 
     /**
-     * Tests for a race where an artboard is disposed while being drawn, specifically after it has
-     * entered the synchronized block in draw() but before dereferencing the cppPointer.
+     * Verifies draw() holds [File.lock] so UI-thread artboard mutations block until the frame
+     * completes.
+     *
+     * Uses [loadEmptyFile] so [RiveFileController.file] is set — see that helper for why a real
+     * [File] is required (without it, draw and [RiveFileController.activeArtboard] synchronize on
+     * different fallback objects and file-lock regressions do not fail).
+     */
+    @Test
+    fun drawHoldsFileLockBlocksActiveArtboardMutation() {
+        assertActiveArtboardMutationBlocksOnFileLockDuringDraw()
+    }
+
+    /**
+     * While draw() is inside [Artboard.draw], [RiveFileController.activeArtboard] mutations must
+     * block on [File.fileLock] until the frame completes.
+     *
+     * Backed by [loadEmptyFile] so draw and the setter share one lock — see [loadEmptyFile].
      */
     @Test
     fun disposeArtboardDuringFrameAfterEnteringSyncBlock() {
-        // Keep this low, as we expect it to timeout.
-        val timeout = 1000L
-        // Signals that the artboard has entered draw() and is about to dereference the cppPointer.
-        val readyForRelease = CountDownLatch(1)
-        // Signals that the main thread has released the artboard, and draw() can continue.
-        val afterRelease = CountDownLatch(1)
-
-        // A lock we can reference, unlike the default private Artboard file lock.
-        val artboardLock = ReentrantLock()
-
-        // An artboard that synchronizes with the main thread to simulate being released while
-        // being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
-            override fun draw(
-                rendererAddress: Long,
-                fit: Fit,
-                alignment: Alignment,
-                scaleFactor: Float
-            ) {
-                synchronized(artboardLock) {
-                    readyForRelease.countDown()
-                    // Wait for the test to dispose the artboard.
-                    // We expect this to timeout as the artboard's locking prevents the main thread
-                    // from disposing, so afterRelease cannot be counted down.
-                    afterRelease.await(timeout, TimeUnit.MILLISECONDS)
-                    // Simulate the critical part of draw(): dereference the artboard pointer.
-                    cppPointer
-                }
-            }
-
-            // Need to override to avoid calling the real native delete on address 1L
-            override fun cppDelete(pointer: Long) {}
-        }
-
-        val controller = RiveFileController(activeArtboard = latchingArtboard)
-        controller.isActive = true
-
-        val renderer = RiveArtboardRenderer(controller = controller)
-        renderer.make()
-
-        // Simulate the worker thread calling draw()
-        val drawThread = Thread {
-            // Calls the controller's active artboard to draw
-            renderer.draw()
-        }
-        drawThread.start()
-
-        // Wait until renderer.draw() has entered Artboard.draw().
-        readyForRelease.await(timeout, TimeUnit.MILLISECONDS)
-
-        // Dispose the artboard by releasing the one place that references it.
-        controller.activeArtboard = null
-        assertFalse(
-            "Expected latchingArtboard to have been disposed",
-            latchingArtboard.hasCppObject
-        )
-
-        // Let draw() continue
-        afterRelease.countDown()
-
-        drawThread.join(timeout)
+        assertActiveArtboardMutationBlocksOnFileLockDuringDraw(assertArtboardDisposal = true)
     }
 
     /**
-     * Tests for a race where an artboard is disposed while being drawn, specifically before it has
-     * entered the synchronized block in draw().
+     * Same [File.fileLock] requirement as [disposeArtboardDuringFrameAfterEnteringSyncBlock],
+     * with the latching override resuming into the real [Artboard.draw] after the latch.
      */
     @Test
     fun disposeArtboardDuringFrameBeforeEnteringSyncBlock() {
-        val timeout = 1000L
-        // Signals that the artboard has entered draw() and is about to dereference the cppPointer.
-        val readyForRelease = CountDownLatch(1)
-        // Signals that the main thread has released the artboard, and draw() can continue.
-        val afterRelease = CountDownLatch(1)
-
-        // A lock we can reference, unlike the default private Artboard file lock.
-        val artboardLock = ReentrantLock()
-
-        // An artboard that synchronizes with the main thread to simulate being released right
-        // before being drawn.
-        val latchingArtboard = object : Artboard(unsafeCppPointer = 1L, fileLock = artboardLock) {
-            override fun draw(
-                rendererAddress: Long,
-                fit: Fit,
-                alignment: Alignment,
-                scaleFactor: Float
-            ) {
-                readyForRelease.countDown()
-                afterRelease.await()
-                super.draw(rendererAddress, fit, alignment, scaleFactor)
-            }
-
-            // Do nothing, avoiding the thread affinity checks in the real draw().
-            override fun cppDrawAligned(
-                cppPointer: Long, rendererPointer: Long,
-                fit: Fit, alignment: Alignment,
-                scaleFactor: Float
-            ) {
-            }
-
-            // Need to override to avoid calling the real native delete on address 1L
-            override fun cppDelete(pointer: Long) {}
-        }
-
-        val controller = RiveFileController(activeArtboard = latchingArtboard)
-        controller.isActive = true
-
-        val renderer = RiveArtboardRenderer(controller = controller)
-        renderer.make()
-
-        // Simulate the worker thread calling draw()
-        val drawThread = Thread {
-            // Calls the controller's active artboard to draw
-            renderer.draw()
-        }
-        drawThread.start()
-
-        // Wait until renderer.draw() has entered Artboard.draw().
-        readyForRelease.await(timeout, TimeUnit.MILLISECONDS)
-
-        // Dispose the artboard by releasing the one place that references it.
-        controller.activeArtboard = null
-        assertFalse(
-            "Expected latchingArtboard to have been disposed",
-            latchingArtboard.hasCppObject
+        assertActiveArtboardMutationBlocksOnFileLockDuringDraw(
+            callSuperDrawAfterLatch = true,
+            assertArtboardDisposal = true,
         )
-
-        // Let draw() continue
-        afterRelease.countDown()
-
-        drawThread.join(timeout)
     }
 
     /**
-     * Regression test for a race where resizeArtboard() reads renderer dimensions after the renderer
-     * has been deleted.
+     * Regression test for #424: resize reads renderer width/height while draw() holds frameLock.
      *
-     * The fit getter is used as a deterministic pause point during resize inside draw().
+     * Pauses inside [RiveFileController.fit] (read during resize) so another thread can call
+     * [RiveArtboardRenderer.delete]. Delete blocks on frameLock; resize must not touch a disposed
+     * renderer pointer when the pause ends.
      */
     @Test
     fun deleteRendererBetweenCppObjectCheckAndDimensionRead_doesNotCrash() {
-        val timeoutMs = 1000L
         val readyForDelete = CountDownLatch(1)
         val resumeAfterDelete = CountDownLatch(1)
         val exceptionRef = AtomicReference<Throwable?>(null)
@@ -307,7 +220,8 @@ class RiveArtboardRendererTest {
             override var fit: Fit
                 get() {
                     readyForDelete.countDown()
-                    resumeAfterDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+                    // Deterministic pause during resizeArtboard() (fit is read for layout sizing).
+                    resumeAfterDelete.awaitOrFail("Timed out waiting to resume draw after delete")
                     return super.fit
                 }
                 set(value) {
@@ -315,6 +229,7 @@ class RiveArtboardRendererTest {
                 }
         }
         controller.fit = Fit.LAYOUT // Sets requireArtboardResize = true
+        controller.isActive = true
 
         val renderer = RiveArtboardRenderer(controller = controller)
         renderer.make()
@@ -328,15 +243,26 @@ class RiveArtboardRendererTest {
         }
         drawThread.start()
 
-        assertTrue(
-            "draw() did not reach the fit getter in time; race was not induced.",
-            readyForDelete.await(timeoutMs, TimeUnit.MILLISECONDS)
+        readyForDelete.awaitOrFail(
+            "draw() did not reach the fit getter in time; race was not induced."
         )
 
-        renderer.delete()
+        // delete() blocks on frameLock while draw is paused in the fit getter (still inside draw()).
+        // Start delete on a background thread, then countDown resume so resize can finish while
+        // delete waits — same pattern as deleteRendererDuringFrame.
+        val deleteThread = Thread {
+            try {
+                renderer.delete()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        deleteThread.start()
+
         resumeAfterDelete.countDown()
 
-        drawThread.join(timeoutMs)
+        drawThread.join(TIMEOUT_MS)
+        deleteThread.join(TIMEOUT_MS)
 
         val exception = exceptionRef.get()
         assertTrue(
@@ -344,5 +270,232 @@ class RiveArtboardRendererTest {
                     "but got: ${exception?.javaClass?.simpleName}: ${exception?.message}",
             exception == null
         )
+    }
+
+    /**
+     * Loads [R.raw.empty] for tests that assert [File.fileLock] behaviour.
+     *
+     * [RiveArtboardRenderer.draw] and [RiveFileController.activeArtboard] both use
+     * `synchronized(file?.fileLock ?: this)`. When [RiveFileController.file] is null those fallbacks
+     * are **different** objects (the renderer instance vs the controller instance), so the old
+     * dispose tests could pass even with `fileLock` removed from `draw()`. Wiring a real [File]
+     * forces both code paths onto [File.fileLock], matching production [RiveAnimationView] usage.
+     */
+    private fun loadEmptyFile(): File {
+        val bytes = InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .openRawResource(R.raw.empty)
+            .readBytes()
+        return File(bytes)
+    }
+
+    /**
+     * Controller, renderer, and latching artboard for [File.fileLock] tests — see [loadEmptyFile].
+     *
+     * [RiveArtboardRenderer.draw] blocks in [Artboard.draw] until [releaseDrawLatch] is counted
+     * down, while holding the same [File.lock] used by [RiveFileController.activeArtboard]
+     * mutations.
+     */
+    private data class FileLockDrawFixture(
+        val latchingArtboard: Artboard,
+        val controller: RiveFileController,
+        val renderer: RiveArtboardRenderer,
+    )
+
+    /**
+     * Builds a [FileLockDrawFixture]: real [File] from [R.raw.empty], artboard whose [Artboard.draw]
+     * pauses on [releaseDrawLatch], and an active controller/renderer pair.
+     *
+     * @param timeout Passed to [awaitOrFail] while [Artboard.draw] is blocked; defaults to
+     *   [TIMEOUT_MS].
+     * @param insideDrawLatch Counted down when [Artboard.draw] is entered.
+     * @param releaseDrawLatch Unblocks [Artboard.draw] when the test is ready to finish the frame.
+     * @param callSuperDrawAfterLatch When true, resumes into [Artboard.draw] after the latch and
+     *   stubs [Artboard.cppDrawAligned] to avoid native draw / thread-affinity checks.
+     */
+    private fun fileLockDrawFixture(
+        insideDrawLatch: CountDownLatch,
+        releaseDrawLatch: CountDownLatch,
+        timeout: Long = TIMEOUT_MS,
+        callSuperDrawAfterLatch: Boolean = false,
+    ): FileLockDrawFixture {
+        val file = loadEmptyFile()
+        val latchingArtboard = if (callSuperDrawAfterLatch) {
+            object : Artboard(unsafeCppPointer = 1L, fileLock = file.lock) {
+                override fun draw(
+                    rendererAddress: Long,
+                    fit: Fit,
+                    alignment: Alignment,
+                    scaleFactor: Float
+                ) {
+                    insideDrawLatch.countDown()
+                    releaseDrawLatch.awaitOrFail(
+                        "Timed out waiting for test to release draw latch",
+                        timeoutMs = timeout,
+                    )
+                    super.draw(rendererAddress, fit, alignment, scaleFactor)
+                }
+
+                // Do nothing, avoiding the thread affinity checks in the real draw().
+                override fun cppDrawAligned(
+                    cppPointer: Long, rendererPointer: Long,
+                    fit: Fit, alignment: Alignment,
+                    scaleFactor: Float
+                ) {
+                }
+
+                override fun cppDelete(pointer: Long) {}
+            }
+        } else {
+            object : Artboard(unsafeCppPointer = 1L, fileLock = file.lock) {
+                override fun draw(
+                    rendererAddress: Long,
+                    fit: Fit,
+                    alignment: Alignment,
+                    scaleFactor: Float
+                ) {
+                    insideDrawLatch.countDown()
+                    releaseDrawLatch.awaitOrFail(
+                        "Timed out waiting for test to release draw latch",
+                        timeoutMs = timeout,
+                    )
+                }
+
+                override fun cppDelete(pointer: Long) {}
+            }
+        }
+
+        val controller = RiveFileController(file = file, activeArtboard = latchingArtboard)
+        controller.isActive = true
+        val renderer = RiveArtboardRenderer(controller = controller)
+        renderer.make()
+        return FileLockDrawFixture(latchingArtboard, controller, renderer)
+    }
+
+    /**
+     * Runs draw() on a background thread while blocked in [Artboard.draw], starts an
+     * [RiveFileController.activeArtboard] = null mutation, and asserts the mutation blocks on
+     * [File.fileLock] until draw finishes.
+     *
+     * @param callSuperDrawAfterLatch Passed to [fileLockDrawFixture]; when true, the latching
+     *   artboard resumes into [Artboard.draw] after the latch.
+     * @param assertArtboardDisposal When true, asserts the latching artboard is not disposed while
+     *   blocked and is disposed after the frame completes.
+     */
+    private fun assertActiveArtboardMutationBlocksOnFileLockDuringDraw(
+        callSuperDrawAfterLatch: Boolean = false,
+        assertArtboardDisposal: Boolean = false,
+    ) {
+        val insideDrawLatch = CountDownLatch(1)
+        val releaseDrawLatch = CountDownLatch(1)
+        val mutationComplete = CountDownLatch(1)
+        val exceptionRef = AtomicReference<Throwable>()
+
+        val fixture = fileLockDrawFixture(
+            insideDrawLatch = insideDrawLatch,
+            releaseDrawLatch = releaseDrawLatch,
+            callSuperDrawAfterLatch = callSuperDrawAfterLatch,
+        )
+
+        val drawThread = Thread {
+            try {
+                fixture.renderer.draw()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        drawThread.start()
+
+        insideDrawLatch.awaitOrFail("draw() did not reach Artboard.draw in time")
+
+        val mutationThread = Thread {
+            try {
+                fixture.controller.activeArtboard = null
+                mutationComplete.countDown()
+            } catch (e: Throwable) {
+                exceptionRef.set(e)
+            }
+        }
+        mutationThread.start()
+
+        waitUntil(
+            message = "Expected activeArtboard mutation to block while draw holds fileLock"
+        ) {
+            mutationThread.state == Thread.State.BLOCKED
+        }
+
+        if (assertArtboardDisposal) {
+            assertTrue(
+                "Artboard should not be disposed while draw holds fileLock",
+                fixture.latchingArtboard.hasCppObject
+            )
+        }
+
+        releaseDrawLatch.countDown()
+
+        drawThread.join(TIMEOUT_MS)
+        mutationThread.join(TIMEOUT_MS)
+
+        mutationComplete.awaitOrFail(
+            "activeArtboard mutation should complete after draw finishes"
+        )
+
+        if (assertArtboardDisposal) {
+            assertFalse(
+                "Expected latchingArtboard to have been disposed after draw completed",
+                fixture.latchingArtboard.hasCppObject
+            )
+        }
+
+        val exception = exceptionRef.get()
+        assert(exception == null) {
+            "Expected no exception with proper fileLock. " +
+                    "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
+        }
+
+        fixture.controller.isActive = false
+        fixture.controller.release()
+    }
+
+    /**
+     * Polls until [condition] is true or [timeoutMs] elapses.
+     *
+     * Prefer this over fixed [Thread.sleep] when waiting for concurrent threads to reach an
+     * expected state: fast on healthy runners, tolerant of slow CI emulators. Lock tests should
+     * pass a [condition] that detects blocking (e.g. [Thread.State.BLOCKED]), not merely
+     * [Thread.isAlive].
+     *
+     * @param timeoutMs Maximum time to poll before throwing [AssertionError] with [message].
+     * @param message Failure message when [condition] never becomes true.
+     * @param condition Expected concurrent state; polled every [POLL_INTERVAL_MS].
+     */
+    private fun waitUntil(
+        timeoutMs: Long = TIMEOUT_MS,
+        message: String,
+        condition: () -> Boolean,
+    ) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (!condition()) {
+            if (System.currentTimeMillis() >= deadline) {
+                throw AssertionError(message)
+            }
+            Thread.sleep(POLL_INTERVAL_MS)
+        }
+    }
+
+    /**
+     * Awaits this latch within [timeoutMs], failing the test with [message] if it times out.
+     *
+     * @param message Failure message when the latch does not reach zero in time.
+     * @param timeoutMs Maximum time to wait; defaults to [TIMEOUT_MS].
+     * @param timeUnit Unit for [timeoutMs]; defaults to milliseconds.
+     */
+    private fun CountDownLatch.awaitOrFail(
+        message: String,
+        timeoutMs: Long = TIMEOUT_MS,
+        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+    ) {
+        if (!await(timeoutMs, timeUnit)) {
+            throw AssertionError(message)
+        }
     }
 }

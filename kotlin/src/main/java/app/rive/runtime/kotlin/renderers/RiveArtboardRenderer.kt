@@ -36,6 +36,12 @@ open class RiveArtboardRenderer(
         }
     }
 
+    /**
+     * Resizes the active artboard to match the renderer surface.
+     *
+     * Must be called with [frameLock] held, then `controller.file?.fileLock` (in that order).
+     * [draw] is the only call site; locks are not taken here so ordering stays centralized.
+     */
     @WorkerThread
     private fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
@@ -57,17 +63,16 @@ open class RiveArtboardRenderer(
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        // Deref and draw under frameLock
+        // Resize and draw under frameLock
         synchronized(frameLock) {
             // Early out for deleted renderer or inactive controller.
-            // Note: controller.isActive can change at any time, but
-            // hasCppObject can only change while holding frameLock
+            // hasCppObject is only mutated under frameLock; isActive may change on other threads.
             if (!hasCppObject || !controller.isActive) return
 
-            // Protect both resize and draw operations with fileLock to prevent race conditions
-            // with file/artboard changes on the UI thread. This matches the locking strategy
-            // used in controller.advance(). Always acquire frameLock before fileLock.
+            // Protect both resize and draw with fileLock (frameLock first, always). Matches
+            // controller.advance() and prevents UI-thread file/artboard mutations mid-frame.
             synchronized(controller.file?.fileLock ?: this) {
+                // Re-check isActive only; hasCppObject remains stable while frameLock is held.
                 if (!controller.isActive) return
                 if (controller.requireArtboardResize.getAndSet(false)) {
                     resizeArtboard()
