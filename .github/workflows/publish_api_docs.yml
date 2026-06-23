@@ -1,0 +1,114 @@
+name: Publish API Docs
+
+# Generates the Dokka HTML API reference and publishes it to the runtime API
+# docs bucket, served at https://api-docs.rive.app/android/<version>/ with a
+# /android/latest/ alias. Runs in the rive-app/rive-android mirror.
+#
+# Required repo configuration (rive-app/rive-android):
+#   - Environment "runtime-api-docs" (add required reviewers here to gate publishes)
+#   - Secret  RUNTIME_API_DOCS_ROLE_ARN        -> terraform output rive_android_api_docs_deploy_role_arn
+#   - Variable RUNTIME_API_DOCS_DISTRIBUTION_ID -> terraform output rive_runtime_api_docs_distribution_id
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (defaults to the VERSION file)"
+        required: false
+        type: string
+
+concurrency:
+  group: publish-api-docs-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-west-1
+  S3_BUCKET: rive-runtime-api-docs
+  RUNTIME: android
+
+jobs:
+  publish:
+    name: Generate and publish Dokka HTML
+    runs-on: ubuntu-latest
+    environment: runtime-api-docs
+    permissions:
+      id-token: write # required to assume the OIDC publish role
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_GITHUB }}
+
+      - name: Ignore dirty runtime submodule worktree
+        run: git config --local submodule.submodules/rive-runtime.ignore dirty
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="${{ github.event.release.tag_name || inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(cat VERSION)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing $RUNTIME API docs for version $VERSION"
+
+      - name: Update Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Mirrors release.yml: Dokka configures the kotlin module's externalNativeBuild,
+      # so the NDK + CMake must be present even though we don't build the native libs.
+      - name: Install NDK & CMake
+        run: |
+          set -x
+          echo "y" | sdkmanager --install 'build-tools;34.0.0' platform-tools --sdk_root=${ANDROID_SDK_ROOT}
+          cd ${ANDROID_HOME}
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          unzip -q android-ndk-r27c-linux.zip
+          echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
+
+      - name: Generate Dokka HTML
+        # ANDROID_SDK_ROOT is exported into the process env by setup-android above.
+        run: |
+          export NDK_PATH="${ANDROID_SDK_ROOT}/android-ndk-r27c"
+          ./gradlew kotlin:dokkaHtml
+
+      # v5 specifically: it sends session tags on AssumeRoleWithWebIdentity, which
+      # the deploy role's trust policy allows (sts:TagSession). v2 would not tag.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.RUNTIME_API_DOCS_ROLE_ARN }}
+
+      - name: Publish versioned docs to S3
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          aws s3 sync kotlin/build/dokka/html "s3://${S3_BUCKET}/${RUNTIME}/${VERSION}/" --delete
+
+      # Only advance the "latest" alias for full releases, not prereleases.
+      # (workflow_dispatch has no release context, so it also updates latest.)
+      - name: Update latest alias
+        if: github.event.release.prerelease != true
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          aws s3 sync kotlin/build/dokka/html "s3://${S3_BUCKET}/${RUNTIME}/latest/" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.RUNTIME_API_DOCS_DISTRIBUTION_ID }}" \
+            --paths "/${RUNTIME}/*"

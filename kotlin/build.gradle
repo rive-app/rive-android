@@ -90,7 +90,10 @@ android {
         }
     }
 
-    dokkaGfm {
+    // HTML output is published to api.rive.app/android/<version>/. Dokka emits a
+    // browsable site (nested index.html files), which is what the S3/CloudFront
+    // hosting expects — GFM markdown is not servable as a site.
+    dokkaHtml {
         dokkaSourceSets {
             named("main") {
                 noAndroidSdkLink = false
