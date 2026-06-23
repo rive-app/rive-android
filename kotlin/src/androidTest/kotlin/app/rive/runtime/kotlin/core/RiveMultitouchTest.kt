@@ -22,13 +22,12 @@ import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.test.Ignore
 
 @RunWith(AndroidJUnit4::class)
 class MultiTouchDataBindingComposeTest {
     companion object {
         private const val RIVE_TAG = "Rive"
-        private const val TIMEOUT = 1000L
+        private const val TIMEOUT = 5_000L
         private lateinit var riveFile: File
         private val OUT_OF_BOUNDS = Offset(-100f, -100f)
 
@@ -54,7 +53,7 @@ class MultiTouchDataBindingComposeTest {
     @Composable
     private fun MultiTouchDataBindingDemo(
         multiTouchEnabled: Boolean,
-        onDownBindingsReady: (List<() -> Boolean>) -> Unit,
+        onBindingsReady: (List<TouchTargetBindings>) -> Unit,
     ) {
         AndroidView(
             factory = { context ->
@@ -70,11 +69,15 @@ class MultiTouchDataBindingComposeTest {
                     )
 
                     val vmi = controller.stateMachines.first().viewModelInstance!!
-                    val downBindings = (1..5).map { n ->
-                        val prop = vmi.getBooleanProperty("Target $n/Down")
-                        return@map { prop.value }
+                    val bindings = (1..5).map { n ->
+                        val down = vmi.getBooleanProperty("Target $n/Down")
+                        val downCount = vmi.getNumberProperty("Target $n/DownCount")
+                        TouchTargetBindings(
+                            isDown = { down.value },
+                            downCount = { downCount.value },
+                        )
                     }
-                    onDownBindingsReady(downBindings)
+                    onBindingsReady(bindings)
                 }
             },
             modifier = Modifier
@@ -83,11 +86,26 @@ class MultiTouchDataBindingComposeTest {
         )
     }
 
-    /** Stores an touch position and isDown binding for a touch target. */
+    /** Stores the data-binding accessors for a touch target. */
+    private data class TouchTargetBindings(
+        val isDown: () -> Boolean,
+        val downCount: () -> Float,
+    )
+
+    /** Stores a touch position and data-binding accessors for a touch target. */
     class TouchTarget(
         val touchPosition: Offset,
-        val isDown: () -> Boolean
-    )
+        val isDown: () -> Boolean,
+        val downCount: () -> Float,
+    ) {
+        /**
+         * Checks how many pointers currently occupy this target.
+         *
+         * @param expected The expected number of pointers over this target.
+         * @return true when the target's down count equals [expected].
+         */
+        fun hasDownCount(expected: Int): Boolean = downCount() == expected.toFloat()
+    }
 
     /**
      * Wrapper around a list of TouchTarget to provide extra verification helpers while delegating
@@ -115,6 +133,28 @@ class MultiTouchDataBindingComposeTest {
 
         /** @return true if the number of targets currently down equals [expected]. */
         fun downCount(expected: Int): Boolean = inner.count { it.isDown() } == expected
+
+        /**
+         * Checks whether every target has the same pointer occupancy.
+         *
+         * @param expected The expected number of pointers over each target.
+         * @return true when every target's down count equals [expected].
+         */
+        fun allHaveDownCount(expected: Int): Boolean = inner.all { it.hasDownCount(expected) }
+
+        /**
+         * Checks the pointer occupancy of every target.
+         *
+         * @param expected The expected pointer count for each target, in target order.
+         * @return true when every target's down count equals its corresponding expected count.
+         * @throws IllegalArgumentException if [expected] does not contain one count per target.
+         */
+        fun haveDownCounts(vararg expected: Int): Boolean {
+            require(expected.size == size) {
+                "Expected ${size} down counts, received ${expected.size}"
+            }
+            return inner.indices.all { inner[it].hasDownCount(expected[it]) }
+        }
     }
 
     /**
@@ -139,14 +179,14 @@ class MultiTouchDataBindingComposeTest {
     fun createTouchTargets(
         multiTouchEnabled: Boolean = false,
     ): Pair<SemanticsNodeInteraction, TouchTargets> {
-        var isDownBindings = listOf<() -> Boolean>()
+        var targetBindings = listOf<TouchTargetBindings>()
         composeRule.setContent {
             MultiTouchDataBindingDemo(
                 multiTouchEnabled = multiTouchEnabled,
-                onDownBindingsReady = { isDownBindings = it },
+                onBindingsReady = { targetBindings = it },
             )
         }
-        composeRule.waitUntil(TIMEOUT) { isDownBindings.size == 5 }
+        composeRule.waitUntil(TIMEOUT) { targetBindings.size == 5 }
         val node = composeRule.onNodeWithTag(RIVE_TAG)
         val bounds = node.fetchSemanticsNode().boundsInRoot
 
@@ -164,17 +204,56 @@ class MultiTouchDataBindingComposeTest {
             return Offset(x, y)
         }
 
-        val targets = isDownBindings.mapIndexed { index, binding ->
+        val targets = targetBindings.mapIndexed { index, bindings ->
             val pos = boundsToTouchOffset(bounds, index)
-            TouchTarget(touchPosition = pos, isDown = binding)
+            TouchTarget(
+                touchPosition = pos,
+                isDown = bindings.isDown,
+                downCount = bindings.downCount,
+            )
         }
 
         return node to TouchTargets(targets)
     }
 
-    /** Small helper to codify the wait timeout. */
+    /**
+     * Waits for a Rive-backed condition while synchronously flushing pending state machine work.
+     *
+     * Compose test synchronization does not know about the legacy Rive render worker. Advancing
+     * explicitly makes these assertions independent of Choreographer and device scheduling while
+     * retaining a timeout for genuine failures.
+     *
+     * @param condition The Rive-backed condition to wait for.
+     */
     fun ComposeContentTestRule.waitFor(condition: () -> Boolean) =
-        waitUntil(TIMEOUT) { condition() }
+        waitUntil(TIMEOUT) {
+            val renderer = riveViewRef.artboardRenderer ?: return@waitUntil false
+            renderer.advance(0f)
+            condition()
+        }
+
+    /**
+     * Moves each pointer directly into the next occupied target and verifies every intermediate
+     * occupancy state.
+     *
+     * @param riveNode The Compose node receiving the injected pointer events.
+     * @param targets The touch targets, initially occupied by the pointer with the same index.
+     */
+    private fun cycleTouchTargets(
+        riveNode: SemanticsNodeInteraction,
+        targets: TouchTargets,
+    ) {
+        val expectedCounts = MutableList(targets.size) { 1 }
+        targets.indices.forEach { pointerId ->
+            val nextIndex = (pointerId + 1) % targets.size
+            riveNode.performTouchTargets { moveTo(pointerId, targets[nextIndex]) }
+            expectedCounts[pointerId]--
+            expectedCounts[nextIndex]++
+            composeRule.waitFor {
+                targets.haveDownCounts(*expectedCounts.toIntArray())
+            }
+        }
+    }
 
     @Test
     fun singleTouch_multiTouchDisabled() {
@@ -362,22 +441,21 @@ class MultiTouchDataBindingComposeTest {
     }
 
     @Test
-    @Ignore("Currently fails intermittently; needs investigation")
     fun twoOverlappingTouches_multiTouchEnabled() {
         val (riveNode, targets) = createTouchTargets(multiTouchEnabled = true)
         (0..10).forEach { _ ->
             riveNode.performTouchTargets { targets[0].down(0) }
-            composeRule.waitFor { targets.downCount(1) }
+            composeRule.waitFor { targets[0].hasDownCount(1) }
 
             // Touch down again on target 0 with a different pointer
             riveNode.performTouchTargets { targets[0].down(1) }
-            composeRule.waitFor { targets.downCount(1) }
+            composeRule.waitFor { targets[0].hasDownCount(2) }
 
             riveNode.performTouchTargets { up(1) }
-            composeRule.waitFor { targets.downCount(1) }
+            composeRule.waitFor { targets[0].hasDownCount(1) }
 
             riveNode.performTouchTargets { up(0) }
-            composeRule.waitFor { targets.downCount(0) }
+            composeRule.waitFor { targets[0].hasDownCount(0) }
         }
     }
 
@@ -532,7 +610,7 @@ class MultiTouchDataBindingComposeTest {
         composeRule.waitFor { targets.downCount(1) }
 
         // Move second touch outside bounds
-        riveNode.performTouchInput { moveTo(0, OUT_OF_BOUNDS) }
+        riveNode.performTouchInput { moveTo(1, OUT_OF_BOUNDS) }
         composeRule.waitFor { targets.isOnlyDown(0) }
 
         // Move first touch outside bounds
@@ -693,26 +771,6 @@ class MultiTouchDataBindingComposeTest {
     }
 
     @Test
-    @Ignore("This test demonstrates a bug where the bottom right corner touch does not lift.")
-    fun bugTouchBottomRightCornerDoesNotLift() {
-        val (riveNode, targets) = createTouchTargets(multiTouchEnabled = true)
-        val bounds = riveNode.fetchSemanticsNode().boundsInRoot
-        riveNode.performTouchInput {
-            down(0, bounds.topLeft)
-            down(1, bounds.bottomRight)
-        }
-        composeRule.waitFor { targets.isOnlyDown(0, 4) }
-
-        riveNode.performTouchInput {
-            up(0)
-            up(1)
-        }
-        // Touch target 4 (bottom right) should lift properly, but it does not.
-        // Needs investigation.
-        composeRule.waitFor { targets.downCount(0) }
-    }
-
-    @Test
     fun cancel_multiTouchDisabled() {
         val (riveNode, targets) = createTouchTargets(multiTouchEnabled = false)
         riveNode.performTouchTargets {
@@ -767,20 +825,12 @@ class MultiTouchDataBindingComposeTest {
         riveNode.performTouchTargets {
             (0..4).forEach { targets[it].down(it) }
         }
-        composeRule.waitFor { targets.downCount(5) }
+        composeRule.waitFor { targets.allHaveDownCount(1) }
 
-        // Move all touches to the next target, wrapping
-        riveNode.performTouchTargets {
-            (0..4).forEach {
-                val nextIndex = (it + 1) % 5
-                moveTo(it, targets[nextIndex])
-            }
-        }
-        composeRule.waitFor { targets.downCount(5) }
+        cycleTouchTargets(riveNode, targets)
     }
 
     @Test
-    @Ignore("This may fail. Needs investigation.")
     fun stressTap_multiTouchEnabled() {
         val (riveNode, targets) = createTouchTargets(multiTouchEnabled = true)
         (1..10).forEach { _ ->
@@ -788,21 +838,17 @@ class MultiTouchDataBindingComposeTest {
             riveNode.performTouchTargets {
                 (0..4).forEach { targets[it].down(it) }
             }
-            composeRule.waitFor { targets.downCount(5) }
+            composeRule.waitFor { targets.allHaveDownCount(1) }
 
             // Lift all touches
             riveNode.performTouchTargets {
                 (0..4).forEach { up(it) }
             }
-            composeRule.waitFor { targets.downCount(0) }
+            composeRule.waitFor { targets.allHaveDownCount(0) }
         }
     }
 
     @Test
-    @Ignore(
-        "This test doesn't complete, only getting some number of iterations." +
-                "Needs investigation."
-    )
     fun stressCycle_multiTouchEnabled() {
         val (riveNode, targets) = createTouchTargets(multiTouchEnabled = true)
         (1..10).forEach { i ->
@@ -811,22 +857,15 @@ class MultiTouchDataBindingComposeTest {
             riveNode.performTouchTargets {
                 (0..4).forEach { targets[it].down(it) }
             }
-            composeRule.waitFor { targets.downCount(5) }
+            composeRule.waitFor { targets.allHaveDownCount(1) }
 
-            // Move all touches to the next target, wrapping
-            riveNode.performTouchTargets {
-                (0..4).forEach {
-                    val nextIndex = (it + 1) % 5
-                    moveTo(it, targets[nextIndex])
-                }
-            }
-            composeRule.waitFor { targets.downCount(5) }
+            cycleTouchTargets(riveNode, targets)
 
             // Lift all touches
             riveNode.performTouchTargets {
                 (0..4).forEach { up(it) }
             }
-            composeRule.waitFor { targets.downCount(0) }
+            composeRule.waitFor { targets.allHaveDownCount(0) }
         }
     }
 

@@ -190,7 +190,8 @@ class RiveMemoryTests {
             // lets assume our view got garbage-collected
             mockView.mockDetach()
             assertNull(mockView.artboardRenderer)
-            assertFalse(layerState.isAnimationState) // It's been deallocated.
+            // LayerState is non-owning and must not be accessed after its StateMachineInstance is
+            // released. Successful teardown is the lifetime assertion here.
         }
     }
 

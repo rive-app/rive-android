@@ -21,7 +21,6 @@ import kotlin.concurrent.thread
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -831,7 +830,6 @@ class RiveDataBindingTest {
     }
 
     @Test
-    @Ignore("Temporarily disabled due to crashes")
     fun move_instance_between_files_after_deletion_to_artboard_crash() {
         val transfer = vmi.transfer()
         view.mockDetach(destroy = true)
@@ -863,7 +861,6 @@ class RiveDataBindingTest {
     }
 
     @Test
-    @Ignore("Temporarily disabled due to crashes")
     fun move_instance_between_files_after_deletion_while_observing() = runTest {
         view.setRiveResource(R.raw.data_bind_test_impl, "Test Observation", autoBind = true)
         val vmi = view.controller.stateMachines.first().viewModelInstance!!
