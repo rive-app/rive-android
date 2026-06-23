@@ -94,6 +94,8 @@ android {
     // browsable site (nested index.html files), which is what the S3/CloudFront
     // hosting expects — GFM markdown is not servable as a site.
     dokkaHtml {
+        // Module display name shown as the docs title/header
+        moduleName = "Rive Android"
         dokkaSourceSets {
             named("main") {
                 noAndroidSdkLink = false
