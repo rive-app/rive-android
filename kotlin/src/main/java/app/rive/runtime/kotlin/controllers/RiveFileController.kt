@@ -963,58 +963,77 @@ class RiveFileController internal constructor(
         }
     }
 
+    /**
+     * Dispatches a pointer event to the active state machines.
+     *
+     * The file lock must cover pointer processing, any resulting zero-time advance, state-change
+     * notification, and view model polling. Otherwise, the render worker can advance between the
+     * changed-state count and indexed state reads, invalidating the snapshot being notified.
+     *
+     * @param eventType The type of pointer event to dispatch.
+     * @param pointerID The pointer identifier supplied by Android.
+     * @param x The pointer's horizontal position in view coordinates.
+     * @param y The pointer's vertical position in view coordinates.
+     */
     fun pointerEvent(eventType: PointerEvents, pointerID: Int, x: Float, y: Float) {
-        traceSection("Rive/PointerInput") {
-            /// TODO: once we start composing artboards we may need x,y offsets here...
-            val artboardEventLocation = Helpers.convertToArtboardSpace(
-                touchBounds = targetBounds,
-                touchLocation = PointF(x, y),
-                fit = fit,
-                alignment = alignment,
-                artboardBounds = activeArtboard?.bounds ?: RectF(),
-                scaleFactor = layoutScaleFactorActive
-            )
-            stateMachines.forEach { stateMachine ->
+        val activeFile = file ?: return
+        synchronized(activeFile.fileLock) {
+            // The file may have been replaced while this thread was waiting for its lock.
+            if (file !== activeFile) {
+                return@synchronized
+            }
+            traceSection("Rive/PointerInput") {
+                /// TODO: once we start composing artboards we may need x,y offsets here...
+                val artboardEventLocation = Helpers.convertToArtboardSpace(
+                    touchBounds = targetBounds,
+                    touchLocation = PointF(x, y),
+                    fit = fit,
+                    alignment = alignment,
+                    artboardBounds = activeArtboard?.bounds ?: RectF(),
+                    scaleFactor = layoutScaleFactorActive
+                )
+                stateMachines.forEach { stateMachine ->
 
-                val shouldAdvance = when (eventType) {
-                    PointerEvents.POINTER_DOWN -> {
-                        stateMachine.pointerDown(
-                            pointerID,
-                            artboardEventLocation.x,
-                            artboardEventLocation.y
-                        )
-                    }
+                    val shouldAdvance = when (eventType) {
+                        PointerEvents.POINTER_DOWN -> {
+                            stateMachine.pointerDown(
+                                pointerID,
+                                artboardEventLocation.x,
+                                artboardEventLocation.y
+                            )
+                        }
 
-                    PointerEvents.POINTER_UP -> {
-                        stateMachine.pointerUp(
-                            pointerID,
-                            artboardEventLocation.x,
-                            artboardEventLocation.y
-                        )
-                    }
+                        PointerEvents.POINTER_UP -> {
+                            stateMachine.pointerUp(
+                                pointerID,
+                                artboardEventLocation.x,
+                                artboardEventLocation.y
+                            )
+                        }
 
-                    PointerEvents.POINTER_MOVE -> {
-                        stateMachine.pointerMove(
-                            pointerID,
-                            artboardEventLocation.x,
-                            artboardEventLocation.y
-                        )
-                        false
-                    }
+                        PointerEvents.POINTER_MOVE -> {
+                            stateMachine.pointerMove(
+                                pointerID,
+                                artboardEventLocation.x,
+                                artboardEventLocation.y
+                            )
+                            false
+                        }
 
-                    PointerEvents.POINTER_EXIT -> {
-                        stateMachine.pointerExit(
-                            pointerID,
-                            artboardEventLocation.x,
-                            artboardEventLocation.y
-                        )
-                        false
+                        PointerEvents.POINTER_EXIT -> {
+                            stateMachine.pointerExit(
+                                pointerID,
+                                artboardEventLocation.x,
+                                artboardEventLocation.y
+                            )
+                            false
+                        }
                     }
-                }
-                play(stateMachine, settleStateMachineState = false)
-                if (shouldAdvance) {
-                    resolveStateMachineAdvance(stateMachine, 0f)
-                    stateMachine.viewModelInstance?.pollChanges()
+                    play(stateMachine, settleStateMachineState = false)
+                    if (shouldAdvance) {
+                        resolveStateMachineAdvance(stateMachine, 0f)
+                        stateMachine.viewModelInstance?.pollChanges()
+                    }
                 }
             }
         }

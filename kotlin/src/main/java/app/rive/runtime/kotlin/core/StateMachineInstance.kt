@@ -179,39 +179,59 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * Get a specific state changed in the last advance.
      *
      * @param index The index of the state.
+     * @return The changed layer state at [index].
      * @throws StateMachineInputException If no [LayerState] is found at the given [index].
      */
     @Throws(StateMachineInputException::class)
-    fun stateChanged(index: Int): LayerState {
+    fun stateChanged(index: Int): LayerState = synchronized(fileLock) {
         val stateChanged = cppStateChangedByIndex(cppPointer, index)
         if (stateChanged == 0L) {
             throw StateMachineInputException("No LayerState found at index $index.")
         }
         val layerState = LayerState(stateChanged)
-        return convertLayerState(layerState)
+        convertLayerState(layerState)
     }
 
     /**
      * Get a specific event fired in the last advance.
      *
      * @param index The index of the event.
+     * @return The reported event at [index].
      * @throws RiveEventException If no event is found at the given [index].
      */
     @Throws(RiveEventException::class)
-    fun eventAt(index: Int): RiveEvent {
+    fun eventAt(index: Int): RiveEvent = synchronized(fileLock) {
         val eventReport = cppReportedEventAt(cppPointer, index)
         if (eventReport.unsafeCppPointer == NULL_POINTER) {
             throw RiveEventException("No Rive Event found at index $index.")
         }
 
-        return eventReport.event
+        eventReport.event
     }
 
-    /** @return All layer states changed in the last advance. */
+    /**
+     * Snapshots all layer states changed in the last advance.
+     *
+     * The count and indexed reads must share the file lock so a concurrent worker advance cannot
+     * reset the native changed-state flags between those operations.
+     *
+     * @return All layer states changed in the last advance.
+     */
     val statesChanged: List<LayerState>
-        get() = (0 until stateChangedCount).map { stateChanged(it) }
+        get() = synchronized(fileLock) {
+            (0 until stateChangedCount).map { stateChanged(it) }
+        }
 
-    /** @return All events fired in the last advance. */
+    /**
+     * Snapshots all events fired in the last advance.
+     *
+     * The count and indexed reads must share the file lock so a concurrent worker advance cannot
+     * reset the native event reports between those operations.
+     *
+     * @return All events fired in the last advance.
+     */
     val eventsReported: List<RiveEvent>
-        get() = (0 until reportedEventCount).map { eventAt(it) }
+        get() = synchronized(fileLock) {
+            (0 until reportedEventCount).map { eventAt(it) }
+        }
 }

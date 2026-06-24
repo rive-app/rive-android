@@ -5,6 +5,7 @@ import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
+import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -263,5 +264,53 @@ class RiveStateMachineTouchEventTest {
         }
 
         assertTrue(hasReached.value)
+    }
+
+    /**
+     * Verifies touch-driven state notifications retain the file lock through listener callbacks.
+     */
+    @Test
+    fun touchStateNotificationHoldsFileLock() = UiThreadStatement.runOnUiThread {
+        mockView.setRiveResource(
+            R.raw.touchevents,
+            stateMachineName = "main",
+            autoplay = true
+        )
+        val renderer = requireNotNull(mockView.artboardRenderer)
+        renderer.advance(0f)
+
+        val controller = mockView.controller
+        val fileLock = requireNotNull(controller.file).fileLock
+        var notifiedStateName: String? = null
+        var notificationHeldFileLock = false
+        mockView.registerListener(object : RiveFileController.Listener {
+            override fun notifyPlay(animation: PlayableInstance) = Unit
+            override fun notifyPause(animation: PlayableInstance) = Unit
+            override fun notifyStop(animation: PlayableInstance) = Unit
+            override fun notifyLoop(animation: PlayableInstance) = Unit
+
+            override fun notifyStateChanged(stateMachineName: String, stateName: String) {
+                notifiedStateName = stateName
+                notificationHeldFileLock = Thread.holdsLock(fileLock)
+            }
+        })
+
+        val eventTime = SystemClock.uptimeMillis()
+        val up = MotionEvent.obtain(
+            eventTime,
+            eventTime,
+            MotionEvent.ACTION_UP,
+            25f,
+            25f,
+            0
+        )
+        try {
+            mockView.dispatchTouchEvent(up)
+        } finally {
+            up.recycle()
+        }
+
+        assertEquals("x25updown", notifiedStateName)
+        assertTrue(notificationHeldFileLock)
     }
 }
