@@ -522,12 +522,18 @@ rive::rcp<rive::RenderImage> RenderContextVulkan::createRenderImage(
     std::unique_ptr<const uint8_t[]> imageDataRGBA)
 {
     auto mipLevelCount = rive::math::msb(height | width);
+    // Android ImageDecoder gives us only the base RGBA level; the renderer must
+    // generate the remaining mips instead of reading a full mip chain.
     auto texture =
         riveContext->impl()->makeImageTexture(width,
                                               height,
                                               mipLevelCount,
                                               rive::GPUTextureFormat::rgba32,
-                                              imageDataRGBA.get());
+                                              imageDataRGBA.get(),
+                                              /*blockWidth=*/1,
+                                              /*blockHeight=*/1,
+                                              /*srgb=*/false,
+                                              /*generateRemainingMips=*/true);
     return rive::make_rcp<rive::RiveRenderImage>(texture);
 }
 
