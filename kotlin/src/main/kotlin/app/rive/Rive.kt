@@ -533,7 +533,7 @@ fun Rive(
 
                         override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {
                             // Only dispatch once per surface, and only when a real frame is available
-                            if (!bitmapCallbackSent) {
+                            if (!bitmapCallbackSent && currentOnBitmapAvailable != null) {
                                 val bmp = bitmap
                                 if (bmp != null) {
                                     bitmapCallbackSent = true
