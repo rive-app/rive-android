@@ -35,6 +35,18 @@ class RiveNestedInputsTest {
         }
     }
 
+    /** Verifies nested raw input mutations inherit the artboard's file lock. */
+    @Test
+    fun nestedInputAccessWaitsForFileLock() {
+        val file = File(
+            appContext.resources.openRawResource(R.raw.nested_inputs_test).readBytes()
+        )
+        val input = file.artboard("Artboard").input("bool", "nested") as SMIBoolean
+
+        TestUtils.assertBlocksOnLock(file.fileLock) { input.value = true }
+        TestUtils.assertBlocksOnLock(file.fileLock) { input.value }
+    }
+
     @Test
     fun set_incorrect_name_inputs_at_path_throws() {
         UiThreadStatement.runOnUiThread {

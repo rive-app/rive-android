@@ -16,6 +16,7 @@ import org.junit.Assert.assertTrue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 class TestUtils {
@@ -30,6 +31,49 @@ class TestUtils {
     }
 
     companion object {
+        /**
+         * Verifies that [access] cannot run while another thread owns [lock].
+         *
+         * @param lock Monitor expected to protect [access].
+         * @param access Native access expected to synchronize on [lock].
+         */
+        fun assertBlocksOnLock(lock: Any, access: () -> Unit) {
+            val accessStarted = CountDownLatch(1)
+            val accessCompleted = CountDownLatch(1)
+            val accessFailure = AtomicReference<Throwable?>()
+            var observedBlocked = false
+
+            synchronized(lock) {
+                val accessThread = Thread {
+                    accessStarted.countDown()
+                    try {
+                        access()
+                    } catch (throwable: Throwable) {
+                        accessFailure.set(throwable)
+                    } finally {
+                        accessCompleted.countDown()
+                    }
+                }
+                accessThread.start()
+
+                assertTrue(accessStarted.await(1, TimeUnit.SECONDS))
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+                while (
+                    accessThread.state != Thread.State.BLOCKED &&
+                    accessCompleted.count != 0L &&
+                    System.nanoTime() < deadline
+                ) {
+                    // Keep the monitor held while giving the access thread time to contend for it.
+                    Thread.sleep(1)
+                }
+                observedBlocked = accessThread.state == Thread.State.BLOCKED
+            }
+
+            assertTrue(accessCompleted.await(1, TimeUnit.SECONDS))
+            accessFailure.get()?.let { throw it }
+            assertTrue("Native access did not block on the expected file lock.", observedBlocked)
+        }
+
         @Suppress("unused")
         fun waitUntil(
             atMost: Duration,

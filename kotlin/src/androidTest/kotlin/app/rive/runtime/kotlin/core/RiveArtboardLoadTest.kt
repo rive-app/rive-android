@@ -83,6 +83,17 @@ class RiveArtboardLoadTest {
         assertEquals("artboard2", artboard2.name)
     }
 
+    /** Verifies artboard sizing mutations serialize with native graph advancement. */
+    @Test
+    fun artboardSizingMutationsWaitForFileLock() {
+        val file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())
+        val artboard = file.firstArtboard
+
+        TestUtils.assertBlocksOnLock(file.fileLock) { artboard.width = 250f }
+        TestUtils.assertBlocksOnLock(file.fileLock) { artboard.height = 300f }
+        TestUtils.assertBlocksOnLock(file.fileLock) { artboard.resetArtboardSize() }
+    }
+
     @Test(expected = RiveException::class)
     fun loadArtboardThree() {
         val file = File(appContext.resources.openRawResource(R.raw.multipleartboards).readBytes())

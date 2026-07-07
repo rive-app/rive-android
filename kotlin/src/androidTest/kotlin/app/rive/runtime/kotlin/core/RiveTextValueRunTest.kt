@@ -118,6 +118,27 @@ class RiveTextValueRunTest {
         assertEquals(6, artboard.dependencies.count())
     }
 
+    /** Verifies top-level and nested text mutations serialize with native graph advancement. */
+    @Test
+    fun textRunMutationsWaitForFileLock() {
+        val artboard = file.firstArtboard
+        TestUtils.assertBlocksOnLock(file.fileLock) {
+            artboard.setTextRunValue("name", "top-level update")
+        }
+        val textRun = artboard.textRun("name")
+        TestUtils.assertBlocksOnLock(file.fileLock) {
+            textRun.text = "direct update"
+        }
+        TestUtils.assertBlocksOnLock(file.fileLock) {
+            textRun.text
+        }
+
+        val nestedArtboard = nestePathFile.firstArtboard
+        TestUtils.assertBlocksOnLock(nestePathFile.fileLock) {
+            nestedArtboard.setTextRunValue("ArtboardBRun", "nested update", "ArtboardB-1")
+        }
+    }
+
     private fun nestedTextRunHelper(
         artboard: Artboard,
         name: String,

@@ -71,6 +71,27 @@ class RiveStateMachineInstanceTest {
         triggerInput.fire()
     }
 
+    /** Verifies raw input reads and mutations serialize with state-machine advancement. */
+    @Test
+    fun inputAccessWaitsForFileLock() {
+        val numberStateMachine = file.firstArtboard.stateMachine("number_input")
+        TestUtils.assertBlocksOnLock(file.fileLock) { numberStateMachine.input(0) }
+        val numberInput = numberStateMachine.input(0) as SMINumber
+        TestUtils.assertBlocksOnLock(file.fileLock) { numberInput.value = 15f }
+        TestUtils.assertBlocksOnLock(file.fileLock) { numberInput.value }
+
+        val booleanInput = file.firstArtboard
+            .stateMachine("boolean_input")
+            .input(0) as SMIBoolean
+        TestUtils.assertBlocksOnLock(file.fileLock) { booleanInput.value = true }
+        TestUtils.assertBlocksOnLock(file.fileLock) { booleanInput.value }
+
+        val triggerInput = file.firstArtboard
+            .stateMachine("trigger_input")
+            .input(0) as SMITrigger
+        TestUtils.assertBlocksOnLock(file.fileLock) { triggerInput.fire() }
+    }
+
     @Test
     fun mixed() {
         val stateMachine = file.firstArtboard.stateMachine("mixed")

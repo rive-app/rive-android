@@ -24,4 +24,14 @@ class RiveArtboardVolumeTest {
         artboard.volume = 0f
         assertEquals(0.0f, artboard.volume)
     }
+
+    /** Verifies volume mutations serialize with native graph advancement. */
+    @Test
+    fun settingVolumeWaitsForFileLock() {
+        val file = File(appContext.resources.openRawResource(R.raw.audio_test).readBytes())
+        val artboard = file.firstArtboard
+
+        TestUtils.assertBlocksOnLock(file.fileLock) { artboard.volume = 0.5f }
+        assertEquals(0.5f, artboard.volume)
+    }
 }

@@ -200,13 +200,13 @@ class Artboard(
      * @throws StateMachineInputException If the input does not exist.
      */
     @Throws(StateMachineInputException::class)
-    fun input(name: String, path: String): SMIInput {
+    fun input(name: String, path: String): SMIInput = synchronized(fileLock) {
         val stateMachineInputPointer = cppInputByNameAtPath(cppPointer, name, path)
         if (stateMachineInputPointer == NULL_POINTER) {
             throw StateMachineInputException("No StateMachineInput found with name \"$name\" in nested artboard $path.")
         }
-        val input = SMIInput(stateMachineInputPointer)
-        return convertInput(input)
+        val input = SMIInput(stateMachineInputPointer, fileLock)
+        convertInput(input)
     }
 
     /**
@@ -221,7 +221,7 @@ class Artboard(
         if (textRunPointer == NULL_POINTER) {
             throw TextValueRunException("No Rive TextValueRun found with name \"$name.\"")
         }
-        val run = RiveTextValueRun(textRunPointer)
+        val run = RiveTextValueRun(textRunPointer, fileLock)
         dependencies.add(run)
         return run
     }
@@ -240,7 +240,10 @@ class Artboard(
      */
     @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String) {
-        val successCheck = cppSetValueOfTextValueRun(cppPointer, name, textValue)
+        val successCheck = synchronized(fileLock) {
+            // Changing text dirties layout state that advance() reads and clears on the worker.
+            cppSetValueOfTextValueRun(cppPointer, name, textValue)
+        }
         if (!successCheck) {
             throw TextValueRunException("Could not set text run. No Rive TextValueRun found with name \"$name.\"")
         }
@@ -258,7 +261,7 @@ class Artboard(
         if (textRunPointer == NULL_POINTER) {
             throw TextValueRunException("No Rive TextValueRun found with name \"$name.\" in nested artboard $path")
         }
-        val run = RiveTextValueRun(textRunPointer)
+        val run = RiveTextValueRun(textRunPointer, fileLock)
         dependencies.add(run)
         return run
     }
@@ -279,7 +282,10 @@ class Artboard(
      */
     @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String, path: String) {
-        val successCheck = cppSetValueOfTextValueRunAtPath(cppPointer, name, textValue, path)
+        val successCheck = synchronized(fileLock) {
+            // Changing text dirties layout state that advance() reads and clears on the worker.
+            cppSetValueOfTextValueRunAtPath(cppPointer, name, textValue, path)
+        }
         if (!successCheck) {
             throw TextValueRunException("Could not set text run value at path. No Rive TextValueRun found with name \"$name.\" in nested artboard \"$path.\"")
         }
@@ -288,7 +294,9 @@ class Artboard(
     /** Get and set the volume of the artboard. */
     var volume: Float
         get() = cppGetVolume(cppPointer)
-        internal set(value) = cppSetVolume(cppPointer, value)
+        internal set(value) = synchronized(fileLock) {
+            cppSetVolume(cppPointer, value)
+        }
 
     /** @return The number of animations stored inside the artboard. */
     val animationCount: Int
@@ -376,7 +384,9 @@ class Artboard(
         }
 
     /** Reset the artboard size to its defaults. */
-    fun resetArtboardSize() = cppResetArtboardSize(cppPointer)
+    fun resetArtboardSize() = synchronized(fileLock) {
+        cppResetArtboardSize(cppPointer)
+    }
 
     /** @return The bounds of artboard as defined in the Rive Editor. */
     val bounds: RectF
@@ -385,12 +395,16 @@ class Artboard(
     /** The width of the artboard. */
     var width: Float
         get() = cppGetArtboardWidth(cppPointer)
-        set(value) = cppSetArtboardWidth(cppPointer, value)
+        set(value) = synchronized(fileLock) {
+            cppSetArtboardWidth(cppPointer, value)
+        }
 
     /** The height of the artboard. */
     var height: Float
         get() = cppGetArtboardHeight(cppPointer)
-        set(value) = cppSetArtboardHeight(cppPointer, value)
+        set(value) = synchronized(fileLock) {
+            cppSetArtboardHeight(cppPointer, value)
+        }
 
     /** @return The names of all animations in the artboard. */
     val animationNames: List<String>
@@ -402,9 +416,9 @@ class Artboard(
 
     private fun convertInput(input: SMIInput): SMIInput =
         when {
-            input.isBoolean -> SMIBoolean(input.cppPointer)
-            input.isTrigger -> SMITrigger(input.cppPointer)
-            input.isNumber -> SMINumber(input.cppPointer)
+            input.isBoolean -> SMIBoolean(input.cppPointer, fileLock)
+            input.isTrigger -> SMITrigger(input.cppPointer, fileLock)
+            input.isNumber -> SMINumber(input.cppPointer, fileLock)
             else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
         }
 }

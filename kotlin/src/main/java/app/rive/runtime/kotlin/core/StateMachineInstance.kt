@@ -108,7 +108,7 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
 
     /** @return The number of inputs configured for the state machine. */
     val inputCount: Int
-        get() = cppInputCount(cppPointer)
+        get() = synchronized(fileLock) { cppInputCount(cppPointer) }
 
     /** @return The number of states changed in the last advance. */
     private val stateChangedCount: Int
@@ -119,9 +119,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
         get() = cppReportedEventCount(cppPointer)
 
     private fun convertInput(input: SMIInput): SMIInput = when {
-        input.isBoolean -> SMIBoolean(input.cppPointer)
-        input.isTrigger -> SMITrigger(input.cppPointer)
-        input.isNumber -> SMINumber(input.cppPointer)
+        input.isBoolean -> SMIBoolean(input.cppPointer, fileLock)
+        input.isTrigger -> SMITrigger(input.cppPointer, fileLock)
+        input.isNumber -> SMINumber(input.cppPointer, fileLock)
         else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
     }
 
@@ -133,13 +133,13 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * @throws StateMachineInputException If no [SMIInput] is found at the given [index].
      */
     @Throws(StateMachineInputException::class)
-    fun input(index: Int): SMIInput {
+    fun input(index: Int): SMIInput = synchronized(fileLock) {
         val stateMachineInputPointer = cppSMIInputByIndex(cppPointer, index)
         if (stateMachineInputPointer == NULL_POINTER) {
             throw StateMachineInputException("No StateMachineInput found at index $index.")
         }
-        val input = SMIInput(stateMachineInputPointer)
-        return convertInput(input)
+        val input = SMIInput(stateMachineInputPointer, fileLock)
+        convertInput(input)
     }
 
     /**
@@ -148,7 +148,7 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * @throws StateMachineInputException If no [SMIInput] is found with the given [name].
      */
     @Throws(StateMachineInputException::class)
-    fun input(name: String): SMIInput {
+    fun input(name: String): SMIInput = synchronized(fileLock) {
         for (i in 0 until inputCount) {
             val output = input(i)
             if (output.name == name) {
@@ -160,11 +160,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
 
     /** @return All inputs in the state machine. */
     val inputs: List<SMIInput>
-        get() = (0 until inputCount).map { input(it) }
+        get() = synchronized(fileLock) { (0 until inputCount).map { input(it) } }
 
     /** @return The names of all inputs in the state machine. */
     val inputNames: List<String>
-        get() = (0 until inputCount).map { input(it).name }
+        get() = synchronized(fileLock) { (0 until inputCount).map { input(it).name } }
 
     private fun convertLayerState(state: LayerState): LayerState = when {
         state.isAnimationState -> AnimationState(state.cppPointer)
