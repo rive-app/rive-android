@@ -288,6 +288,13 @@ interface CommandQueueBridge {
         propertyPath: String
     )
 
+    fun cppGetViewModelInstanceName(
+        pointer: Long,
+        receiver: CommandQueue,
+        requestID: Long,
+        viewModelInstanceHandle: Long
+    )
+
     fun cppInsertToListAtIndex(
         pointer: Long,
         viewModelInstanceHandle: Long,
@@ -737,6 +744,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String
+    )
+
+    external override fun cppGetViewModelInstanceName(
+        pointer: Long,
+        receiver: CommandQueue,
+        requestID: Long,
+        viewModelInstanceHandle: Long
     )
 
     external override fun cppInsertToListAtIndex(

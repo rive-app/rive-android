@@ -21,6 +21,7 @@
 #include "rive/command_server.hpp"
 #include "rive/file.hpp"
 #include "rive/renderer/rive_render_image.hpp"
+#include "rive/viewmodel/runtime/viewmodel_instance_runtime.hpp"
 
 using namespace rive_android;
 
@@ -1958,6 +1959,65 @@ extern "C"
         commandQueue->requestViewModelInstanceListSize(viewModelInstanceHandle,
                                                        propertyPath,
                                                        requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppGetViewModelInstanceName(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jobject jQueue,
+        jlong requestID,
+        jlong jViewModelInstanceHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto viewModelInstanceHandle =
+            handleFromLong<rive::ViewModelInstanceHandle>(
+                jViewModelInstanceHandle);
+
+        // The command queue protocol has no message carrying an instance's own
+        // name (only its view model's name), so resolve it with runOnce on the
+        // command server thread and call back into Kotlin from there.
+        auto jQueueRef = std::make_shared<JCommandQueue>(env, jQueue);
+        commandQueue->runOnce([jQueueRef,
+                               viewModelInstanceHandle,
+                               requestID](rive::CommandServer* server) {
+            auto* env = GetJNIEnv();
+            if (env == nullptr)
+            {
+                RiveLogE(TAG_CQ, "Failed to get command server JNIEnv");
+                return;
+            }
+
+            auto* instance =
+                server->getViewModelInstance(viewModelInstanceHandle);
+            if (instance != nullptr)
+            {
+                auto jName = MakeJString(env, instance->name());
+                jQueueRef->call("onViewModelInstanceNameReceived",
+                                "(JLjava/lang/String;)V",
+                                requestID,
+                                jName.get());
+            }
+            else
+            {
+                auto jError = MakeJString(
+                    env,
+                    "Invalid view model instance handle when requesting the "
+                    "instance name");
+                jQueueRef->call("onViewModelInstanceError",
+                                "(JLjava/lang/String;)V",
+                                requestID,
+                                jError.get());
+            }
+
+            // Clear any pending exception; there is no JNI frame to propagate
+            // to on the command server thread.
+            JNIExceptionHandler::ClearAndLogErrors(
+                env,
+                TAG_CQ,
+                "cppGetViewModelInstanceName: Exception in Kotlin callback:");
+        });
     }
 
     JNIEXPORT void JNICALL

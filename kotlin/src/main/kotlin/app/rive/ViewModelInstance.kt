@@ -72,6 +72,22 @@ class ViewModelInstance internal constructor(
      */
     internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
 
+    /**
+     * Gets the editor-assigned name of this view model instance, as resolved by the command
+     * server.
+     *
+     * This works for all creation sources, including names the caller could not know upfront,
+     * such as the name of the instance marked "Default" in the Rive file when created with
+     * [ViewModelInstanceSource.Default], or the name of a list item obtained with
+     * [ViewModelInstanceSource.ReferenceListItem].
+     *
+     * @return The name of this view model instance, or an empty string for instances without a
+     *    name, e.g. blank instances.
+     * @throws RuntimeException If this instance has been [closed][close].
+     * @throws IllegalStateException If the backing Rive worker has been released.
+     */
+    suspend fun getName(): String = riveWorker.getViewModelInstanceName(instanceHandle)
+
     private val _dirtyFlow = MutableSharedFlow<Unit>(
         replay = 1,
         extraBufferCapacity = 1,

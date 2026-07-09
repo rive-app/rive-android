@@ -1921,6 +1921,46 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Gets the editor-assigned name of the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance to query.
+     * @return The name of the view model instance, or an empty string for instances without a
+     *    name, e.g. blank instances.
+     * @throws RuntimeException If the view model instance handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getViewModelInstanceName(
+        viewModelInstanceHandle: ViewModelInstanceHandle
+    ): String = suspendNativeRequest { requestID ->
+        bridge.cppGetViewModelInstanceName(
+            cppPointer.pointer,
+            this@CommandQueue,
+            requestID,
+            viewModelInstanceHandle.handle
+        )
+    }
+
+    /**
+     * Callback when the view model instance name is retrieved, from [getViewModelInstanceName].
+     *
+     * Unlike most callbacks, this one is invoked from the command server thread rather than from
+     * [pollMessages], because it is delivered by a `runOnce` callback instead of a protocol
+     * message.
+     *
+     * @param requestID The request ID used when querying the name, used to complete the
+     *    continuation.
+     * @param name The name of the view model instance.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelInstanceNameReceived")
+    internal fun onViewModelInstanceNameReceived(requestID: Long, name: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<String>)?.resume(name)
+    }
+
+    /**
      * Inserts a view model instance into a list property at the specified index.
      *
      * @param viewModelInstanceHandle The handle of the view model instance that owns the list
