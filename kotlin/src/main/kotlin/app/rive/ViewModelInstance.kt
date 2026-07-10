@@ -315,8 +315,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
      */
-    fun fireTrigger(propertyPath: String) =
+    fun fireTrigger(propertyPath: String) {
         riveWorker.fireTriggerProperty(instanceHandle, propertyPath)
+        _dirtyFlow.tryEmit(Unit)
+    }
 
     /**
      * Assigns the given image to the image property on this view model instance.
