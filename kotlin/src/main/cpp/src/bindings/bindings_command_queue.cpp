@@ -359,6 +359,29 @@ public:
                      jError.get());
     }
 
+    void onViewModelInstanceViewModelNameReceived(
+        const rive::ViewModelInstanceHandle,
+        uint64_t requestID,
+        std::string viewModelName) override
+    {
+        auto jName = MakeJString(GetJNIEnv(), viewModelName);
+        m_queue.call("onViewModelInstanceViewModelNameReceived",
+                     "(JLjava/lang/String;)V",
+                     requestID,
+                     jName.get());
+    }
+
+    void onViewModelInstanceNameReceived(const rive::ViewModelInstanceHandle,
+                                         uint64_t requestID,
+                                         std::string instanceName) override
+    {
+        auto jName = MakeJString(GetJNIEnv(), instanceName);
+        m_queue.call("onViewModelInstanceNameReceived",
+                     "(JLjava/lang/String;)V",
+                     requestID,
+                     jName.get());
+    }
+
     void onViewModelDataReceived(
         const rive::ViewModelInstanceHandle vmiHandle,
         uint64_t requestID,
@@ -1601,6 +1624,41 @@ extern "C"
                 nullptr,
                 requestID);
         return longFromHandle(nestedViewModelInstance);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppGetViewModelInstanceViewModelName(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jViewModelInstanceHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto viewModelInstanceHandle =
+            handleFromLong<rive::ViewModelInstanceHandle>(
+                jViewModelInstanceHandle);
+
+        commandQueue->requestViewModelInstanceViewModelName(
+            viewModelInstanceHandle,
+            requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppGetViewModelInstanceName(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jViewModelInstanceHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto viewModelInstanceHandle =
+            handleFromLong<rive::ViewModelInstanceHandle>(
+                jViewModelInstanceHandle);
+
+        commandQueue->requestViewModelInstanceName(viewModelInstanceHandle,
+                                                   requestID);
     }
 
     JNIEXPORT void JNICALL

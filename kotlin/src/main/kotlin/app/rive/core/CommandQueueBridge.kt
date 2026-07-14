@@ -164,6 +164,18 @@ interface CommandQueueBridge {
         index: Int
     ): Long
 
+    fun cppGetViewModelInstanceViewModelName(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long
+    )
+
+    fun cppGetViewModelInstanceName(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long
+    )
+
     fun cppDeleteViewModelInstance(
         pointer: Long,
         requestID: Long,
@@ -614,6 +626,18 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         path: String,
         index: Int
     ): Long
+
+    external override fun cppGetViewModelInstanceViewModelName(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long
+    )
+
+    external override fun cppGetViewModelInstanceName(
+        pointer: Long,
+        requestID: Long,
+        viewModelInstanceHandle: Long
+    )
 
     external override fun cppDeleteViewModelInstance(
         pointer: Long,

@@ -1331,6 +1331,76 @@ class CommandQueue internal constructor(
         }
 
     /**
+     * Gets the name of the view model that defines the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance to query.
+     * @return The name of the view model that defines the instance.
+     * @throws RuntimeException If the view model instance handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getViewModelInstanceViewModelName(
+        viewModelInstanceHandle: ViewModelInstanceHandle
+    ): String = suspendNativeRequest { requestID ->
+        bridge.cppGetViewModelInstanceViewModelName(
+            cppPointer.pointer,
+            requestID,
+            viewModelInstanceHandle.handle
+        )
+    }
+
+    /**
+     * Callback when the view model name is retrieved, from
+     * [getViewModelInstanceViewModelName].
+     *
+     * @param requestID The request ID used when querying the name, used to complete the
+     *    continuation.
+     * @param name The name of the view model that defines the instance.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelInstanceViewModelNameReceived")
+    internal fun onViewModelInstanceViewModelNameReceived(requestID: Long, name: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<String>)?.resume(name)
+    }
+
+    /**
+     * Gets the editor-assigned name of the view model instance.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance to query.
+     * @return The name of the view model instance, or an empty string for instances without a
+     *    name, e.g. blank instances.
+     * @throws RuntimeException If the view model instance handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getViewModelInstanceName(
+        viewModelInstanceHandle: ViewModelInstanceHandle
+    ): String = suspendNativeRequest { requestID ->
+        bridge.cppGetViewModelInstanceName(
+            cppPointer.pointer,
+            requestID,
+            viewModelInstanceHandle.handle
+        )
+    }
+
+    /**
+     * Callback when the view model instance name is retrieved, from [getViewModelInstanceName].
+     *
+     * @param requestID The request ID used when querying the name, used to complete the
+     *    continuation.
+     * @param name The name of the view model instance.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelInstanceNameReceived")
+    internal fun onViewModelInstanceNameReceived(requestID: Long, name: String) {
+        (pendingContinuations.remove(requestID) as? Continuation<String>)?.resume(name)
+    }
+
+    /**
      * Delete a view model instance and free its resources. This is useful when you no longer need
      * the view model instance and want to free up memory. Counterpart to [createViewModelInstance].
      *
@@ -2611,6 +2681,9 @@ class CommandQueue internal constructor(
      * This allows executing Kotlin-side logic in the context of the command server thread. This can
      * be useful for operations that need to be queued orderly with other commands, such as freeing
      * resources that should only be freed after prior commands using them have completed.
+     *
+     * This is an escape hatch for Android-specific edge cases. Features that apply across Rive
+     * runtimes must be implemented through the shared command and message protocol instead.
      *
      * The operation is fire-and-forget, so no response is expected.
      *

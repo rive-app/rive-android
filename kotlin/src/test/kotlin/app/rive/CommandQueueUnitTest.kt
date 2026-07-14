@@ -512,6 +512,121 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Get view model name for instance returns name") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetViewModelInstanceViewModelName(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onViewModelInstanceViewModelNameReceived(
+                requestID.captured,
+                "Test All"
+            )
+        }
+
+        val result = commandQueue.getViewModelInstanceViewModelName(instanceHandle)
+
+        result shouldBe "Test All"
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetViewModelInstanceViewModelName(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
+    test("Get view model name for instance failure throws view model instance error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val errorMessage = "Invalid view model instance handle when requesting its view model name"
+
+        every {
+            commandQueueBridgeMock.cppGetViewModelInstanceViewModelName(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onViewModelInstanceError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RuntimeException> {
+            commandQueue.getViewModelInstanceViewModelName(instanceHandle)
+        }.message shouldContain errorMessage
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetViewModelInstanceViewModelName(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
+    test("Get view model instance name returns name") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetViewModelInstanceName(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onViewModelInstanceNameReceived(requestID.captured, "Test Default")
+        }
+
+        val result = commandQueue.getViewModelInstanceName(instanceHandle)
+
+        result shouldBe "Test Default"
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetViewModelInstanceName(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
+    test("Get view model instance name failure throws view model instance error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val errorMessage = "Invalid view model instance handle when requesting the instance name"
+
+        every {
+            commandQueueBridgeMock.cppGetViewModelInstanceName(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onViewModelInstanceError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RuntimeException> {
+            commandQueue.getViewModelInstanceName(instanceHandle)
+        }.message shouldContain errorMessage
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetViewModelInstanceName(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
     test("Set artboard property invokes native") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
