@@ -1,4 +1,3 @@
-#include <android/native_window_jni.h>
 #include <atomic>
 #include <cstring>
 #include <future>
@@ -10,10 +9,10 @@
 #include "helpers/android_factories.hpp"
 #include "helpers/conversions.hpp"
 #include "helpers/image_decode.hpp"
+#include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/tracer.hpp"
-#include "models/jni_renderer.hpp"
 #include "models/render_context.hpp"
 #include "models/render_surface.hpp"
 #include "rive/animation/state_machine_instance.hpp"
@@ -21,6 +20,7 @@
 #include "rive/command_server.hpp"
 #include "rive/file.hpp"
 #include "rive/renderer/rive_render_image.hpp"
+#include "rive/renderer/rive_renderer.hpp"
 
 using namespace rive_android;
 
@@ -153,20 +153,20 @@ public:
                                                "(Ljava/lang/Object;)Z");
 
         auto propertyClass =
-            FindClass(env, "app/rive/runtime/kotlin/core/ViewModel$Property");
+            FindClass(env, "app/rive/core/ViewModelProperty");
         auto constructor =
             env->GetMethodID(propertyClass.get(),
                              "<init>",
-                             "(Lapp/rive/runtime/kotlin/core/"
-                             "ViewModel$PropertyDataType;Ljava/lang/String;)V");
+                             "(Lapp/rive/core/ViewModelPropertyDataType;"
+                             "Ljava/lang/String;)V");
 
         auto dataTypeClass = FindClass(
             env,
-            "app/rive/runtime/kotlin/core/ViewModel$PropertyDataType");
+            "app/rive/core/ViewModelPropertyDataType");
         auto fromIntFn = env->GetStaticMethodID(
             dataTypeClass.get(),
             "fromInt",
-            "(I)Lapp/rive/runtime/kotlin/core/ViewModel$PropertyDataType;");
+            "(I)Lapp/rive/core/ViewModelPropertyDataType;");
 
         auto jPropertyList =
             MakeObject(env, arrayListClass.get(), arrayListConstructor);
@@ -209,7 +209,7 @@ public:
                                                "(Ljava/lang/Object;)Z");
 
         auto enumClass =
-            FindClass(env, "app/rive/runtime/kotlin/core/File$Enum");
+            FindClass(env, "app/rive/core/FileEnum");
         auto enumConstructor =
             env->GetMethodID(enumClass.get(),
                              "<init>",

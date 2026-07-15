@@ -78,51 +78,6 @@ void SetSDKVersion()
 
 rive::Fit GetFit(uint8_t ordinal) { return static_cast<rive::Fit>(ordinal); }
 
-rive::Fit GetFit(JNIEnv* env, jobject jFit)
-{
-    auto fitValue = (jstring)JNIExceptionHandler::CallObjectMethod(
-        env,
-        jFit,
-        rive_android::GetFitNameMethodId());
-    const char* fitValueNative = env->GetStringUTFChars(fitValue, nullptr);
-
-    rive::Fit fit = rive::Fit::none;
-    if (strcmp(fitValueNative, "FILL") == 0)
-    {
-        fit = rive::Fit::fill;
-    }
-    else if (strcmp(fitValueNative, "CONTAIN") == 0)
-    {
-        fit = rive::Fit::contain;
-    }
-    else if (strcmp(fitValueNative, "COVER") == 0)
-    {
-        fit = rive::Fit::cover;
-    }
-    else if (strcmp(fitValueNative, "FIT_WIDTH") == 0)
-    {
-        fit = rive::Fit::fitWidth;
-    }
-    else if (strcmp(fitValueNative, "FIT_HEIGHT") == 0)
-    {
-        fit = rive::Fit::fitHeight;
-    }
-    else if (strcmp(fitValueNative, "NONE") == 0)
-    {
-        fit = rive::Fit::none;
-    }
-    else if (strcmp(fitValueNative, "SCALE_DOWN") == 0)
-    {
-        fit = rive::Fit::scaleDown;
-    }
-    else if (strcmp(fitValueNative, "LAYOUT") == 0)
-    {
-        fit = rive::Fit::layout;
-    }
-    env->ReleaseStringUTFChars(fitValue, fitValueNative);
-    env->DeleteLocalRef(fitValue);
-    return fit;
-}
 
 rive::Alignment GetAlignment(uint8_t ordinal)
 {
@@ -155,56 +110,6 @@ rive::Alignment GetAlignment(uint8_t ordinal)
     }
 }
 
-rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)
-{
-    auto alignmentValue = (jstring)JNIExceptionHandler::CallObjectMethod(
-        env,
-        jAlignment,
-        rive_android::GetAlignmentNameMethodId());
-    const char* alignmentValueNative =
-        env->GetStringUTFChars(alignmentValue, nullptr);
-
-    rive::Alignment alignment = rive::Alignment::center;
-    if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
-    {
-        alignment = rive::Alignment::topLeft;
-    }
-    else if (strcmp(alignmentValueNative, "TOP_CENTER") == 0)
-    {
-        alignment = rive::Alignment::topCenter;
-    }
-    else if (strcmp(alignmentValueNative, "TOP_RIGHT") == 0)
-    {
-        alignment = rive::Alignment::topRight;
-    }
-    else if (strcmp(alignmentValueNative, "CENTER_LEFT") == 0)
-    {
-        alignment = rive::Alignment::centerLeft;
-    }
-    else if (strcmp(alignmentValueNative, "CENTER") == 0)
-    {
-        alignment = rive::Alignment::center;
-    }
-    else if (strcmp(alignmentValueNative, "CENTER_RIGHT") == 0)
-    {
-        alignment = rive::Alignment::centerRight;
-    }
-    else if (strcmp(alignmentValueNative, "BOTTOM_LEFT") == 0)
-    {
-        alignment = rive::Alignment::bottomLeft;
-    }
-    else if (strcmp(alignmentValueNative, "BOTTOM_CENTER") == 0)
-    {
-        alignment = rive::Alignment::bottomCenter;
-    }
-    else if (strcmp(alignmentValueNative, "BOTTOM_RIGHT") == 0)
-    {
-        alignment = rive::Alignment::bottomRight;
-    }
-    env->ReleaseStringUTFChars(alignmentValue, alignmentValueNative);
-    env->DeleteLocalRef(alignmentValue);
-    return alignment;
-}
 
 rive::Factory* GetFactory(RendererType rendererType)
 {
@@ -217,38 +122,6 @@ rive::Factory* GetFactory(RendererType rendererType)
     return static_cast<rive::Factory*>(&g_CanvasFactory);
 }
 
-jlong Import(uint8_t* bytes,
-             jint length,
-             RendererType rendererType,
-             rive::FileAssetLoader* assetLoader)
-{
-    rive::ImportResult result;
-    auto* fileFactory = GetFactory(rendererType);
-    auto* file = rive::File::import(rive::Span<const uint8_t>(bytes, length),
-                                    fileFactory,
-                                    &result,
-                                    assetLoader)
-                     // Release the RCP to a raw pointer.
-                     // We will un-ref when deleting the file.
-                     .release();
-    if (result == rive::ImportResult::success)
-    {
-        return reinterpret_cast<jlong>(file);
-    }
-    else if (result == rive::ImportResult::unsupportedVersion)
-    {
-        return ThrowUnsupportedRuntimeVersionException(
-            "Unsupported Rive File Version.");
-    }
-    else if (result == rive::ImportResult::malformed)
-    {
-        return ThrowMalformedFileException("Malformed Rive File.");
-    }
-    else
-    {
-        return ThrowRiveException("Unknown error loading file.");
-    }
-}
 
 #if defined(DEBUG) || defined(LOG)
 [[noreturn]] void LogThread()

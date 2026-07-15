@@ -33,7 +33,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     JNIEnv* env = GetJNIEnv();
     // Find the FontHelper class
     JniResource<jclass> fontHelperClass =
-        FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper");
+        FindClass(env, "app/rive/fonts/FontHelper");
     if (!fontHelperClass.get())
     {
         RiveLogE(TAG, "FontHelper class not found");
@@ -44,7 +44,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     jfieldID fontCompanionField = env->GetStaticFieldID(
         fontHelperClass.get(),
         "Companion",
-        "Lapp/rive/runtime/kotlin/fonts/FontHelper$Companion;");
+        "Lapp/rive/fonts/FontHelper$Companion;");
     if (!fontCompanionField)
     {
         RiveLogE(TAG, "FontHelper Companion field not found");
@@ -62,7 +62,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
 
     // Find the Companion class
     JniResource<jclass> fontHelperCompanionClass =
-        FindClass(env, "app/rive/runtime/kotlin/fonts/FontHelper$Companion");
+        FindClass(env, "app/rive/fonts/FontHelper$Companion");
     if (!fontHelperCompanionClass.get())
     {
         RiveLogE(TAG, "FontHelper Companion class not found");
@@ -73,7 +73,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     jmethodID getFontBytesMethodId =
         env->GetMethodID(fontHelperCompanionClass.get(),
                          "getFallbackFontBytes",
-                         "(Lapp/rive/runtime/kotlin/fonts/Fonts$FontOpts;)[B");
+                         "(Lapp/rive/fonts/Fonts$FontOpts;)[B");
     if (!getFontBytesMethodId)
     {
         RiveLogE(TAG, "FontHelper did not find getFallbackFontBytes() method");
@@ -114,7 +114,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     // Original JNI implementation for cache misses
     JNIEnv* env = GetJNIEnv();
     JniResource<jclass> pickerClass =
-        FindClass(env, "app/rive/runtime/kotlin/fonts/FontFallbackStrategy");
+        FindClass(env, "app/rive/fonts/FontFallbackStrategy");
     if (!pickerClass.get())
     {
         RiveLogE(TAG, "FontFallbackStrategy class not found");
@@ -125,7 +125,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     jfieldID fontCompanionField = env->GetStaticFieldID(
         pickerClass.get(),
         "Companion",
-        "Lapp/rive/runtime/kotlin/fonts/FontFallbackStrategy$Companion;");
+        "Lapp/rive/fonts/FontFallbackStrategy$Companion;");
 
     // Get the Companion object
     JniResource<jobject> companionObject =
@@ -134,7 +134,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
     // Find the Companion class
     JniResource<jclass> pickerCompanionClass = FindClass(
         env,
-        "app/rive/runtime/kotlin/fonts/FontFallbackStrategy$Companion");
+        "app/rive/fonts/FontFallbackStrategy$Companion");
     if (!pickerCompanionClass.get())
     {
         RiveLogE(TAG, "FontFallbackStrategy Companion class not found");

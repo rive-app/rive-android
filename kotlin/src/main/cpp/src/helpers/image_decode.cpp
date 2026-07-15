@@ -23,7 +23,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     auto env = GetJNIEnv();
 
     auto imageDecoderClass =
-        FindClass(env, "app/rive/runtime/kotlin/core/ImageDecoder");
+        FindClass(env, "app/rive/core/ImageDecoder");
 
     auto decodeToBitmap = env->GetStaticMethodID(imageDecoderClass.get(),
                                                  "decodeToBitmap",

@@ -143,10 +143,24 @@ endif ()
 # Promote our ${ANDROID_NDK} to an environment var so Premake uses the same one.
 set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
+# Keep generated artifacts (premake output and fetched dependencies) under the
+# Gradle build directory instead of the source tree, so no explicit clean is
+# needed to keep the source tree pristine. Premake resolves --out relative to
+# the working directory (absolute paths get mangled), so the script runs from
+# the build dir and the out dir stays the script's relative default.
+# Dependencies are shared across ABIs; the premake output is namespaced per
+# arch/config.
+set(RIVE_NATIVE_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../build/rive-native")
+set(RIVE_PREMAKE_OUT_DIR "${RIVE_NATIVE_BUILD_DIR}/out/android_${RIVE_ARCH}_${CONFIG}")
+set(RIVE_DEPENDENCIES_DIR "${RIVE_NATIVE_BUILD_DIR}/dependencies")
+set(ENV{DEPENDENCIES} "${RIVE_DEPENDENCIES_DIR}")
+# dependency.lua only creates the dependencies dir when the override is unset.
+file(MAKE_DIRECTORY "${RIVE_DEPENDENCIES_DIR}")
+
 # Build the Rive C++ runtime and its dependencies as static .a libs
 execute_process(
-        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=${CMAKE_CURRENT_SOURCE_DIR}/premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
+        WORKING_DIRECTORY ${RIVE_NATIVE_BUILD_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
         ECHO_OUTPUT_VARIABLE
@@ -157,11 +171,11 @@ endif ()
 
 find_single_dependency_dir(
         VULKAN_HEADERS_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/KhronosGroup_Vulkan-Headers_*"
+        "${RIVE_DEPENDENCIES_DIR}/KhronosGroup_Vulkan-Headers_*"
         "Vulkan Headers")
 find_single_dependency_dir(
         VULKAN_MEMORY_ALLOCATOR_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/GPUOpen-LibrariesAndSDKs_VulkanMemoryAllocator_*"
+        "${RIVE_DEPENDENCIES_DIR}/GPUOpen-LibrariesAndSDKs_VulkanMemoryAllocator_*"
         "Vulkan Memory Allocator")
 
 # Add header files
@@ -198,7 +212,7 @@ foreach (X IN LISTS static_libs)
     # Find the .a outputs from Premake
     set_target_properties(${LIB_TARGET}
             PROPERTIES IMPORTED_LOCATION
-            ${CMAKE_CURRENT_SOURCE_DIR}/out/android_${RIVE_ARCH}_${CONFIG}/lib${X}.a
+            ${RIVE_PREMAKE_OUT_DIR}/lib${X}.a
     )
     # Link
     target_link_libraries(rive-android ${LIB_TARGET})

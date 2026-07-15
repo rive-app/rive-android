@@ -41,24 +41,6 @@ jfieldID GetFieldId(jclass clazz, const char* name, const char* sig)
     return output;
 }
 
-jint ThrowRiveException(const char* message)
-{
-    jclass exClass =
-        GetClass("app/rive/runtime/kotlin/core/errors/RiveException");
-    return GetJNIEnv()->ThrowNew(exClass, message);
-}
-jint ThrowMalformedFileException(const char* message)
-{
-    jclass exClass =
-        GetClass("app/rive/runtime/kotlin/core/errors/MalformedFileException");
-    return GetJNIEnv()->ThrowNew(exClass, message);
-}
-jint ThrowUnsupportedRuntimeVersionException(const char* message)
-{
-    jclass exClass = GetClass("app/rive/runtime/kotlin/core/errors/"
-                              "UnsupportedRuntimeVersionException");
-    return GetJNIEnv()->ThrowNew(exClass, message);
-}
 
 jclass GetHashMapClass() { return GetClass("java/util/HashMap"); }
 jmethodID GetHashMapConstructorId()
@@ -82,93 +64,6 @@ jclass GetShortClass() { return GetClass("java/lang/Short"); }
 jmethodID GetShortConstructor()
 {
     return GetMethodId(GetShortClass(), "<init>", "(S)V");
-}
-
-jclass GetFitClass() { return GetClass("app/rive/runtime/kotlin/core/Fit"); }
-jmethodID GetFitNameMethodId()
-{
-    return GetMethodId(GetFitClass(), "name", "()Ljava/lang/String;");
-}
-
-jclass GetAlignmentClass()
-{
-    return GetClass("app/rive/runtime/kotlin/core/Alignment");
-}
-jmethodID GetAlignmentNameMethodId()
-{
-    return GetMethodId(GetAlignmentClass(), "name", "()Ljava/lang/String;");
-}
-
-jclass GetLoopClass() { return GetClass("app/rive/runtime/kotlin/core/Loop"); }
-
-jfieldID GetNoneLoopField()
-{
-    return GetStaticFieldId(GetLoopClass(),
-                            "NONE",
-                            "Lapp/rive/runtime/kotlin/core/Loop;");
-}
-jfieldID GetOneShotLoopField()
-{
-    return GetStaticFieldId(GetLoopClass(),
-                            "ONESHOT",
-                            "Lapp/rive/runtime/kotlin/core/Loop;");
-}
-jfieldID GetLoopLoopField()
-{
-    return GetStaticFieldId(GetLoopClass(),
-                            "LOOP",
-                            "Lapp/rive/runtime/kotlin/core/Loop;");
-}
-jfieldID GetPingPongLoopField()
-{
-    return GetStaticFieldId(GetLoopClass(),
-                            "PINGPONG",
-                            "Lapp/rive/runtime/kotlin/core/Loop;");
-}
-
-jclass GetAdvanceResultClass()
-{
-    return GetClass("app/rive/runtime/kotlin/core/AdvanceResult");
-}
-
-jfieldID GetAdvanceResultAdvancedField()
-{
-    return GetStaticFieldId(GetAdvanceResultClass(),
-                            "ADVANCED",
-                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
-}
-jfieldID GetAdvanceResultOneShotField()
-{
-    return GetStaticFieldId(GetAdvanceResultClass(),
-                            "ONESHOT",
-                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
-}
-jfieldID GetAdvanceResultLoopField()
-{
-    return GetStaticFieldId(GetAdvanceResultClass(),
-                            "LOOP",
-                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
-}
-jfieldID GetAdvanceResultPingPongField()
-{
-    return GetStaticFieldId(GetAdvanceResultClass(),
-                            "PINGPONG",
-                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
-}
-jfieldID GetAdvanceResultNoneField()
-{
-    return GetStaticFieldId(GetAdvanceResultClass(),
-                            "NONE",
-                            "Lapp/rive/runtime/kotlin/core/AdvanceResult;");
-}
-
-jclass GetRiveEventReportClass()
-{
-    return GetClass("app/rive/runtime/kotlin/core/RiveEventReport");
-}
-jmethodID GetRiveEventReportConstructorId()
-{
-    return GetMethodId(GetRiveEventReportClass(), "<init>", "(JF)V");
 }
 
 jclass GetPointerFClass() { return GetClass("android/graphics/PointF"); }

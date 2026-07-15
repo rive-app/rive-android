@@ -13,7 +13,7 @@ extern "C"
     using namespace rive_android;
 
     JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppRegisterFallbackFont(
+    Java_app_rive_fonts_NativeFontHelper_cppRegisterFallbackFont(
         JNIEnv*,
         jobject,
         jbyteArray fontByteArray)
@@ -22,7 +22,7 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_fonts_FontFallbackStrategy_00024Companion_cppResetFontCache(
+    Java_app_rive_fonts_FontFallbackStrategy_00024Companion_cppResetFontCache(
         JNIEnv*,
         jobject)
     {

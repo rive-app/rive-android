@@ -39,15 +39,9 @@ extern JavaVM* g_JVM;
 extern long g_sdkVersion;
 void SetSDKVersion();
 void LogReferenceTables();
-jlong Import(uint8_t*,
-             jint,
-             RendererType = RendererType::Rive,
-             rive::FileAssetLoader* = nullptr);
 
 rive::Fit GetFit(uint8_t ordinal);
-rive::Fit GetFit(JNIEnv*, jobject);
 rive::Alignment GetAlignment(uint8_t ordinal);
-rive::Alignment GetAlignment(JNIEnv*, jobject);
 rive::Factory* GetFactory(RendererType);
 JNIEnv* GetJNIEnv();
 

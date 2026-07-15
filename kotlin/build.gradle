@@ -145,7 +145,10 @@ allOpen {
     annotation("androidx.annotation.OpenForTesting")
 }
 
-// Clean up native build and generated files
+// Clean up native build files. Premake output and fetched dependencies live
+// under the Gradle build directory (see CMakeLists.txt), so the default clean
+// already covers them. The .cxx dir is AGP's CMake workspace; the deletions of
+// src/main/cpp/{out,dependencies} cover checkouts predating their relocation.
 tasks.named('clean', Delete) {
     delete(
             layout.projectDirectory.dir('.cxx'),
