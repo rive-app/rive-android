@@ -16,8 +16,8 @@ import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.core.RiveWorker
-import app.rive.runtime.kotlin.core.Rive
-import app.rive.runtime.kotlin.test.R
+import app.rive.core.RiveNative
+import app.rive.test.R
 import kotlinx.coroutines.launch
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
@@ -53,7 +53,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
         super.onCreate(savedInstanceState)
 
         RiveLog.logger = RiveLog.LogcatLogger()
-        Rive.init(this)
+        RiveNative.ensureLoaded()
 
         lifecycleScope.launch {
             val riveWorker = RiveWorker().also { worker ->

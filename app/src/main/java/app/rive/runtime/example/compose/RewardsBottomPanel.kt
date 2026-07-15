@@ -17,13 +17,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.example.ComposeDataBindingActivity
-import app.rive.runtime.example.LegacyDataBindingActivity
 import app.rive.runtime.example.WinKind
 import java.util.Locale
 
 /**
- * A shared bottom sheet for options to configure both [ComposeDataBindingActivity] and
- * [LegacyDataBindingActivity].
+ * A bottom sheet for options to configure [ComposeDataBindingActivity].
  *
  * @param lives The current number of lives.
  * @param energy The current energy level.

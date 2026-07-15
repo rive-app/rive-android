@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.core.CommandQueue
-import app.rive.runtime.kotlin.test.R
+import app.rive.test.R
 import org.junit.Rule
 import org.junit.runner.RunWith
 import kotlin.test.BeforeTest

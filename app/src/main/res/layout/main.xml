@@ -35,15 +35,6 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
-                android:id="@+id/go_legacy_data_binding"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Legacy Data Binding"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
                 android:id="@+id/go_compose_data_binding_artboards"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
@@ -116,300 +107,30 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
-                android:id="@+id/go_simple"
+                android:id="@+id/go_scripting"
                 style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
-                android:text="Simple"
+                android:text="Scripting"
                 android:textColor="@color/textColorPrimary" />
 
             <Button
-                android:id="@+id/go_events"
+                android:id="@+id/go_rive_snapshot"
                 style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
-                android:text="Events"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_interactive_samples"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Interactive Samples"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_multiple_artboards"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Multiple Artboards"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_android_player"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Android Player"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_loop_mode"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Loop mode"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_layout"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Layout"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_fragment"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Fragment"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_low_level"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Low Level Renderer"
+                android:text="Rive Snapshot"
                 android:textColor="@color/textColorPrimary" />
 
             <Button
                 android:id="@+id/go_hardware_bitmap_canvas"
                 style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
                 android:text="Hardware Bitmap Canvas"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_http"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="HTTP"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_simple_state_machine"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="State Machine"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_nested_input"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Nested Inputs"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_nested_text_run"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Nested Text Runs"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_button"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Button Presses"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_blend"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Blend Modes"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_metrics"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Metrics"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_assets"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Assets"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_recycler"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Recycler"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_viewpager"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="ViewPager"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_meshes"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Meshes"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_viewstub"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="ViewStub"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_compose_legacy"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Compose (Legacy)"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_frame"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Frame"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_dynamic_text"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Dynamic Text"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_assets_loader"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Asset Loader"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_stress_test"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Stress Test"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_rive_font_load_simple"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Rive Font Load"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_audio_simple"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Audio Assets"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_audio_external"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="External Audio Assets"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_font_fallback"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Font Fallback"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_touch_passthrough"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Touch Passthrough"
-                android:textColor="@color/textColorPrimary" />
-
-            <Button
-                android:id="@+id/go_image_binding"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:text="Image Binding"
                 android:textColor="@color/textColorPrimary" />
 
         </LinearLayout>

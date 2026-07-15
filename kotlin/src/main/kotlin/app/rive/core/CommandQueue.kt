@@ -25,8 +25,6 @@ import app.rive.ViewModelSource
 import app.rive.effectiveRenderBackend
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.runtime.kotlin.core.File.Enum
-import app.rive.runtime.kotlin.core.ViewModel
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
@@ -276,11 +274,14 @@ class CommandQueue internal constructor(
             )
         }
 
-        private fun createRenderContext(renderBackend: RenderBackend): RenderContext =
-            when (renderBackend) {
+        private fun createRenderContext(renderBackend: RenderBackend): RenderContext {
+            // First native touchpoint on the real (non-test) construction path.
+            RiveNative.ensureLoaded()
+            return when (renderBackend) {
                 RenderBackend.Vulkan -> RenderContextVulkan()
                 RenderBackend.OpenGL -> RenderContextGL()
             }
+        }
 
         /**
          * Creates the native command queue and transfers [renderContext] ownership on success.
@@ -1012,7 +1013,7 @@ class CommandQueue internal constructor(
     suspend fun getViewModelProperties(
         fileHandle: FileHandle,
         viewModelName: String
-    ): List<ViewModel.Property> = suspendNativeRequest { requestID ->
+    ): List<ViewModelProperty> = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelProperties(
             cppPointer.pointer,
             requestID,
@@ -1033,9 +1034,9 @@ class CommandQueue internal constructor(
     @JvmName("onViewModelPropertiesListed")
     internal fun onViewModelPropertiesListed(
         requestID: Long,
-        properties: List<ViewModel.Property>
+        properties: List<ViewModelProperty>
     ) {
-        (pendingContinuations.remove(requestID) as? Continuation<List<ViewModel.Property>>)?.resume(
+        (pendingContinuations.remove(requestID) as? Continuation<List<ViewModelProperty>>)?.resume(
             properties
         )
     }
@@ -1050,7 +1051,7 @@ class CommandQueue internal constructor(
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
-    suspend fun getEnums(fileHandle: FileHandle): List<Enum> = suspendNativeRequest { requestID ->
+    suspend fun getEnums(fileHandle: FileHandle): List<FileEnum> = suspendNativeRequest { requestID ->
         bridge.cppGetEnums(
             cppPointer.pointer,
             requestID,
@@ -1068,8 +1069,8 @@ class CommandQueue internal constructor(
     @Keep // Called from JNI
     @Suppress("Unused")
     @JvmName("onEnumsListed")
-    internal fun onEnumsListed(requestID: Long, enums: List<Enum>) {
-        (pendingContinuations.remove(requestID) as? Continuation<List<Enum>>)?.resume(enums)
+    internal fun onEnumsListed(requestID: Long, enums: List<FileEnum>) {
+        (pendingContinuations.remove(requestID) as? Continuation<List<FileEnum>>)?.resume(enums)
     }
 
     /**
@@ -1879,7 +1880,7 @@ class CommandQueue internal constructor(
     fun subscribeToProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        propertyType: ViewModel.PropertyDataType
+        propertyType: ViewModelPropertyDataType
     ) = bridge.cppSubscribeToProperty(
         cppPointer.pointer,
         viewModelInstanceHandle.handle,

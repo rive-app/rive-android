@@ -11,7 +11,7 @@ import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.Fit
 import app.rive.RiveAndroidTest
-import app.rive.runtime.kotlin.test.R
+import app.rive.test.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking

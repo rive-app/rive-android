@@ -9,7 +9,7 @@ import app.rive.core.FileHandle
 import app.rive.core.RivePropertyUpdate
 import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
-import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
+import app.rive.core.ViewModelPropertyDataType
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -120,7 +120,7 @@ class ViewModelInstance internal constructor(
         cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
         updateFlow: SharedFlow<RivePropertyUpdate<T>>,
-        propertyType: PropertyDataType
+        propertyType: ViewModelPropertyDataType
     ): Flow<T> = cache.getOrPut(propertyPath) {
         updateFlow
             // Ensure we’re subscribed, then kick off fetching latest value
@@ -160,7 +160,7 @@ class ViewModelInstance internal constructor(
             numberFlows,
             riveWorker::getNumberProperty,
             riveWorker.numberPropertyFlow,
-            PropertyDataType.NUMBER
+            ViewModelPropertyDataType.NUMBER
         )
 
     /**
@@ -179,7 +179,7 @@ class ViewModelInstance internal constructor(
             stringFlows,
             riveWorker::getStringProperty,
             riveWorker.stringPropertyFlow,
-            PropertyDataType.STRING
+            ViewModelPropertyDataType.STRING
         )
 
     /**
@@ -198,7 +198,7 @@ class ViewModelInstance internal constructor(
             booleanFlows,
             riveWorker::getBooleanProperty,
             riveWorker.booleanPropertyFlow,
-            PropertyDataType.BOOLEAN
+            ViewModelPropertyDataType.BOOLEAN
         )
 
     /**
@@ -218,7 +218,7 @@ class ViewModelInstance internal constructor(
             enumFlows,
             riveWorker::getEnumProperty,
             riveWorker.enumPropertyFlow,
-            PropertyDataType.ENUM
+            ViewModelPropertyDataType.ENUM
         )
 
     /**
@@ -238,7 +238,7 @@ class ViewModelInstance internal constructor(
             colorFlows,
             riveWorker::getColorProperty,
             riveWorker.colorPropertyFlow,
-            PropertyDataType.COLOR
+            ViewModelPropertyDataType.COLOR
         )
 
     /**
@@ -258,7 +258,7 @@ class ViewModelInstance internal constructor(
                 riveWorker.subscribeToProperty(
                     instanceHandle,
                     propertyPath,
-                    PropertyDataType.TRIGGER
+                    ViewModelPropertyDataType.TRIGGER
                 )
             }
             .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }

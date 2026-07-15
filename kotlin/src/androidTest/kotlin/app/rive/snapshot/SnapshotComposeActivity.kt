@@ -24,8 +24,8 @@ import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberStateMachine
 import app.rive.rememberViewModelInstance
-import app.rive.runtime.kotlin.core.Rive
-import app.rive.runtime.kotlin.test.R
+import app.rive.core.RiveNative
+import app.rive.test.R
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
@@ -60,7 +60,7 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         enableEdgeToEdge()
 
         RiveLog.logger = RiveLog.LogcatLogger()
-        Rive.init(this)
+        RiveNative.ensureLoaded()
 
         val config = SnapshotActivityConfig.fromIntent(intent)
 

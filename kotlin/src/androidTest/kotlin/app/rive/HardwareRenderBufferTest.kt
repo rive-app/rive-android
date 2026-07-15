@@ -8,7 +8,7 @@ import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
 import app.rive.core.withDefaultRiveResources
 import app.rive.core.withPolling
-import app.rive.runtime.kotlin.test.R
+import app.rive.test.R
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first

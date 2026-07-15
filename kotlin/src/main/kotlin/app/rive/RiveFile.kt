@@ -11,8 +11,8 @@ import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
-import app.rive.runtime.kotlin.core.File.Enum
-import app.rive.runtime.kotlin.core.ViewModel.Property
+import app.rive.core.FileEnum
+import app.rive.core.ViewModelProperty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
@@ -129,9 +129,9 @@ class RiveFile internal constructor(
     /**
      * @param viewModel The name of the view model to get properties for.
      * @return A list of all properties available on the given view model.
-     * @see [Property]
+     * @see [ViewModelProperty]
      */
-    suspend fun getViewModelProperties(viewModel: String): List<Property> =
+    suspend fun getViewModelProperties(viewModel: String): List<ViewModelProperty> =
         synchronized(propertiesCache) {
             propertiesCache.getOrPut(viewModel) {
                 SuspendLazy {
@@ -140,13 +140,13 @@ class RiveFile internal constructor(
             }
         }.await()
 
-    private val propertiesCache = mutableMapOf<String, SuspendLazy<List<Property>>>()
+    private val propertiesCache = mutableMapOf<String, SuspendLazy<List<ViewModelProperty>>>()
 
     /**
      * @return A list of all enums available on this file.
-     * @see [Enum]
+     * @see [FileEnum]
      */
-    suspend fun getEnums(): List<Enum> = enumsCache.await()
+    suspend fun getEnums(): List<FileEnum> = enumsCache.await()
     private val enumsCache = SuspendLazy {
         riveWorker.getEnums(fileHandle)
     }

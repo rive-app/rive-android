@@ -12,7 +12,7 @@ plugins {
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
-    namespace = "app.rive.runtime.kotlin"
+    namespace = "app.rive"
 
     buildFeatures {
         compose = true
@@ -107,7 +107,6 @@ dependencies {
     def composeBom = platform(libs.androidx.compose.bom)
 
     implementation(composeBom)
-    implementation(libs.android.volley)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.android)
@@ -115,9 +114,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.startup.runtime)
-    // Required until minSdk >= 23
-    // https://github.com/KeepSafe/ReLinker?tab=readme-ov-file#who-needs-relinker
-    implementation(libs.relinker)
 
     // Used by Compose previews and UI tests
     debugImplementation(composeBom)

@@ -13,7 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import app.rive.core.withDefaultRiveResources
 import app.rive.core.withPolling
-import app.rive.runtime.kotlin.test.R
+import app.rive.test.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin

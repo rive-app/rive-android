@@ -2,9 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -21,7 +18,7 @@
             android:exported="false"
             tools:node="merge">
             <meta-data
-                android:name="app.rive.runtime.kotlin.RiveInitializer"
+                android:name="app.rive.RiveInitializer"
                 android:value="androidx.startup" />
         </provider>
 
@@ -69,130 +66,10 @@
             android:name=".ScriptingActivity"
             android:exported="true" />
         <activity
-            android:name=".LegacyScriptingActivity"
-            android:exported="true" />
-        <activity
-            android:name=".RiveViewActivity"
-            android:exported="true" />
-        <activity
             android:name=".RiveSnapshotActivity"
             android:exported="true" />
         <activity
-            android:name=".LegacyDataBindingActivity"
-            android:exported="true" />
-        <activity
-            android:name=".BindArtboardWithDataActivity"
-            android:exported="true" />
-        <activity
-            android:name=".SimpleActivity"
-            android:exported="true" />
-        <activity
-            android:name=".EventsActivity"
-            android:exported="true" />
-        <activity
-            android:name=".InteractiveSamplesActivity"
-            android:exported="true" />
-        <activity
-            android:name=".MultiTouchActivity"
-            android:exported="true" />
-        <activity
-            android:name=".MultipleArtboardsActivity"
-            android:exported="true" />
-        <activity
-            android:name=".AndroidPlayerActivity"
-            android:exported="true" />
-        <activity
-            android:name=".LoopModeActivity"
-            android:exported="true" />
-        <activity
-            android:name=".LayoutActivity"
-            android:exported="true" />
-        <activity
-            android:name=".RiveFragmentActivity"
-            android:exported="true" />
-        <activity
-            android:name=".LowLevelActivity"
-            android:exported="true" />
-        <activity
             android:name=".HardwareBitmapCanvasActivity"
-            android:exported="true" />
-        <activity
-            android:name=".SimpleStateMachineActivity"
-            android:exported="true" />
-        <activity
-            android:name=".NestedInputActivity"
-            android:exported="true" />
-        <activity
-            android:name=".NestedTextRunActivity"
-            android:exported="true" />
-        <activity
-            android:name=".HttpActivity"
-            android:exported="true" />
-        <activity
-            android:name=".ButtonActivity"
-            android:exported="true" />
-        <activity
-            android:name=".BlendActivity"
-            android:exported="true" />
-        <activity
-            android:name=".MetricsActivity"
-            android:exported="true" />
-        <activity
-            android:name=".AssetsActivity"
-            android:exported="true" />
-        <activity
-            android:name=".RecyclerActivity"
-            android:exported="true" />
-        <activity
-            android:name=".MeshesActivity"
-            android:exported="true" />
-        <activity
-            android:name=".ViewStubActivity"
-            android:exported="true" />
-        <activity
-            android:name=".ViewPagerActivity"
-            android:exported="true" />
-        <activity
-            android:name=".LegacyComposeActivity"
-            android:exported="true"
-            android:label="@string/title_activity_compose"
-            android:theme="@style/AppTheme" />
-        <activity
-            android:name=".FrameActivity"
-            android:exported="true" />
-        <activity
-            android:name=".DynamicTextActivity"
-            android:exported="true" />
-        <activity
-            android:name=".AssetLoaderActivity"
-            android:exported="true" />
-        <activity
-            android:name=".StressTestActivity"
-            android:exported="true" />
-        <activity
-            android:name=".FontLoadActivity"
-            android:exported="true" />
-        <activity
-            android:name=".AudioAssetActivity"
-            android:exported="true" />
-        <activity
-            android:name=".AudioExternalAssetActivity"
-            android:exported="true" />
-        <activity
-            android:name=".FontFallback"
-            android:exported="true" />
-        <activity
-            android:name=".TouchPassthroughActivity"
-            android:exported="true" />
-        <activity
-            android:name=".ImageBindingActivity"
-            android:exported="true" />
-        <!-- For testing 👇 -->
-        <activity
-            android:name=".SingleActivity"
-            android:exported="true" />
-        <activity
-            android:name=".EmptyActivity"
             android:exported="true" />
     </application>
 

@@ -39,14 +39,6 @@ android {
             profileable true
             signingConfig = signingConfigs.debug
         }
-        preview {
-            debuggable true
-            minifyEnabled false
-            shrinkResources = false
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-            getIsDefault().set(true)
-            signingConfig = signingConfigs.debug
-        }
     }
 
     def javaVersion = JavaVersion.VERSION_11
@@ -59,7 +51,6 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
         compose = true
     }
     packagingOptions {
@@ -79,24 +70,15 @@ dependencies {
     def composeBom = platform(libs.androidx.compose.bom)
 
     implementation(composeBom)
-    implementation(libs.android.volley)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.ui.tooling.preview.android)
-    implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.startup.runtime)
     implementation(libs.google.material)
 
-    debugImplementation project(path: ":kotlin")
-    benchmarkImplementation project(path: ":kotlin")
-    releaseImplementation project(path: ":kotlin")
-    previewImplementation(libs.rive.android.preview)
-
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation project(path: ":kotlin")
+    implementation project(path: ":kotlin")
 
     debugImplementation(libs.leakcanary)
 }

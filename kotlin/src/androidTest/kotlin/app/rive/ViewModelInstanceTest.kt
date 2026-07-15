@@ -2,7 +2,7 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.core.withPolling
-import app.rive.runtime.kotlin.test.R
+import app.rive.test.R
 import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
 import kotlin.test.Test
