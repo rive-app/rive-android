@@ -20,5 +20,4 @@ dependencyResolutionManagement {
 rootProject.name = "rive-android"
 include ':kotlin'
 include ':app'
-include ':compatibilitytest'
 include ':benchmark'
