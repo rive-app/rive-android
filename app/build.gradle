@@ -81,6 +81,8 @@ dependencies {
     implementation project(path: ":kotlin")
     // Desktop natives so Android Studio previews can really render Rive
     debugImplementation project(path: ":rive-preview")
+    // Hosts @Preview composables in the Studio preview pane (ComposeViewAdapter)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
     debugImplementation(libs.leakcanary)
 }

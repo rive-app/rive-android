@@ -64,14 +64,25 @@ object RiveNative {
     }
 
     private fun loadDesktopLibraryForPreviews() {
-        val dir = DesktopNatives.nativeDir()
-        val riveJvm = java.io.File(dir, "librive-jvm.dylib")
-        System.load(riveJvm.absolutePath)
-        val vulkan = java.io.File(dir, "libMoltenVK.dylib")
-        if (vulkan.isFile) {
-            cppSetVulkanLibraryPath(vulkan.absolutePath)
+        // Studio's render sandbox (RenderSecurityManager) denies System.load — and can deny
+        // filesystem writes — on threads that belong to the render thread group. The JVM common
+        // pool's workers predate the render and sit outside that group, so both the staging
+        // copy and the load run there. JNI still binds the library to this class's classloader
+        // (resolution follows the calling class, not the thread).
+        try {
+            java.util.concurrent.CompletableFuture.runAsync {
+                val dir = DesktopNatives.nativeDir()
+                val riveJvm = java.io.File(dir, "librive-jvm.dylib")
+                val vulkan = java.io.File(dir, "libMoltenVK.dylib")
+                System.load(riveJvm.absolutePath)
+                if (vulkan.isFile) {
+                    cppSetVulkanLibraryPath(vulkan.absolutePath)
+                }
+                initializeCppEnvironment()
+            }.get(15, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (e: java.util.concurrent.ExecutionException) {
+            throw e.cause ?: e
         }
-        initializeCppEnvironment()
     }
 
     /** Points the Vulkan bootstrap at the extracted MoltenVK (host JVM previews only). */

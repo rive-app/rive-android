@@ -1,7 +1,7 @@
 package app.rive
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -93,14 +93,16 @@ fun rememberRiveWorkerOrNull(
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
     val worker = remember(renderBackend) {
-        runCatching { createRiveWorker(renderBackend, tracingEnabled) }
-            .onFailure {
-                if (errorState.value == null) {
-                    errorState.value = it
-                }
-                RiveLog.e(RIVE_WORKER_TAG) { "Failed to create Rive worker: ${it.message}" }
-            }.getOrNull()
-    }
+        WorkerReleaseObserver(
+            runCatching { createRiveWorker(renderBackend, tracingEnabled) }
+                .onFailure {
+                    if (errorState.value == null) {
+                        errorState.value = it
+                    }
+                    RiveLog.e(RIVE_WORKER_TAG) { "Failed to create Rive worker: ${it.message}" }
+                }.getOrNull()
+        )
+    }.worker
 
     // Apply runtime tracing toggle changes without recreating the worker.
     LaunchedEffect(worker, tracingEnabled) {
@@ -139,16 +141,30 @@ fun rememberRiveWorkerOrNull(
         }
     }
 
-    /** Disposes the Rive worker when it falls out of scope. */
-    DisposableEffect(worker) {
-        if (worker == null) return@DisposableEffect onDispose {}
-
-        onDispose {
-            worker.release(RIVE_WORKER_TAG, "Compose dispose")
-        }
-    }
-
     return worker
+}
+
+/**
+ * Releases the worker when the composition forgets it — including *abandoned* compositions
+ * (e.g. discarded Android Studio preview renders), which never run `DisposableEffect`
+ * disposal. A leaked worker keeps its command-server thread alive, which in previews pins the
+ * whole preview classloader in memory.
+ */
+private class WorkerReleaseObserver(val worker: RiveWorker?) : RememberObserver {
+    private var released = false
+
+    override fun onRemembered() {}
+
+    override fun onForgotten() = releaseOnce("Compose dispose")
+
+    override fun onAbandoned() = releaseOnce("Composition abandoned")
+
+    private fun releaseOnce(reason: String) {
+        val activeWorker = worker ?: return
+        if (released || activeWorker.isDisposed) return
+        released = true
+        activeWorker.release(RIVE_WORKER_TAG, reason)
+    }
 }
 
 private fun createRiveWorker(
