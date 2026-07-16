@@ -2,7 +2,9 @@
 
 #ifdef RIVE_VULKAN
 
+#ifdef __ANDROID__
 #include <android/native_window.h>
+#endif
 #include <utility>
 
 #include "rive_vk_bootstrap/vulkan_device.hpp"
@@ -31,7 +33,9 @@ VulkanWindowSurface::VulkanWindowSurface(
     destroySurfaceKHR(destroySurfaceKHR),
     state(std::in_place_type<VulkanPendingWindowSurface>)
 {
+#ifdef __ANDROID__
     ANativeWindow_acquire(this->nativeWindow);
+#endif
 }
 
 VulkanWindowSurface::~VulkanWindowSurface()
@@ -44,7 +48,9 @@ VulkanWindowSurface::~VulkanWindowSurface()
     }
     if (nativeWindow != nullptr)
     {
+#ifdef __ANDROID__
         ANativeWindow_release(nativeWindow);
+#endif
     }
 }
 

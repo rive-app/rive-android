@@ -10,6 +10,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,6 +46,10 @@ private class AndroidSurfacePresenter(
 /**
  * Android [RivePlatformSurface]: hosts a [TextureView] whose [SurfaceTexture] backs the
  * [RiveSurface] that Rive renders into.
+ *
+ * In [LocalInspectionMode] (Android Studio previews, layoutlib test runners) there is no real
+ * surface or Android `.so`; frames render offscreen through the desktop library and blit into
+ * the composition instead.
  */
 @Composable
 internal actual fun RivePlatformSurface(
@@ -51,6 +60,11 @@ internal actual fun RivePlatformSurface(
     onFrameCaptured: ((ImageBitmap) -> Unit)?,
     modifier: Modifier,
 ) {
+    if (LocalInspectionMode.current) {
+        RiveInspectionSurface(worker, onPresenterChanged, onFrameCaptured, modifier)
+        return
+    }
+
     var surface by remember { mutableStateOf<RiveSurface?>(null) }
 
     /** Clean up for the surface. */
@@ -141,3 +155,105 @@ internal actual fun RivePlatformSurface(
 }
 
 internal actual fun monotonicTimeNanos(): Long = System.nanoTime()
+
+/**
+ * [SurfacePresenter] for previews: draws to an offscreen buffer through the desktop library and
+ * converts the RGBA readback into an Android [android.graphics.Bitmap]-backed [ImageBitmap].
+ */
+private class InspectionSurfacePresenter(
+    private val worker: RiveWorker,
+    override val riveSurface: RiveSurface,
+    private val onFrame: (ImageBitmap) -> Unit,
+) : SurfacePresenter {
+    override val width: Int get() = riveSurface.width
+    override val height: Int get() = riveSurface.height
+
+    private val pixels = ByteArray(width * height * 4)
+    private val argb = IntArray(width * height)
+
+    override fun draw(
+        artboardHandle: ArtboardHandle,
+        stateMachineHandle: StateMachineHandle,
+        fit: Fit,
+        clearColor: Int,
+    ) {
+        if (riveSurface.closed) return
+        worker.drawToBuffer(
+            artboardHandle,
+            stateMachineHandle,
+            riveSurface,
+            pixels,
+            width,
+            height,
+            fit,
+            clearColor
+        )
+        var i = 0
+        var pixel = 0
+        while (i < pixels.size) {
+            val r = pixels[i].toInt() and 0xFF
+            val g = pixels[i + 1].toInt() and 0xFF
+            val b = pixels[i + 2].toInt() and 0xFF
+            val a = pixels[i + 3].toInt() and 0xFF
+            argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
+            i += 4
+        }
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            argb,
+            width,
+            height,
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        onFrame(bitmap.asImageBitmap())
+    }
+}
+
+@Composable
+private fun RiveInspectionSurface(
+    worker: RiveWorker,
+    onPresenterChanged: (SurfacePresenter?) -> Unit,
+    onFrameCaptured: ((ImageBitmap) -> Unit)?,
+    modifier: Modifier,
+) {
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    var frame by remember { mutableStateOf<ImageBitmap?>(null) }
+    val currentOnPresenterChanged by rememberUpdatedState(onPresenterChanged)
+    val currentOnFrameCaptured by rememberUpdatedState(onFrameCaptured)
+
+    // Image surfaces are fixed-size: recreate the surface (and presenter) per size.
+    val surface = remember(worker, size) {
+        if (size.width <= 0 || size.height <= 0) null
+        else worker.createImageSurface(size.width, size.height)
+    }
+
+    DisposableEffect(surface) {
+        if (surface == null) {
+            currentOnPresenterChanged(null)
+            return@DisposableEffect onDispose {}
+        }
+        var frameCaptureSent = false
+        val presenter = InspectionSurfacePresenter(worker, surface) { newFrame ->
+            frame = newFrame
+            if (!frameCaptureSent) {
+                frameCaptureSent = true
+                currentOnFrameCaptured?.invoke(newFrame)
+            }
+        }
+        currentOnPresenterChanged(presenter)
+        onDispose {
+            currentOnPresenterChanged(null)
+            surface.close()
+        }
+    }
+
+    Layout(
+        content = {},
+        modifier = modifier
+            .onSizeChanged { size = it }
+            .drawBehind {
+                frame?.let { drawImage(it) }
+            }
+    ) { _, constraints ->
+        layout(constraints.maxWidth, constraints.maxHeight) {}
+    }
+}

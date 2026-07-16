@@ -1,7 +1,9 @@
 #pragma once
 
-#include <android/log.h>
 #include <jni.h>
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 #include <sstream>
 #include <string>
 

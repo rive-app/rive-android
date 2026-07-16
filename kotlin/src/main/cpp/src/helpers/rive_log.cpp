@@ -1,6 +1,19 @@
 #include "helpers/rive_log.hpp"
 
+#ifdef __ANDROID__
 #include <android/log.h>
+#endif
+#ifndef __ANDROID__
+// Log level tokens mirroring android/log.h so shared logging code can use
+// the same identifiers off-Android.
+enum {
+    ANDROID_LOG_VERBOSE = 2,
+    ANDROID_LOG_DEBUG,
+    ANDROID_LOG_INFO,
+    ANDROID_LOG_WARN,
+    ANDROID_LOG_ERROR,
+};
+#endif
 #include <cstdio>
 #include <cstring>
 

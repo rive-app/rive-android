@@ -17,6 +17,9 @@ internal actual fun createPlatformBridge(): CommandQueueBridge {
 
 internal actual fun createPlatformRenderContext(renderBackend: RenderBackend): RenderContext {
     RiveNative.ensureLoaded()
+    // layoutlib previews render through the desktop library, which is Vulkan-only
+    // (EGL does not exist on the host JVM).
+    if (RiveNative.isHostJvm) return RenderContextVulkan()
     return when (renderBackend) {
         RenderBackend.Vulkan -> RenderContextVulkan()
         RenderBackend.OpenGL -> RenderContextGL()

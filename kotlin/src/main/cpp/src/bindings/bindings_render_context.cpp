@@ -1,10 +1,14 @@
+#include <jni.h>
+#ifdef __ANDROID__
 #include <EGL/egl.h>
 #include <android/native_window_jni.h>
-#include <jni.h>
+#endif
 
 #include "models/render_context.hpp"
 #include "models/render_surface.hpp"
+#ifdef __ANDROID__
 #include "models/render_surface_gl.hpp"
+#endif
 
 namespace rive_android
 {
@@ -29,6 +33,7 @@ template <typename SurfaceT> jlong surfaceToLong(SurfaceT* surface)
 
 extern "C"
 {
+#ifdef __ANDROID__
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_RenderContextGL_cppConstructor(JNIEnv*,
                                                       jobject,
@@ -61,6 +66,7 @@ extern "C"
                                 static_cast<uint32_t>(width),
                                 static_cast<uint32_t>(height)));
     }
+#endif // __ANDROID__
 
     JNIEXPORT void JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppDeleteSurface(JNIEnv*,
@@ -100,6 +106,7 @@ extern "C"
         delete renderContextVulkan;
     }
 
+#ifdef __ANDROID__
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_RiveSurfaceVulkan_cppCreateSurface(JNIEnv* env,
                                                           jclass,
@@ -128,6 +135,7 @@ extern "C"
         }
         return surfaceToLong(surface);
     }
+#endif // __ANDROID__
 
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_RiveSurfaceVulkanImage_cppCreateImageSurface(JNIEnv* env,

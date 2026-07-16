@@ -6,7 +6,15 @@
 #include <utility>
 #include <vector>
 
+#ifdef __ANDROID__
 #include "helpers/android_factories.hpp"
+#endif
+#ifndef __ANDROID__
+// EGL status codes double as generic startup codes in StartupResult; define
+// the two we use where EGL headers are unavailable.
+#define EGL_SUCCESS 0x3000
+#define EGL_BAD_ALLOC 0x3003
+#endif
 #include "helpers/conversions.hpp"
 #include "helpers/image_decode.hpp"
 #include "helpers/jni_exception_handler.hpp"
@@ -696,9 +704,16 @@ public:
             const auto THREAD_NAME = "Rive CmdServer";
             JNIEnv* env = nullptr;
             JavaVMAttachArgs args{.version = JNI_VERSION_1_6,
-                                  .name = THREAD_NAME,
+                                  .name = const_cast<char*>(THREAD_NAME),
                                   .group = nullptr};
+#ifdef __ANDROID__
             auto attachResult = g_JVM->AttachCurrentThread(&env, &args);
+#else
+            // The JDK declares the out-param as void** (Android uses JNIEnv**).
+            auto attachResult = g_JVM->AttachCurrentThread(
+                reinterpret_cast<void**>(&env),
+                &args);
+#endif
             RiveLogD(TAG_CQ, "Attached command server thread to JVM");
             if (attachResult != JNI_OK)
             {
@@ -728,7 +743,11 @@ public:
 
             RiveLogD(TAG_CQ, "Setting command server thread name");
             // Set the native thread name
+#ifdef __APPLE__
+            pthread_setname_np(THREAD_NAME);
+#else
             pthread_setname_np(pthread_self(), THREAD_NAME);
+#endif
             // Set the JVM thread name
             // Scope the JniResource objects to fall out of scope and delete
             // local refs before detaching the thread (which makes the JNIEnv

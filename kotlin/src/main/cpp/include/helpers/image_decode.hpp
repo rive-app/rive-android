@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef __ANDROID__
 #include <android/bitmap.h>
+#endif
 #include <cstdint>
 #include <jni.h>
 #include <vector>
@@ -30,6 +32,7 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     bool isPremultiplied,
     RenderContext* context = nullptr);
 
+#ifdef __ANDROID__
 /** Rive (GL) path: From RGBA bytes -> AndroidImage */
 rive::rcp<rive::RenderImage> renderImageFromRGBABytesRive(
     uint32_t width,
@@ -76,5 +79,6 @@ bool lockBitmapRGBA8888(JNIEnv* env,
                         jobject jBitmap,
                         AndroidBitmapInfo* info,
                         const uint32_t** pixels);
+#endif // __ANDROID__
 
 } // namespace rive_android

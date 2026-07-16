@@ -1,6 +1,8 @@
 #include <jni.h>
 
+#ifdef __ANDROID__
 #include "helpers/font_helper.hpp"
+#endif
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
@@ -46,8 +48,12 @@ extern "C"
         RiveLogD(TAG, "Initializing global class loader");
         InitJNIClassLoader(env, jObj);
 
+#ifdef __ANDROID__
+        // System font fallback enumeration is Android-only; other platforms
+        // rely on fonts embedded in the .riv or registered explicitly.
         RiveLogD(TAG, "Initializing fallback font global callback");
         rive::Font::gFallbackProc = FontHelper::FindFontFallback;
+#endif
     }
 
 #ifdef __cplusplus

@@ -27,6 +27,14 @@ object RiveNative {
     private const val TAG = "RiveNative"
     private const val RIVE_ANDROID = "rive-android"
 
+    /**
+     * Whether this Android-classpath code is running on a host JVM rather than ART — i.e. inside
+     * Android Studio's layoutlib preview (or a layoutlib-based test runner such as Paparazzi).
+     * There, the Android `.so` cannot load; the desktop library renders previews instead.
+     */
+    internal val isHostJvm: Boolean =
+        System.getProperty("java.vm.name")?.contains("Dalvik") != true
+
     @Volatile
     private var loaded = false
 
@@ -39,6 +47,11 @@ object RiveNative {
         if (loaded) return
         synchronized(this) {
             if (loaded) return
+            if (isHostJvm) {
+                loadDesktopLibraryForPreviews()
+                loaded = true
+                return
+            }
             try {
                 System.loadLibrary(RIVE_ANDROID)
             } catch (error: UnsatisfiedLinkError) {
@@ -49,6 +62,20 @@ object RiveNative {
             loaded = true
         }
     }
+
+    private fun loadDesktopLibraryForPreviews() {
+        val dir = DesktopNatives.nativeDir()
+        val riveJvm = java.io.File(dir, "librive-jvm.dylib")
+        System.load(riveJvm.absolutePath)
+        val vulkan = java.io.File(dir, "libMoltenVK.dylib")
+        if (vulkan.isFile) {
+            cppSetVulkanLibraryPath(vulkan.absolutePath)
+        }
+        initializeCppEnvironment()
+    }
+
+    /** Points the Vulkan bootstrap at the extracted MoltenVK (host JVM previews only). */
+    private external fun cppSetVulkanLibraryPath(path: String)
 
     /**
      * Initializes the JNI bindings.

@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef __ANDROID__
 #include <EGL/egl.h>
+#endif
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -157,6 +159,7 @@ public:
     std::unique_ptr<rive::gpu::RenderContext> riveContext;
 };
 
+#ifdef __ANDROID__
 /** Native RenderContext implementation for EGL/OpenGL ES. */
 struct RenderContextGL : RenderContext
 {
@@ -193,6 +196,7 @@ private:
      * We must have a valid binding for `MakeContext` to succeed. */
     EGLSurface pBuffer;
 };
+#endif // __ANDROID__
 
 #ifdef RIVE_VULKAN
 
@@ -205,9 +209,11 @@ struct RenderContextVulkan : RenderContext
     StartupResult initialize() override;
     void destroy() override;
 
+#ifdef __ANDROID__
     RenderSurfaceVulkan* createWindowSurface(ANativeWindow* nativeWindow,
                                              int width,
                                              int height);
+#endif
 
     static RenderSurfaceVulkan* createImageSurface(int width, int height);
 

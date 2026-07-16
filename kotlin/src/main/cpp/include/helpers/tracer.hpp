@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef __ANDROID__
 #include <android/api-level.h>
+#endif
 #include <dlfcn.h>
 
 #include "helpers/general.hpp"
@@ -40,6 +42,7 @@ inline const NoopTracer& noopTracer()
     return tracer;
 }
 
+#ifdef __ANDROID__
 /**
  * @brief Android tracing implementation backed by libandroid ATrace symbols.
  *
@@ -137,6 +140,11 @@ inline const Tracer& defaultTracer()
     static const Tracer tracer;
     return tracer;
 }
+#else
+// Platforms without ATrace get the no-op tracer under the same names.
+using Tracer = NoopTracer;
+inline const Tracer& defaultTracer() { return noopTracer(); }
+#endif // __ANDROID__
 
 /**
  * @brief RAII helper for virtual ("V") tracer dispatch that opens a trace

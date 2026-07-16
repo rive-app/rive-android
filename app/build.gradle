@@ -79,6 +79,8 @@ dependencies {
     implementation(libs.google.material)
 
     implementation project(path: ":kotlin")
+    // Desktop natives so Android Studio previews can really render Rive
+    debugImplementation project(path: ":rive-preview")
 
     debugImplementation(libs.leakcanary)
 }

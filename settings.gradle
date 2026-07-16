@@ -21,3 +21,5 @@ rootProject.name = "rive-android"
 include ':kotlin'
 include ':app'
 include ':benchmark'
+include ':rive-preview'
+include ':sample-desktop'

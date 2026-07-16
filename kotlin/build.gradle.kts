@@ -59,6 +59,13 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.ktx)
             implementation(libs.androidx.startup.runtime)
         }
+        jvmMain.dependencies {
+            // Provides Dispatchers.Main on the desktop JVM.
+            implementation(libs.kotlinx.coroutines.swing)
+        }
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+        }
         val androidUnitTest by getting {
             dependencies {
                 implementation(libs.kotest.assertions.core)
@@ -179,6 +186,55 @@ android {
 allOpen {
     // Allows mocking for classes without opening them for release builds
     annotation("androidx.annotation.OpenForTesting")
+}
+
+// ---- Desktop native library (librive-jvm.dylib) ------------------------------------------------
+// Builds the desktop JNI library through CMake (see src/desktopNative/cpp) and packages it,
+// together with MoltenVK, into the jvm target's resources so RiveNative can extract and load it.
+
+val hostArch = System.getProperty("os.arch").let {
+    if (it == "aarch64" || it == "arm64") "aarch64" else "x86_64"
+}
+val desktopCmakeDir = layout.buildDirectory.dir("rive-native-desktop/cmake")
+// Overridable for environments with different tool locations.
+val cmakeExecutable = (findProperty("rive.cmake") as String?)
+    ?: android.sdkDirectory.resolve("cmake/3.22.1/bin/cmake").absolutePath
+val ninjaExecutable = (findProperty("rive.ninja") as String?) ?: "/opt/homebrew/bin/ninja"
+val moltenVkPath = (findProperty("rive.moltenvk") as String?)
+    ?: "/opt/homebrew/lib/libMoltenVK.dylib"
+
+val buildDesktopNative by tasks.registering {
+    inputs.dir("src/desktopNative/cpp")
+    inputs.dir("src/main/cpp")
+    outputs.file(desktopCmakeDir.map { it.file("librive-jvm.dylib") })
+
+    doLast {
+        providers.exec {
+            commandLine(
+                cmakeExecutable,
+                "-S", file("src/desktopNative/cpp").absolutePath,
+                "-B", desktopCmakeDir.get().asFile.absolutePath,
+                "-GNinja",
+                "-DCMAKE_MAKE_PROGRAM=$ninjaExecutable",
+            )
+        }.result.get()
+        providers.exec {
+            commandLine(
+                cmakeExecutable,
+                "--build", desktopCmakeDir.get().asFile.absolutePath,
+            )
+        }.result.get()
+    }
+}
+
+tasks.named<ProcessResources>("jvmProcessResources") {
+    dependsOn(buildDesktopNative)
+    from(desktopCmakeDir.map { it.file("librive-jvm.dylib") }) {
+        into("rive-native/macos-$hostArch")
+    }
+    from(moltenVkPath) {
+        into("rive-native/macos-$hostArch")
+    }
 }
 
 // HTML output is published to api.rive.app/android/<version>/. Dokka emits a

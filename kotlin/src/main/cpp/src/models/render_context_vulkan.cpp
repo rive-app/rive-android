@@ -3,14 +3,18 @@
 #ifdef RIVE_VULKAN
 
 #include <algorithm>
+#ifdef __ANDROID__
 #include <android/native_window.h>
+#endif
 #include <cassert>
 #include <cstring>
 #include <memory>
 #include <utility>
 #include <variant>
 #include <vulkan/vulkan.h>
+#ifdef __ANDROID__
 #include <vulkan/vulkan_android.h>
+#endif
 
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
@@ -391,7 +395,11 @@ StartupResult RenderContextVulkan::initialize()
     RiveLogD(TAG_RC, "Creating Vulkan instance");
     const char* extensionNames[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
+#ifdef __ANDROID__
+        // Window surfaces only exist on Android; headless/image surfaces need
+        // no platform surface extension.
         VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+#endif
     };
     m_instance = VulkanInstance::Create(VulkanInstance::Options{
         .appName = "Rive Android Runtime",
@@ -469,6 +477,7 @@ void RenderContextVulkan::destroy()
     m_instance = nullptr;
 }
 
+#ifdef __ANDROID__
 RenderSurfaceVulkan* RenderContextVulkan::createWindowSurface(
     ANativeWindow* nativeWindow,
     int width,
@@ -509,6 +518,7 @@ RenderSurfaceVulkan* RenderContextVulkan::createWindowSurface(
 
     return surface.release();
 }
+#endif // __ANDROID__
 
 RenderSurfaceVulkan* RenderContextVulkan::createImageSurface(int width,
                                                              int height)
