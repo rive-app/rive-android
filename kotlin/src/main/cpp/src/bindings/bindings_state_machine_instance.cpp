@@ -2,6 +2,7 @@
 #include <string>
 
 #include "helpers/conversions.hpp"
+#include "helpers/jni_string.hpp"
 #include "jni_refs.hpp"
 #include "rive/animation/state_machine.hpp"
 #include "rive/animation/state_machine_instance.hpp"
@@ -113,8 +114,8 @@ extern "C"
     {
         auto stateMachineInstance =
             reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return env->NewStringUTF(
-            stateMachineInstance->stateMachine()->name().c_str());
+        return MakeJString(env, stateMachineInstance->stateMachine()->name())
+            .release();
     }
 
     JNIEXPORT jint JNICALL

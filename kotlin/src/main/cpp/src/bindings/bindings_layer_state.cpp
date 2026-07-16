@@ -1,4 +1,5 @@
 #include "helpers/general.hpp"
+#include "helpers/jni_string.hpp"
 #include "jni_refs.hpp"
 #include "rive/animation/animation_state.hpp"
 #include "rive/animation/any_state.hpp"
@@ -96,13 +97,15 @@ extern "C"
         auto animation = animationState->animation();
         if (animation == nullptr)
         {
-            return env->NewStringUTF("Unknown");
+            return rive_android::MakeJString(env, "Unknown").release();
         }
         else
         {
             // urgh this animation state is using forward declarations...
-            return env->NewStringUTF(
-                animationState->animation()->name().c_str());
+            return rive_android::MakeJString(
+                       env,
+                       animationState->animation()->name())
+                .release();
         }
     }
 

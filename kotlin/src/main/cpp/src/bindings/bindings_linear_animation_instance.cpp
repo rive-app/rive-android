@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include "helpers/general.hpp"
+#include "helpers/jni_string.hpp"
 #include "jni_refs.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/loop.hpp"
@@ -201,8 +202,8 @@ extern "C"
 
         auto animationInstance =
             reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return env->NewStringUTF(
-            animationInstance->animation()->name().c_str());
+        return MakeJString(env, animationInstance->animation()->name())
+            .release();
     }
 
     JNIEXPORT jint JNICALL

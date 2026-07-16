@@ -264,3 +264,14 @@ object NativeFontTestHelper {
     external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Int
     external fun cppCleanupFallbacks()
 }
+
+object NativeStringTestHelper {
+    /** Creates a Java string from a native UTF-8 literal containing an emoji. */
+    external fun cppMakeEmojiString(): String
+
+    /** Creates a Java string from a native UTF-8 string containing an embedded null. */
+    external fun cppMakeEmbeddedNullString(): String
+
+    /** Converts a Java string to native standard UTF-8 and back to a Java string. */
+    external fun cppRoundTripString(value: String): String
+}

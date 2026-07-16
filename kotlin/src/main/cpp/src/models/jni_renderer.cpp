@@ -4,6 +4,7 @@
 
 #include "helpers/jni_exception_handler.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 
 using namespace std::chrono_literals;

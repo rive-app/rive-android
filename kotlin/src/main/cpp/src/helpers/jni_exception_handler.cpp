@@ -2,6 +2,7 @@
 
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 
 namespace rive_android
@@ -39,9 +40,7 @@ namespace rive_android
     auto msgObj = (jstring)env->CallObjectMethod(throwable, midToString);
     if (msgObj != nullptr)
     {
-        const char* msgStr = env->GetStringUTFChars(msgObj, nullptr);
-        errorMsg << "\n" << msgStr;
-        env->ReleaseStringUTFChars(msgObj, msgStr);
+        errorMsg << "\n" << JStringToString(env, msgObj);
         env->DeleteLocalRef(msgObj);
     }
 
@@ -83,9 +82,7 @@ namespace rive_android
         if (frameString.get())
         {
             auto toJString = reinterpret_cast<jstring>(frameString.get());
-            const char* frameStr = env->GetStringUTFChars(toJString, nullptr);
-            errorMsg << "\n    " << frameStr;
-            env->ReleaseStringUTFChars(toJString, frameStr);
+            errorMsg << "\n    " << JStringToString(env, toJString);
         }
     }
 }

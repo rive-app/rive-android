@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "helpers/conversions.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "rive/bindable_artboard.hpp"
 #include "rive/file.hpp"
 #include "rive/refcnt.hpp"
@@ -34,7 +34,7 @@ extern "C"
                                                         jlong ref)
     {
         auto vm = reinterpret_cast<rive::ViewModelRuntime*>(ref);
-        return env->NewStringUTF(vm->name().c_str());
+        return MakeJString(env, vm->name()).release();
     }
 
     JNIEXPORT jint JNICALL
@@ -167,7 +167,7 @@ extern "C"
                                                                 jlong ref)
     {
         auto vm = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
-        return env->NewStringUTF(vm->name().c_str());
+        return MakeJString(env, vm->name()).release();
     }
 
     JNIEXPORT jlong JNICALL
@@ -335,7 +335,7 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceValueRuntime*>(ref);
-        return env->NewStringUTF(property->name().c_str());
+        return MakeJString(env, property->name()).release();
     }
 
     JNIEXPORT jboolean JNICALL
@@ -390,7 +390,7 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceStringRuntime*>(ref);
-        return env->NewStringUTF(property->value().c_str());
+        return MakeJString(env, property->value()).release();
     }
 
     JNIEXPORT void JNICALL
@@ -460,7 +460,7 @@ extern "C"
     {
         auto property =
             reinterpret_cast<rive::ViewModelInstanceEnumRuntime*>(ref);
-        return env->NewStringUTF(property->value().c_str());
+        return MakeJString(env, property->value()).release();
     }
 
     JNIEXPORT void JNICALL

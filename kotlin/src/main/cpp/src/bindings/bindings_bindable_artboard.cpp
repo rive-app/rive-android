@@ -1,9 +1,12 @@
 #include <jni.h>
 
+#include "helpers/jni_string.hpp"
 #include "rive/bindable_artboard.hpp"
 
 extern "C"
 {
+    using namespace rive_android;
+
     JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_core_BindableArtboard_cppDelete(JNIEnv*,
                                                                  jobject,
@@ -22,6 +25,6 @@ extern "C"
     {
         auto bindableArtboard = reinterpret_cast<rive::BindableArtboard*>(ref);
         auto name = bindableArtboard->artboard()->name();
-        return env->NewStringUTF(name.c_str());
+        return MakeJString(env, name).release();
     }
 }

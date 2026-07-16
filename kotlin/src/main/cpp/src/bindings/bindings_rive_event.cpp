@@ -6,6 +6,7 @@
 
 #include "helpers/general.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/jni_string.hpp"
 #include "jni_refs.hpp"
 #include "rive/custom_property_boolean.hpp"
 #include "rive/custom_property_number.hpp"
@@ -57,7 +58,7 @@ extern "C"
             {
                 if (!child->name().empty())
                 {
-                    jstring jKey = env->NewStringUTF(child->name().c_str());
+                    auto jKey = MakeJString(env, child->name());
                     switch (child->coreType())
                     {
                         case rive::CustomPropertyBoolean::typeKey:
@@ -73,7 +74,7 @@ extern "C"
                                 env,
                                 propertiesObject,
                                 putMethod,
-                                jKey,
+                                jKey.get(),
                                 booleanValue);
 
                             env->DeleteLocalRef(booleanValue);
@@ -81,19 +82,16 @@ extern "C"
                         }
                         case rive::CustomPropertyString::typeKey:
                         {
-
-                            jstring jValueString = env->NewStringUTF(
+                            auto jValueString = MakeJString(
+                                env,
                                 child->as<rive::CustomPropertyString>()
-                                    ->propertyValue()
-                                    .c_str());
+                                    ->propertyValue());
                             JNIExceptionHandler::CallObjectMethod(
                                 env,
                                 propertiesObject,
                                 putMethod,
-                                jKey,
-                                jValueString);
-
-                            env->DeleteLocalRef(jValueString);
+                                jKey.get(),
+                                jValueString.get());
                             break;
                         }
                         case rive::CustomPropertyNumber::typeKey:
@@ -110,15 +108,13 @@ extern "C"
                                 env,
                                 propertiesObject,
                                 putMethod,
-                                jKey,
+                                jKey.get(),
                                 floatValue);
 
                             env->DeleteLocalRef(floatValue);
                             break;
                         }
                     }
-
-                    env->DeleteLocalRef(jKey);
                 }
             }
         }
@@ -135,9 +131,9 @@ extern "C"
         if (event->is<rive::OpenUrlEvent>())
         {
             auto urlEvent = event->as<rive::OpenUrlEvent>();
-            return env->NewStringUTF(urlEvent->url().c_str());
+            return MakeJString(env, urlEvent->url()).release();
         }
-        return env->NewStringUTF("");
+        return MakeJString(env, "").release();
     }
 
     JNIEXPORT jstring JNICALL
@@ -151,10 +147,10 @@ extern "C"
             auto urlEvent = event->as<rive::OpenUrlEvent>();
             const char* target = GetTargetValue(urlEvent);
 
-            return env->NewStringUTF(target);
+            return MakeJString(env, target).release();
         }
 
-        return env->NewStringUTF("_blank");
+        return MakeJString(env, "_blank").release();
     }
 
     JNIEXPORT jstring JNICALL
@@ -163,7 +159,7 @@ extern "C"
                                                         jlong ref)
     {
         auto* event = reinterpret_cast<rive::Event*>(ref);
-        return env->NewStringUTF(event->name().c_str());
+        return MakeJString(env, event->name()).release();
     }
 
     JNIEXPORT jshort JNICALL
@@ -205,42 +201,48 @@ extern "C"
             return eventObject;
         }
 
-        JNIExceptionHandler::CallObjectMethod(
-            env,
-            eventObject,
-            putMethod,
-            env->NewStringUTF("name"),
-            env->NewStringUTF(event->name().c_str()));
+        auto nameKey = MakeJString(env, "name");
+        auto name = MakeJString(env, event->name());
+        JNIExceptionHandler::CallObjectMethod(env,
+                                              eventObject,
+                                              putMethod,
+                                              nameKey.get(),
+                                              name.get());
 
         if (event->is<rive::OpenUrlEvent>())
         {
             auto urlEvent = event->as<rive::OpenUrlEvent>();
-            auto url = urlEvent->url().c_str();
+            auto url = MakeJString(env, urlEvent->url());
             jobject type = env->NewObject(GetShortClass(),
                                           GetShortConstructor(),
                                           event->coreType());
+            auto typeKey = MakeJString(env, "type");
             JNIExceptionHandler::CallObjectMethod(env,
                                                   eventObject,
                                                   putMethod,
-                                                  env->NewStringUTF("type"),
+                                                  typeKey.get(),
                                                   type);
+            auto urlKey = MakeJString(env, "url");
             JNIExceptionHandler::CallObjectMethod(env,
                                                   eventObject,
                                                   putMethod,
-                                                  env->NewStringUTF("url"),
-                                                  env->NewStringUTF(url));
+                                                  urlKey.get(),
+                                                  url.get());
             const char* target = GetTargetValue(urlEvent);
+            auto targetKey = MakeJString(env, "target");
+            auto targetValue = MakeJString(env, target);
             JNIExceptionHandler::CallObjectMethod(env,
                                                   eventObject,
                                                   putMethod,
-                                                  env->NewStringUTF("target"),
-                                                  env->NewStringUTF(target));
+                                                  targetKey.get(),
+                                                  targetValue.get());
         }
 
+        auto propertiesKey = MakeJString(env, "properties");
         JNIExceptionHandler::CallObjectMethod(env,
                                               eventObject,
                                               putMethod,
-                                              env->NewStringUTF("properties"),
+                                              propertiesKey.get(),
                                               GetProperties(env, event));
         return eventObject;
     }

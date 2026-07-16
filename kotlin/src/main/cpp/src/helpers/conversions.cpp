@@ -1,24 +1,11 @@
 #include "helpers/conversions.hpp"
 
 #include <climits>
-#include <cstdint>
 
 #include "helpers/rive_log.hpp"
 
 namespace rive_android
 {
-std::string JStringToString(JNIEnv* env, jstring jStr)
-{
-    if (jStr == nullptr)
-    {
-        return {};
-    }
-    auto* cStr = env->GetStringUTFChars(jStr, nullptr);
-    auto str = std::string(cStr);
-    env->ReleaseStringUTFChars(jStr, cStr);
-    return str;
-}
-
 int SizeTToInt(size_t size)
 {
     return size > INT_MAX ? INT_MAX : static_cast<int>(size);

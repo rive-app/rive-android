@@ -1,7 +1,7 @@
 #include <jni.h>
 #include <string>
 
-#include "helpers/conversions.hpp"
+#include "helpers/jni_string.hpp"
 #include "rive/text/text_value_run.hpp"
 
 #ifdef __cplusplus
@@ -17,7 +17,7 @@ extern "C"
                                                                jlong ref)
     {
         auto* run = reinterpret_cast<rive::TextValueRun*>(ref);
-        return env->NewStringUTF(run->text().c_str());
+        return MakeJString(env, run->text()).release();
     }
 
     JNIEXPORT void JNICALL

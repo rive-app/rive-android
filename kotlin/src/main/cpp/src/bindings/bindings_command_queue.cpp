@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "helpers/android_factories.hpp"
-#include "helpers/conversions.hpp"
 #include "helpers/image_decode.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/tracer.hpp"
 #include "models/jni_renderer.hpp"

@@ -7,6 +7,7 @@
 
 #include "helpers/conversions.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 
 namespace rive_android
@@ -193,16 +194,6 @@ JniResource<jobject> MakeObject(JNIEnv* env,
     jobject result = env->NewObjectV(clazz, initMid, args);
     va_end(args);
     return MakeJniResource(result, env);
-}
-
-JniResource<jstring> MakeJString(JNIEnv* env, const char* str)
-{
-    return MakeJniResource(env->NewStringUTF(str), env);
-}
-
-JniResource<jstring> MakeJString(JNIEnv* env, const std::string& str)
-{
-    return MakeJString(env, str.c_str());
 }
 
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv* env, jbyteArray byteArray)

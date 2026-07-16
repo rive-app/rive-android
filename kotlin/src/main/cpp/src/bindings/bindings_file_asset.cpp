@@ -7,6 +7,7 @@
 #include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/image_decode.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 #include "rive/assets/audio_asset.hpp"
 #include "rive/assets/file_asset.hpp"
@@ -28,7 +29,7 @@ extern "C"
                                                         jlong address)
     {
         auto* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
-        return env->NewStringUTF(fileAsset->name().c_str());
+        return MakeJString(env, fileAsset->name()).release();
     }
 
     JNIEXPORT jstring JNICALL
@@ -37,7 +38,7 @@ extern "C"
                                                                   jlong address)
     {
         auto* fileAsset = reinterpret_cast<rive::FileAsset*>(address);
-        return env->NewStringUTF(fileAsset->uniqueFilename().c_str());
+        return MakeJString(env, fileAsset->uniqueFilename()).release();
     }
 
     JNIEXPORT jboolean JNICALL
@@ -74,7 +75,7 @@ extern "C"
         auto uuid = fileAsset->cdnUuidStr();
         if (uuid.empty())
         {
-            return env->NewStringUTF("");
+            return MakeJString(env, "").release();
         }
 
         auto cdnUrl = fileAsset->cdnBaseUrl();
@@ -84,7 +85,7 @@ extern "C"
             cdnUrl += ('/');
         }
         cdnUrl += uuid;
-        return env->NewStringUTF(cdnUrl.c_str());
+        return MakeJString(env, cdnUrl).release();
     }
 
     /** == Images ==  */

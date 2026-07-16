@@ -2,6 +2,7 @@
 
 #include "helpers/android_factories.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/worker_ref.hpp"
 #include "jni_refs.hpp"
@@ -84,42 +85,41 @@ rive::Fit GetFit(JNIEnv* env, jobject jFit)
         env,
         jFit,
         rive_android::GetFitNameMethodId());
-    const char* fitValueNative = env->GetStringUTFChars(fitValue, nullptr);
+    auto fitValueNative = JStringToString(env, fitValue);
 
     rive::Fit fit = rive::Fit::none;
-    if (strcmp(fitValueNative, "FILL") == 0)
+    if (fitValueNative == "FILL")
     {
         fit = rive::Fit::fill;
     }
-    else if (strcmp(fitValueNative, "CONTAIN") == 0)
+    else if (fitValueNative == "CONTAIN")
     {
         fit = rive::Fit::contain;
     }
-    else if (strcmp(fitValueNative, "COVER") == 0)
+    else if (fitValueNative == "COVER")
     {
         fit = rive::Fit::cover;
     }
-    else if (strcmp(fitValueNative, "FIT_WIDTH") == 0)
+    else if (fitValueNative == "FIT_WIDTH")
     {
         fit = rive::Fit::fitWidth;
     }
-    else if (strcmp(fitValueNative, "FIT_HEIGHT") == 0)
+    else if (fitValueNative == "FIT_HEIGHT")
     {
         fit = rive::Fit::fitHeight;
     }
-    else if (strcmp(fitValueNative, "NONE") == 0)
+    else if (fitValueNative == "NONE")
     {
         fit = rive::Fit::none;
     }
-    else if (strcmp(fitValueNative, "SCALE_DOWN") == 0)
+    else if (fitValueNative == "SCALE_DOWN")
     {
         fit = rive::Fit::scaleDown;
     }
-    else if (strcmp(fitValueNative, "LAYOUT") == 0)
+    else if (fitValueNative == "LAYOUT")
     {
         fit = rive::Fit::layout;
     }
-    env->ReleaseStringUTFChars(fitValue, fitValueNative);
     env->DeleteLocalRef(fitValue);
     return fit;
 }
@@ -161,47 +161,45 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)
         env,
         jAlignment,
         rive_android::GetAlignmentNameMethodId());
-    const char* alignmentValueNative =
-        env->GetStringUTFChars(alignmentValue, nullptr);
+    auto alignmentValueNative = JStringToString(env, alignmentValue);
 
     rive::Alignment alignment = rive::Alignment::center;
-    if (strcmp(alignmentValueNative, "TOP_LEFT") == 0)
+    if (alignmentValueNative == "TOP_LEFT")
     {
         alignment = rive::Alignment::topLeft;
     }
-    else if (strcmp(alignmentValueNative, "TOP_CENTER") == 0)
+    else if (alignmentValueNative == "TOP_CENTER")
     {
         alignment = rive::Alignment::topCenter;
     }
-    else if (strcmp(alignmentValueNative, "TOP_RIGHT") == 0)
+    else if (alignmentValueNative == "TOP_RIGHT")
     {
         alignment = rive::Alignment::topRight;
     }
-    else if (strcmp(alignmentValueNative, "CENTER_LEFT") == 0)
+    else if (alignmentValueNative == "CENTER_LEFT")
     {
         alignment = rive::Alignment::centerLeft;
     }
-    else if (strcmp(alignmentValueNative, "CENTER") == 0)
+    else if (alignmentValueNative == "CENTER")
     {
         alignment = rive::Alignment::center;
     }
-    else if (strcmp(alignmentValueNative, "CENTER_RIGHT") == 0)
+    else if (alignmentValueNative == "CENTER_RIGHT")
     {
         alignment = rive::Alignment::centerRight;
     }
-    else if (strcmp(alignmentValueNative, "BOTTOM_LEFT") == 0)
+    else if (alignmentValueNative == "BOTTOM_LEFT")
     {
         alignment = rive::Alignment::bottomLeft;
     }
-    else if (strcmp(alignmentValueNative, "BOTTOM_CENTER") == 0)
+    else if (alignmentValueNative == "BOTTOM_CENTER")
     {
         alignment = rive::Alignment::bottomCenter;
     }
-    else if (strcmp(alignmentValueNative, "BOTTOM_RIGHT") == 0)
+    else if (alignmentValueNative == "BOTTOM_RIGHT")
     {
         alignment = rive::Alignment::bottomRight;
     }
-    env->ReleaseStringUTFChars(alignmentValue, alignmentValueNative);
     env->DeleteLocalRef(alignmentValue);
     return alignment;
 }

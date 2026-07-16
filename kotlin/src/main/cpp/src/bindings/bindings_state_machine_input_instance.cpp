@@ -1,4 +1,5 @@
 #include "helpers/general.hpp"
+#include "helpers/jni_string.hpp"
 #include "jni_refs.hpp"
 #include "rive/animation/state_machine_bool.hpp"
 #include "rive/animation/state_machine_input.hpp"
@@ -11,6 +12,8 @@ extern "C"
 {
 #endif
 
+    using namespace rive_android;
+
     JNIEXPORT jstring JNICALL
     Java_app_rive_runtime_kotlin_core_SMIInput_cppName(JNIEnv* env,
                                                        jobject,
@@ -18,7 +21,7 @@ extern "C"
     {
 
         auto* input = reinterpret_cast<rive::SMIInput*>(ref);
-        return env->NewStringUTF(input->name().c_str());
+        return MakeJString(env, input->name()).release();
     }
 
     JNIEXPORT jboolean JNICALL

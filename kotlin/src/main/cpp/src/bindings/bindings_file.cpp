@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "rive/artboard.hpp"
 #include "rive/bindable_artboard.hpp"
 #include "rive/file.hpp"
@@ -104,7 +104,7 @@ extern "C"
 
         auto artboard = file->artboard(index);
         auto name = artboard->name();
-        return env->NewStringUTF(name.c_str());
+        return MakeJString(env, name).release();
     }
 
     JNIEXPORT jlong JNICALL

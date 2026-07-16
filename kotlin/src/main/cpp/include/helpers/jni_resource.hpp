@@ -111,9 +111,6 @@ JniResource<jobject> MakeObject(JNIEnv* env,
                                 jmethodID initMid,
                                 ...);
 
-JniResource<jstring> MakeJString(JNIEnv*, const char*);
-JniResource<jstring> MakeJString(JNIEnv*, const std::string&);
-
 std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv*, jbyteArray);
 JniResource<jobject> VecStringToJStringList(JNIEnv*,
                                             const std::vector<std::string>&);

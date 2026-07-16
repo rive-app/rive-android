@@ -2,8 +2,8 @@
 #include <memory>
 #include <string>
 
-#include "helpers/conversions.hpp"
 #include "helpers/general.hpp"
+#include "helpers/jni_string.hpp"
 #include "models/jni_renderer.hpp"
 #include "rive/animation/linear_animation.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
@@ -30,7 +30,7 @@ extern "C"
                                                        jlong ref)
     {
         auto artboard = reinterpret_cast<rive::ArtboardInstance*>(ref);
-        return env->NewStringUTF(artboard->name().c_str());
+        return MakeJString(env, artboard->name()).release();
     }
 
     JNIEXPORT jstring JNICALL
@@ -44,7 +44,7 @@ extern "C"
         auto* animation = artboard->animation(index);
         auto name = animation->name();
 
-        return env->NewStringUTF(name.c_str());
+        return MakeJString(env, name).release();
     }
 
     JNIEXPORT jstring JNICALL
@@ -59,7 +59,7 @@ extern "C"
         auto* stateMachine = artboard->stateMachine(index);
         auto name = stateMachine->name();
 
-        return env->NewStringUTF(name.c_str());
+        return MakeJString(env, name).release();
     }
 
     JNIEXPORT jlong JNICALL
@@ -188,7 +188,7 @@ extern "C"
         {
             return nullptr;
         }
-        return env->NewStringUTF(run->text().c_str());
+        return MakeJString(env, run->text()).release();
     }
 
     JNIEXPORT jboolean JNICALL
@@ -238,7 +238,7 @@ extern "C"
         {
             return nullptr;
         }
-        return env->NewStringUTF(run->text().c_str());
+        return MakeJString(env, run->text()).release();
     }
 
     JNIEXPORT jboolean JNICALL

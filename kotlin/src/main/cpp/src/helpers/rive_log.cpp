@@ -6,6 +6,7 @@
 
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 
 namespace rive_android
 {
@@ -165,9 +166,41 @@ static void LogMessage(jmethodID methodID,
         return;
     }
 
-    // Create Kotlin strings for tag and message
+    // Most JNI operations are invalid while an exception is pending. Preserve
+    // the caller's exception and use the JNI-free logging path instead.
+    if (env->ExceptionCheck())
+    {
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
+    }
+
+    // Create Kotlin strings for tag and message.
     auto jTag = MakeJString(env, tag);
+    if (jTag.get() == nullptr)
+    {
+        // A failed NewString may leave an allocation exception pending. This
+        // exception belongs to the logging attempt, so consume it before
+        // falling back rather than letting logging alter the caller's state.
+        if (env->ExceptionCheck())
+        {
+            env->ExceptionClear();
+        }
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
+    }
+
     auto jMessage = MakeJString(env, buffer);
+    if (jMessage.get() == nullptr)
+    {
+        // No exception was pending before this allocation, so any exception
+        // here belongs to the logging attempt and can be consumed safely.
+        if (env->ExceptionCheck())
+        {
+            env->ExceptionClear();
+        }
+        FallbackToNativeLog(androidLogLevel, tag, buffer);
+        return;
+    }
 
     // Call the static method
     env->CallStaticVoidMethod(g_riveLogClass,

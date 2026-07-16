@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 
+#include "helpers/jni_string.hpp"
 #include "models/jni_renderer.hpp"
 
 using namespace rive_android;
@@ -22,10 +23,7 @@ extern "C"
 
     std::string to_string(jstring jstr, JNIEnv* env)
     {
-        const char* utf = env->GetStringUTFChars(jstr, nullptr);
-        std::string str(utf);
-        env->ReleaseStringUTFChars(jstr, utf);
-        return str;
+        return JStringToString(env, jstr);
     }
 
     JNIEXPORT void JNICALL
