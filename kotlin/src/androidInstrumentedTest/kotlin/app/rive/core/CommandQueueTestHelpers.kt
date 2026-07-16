@@ -1,10 +1,11 @@
 package app.rive.core
 
-import androidx.annotation.RawRes
+import androidx.annotation.RawRes as RawResource
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.Artboard
 import app.rive.Result
 import app.rive.RiveFile
+import app.rive.RawRes
 import app.rive.RiveFileSource
 import app.rive.StateMachine
 import kotlinx.coroutines.runBlocking
@@ -77,7 +78,7 @@ internal data class DefaultRiveResources(
  * under test rather than nested resource cleanup.
  */
 internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
-    @RawRes rawResourceId: Int,
+    @RawResource rawResourceId: Int,
     block: DefaultRiveResources.() -> T
 ): T {
     var file: RiveFile? = null
@@ -108,11 +109,11 @@ internal fun assertDisposed(commandQueue: CommandQueue) {
     )
 }
 
-private suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): RiveFile {
+private suspend fun RiveWorker.loadRiveFileOrFail(@RawResource rawResourceId: Int): RiveFile {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     return when (
         val result = RiveFile.fromSource(
-            RiveFileSource.RawRes(rawResourceId, context.resources),
+            RawRes(rawResourceId, context.resources),
             this
         )
     ) {

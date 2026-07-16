@@ -34,8 +34,10 @@ import androidx.compose.ui.unit.dp
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
 import app.rive.RiveFrameRate
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
@@ -55,11 +57,11 @@ class ComposeCappedFPSActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
-            val riveFile = rememberRiveFile(RiveFileSource.RawRes.from(R.raw.marty), riveWorker)
+            val riveFile = rememberRiveFile(RawRes.from(R.raw.marty), riveWorker)
             var framesPerSecond by rememberSaveable { mutableFloatStateOf(30f) }
             var isUncapped by rememberSaveable { mutableStateOf(false) }
             val frameRate = if (isUncapped) {

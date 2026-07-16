@@ -147,7 +147,7 @@ class CommandQueueUnitTest : FunSpec({
         val commandQueue = CommandQueue(
             renderBackend = RenderBackend.Vulkan,
             bridge = commandQueueBridgeMock,
-            sdkInt = Build.VERSION_CODES.Q,
+            backendGate = { backend -> effectiveRenderBackend(backend, Build.VERSION_CODES.Q) },
             renderContextFactory = { backend ->
                 when (backend) {
                     RenderBackend.Vulkan -> vulkanRenderContextMock
@@ -178,7 +178,7 @@ class CommandQueueUnitTest : FunSpec({
         CommandQueue(
             renderBackend = RenderBackend.Vulkan,
             bridge = commandQueueBridgeMock,
-            sdkInt = Build.VERSION_CODES.P,
+            backendGate = { backend -> effectiveRenderBackend(backend, Build.VERSION_CODES.P) },
             renderContextFactory = { backend ->
                 backend shouldBe RenderBackend.OpenGL
                 openGLRenderContextMock
@@ -213,7 +213,7 @@ class CommandQueueUnitTest : FunSpec({
             CommandQueue(
                 renderBackend = RenderBackend.Vulkan,
                 bridge = commandQueueBridgeMock,
-                sdkInt = Build.VERSION_CODES.Q,
+                backendGate = { backend -> effectiveRenderBackend(backend, Build.VERSION_CODES.Q) },
                 renderContextFactory = { backend ->
                     when (backend) {
                         RenderBackend.Vulkan -> vulkanRenderContextMock

@@ -17,6 +17,7 @@ import app.rive.Fit
 import app.rive.HardwareRenderBuffer
 import app.rive.Result
 import app.rive.RiveFile
+import app.rive.RawRes
 import app.rive.RiveFileSource
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
@@ -50,7 +51,7 @@ class BenchmarkHardwareBitmapCanvasActivity : ComponentActivity() {
         lifecycleScope.launch {
             when (
                 val riveFile = RiveFile.fromSource(
-                    RiveFileSource.RawRes(R.raw.basketball, resources),
+                    RawRes(R.raw.basketball, resources),
                     riveWorker
                 )
             ) {

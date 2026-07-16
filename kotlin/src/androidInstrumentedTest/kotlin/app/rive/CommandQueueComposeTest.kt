@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.RawRes
 import app.rive.core.CommandQueue
 import app.rive.test.R
 import org.junit.Rule
@@ -69,7 +70,7 @@ class CommandQueueComposeTest : RiveAndroidTest() {
         }
 
         try {
-            val source = RiveFileSource.RawRes(R.raw.empty, context.resources)
+            val source = RawRes(R.raw.empty, context.resources)
 
             composeRule.setContent {
                 activeWorker = remember { mutableStateOf(firstWorker) }

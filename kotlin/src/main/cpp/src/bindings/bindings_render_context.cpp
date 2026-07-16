@@ -63,8 +63,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_RiveSurface_cppDeleteSurfaceNative(JNIEnv*,
-                                                          jclass,
+    Java_app_rive_core_CommandQueueJNIBridge_cppDeleteSurface(JNIEnv*,
+                                                              jobject,
                                                           jlong surfaceRef)
     {
         auto surface = reinterpret_cast<RenderSurface*>(surfaceRef);
@@ -72,8 +72,8 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_RiveSurface_cppResizeSurface(JNIEnv*,
-                                                    jclass,
+    Java_app_rive_core_CommandQueueJNIBridge_cppResizeSurface(JNIEnv*,
+                                                          jobject,
                                                     jlong surfaceRef,
                                                     jint width,
                                                     jint height)

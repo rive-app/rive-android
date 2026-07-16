@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.ViewModelSource
 import app.rive.rememberArtboard
@@ -59,7 +62,7 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
         RiveNative.ensureLoaded()
 
         val config = SnapshotActivityConfig.fromIntent(intent)
@@ -67,7 +70,7 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFileResult =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), riveWorker)
+                rememberRiveFile(RawRes.from(R.raw.snapshot_test), riveWorker)
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 when (riveFileResult) {
@@ -141,13 +144,10 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
                             stateMachine = stateMachine,
                             viewModelInstance = vmi,
                             fit = fit,
-                            onBitmapAvailable = { bitmapFn ->
+                            onFrameCaptured = { frame ->
                                 RiveLog.i("SnapshotComposeActivity") { "Bitmap available" }
-                                // Get the bitmap and store it
-                                val bitmap = bitmapFn()
-
                                 // Store result for test access
-                                resultBitmap = bitmap
+                                resultBitmap = frame.asAndroidBitmap()
 
                                 // Signal that result is ready
                                 resultLatch.countDown()

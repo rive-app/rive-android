@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.ComponentActivity
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 
@@ -28,7 +29,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setEdgeToEdgeContent(R.layout.main)
 
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         buttonsData.forEach { pair ->
             findViewById<Button>(pair.first).setOnClickListener {

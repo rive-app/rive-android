@@ -27,7 +27,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
@@ -55,12 +57,12 @@ class ComposeDataBindingActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(backgroundColor),
             navigationBarStyle = SystemBarStyle.dark(backgroundColor)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFileResult =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.rewards_demo), riveWorker)
+                rememberRiveFile(RawRes.from(R.raw.rewards_demo), riveWorker)
             var showBottomPanel by remember { mutableStateOf(false) }
 
             Scaffold(

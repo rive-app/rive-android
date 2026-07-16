@@ -31,7 +31,9 @@ import androidx.compose.ui.platform.LocalContext
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.RivePointerInputMode
 import app.rive.rememberRiveFile
@@ -46,14 +48,14 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             LocalContext.current
 
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.touch_passthrough),
+                RawRes.from(R.raw.touch_passthrough),
                 riveWorker
             )
 

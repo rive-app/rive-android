@@ -3,6 +3,7 @@ package app.rive.snapshot
 import android.content.Context
 import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import com.dropbox.dropshots.Dropshots
 import org.junit.Rule

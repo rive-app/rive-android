@@ -36,7 +36,9 @@ import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
 import app.rive.RiveFile
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.RivePointerInputMode
 import app.rive.rememberRiveFile
@@ -62,12 +64,12 @@ class ComposeScrollActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.skull_scroll),
+                RawRes.from(R.raw.skull_scroll),
                 riveWorker
             )
             var consumePointerEvents by remember { mutableStateOf(true) }

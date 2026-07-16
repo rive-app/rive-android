@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
@@ -24,12 +26,12 @@ class ComposeAudioActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.lip_sync_test),
+                RawRes.from(R.raw.lip_sync_test),
                 riveWorker
             )
 

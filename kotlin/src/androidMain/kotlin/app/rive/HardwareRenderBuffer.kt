@@ -16,6 +16,7 @@ import app.rive.core.CloseOnce
 import app.rive.core.ImageReaderSurface
 import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
+import app.rive.core.createRiveSurface
 import app.rive.core.RiveWorker
 import app.rive.core.traceSection
 import kotlinx.coroutines.channels.BufferOverflow

@@ -21,7 +21,9 @@ import app.rive.Result.Loading.andThen
 import app.rive.Result.Loading.sequence
 import app.rive.Result.Loading.zip
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberImage
 import app.rive.rememberRiveFile
@@ -40,14 +42,14 @@ class ComposeImageBindingActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val context = LocalContext.current
 
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.image_db_cats),
+                RawRes.from(R.raw.image_db_cats),
                 riveWorker
             )
 

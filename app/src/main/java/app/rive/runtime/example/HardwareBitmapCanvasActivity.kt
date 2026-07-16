@@ -17,7 +17,9 @@ import app.rive.ExperimentalHardwareBitmapRendering
 import app.rive.Result
 import app.rive.RiveCanvasSession
 import app.rive.RiveFile
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
@@ -38,7 +40,7 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         if (!RiveCanvasSession.isSupported()) {
             setEdgeToEdgeContent(
@@ -62,7 +64,7 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
         lifecycleScope.launch {
             when (
                 val riveFile = RiveFile.fromSource(
-                    RiveFileSource.RawRes(R.raw.basketball, resources),
+                    RawRes(R.raw.basketball, resources),
                     riveWorker
                 )
             ) {

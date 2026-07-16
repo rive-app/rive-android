@@ -14,7 +14,9 @@ import app.rive.Artboard
 import app.rive.Fit
 import app.rive.Result
 import app.rive.RiveFile
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.SoftwareRenderBuffer
 import app.rive.StateMachine
@@ -32,7 +34,7 @@ class RiveSnapshotActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
         snapshotView = SnapshotCanvasView(this)
         setEdgeToEdgeContent(snapshotView)
 
@@ -46,7 +48,7 @@ class RiveSnapshotActivity : ComponentActivity() {
         lifecycleScope.launch {
             when (val riveFile =
                 RiveFile.fromSource(
-                    RiveFileSource.RawRes(R.raw.snapshot_test, resources),
+                    RawRes(R.raw.snapshot_test, resources),
                     riveWorker
                 )) {
                 is Result.Loading -> Unit

@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
@@ -42,12 +44,12 @@ class ComposeLayoutActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFile =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.layouts_demo), riveWorker)
+                rememberRiveFile(RawRes.from(R.raw.layouts_demo), riveWorker)
 
             var useLayout by rememberSaveable { mutableStateOf(true) }
             var scaleFactor by rememberSaveable { mutableStateOf(1f) }

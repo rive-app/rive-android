@@ -32,13 +32,28 @@ kotlin {
         browser()
     }
 
+    // The custom jvmShared dependsOn edges below suppress the automatic default
+    // hierarchy, so apply it explicitly to keep iosMain and friends wired up.
+    applyDefaultHierarchyTemplate()
+
     sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.ui)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
+            implementation(libs.androidx.annotation)
+        }
+        // Shared JVM-backed code (Android + desktop): the JNI bridge class and
+        // native-library loading plumbing. Both targets compile the same
+        // `external fun` declarations against the same JNI symbol names.
+        val jvmShared by creating {
+            dependsOn(commonMain.get())
+        }
+        androidMain.get().dependsOn(jvmShared)
+        jvmMain.get().dependsOn(jvmShared)
         androidMain.dependencies {
-            val composeBom = project.dependencies.platform(libs.androidx.compose.bom)
-            implementation(composeBom)
-            implementation(libs.androidx.compose.runtime)
-            implementation(libs.androidx.compose.ui)
-            implementation(libs.androidx.compose.ui.android)
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -79,8 +94,6 @@ dependencies {
     // Used by Compose previews and UI tests
     "debugImplementation"(composeBom)
     "debugImplementation"(libs.androidx.compose.ui.test.manifest)
-    // Used to debug Compose recompositions
-    "debugImplementation"(libs.rebugger)
 }
 
 android {

@@ -46,7 +46,9 @@ import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.andThen
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.ViewModelSource
 import app.rive.rememberArtboard
@@ -65,7 +67,7 @@ class ComposeActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // Enable Logcat logging
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val context = LocalContext.current
@@ -103,7 +105,7 @@ class ComposeActivity : ComponentActivity() {
             val riveFileResult = font.andThen {
                 rememberRiveFile(
                     // Point to the Rive raw resource file
-                    RiveFileSource.RawRes.from(R.raw.rating_animation_all),
+                    RawRes.from(R.raw.rating_animation_all),
                     riveWorker
                 )
             }

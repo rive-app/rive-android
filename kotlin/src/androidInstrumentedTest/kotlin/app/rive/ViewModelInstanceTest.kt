@@ -1,6 +1,7 @@
 package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.RawRes
 import app.rive.core.withPolling
 import app.rive.test.R
 import kotlinx.coroutines.runBlocking
@@ -75,7 +76,7 @@ class ViewModelInstanceTest : RiveAndroidTest() {
     /** @return The data-binding fixture loaded through the public file API. */
     private suspend fun loadFixture(): RiveFile = when (
         val result = RiveFile.fromSource(
-            RiveFileSource.RawRes(R.raw.data_bind_test_impl, context.resources),
+            RawRes(R.raw.data_bind_test_impl, context.resources),
             riveWorker
         )
     ) {

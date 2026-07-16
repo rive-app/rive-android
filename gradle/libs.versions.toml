@@ -23,7 +23,6 @@ leakCanary = "2.14"
 lifecycle = "2.9.4"
 material = "1.13.0"
 mockk = "1.14.2"
-rebugger = "1.0.0-rc03"
 startup = "1.2.0"
 testExtJunit = "1.3.0"
 vanniktechPublish = "0.35.0"
@@ -64,7 +63,6 @@ jetbrains-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecyc
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakCanary" }
 mockk-agent = { module = "io.mockk:mockk-agent", version.ref = "mockk" }
 mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
-rebugger = { module = "io.github.theapache64:rebugger", version.ref = "rebugger" }
 
 [plugins]
 allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }

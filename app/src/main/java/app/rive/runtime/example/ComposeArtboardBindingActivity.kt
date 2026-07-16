@@ -29,7 +29,9 @@ import app.rive.Fit
 import app.rive.Result
 import app.rive.Result.Loading.zip
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
+import app.rive.LogcatLogger
 import app.rive.RiveLog
 import app.rive.rememberArtboard
 import app.rive.rememberRiveFile
@@ -44,16 +46,16 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
         )
-        RiveLog.logger = RiveLog.LogcatLogger()
+        RiveLog.logger = LogcatLogger()
 
         setContent {
             val riveWorker = rememberRiveWorker()
             val mainRiveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.swap_character_main),
+                RawRes.from(R.raw.swap_character_main),
                 riveWorker
             )
             val assetRiveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.swap_character_assets),
+                RawRes.from(R.raw.swap_character_assets),
                 riveWorker
             )
             val bothFiles = mainRiveFile.zip(assetRiveFile)

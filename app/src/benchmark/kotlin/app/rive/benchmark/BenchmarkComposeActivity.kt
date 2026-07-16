@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RawRes
 import app.rive.RiveFileSource
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
@@ -30,7 +31,7 @@ class BenchmarkComposeActivity : ComponentActivity() {
 private fun BenchmarkComposeScreen() {
     val riveWorker = rememberRiveWorker()
     val riveFileResult = rememberRiveFile(
-        RiveFileSource.RawRes.from(R.raw.basketball),
+        RawRes.from(R.raw.basketball),
         riveWorker
     )
 
