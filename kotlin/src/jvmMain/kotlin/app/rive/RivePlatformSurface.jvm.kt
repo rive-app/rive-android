@@ -38,6 +38,7 @@ private class DesktopSurfacePresenter(
     override val height: Int get() = riveSurface.height
 
     private val pixels = ByteArray(width * height * 4)
+    private val flipped = ByteArray(width * height * 4)
 
     override fun draw(
         artboardHandle: ArtboardHandle,
@@ -56,10 +57,20 @@ private class DesktopSurfacePresenter(
             fit,
             clearColor
         )
+        // The Vulkan offscreen readback returns rows bottom-up; write them top-down.
+        val rowBytes = width * 4
+        for (row in 0 until height) {
+            pixels.copyInto(
+                flipped,
+                destinationOffset = (height - 1 - row) * rowBytes,
+                startIndex = row * rowBytes,
+                endIndex = (row + 1) * rowBytes,
+            )
+        }
         val bitmap = Bitmap()
         val info = ImageInfo(width, height, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
         bitmap.allocPixels(info)
-        bitmap.installPixels(info, pixels, width * 4)
+        bitmap.installPixels(info, flipped, width * 4)
         onFrame(bitmap.asComposeImageBitmap())
     }
 }

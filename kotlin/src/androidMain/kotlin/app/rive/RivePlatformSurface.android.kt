@@ -188,6 +188,7 @@ private class InspectionSurfacePresenter(
             fit,
             clearColor
         )
+        // The Vulkan offscreen readback returns rows bottom-up; write them top-down.
         var i = 0
         var pixel = 0
         while (i < pixels.size) {
@@ -195,7 +196,10 @@ private class InspectionSurfacePresenter(
             val g = pixels[i + 1].toInt() and 0xFF
             val b = pixels[i + 2].toInt() and 0xFF
             val a = pixels[i + 3].toInt() and 0xFF
-            argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
+            val row = pixel / width
+            val col = pixel % width
+            argb[(height - 1 - row) * width + col] = (a shl 24) or (r shl 16) or (g shl 8) or b
+            pixel++
             i += 4
         }
         val bitmap = android.graphics.Bitmap.createBitmap(
