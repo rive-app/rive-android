@@ -239,6 +239,9 @@ private fun RiveInspectionSurface(
             currentOnPresenterChanged(null)
             return@DisposableEffect onDispose {}
         }
+        RiveLog.d(PLATFORM_SURFACE_TAG) {
+            "Inspection surface available (${surface.width} x ${surface.height})"
+        }
         var frameCaptureSent = false
         val presenter = InspectionSurfacePresenter(worker, surface) { newFrame ->
             frame = newFrame
@@ -249,6 +252,9 @@ private fun RiveInspectionSurface(
         }
         currentOnPresenterChanged(presenter)
         onDispose {
+            RiveLog.d(PLATFORM_SURFACE_TAG) {
+                "Inspection surface disposed (${surface.width} x ${surface.height})"
+            }
             currentOnPresenterChanged(null)
             surface.close()
         }

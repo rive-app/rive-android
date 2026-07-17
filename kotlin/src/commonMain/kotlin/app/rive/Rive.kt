@@ -229,9 +229,11 @@ fun Rive(
             var lastFrameTimeNs = 0L
             while (isActive) {
                 if (isSettled) {
+                    RiveLog.v(DRAW_TAG) { "Settled; suspending draw loop for $stateMachineHandle" }
                     traceSection("Rive/Frame/SettledSuspend") {
                         snapshotFlow { isSettled }.first { !it }
                     }
+                    RiveLog.v(DRAW_TAG) { "Unsettled; resuming draw loop for $stateMachineHandle" }
                     lastFrameTimeNs = 0L
                     framePacer.reset()
                     continue
@@ -259,7 +261,15 @@ fun Rive(
                     continue
                 }
 
-                val deltaTime = if (lastFrameTimeNs == 0L) {
+                // Guard against non-monotonic frame clocks: Android Studio's interactive preview
+                // rebases its clock between render bursts, and a negative advance resets Rive
+                // animations to time zero. Rebase and advance by zero instead.
+                if (lastFrameTimeNs != 0L && frameTimeNs < lastFrameTimeNs) {
+                    RiveLog.d(DRAW_TAG) {
+                        "Frame clock went backward: $lastFrameTimeNs -> $frameTimeNs"
+                    }
+                }
+                val deltaTime = if (lastFrameTimeNs == 0L || frameTimeNs < lastFrameTimeNs) {
                     ZERO
                 } else {
                     (frameTimeNs - lastFrameTimeNs).nanoseconds
