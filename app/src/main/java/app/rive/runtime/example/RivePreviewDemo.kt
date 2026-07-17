@@ -99,15 +99,18 @@ fun RiveRatingPreview() {
     )
 }
 
-/** The same file under different fit modes. */
+/**
+ * The same file under different fit modes: the artboard is wider than the square box, so
+ * [Fit.Cover] crops the sides while [Fit.Contain] letterboxes top and bottom.
+ */
 @Preview(showBackground = true)
 @Composable
 fun RiveFitCoverPreview() {
-    RivePreviewBox(R.raw.off_road_car_blog, fit = Fit.Cover(), size = 200.dp)
+    RivePreviewBox(R.raw.skills, fit = Fit.Cover(), size = 200.dp)
 }
 
 @Preview(showBackground = true)
 @Composable
 fun RiveFitContainPreview() {
-    RivePreviewBox(R.raw.off_road_car_blog, fit = Fit.Contain(), size = 200.dp)
+    RivePreviewBox(R.raw.skills, fit = Fit.Contain(), size = 200.dp)
 }

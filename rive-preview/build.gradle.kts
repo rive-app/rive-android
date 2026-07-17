@@ -44,6 +44,10 @@ val stageRiveNatives = tasks.register<Copy>("stageRiveNatives") {
 // into a generated class. Previews always run on the machine that built the project, so an
 // absolute build-tree path is valid there.
 val generateRiveNativePaths = tasks.register("generateRiveNativePaths") {
+    // The generated class points at the staged dylibs, so staging must be fresh whenever
+    // this runs. Android Studio's preview build may run only compile tasks (never
+    // process*JavaRes), making this dependency the staging trigger for previews.
+    dependsOn(stageRiveNatives)
     val outDir = layout.buildDirectory.dir("generated/riveNativeSrc")
     val nativeDirPath = stagedNativesDir.get().asFile.absolutePath
     inputs.property("nativeDirPath", nativeDirPath)
