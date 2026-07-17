@@ -207,7 +207,11 @@ private class InspectionSurfacePresenter(
             width,
             height,
             android.graphics.Bitmap.Config.ARGB_8888
-        )
+        ).apply {
+            // Prevent density-based rescaling when the canvas draws this bitmap; the pixels
+            // are already at the surface's exact pixel size.
+            density = android.graphics.Bitmap.DENSITY_NONE
+        }
         onFrame(bitmap.asImageBitmap())
     }
 }
@@ -255,7 +259,15 @@ private fun RiveInspectionSurface(
         modifier = modifier
             .onSizeChanged { size = it }
             .drawBehind {
-                frame?.let { drawImage(it) }
+                frame?.let {
+                    // Explicit src/dst sizes select the rect-to-rect canvas draw, which is
+                    // immune to bitmap-density rescaling in layoutlib.
+                    drawImage(
+                        it,
+                        srcSize = IntSize(it.width, it.height),
+                        dstSize = IntSize(it.width, it.height),
+                    )
+                }
             }
     ) { _, constraints ->
         layout(constraints.maxWidth, constraints.maxHeight) {}

@@ -34,6 +34,9 @@ val stageRiveNatives = tasks.register<Copy>("stageRiveNatives") {
     from(project(":kotlin").layout.buildDirectory.file("rive-native-desktop/cmake/librive-jvm.dylib"))
     from(moltenVkPath)
     into(stagedNativesDir)
+    // Homebrew's MoltenVK ships read-only; writable copies keep incremental
+    // re-copies (and downstream java-res processing) from failing.
+    fileMode = 0b110_100_100 // 0644
 }
 
 // Android Studio's preview classloader (StudioModuleClassLoader) refuses classpath *resource*

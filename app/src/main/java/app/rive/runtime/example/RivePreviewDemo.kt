@@ -1,6 +1,8 @@
 package app.rive.runtime.example
 
 import androidx.annotation.RawRes
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,6 +22,11 @@ import app.rive.rememberRiveWorker
  * Previews run on the host JVM (layoutlib), where frames render through the desktop Rive
  * library provided by the `:rive-preview` dependency. If a static preview appears blank
  * (file loading is asynchronous), use interactive preview mode.
+ *
+ * Preview composables should reserve their final size while the file loads (see the Box in
+ * [RivePreviewBox]) or declare explicit `widthDp`/`heightDp` on `@Preview`; otherwise
+ * shrink-to-content previews are measured while empty and Android Studio stretches the
+ * late-arriving render to the wrong aspect ratio in interactive mode.
  */
 @Composable
 private fun RivePreviewBox(
@@ -28,14 +35,20 @@ private fun RivePreviewBox(
     size: Dp = 250.dp,
 ) {
     val worker = rememberRiveWorker()
-    when (val file = rememberRiveFile(RiveRawRes.from(resId), worker)) {
-        is Result.Success -> Rive(
-            file.value,
-            modifier = Modifier.size(size),
-            fit = fit,
-        )
+    // The Box keeps the preview at its final size from the first composition. File loading is
+    // asynchronous, and default-size previews are measured by layoutlib's shrink-to-content mode
+    // before the file resolves; composing nothing during that window makes Android Studio size
+    // the interactive viewport from empty content and stretch the late-arriving render.
+    Box(Modifier.size(size)) {
+        when (val file = rememberRiveFile(RiveRawRes.from(resId), worker)) {
+            is Result.Success -> Rive(
+                file.value,
+                modifier = Modifier.fillMaxSize(),
+                fit = fit,
+            )
 
-        else -> {}
+            else -> {}
+        }
     }
 }
 
