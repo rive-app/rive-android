@@ -304,6 +304,13 @@ public:
                      jInstanceName.get());
     }
 
+    void onArtboardVolumeReceived(const rive::ArtboardHandle,
+                                  uint64_t requestID,
+                                  float volume) override
+    {
+        m_queue.call("onArtboardVolumeReceived", "(JF)V", requestID, volume);
+    }
+
 private:
     JCommandQueue m_queue;
 };
@@ -2455,6 +2462,37 @@ extern "C"
             handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
 
         commandQueue->resetArtboardSize(artboardHandle);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetArtboardVolume(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jArtboardHandle,
+        jfloat jVolume)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto artboardHandle =
+            handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
+        auto volume = static_cast<float_t>(jVolume);
+
+        commandQueue->setArtboardVolume(artboardHandle, volume);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppRequestArtboardVolume(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jArtboardHandle)
+    {
+        auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto artboardHandle =
+            handleFromLong<rive::ArtboardHandle>(jArtboardHandle);
+
+        commandQueue->requestArtboardVolume(artboardHandle, requestID);
     }
 
     JNIEXPORT jlong JNICALL

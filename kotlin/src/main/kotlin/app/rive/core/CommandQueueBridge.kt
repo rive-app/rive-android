@@ -429,6 +429,18 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
+    fun cppSetArtboardVolume(
+        pointer: Long,
+        artboardHandle: Long,
+        volume: Float
+    )
+
+    fun cppRequestArtboardVolume(
+        pointer: Long,
+        requestID: Long,
+        artboardHandle: Long
+    )
+
     fun cppCreateDrawKey(pointer: Long): Long
     fun cppDraw(
         pointer: Long,
@@ -889,6 +901,18 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
 
     external override fun cppResetArtboardSize(
         pointer: Long,
+        artboardHandle: Long
+    )
+
+    external override fun cppSetArtboardVolume(
+        pointer: Long,
+        artboardHandle: Long,
+        volume: Float
+    )
+
+    external override fun cppRequestArtboardVolume(
+        pointer: Long,
+        requestID: Long,
         artboardHandle: Long
     )
 

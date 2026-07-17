@@ -110,6 +110,27 @@ class Artboard internal constructor(
      */
     @Throws(IllegalStateException::class)
     fun resetArtboardSize() = riveWorker.resetArtboardSize(artboardHandle)
+
+    /**
+     * Sets the audio [volume] for this artboard.
+     *
+     * ℹ️ Volume is propagated to all nested artboards. This is fire-and-forget; use [getVolume] to
+     * read the current value back.
+     *
+     * @param volume The volume level (0f = muted, 1f = full volume).
+     * @throws IllegalStateException If the Rive worker has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setVolume(volume: Float) = riveWorker.setArtboardVolume(artboardHandle, volume)
+
+    /**
+     * Retrieves the current audio volume of this artboard.
+     *
+     * @return The current volume (0f = muted, 1f = full volume).
+     * @throws IllegalStateException If the Rive worker has been released.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun getVolume(): Float = riveWorker.getArtboardVolume(artboardHandle)
 }
 
 /**

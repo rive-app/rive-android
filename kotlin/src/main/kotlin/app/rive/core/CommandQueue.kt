@@ -2579,6 +2579,60 @@ class CommandQueue internal constructor(
     )
 
     /**
+     * Sets the audio volume of an artboard.
+     *
+     * ℹ️ Volume is propagated to all nested artboards. This is fire-and-forget; use
+     * [getArtboardVolume] to read the current value back.
+     *
+     * @param artboardHandle The handle of the artboard whose volume should be set.
+     * @param volume The volume level to set (0f = muted, 1f = full volume).
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setArtboardVolume(
+        artboardHandle: ArtboardHandle,
+        volume: Float
+    ) = bridge.cppSetArtboardVolume(
+        cppPointer.pointer,
+        artboardHandle.handle,
+        volume
+    )
+
+    /**
+     * Queries the current audio volume of an artboard. Returns on [onArtboardVolumeReceived].
+     *
+     * @param artboardHandle The handle of the artboard to query.
+     * @return The current volume of the artboard (0f = muted, 1f = full volume).
+     * @throws RuntimeException If the artboard handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getArtboardVolume(artboardHandle: ArtboardHandle): Float =
+        suspendNativeRequest { requestID ->
+            bridge.cppRequestArtboardVolume(
+                cppPointer.pointer,
+                requestID,
+                artboardHandle.handle
+            )
+        }
+
+    /**
+     * Callback when an artboard's volume is received, from [getArtboardVolume].
+     *
+     * @param requestID The request ID used when querying the volume, used to complete the
+     *    continuation.
+     * @param volume The current volume of the artboard.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onArtboardVolumeReceived")
+    internal fun onArtboardVolumeReceived(requestID: Long, volume: Float) {
+        @Suppress("UNCHECKED_CAST")
+        (pendingContinuations.remove(requestID) as? Continuation<Float>)?.resume(volume)
+    }
+
+    /**
      * Draw the artboard with the given state machine.
      *
      * @param artboardHandle The handle of the artboard to draw.
