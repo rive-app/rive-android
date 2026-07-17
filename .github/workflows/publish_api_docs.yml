@@ -80,7 +80,7 @@ jobs:
         # ANDROID_SDK_ROOT is exported into the process env by setup-android above.
         run: |
           export NDK_PATH="${ANDROID_SDK_ROOT}/android-ndk-r27c"
-          ./gradlew kotlin:dokkaHtml
+          ./gradlew kotlin:dokkaGenerate
 
       # v5 specifically: it sends session tags on AssumeRoleWithWebIdentity, which
       # the deploy role's trust policy allows (sts:TagSession). v2 would not tag.

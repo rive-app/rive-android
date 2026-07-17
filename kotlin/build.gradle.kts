@@ -239,8 +239,9 @@ tasks.named<ProcessResources>("jvmProcessResources") {
 
 // HTML output is published to api.rive.app/android/<version>/. Dokka emits a
 // browsable site (nested index.html files), which is what the S3/CloudFront
-// hosting expects — GFM markdown is not servable as a site.
-tasks.dokkaHtml {
+// hosting expects — GFM markdown is not servable as a site. The publish workflow
+// runs `dokkaGenerate` and syncs build/dokka/html.
+dokka {
     // Module display name shown as the docs title/header
     moduleName.set("Rive Android")
 }
@@ -265,7 +266,10 @@ val PUBLISH_VERSION = runCatching {
     val versionDetails: groovy.lang.Closure<com.palantir.gradle.gitversion.VersionDetails> by extra
     versionDetails().lastTag
 }.getOrDefault("0.0.0-SNAPSHOT")
-val PUBLISH_ARTIFACT_ID = "rive-android"
+// Umbrella KMP coordinate. Per-target artifacts derive from it: the Android target
+// publishes as app.rive:rive-android (unchanged for existing consumers), the desktop
+// JVM target as app.rive:rive-jvm, and so on.
+val PUBLISH_ARTIFACT_ID = "rive"
 
 mavenPublishing {
     // `true` will automatically publish the artifact to Maven Central Portal.
