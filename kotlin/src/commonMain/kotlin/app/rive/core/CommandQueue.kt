@@ -565,14 +565,15 @@ class CommandQueue internal constructor(
      * the lifecycle is in the RESUMED state and while this CommandQueue has not been disposed.
      *
      * @param lifecycle The lifecycle bounding the polling.
-     * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
-     *    which uses the Choreographer to sync to the display refresh rate.
+     * @param ticker The frame ticker to use for polling. Defaults to [DefaultFrameTicker], which
+     *    uses the Compose frame clock when the calling context has one and a fixed ~60 Hz delay
+     *    otherwise, so it is safe to call from non-Compose scopes such as `lifecycleScope`.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
     suspend fun beginPolling(
         lifecycle: Lifecycle,
-        ticker: FrameTicker = ComposeFrameTicker
+        ticker: FrameTicker = DefaultFrameTicker
     ) {
         check(!isDisposed) { "CommandQueue has been released." }
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {

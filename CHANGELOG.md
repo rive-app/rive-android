@@ -42,9 +42,10 @@ The legacy View-based API has been removed.
   (was a sealed class); `Bytes` is common, `RawRes` is Android-only.
 - `Rive()`'s first-frame callback is `onFrameCaptured: ((ImageBitmap) -> Unit)?`
   (was `onBitmapAvailable` with an Android `Bitmap`).
-- The default frame ticker is the Compose frame clock rather than
-  `Choreographer` (behavioral difference only if you relied on ticking outside
-  composition).
+- The default frame ticker uses the Compose frame clock when the calling
+  context has one, and a ~60 Hz delay otherwise (was `Choreographer`).
+  `ChoreographerFrameTicker` remains available on Android for vsync-aligned
+  ticking outside Compose.
 
 **Added**
 
