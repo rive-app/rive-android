@@ -13,8 +13,11 @@ import app.rive.Fit
 import app.rive.RawRes as RiveRawRes
 import app.rive.Result
 import app.rive.Rive
+import app.rive.ViewModelInstanceSource
+import app.rive.ViewModelSource
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
+import app.rive.rememberViewModelInstance
 
 /**
  * Real Rive rendering inside Android Studio previews.
@@ -33,6 +36,7 @@ private fun RivePreviewBox(
     @RawRes resId: Int,
     fit: Fit = Fit.Contain(),
     size: Dp = 250.dp,
+    viewModelSource: ViewModelInstanceSource? = null,
 ) {
     val worker = rememberRiveWorker()
     // The Box keeps the preview at its final size from the first composition. File loading is
@@ -45,6 +49,9 @@ private fun RivePreviewBox(
                 file.value,
                 modifier = Modifier.fillMaxSize(),
                 fit = fit,
+                viewModelInstance = viewModelSource?.let {
+                    rememberViewModelInstance(file.value, it)
+                },
             )
 
             else -> {}
@@ -79,11 +86,17 @@ fun RiveLayoutPreview() {
     RivePreviewBox(R.raw.layouts_demo, fit = Fit.Layout(), size = 400.dp)
 }
 
-/** State-machine driven rating meter. */
+/**
+ * State-machine driven rating meter. Tapping stars works because the artboard's tap listeners
+ * write to view-model properties, which requires the view model instance to be bound.
+ */
 @Preview(showBackground = true)
 @Composable
 fun RiveRatingPreview() {
-    RivePreviewBox(R.raw.rating_animation_all)
+    RivePreviewBox(
+        R.raw.rating_animation_all,
+        viewModelSource = ViewModelSource.Named("Rating Animation").defaultInstance(),
+    )
 }
 
 /** The same file under different fit modes. */
