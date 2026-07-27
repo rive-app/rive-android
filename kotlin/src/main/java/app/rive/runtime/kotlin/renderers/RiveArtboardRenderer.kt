@@ -1,6 +1,5 @@
 package app.rive.runtime.kotlin.renderers
 
-import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.RiveLog
 import app.rive.core.traceSection
@@ -37,32 +36,26 @@ open class RiveArtboardRenderer(
         }
     }
 
+    /**
+     * Resizes the active artboard to match the renderer surface.
+     *
+     * Must be called with [frameLock] held, then `controller.file?.fileLock` (in that order).
+     * [draw] is the only call site; locks are not taken here so ordering stays centralized.
+     */
     @WorkerThread
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    open fun resizeArtboard() {
+    private fun resizeArtboard() {
         if (fit == Fit.LAYOUT) {
             traceSection("Rive/Layout/ResizeArtboard") {
-                // Read surface dimensions under frameLock so delete() cannot null cppPointer between
-                // hasCppObject checks and width/height dereference.
-                val (newWidth, newHeight) = synchronized(frameLock) {
-                    if (!hasCppObject || !controller.isActive) return
-                    Pair(width / scaleFactor, height / scaleFactor)
-                }
-
-                // Acquire file lock only after the frameLock section to avoid lock-order inversion and
-                // serialize artboard mutations with controller/file lifecycle operations.
-                synchronized(controller.file?.fileLock ?: this) {
-                    controller.activeArtboard?.apply {
-                        width = newWidth
-                        height = newHeight
-                    }
+                val newWidth = width / scaleFactor
+                val newHeight = height / scaleFactor
+                controller.activeArtboard?.apply {
+                    width = newWidth
+                    height = newHeight
                 }
             }
         } else {
             traceSection("Rive/Layout/ResetArtboardSize") {
-                synchronized(controller.file?.fileLock ?: this) {
-                    controller.activeArtboard?.resetArtboardSize()
-                }
+                controller.activeArtboard?.resetArtboardSize()
             }
         }
     }
@@ -70,16 +63,27 @@ open class RiveArtboardRenderer(
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        if (controller.requireArtboardResize.getAndSet(false)) {
-            resizeArtboard()
-        }
-
-        // Deref and draw under frameLock
+        // Resize and draw under frameLock
         synchronized(frameLock) {
             // Early out for deleted renderer or inactive controller.
+            // hasCppObject is only mutated under frameLock; isActive may change on other threads.
             if (!hasCppObject || !controller.isActive) return
 
-            controller.activeArtboard?.draw(cppPointer, fit, alignment, scaleFactor = scaleFactor)
+            // Protect both resize and draw with fileLock (frameLock first, always). Matches
+            // controller.advance() and prevents UI-thread file/artboard mutations mid-frame.
+            synchronized(controller.file?.fileLock ?: this) {
+                // Re-check isActive only; hasCppObject remains stable while frameLock is held.
+                if (!controller.isActive) return
+                if (controller.requireArtboardResize.getAndSet(false)) {
+                    resizeArtboard()
+                }
+                controller.activeArtboard?.draw(
+                    cppPointer,
+                    fit,
+                    alignment,
+                    scaleFactor = scaleFactor
+                )
+            }
         }
     }
 
@@ -109,10 +113,5 @@ open class RiveArtboardRenderer(
         stop()
         controller.selectArtboard()
         start()
-    }
-
-    override fun disposeDependencies() {
-        // Lock to make sure things are disposed in an orderly manner.
-        synchronized(controller.file?.fileLock ?: this) { super.disposeDependencies() }
     }
 }
