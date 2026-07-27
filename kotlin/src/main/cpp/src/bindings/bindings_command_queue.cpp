@@ -936,15 +936,16 @@ static void executeDrawWork(const TracerType* tracer,
         return;
     }
 
-    [[maybe_unused]]
-    TraceScope<TracerType> drawTrace(*tracer, "Rive/Frame/Draw");
+    [[maybe_unused]] TraceScope<TracerType> drawTrace(*tracer,
+                                                      "Rive/Frame/Draw");
 
     auto factory = reinterpret_cast<CommandServerFactory*>(server->factory());
     auto riveContext = factory->getRenderContext()->riveContext.get();
     rive::gpu::RenderTarget* concreteRenderTarget = nullptr;
     {
-        [[maybe_unused]]
-        TraceScope<TracerType> beginTrace(*tracer, "Rive/Frame/Draw/Begin");
+        [[maybe_unused]] TraceScope<TracerType> beginTrace(
+            *tracer,
+            "Rive/Frame/Draw/Begin");
         concreteRenderTarget = renderContext->beginFrame(nativeSurface);
         if (concreteRenderTarget == nullptr)
         {
@@ -971,8 +972,9 @@ static void executeDrawWork(const TracerType* tracer,
     }
 
     {
-        [[maybe_unused]]
-        TraceScope<TracerType> renderTrace(*tracer, "Rive/Frame/Draw/Render");
+        [[maybe_unused]] TraceScope<TracerType> renderTrace(
+            *tracer,
+            "Rive/Frame/Draw/Render");
         auto renderer = rive::RiveRenderer(riveContext);
         renderer.align(
             fit,
@@ -987,8 +989,9 @@ static void executeDrawWork(const TracerType* tracer,
     }
 
     {
-        [[maybe_unused]]
-        TraceScope<TracerType> flushTrace(*tracer, "Rive/Frame/Draw/Flush");
+        [[maybe_unused]] TraceScope<TracerType> flushTrace(
+            *tracer,
+            "Rive/Frame/Draw/Flush");
         if (!renderContext->flush(nativeSurface))
         {
             return;
@@ -996,8 +999,9 @@ static void executeDrawWork(const TracerType* tracer,
     }
 
     {
-        [[maybe_unused]]
-        TraceScope<TracerType> presentTrace(*tracer, "Rive/Frame/Draw/Present");
+        [[maybe_unused]] TraceScope<TracerType> presentTrace(
+            *tracer,
+            "Rive/Frame/Draw/Present");
         if (!renderContext->present(nativeSurface))
         {
             return;
