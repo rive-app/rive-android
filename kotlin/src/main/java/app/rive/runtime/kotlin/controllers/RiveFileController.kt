@@ -144,6 +144,9 @@ class RiveFileController internal constructor(
      */
     var layoutScaleFactorAutomatic: Float = 1.0f
         internal set(value) {
+            if (field == value) {
+                return
+            }
             field = value
             requireArtboardResize.set(true)
             synchronized(startStopLock) {
@@ -323,8 +326,16 @@ class RiveFileController internal constructor(
     @WorkerThread
     fun advance(elapsed: Float) {
         // We need a file to advance.
-        val mLock = this.file?.fileLock ?: return
-        synchronized(mLock) {
+        val activeFile = file ?: return
+        synchronized(activeFile.fileLock) {
+            // The file may have been replaced while this thread was waiting for its lock.
+            if (file !== activeFile) {
+                // This elapsed time belongs to the old file's frame. Applying it to the replacement
+                // file would advance the new scene incorrectly. The replacement's setup and start
+                // path schedules its own rendering work.
+                return
+            }
+
             activeArtboard?.let { ab ->
                 // Process all the inputs right away.
                 traceSection("Rive/Frame/Advance/ProcessInputs") {
@@ -864,22 +875,46 @@ class RiveFileController internal constructor(
         }
     }
 
-    private fun resolveStateMachineAdvance(
+    /**
+     * Advances one state machine and reports its events and state changes to registered listeners.
+     *
+     * The active file's lock covers the complete operation so event snapshots, advancement, and
+     * state-change snapshots cannot interleave with another thread's native mutations.
+     * Callers may already hold the same monitor to group this with related artboard mutations;
+     * JVM monitors are re-entrant.
+     *
+     * @param stateMachineInstance The retained state machine to evaluate.
+     * @param elapsed The elapsed time in seconds.
+     * @return `true` if the state machine needs further advancement, or `false` if the controller
+     *    no longer has the same active file to advance.
+     */
+    internal fun resolveStateMachineAdvance(
         stateMachineInstance: StateMachineInstance,
         elapsed: Float,
     ): Boolean {
-        if (eventListeners.isNotEmpty()) {
-            stateMachineInstance.eventsReported.forEach {
-                notifyEvent(it)
+        val activeFile = file ?: return false
+        return synchronized(activeFile.fileLock) {
+            // The file may have been replaced while this thread was waiting for its lock.
+            if (file !== activeFile) {
+                // Do not advance a state machine from the replaced file after its native objects
+                // may have been released. Callers that interpret `false` as settled already hold
+                // this file lock, so they cannot reach this branch.
+                return@synchronized false
             }
-        }
-        val stillPlaying = stateMachineInstance.advance(elapsed)
-        if (listeners.isNotEmpty()) {
-            stateMachineInstance.statesChanged.forEach {
-                notifyStateChanged(stateMachineInstance, it)
+
+            if (eventListeners.isNotEmpty()) {
+                stateMachineInstance.eventsReported.forEach {
+                    notifyEvent(it)
+                }
             }
+            val stillPlaying = stateMachineInstance.advance(elapsed)
+            if (listeners.isNotEmpty()) {
+                stateMachineInstance.statesChanged.forEach {
+                    notifyStateChanged(stateMachineInstance, it)
+                }
+            }
+            stillPlaying
         }
-        return stillPlaying
     }
 
     internal fun play(

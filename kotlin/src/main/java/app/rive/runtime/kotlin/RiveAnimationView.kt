@@ -445,6 +445,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         super.onSurfaceTextureSizeChanged(surface, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.requireArtboardResize.set(true)
     }
 
     override fun onSurfaceTextureAvailable(
@@ -452,6 +453,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
+        controller.requireArtboardResize.set(true)
     }
 
     private fun loadFileFromResource(onComplete: (File) -> Unit) {
@@ -1050,7 +1052,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Rive automatically sets to the current density. If [layoutScaleFactor] is not
         // set by the user, this value will be used.
         controller.layoutScaleFactorAutomatic = resources.displayMetrics.density
-        controller.requireArtboardResize.set(true) // artboard requires resizing depending on Fit
 
         bounds.set(0.0f, 0.0f, providedWidth.toFloat(), providedHeight.toFloat())
         // Lets work out how much space our artboard is going to actually use.

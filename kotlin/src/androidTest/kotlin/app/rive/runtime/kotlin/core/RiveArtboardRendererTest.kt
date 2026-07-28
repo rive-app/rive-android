@@ -6,6 +6,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
+import app.rive.runtime.kotlin.test.R
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,10 +16,80 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
     private val testUtils = TestUtils()
+
+    /**
+     * Verifies that resizing a layout-fit artboard reevaluates its settled state machine without
+     * adding that state machine back to continuous playback.
+     */
+    @Test
+    fun resizeArtboardReevaluatesSettledStateMachine() {
+        val file = testUtils.context.resources.openRawResource(R.raw.resize_test).use {
+            File(it.readBytes())
+        }
+        val controller = RiveFileController()
+        val observer = TestUtils.Observer()
+        val surfaceTexture = SurfaceTexture(0).apply {
+            setDefaultBufferSize(500, 1_000)
+        }
+        val sharedSurface = SharedSurface(Surface(surfaceTexture))
+        val renderer = RiveArtboardRenderer(controller = controller)
+        renderer.make()
+
+        try {
+            controller.registerListener(observer)
+            controller.setRiveFile(file)
+            controller.fit = Fit.LAYOUT
+            controller.layoutScaleFactor = 1f
+            controller.isActive = true
+
+            var advanceCount = 0
+            while (controller.isAdvancing && advanceCount < 120) {
+                controller.advance(1f / 60f)
+                advanceCount++
+            }
+            assertFalse("The fixture did not settle.", controller.isAdvancing)
+            assertEquals(1, controller.stateMachines.size)
+            assertTrue(controller.playingStateMachines.isEmpty())
+            observer.states.clear()
+
+            renderer.setSurface(sharedSurface)
+            TestUtils.waitUntil(5.seconds) {
+                synchronized(file.lock) {
+                    controller.activeArtboard?.height == 1_000f
+                }
+            }
+            renderer.stop()
+
+            assertEquals(1_000f, controller.activeArtboard?.height)
+            assertTrue(observer.states.any { it.stateName == "Expanded" })
+            assertTrue(controller.playingStateMachines.isEmpty())
+
+            observer.states.clear()
+            controller.fit = Fit.CONTAIN
+            TestUtils.waitUntil(5.seconds) {
+                synchronized(file.lock) {
+                    controller.activeArtboard?.height == 500f
+                }
+            }
+            renderer.stop()
+
+            assertEquals(500f, controller.activeArtboard?.height)
+            assertTrue(observer.states.any { it.stateName == "Collapsed" })
+            assertTrue(controller.playingStateMachines.isEmpty())
+        } finally {
+            controller.isActive = false
+            renderer.delete()
+            sharedSurface.release()
+            surfaceTexture.release()
+            controller.release()
+            file.release()
+        }
+    }
 
     @Test
     fun createRenderer() {
@@ -291,7 +363,7 @@ class RiveArtboardRendererTest {
         // Create a custom renderer that overrides resizeArtboard() to add blocking,
         // simulating the race condition where the renderer is deleted during resize
         val latchingRenderer = object : RiveArtboardRenderer(controller = controller) {
-            override fun resizeArtboard() {
+            override fun resizeArtboard(): Boolean {
                 // Signal we've entered resizeArtboard()
                 duringResizeLatch.countDown()
 
@@ -301,7 +373,7 @@ class RiveArtboardRendererTest {
 
                 // Call the parent's resizeArtboard() which will check hasCppObject
                 // (the fix) and return early if disposed, preventing a crash
-                super.resizeArtboard()
+                return super.resizeArtboard()
             }
         }
 

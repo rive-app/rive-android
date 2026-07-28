@@ -5,6 +5,7 @@ import androidx.annotation.WorkerThread
 import app.rive.RiveLog
 import app.rive.core.traceSection
 import app.rive.runtime.kotlin.controllers.RiveFileController
+import app.rive.runtime.kotlin.core.Artboard
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
@@ -37,42 +38,107 @@ open class RiveArtboardRenderer(
         }
     }
 
+    /**
+     * Runs [block] with the active artboard while holding its current file's lock.
+     *
+     * Because a file (and its lock) can be replaced while this thread is waiting for the lock,
+     * we retry acquisition until we have the lock for the current file. Alternatively, if the
+     * controller has no active file or artboard, this returns `false` without running [block]. The
+     * caller should check for `false` and handle that situation appropriately.
+     *
+     * @param block Work to run on the locked active artboard.
+     * @return `true` if [block] ran, or `false` if there is no active file or artboard.
+     */
+    private fun withLockedActiveArtboard(block: Artboard.() -> Unit): Boolean {
+        while (true) {
+            val activeFile = controller.file ?: return false
+            synchronized(activeFile.fileLock) {
+                if (controller.file === activeFile) {
+                    val activeArtboard = controller.activeArtboard ?: return false
+                    activeArtboard.block()
+                    return true
+                }
+            }
+        }
+    }
+
+    /**
+     * Applies artboard sizing based on the active fit mode before the next draw.
+     *
+     * `Fit.LAYOUT` can require a re-layout, so state machines advance by 0 to apply these changes
+     * after their artboard receives its new dimensions.
+     *
+     * @return `true` if the resize was applied to the active artboard, or `false` if the renderer
+     *    cannot currently apply it.
+     */
     @WorkerThread
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    open fun resizeArtboard() {
-        if (fit == Fit.LAYOUT) {
+    open fun resizeArtboard(): Boolean {
+        // Apply any layout changes by advancing all held state machines by 0 without changing their
+        // playback status.
+        val applyLayout = {
+            traceSection("Rive/Layout/AdvanceStateMachines") {
+                controller.stateMachines.forEach { stateMachine ->
+                    controller.resolveStateMachineAdvance(stateMachine, 0f)
+                }
+            }
+        }
+
+        return if (fit == Fit.LAYOUT) {
             traceSection("Rive/Layout/ResizeArtboard") {
                 // Read surface dimensions under frameLock so delete() cannot null cppPointer between
                 // hasCppObject checks and width/height dereference.
-                val (newWidth, newHeight) = synchronized(frameLock) {
-                    if (!hasCppObject || !controller.isActive) return
-                    Pair(width / scaleFactor, height / scaleFactor)
-                }
+                val (newWidth, newHeight) =
+                    synchronized(frameLock) {
+                        if (!hasCppObject || !controller.isActive) {
+                            null
+                        } else {
+                            Pair(width / scaleFactor, height / scaleFactor)
+                        }
+                    } ?: return@traceSection false
 
                 // Acquire file lock only after the frameLock section to avoid lock-order inversion and
                 // serialize artboard mutations with controller/file lifecycle operations.
-                synchronized(controller.file?.fileLock ?: this) {
-                    controller.activeArtboard?.apply {
-                        width = newWidth
-                        height = newHeight
+                withLockedActiveArtboard {
+                    val dimensionsChanged = width != newWidth || height != newHeight
+                    width = newWidth
+                    height = newHeight
+                    if (dimensionsChanged) {
+                        applyLayout()
                     }
                 }
             }
         } else {
             traceSection("Rive/Layout/ResetArtboardSize") {
-                synchronized(controller.file?.fileLock ?: this) {
-                    controller.activeArtboard?.resetArtboardSize()
+                withLockedActiveArtboard {
+                    val oldWidth = width
+                    val oldHeight = height
+                    resetArtboardSize()
+                    if (width != oldWidth || height != oldHeight) {
+                        applyLayout()
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * Applies a pending artboard resize and preserves the request if it cannot currently be
+     * handled.
+     */
+    private fun resizeArtboardIfNeeded() {
+        if (!controller.requireArtboardResize.getAndSet(false)) {
+            return
+        }
+        if (!resizeArtboard()) {
+            controller.requireArtboardResize.set(true)
         }
     }
 
     // Be aware of thread safety!
     @WorkerThread
     override fun draw() {
-        if (controller.requireArtboardResize.getAndSet(false)) {
-            resizeArtboard()
-        }
+        resizeArtboardIfNeeded()
 
         // Deref and draw under frameLock
         synchronized(frameLock) {
