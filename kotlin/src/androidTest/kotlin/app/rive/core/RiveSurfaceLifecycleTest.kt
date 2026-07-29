@@ -99,11 +99,9 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
     }
 
     @Test
-    fun draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() {
+    fun draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() = runBlocking {
+        val res = loadDefaultRiveResources(R.raw.empty)
         val gate = CountDownLatch(1)
-
-        val (artboardHandle, stateMachineHandle) =
-            riveWorker.loadDefaultArtboardAndStateMachine(R.raw.empty)
         val closeableSurface = LatchingImageReaderSurface()
         val surface = riveWorker.createRiveSurface(closeableSurface)
 
@@ -113,8 +111,8 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
             gate.await(2, TimeUnit.SECONDS)
         }
         riveWorker.draw(
-            artboardHandle,
-            stateMachineHandle,
+            res.artboard.artboardHandle,
+            res.stateMachine.stateMachineHandle,
             surface,
             Fit.Contain(),
             Color.TRANSPARENT
@@ -131,24 +129,21 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
     }
 
     @Test
-    fun stress_draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() {
-        val (artboardHandle, stateMachineHandle) =
-            riveWorker.loadDefaultArtboardAndStateMachine(R.raw.empty)
+    fun stress_draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() = runBlocking {
+        val res = loadDefaultRiveResources(R.raw.empty)
 
-        riveWorker.withPolling {
-            // Stressed variant of draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal.
-            // Repeated close should cancel pending coalesced draws and keep disposal orderly.
-            repeat(200) {
-                val surface = createImageSurface(64, 64)
-                draw(
-                    artboardHandle,
-                    stateMachineHandle,
-                    surface,
-                    Fit.Contain(),
-                    Color.TRANSPARENT
-                )
-                surface.close()
-            }
+        // Stressed variant of draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal.
+        // Repeated close should cancel pending coalesced draws and keep disposal orderly.
+        repeat(200) {
+            val surface = riveWorker.createImageSurface(64, 64)
+            riveWorker.draw(
+                res.artboard.artboardHandle,
+                res.stateMachine.stateMachineHandle,
+                surface,
+                Fit.Contain(),
+                Color.TRANSPARENT
+            )
+            surface.close()
         }
     }
 

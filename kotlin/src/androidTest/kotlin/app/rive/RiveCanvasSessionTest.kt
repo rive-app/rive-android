@@ -11,8 +11,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
-import app.rive.core.withDefaultRiveResources
-import app.rive.core.withPolling
+import app.rive.core.RiveWorker
+import app.rive.core.StateMachineHandle
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,18 +44,15 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(maxSdkVersion = Build.VERSION_CODES.P)
     fun constructor_throwsBelowApi29() = runBlocking<Unit> {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                assertFailsWith<IllegalStateException>(
-                    "Session should fail fast when API < 29"
-                ) {
-                    RiveCanvasSession(
-                        riveWorker = riveWorker,
-                        artboard = artboard,
-                        stateMachine = stateMachine
-                    )
-                }
-            }
+        val res = loadDefaultRiveResources(R.raw.empty)
+        assertFailsWith<IllegalStateException>(
+            "Session should fail fast when API < 29"
+        ) {
+            RiveCanvasSession(
+                riveWorker = riveWorker,
+                artboard = res.artboard,
+                stateMachine = res.stateMachine
+            )
         }
     }
 
@@ -122,6 +119,22 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    /** Verifies that a resize rejects a delayed settled callback from the preceding generation. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun setRegion_ignoresSettledCallbackFromEarlierGeneration() = runBlocking {
+        withPlayingSession {
+            resume()
+            awaitFrameCountGreaterThan(0)
+            val settledFrameCount = awaitFrameCountSettled()
+
+            setRegion(Rect(0, 0, 128, 128))
+            emitStaleSettledCallback()
+
+            awaitFrameCountGreaterThan(settledFrameCount)
+        }
+    }
+
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun beginPlaying_whenSettled_stopsEmittingFrames() = runBlocking {
@@ -154,45 +167,64 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
-    private suspend fun withPlayingSession(block: suspend PlayingSession.() -> Unit) {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                coroutineScope {
-                    val lifecycleOwner = withContext(Dispatchers.Main.immediate) {
-                        TestLifecycleOwner()
-                    }
-                    val session = withContext(Dispatchers.Main.immediate) {
-                        RiveCanvasSession(
-                            riveWorker = riveWorker,
-                            artboard = artboard,
-                            stateMachine = stateMachine,
-                        ).also { created ->
-                            created.setRegion(Rect(0, 0, 96, 96))
-                        }
-                    }
-                    val frameCount = AtomicInteger(0)
-                    val frameCollector = launch {
-                        session.frameAvailable.collect {
-                            frameCount.incrementAndGet()
-                        }
-                    }
-                    val playJob = launch(Dispatchers.Main.immediate) {
-                        session.beginPlaying(lifecycleOwner.lifecycle)
-                    }
+    /** Verifies that restarting playback establishes a boundary against prior settled callbacks. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_again_ignoresSettledCallbackFromEarlierGeneration() = runBlocking {
+        withPlayingSession {
+            resume()
+            awaitFrameCountGreaterThan(0)
+            val settledFrameCount = awaitFrameCountSettled()
 
-                    val playingSession = PlayingSession(
-                        session = session,
-                        lifecycleOwner = lifecycleOwner,
-                        frameCount = frameCount,
-                        playJob = playJob,
-                        frameCollector = frameCollector,
-                    )
-                    try {
-                        playingSession.block()
-                    } finally {
-                        playingSession.close()
-                    }
+            restartPlaying()
+            emitStaleSettledCallback()
+
+            awaitFrameCountGreaterThan(settledFrameCount)
+        }
+    }
+
+    private suspend fun withPlayingSession(block: suspend PlayingSession.() -> Unit) {
+        val res = loadDefaultRiveResources(R.raw.empty)
+        coroutineScope {
+            val lifecycleOwner = withContext(Dispatchers.Main.immediate) {
+                TestLifecycleOwner()
+            }
+            val session = withContext(Dispatchers.Main.immediate) {
+                RiveCanvasSession(
+                    riveWorker = riveWorker,
+                    artboard = res.artboard,
+                    stateMachine = res.stateMachine,
+                ).also { created ->
+                    created.setRegion(Rect(0, 0, 96, 96))
                 }
+            }
+            val frameCount = AtomicInteger(0)
+            val frameCollector = launch {
+                session.frameAvailable.collect {
+                    frameCount.incrementAndGet()
+                }
+            }
+            val startPlaying = {
+                launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+            }
+            val playJob = startPlaying()
+
+            val playingSession = PlayingSession(
+                session = session,
+                riveWorker = riveWorker,
+                stateMachineHandle = res.stateMachine.stateMachineHandle,
+                lifecycleOwner = lifecycleOwner,
+                frameCount = frameCount,
+                playJob = playJob,
+                startPlaying = startPlaying,
+                frameCollector = frameCollector,
+            )
+            try {
+                playingSession.block()
+            } finally {
+                playingSession.close()
             }
         }
     }
@@ -223,9 +255,12 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
      */
     private class PlayingSession(
         val session: RiveCanvasSession,
+        private val riveWorker: RiveWorker,
+        private val stateMachineHandle: StateMachineHandle,
         private val lifecycleOwner: TestLifecycleOwner,
         private val frameCount: AtomicInteger,
-        private val playJob: Job,
+        private var playJob: Job,
+        private val startPlaying: () -> Job,
         private val frameCollector: Job,
     ) {
         /** @return The number of public [RiveCanvasSession.frameAvailable] events observed. */
@@ -284,6 +319,25 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         suspend fun setRegion(region: Rect) {
             withContext(Dispatchers.Main.immediate) {
                 session.setRegion(region)
+            }
+        }
+
+        /**
+         * Cancels the active playback invocation and starts another one for the same session.
+         */
+        suspend fun restartPlaying() {
+            playJob.cancelAndJoin()
+            withContext(Dispatchers.Main.immediate) {
+                playJob = startPlaying()
+            }
+        }
+
+        /**
+         * Delivers a settled callback whose request ID predates every real request in this test.
+         */
+        suspend fun emitStaleSettledCallback() {
+            withContext(Dispatchers.Main.immediate) {
+                riveWorker.onStateMachineSettled(Long.MIN_VALUE, stateMachineHandle)
             }
         }
 

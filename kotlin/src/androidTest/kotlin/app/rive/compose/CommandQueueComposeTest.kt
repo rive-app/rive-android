@@ -1,4 +1,4 @@
-package app.rive
+package app.rive.compose
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.MutableState
@@ -6,7 +6,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.Result
+import app.rive.RiveAndroidTest
+import app.rive.RiveFile
+import app.rive.RiveFileSource
 import app.rive.core.CommandQueue
+import app.rive.rememberRiveFile
+import app.rive.rememberRiveWorker
 import app.rive.runtime.kotlin.test.R
 import org.junit.Rule
 import org.junit.runner.RunWith

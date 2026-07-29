@@ -7,11 +7,33 @@ import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.StateMachine
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+
+/**
+ * Continuously polls a [CommandQueue] on a background thread until closed.
+ *
+ * @param commandQueue The command queue whose callbacks should be delivered.
+ */
+internal class CommandQueuePoller(
+    private val commandQueue: CommandQueue
+) : AutoCloseable {
+    private val keepPolling = AtomicBoolean(true)
+    private val pollThread = thread(name = "RiveTestPoll") {
+        while (keepPolling.get()) {
+            commandQueue.pollMessages()
+            Thread.sleep(1)
+        }
+    }
+
+    /** Stops polling and waits for the background thread to finish. */
+    override fun close() {
+        keepPolling.set(false)
+        pollThread.join(2_000)
+    }
+}
 
 /**
  * Runs [block] while a temporary background thread continuously polls this command queue.
@@ -21,39 +43,12 @@ import kotlin.test.assertTrue
  * `finally` so failures inside [block] do not leak the helper thread.
  */
 internal inline fun <T> CommandQueue.withPolling(block: CommandQueue.() -> T): T {
-    val keepPolling = AtomicBoolean(true)
-    val pollThread = thread(name = "RiveTestPoll") {
-        while (keepPolling.get()) {
-            pollMessages()
-            Thread.sleep(1)
-        }
-    }
+    val poller = CommandQueuePoller(this)
 
     return try {
         block()
     } finally {
-        keepPolling.set(false)
-        pollThread.join(2000)
-    }
-}
-
-/**
- * Loads [rawResourceId] and creates its default artboard/state machine while polling.
- *
- * File loading is suspend-based, but default artboard/state machine creation is queued work;
- * polling here ensures command server responses are delivered before the handles are used.
- */
-internal fun CommandQueue.loadDefaultArtboardAndStateMachine(
-    rawResourceId: Int
-): Pair<ArtboardHandle, StateMachineHandle> {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    return withPolling {
-        val bytes = context.resources.openRawResource(rawResourceId)
-            .use { it.readBytes() }
-        val fileHandle = runBlocking { loadFile(bytes) }
-        val artboardHandle = createDefaultArtboard(fileHandle)
-        val stateMachineHandle = createDefaultStateMachine(artboardHandle)
-        artboardHandle to stateMachineHandle
+        poller.close()
     }
 }
 
@@ -63,10 +58,39 @@ internal data class DefaultRiveResources(
     val artboard: Artboard,
     val stateMachine: StateMachine,
 ) : AutoCloseable {
+    /** Closes the state machine, artboard, and file while preserving any cleanup failures. */
     override fun close() {
-        stateMachine.close()
-        artboard.close()
-        file.close()
+        closeAll(stateMachine, artboard, file)
+    }
+}
+
+/**
+ * Loads [rawResourceId] and creates the default public [Artboard] and [StateMachine].
+ *
+ * The caller owns the returned resources and must close them.
+ *
+ * @param rawResourceId The raw Rive resource to load.
+ * @return The loaded file and its default artboard and state machine.
+ * @throws AssertionError If the file fails to load or produces an unexpected result.
+ */
+internal suspend fun RiveWorker.loadDefaultRiveResources(
+    @RawRes rawResourceId: Int
+): DefaultRiveResources {
+    var file: RiveFile? = null
+    var artboard: Artboard? = null
+    var stateMachine: StateMachine? = null
+    try {
+        file = loadRiveFileOrFail(rawResourceId)
+        artboard = Artboard.fromFile(file)
+        stateMachine = StateMachine.fromArtboard(artboard)
+        return DefaultRiveResources(file, artboard, stateMachine)
+    } catch (failure: Throwable) {
+        try {
+            closeAll(stateMachine, artboard, file)
+        } catch (closeFailure: Throwable) {
+            failure.addSuppressed(closeFailure)
+        }
+        throw failure
     }
 }
 
@@ -75,23 +99,21 @@ internal data class DefaultRiveResources(
  *
  * The returned resources are closed after [block] completes, keeping tests focused on the behavior
  * under test rather than nested resource cleanup.
+ *
+ * @param rawResourceId The raw Rive resource to load.
+ * @param block The operation to run with the loaded resources.
+ * @return The result of [block].
+ * @throws AssertionError If the file fails to load or produces an unexpected result.
  */
 internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
     @RawRes rawResourceId: Int,
     block: DefaultRiveResources.() -> T
 ): T {
-    var file: RiveFile? = null
-    var artboard: Artboard? = null
-    var stateMachine: StateMachine? = null
+    val resources = loadDefaultRiveResources(rawResourceId)
     try {
-        file = loadRiveFileOrFail(rawResourceId)
-        artboard = Artboard.fromFile(file)
-        stateMachine = StateMachine.fromArtboard(artboard)
-        return DefaultRiveResources(file, artboard, stateMachine).block()
+        return resources.block()
     } finally {
-        stateMachine?.close()
-        artboard?.close()
-        file?.close()
+        resources.close()
     }
 }
 
@@ -108,7 +130,14 @@ internal fun assertDisposed(commandQueue: CommandQueue) {
     )
 }
 
-private suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): RiveFile {
+/**
+ * Loads a raw Rive resource and fails the test if loading does not succeed.
+ *
+ * @param rawResourceId The raw Rive resource to load.
+ * @return The loaded Rive file.
+ * @throws AssertionError If the file fails to load or produces an unexpected result.
+ */
+internal suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): RiveFile {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     return when (
         val result = RiveFile.fromSource(
@@ -123,4 +152,24 @@ private suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): R
         is Result.Loading ->
             throw AssertionError("RiveFile.fromSource should not return Loading")
     }
+}
+
+/**
+ * Closes every non-null resource, retaining later failures as suppressed exceptions.
+ *
+ * @param resources The resources to close in their supplied order.
+ * @throws Throwable The first close failure, with any later failures attached.
+ */
+private fun closeAll(vararg resources: AutoCloseable?) {
+    var failure: Throwable? = null
+    resources.forEach { resource ->
+        try {
+            resource?.close()
+        } catch (closeFailure: Throwable) {
+            failure = failure?.apply {
+                addSuppressed(closeFailure)
+            } ?: closeFailure
+        }
+    }
+    failure?.let { throw it }
 }

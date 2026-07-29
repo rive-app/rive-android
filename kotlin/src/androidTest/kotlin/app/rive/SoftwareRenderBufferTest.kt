@@ -20,66 +20,57 @@ import kotlin.time.Duration.Companion.milliseconds
 class SoftwareRenderBufferTest : RiveAndroidTest() {
     @Test
     fun renderInto_writesArgb8888() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    stateMachine.advance(0.milliseconds)
-                    val destination = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
-                    val rendered = buffer.renderInto(destination, artboard, stateMachine)
-                    assertSame(destination, rendered)
-                    assertEquals(Bitmap.Config.ARGB_8888, rendered.config)
-                }
-            }
+        val res = loadDefaultRiveResources(R.raw.empty)
+        SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            res.stateMachine.advance(0.milliseconds)
+            val destination = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            val rendered = buffer.renderInto(destination, res.artboard, res.stateMachine)
+            assertSame(destination, rendered)
+            assertEquals(Bitmap.Config.ARGB_8888, rendered.config)
         }
     }
 
     @Test
     fun renderInto_withClearColor_fillsBitmap() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                SoftwareRenderBuffer(16, 16, riveWorker).use { buffer ->
-                    val destination = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        val res = loadDefaultRiveResources(R.raw.empty)
+        SoftwareRenderBuffer(16, 16, riveWorker).use { buffer ->
+            val destination = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
 
-                    buffer.renderInto(
-                        destination,
-                        artboard,
-                        stateMachine,
-                        clearColor = Color.RED
-                    )
+            buffer.renderInto(
+                destination,
+                res.artboard,
+                res.stateMachine,
+                clearColor = Color.RED
+            )
 
-                    val pixels = IntArray(destination.width * destination.height)
-                    destination.getPixels(
-                        pixels,
-                        0,
-                        destination.width,
-                        0,
-                        0,
-                        destination.width,
-                        destination.height
-                    )
-                    pixels.forEach { pixel ->
-                        assertEquals(Color.RED, pixel)
-                    }
-                }
+            val pixels = IntArray(destination.width * destination.height)
+            destination.getPixels(
+                pixels,
+                0,
+                destination.width,
+                0,
+                0,
+                destination.width,
+                destination.height
+            )
+            pixels.forEach { pixel ->
+                assertEquals(Color.RED, pixel)
             }
         }
     }
 
     @Test
     fun renderInto_invalidBitmap_throws() = runBlocking<Unit> {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    assertFailsWith<IllegalArgumentException>(
-                        "renderInto should throw on invalid bitmap shape"
-                    ) {
-                        buffer.renderInto(
-                            Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888),
-                            artboard,
-                            stateMachine
-                        )
-                    }
-                }
+        val res = loadDefaultRiveResources(R.raw.empty)
+        SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            assertFailsWith<IllegalArgumentException>(
+                "renderInto should throw on invalid bitmap shape"
+            ) {
+                buffer.renderInto(
+                    Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888),
+                    res.artboard,
+                    res.stateMachine
+                )
             }
         }
     }
@@ -88,49 +79,40 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
     fun renderInto_withMismatchedResources_throws() = runBlocking<Unit> {
         val foreignWorker = RiveWorker()
         try {
-            riveWorker.withPolling {
-                foreignWorker.withPolling {
-                    riveWorker.withDefaultRiveResources(R.raw.empty) {
-                        val owningArtboard = artboard
-                        val owningStateMachine = stateMachine
-                        riveWorker.withDefaultRiveResources(R.raw.empty) {
-                            val siblingStateMachine = stateMachine
-                            foreignWorker.withDefaultRiveResources(R.raw.empty) {
-                                val foreignArtboard = artboard
-                                val foreignStateMachine = stateMachine
-                                SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                                    val destination = Bitmap.createBitmap(
-                                        64,
-                                        64,
-                                        Bitmap.Config.ARGB_8888
-                                    )
-                                    try {
-                                        assertFailsWith<IllegalArgumentException> {
-                                            buffer.renderInto(
-                                                destination,
-                                                foreignArtboard,
-                                                owningStateMachine
-                                            )
-                                        }
-                                        assertFailsWith<IllegalArgumentException> {
-                                            buffer.renderInto(
-                                                destination,
-                                                owningArtboard,
-                                                foreignStateMachine
-                                            )
-                                        }
-                                        assertFailsWith<IllegalArgumentException> {
-                                            buffer.renderInto(
-                                                destination,
-                                                owningArtboard,
-                                                siblingStateMachine
-                                            )
-                                        }
-                                    } finally {
-                                        destination.recycle()
-                                    }
-                                }
+            val owningRes = loadDefaultRiveResources(R.raw.empty)
+            val siblingRes = loadDefaultRiveResources(R.raw.empty)
+            foreignWorker.withPolling {
+                foreignWorker.withDefaultRiveResources(R.raw.empty) {
+                    SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+                        val destination = Bitmap.createBitmap(
+                            64,
+                            64,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        try {
+                            assertFailsWith<IllegalArgumentException> {
+                                buffer.renderInto(
+                                    destination,
+                                    artboard,
+                                    owningRes.stateMachine
+                                )
                             }
+                            assertFailsWith<IllegalArgumentException> {
+                                buffer.renderInto(
+                                    destination,
+                                    owningRes.artboard,
+                                    stateMachine
+                                )
+                            }
+                            assertFailsWith<IllegalArgumentException> {
+                                buffer.renderInto(
+                                    destination,
+                                    owningRes.artboard,
+                                    siblingRes.stateMachine
+                                )
+                            }
+                        } finally {
+                            destination.recycle()
                         }
                     }
                 }

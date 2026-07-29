@@ -3,10 +3,19 @@
 
     <application>
         <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+        <activity
             android:name="app.rive.snapshot.SnapshotComposeActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
         <activity
             android:name="app.rive.snapshot.SnapshotBitmapActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
     </application>
 </manifest>

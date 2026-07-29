@@ -49,18 +49,15 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun close_afterFramePublication_closesBufferAndSurface() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    buffer.render(artboard, stateMachine)
-                    assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
+        val res = loadDefaultRiveResources(R.raw.empty)
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            buffer.render(res.artboard, res.stateMachine)
+            assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
 
-                    buffer.close()
+            buffer.close()
 
-                    assertTrue(buffer.closed)
-                    assertTrue(buffer.surface.closed)
-                }
-            }
+            assertTrue(buffer.closed)
+            assertTrue(buffer.surface.closed)
         }
     }
 
@@ -78,18 +75,15 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun operations_afterClose_throw() = runBlocking<Unit> {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                val buffer = HardwareRenderBuffer(64, 64, riveWorker)
-                buffer.close()
+        val res = loadDefaultRiveResources(R.raw.empty)
+        val buffer = HardwareRenderBuffer(64, 64, riveWorker)
+        buffer.close()
 
-                assertFailsWith<IllegalStateException> {
-                    buffer.render(artboard, stateMachine)
-                }
-                assertFailsWith<IllegalStateException> {
-                    buffer.consumeLatestBitmap()
-                }
-            }
+        assertFailsWith<IllegalStateException> {
+            buffer.render(res.artboard, res.stateMachine)
+        }
+        assertFailsWith<IllegalStateException> {
+            buffer.consumeLatestBitmap()
         }
     }
 
@@ -98,28 +92,19 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     fun render_withMismatchedResources_throws() = runBlocking<Unit> {
         val foreignWorker = RiveWorker()
         try {
-            riveWorker.withPolling {
-                foreignWorker.withPolling {
-                    riveWorker.withDefaultRiveResources(R.raw.empty) {
-                        val owningArtboard = artboard
-                        val owningStateMachine = stateMachine
-                        riveWorker.withDefaultRiveResources(R.raw.empty) {
-                            val siblingStateMachine = stateMachine
-                            foreignWorker.withDefaultRiveResources(R.raw.empty) {
-                                val foreignArtboard = artboard
-                                val foreignStateMachine = stateMachine
-                                HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                                    assertFailsWith<IllegalArgumentException> {
-                                        buffer.render(foreignArtboard, owningStateMachine)
-                                    }
-                                    assertFailsWith<IllegalArgumentException> {
-                                        buffer.render(owningArtboard, foreignStateMachine)
-                                    }
-                                    assertFailsWith<IllegalArgumentException> {
-                                        buffer.render(owningArtboard, siblingStateMachine)
-                                    }
-                                }
-                            }
+            val owningRes = loadDefaultRiveResources(R.raw.empty)
+            val siblingRes = loadDefaultRiveResources(R.raw.empty)
+            foreignWorker.withPolling {
+                foreignWorker.withDefaultRiveResources(R.raw.empty) {
+                    HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+                        assertFailsWith<IllegalArgumentException> {
+                            buffer.render(artboard, owningRes.stateMachine)
+                        }
+                        assertFailsWith<IllegalArgumentException> {
+                            buffer.render(owningRes.artboard, stateMachine)
+                        }
+                        assertFailsWith<IllegalArgumentException> {
+                            buffer.render(owningRes.artboard, siblingRes.stateMachine)
                         }
                     }
                 }
@@ -141,36 +126,30 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_firstFrame_canBeConsumedWithoutCollectingFrameAvailable() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    buffer.render(artboard, stateMachine)
+        val res = loadDefaultRiveResources(R.raw.empty)
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            buffer.render(res.artboard, res.stateMachine)
 
-                    assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
-                }
-            }
+            assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
         }
     }
 
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_repeatedly_emitsAndConsumesHardwareBitmaps() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    repeat(3) {
-                        val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
-                            withTimeout(2_000L) { buffer.frameAvailable.first() }
-                        }
-                        buffer.render(artboard, stateMachine)
-                        frameAvailable.await()
-
-                        assertEquals(
-                            Bitmap.Config.HARDWARE,
-                            buffer.consumeLatestBitmap()?.config
-                        )
-                    }
+        val res = loadDefaultRiveResources(R.raw.empty)
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            repeat(3) {
+                val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
+                    withTimeout(2_000L) { buffer.frameAvailable.first() }
                 }
+                buffer.render(res.artboard, res.stateMachine)
+                frameAvailable.await()
+
+                assertEquals(
+                    Bitmap.Config.HARDWARE,
+                    buffer.consumeLatestBitmap()?.config
+                )
             }
         }
     }
@@ -178,19 +157,16 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun consumeLatestBitmap_returnsHardwareBitmap() = runBlocking {
-        riveWorker.withPolling {
-            withDefaultRiveResources(R.raw.empty) {
-                HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                    val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
-                        withTimeout(2_000L) { buffer.frameAvailable.first() }
-                    }
-                    buffer.render(artboard, stateMachine)
-                    frameAvailable.await()
-
-                    val bitmap = buffer.consumeLatestBitmap()
-                    assertEquals(Bitmap.Config.HARDWARE, bitmap?.config)
-                }
+        val res = loadDefaultRiveResources(R.raw.empty)
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(2_000L) { buffer.frameAvailable.first() }
             }
+            buffer.render(res.artboard, res.stateMachine)
+            frameAvailable.await()
+
+            val bitmap = buffer.consumeLatestBitmap()
+            assertEquals(Bitmap.Config.HARDWARE, bitmap?.config)
         }
     }
 }

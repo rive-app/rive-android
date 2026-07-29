@@ -7,6 +7,7 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.CloseOnce
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
 
 private const val STATE_MACHINE_TAG = "Rive/StateMachine"
@@ -30,11 +31,28 @@ class StateMachine internal constructor(
     private val riveWorker: RiveWorker,
     private val artboardHandle: ArtboardHandle,
     val name: String?,
-) : AutoCloseable by CloseOnce("$stateMachineHandle", {
-    val nameLog = name?.let { "with name $it" } ?: "(default)"
-    RiveLog.d(STATE_MACHINE_TAG) { "Deleting $stateMachineHandle $nameLog ($artboardHandle)" }
-    riveWorker.deleteStateMachine(stateMachineHandle)
-}) {
+) : AutoCloseable {
+    private val closer = CloseOnce("$stateMachineHandle") {
+        val nameLog = name?.let { "with name $it" } ?: "(default)"
+        RiveLog.d(STATE_MACHINE_TAG) {
+            "Deleting $stateMachineHandle $nameLog ($artboardHandle)"
+        }
+        riveWorker.deleteStateMachine(stateMachineHandle)
+    }
+
+    /** Deletes this state machine and releases its resources. */
+    override fun close() = closer.close()
+
+    /**
+     * Whether this state machine currently has no meaningful changes left to apply.
+     *
+     * A renderer can skip advancing and drawing while this is true. Calling [unsettle] changes it
+     * to false synchronously for every renderer observing this state machine. After [close], a
+     * retained flow has the terminal value `true` and receives no further updates.
+     */
+    internal val settled: StateFlow<Boolean> =
+        riveWorker.stateMachineSettled(stateMachineHandle)
+
     companion object {
         /**
          * Creates a new [StateMachine] from an [Artboard].
@@ -87,12 +105,30 @@ class StateMachine internal constructor(
         artboardHandle == artboard.artboardHandle
 
     /**
+     * Marks this state machine as needing to be evaluated again without advancing it.
+     *
+     * This sets [settled] to false synchronously. It is safe to call repeatedly while the state
+     * machine remains open; it will settle again when it has no meaningful changes left to apply.
+     *
+     * @throws IllegalStateException If the state machine is no longer registered with its worker.
+     */
+    @Throws(IllegalStateException::class)
+    internal fun unsettle() = riveWorker.unsettleStateMachine(stateMachineHandle)
+
+    /**
      * Advance the state machine by the given delta time in nanoseconds.
      *
+     * This is a fire-and-forget operation once the advance has been queued.
+     *
      * @param deltaTime The delta time to advance the state machine by.
+     * @throws IllegalStateException If this state machine has been closed or its worker has been
+     *    released.
      */
-    fun advance(deltaTime: Duration) =
+    @Throws(IllegalStateException::class)
+    fun advance(deltaTime: Duration) {
+        check(!closer.closed) { "Cannot advance a closed StateMachine" }
         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+    }
 }
 
 /**

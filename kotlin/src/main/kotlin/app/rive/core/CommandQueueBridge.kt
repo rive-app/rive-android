@@ -101,6 +101,7 @@ interface CommandQueueBridge {
 
     fun cppAdvanceStateMachine(
         pointer: Long,
+        requestID: Long,
         stateMachineHandle: Long,
         deltaTimeNs: Long
     )
@@ -564,6 +565,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
 
     external override fun cppAdvanceStateMachine(
         pointer: Long,
+        requestID: Long,
         stateMachineHandle: Long,
         deltaTimeNs: Long
     )

@@ -1,42 +1,125 @@
 package app.rive
 
 import android.content.Context
-import app.rive.core.assertDisposed
+import androidx.annotation.RawRes
+import app.rive.core.CommandQueuePoller
+import app.rive.core.DefaultRiveResources
 import app.rive.core.RiveWorker
+import app.rive.core.assertDisposed
+import app.rive.core.loadDefaultRiveResources
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.runtime.kotlin.core.Rive
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
+import org.junit.Rule
+import org.junit.rules.ExternalResource
 
 /**
  * Base class for androidTest cases that require the native Rive runtime to be initialized.
  *
- * JUnit runs superclass `@Before` methods before subclass `@Before` methods, so individual tests
- * can still add their own setup without repeating [Rive.init].
+ * Its outer lifecycle rule keeps the shared worker alive until all inner rules, including Compose
+ * content disposal, have completed.
+ *
+ * @param autoPoll Whether to continuously poll the shared worker after it is first accessed.
  */
-abstract class RiveAndroidTest {
+abstract class RiveAndroidTest(
+    private val autoPoll: Boolean = true
+) {
     protected val context: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     private var worker: RiveWorker? = null
+    private var poller: CommandQueuePoller? = null
+    private val managedResources = mutableListOf<DefaultRiveResources>()
 
-    /** Lazily-created worker for tests that only need one command queue. */
+    /**
+     * Lazily-created worker for tests that only need one command queue.
+     *
+     * Polling starts on first access when [autoPoll] is true and continues through inner rule
+     * teardown.
+     */
     protected val riveWorker: RiveWorker
-        get() = worker ?: RiveWorker().also { worker = it }
+        get() = worker ?: RiveWorker().also { activeWorker ->
+            worker = activeWorker
+            if (autoPoll) {
+                poller = CommandQueuePoller(activeWorker)
+            }
+        }
 
-    @BeforeTest
-    fun initRiveRuntime() {
-        Rive.init(context)
+    /**
+     * Loads default Rive resources owned by this test's shared worker.
+     *
+     * Resources are registered for automatic cleanup before polling stops and the worker is
+     * released. Callers may close them earlier because each resource's close operation is
+     * idempotent.
+     *
+     * @param rawResourceId The raw Rive resource to load.
+     * @return The loaded file and its default artboard and state machine.
+     * @throws AssertionError If the file fails to load or produces an unexpected result.
+     */
+    internal suspend fun loadDefaultRiveResources(
+        @RawRes rawResourceId: Int
+    ): DefaultRiveResources =
+        riveWorker.loadDefaultRiveResources(rawResourceId).also(managedResources::add)
+
+    /**
+     * Initializes Rive before other rules and releases the worker after their teardown.
+     *
+     * JUnit applies rules with higher order values inside rules with lower values. Using the
+     * minimum value keeps this inherited lifecycle outside ordinary rules without requiring each
+     * subclass to specify an order.
+     */
+    @get:Rule(order = Int.MIN_VALUE)
+    val riveLifecycleRule = object : ExternalResource() {
+        /** Initializes the native runtime before the test and its inner rules run. */
+        override fun before() {
+            Rive.init(context)
+        }
+
+        /** Releases test resources after every inner rule has completed teardown. */
+        override fun after() {
+            releaseRiveWorker()
+        }
     }
 
-    @AfterTest
-    fun releaseRiveWorker() {
-        worker?.let { activeWorker ->
-            if (!activeWorker.isDisposed) {
-                activeWorker.release(javaClass.simpleName, "Test cleanup")
-            }
-            assertDisposed(activeWorker)
+    /** Closes managed resources, stops automatic polling, and releases the shared worker. */
+    private fun releaseRiveWorker() {
+        var failure: Throwable? = null
+        // Attempt every teardown phase, retaining later failures without hiding the first one.
+        val recordFailure = { teardownFailure: Throwable ->
+            failure = failure?.apply {
+                addSuppressed(teardownFailure)
+            } ?: teardownFailure
         }
-        worker = null
+
+        managedResources.asReversed().forEach { resources ->
+            try {
+                resources.close()
+            } catch (closeFailure: Throwable) {
+                recordFailure(closeFailure)
+            }
+        }
+        managedResources.clear()
+
+        try {
+            poller?.close()
+        } catch (pollingFailure: Throwable) {
+            recordFailure(pollingFailure)
+        } finally {
+            poller = null
+        }
+
+        try {
+            worker?.let { activeWorker ->
+                if (!activeWorker.isDisposed) {
+                    activeWorker.release(javaClass.simpleName, "Test cleanup")
+                }
+                assertDisposed(activeWorker)
+            }
+        } catch (releaseFailure: Throwable) {
+            recordFailure(releaseFailure)
+        } finally {
+            worker = null
+        }
+
+        failure?.let { throw it }
     }
 }

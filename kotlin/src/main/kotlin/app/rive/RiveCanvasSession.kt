@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
@@ -160,7 +159,6 @@ class RiveCanvasSession(
         renderBuffer.also { renderBuffer = null }?.close()
         latestBitmap = null
         renderRegion.setEmpty()
-        settled = false
         isPlaying = false
     }
 
@@ -196,12 +194,6 @@ class RiveCanvasSession(
 
     /** Render region in the destination canvas. Updated via [setRegion]. */
     private val renderRegion = Rect()
-
-    /**
-     * Whether the state machine is settled, set from the worker's settled flow. When true, the
-     * advance and render steps are skipped.
-     */
-    private var settled = false
 
     /**
      * Whether the advance and render loop is currently running. Used to prevent concurrent loops
@@ -259,7 +251,7 @@ class RiveCanvasSession(
             renderBufferState.value = null
             renderBuffer.also { renderBuffer = null }?.close()
             latestBitmap = null
-            settled = false
+            stateMachine.unsettle()
             return
         }
         if (renderRegion == region) {
@@ -292,7 +284,7 @@ class RiveCanvasSession(
             }
             // Unsettle the state machine so that the next frame will advance and render with the
             // new sizing.
-            settled = false
+            stateMachine.unsettle()
             latestBitmap = null
         }
 
@@ -330,29 +322,16 @@ class RiveCanvasSession(
             "beginPlaying() is already running for this RiveCanvasSession"
         }
         isPlaying = true
+        stateMachine.unsettle()
 
         try {
             /* Host for a number of jobs:
-             * - settledCollector: Observes the worker's settled flow
              * - viewModelDirtyCollector: Observes the view model instance's dirty flow
              * - frameAvailableCollector: Updates latest session bitmap from buffer publications
              * - renderLoop: Runs the advance and render loop while lifecycle is RESUMED
              * - closeWatcher: Cancel the render loop when the session is closed
              */
             coroutineScope {
-                // Observe the worker's settled flow to track when the state machine is settled.
-                // This is used to skip advance and render when the state machine is idle.
-                val settledCollector = launch {
-                    riveWorker.settledFlow
-                        .filter { it.handle == stateMachine.stateMachineHandle.handle }
-                        .collect {
-                            RiveLog.v(TAG) {
-                                "State machine ${stateMachine.stateMachineHandle} is settled"
-                            }
-                            settled = true
-                        }
-                }
-
                 // If a view model instance is bound, also observe its dirty flow to know when to
                 // un-settle the state machine when the view model instance is updated.
                 val viewModelDirtyCollector = if (viewModelInstance != null) {
@@ -361,7 +340,7 @@ class RiveCanvasSession(
                             RiveLog.v(TAG) {
                                 "View model instance dirty, unsettling ${stateMachine.stateMachineHandle}"
                             }
-                            settled = false
+                            stateMachine.unsettle()
                         }
                     }
                 } else {
@@ -427,7 +406,7 @@ class RiveCanvasSession(
                                     }
                                     loggedNoBuffer = false
 
-                                    if (!settled) {
+                                    if (!stateMachine.settled.value) {
                                         traceSection("Rive/Frame/Advance") {
                                             stateMachine.advance(deltaNs.nanoseconds)
                                         }
@@ -469,7 +448,6 @@ class RiveCanvasSession(
                 } finally {
                     closeWatcher.cancelAndJoin()
                     frameAvailableCollector.cancelAndJoin()
-                    settledCollector.cancelAndJoin()
                     viewModelDirtyCollector?.cancelAndJoin()
                 }
             }
@@ -598,7 +576,7 @@ class RiveCanvasSession(
         }
 
         if (handled) {
-            settled = false
+            stateMachine.unsettle()
         }
 
         return handled

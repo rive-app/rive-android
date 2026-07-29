@@ -4,13 +4,11 @@ import android.os.Build
 import androidx.lifecycle.Lifecycle
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
-import app.rive.core.CommandQueueBridge
 import app.rive.core.DefaultViewModelInfo
 import app.rive.core.DrawKey
 import app.rive.core.FileHandle
 import app.rive.core.FrameTicker
 import app.rive.core.ImageHandle
-import app.rive.core.Listeners
 import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
 import app.rive.core.ViewModelInstanceHandle
@@ -20,7 +18,6 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -29,62 +26,31 @@ import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 
-const val COMMAND_QUEUE_ADDR = 1L
-const val RENDER_CONTEXT_ADDR = 2L
 const val VULKAN_RENDER_CONTEXT_ADDR = 3L
 const val OPENGL_RENDER_CONTEXT_ADDR = 4L
-const val HANDLE_NUM = 123L
-const val ARTBOARD_HANDLE_NUM = 456L
 const val IMAGE_HANDLE_NUM = 654L
 const val VALUE_HANDLE_NUM = 789L
 val FILE_BYTES = byteArrayOf(0, 1, 2)
 private const val TEST_FINAL_RELEASE_SOURCE = "Test final release"
 
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
+// TODO: Split the remaining tests by functional area:
+// - CommandQueueLifecycleUnitTest: construction, backend fallback, tracing, release, and polling.
+// - CommandQueueFileUnitTest: file loading, errors, continuation cleanup, and deletion.
+// - CommandQueueDataBindingUnitTest: view model metadata, instance names, and property setters.
+// - RiveSurfaceUnitTest: resizing behavior and the TestRiveSurface fixture.
+@OptIn(ExperimentalStdlibApi::class)
 class CommandQueueUnitTest : FunSpec({
-    val renderContextMock = mockk<RenderContext>()
-    val listenersMock = mockk<Listeners>()
-    val commandQueueBridgeMock = mockk<CommandQueueBridge>()
-
-    beforeTest {
-        // Because CommandQueue forces coroutines to Main, we have to set Main to a test dispatcher
-        Dispatchers.setMain(UnconfinedTestDispatcher())
-
-        every { renderContextMock.nativeObjectPointer } returns RENDER_CONTEXT_ADDR
-        every { renderContextMock.close() } just runs
-
-        every { listenersMock.close() } just runs
-
-        every { commandQueueBridgeMock.cppConstructor(any()) } returns COMMAND_QUEUE_ADDR
-        every { commandQueueBridgeMock.cppDelete(any()) } just runs
-        every { commandQueueBridgeMock.isCurrentThreadCommandServer(any()) } returns false
-        every {
-            commandQueueBridgeMock.cppCreateListeners(
-                COMMAND_QUEUE_ADDR,
-                any()
-            )
-        } returns listenersMock
-        every { commandQueueBridgeMock.cppSetTracingEnabled(any(), any()) } just runs
-        every { commandQueueBridgeMock.cppCancelDraw(any(), any()) } just runs
-        every { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) } just runs
-    }
-
-    afterTest {
-        Dispatchers.resetMain()
-        clearAllMocks()
-    }
+    val fixture = installCommandQueueTestFixture()
+    val renderContextMock = fixture.renderContextMock
+    val listenersMock = fixture.listenersMock
+    val commandQueueBridgeMock = fixture.commandQueueBridgeMock
 
     test("Constructor invokes native setup") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)

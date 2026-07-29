@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -345,6 +346,7 @@ class CommandQueue internal constructor(
      */
     private fun dispose(cppPointer: Long) {
         cancelPendingContinuations()
+        stateMachineSettlingStore.clear()
 
         val shutdownThreadID = nextShutdownThreadID.getAndIncrement()
         val shutdownThreadName = "RiveWorkerShutdown-$shutdownThreadID"
@@ -490,14 +492,10 @@ class CommandQueue internal constructor(
         return onClose
     }
 
-    private val _settledFlow = MutableSharedFlow<StateMachineHandle>(
-        replay = 0,
-        extraBufferCapacity = MAX_CONCURRENT_SUBSCRIBERS, // Protects for the worst case of simultaneous settles
-        onBufferOverflow = BufferOverflow.DROP_OLDEST // It's fine to miss a settle event - worse to block
-    )
-
-    /** Flow that emits when a state machine has settled. */
-    val settledFlow: SharedFlow<StateMachineHandle> = _settledFlow
+    /** Durable settled state for state machines owned by this worker. */
+    private val stateMachineSettlingStore = StateMachineSettlingStore {
+        nextRequestID.getAndIncrement()
+    }
 
     /**
      * Contains the data associated with a property update event.
@@ -1138,14 +1136,17 @@ class CommandQueue internal constructor(
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
-    fun createDefaultStateMachine(artboardHandle: ArtboardHandle): StateMachineHandle =
-        StateMachineHandle(
+    fun createDefaultStateMachine(artboardHandle: ArtboardHandle): StateMachineHandle {
+        val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateDefaultStateMachine(
                 cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
                 artboardHandle.handle
             )
         )
+        stateMachineSettlingStore.register(stateMachineHandle)
+        return stateMachineHandle
+    }
 
     /**
      * Create a state machine by name for the given artboard. This is useful when the artboard has
@@ -1164,8 +1165,11 @@ class CommandQueue internal constructor(
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
-    fun createStateMachineByName(artboardHandle: ArtboardHandle, name: String): StateMachineHandle =
-        StateMachineHandle(
+    fun createStateMachineByName(
+        artboardHandle: ArtboardHandle,
+        name: String
+    ): StateMachineHandle {
+        val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateStateMachineByName(
                 cppPointer.pointer,
                 nextRequestID.getAndIncrement(),
@@ -1173,6 +1177,9 @@ class CommandQueue internal constructor(
                 name
             )
         )
+        stateMachineSettlingStore.register(stateMachineHandle)
+        return stateMachineHandle
+    }
 
     /**
      * Delete a state machine and free its resources. This is useful when you no longer need the
@@ -1183,27 +1190,57 @@ class CommandQueue internal constructor(
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
-    fun deleteStateMachine(stateMachineHandle: StateMachineHandle) = bridge.cppDeleteStateMachine(
-        cppPointer.pointer,
-        nextRequestID.getAndIncrement(),
-        stateMachineHandle.handle
-    )
+    fun deleteStateMachine(stateMachineHandle: StateMachineHandle) {
+        bridge.cppDeleteStateMachine(
+            cppPointer.pointer,
+            nextRequestID.getAndIncrement(),
+            stateMachineHandle.handle
+        )
+        stateMachineSettlingStore.unregister(stateMachineHandle)
+    }
 
     /**
      * Advance the state machine by the given delta time in nanoseconds.
      *
+     * This operation returns after queuing the advance. An invalid state-machine handle is reported
+     * asynchronously through [onStateMachineError] and logged rather than thrown from this
+     * function.
+     *
      * @param stateMachineHandle The handle of the state machine to advance.
      * @param deltaTime The delta time to advance the state machine by.
-     * @throws RuntimeException If the state machine handle is invalid.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class)
+    @Throws(IllegalStateException::class)
     fun advanceStateMachine(stateMachineHandle: StateMachineHandle, deltaTime: Duration) =
         bridge.cppAdvanceStateMachine(
             cppPointer.pointer,
+            nextRequestID.getAndIncrement(),
             stateMachineHandle.handle,
             deltaTime.inWholeNanoseconds
         )
+
+    /**
+     * Returns the latest settled state for a state machine owned by this worker.
+     *
+     * @param stateMachineHandle The state machine whose state should be observed.
+     * @return A flow containing the latest accepted settled state.
+     * @throws IllegalStateException If the state machine is not registered with this worker.
+     */
+    internal fun stateMachineSettled(
+        stateMachineHandle: StateMachineHandle
+    ): StateFlow<Boolean> = stateMachineSettlingStore.settled(stateMachineHandle)
+
+    /**
+     * Begins a new unsettled generation for a state machine owned by this worker.
+     *
+     * This updates the observable state synchronously and invalidates settled callbacks from
+     * earlier advances without exposing the underlying request boundary.
+     *
+     * @param stateMachineHandle The state machine to mark unsettled.
+     * @throws IllegalStateException If the state machine is not registered with this worker.
+     */
+    internal fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
+        stateMachineSettlingStore.unsettle(stateMachineHandle)
 
     /**
      * Callback when the state machine settles. This is called when the state machine has determined
@@ -1213,17 +1250,16 @@ class CommandQueue internal constructor(
      * Unsettling happens when the user "perturbs" the state machine, such as by pointer events or
      * setting a value on a property.
      *
-     * This sends the handle of the settled state machine to the [settledFlow] flow, which can be
-     * collected to react to the state machine settling.
-     *
+     * @param requestID The worker-scoped request ID of the advance that caused it to settle.
      * @param stateMachineHandle The handle of the state machine that has settled.
      */
     @Keep // Called from JNI
     @Suppress("Unused")
     @JvmName("onStateMachineSettled")
-    internal fun onStateMachineSettled(stateMachineHandle: StateMachineHandle) {
-        _settledFlow.tryEmit(stateMachineHandle)
-    }
+    internal fun onStateMachineSettled(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle
+    ) = stateMachineSettlingStore.settle(requestID, stateMachineHandle)
 
     /**
      * Create a new view model instance based on the given source. The source is a combination of a

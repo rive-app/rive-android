@@ -331,7 +331,10 @@ public:
     void onStateMachineSettled(const rive::StateMachineHandle smHandle,
                                uint64_t requestID) override
     {
-        m_queue.call("onStateMachineSettled", "(J)V", longFromHandle(smHandle));
+        m_queue.call("onStateMachineSettled",
+                     "(JJ)V",
+                     requestID,
+                     longFromHandle(smHandle));
     }
 
 private:
@@ -863,12 +866,14 @@ private:
  *
  * If the passed state machine handle fails to resolve or if the advance would
  * cause a settle, we send an additional advance command to ensure the error or
- * settled handlers respectively are called.
+ * settled handlers respectively are called. That command must reuse requestID
+ * so the callback remains associated with the direct advance that produced it.
  */
 static void executeTracedAdvanceWork(
     const Tracer* tracer,
     rive::CommandQueue* commandQueue,
     rive::CommandServer* server,
+    uint64_t requestID,
     rive::StateMachineHandle stateMachineHandle,
     float_t deltaSeconds)
 {
@@ -879,7 +884,9 @@ static void executeTracedAdvanceWork(
     // callback behavior through the standard command.
     if (stateMachine == nullptr)
     {
-        commandQueue->advanceStateMachine(stateMachineHandle, deltaSeconds);
+        commandQueue->advanceStateMachine(stateMachineHandle,
+                                          deltaSeconds,
+                                          requestID);
         return;
     }
 
@@ -887,7 +894,7 @@ static void executeTracedAdvanceWork(
     // callback behavior with an extra command to advance by 0.
     if (!stateMachine->advanceAndApply(deltaSeconds))
     {
-        commandQueue->advanceStateMachine(stateMachineHandle, 0.0f);
+        commandQueue->advanceStateMachine(stateMachineHandle, 0.0f, requestID);
     }
 }
 
@@ -1413,6 +1420,7 @@ extern "C"
         JNIEnv*,
         jobject,
         jlong ref,
+        jlong requestID,
         jlong stateMachineHandle,
         jlong deltaTimeNs)
     {
@@ -1429,19 +1437,24 @@ extern "C"
         if (enableTracing)
         {
             const Tracer* tracerPtr = &defaultTracer();
-            commandQueue->runOnce(
-                [tracerPtr, commandQueue, stateMachine, deltaSeconds](
-                    rive::CommandServer* server) {
-                    executeTracedAdvanceWork(tracerPtr,
-                                             commandQueue,
-                                             server,
-                                             stateMachine,
-                                             deltaSeconds);
-                });
+            commandQueue->runOnce([tracerPtr,
+                                   commandQueue,
+                                   requestID,
+                                   stateMachine,
+                                   deltaSeconds](rive::CommandServer* server) {
+                executeTracedAdvanceWork(tracerPtr,
+                                         commandQueue,
+                                         server,
+                                         requestID,
+                                         stateMachine,
+                                         deltaSeconds);
+            });
         }
         else
         {
-            commandQueue->advanceStateMachine(stateMachine, deltaSeconds);
+            commandQueue->advanceStateMachine(stateMachine,
+                                              deltaSeconds,
+                                              requestID);
         }
     }
 

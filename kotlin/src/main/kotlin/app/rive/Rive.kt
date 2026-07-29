@@ -6,6 +6,7 @@ import android.view.TextureView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +35,6 @@ import app.rive.core.RiveSurface
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.ZERO
@@ -198,7 +198,7 @@ fun Rive(
     /** Use provided state machine or create a default one. */
     val stateMachineToUse = stateMachine ?: rememberStateMachine(artboardToUse)
     val stateMachineHandle = stateMachineToUse.stateMachineHandle
-    var isSettled by remember(stateMachineHandle) { mutableStateOf(false) }
+    val isSettled by stateMachineToUse.settled.collectAsState()
 
     var surface by remember { mutableStateOf<RiveSurface?>(null) }
     var surfaceWidth by remember { mutableIntStateOf(0) }
@@ -247,23 +247,13 @@ fun Rive(
         )
 
         // Assigning a view model instance unsettles the state machine
-        isSettled = false
+        stateMachineToUse.unsettle()
 
         // Subscribe to the instance's dirty flow to unsettle when properties change
         viewModelInstance.dirtyFlow.collect {
             RiveLog.v(VM_INSTANCE_TAG) { "View model instance dirty, unsettling $stateMachineHandle" }
-            isSettled = false
+            stateMachineToUse.unsettle()
         }
-    }
-
-    /** Listen for settle events for this state machine. */
-    LaunchedEffect(stateMachineHandle) {
-        riveWorker.settledFlow
-            .filter { it.handle == stateMachineHandle.handle }
-            .collect {
-                RiveLog.v(STATE_MACHINE_TAG) { "State machine $stateMachineHandle settled" }
-                isSettled = true
-            }
     }
 
     /**
@@ -274,10 +264,13 @@ fun Rive(
         RiveLog.d(STATE_MACHINE_TAG) {
             "State machine $stateMachineHandle unsettled due to parameter change"
         }
-        isSettled = false
+        stateMachineToUse.unsettle()
     }
 
-    /** Resize artboard based on fit parameter. */
+    /**
+     * Update artboard sizing when the fit or surface changes, then unsettle the state machine so
+     * the drawing loop can advance and render the updated layout.
+     */
     LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight) {
         val activeSurface = surface ?: return@LaunchedEffect
         when (fit) {
@@ -294,6 +287,15 @@ fun Rive(
                     artboardToUse.resetArtboardSize()
                 }
             }
+        }
+        // The queued resize only affects layout when the state machine advances again.
+        stateMachineToUse.unsettle()
+    }
+
+    /** Start a fresh unsettled generation when playback is resumed. */
+    LaunchedEffect(playing) {
+        if (playing) {
+            stateMachineToUse.unsettle()
         }
     }
 
@@ -446,7 +448,7 @@ fun Rive(
                         if (pass != PointerEventPass.Main) return@traceSection
 
                         // Pointer events unsettle the state machine.
-                        isSettled = false
+                        stateMachineToUse.unsettle()
 
                         val pointerFns = when (pointerEvent.type) {
                             PointerEventType.Move -> listOf(riveWorker::pointerMove)
