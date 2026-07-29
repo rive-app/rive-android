@@ -7,6 +7,7 @@ import app.rive.core.ImageHandle
 import app.rive.core.ViewModelInstanceHandle
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -24,6 +25,16 @@ class ViewModelInstanceUnitTest : FunSpec({
             subject.expectDirtyEvent {
                 mutation.mutate(subject)
             }
+        }
+    }
+
+    test("setImage with null clears the image property") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setImage("image", null)
+
+        verify(exactly = 1) {
+            subject.worker.setImageProperty(ViewModelInstanceHandle(2L), "image", null)
         }
     }
 })
@@ -54,6 +65,9 @@ private val viewModelInstanceDirtyMutations = listOf(
     },
     ViewModelInstanceDirtyMutation("setImage") { subject ->
         subject.instance.setImage("image", subject.image)
+    },
+    ViewModelInstanceDirtyMutation("clearImage") { subject ->
+        subject.instance.setImage("image", null)
     },
     ViewModelInstanceDirtyMutation("setArtboard") { subject ->
         subject.instance.setArtboard("artboard", subject.artboard)

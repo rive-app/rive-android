@@ -1888,24 +1888,25 @@ class CommandQueue internal constructor(
     )
 
     /**
-     * Assign an image to an image property on the view model instance.
+     * Assign an image to an image property on the view model instance, or clear the property if
+     * [imageHandle] is null.
      *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
-     * @param imageHandle The handle of the image to assign.
+     * @param imageHandle The handle of the image to assign, or null to clear the property.
      * @throws IllegalStateException If the CommandQueue has been released.
      */
     @Throws(IllegalStateException::class)
     fun setImageProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        imageHandle: ImageHandle
+        imageHandle: ImageHandle?
     ) = bridge.cppSetImageProperty(
         cppPointer.pointer,
         viewModelInstanceHandle.handle,
         propertyPath,
-        imageHandle.handle
+        imageHandle?.handle ?: 0L
     )
 
     /**

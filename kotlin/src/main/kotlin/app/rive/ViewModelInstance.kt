@@ -350,17 +350,19 @@ class ViewModelInstance internal constructor(
     }
 
     /**
-     * Assigns the given image to the image property on this view model instance.
+     * Assigns the given image to the image property on this view model instance, or clears the
+     * property if [image] is null.
      *
      * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
-     * @param image The image to assign to the property.
+     * @param image The image to assign to the property, or null to clear the property.
      */
-    fun setImage(propertyPath: String, image: ImageAsset) {
-        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $image to $propertyPath (${fileHandle})" }
-        setProperty(propertyPath, image.handle, riveWorker::setImageProperty)
+    fun setImage(propertyPath: String, image: ImageAsset?) {
+        val message = image?.let { "Assigning $it" } ?: "Clearing image"
+        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
+        setProperty(propertyPath, image?.handle, riveWorker::setImageProperty)
     }
 
     /**

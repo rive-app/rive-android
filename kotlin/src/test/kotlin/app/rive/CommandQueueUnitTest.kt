@@ -9,6 +9,7 @@ import app.rive.core.DefaultViewModelInfo
 import app.rive.core.DrawKey
 import app.rive.core.FileHandle
 import app.rive.core.FrameTicker
+import app.rive.core.ImageHandle
 import app.rive.core.Listeners
 import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
@@ -46,6 +47,7 @@ const val VULKAN_RENDER_CONTEXT_ADDR = 3L
 const val OPENGL_RENDER_CONTEXT_ADDR = 4L
 const val HANDLE_NUM = 123L
 const val ARTBOARD_HANDLE_NUM = 456L
+const val IMAGE_HANDLE_NUM = 654L
 const val VALUE_HANDLE_NUM = 789L
 val FILE_BYTES = byteArrayOf(0, 1, 2)
 private const val TEST_FINAL_RELEASE_SOURCE = "Test final release"
@@ -650,6 +652,59 @@ class CommandQueueUnitTest : FunSpec({
                 HANDLE_NUM,
                 propertyPath,
                 ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Set image property invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val imageHandle = ImageHandle(IMAGE_HANDLE_NUM)
+        val propertyPath = "image/path"
+
+        every {
+            commandQueueBridgeMock.cppSetImageProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                IMAGE_HANDLE_NUM
+            )
+        } just runs
+
+        commandQueue.setImageProperty(instanceHandle, propertyPath, imageHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetImageProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                IMAGE_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Set image property with null clears native property") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val propertyPath = "image/path"
+
+        every {
+            commandQueueBridgeMock.cppSetImageProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
+            )
+        } just runs
+
+        commandQueue.setImageProperty(instanceHandle, propertyPath, null)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetImageProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
             )
         }
     }
