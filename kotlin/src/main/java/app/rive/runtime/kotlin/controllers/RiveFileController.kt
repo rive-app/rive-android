@@ -195,6 +195,11 @@ class RiveFileController internal constructor(
                 RiveLog.d(TAG) { "Artboard set; acquiring new artboard (if it exists): $field" }
                 field?.acquire()
                 userSetVolume?.let { activeArtboard?.volume = it }
+                if (value != null) {
+                    // A replacement artboard may require different layout dimensions even when
+                    // the surface and layout scale factor have not changed.
+                    requireArtboardResize.set(true)
+                }
             }
         }
 

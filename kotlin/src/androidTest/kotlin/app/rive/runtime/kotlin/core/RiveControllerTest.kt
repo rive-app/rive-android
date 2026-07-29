@@ -139,6 +139,41 @@ class RiveControllerTest {
         )
     }
 
+    /**
+     * Verifies that changing artboards requests layout even when the surface and automatic scale
+     * factor have not changed.
+     */
+    @Test
+    fun selectingArtboardRequestsResizeWhenScaleFactorIsUnchanged() {
+        val file = appContext.resources
+            .openRawResource(R.raw.multipleartboards)
+            .use {
+                File(it.readBytes())
+            }
+        val controller = RiveFileController(autoplay = false)
+
+        try {
+            controller.setRiveFile(file, artboardName = "artboard2")
+            controller.requireArtboardResize.set(false)
+
+            controller.layoutScaleFactorAutomatic = controller.layoutScaleFactorAutomatic
+            assertFalse(
+                "An unchanged automatic scale factor should not request a resize.",
+                controller.requireArtboardResize.get()
+            )
+
+            controller.selectArtboard("artboard1")
+
+            assertTrue(
+                "Selecting a replacement artboard should request a resize.",
+                controller.requireArtboardResize.get()
+            )
+        } finally {
+            controller.release()
+            file.release()
+        }
+    }
+
     // This tests a bug where between checking if the queue is empty and polling an item from the queue,
     // another thread could empty the queue, causing a NoSuchElementException.
     // This was resolved by using poll() instead of remove().
