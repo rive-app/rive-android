@@ -32,6 +32,12 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
+    fun cppGetArtboardVolume(
+        pointer: Long,
+        requestID: Long,
+        artboardHandle: Long
+    )
+
     fun cppGetDefaultViewModelInfo(
         pointer: Long,
         requestID: Long,
@@ -430,6 +436,13 @@ interface CommandQueueBridge {
         artboardHandle: Long
     )
 
+    fun cppSetArtboardVolume(
+        pointer: Long,
+        requestID: Long,
+        artboardHandle: Long,
+        volume: Float
+    )
+
     fun cppCreateDrawKey(pointer: Long): Long
     fun cppDraw(
         pointer: Long,
@@ -491,6 +504,12 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppGetStateMachineNames(
+        pointer: Long,
+        requestID: Long,
+        artboardHandle: Long
+    )
+
+    external override fun cppGetArtboardVolume(
         pointer: Long,
         requestID: Long,
         artboardHandle: Long
@@ -892,6 +911,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppResetArtboardSize(
         pointer: Long,
         artboardHandle: Long
+    )
+
+    external override fun cppSetArtboardVolume(
+        pointer: Long,
+        requestID: Long,
+        artboardHandle: Long,
+        volume: Float
     )
 
     external override fun cppCreateDrawKey(pointer: Long): Long

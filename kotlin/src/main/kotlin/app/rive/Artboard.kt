@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.FileHandle
 import app.rive.core.RiveSurface
@@ -28,11 +29,25 @@ class Artboard internal constructor(
     internal val riveWorker: RiveWorker,
     internal val fileHandle: FileHandle,
     val name: String?,
-) : AutoCloseable by CloseOnce("$artboardHandle", {
-    val nameLog = name?.let { "with name $it" } ?: "(default)"
-    RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle $nameLog (${fileHandle})" }
-    riveWorker.deleteArtboard(artboardHandle)
-}) {
+) : CheckableAutoCloseable {
+    private val closer = CloseOnce("$artboardHandle") {
+        val nameLog = name?.let { "with name $it" } ?: "(default)"
+        RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle $nameLog (${fileHandle})" }
+        riveWorker.deleteArtboard(artboardHandle)
+    }
+
+    /**
+     * Closes this artboard and schedules deletion on its Rive worker.
+     *
+     * @throws RiveShutdownException If an error occurs while closing the artboard.
+     */
+    @Throws(RiveShutdownException::class)
+    override fun close() = closer.close()
+
+    /** Whether this artboard has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
+
     companion object {
         /**
          * Creates a new [Artboard].
@@ -68,8 +83,16 @@ class Artboard internal constructor(
      */
     internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
 
-    /** @return A list of all state machine names on this artboard. */
-    suspend fun getStateMachineNames(): List<String> = stateMachineNamesCache.await()
+    /**
+     * @return A list of all state machine names on this artboard.
+     * @throws IllegalStateException If this artboard has been closed.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun getStateMachineNames(): List<String> {
+        checkOpen()
+        return stateMachineNamesCache.await()
+    }
+
     private val stateMachineNamesCache = SuspendLazy {
         riveWorker.getStateMachineNames(artboardHandle)
     }
@@ -94,7 +117,10 @@ class Artboard internal constructor(
     fun resizeArtboard(
         surface: RiveSurface,
         scaleFactor: Float = 1f
-    ) = riveWorker.resizeArtboard(artboardHandle, surface, scaleFactor)
+    ) {
+        checkOpen()
+        riveWorker.resizeArtboard(artboardHandle, surface, scaleFactor)
+    }
 
     /**
      * Resets this artboard to its original dimensions.
@@ -109,7 +135,52 @@ class Artboard internal constructor(
      * @throws IllegalStateException If the Rive worker has been released.
      */
     @Throws(IllegalStateException::class)
-    fun resetArtboardSize() = riveWorker.resetArtboardSize(artboardHandle)
+    fun resetArtboardSize() {
+        checkOpen()
+        riveWorker.resetArtboardSize(artboardHandle)
+    }
+
+    /**
+     * Set this artboard's volume multiplier.
+     *
+     * This updates audio events driven by this artboard and any nested artboards that inherit its
+     * volume. The operation is queued on this artboard's [RiveWorker].
+     *
+     * @param volume The volume multiplier to apply.
+     * @throws IllegalStateException If this artboard has been closed or the Rive worker has been
+     *    released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setVolume(volume: Float) {
+        checkOpen()
+        riveWorker.setArtboardVolume(artboardHandle, volume)
+    }
+
+    /**
+     * Get this artboard's current volume multiplier.
+     *
+     * This suspends while the value is requested from the Rive worker.
+     *
+     * @return The current artboard volume multiplier.
+     * @throws RuntimeException If the artboard handle is invalid.
+     * @throws IllegalStateException If this artboard has been closed or the Rive worker has been
+     *    released.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class)
+    suspend fun getVolume(): Float {
+        checkOpen()
+        return riveWorker.getArtboardVolume(artboardHandle)
+    }
+
+    /**
+     * Throws if this artboard has already been closed.
+     *
+     * @throws IllegalStateException If this artboard has been closed.
+     */
+    @Throws(IllegalStateException::class)
+    private fun checkOpen() {
+        check(!closed) { "Artboard is closed" }
+    }
 }
 
 /**

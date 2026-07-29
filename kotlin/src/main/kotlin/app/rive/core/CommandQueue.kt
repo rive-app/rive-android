@@ -878,6 +878,40 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Query the current volume multiplier for an artboard. Returns on
+     * [onArtboardVolumeReceived].
+     *
+     * @param artboardHandle The handle of the artboard to query.
+     * @return The current artboard volume multiplier.
+     * @throws RuntimeException If the artboard handle is invalid.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    suspend fun getArtboardVolume(artboardHandle: ArtboardHandle): Float =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetArtboardVolume(
+                cppPointer.pointer,
+                requestID,
+                artboardHandle.handle
+            )
+        }
+
+    /**
+     * Callback when the artboard volume is received, from [getArtboardVolume].
+     *
+     * @param requestID The request ID used when querying the artboard volume, used to complete
+     *    the continuation.
+     * @param volume The current artboard volume multiplier.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onArtboardVolumeReceived")
+    internal fun onArtboardVolumeReceived(requestID: Long, volume: Float) {
+        (pendingContinuations.remove(requestID) as? Continuation<Float>)?.resume(volume)
+    }
+
+    /**
      * Query the default view model info for an artboard. Returns on
      * [onDefaultViewModelInfoReceived].
      *
@@ -2612,6 +2646,27 @@ class CommandQueue internal constructor(
     ) = bridge.cppResetArtboardSize(
         cppPointer.pointer,
         artboardHandle.handle
+    )
+
+    /**
+     * Set the volume multiplier for an artboard.
+     *
+     * This is a fire-and-forget operation. Invalid handles are reported through the global
+     * artboard error callback and logged by [onArtboardError].
+     *
+     * @param artboardHandle The handle of the artboard to update.
+     * @param volume The volume multiplier to apply.
+     * @throws IllegalStateException If the CommandQueue has been released.
+     */
+    @Throws(IllegalStateException::class)
+    fun setArtboardVolume(
+        artboardHandle: ArtboardHandle,
+        volume: Float
+    ) = bridge.cppSetArtboardVolume(
+        cppPointer.pointer,
+        nextRequestID.getAndIncrement(),
+        artboardHandle.handle,
+        volume
     )
 
     /**

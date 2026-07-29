@@ -595,6 +595,88 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Set artboard volume invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppSetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                ARTBOARD_HANDLE_NUM,
+                0.75f
+            )
+        } just runs
+
+        commandQueue.setArtboardVolume(artboardHandle, 0.75f)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                ARTBOARD_HANDLE_NUM,
+                0.75f
+            )
+        }
+    }
+
+    test("Get artboard volume returns native value") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onArtboardVolumeReceived(requestID.captured, 0.75f)
+        }
+
+        val result = commandQueue.getArtboardVolume(artboardHandle)
+
+        result shouldBe 0.75f
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Get artboard volume failure throws artboard error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+        val errorMessage = "Failed to get artboard volume"
+
+        every {
+            commandQueueBridgeMock.cppGetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onArtboardError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RuntimeException> {
+            commandQueue.getArtboardVolume(artboardHandle)
+        }.message shouldContain errorMessage
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetArtboardVolume(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
     test("Set artboard property invokes native") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
