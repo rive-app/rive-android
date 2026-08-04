@@ -10,6 +10,7 @@ import app.rive.core.FileHandle
 import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val ARTBOARD_TAG = "Rive/Artboard"
 
@@ -39,14 +40,22 @@ class Artboard internal constructor(
     /**
      * Closes this artboard and schedules deletion on its Rive worker.
      *
-     * @throws RiveShutdownException If an error occurs while closing the artboard.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
      */
-    @Throws(RiveShutdownException::class)
+    @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
 
     /** Whether this artboard has been closed. */
     override val closed: Boolean
         get() = closer.closed
+
+    /**
+     * Ensures this artboard has not been closed.
+     *
+     * @throws RiveResourceClosedException If this artboard has already been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() = closer.checkOpen()
 
     companion object {
         /**
@@ -59,11 +68,15 @@ class Artboard internal constructor(
          * @param artboardName The name of the artboard to load. If null, the default artboard will
          *    be loaded.
          * @return The created artboard.
+         * @throws RiveResourceClosedException If [file] has been closed or its Rive worker has been
+         *    disposed.
          */
+        @Throws(RiveResourceClosedException::class)
         fun fromFile(
             file: RiveFile,
             artboardName: String? = null
         ): Artboard {
+            file.checkOpen()
             val handle = artboardName?.let { name ->
                 file.riveWorker.createArtboardByName(file.fileHandle, name)
             } ?: file.riveWorker.createDefaultArtboard(file.fileHandle)
@@ -74,22 +87,70 @@ class Artboard internal constructor(
     }
 
     /**
-     * Whether this artboard is owned by [worker].
+     * Requires this artboard to be owned by [worker].
      *
-     * Useful for validating that multiple Rive resources can safely be used together.
+     * This compatibility check assumes callers have already verified that participating resources
+     * are open.
      *
-     * @param worker A worker reference to check ownership against.
-     * @return true if this artboard is owned by [worker], false otherwise.
+     * @param worker The worker required to own this artboard.
+     * @throws RiveIncompatibleResourceException If this artboard is owned by another worker.
      */
-    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireOwnedBy(worker: RiveWorker) {
+        if (riveWorker !== worker) {
+            throw RiveIncompatibleResourceException(
+                "Artboard $artboardHandle is not owned by the required RiveWorker"
+            )
+        }
+    }
+
+    /**
+     * Requires this artboard to have been created from [file].
+     *
+     * This compatibility check assumes callers have already verified that both resources are
+     * open.
+     *
+     * @param file The file required to own this artboard.
+     * @throws RiveIncompatibleResourceException If this artboard was created from another file.
+     */
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireFromFile(file: RiveFile) {
+        requireFromFile(file.riveWorker, file.fileHandle)
+    }
+
+    /**
+     * Requires this artboard to have been created from [worker] and [expectedFileHandle].
+     *
+     * This overload supports worker entry points that identify a file by its owning worker and raw
+     * handle.
+     *
+     * @param worker The worker required to own this artboard.
+     * @param expectedFileHandle The file handle required to own this artboard.
+     * @throws RiveIncompatibleResourceException If this artboard has different ownership.
+     */
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireFromFile(worker: RiveWorker, expectedFileHandle: FileHandle) {
+        if (riveWorker !== worker || fileHandle != expectedFileHandle) {
+            throw RiveIncompatibleResourceException(
+                "Artboard $artboardHandle was not created from RiveFile $expectedFileHandle"
+            )
+        }
+    }
 
     /**
      * @return A list of all state machine names on this artboard.
-     * @throws IllegalStateException If this artboard has been closed.
+     * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
+     *    been disposed.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getStateMachineNames(): List<String> {
-        checkOpen()
+        closer.checkOpen()
         return stateMachineNamesCache.await()
     }
 
@@ -111,14 +172,18 @@ class Artboard internal constructor(
      * @param surface The surface whose width and height will be used to resize the artboard.
      * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
      *    surface dimensions divided by this factor. Defaults to 1f.
-     * @throws IllegalStateException If the Rive worker has been released or [surface] is closed.
+     * @throws RiveResourceClosedException If this artboard or [surface] has been closed, or if the
+     *    owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [surface] is owned by another Rive worker.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun resizeArtboard(
         surface: RiveSurface,
         scaleFactor: Float = 1f
     ) {
-        checkOpen()
+        closer.checkOpen()
+        surface.checkOpen()
+        surface.requireOwnedBy(riveWorker)
         riveWorker.resizeArtboard(artboardHandle, surface, scaleFactor)
     }
 
@@ -132,11 +197,12 @@ class Artboard internal constructor(
      * ⚠️ In order for this to take effect, the state machine associated to this artboard must be
      * advanced, even if just by 0.
      *
-     * @throws IllegalStateException If the Rive worker has been released.
+     * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
+     *    been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun resetArtboardSize() {
-        checkOpen()
+        closer.checkOpen()
         riveWorker.resetArtboardSize(artboardHandle)
     }
 
@@ -147,12 +213,12 @@ class Artboard internal constructor(
      * volume. The operation is queued on this artboard's [RiveWorker].
      *
      * @param volume The volume multiplier to apply.
-     * @throws IllegalStateException If this artboard has been closed or the Rive worker has been
-     *    released.
+     * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
+     *    been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setVolume(volume: Float) {
-        checkOpen()
+        closer.checkOpen()
         riveWorker.setArtboardVolume(artboardHandle, volume)
     }
 
@@ -162,24 +228,19 @@ class Artboard internal constructor(
      * This suspends while the value is requested from the Rive worker.
      *
      * @return The current artboard volume multiplier.
-     * @throws RuntimeException If the artboard handle is invalid.
-     * @throws IllegalStateException If this artboard has been closed or the Rive worker has been
-     *    released.
+     * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
+     *    been disposed.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class)
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getVolume(): Float {
-        checkOpen()
+        closer.checkOpen()
         return riveWorker.getArtboardVolume(artboardHandle)
-    }
-
-    /**
-     * Throws if this artboard has already been closed.
-     *
-     * @throws IllegalStateException If this artboard has been closed.
-     */
-    @Throws(IllegalStateException::class)
-    private fun checkOpen() {
-        check(!closed) { "Artboard is closed" }
     }
 }
 
@@ -193,7 +254,10 @@ class Artboard internal constructor(
  * @param artboardName The name of the artboard to load. If null, the default artboard will be
  *    loaded.
  * @return The created [Artboard].
+ * @throws RiveResourceClosedException If [file] has been closed or its Rive worker has been
+ *    disposed.
  */
+@Throws(RiveResourceClosedException::class)
 @Composable
 fun rememberArtboard(
     file: RiveFile,

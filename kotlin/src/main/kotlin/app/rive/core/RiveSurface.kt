@@ -6,8 +6,10 @@ import android.opengl.EGLSurface
 import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.WorkerThread
+import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
+import app.rive.RiveResourceClosedException
 import app.rive.RiveShutdownException
 
 /**
@@ -82,7 +84,15 @@ abstract class RiveSurface internal constructor(
         it.acquire("RiveSurface")
     }
 
-    private val closer = CloseOnce("RiveSurface") {
+    private val nativePointer = UniquePointer(
+        surfaceNativePointer,
+        "RiveSurface ${drawKey.handle}"
+    ) { pointer ->
+        RiveLog.d("Rive/Surface") { "Deleting Rive native surface" }
+        cppDeleteSurface(pointer)
+    }
+
+    private val closer = CloseOnce("RiveSurface ${drawKey.handle}") {
         commandQueue.cancelDraw(drawKey)
         commandQueue.runOnCommandServer {
             dispose()
@@ -101,7 +111,58 @@ abstract class RiveSurface internal constructor(
      */
     override fun close() = closer.close()
     override val closed: Boolean
-        get() = closer.closed
+        get() = closer.closed || nativePointer.closed
+
+    /**
+     * Ensures this surface and its native pointer have not been closed.
+     *
+     * The native pointer remains publicly accessible for compatibility, so it may have been closed
+     * independently of this wrapper. Treat either lifecycle as closing the surface for operations.
+     *
+     * @throws RiveResourceClosedException If this surface or its native pointer has already been
+     *    closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() {
+        closer.checkOpen()
+        if (nativePointer.closed) {
+            throw RiveResourceClosedException("RiveSurface ${drawKey.handle} is closed")
+        }
+    }
+
+    /**
+     * Returns the native surface pointer after validating the complete surface lifecycle.
+     *
+     * Internal operations should use this method instead of accessing [surfaceNativePointer]
+     * directly so a pointer closed independently of its surface reports the public lifecycle
+     * exception.
+     *
+     * @return The open native surface pointer.
+     * @throws RiveResourceClosedException If this surface or its native pointer has already been
+     *    closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun requireNativePointer(): Long {
+        checkOpen()
+        return nativePointer.pointer
+    }
+
+    /**
+     * Requires this surface to be owned by [worker].
+     *
+     * This compatibility check assumes callers have already verified that the surface is open.
+     *
+     * @param worker The worker required to own this surface.
+     * @throws RiveIncompatibleResourceException If this surface is owned by another worker.
+     */
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireOwnedBy(worker: RiveWorker) {
+        if (commandQueue !== worker) {
+            throw RiveIncompatibleResourceException(
+                "RiveSurface ${drawKey.handle} is not owned by the required RiveWorker"
+            )
+        }
+    }
 
     /**
      * Disposes native surface resources.
@@ -113,7 +174,7 @@ abstract class RiveSurface internal constructor(
      */
     @CallSuper
     @WorkerThread
-    protected open fun dispose() = surfaceNativePointer.close()
+    protected open fun dispose() = nativePointer.close()
 
     /**
      * Resizes this surface without replacing the Android or backend window surface.
@@ -127,13 +188,19 @@ abstract class RiveSurface internal constructor(
      * @param width New surface width in physical pixels.
      * @param height New surface height in physical pixels.
      * @throws IllegalArgumentException If [width] or [height] is not positive.
-     * @throws IllegalStateException If this surface is already closed or does not support resizing.
+     * @throws RiveResourceClosedException If this surface or its native pointer is already closed.
+     * @throws IllegalStateException If this surface does not support resizing.
      */
+    @Throws(
+        IllegalArgumentException::class,
+        RiveResourceClosedException::class,
+        IllegalStateException::class
+    )
     internal fun resize(width: Int, height: Int) {
+        checkOpen()
         require(width > 0 && height > 0) {
             "RiveSurface resize requires a positive width and height."
         }
-        check(!closed) { "Cannot resize a closed RiveSurface" }
         check(resizable) { "Cannot resize a fixed-size RiveSurface" }
         if (this.width == width && this.height == height) {
             return
@@ -157,8 +224,12 @@ abstract class RiveSurface internal constructor(
      */
     @WorkerThread
     protected open fun resizeNativeResources(width: Int, height: Int) {
+        // A concurrent close can mark the wrapper closed after the queued resize's guard above,
+        // but native disposal is queued behind this command-server work and cannot run first.
+        // Check only the native pointer here so that benign race does not throw and get logged by
+        // the fire-and-forget JNI callback.
         cppResizeSurface(
-            surfaceNativePointer.pointer,
+            nativePointer.pointer,
             width,
             height
         )
@@ -168,15 +239,16 @@ abstract class RiveSurface internal constructor(
      * Opaque native backend surface resource.
      *
      * The concrete backend surface owns its render target and is disposed through command queue
-     * ordering when [close] is called.
+     * ordering when [close] is called. Closing or otherwise accessing this pointer directly can
+     * bypass [RiveSurface] lifecycle validation; use surface operations instead. This property
+     * will become non-public in a future major release.
      */
-    val surfaceNativePointer: UniquePointer = UniquePointer(
-        surfaceNativePointer,
-        "Rive/Surface"
-    ) { pointer ->
-        RiveLog.d("Rive/Surface") { "Deleting Rive native surface" }
-        cppDeleteSurface(pointer)
-    }
+    @Deprecated(
+        message = "Direct native pointer access can violate RiveSurface lifecycle and will become non-public in a future major release. Use RiveSurface operations instead.",
+        level = DeprecationLevel.WARNING
+    )
+    val surfaceNativePointer: UniquePointer
+        get() = nativePointer
 }
 
 /**
@@ -348,9 +420,10 @@ internal class RiveSurfaceVulkan(
          * @return The created [RiveSurfaceVulkan].
          * @throws RiveRenderException If the Android surface is invalid or native surface creation
          *    fails.
-         * @throws IllegalStateException If the surface cannot acquire the command queue.
+         * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive
+         *    worker.
          */
-        @Throws(RiveRenderException::class, IllegalStateException::class)
+        @Throws(RiveRenderException::class, RiveResourceClosedException::class)
         internal fun create(
             renderContext: RenderContextVulkan,
             surface: CloseableSurface,
@@ -449,12 +522,13 @@ internal class RiveSurfaceVulkanImage(
          * @return The created [RiveSurfaceVulkanImage].
          * @throws IllegalArgumentException If [width] or [height] is not positive.
          * @throws RiveRenderException If native image surface creation fails.
-         * @throws IllegalStateException If the surface cannot acquire the command queue.
+         * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive
+         *    worker.
          */
         @Throws(
             IllegalArgumentException::class,
             RiveRenderException::class,
-            IllegalStateException::class
+            RiveResourceClosedException::class
         )
         internal fun create(
             renderContext: RenderContextVulkan,

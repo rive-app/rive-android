@@ -74,16 +74,58 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
 
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun constructor_whenSurfaceCreationFails_stopsImageReaderThread() {
+        val disposedWorker = RiveWorker()
+        disposedWorker.release(javaClass.simpleName, "Force surface creation failure")
+        assertDisposed(disposedWorker)
+        val threadsBeforeConstruction = liveImageReaderThreads()
+
+        assertFailsWith<RiveResourceClosedException> {
+            HardwareRenderBuffer(64, 64, disposedWorker)
+        }
+
+        val threadsAfterFailure = liveImageReaderThreads()
+        assertEquals(threadsBeforeConstruction, threadsAfterFailure)
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun operations_afterClose_throw() = runBlocking<Unit> {
         val res = loadDefaultRiveResources(R.raw.empty)
         val buffer = HardwareRenderBuffer(64, 64, riveWorker)
         buffer.close()
 
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<RiveResourceClosedException> {
             buffer.render(res.artboard, res.stateMachine)
         }
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<RiveResourceClosedException> {
             buffer.consumeLatestBitmap()
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun render_withClosedArtboard_throws() = runBlocking<Unit> {
+        val res = loadDefaultRiveResources(R.raw.empty)
+        res.artboard.close()
+
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            assertFailsWith<RiveResourceClosedException> {
+                buffer.render(res.artboard, res.stateMachine)
+            }
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun render_withClosedStateMachine_throws() = runBlocking<Unit> {
+        val res = loadDefaultRiveResources(R.raw.empty)
+        res.stateMachine.close()
+
+        HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            assertFailsWith<RiveResourceClosedException> {
+                buffer.render(res.artboard, res.stateMachine)
+            }
         }
     }
 
@@ -97,13 +139,13 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
             foreignWorker.withPolling {
                 foreignWorker.withDefaultRiveResources(R.raw.empty) {
                     HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
-                        assertFailsWith<IllegalArgumentException> {
+                        assertFailsWith<RiveIncompatibleResourceException> {
                             buffer.render(artboard, owningRes.stateMachine)
                         }
-                        assertFailsWith<IllegalArgumentException> {
+                        assertFailsWith<RiveIncompatibleResourceException> {
                             buffer.render(owningRes.artboard, stateMachine)
                         }
-                        assertFailsWith<IllegalArgumentException> {
+                        assertFailsWith<RiveIncompatibleResourceException> {
                             buffer.render(owningRes.artboard, siblingRes.stateMachine)
                         }
                     }
@@ -169,4 +211,10 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
             assertEquals(Bitmap.Config.HARDWARE, bitmap?.config)
         }
     }
+
+    /** Returns the live callback threads created by [HardwareRenderBuffer]. */
+    private fun liveImageReaderThreads(): Set<Thread> =
+        Thread.getAllStackTraces().keys.filterTo(mutableSetOf()) { thread ->
+            thread.isAlive && thread.name == "Rive/ImageReader"
+        }
 }

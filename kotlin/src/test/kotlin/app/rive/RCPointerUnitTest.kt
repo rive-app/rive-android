@@ -177,7 +177,7 @@ class RCPointerUnitTest : FunSpec({
         test("Pointer throws when accessed after disposal") {
             rcPointer.release(TEST_SRC)
 
-            val exception = shouldThrow<IllegalStateException> {
+            val exception = shouldThrow<RiveResourceClosedException> {
                 rcPointer.pointer
             }
             exception.message shouldContain TEST_LABEL
@@ -186,7 +186,7 @@ class RCPointerUnitTest : FunSpec({
         test("Acquire throws when called after disposal") {
             rcPointer.release(TEST_SRC)
 
-            val exception = shouldThrow<IllegalStateException> {
+            val exception = shouldThrow<RiveResourceClosedException> {
                 rcPointer.acquire(TEST_SRC)
             }
             exception.message shouldContain TEST_LABEL

@@ -37,8 +37,14 @@ import app.rive.core.traceSection
  * @param height Height in pixels.
  * @param riveWorker Worker used for drawing.
  * @throws IllegalArgumentException if width or height are not > 0.
+ * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+ * @throws RiveRenderException If the software render surface cannot be created.
  */
-class SoftwareRenderBuffer(
+class SoftwareRenderBuffer @Throws(
+    IllegalArgumentException::class,
+    RiveResourceClosedException::class,
+    RiveRenderException::class
+) constructor(
     val width: Int,
     val height: Int,
     private val riveWorker: RiveWorker
@@ -56,6 +62,7 @@ class SoftwareRenderBuffer(
     override val closed: Boolean
         get() = closer.closed
 
+    /** Closes this buffer and its owned render surface. */
     override fun close() = closer.close()
 
     /** RGBA byte pixels produced by the native draw call. */
@@ -73,16 +80,17 @@ class SoftwareRenderBuffer(
      * @param fit Fit mode to use while rendering.
      * @param clearColor Clear color used before drawing.
      * @return The same [bitmap] instance after rendering.
-     * @throws IllegalArgumentException If [bitmap] does not match this buffer's size/config, if
-     *    [artboard] or [stateMachine] are not owned by this buffer's worker, or if [stateMachine]
-     *    was not created from [artboard].
-     * @throws IllegalStateException If this buffer's surface has been closed or the worker has
-     *    been released.
+     * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
+     *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
+     *    this buffer's worker, or if [stateMachine] was not created from [artboard].
+     * @throws IllegalArgumentException If [bitmap] does not match this buffer's size or format.
      * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
      */
     @Throws(
+        RiveIncompatibleResourceException::class,
         IllegalArgumentException::class,
-        IllegalStateException::class,
+        RiveResourceClosedException::class,
         RiveDrawToBufferException::class
     )
     fun renderInto(
@@ -92,15 +100,12 @@ class SoftwareRenderBuffer(
         fit: Fit = RenderingDefaults.defaultFit(),
         clearColor: Int = RenderingDefaults.CLEAR_COLOR
     ): Bitmap {
-        require(artboard.isOwnedBy(riveWorker)) {
-            "SoftwareRenderBuffer and Artboard must use the same RiveWorker"
-        }
-        require(stateMachine.isOwnedBy(riveWorker)) {
-            "SoftwareRenderBuffer and StateMachine must use the same RiveWorker"
-        }
-        require(stateMachine.isFromArtboard(artboard)) {
-            "SoftwareRenderBuffer StateMachine must be created from the supplied Artboard"
-        }
+        closer.checkOpen()
+        surface.checkOpen()
+        artboard.checkOpen()
+        stateMachine.checkOpen()
+        artboard.requireOwnedBy(riveWorker)
+        stateMachine.requireFromArtboard(artboard)
         require(
             bitmap.width == width &&
                     bitmap.height == height &&

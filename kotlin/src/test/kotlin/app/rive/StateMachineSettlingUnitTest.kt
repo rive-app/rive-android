@@ -6,6 +6,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.just
 import io.mockk.runs
@@ -140,6 +141,12 @@ class StateMachineSettlingUnitTest : FunSpec({
         stateMachine.unsettle()
         stateMachine.settled.value shouldBe false
         stateMachine.close()
+        stateMachine.settled.value shouldBe true
+
+        val exception = shouldThrow<RiveResourceClosedException> {
+            stateMachine.unsettle()
+        }
+        exception.message shouldContain HANDLE_NUM.toString()
         stateMachine.settled.value shouldBe true
     }
 })

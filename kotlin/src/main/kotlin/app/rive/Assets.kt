@@ -13,6 +13,33 @@ private const val IMAGE_TAG = "Rive/Image"
 private const val AUDIO_TAG = "Rive/Audio"
 private const val FONT_TAG = "Rive/Font"
 
+/**
+ * A worker reference already acquired for an asset to own.
+ *
+ * This distinguishes factory construction, which transfers the reference acquired before
+ * decoding, from deprecated raw-handle construction, which must acquire its own reference.
+ * Remove this wrapper with the raw-handle constructors in 12.0.
+ *
+ * @param worker The acquired worker reference.
+ */
+private class AcquiredWorkerReference(val worker: RiveWorker)
+
+/**
+ * Acquires the worker reference owned by a directly constructed asset.
+ *
+ * This compatibility helper exists only for the deprecated raw-handle constructors. Remove it
+ * with those constructors in 12.0.
+ *
+ * @param tag The asset-specific source used for reference-count logging.
+ * @return The acquired worker reference for the asset to own.
+ * @throws RiveResourceClosedException If this worker has been disposed.
+ */
+@Throws(RiveResourceClosedException::class)
+private fun RiveWorker.acquireForAsset(tag: String): AcquiredWorkerReference {
+    acquire(tag)
+    return AcquiredWorkerReference(this)
+}
+
 /** Operations for managing assets of type [A] with handle type [H]. */
 internal interface AssetOps<H, A : Asset<H>> {
     /** The tag used for logging purposes. */
@@ -33,7 +60,7 @@ internal interface AssetOps<H, A : Asset<H>> {
     /** Unregister the asset from the provided Rive worker for the given key. */
     fun unregister(worker: RiveWorker, key: String) {}
 
-    /** Construct the asset instance from the given handle, key, and Rive worker. */
+    /** Construct the asset by taking ownership of the worker reference acquired by [Asset.fromBytes]. */
     fun construct(handle: H, worker: RiveWorker): A
 }
 
@@ -44,7 +71,8 @@ internal interface AssetOps<H, A : Asset<H>> {
  *
  * Each asset holds a reference to its [RiveWorker]. When creating assets manually, call [close]
  * when you no longer need the asset; releasing the worker alone is not enough to purge asset or
- * worker memory while the asset remains open.
+ * worker memory while the asset remains open. Closing the asset does not unregister its keys;
+ * unregister them explicitly, preferably before calling [close].
  *
  * @param handle The handle to the asset on the command server.
  * @param riveWorker The Rive worker that owns the asset.
@@ -54,12 +82,51 @@ sealed class Asset<H>(
     val handle: H,
     protected val riveWorker: RiveWorker,
     private val ops: AssetOps<H, out Asset<H>>,
-) : AutoCloseable by CloseOnce("$handle", {
-    RiveLog.d(ops.tag) { "Deleting ${ops.label} with handle: $handle" }
-    ops.delete(riveWorker, handle)
+) : AutoCloseable {
+    private val closer = CloseOnce("$handle") {
+        RiveLog.d(ops.tag) { "Deleting ${ops.label} with handle: $handle" }
+        ops.delete(riveWorker, handle)
 
-    riveWorker.release(ops.tag, "Asset closed")
-}) {
+        riveWorker.release(ops.tag, "Asset closed")
+    }
+
+    /**
+     * Closes this asset and schedules deletion on its Rive worker.
+     *
+     * Closing does not unregister keys registered through this asset. Prefer to unregister them
+     * before closing; [unregister] remains available afterward while the worker is open. Repeated
+     * calls are safe and have no effect after the first call.
+     *
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    override fun close() = closer.close()
+
+    /**
+     * Ensures this asset has not been closed.
+     *
+     * @throws RiveResourceClosedException If this asset has already been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() = closer.checkOpen()
+
+    /**
+     * Requires this asset to be owned by [worker].
+     *
+     * This compatibility check assumes callers have already verified that the asset is open.
+     *
+     * @param worker The worker required to own this asset.
+     * @throws RiveIncompatibleResourceException If this asset is owned by another worker.
+     */
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireOwnedBy(worker: RiveWorker) {
+        if (riveWorker !== worker) {
+            throw RiveIncompatibleResourceException(
+                "${ops.label} asset $handle is not owned by the required RiveWorker"
+            )
+        }
+    }
+
     companion object {
         /**
          * Create and decode an asset of type [A] with handle type [H] from the given byte array.
@@ -97,11 +164,16 @@ sealed class Asset<H>(
      * look for an asset registered under that key. The key comes from the zip file created when
      * exporting a Rive file.
      *
-     * Be sure to unregister it with [unregister] when done.
+     * Be sure to unregister the key with [unregister] when it is no longer needed, preferably
+     * before calling [close].
      *
      * @param key The key to register the asset under.
+     * @throws RiveResourceClosedException If this asset has been closed or its Rive worker has been
+     *    disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun register(key: String) {
+        closer.checkOpen()
         RiveLog.d(ops.tag) { "Registering ${ops.label} with key: $key and handle: $handle" }
         ops.register(riveWorker, key, handle)
     }
@@ -109,9 +181,14 @@ sealed class Asset<H>(
     /**
      * Unregister the asset with the given key.
      *
+     * This worker-level cleanup does not require the asset handle and remains available after
+     * [close], provided the owning worker is still open.
+     *
      * @param key The key to unregister the asset from.
+     * @throws RiveResourceClosedException If this asset's Rive worker has been disposed.
      * @see register
      */
+    @Throws(RiveResourceClosedException::class)
     fun unregister(key: String) {
         RiveLog.d(ops.tag) { "Unregistering ${ops.label} with key: $key" }
         ops.unregister(riveWorker, key)
@@ -121,20 +198,36 @@ sealed class Asset<H>(
 /**
  * An image asset, representing a renderable bitmap, managed by a [RiveWorker].
  *
- * @param handle The handle to the image on the command server.
- * @param worker The Rive worker that owns the image.
  */
-class ImageAsset(
+class ImageAsset private constructor(
     handle: ImageHandle,
-    worker: RiveWorker,
-) : Asset<ImageHandle>(handle, worker, ImageAsset) {
+    workerReference: AcquiredWorkerReference,
+) : Asset<ImageHandle>(handle, workerReference.worker, ImageAsset) {
+    /**
+     * Creates an image asset for an existing decoded handle and acquires its worker reference.
+     *
+     * @param handle The handle to the image on the command server.
+     * @param worker The Rive worker that owns the image.
+     * @throws RiveResourceClosedException If [worker] has been disposed.
+     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     */
+    @Deprecated(
+        "Raw-handle image construction will become internal in 12.0. Use ImageAsset.fromBytes()."
+    )
+    @Throws(RiveResourceClosedException::class)
+    constructor(handle: ImageHandle, worker: RiveWorker) : this(
+        handle,
+        worker.acquireForAsset(IMAGE_TAG),
+    )
+
     companion object : AssetOps<ImageHandle, ImageAsset> {
         /**
          * Create and decode an image asset from the given byte array on the provided Rive worker.
          *
          * The image can only be used on the same [RiveWorker] it was created on.
          *
-         * Must be registered with [ImageAsset.register] to be used for referenced images.
+         * Must be registered with [ImageAsset.register] to be used for referenced images. Remove
+         * every registration with [ImageAsset.unregister], preferably before closing the image.
          *
          * ⚠️ The lifetime of the returned image is managed by the caller. Make sure to call [close]
          * when you are done with it to release its resources. The returned image holds a reference
@@ -143,9 +236,11 @@ class ImageAsset(
          *
          * @param riveWorker The Rive worker that owns the image.
          * @param bytes The byte array containing the image data to decode.
-         * @return The [Result] of the image decoding, which can be either loading, error, or
-         *    success with the decoded image asset.
+         * @return The [Result] of the image decoding. Decode failures are returned as
+         *    [Result.Error] containing a [RiveImageException].
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(CancellationException::class)
         suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<ImageAsset> =
             fromBytes(this, riveWorker, bytes)
 
@@ -164,27 +259,43 @@ class ImageAsset(
             worker.unregisterImage(key)
 
         override fun construct(handle: ImageHandle, worker: RiveWorker) =
-            ImageAsset(handle, worker)
+            ImageAsset(handle, AcquiredWorkerReference(worker))
     }
 }
 
 /**
  * An audio asset, representing a playable sound, managed by a [RiveWorker].
  *
- * @param handle The handle to the audio on the command server.
- * @param worker The Rive worker that owns the audio.
  */
-class AudioAsset(
+class AudioAsset private constructor(
     handle: AudioHandle,
-    worker: RiveWorker,
-) : Asset<AudioHandle>(handle, worker, AudioAsset) {
+    workerReference: AcquiredWorkerReference,
+) : Asset<AudioHandle>(handle, workerReference.worker, AudioAsset) {
+    /**
+     * Creates an audio asset for an existing decoded handle and acquires its worker reference.
+     *
+     * @param handle The handle to the audio on the command server.
+     * @param worker The Rive worker that owns the audio.
+     * @throws RiveResourceClosedException If [worker] has been disposed.
+     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     */
+    @Deprecated(
+        "Raw-handle audio construction will become internal in 12.0. Use AudioAsset.fromBytes()."
+    )
+    @Throws(RiveResourceClosedException::class)
+    constructor(handle: AudioHandle, worker: RiveWorker) : this(
+        handle,
+        worker.acquireForAsset(AUDIO_TAG),
+    )
+
     companion object : AssetOps<AudioHandle, AudioAsset> {
         /**
          * Create and decode an audio asset from the given byte array on the provided Rive worker.
          *
          * The audio can only be used on the same [RiveWorker] it was created on.
          *
-         * Must be registered with [AudioAsset.register] to be used for referenced audio.
+         * Must be registered with [AudioAsset.register] to be used for referenced audio. Remove
+         * every registration with [AudioAsset.unregister], preferably before closing the audio.
          *
          * ⚠️ The lifetime of the returned audio is managed by the caller. Make sure to call [close]
          * when you are done with it to release its resources. The returned audio holds a reference
@@ -193,9 +304,11 @@ class AudioAsset(
          *
          * @param riveWorker The Rive worker that owns the audio.
          * @param bytes The byte array containing the audio data to decode.
-         * @return The [Result] of the audio decoding, which can be either loading, error, or
-         *    success with the decoded audio asset.
+         * @return The [Result] of the audio decoding. Decode failures are returned as
+         *    [Result.Error] containing a [RiveAudioException].
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(CancellationException::class)
         suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<AudioAsset> =
             fromBytes(this, riveWorker, bytes)
 
@@ -214,27 +327,43 @@ class AudioAsset(
             worker.unregisterAudio(key)
 
         override fun construct(handle: AudioHandle, worker: RiveWorker) =
-            AudioAsset(handle, worker)
+            AudioAsset(handle, AcquiredWorkerReference(worker))
     }
 }
 
 /**
  * A font asset, representing a renderable typeface, managed by a [RiveWorker].
  *
- * @param handle The handle to the font on the command server.
- * @param worker The Rive worker that owns the font.
  */
-class FontAsset(
+class FontAsset private constructor(
     handle: FontHandle,
-    worker: RiveWorker,
-) : Asset<FontHandle>(handle, worker, FontAsset) {
+    workerReference: AcquiredWorkerReference,
+) : Asset<FontHandle>(handle, workerReference.worker, FontAsset) {
+    /**
+     * Creates a font asset for an existing decoded handle and acquires its worker reference.
+     *
+     * @param handle The handle to the font on the command server.
+     * @param worker The Rive worker that owns the font.
+     * @throws RiveResourceClosedException If [worker] has been disposed.
+     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     */
+    @Deprecated(
+        "Raw-handle font construction will become internal in 12.0. Use FontAsset.fromBytes()."
+    )
+    @Throws(RiveResourceClosedException::class)
+    constructor(handle: FontHandle, worker: RiveWorker) : this(
+        handle,
+        worker.acquireForAsset(FONT_TAG),
+    )
+
     companion object : AssetOps<FontHandle, FontAsset> {
         /**
          * Create and decode a font asset from the given byte array on the provided Rive worker.
          *
          * The font can only be used on the same [RiveWorker] it was created on.
          *
-         * Must be registered with [FontAsset.register] to be used for referenced fonts.
+         * Must be registered with [FontAsset.register] to be used for referenced fonts. Remove
+         * every registration with [FontAsset.unregister], preferably before closing the font.
          *
          * ⚠️ The lifetime of the returned font is managed by the caller. Make sure to call [close]
          * when you are done with it to release its resources. The returned font holds a reference
@@ -243,9 +372,11 @@ class FontAsset(
          *
          * @param riveWorker The Rive worker that owns the font.
          * @param bytes The byte array containing the font data to decode.
-         * @return The [Result] of the font decoding, which can be either loading, error, or success
-         *    with the decoded font asset.
+         * @return The [Result] of the font decoding. Decode failures are returned as
+         *    [Result.Error] containing a [RiveFontException].
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(CancellationException::class)
         suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<FontAsset> =
             fromBytes(this, riveWorker, bytes)
 
@@ -264,7 +395,7 @@ class FontAsset(
             worker.unregisterFont(key)
 
         override fun construct(handle: FontHandle, worker: RiveWorker) =
-            FontAsset(handle, worker)
+            FontAsset(handle, AcquiredWorkerReference(worker))
     }
 }
 
@@ -297,7 +428,7 @@ fun rememberImage(
  * This function is intended for use with images that are registered once, as a convenience. If you
  * want to register multiple times, use [rememberImage] and [ImageAsset.register] instead.
  *
- * The image will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * The image will be unregistered, deleted, and its [RiveWorker] reference released when the
  * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this image.
@@ -343,7 +474,7 @@ fun rememberAudio(
  * This function is intended for use with audio that is registered once, as a convenience. If you
  * want to register multiple times, use [rememberAudio] and [AudioAsset.register] instead.
  *
- * The audio will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * The audio will be unregistered, deleted, and its [RiveWorker] reference released when the
  * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this audio.
@@ -389,7 +520,7 @@ fun rememberFont(
  * This function is intended for use with fonts that are registered once, as a convenience. If you
  * want to register multiple times, use [rememberFont] and [FontAsset.register] instead.
  *
- * The font will be deleted, unregistered, and its [RiveWorker] reference released when the
+ * The font will be unregistered, deleted, and its [RiveWorker] reference released when the
  * composable leaves the composition.
  *
  * @param riveWorker The Rive worker that owns and performs operations on this font.

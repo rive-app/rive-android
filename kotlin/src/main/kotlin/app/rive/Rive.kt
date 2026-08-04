@@ -137,6 +137,46 @@ enum class RivePointerInputMode {
 }
 
 /**
+ * Validates the Rive resources supplied to [Rive] before composition creates default resources.
+ *
+ * @param file The file whose content will be rendered.
+ * @param artboard An optional artboard that must have been created from [file].
+ * @param stateMachine An optional state machine created from [artboard]. A state machine cannot be
+ *    supplied without its originating artboard.
+ * @param viewModelInstance An optional view model instance owned by [file]'s worker. An instance
+ *    from another file is compatible only when used with relative data-binding paths authored in
+ *    the Rive editor; cross-file use with absolute paths is unsupported.
+ * @throws RiveResourceClosedException If any supplied resource has been closed.
+ * @throws RiveIncompatibleResourceException If [artboard], [stateMachine], or [viewModelInstance]
+ *    cannot be used together, or if [stateMachine] is supplied without [artboard].
+ */
+@Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
+internal fun validateRiveResourceArguments(
+    file: RiveFile,
+    artboard: Artboard?,
+    stateMachine: StateMachine?,
+    viewModelInstance: ViewModelInstance?,
+) {
+    file.checkOpen()
+    artboard?.checkOpen()
+    stateMachine?.checkOpen()
+    viewModelInstance?.checkOpen()
+    artboard?.requireFromFile(file)
+    if (stateMachine != null) {
+        if (artboard == null) {
+            throw RiveIncompatibleResourceException(
+                "StateMachine ${stateMachine.stateMachineHandle} requires its originating Artboard"
+            )
+        }
+        stateMachine.requireFromArtboard(artboard)
+    }
+    // Cross-file VMIs are supported through relative paths authored in the editor. Because the
+    // binding mode is not available here, worker ownership is the compatibility boundary;
+    // unsupported absolute cross-file bindings cannot be rejected synchronously.
+    viewModelInstance?.requireOwnedBy(file.riveWorker)
+}
+
+/**
  * The main composable for rendering a Rive file's artboard and state machine.
  *
  * Internally, Rive uses a [TextureView] to create and manage a [android.view.Surface] for
@@ -155,10 +195,13 @@ enum class RivePointerInputMode {
  * @param playing Whether the state machine should advance. When true (default), the state machine
  *    will advance on each frame. When false, the advancement loop will not activate.
  * @param artboard The [Artboard] to render. If null, the default artboard will be used.
- * @param stateMachine The [StateMachine] to use. If null, the default state machine will be
+ * @param stateMachine The [StateMachine] to use. It must have been created from [artboard], which
+ *    must also be supplied. If null, the default state machine for the selected artboard will be
  *    created.
- * @param viewModelInstance The [ViewModelInstance] to bind to the state machine. If null, no view
- *    model instance will be bound.
+ * @param viewModelInstance The [ViewModelInstance] to bind to the state machine. An instance from
+ *    another file on the same Rive worker is supported only when the state machine uses relative
+ *    data-binding paths authored in the Rive editor. Cross-file binding with absolute paths is
+ *    unsupported. If null, no view model instance will be bound.
  * @param fit The [Fit] to use for the artboard. Defaults to [Fit.Contain].
  * @param backgroundColor The color to clear the surface with before drawing. Defaults to
  *    transparent.
@@ -171,7 +214,12 @@ enum class RivePointerInputMode {
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
  *    getter is only valid while the surface is active.
+ * @throws RiveResourceClosedException If [file] or a supplied Rive resource has been closed, or if
+ *    the owning Rive worker has been disposed.
+ * @throws RiveIncompatibleResourceException If a supplied resource cannot be used with [file] or
+ *    the selected artboard.
  */
+@Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
 @Composable
 fun Rive(
     file: RiveFile,
@@ -186,6 +234,8 @@ fun Rive(
     frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
+    validateRiveResourceArguments(file, artboard, stateMachine, viewModelInstance)
+
     RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
 

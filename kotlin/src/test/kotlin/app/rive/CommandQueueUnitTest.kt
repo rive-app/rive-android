@@ -2,6 +2,7 @@ package app.rive
 
 import android.os.Build
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.DefaultViewModelInfo
@@ -11,6 +12,7 @@ import app.rive.core.FrameTicker
 import app.rive.core.ImageHandle
 import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
+import app.rive.core.StateMachineHandle
 import app.rive.core.ViewModelInstanceHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -32,6 +34,7 @@ import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
 
 const val VULKAN_RENDER_CONTEXT_ADDR = 3L
 const val OPENGL_RENDER_CONTEXT_ADDR = 4L
@@ -294,6 +297,94 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Operations on disposed worker throw resource closed") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.checkOpen()
+        }.message shouldContain "disposed"
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.acquire("Disposed worker test")
+        }.message shouldContain "disposed"
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.release("Disposed worker test")
+        }.message shouldContain "disposed"
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.setTracingEnabled(true)
+        }.message shouldContain "disposed"
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppSetTracingEnabled(COMMAND_QUEUE_ADDR, true)
+        }
+    }
+
+    // This stands in for suspending command operations, which share the same submission path.
+    test("Suspending operation rejects a disposed worker before native submission") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.loadFile(FILE_BYTES)
+        }
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppLoadFile(any(), any(), any())
+        }
+    }
+
+    // This stands in for fire-and-forget commands, which share the native-pointer entry check.
+    test("Fire-and-forget operation rejects a disposed worker before native submission") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.advanceStateMachine(StateMachineHandle(HANDLE_NUM), 16.milliseconds)
+        }
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppAdvanceStateMachine(any(), any(), any(), any())
+        }
+    }
+
+    test("withLifecycle on disposed worker throws before lifecycle access") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val owner = mockk<LifecycleOwner>()
+
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.withLifecycle(owner, "Disposed worker test")
+        }.message shouldContain "disposed"
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) { owner.lifecycle }
+    }
+
+    test("withLifecycle close releases worker once") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val owner = mockk<LifecycleOwner>()
+        val lifecycle = mockk<Lifecycle>()
+        every { owner.lifecycle } returns lifecycle
+        every { lifecycle.currentState } returns Lifecycle.State.CREATED
+        every { lifecycle.addObserver(any()) } just runs
+        every { lifecycle.removeObserver(any()) } just runs
+
+        val lifecycleHandle = commandQueue.withLifecycle(owner, "Lifecycle owner test")
+
+        lifecycleHandle.close()
+        lifecycleHandle.close()
+
+        commandQueue.refCount shouldBe 0
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 1) { lifecycle.addObserver(any()) }
+        verify(exactly = 1) { lifecycle.removeObserver(any()) }
+    }
+
     test("Native submission failure propagates") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val expectedError = IllegalStateException("Submission failed")
@@ -306,17 +397,17 @@ class CommandQueueUnitTest : FunSpec({
         } shouldBe expectedError
     }
 
-    test("beginPolling throws if called after release") {
+    test("beginPolling throws if called on disposed worker") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val lifecycle = mockk<Lifecycle>()
-        val ticker = FrameTicker { error("Polling should not request a frame after release") }
+        val ticker = FrameTicker { error("Polling should not request a frame after disposal") }
 
         commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
         commandQueue.awaitShutdown(1000) shouldBe true
 
-        shouldThrow<IllegalStateException> {
+        shouldThrow<RiveResourceClosedException> {
             commandQueue.beginPolling(lifecycle, ticker)
-        }.message shouldContain "released"
+        }.message shouldContain "disposed"
         verify(exactly = 0) { commandQueueBridgeMock.cppPollMessages(any()) }
     }
 
@@ -414,6 +505,35 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("File query failure throws file error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val errorMessage = "Invalid file handle"
+
+        every {
+            commandQueueBridgeMock.cppGetArtboardNames(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onFileError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RiveFileException> {
+            commandQueue.getArtboardNames(fileHandle)
+        }.message shouldContain errorMessage
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetArtboardNames(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
     test("Get default view model info returns name and instance") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val requestID = slot<Long>()
@@ -466,7 +586,7 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.onArtboardError(requestID.captured, errorMessage)
         }
 
-        shouldThrow<RuntimeException> {
+        shouldThrow<RiveArtboardException> {
             commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
         }.message shouldContain errorMessage
 
@@ -526,7 +646,7 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.onViewModelInstanceError(requestID.captured, errorMessage)
         }
 
-        shouldThrow<RuntimeException> {
+        shouldThrow<RiveViewModelInstanceException> {
             commandQueue.getViewModelInstanceViewModelName(instanceHandle)
         }.message shouldContain errorMessage
 
@@ -582,7 +702,7 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.onViewModelInstanceError(requestID.captured, errorMessage)
         }
 
-        shouldThrow<RuntimeException> {
+        shouldThrow<RiveViewModelInstanceException> {
             commandQueue.getViewModelInstanceName(instanceHandle)
         }.message shouldContain errorMessage
 
@@ -664,7 +784,7 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.onArtboardError(requestID.captured, errorMessage)
         }
 
-        shouldThrow<RuntimeException> {
+        shouldThrow<RiveArtboardException> {
             commandQueue.getArtboardVolume(artboardHandle)
         }.message shouldContain errorMessage
 
@@ -810,17 +930,74 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
-    test("Set view model instance property throws when released") {
+    test("Set view model instance property throws when disposed") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
 
-        shouldThrow<IllegalStateException> {
+        shouldThrow<RiveResourceClosedException> {
             commandQueue.setViewModelInstanceProperty(
                 ViewModelInstanceHandle(HANDLE_NUM),
                 "path",
                 ViewModelInstanceHandle(VALUE_HANDLE_NUM)
             )
         }
+    }
+
+    test("Image decode failure throws image exception") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val errorMessage = "Invalid image bytes"
+        every {
+            commandQueueBridgeMock.cppDecodeImage(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                FILE_BYTES
+            )
+        } answers {
+            commandQueue.onImageError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RiveImageException> {
+            commandQueue.decodeImage(FILE_BYTES)
+        }.message shouldContain errorMessage
+    }
+
+    test("Audio decode failure throws audio exception") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val errorMessage = "Invalid audio bytes"
+        every {
+            commandQueueBridgeMock.cppDecodeAudio(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                FILE_BYTES
+            )
+        } answers {
+            commandQueue.onAudioError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RiveAudioException> {
+            commandQueue.decodeAudio(FILE_BYTES)
+        }.message shouldContain errorMessage
+    }
+
+    test("Font decode failure throws font exception") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val errorMessage = "Invalid font bytes"
+        every {
+            commandQueueBridgeMock.cppDecodeFont(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                FILE_BYTES
+            )
+        } answers {
+            commandQueue.onFontError(requestID.captured, errorMessage)
+        }
+
+        shouldThrow<RiveFontException> {
+            commandQueue.decodeFont(FILE_BYTES)
+        }.message shouldContain errorMessage
     }
 
     test("RiveSurface resize updates dimensions and invalidates render target after canceling draw") {
@@ -835,6 +1012,32 @@ class CommandQueueUnitTest : FunSpec({
             commandQueueBridgeMock.cppCancelDraw(COMMAND_QUEUE_ADDR, surface.drawKey.handle)
             commandQueueBridgeMock.cppRunOnCommandServer(COMMAND_QUEUE_ADDR, any())
         }
+    }
+
+    test("RiveSurface queued resize skips native invalidation after close") {
+        val queuedWork = mutableListOf<() -> Unit>()
+        every {
+            commandQueueBridgeMock.cppRunOnCommandServer(
+                COMMAND_QUEUE_ADDR,
+                capture(queuedWork),
+            )
+        } just runs
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val resizeNativeResources = mockk<(Int, Int) -> Unit>(relaxed = true)
+        val surface = TestRiveSurface(
+            commandQueue,
+            width = 100,
+            height = 200,
+            onResizeNativeResources = resizeNativeResources,
+        )
+
+        surface.resize(300, 400)
+        surface.close()
+        queuedWork shouldHaveSize 2
+
+        queuedWork.first().invoke()
+
+        verify(exactly = 0) { resizeNativeResources(any(), any()) }
     }
 
     test("RiveSurface same-size resize is a no-op") {
@@ -866,17 +1069,197 @@ class CommandQueueUnitTest : FunSpec({
         val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
         surface.close()
 
-        shouldThrow<IllegalStateException> {
+        shouldThrow<RiveResourceClosedException> {
             surface.resize(300, 400)
-        }.message shouldContain "closed RiveSurface"
+        }.message shouldContain "RiveSurface"
+        shouldThrow<RiveResourceClosedException> {
+            surface.resize(0, 0)
+        }
+    }
+
+    test("RiveSurface compatibility rejects another CommandQueue") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val foreignQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
+
+        surface.requireOwnedBy(commandQueue)
+        shouldThrow<RiveIncompatibleResourceException> {
+            surface.requireOwnedBy(foreignQueue)
+        }.message shouldContain surface.drawKey.handle.toString()
+    }
+
+    test("Destroying an owned RiveSurface remains idempotent") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
+
+        @Suppress("DEPRECATION")
+        commandQueue.destroyRiveSurface(surface)
+        @Suppress("DEPRECATION")
+        commandQueue.destroyRiveSurface(surface)
+
+        surface.closed shouldBe true
+    }
+
+    test("Surface-taking worker operations reject a closed surface before native work") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200).also { it.close() }
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.resizeArtboard(ArtboardHandle(ARTBOARD_HANDLE_NUM), surface)
+        }
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.draw(
+                ArtboardHandle(ARTBOARD_HANDLE_NUM),
+                StateMachineHandle(HANDLE_NUM),
+                surface,
+                Fit.Contain(),
+            )
+        }
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.drawToBuffer(
+                ArtboardHandle(ARTBOARD_HANDLE_NUM),
+                StateMachineHandle(HANDLE_NUM),
+                surface,
+                ByteArray(4),
+                1,
+                1,
+            )
+        }
+
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppResizeArtboard(any(), any(), any(), any(), any())
+        }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppDraw(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppDrawToBuffer(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any()
+            )
+        }
+    }
+
+    test("Surface-taking worker operations reject a surface from another CommandQueue") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val foreignQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val surface = TestRiveSurface(foreignQueue, width = 100, height = 200)
+
+        shouldThrow<RiveIncompatibleResourceException> {
+            commandQueue.resizeArtboard(ArtboardHandle(ARTBOARD_HANDLE_NUM), surface)
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            commandQueue.draw(
+                ArtboardHandle(ARTBOARD_HANDLE_NUM),
+                StateMachineHandle(HANDLE_NUM),
+                surface,
+                Fit.Contain(),
+            )
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            commandQueue.drawToBuffer(
+                ArtboardHandle(ARTBOARD_HANDLE_NUM),
+                StateMachineHandle(HANDLE_NUM),
+                surface,
+                ByteArray(4),
+                1,
+                1,
+            )
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            @Suppress("DEPRECATION")
+            commandQueue.destroyRiveSurface(surface)
+        }
+
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppResizeArtboard(any(), any(), any(), any(), any())
+        }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppDraw(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppDrawToBuffer(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any()
+            )
+        }
+    }
+
+    test("View model creation validates every resource source before native dispatch") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val foreignQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val fileHandle = FileHandle(HANDLE_NUM)
+        every { commandQueueBridgeMock.cppDeleteArtboard(any(), any(), any()) } just runs
+        every { commandQueueBridgeMock.cppDeleteViewModelInstance(any(), any(), any()) } just runs
+        val closedArtboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            commandQueue,
+            fileHandle,
+            "Closed Artboard",
+        ).also { it.close() }
+        val siblingFileArtboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM + 1),
+            commandQueue,
+            FileHandle(HANDLE_NUM + 1),
+            "Sibling File Artboard",
+        )
+        val closedParent = ViewModelInstance(
+            ViewModelInstanceHandle(VALUE_HANDLE_NUM),
+            commandQueue,
+            fileHandle,
+        ).also { it.close() }
+        val foreignParent = ViewModelInstance(
+            ViewModelInstanceHandle(VALUE_HANDLE_NUM + 1),
+            foreignQueue,
+            fileHandle,
+        )
+
+        val closedArtboardSource = ViewModelSource.DefaultForArtboard(closedArtboard)
+        listOf(
+            closedArtboardSource.blankInstance(),
+            closedArtboardSource.defaultInstance(),
+            closedArtboardSource.namedInstance("Test Instance"),
+            ViewModelInstanceSource.Reference(closedParent, "nested"),
+            ViewModelInstanceSource.ReferenceListItem(closedParent, "list", 0),
+        ).forEach { source ->
+            shouldThrow<RiveResourceClosedException> {
+                commandQueue.createViewModelInstance(fileHandle, source)
+            }
+        }
+
+        val siblingArtboardSource = ViewModelSource.DefaultForArtboard(siblingFileArtboard)
+        listOf(
+            siblingArtboardSource.blankInstance(),
+            siblingArtboardSource.defaultInstance(),
+            siblingArtboardSource.namedInstance("Test Instance"),
+            ViewModelInstanceSource.Reference(foreignParent, "nested"),
+            ViewModelInstanceSource.ReferenceListItem(foreignParent, "list", 0),
+        ).forEach { source ->
+            shouldThrow<RiveIncompatibleResourceException> {
+                commandQueue.createViewModelInstance(fileHandle, source)
+            }
+        }
+
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppDefaultVMCreateBlankVMI(any(), any(), any(), any())
+            commandQueueBridgeMock.cppDefaultVMCreateDefaultVMI(any(), any(), any(), any())
+            commandQueueBridgeMock.cppDefaultVMCreateNamedVMI(any(), any(), any(), any(), any())
+            commandQueueBridgeMock.cppReferenceNestedVMI(any(), any(), any(), any())
+            commandQueueBridgeMock.cppReferenceListItemVMI(any(), any(), any(), any(), any())
+        }
     }
 })
 
-private class TestRiveSurface(
+internal class TestRiveSurface(
     commandQueue: CommandQueue,
     width: Int,
     height: Int,
     resizable: Boolean = true,
+    private val onResizeNativeResources: (Int, Int) -> Unit = { _, _ -> },
 ) : RiveSurface(
     commandQueue,
     surfaceNativePointer = 30L,
@@ -884,4 +1267,8 @@ private class TestRiveSurface(
     width = width,
     height = height,
     resizable = resizable
-)
+) {
+    override fun resizeNativeResources(width: Int, height: Int) {
+        onResizeNativeResources.invoke(width, height)
+    }
+}

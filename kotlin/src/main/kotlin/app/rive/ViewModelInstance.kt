@@ -20,8 +20,76 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onSubscription
+import kotlin.coroutines.cancellation.CancellationException
 
 internal const val VM_INSTANCE_TAG = "Rive/VMI"
+
+/**
+ * Ensures every Rive resource referenced by this source remains open.
+ *
+ * @throws RiveResourceClosedException If a referenced resource has been closed.
+ */
+@Throws(RiveResourceClosedException::class)
+internal fun ViewModelInstanceSource.checkOpen() {
+    when (this) {
+        is ViewModelInstanceSource.Blank -> vmSource.checkOpen()
+        is ViewModelInstanceSource.Default -> vmSource.checkOpen()
+        is ViewModelInstanceSource.Named -> vmSource.checkOpen()
+        is ViewModelInstanceSource.Reference -> parentInstance.checkOpen()
+        is ViewModelInstanceSource.ReferenceListItem -> parentInstance.checkOpen()
+    }
+}
+
+/**
+ * Ensures every Rive resource referenced by this view model source remains open.
+ *
+ * @throws RiveResourceClosedException If a referenced resource has been closed.
+ */
+@Throws(RiveResourceClosedException::class)
+internal fun ViewModelSource.checkOpen() {
+    if (this is ViewModelSource.DefaultForArtboard) {
+        artboard.checkOpen()
+    }
+}
+
+/**
+ * Requires every Rive resource referenced by this source to be compatible with the given owner.
+ *
+ * @param worker The worker used to create the view model instance.
+ * @param fileHandle The file used to create the view model instance.
+ * @throws RiveIncompatibleResourceException If a referenced resource has different ownership.
+ */
+@Throws(RiveIncompatibleResourceException::class)
+internal fun ViewModelInstanceSource.requireCompatibleWith(
+    worker: RiveWorker,
+    fileHandle: FileHandle,
+) {
+    when (this) {
+        is ViewModelInstanceSource.Blank -> vmSource.requireCompatibleWith(worker, fileHandle)
+        is ViewModelInstanceSource.Default -> vmSource.requireCompatibleWith(worker, fileHandle)
+        is ViewModelInstanceSource.Named -> vmSource.requireCompatibleWith(worker, fileHandle)
+        is ViewModelInstanceSource.Reference -> parentInstance.requireOwnedBy(worker)
+        is ViewModelInstanceSource.ReferenceListItem -> parentInstance.requireOwnedBy(worker)
+    }
+}
+
+/**
+ * Requires every Rive resource referenced by this view model source to be compatible with the
+ * given owner.
+ *
+ * @param worker The worker required to own any referenced artboard.
+ * @param fileHandle The file handle required to own any referenced artboard.
+ * @throws RiveIncompatibleResourceException If a referenced artboard has different ownership.
+ */
+@Throws(RiveIncompatibleResourceException::class)
+internal fun ViewModelSource.requireCompatibleWith(
+    worker: RiveWorker,
+    fileHandle: FileHandle,
+) {
+    if (this is ViewModelSource.DefaultForArtboard) {
+        artboard.requireFromFile(worker, fileHandle)
+    }
+}
 
 /**
  * A view model instance for data binding which has properties that can be set and observed.
@@ -36,10 +104,28 @@ class ViewModelInstance internal constructor(
     val instanceHandle: ViewModelInstanceHandle,
     private val riveWorker: RiveWorker,
     private val fileHandle: FileHandle,
-) : AutoCloseable by CloseOnce("$instanceHandle", {
-    RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
-    riveWorker.deleteViewModelInstance(instanceHandle)
-}) {
+) : AutoCloseable {
+    private val closer = CloseOnce("$instanceHandle") {
+        RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
+        riveWorker.deleteViewModelInstance(instanceHandle)
+    }
+
+    /**
+     * Closes this view model instance and schedules deletion on its Rive worker.
+     *
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    override fun close() = closer.close()
+
+    /**
+     * Ensures this view model instance has not been closed.
+     *
+     * @throws RiveResourceClosedException If this view model instance has already been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() = closer.checkOpen()
+
     companion object {
         /**
          * Creates a new [ViewModelInstance].
@@ -51,11 +137,17 @@ class ViewModelInstance internal constructor(
          * @param source The source of the view model instance. Constructed from [ViewModelSource]
          *    combined with [ViewModelInstanceSource].
          * @return The created view model instance.
+         * @throws RiveResourceClosedException If [file] or a resource referenced by [source] has
+         *    been closed, or if the owning Rive worker has been disposed.
+         * @throws RiveIncompatibleResourceException If a resource referenced by [source] cannot
+         *    be used with [file].
          */
+        @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
         fun fromFile(
             file: RiveFile,
             source: ViewModelInstanceSource
         ): ViewModelInstance {
+            file.checkOpen()
             val handle = file.riveWorker.createViewModelInstance(file.fileHandle, source)
             RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
             return ViewModelInstance(handle, file.riveWorker, file.fileHandle)
@@ -63,14 +155,22 @@ class ViewModelInstance internal constructor(
     }
 
     /**
-     * Whether this view model instance is owned by [worker].
+     * Requires this view model instance to be owned by [worker].
      *
-     * Useful for validating that multiple Rive resources can safely be used together.
+     * This compatibility check assumes callers have already verified that participating resources
+     * are open.
      *
-     * @param worker A worker reference to check ownership against.
-     * @return true if this view model instance is owned by [worker], false otherwise.
+     * @param worker The worker required to own this view model instance.
+     * @throws RiveIncompatibleResourceException If this instance is owned by another worker.
      */
-    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireOwnedBy(worker: RiveWorker) {
+        if (riveWorker !== worker) {
+            throw RiveIncompatibleResourceException(
+                "ViewModelInstance $instanceHandle is not owned by the required RiveWorker"
+            )
+        }
+    }
 
     /**
      * Gets the name of the view model that defines this instance.
@@ -80,11 +180,20 @@ class ViewModelInstance internal constructor(
      * same view model name while having different instance names.
      *
      * @return The name of the view model that defines this instance.
-     * @throws RuntimeException If this instance has been [closed][close].
-     * @throws IllegalStateException If the backing Rive worker has been released.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    suspend fun getViewModelName(): String =
-        riveWorker.getViewModelInstanceViewModelName(instanceHandle)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getViewModelName(): String {
+        closer.checkOpen()
+        return riveWorker.getViewModelInstanceViewModelName(instanceHandle)
+    }
 
     /**
      * Gets the editor-assigned name of this view model instance.
@@ -96,10 +205,20 @@ class ViewModelInstance internal constructor(
      *
      * @return The name of this view model instance, or an empty string for instances without a
      *    name, e.g. blank instances.
-     * @throws RuntimeException If this instance has been [closed][close].
-     * @throws IllegalStateException If the backing Rive worker has been released.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    suspend fun getName(): String = riveWorker.getViewModelInstanceName(instanceHandle)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getName(): String {
+        closer.checkOpen()
+        return riveWorker.getViewModelInstanceName(instanceHandle)
+    }
 
     private val _dirtyFlow = MutableSharedFlow<Unit>(
         replay = 1,
@@ -115,24 +234,44 @@ class ViewModelInstance internal constructor(
     private val colorFlows = mutableMapOf<String, Flow<Int>>()
     private val triggerFlows = mutableMapOf<String, Flow<Unit>>()
 
+    /**
+     * Creates or retrieves a cached property flow after verifying that this instance is open.
+     *
+     * The instance is checked again when collection starts because callers can retain a flow
+     * across the instance's lifetime.
+     *
+     * @param propertyPath The path to the property from this view model instance.
+     * @param cache The cache for flows of this property type.
+     * @param getter The worker operation that requests the property's current value.
+     * @param updateFlow The worker flow that delivers updates for this property type.
+     * @param propertyType The property's data type.
+     * @return The cached or newly created property flow.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
     private fun <T> getPropertyFlow(
         propertyPath: String,
         cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
         updateFlow: SharedFlow<RivePropertyUpdate<T>>,
         propertyType: PropertyDataType
-    ): Flow<T> = cache.getOrPut(propertyPath) {
-        updateFlow
-            // Ensure we’re subscribed, then kick off fetching latest value
-            .onSubscription {
-                riveWorker.subscribeToProperty(instanceHandle, propertyPath, propertyType)
-                // Fire the getter so its reply comes through as the first emission
-                // (ignoring the immediately returned value).
-                getter(instanceHandle, propertyPath)
-            }
-            .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
-            .map { it.value }
-            .distinctUntilChanged() // Don't emit duplicates
+    ): Flow<T> {
+        closer.checkOpen()
+        return cache.getOrPut(propertyPath) {
+            updateFlow
+                // Ensure we’re subscribed, then kick off fetching latest value
+                .onSubscription {
+                    closer.checkOpen()
+                    riveWorker.subscribeToProperty(instanceHandle, propertyPath, propertyType)
+                    // Fire the getter so its reply comes through as the first emission
+                    // (ignoring the immediately returned value).
+                    getter(instanceHandle, propertyPath)
+                }
+                .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
+                .map { it.value }
+                .distinctUntilChanged() // Don't emit duplicates
+        }
     }
 
     /**
@@ -146,22 +285,28 @@ class ViewModelInstance internal constructor(
      * [buffer] operator with an appropriate buffer size to handle bursts.
      *
      * Collection of the flow may cause an exception:
-     * - [RuntimeException]: If this class has been [closed][close], if the property does not exist
-     *   on this view model instance, or is is of a different type.
-     * - [IllegalStateException]: If the backing Rive worker has been released.
+     * - [RiveViewModelInstanceException]: If the view model instance operation fails, such as when
+     *   the property does not exist or has a different type.
+     * - [RiveResourceClosedException]: If this view model instance has been closed before the flow
+     *   is retrieved or collected, or if the owning Rive worker has been disposed.
      *
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [Float] values representing the property.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
-    fun getNumberFlow(propertyPath: String): Flow<Float> =
-        getPropertyFlow(
+    @Throws(RiveResourceClosedException::class)
+    fun getNumberFlow(propertyPath: String): Flow<Float> {
+        closer.checkOpen()
+        return getPropertyFlow(
             propertyPath,
             numberFlows,
             riveWorker::getNumberProperty,
             riveWorker.numberPropertyFlow,
             PropertyDataType.NUMBER
         )
+    }
 
     /**
      * Creates or retrieves from cache a [string][String] property, represented as a cold [Flow].
@@ -171,16 +316,21 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [String] values representing the property.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      * @see getNumberFlow
      */
-    fun getStringFlow(propertyPath: String): Flow<String> =
-        getPropertyFlow(
+    @Throws(RiveResourceClosedException::class)
+    fun getStringFlow(propertyPath: String): Flow<String> {
+        closer.checkOpen()
+        return getPropertyFlow(
             propertyPath,
             stringFlows,
             riveWorker::getStringProperty,
             riveWorker.stringPropertyFlow,
             PropertyDataType.STRING
         )
+    }
 
     /**
      * Creates or retrieves from cache a [boolean][Boolean] property, represented as a cold [Flow].
@@ -190,16 +340,21 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [Boolean] values representing the property.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      * @see getNumberFlow
      */
-    fun getBooleanFlow(propertyPath: String): Flow<Boolean> =
-        getPropertyFlow(
+    @Throws(RiveResourceClosedException::class)
+    fun getBooleanFlow(propertyPath: String): Flow<Boolean> {
+        closer.checkOpen()
+        return getPropertyFlow(
             propertyPath,
             booleanFlows,
             riveWorker::getBooleanProperty,
             riveWorker.booleanPropertyFlow,
             PropertyDataType.BOOLEAN
         )
+    }
 
     /**
      * Creates or retrieves from cache an enum property, represented as a cold [Flow]. Enums are
@@ -210,16 +365,21 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [String] values representing the enum property.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      * @see getNumberFlow
      */
-    fun getEnumFlow(propertyPath: String): Flow<String> =
-        getPropertyFlow(
+    @Throws(RiveResourceClosedException::class)
+    fun getEnumFlow(propertyPath: String): Flow<String> {
+        closer.checkOpen()
+        return getPropertyFlow(
             propertyPath,
             enumFlows,
             riveWorker::getEnumProperty,
             riveWorker.enumPropertyFlow,
             PropertyDataType.ENUM
         )
+    }
 
     /**
      * Creates or retrieves from cache a color property, represented as a cold [Flow]. Colors are
@@ -230,16 +390,21 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @return A cold [Flow] of [Int] values representing the color property.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      * @see getNumberFlow
      */
-    fun getColorFlow(propertyPath: String): Flow<Int> =
-        getPropertyFlow(
+    @Throws(RiveResourceClosedException::class)
+    fun getColorFlow(propertyPath: String): Flow<Int> {
+        closer.checkOpen()
+        return getPropertyFlow(
             propertyPath,
             colorFlows,
             riveWorker::getColorProperty,
             riveWorker.colorPropertyFlow,
             PropertyDataType.COLOR
         )
+    }
 
     /**
      * Creates or retrieves from cache a trigger property, represented as a cold [Flow]. Triggers
@@ -250,20 +415,27 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @return A cold [Flow] of [Unit] values representing trigger events.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      * @see getNumberFlow
      */
-    fun getTriggerFlow(propertyPath: String): Flow<Unit> = triggerFlows.getOrPut(propertyPath) {
-        riveWorker.triggerPropertyFlow
-            .onSubscription {
-                riveWorker.subscribeToProperty(
-                    instanceHandle,
-                    propertyPath,
-                    PropertyDataType.TRIGGER
-                )
-            }
-            .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
-            .map { /* Unit */ }
-            .buffer(32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    @Throws(RiveResourceClosedException::class)
+    fun getTriggerFlow(propertyPath: String): Flow<Unit> {
+        closer.checkOpen()
+        return triggerFlows.getOrPut(propertyPath) {
+            riveWorker.triggerPropertyFlow
+                .onSubscription {
+                    closer.checkOpen()
+                    riveWorker.subscribeToProperty(
+                        instanceHandle,
+                        propertyPath,
+                        PropertyDataType.TRIGGER
+                    )
+                }
+                .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
+                .map { /* Unit */ }
+                .buffer(32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        }
     }
 
     private fun <T> setProperty(
@@ -271,6 +443,7 @@ class ViewModelInstance internal constructor(
         value: T,
         setter: (ViewModelInstanceHandle, String, T) -> Unit
     ) {
+        closer.checkOpen()
         setter(instanceHandle, propertyPath, value)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -283,7 +456,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setNumber(propertyPath: String, value: Float) =
         setProperty(propertyPath, value, riveWorker::setNumberProperty)
 
@@ -295,7 +471,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setString(propertyPath: String, value: String) =
         setProperty(propertyPath, value, riveWorker::setStringProperty)
 
@@ -307,7 +486,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The value to set the property to.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setBoolean(propertyPath: String, value: Boolean) =
         setProperty(propertyPath, value, riveWorker::setBooleanProperty)
 
@@ -319,7 +501,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The string value of the enum to set the property to.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setEnum(propertyPath: String, value: String) =
         setProperty(propertyPath, value, riveWorker::setEnumProperty)
 
@@ -332,7 +517,10 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param value The integer value of the color to set the property to.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setColor(propertyPath: String, @ColorInt value: Int) =
         setProperty(propertyPath, value, riveWorker::setColorProperty)
 
@@ -343,8 +531,12 @@ class ViewModelInstance internal constructor(
      *
      * @param propertyPath The path to the trigger property from this view model instance. Slash
      *    delimited to refer to nested properties.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun fireTrigger(propertyPath: String) {
+        closer.checkOpen()
         riveWorker.fireTriggerProperty(instanceHandle, propertyPath)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -358,8 +550,15 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param image The image to assign to the property, or null to clear the property.
+     * @throws RiveResourceClosedException If this view model instance or [image] has been closed,
+     *    or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [image] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun setImage(propertyPath: String, image: ImageAsset?) {
+        closer.checkOpen()
+        image?.checkOpen()
+        image?.requireOwnedBy(riveWorker)
         val message = image?.let { "Assigning $it" } ?: "Clearing image"
         RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
         setProperty(propertyPath, image?.handle, riveWorker::setImageProperty)
@@ -374,8 +573,15 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the property from this view model instance. Slash delimited
      *    to refer to nested properties.
      * @param artboard The artboard to assign to the property, or null to clear the property.
+     * @throws RiveResourceClosedException If this view model instance or [artboard] has been
+     *    closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun setArtboard(propertyPath: String, artboard: Artboard?) {
+        closer.checkOpen()
+        artboard?.checkOpen()
+        artboard?.requireOwnedBy(riveWorker)
         val message = artboard?.let { "Assigning $it" } ?: "Clearing artboard"
         RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
         setProperty(propertyPath, artboard?.artboardHandle, riveWorker::setArtboardProperty)
@@ -401,14 +607,39 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the view model property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @param instance The view model instance to assign to the property.
+     * @throws RiveResourceClosedException If this view model instance or [instance] has been
+     *    closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [instance] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun setViewModelInstance(propertyPath: String, instance: ViewModelInstance) {
+        closer.checkOpen()
+        instance.checkOpen()
+        instance.requireOwnedBy(riveWorker)
         RiveLog.d(VM_INSTANCE_TAG) { "Assigning $instance to $propertyPath (${fileHandle})" }
         setProperty(propertyPath, instance.instanceHandle, riveWorker::setViewModelInstanceProperty)
     }
 
-    suspend fun getListSize(propertyPath: String): Int =
-        riveWorker.getListSize(instanceHandle, propertyPath)
+    /**
+     * Gets the number of items in a list property.
+     *
+     * @param propertyPath The path to the list property from this view model instance. Slash
+     *    delimited to refer to nested properties.
+     * @return The number of items in the list.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getListSize(propertyPath: String): Int {
+        closer.checkOpen()
+        return riveWorker.getListSize(instanceHandle, propertyPath)
+    }
 
     /**
      * Inserts an item into a list property at the specified index.
@@ -422,8 +653,15 @@ class ViewModelInstance internal constructor(
      *    delimited to refer to nested properties.
      * @param index The index at which to insert the item.
      * @param item The view model instance to insert into the list.
+     * @throws RiveResourceClosedException If this view model instance or [item] has been closed,
+     *    or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [item] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun insertToListAtIndex(propertyPath: String, index: Int, item: ViewModelInstance) {
+        closer.checkOpen()
+        item.checkOpen()
+        item.requireOwnedBy(riveWorker)
         riveWorker.insertToListAtIndex(instanceHandle, propertyPath, index, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -439,8 +677,15 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the list property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @param item The view model instance to append to the list.
+     * @throws RiveResourceClosedException If this view model instance or [item] has been closed,
+     *    or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [item] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun appendToList(propertyPath: String, item: ViewModelInstance) {
+        closer.checkOpen()
+        item.checkOpen()
+        item.requireOwnedBy(riveWorker)
         riveWorker.appendToList(instanceHandle, propertyPath, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -453,8 +698,12 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the list property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @param index The index of the item to remove.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun removeFromListAtIndex(propertyPath: String, index: Int) {
+        closer.checkOpen()
         riveWorker.removeFromListAtIndex(instanceHandle, propertyPath, index)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -467,8 +716,15 @@ class ViewModelInstance internal constructor(
      * @param propertyPath The path to the list property from this view model instance. Slash
      *    delimited to refer to nested properties.
      * @param item The view model instance to remove from the list.
+     * @throws RiveResourceClosedException If this view model instance or [item] has been closed,
+     *    or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [item] is owned by another Rive worker.
      */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun removeFromList(propertyPath: String, item: ViewModelInstance) {
+        closer.checkOpen()
+        item.checkOpen()
+        item.requireOwnedBy(riveWorker)
         riveWorker.removeFromList(instanceHandle, propertyPath, item.instanceHandle)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -482,8 +738,12 @@ class ViewModelInstance internal constructor(
      *    delimited to refer to nested properties.
      * @param indexA The index of the first item to swap.
      * @param indexB The index of the second item to swap.
+     * @throws RiveResourceClosedException If this view model instance has been closed or its Rive
+     *    worker has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun swapListItems(propertyPath: String, indexA: Int, indexB: Int) {
+        closer.checkOpen()
         riveWorker.swapListItems(instanceHandle, propertyPath, indexA, indexB)
         _dirtyFlow.tryEmit(Unit)
     }
@@ -610,7 +870,12 @@ sealed interface ViewModelInstanceSource {
  * This is the equivalent of "auto-binding" in other SDKs.
  *
  * @return The created [ViewModelInstance].
+ * @throws RiveResourceClosedException If [file] or a resource referenced by [source] has been
+ *    closed, or if the owning Rive worker has been disposed.
+ * @throws RiveIncompatibleResourceException If a resource referenced by [source] cannot be used
+ *    with [file].
  */
+@Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
 @Composable
 fun rememberViewModelInstance(
     file: RiveFile,

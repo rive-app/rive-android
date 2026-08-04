@@ -19,6 +19,12 @@ import app.rive.core.traceSection
  * - Use [SoftwareRenderBuffer] for synchronous CPU-backed rendering.
  * - Use [HardwareRenderBuffer] for asynchronous GPU-backed rendering on API 29+.
  *
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param riveWorker Worker used for drawing.
+ * @throws IllegalArgumentException If width or height are not positive.
+ * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+ * @throws RiveRenderException If the software render surface cannot be created.
  * @see SoftwareRenderBuffer
  * @see HardwareRenderBuffer
  */
@@ -27,7 +33,11 @@ import app.rive.core.traceSection
     replaceWith = ReplaceWith("SoftwareRenderBuffer(width, height, riveWorker)"),
     level = DeprecationLevel.WARNING
 )
-class RenderBuffer(
+class RenderBuffer @Throws(
+    IllegalArgumentException::class,
+    RiveResourceClosedException::class,
+    RiveRenderException::class
+) constructor(
     val width: Int,
     val height: Int,
     private val riveWorker: RiveWorker
@@ -45,6 +55,7 @@ class RenderBuffer(
     override val closed: Boolean
         get() = closer.closed
 
+    /** Closes this buffer and its owned render surface. */
     override fun close() = closer.close()
 
     /** RGBA bytes filled by native drawToBuffer calls. */
@@ -56,15 +67,15 @@ class RenderBuffer(
     /**
      * Synchronously renders the artboard/state-machine into this software buffer.
      *
-     * @throws IllegalArgumentException If [artboard] or [stateMachine] are not owned by this
-     *    buffer's worker, or if [stateMachine] was not created from [artboard].
-     * @throws IllegalStateException If this buffer's surface has been closed or the worker has
-     *    been released.
+     * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
+     *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
+     *    this buffer's worker, or if [stateMachine] was not created from [artboard].
      * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
      */
     @Throws(
-        IllegalArgumentException::class,
-        IllegalStateException::class,
+        RiveIncompatibleResourceException::class,
+        RiveResourceClosedException::class,
         RiveDrawToBufferException::class
     )
     fun render(
@@ -73,15 +84,12 @@ class RenderBuffer(
         fit: Fit = RenderingDefaults.defaultFit(),
         clearColor: Int = RenderingDefaults.CLEAR_COLOR
     ): RenderBuffer {
-        require(artboard.isOwnedBy(riveWorker)) {
-            "RenderBuffer and Artboard must use the same RiveWorker"
-        }
-        require(stateMachine.isOwnedBy(riveWorker)) {
-            "RenderBuffer and StateMachine must use the same RiveWorker"
-        }
-        require(stateMachine.isFromArtboard(artboard)) {
-            "RenderBuffer StateMachine must be created from the supplied Artboard"
-        }
+        closer.checkOpen()
+        surface.checkOpen()
+        artboard.checkOpen()
+        stateMachine.checkOpen()
+        artboard.requireOwnedBy(riveWorker)
+        stateMachine.requireFromArtboard(artboard)
         traceSection("Rive/RenderBuffer/Render") {
             traceSection("Rive/RenderBuffer/Software/DrawToBuffer") {
                 artboard.riveWorker.drawToBuffer(
@@ -102,10 +110,10 @@ class RenderBuffer(
     /**
      * Backward-compatible alias for [render].
      *
-     * @throws IllegalArgumentException If [artboard] or [stateMachine] are not owned by this
-     *    buffer's worker, or if [stateMachine] was not created from [artboard].
-     * @throws IllegalStateException If this buffer's surface has been closed or the worker has
-     *    been released.
+     * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
+     *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
+     *    this buffer's worker, or if [stateMachine] was not created from [artboard].
      * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
      * @see render
      */
@@ -115,8 +123,8 @@ class RenderBuffer(
         level = DeprecationLevel.WARNING
     )
     @Throws(
-        IllegalArgumentException::class,
-        IllegalStateException::class,
+        RiveIncompatibleResourceException::class,
+        RiveResourceClosedException::class,
         RiveDrawToBufferException::class
     )
     fun snapshot(
@@ -126,35 +134,55 @@ class RenderBuffer(
         clearColor: Int = RenderingDefaults.CLEAR_COLOR
     ): RenderBuffer = render(artboard, stateMachine, fit, clearColor)
 
-    /** Copies this buffer's latest rendered software pixels into [bitmap]. */
-    fun copyInto(bitmap: Bitmap): Bitmap = traceSection("Rive/RenderBuffer/CopyInto") {
-        require(
-            bitmap.width == width &&
-                    bitmap.height == height &&
-                    bitmap.config == Bitmap.Config.ARGB_8888
-        ) { "Bitmap must be ${width}x$height ARGB_8888" }
+    /**
+     * Copies this buffer's latest rendered software pixels into [bitmap].
+     *
+     * @param bitmap Destination bitmap matching this buffer's dimensions in ARGB_8888 format.
+     * @return The supplied [bitmap].
+     * @throws RiveResourceClosedException If this buffer has been closed.
+     * @throws IllegalArgumentException If [bitmap] has incompatible dimensions or format.
+     */
+    @Throws(IllegalArgumentException::class, RiveResourceClosedException::class)
+    fun copyInto(bitmap: Bitmap): Bitmap {
+        closer.checkOpen()
+        return traceSection("Rive/RenderBuffer/CopyInto") {
+            require(
+                bitmap.width == width &&
+                        bitmap.height == height &&
+                        bitmap.config == Bitmap.Config.ARGB_8888
+            ) { "Bitmap must be ${width}x$height ARGB_8888" }
 
-        val argb = argbScratch
-        traceSection("Rive/RenderBuffer/Software/ConvertRgbaToArgb") {
-            var i = 0
-            var pixel = 0
-            while (i < pixels.size) {
-                val r = pixels[i].toInt() and 0xFF
-                val g = pixels[i + 1].toInt() and 0xFF
-                val b = pixels[i + 2].toInt() and 0xFF
-                val a = pixels[i + 3].toInt() and 0xFF
-                argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
-                i += 4
+            val argb = argbScratch
+            traceSection("Rive/RenderBuffer/Software/ConvertRgbaToArgb") {
+                var i = 0
+                var pixel = 0
+                while (i < pixels.size) {
+                    val r = pixels[i].toInt() and 0xFF
+                    val g = pixels[i + 1].toInt() and 0xFF
+                    val b = pixels[i + 2].toInt() and 0xFF
+                    val a = pixels[i + 3].toInt() and 0xFF
+                    argb[pixel++] = (a shl 24) or (r shl 16) or (g shl 8) or b
+                    i += 4
+                }
             }
+            traceSection("Rive/RenderBuffer/Software/SetPixels") {
+                bitmap.setPixels(argb, 0, width, 0, 0, width, height)
+            }
+            bitmap
         }
-        traceSection("Rive/RenderBuffer/Software/SetPixels") {
-            bitmap.setPixels(argb, 0, width, 0, 0, width, height)
-        }
-        bitmap
     }
 
-    /** Returns a new ARGB_8888 bitmap containing the latest rendered software pixels. */
-    fun toBitmap(): Bitmap = traceSection("Rive/RenderBuffer/ToBitmap") {
-        copyInto(createBitmap(width, height, Bitmap.Config.ARGB_8888))
+    /**
+     * Returns a new ARGB_8888 bitmap containing the latest rendered software pixels.
+     *
+     * @return A bitmap containing this buffer's pixels.
+     * @throws RiveResourceClosedException If this buffer has been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun toBitmap(): Bitmap {
+        closer.checkOpen()
+        return traceSection("Rive/RenderBuffer/ToBitmap") {
+            copyInto(createBitmap(width, height, Bitmap.Config.ARGB_8888))
+        }
     }
 }

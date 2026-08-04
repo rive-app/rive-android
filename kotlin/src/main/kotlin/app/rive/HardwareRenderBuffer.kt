@@ -53,12 +53,19 @@ import java.util.concurrent.TimeUnit
  * @param width Width in pixels.
  * @param height Height in pixels.
  * @param riveWorker Worker used for draw submission.
- * @throws IllegalArgumentException if width or height are not > 0.
- * @throws IllegalStateException if hardware rendering is unsupported on this API level.
+ * @throws IllegalArgumentException If width or height are not positive.
+ * @throws IllegalStateException If hardware rendering is unsupported on this API level.
+ * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+ * @throws RiveRenderException If the hardware render surface cannot be created.
  */
 @ExperimentalHardwareBitmapRendering
 @RequiresApi(Build.VERSION_CODES.Q)
-class HardwareRenderBuffer(
+class HardwareRenderBuffer @Throws(
+    IllegalArgumentException::class,
+    IllegalStateException::class,
+    RiveResourceClosedException::class,
+    RiveRenderException::class
+) constructor(
     val width: Int,
     val height: Int,
     private val riveWorker: RiveWorker
@@ -93,12 +100,6 @@ class HardwareRenderBuffer(
      */
     val frameAvailable: SharedFlow<Unit> = _frameAvailable
 
-    /** Dedicated callback thread for ImageReader callbacks and acquisition work. */
-    private val imageReaderThread = HandlerThread("Rive/ImageReader").apply { start() }
-
-    /** Handler bound to [imageReaderThread], required by ImageReader listener API. */
-    private val imageReaderHandler = Handler(imageReaderThread.looper)
-
     /** Receives rendered frames through [surface]. */
     private val imageReader: ImageReader =
         ImageReader.newInstance(
@@ -109,8 +110,11 @@ class HardwareRenderBuffer(
             HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
         )
 
+    /** Dedicated callback thread for ImageReader callbacks and acquisition work. */
+    private val imageReaderThread = HandlerThread("Rive/ImageReader")
+
     /** Destination surface used by the worker draw call. */
-    val surface: RiveSurface = riveWorker.createRiveSurface(ImageReaderSurface(imageReader))
+    val surface: RiveSurface
 
     /** Explicit SRGB color interpretation for wrapped hardware bitmaps. */
     private val srgbColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
@@ -136,16 +140,35 @@ class HardwareRenderBuffer(
     /** Newly published frame awaiting consumption. */
     private var pendingBitmap: Bitmap? = null
 
+    init {
+        val imageReaderSurface = ImageReaderSurface(imageReader)
+        imageReaderThread.start()
+        var createdSurface: RiveSurface? = null
+        try {
+            val imageReaderHandler = Handler(imageReaderThread.looper)
+            createdSurface = riveWorker.createRiveSurface(imageReaderSurface)
+            imageReader.setOnImageAvailableListener({ reader ->
+                onImageAvailable(reader)
+            }, imageReaderHandler)
+            surface = createdSurface
+        } catch (failure: Throwable) {
+            try {
+                // Once created, the RiveSurface owns the ImageReaderSurface. Before that point,
+                // construction retains responsibility for closing it.
+                createdSurface?.close() ?: imageReaderSurface.close()
+            } catch (cleanupFailure: Throwable) {
+                failure.addSuppressed(cleanupFailure)
+            }
+            shutdownImageReaderThread()
+            throw failure
+        }
+    }
+
     private val closer = CloseOnce("HardwareRenderBuffer") {
         isClosedFlag = true
         firstFrameLatch.countDown()
         imageReader.setOnImageAvailableListener(null, null)
-        imageReaderThread.quitSafely()
-        try {
-            imageReaderThread.join(1000)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-        }
+        shutdownImageReaderThread()
         synchronized(bitmapLock) {
             pendingBitmap?.let { if (!it.isRecycled) it.recycle() }
             currentBitmap?.let { if (!it.isRecycled) it.recycle() }
@@ -158,29 +181,34 @@ class HardwareRenderBuffer(
     override val closed: Boolean
         get() = closer.closed
 
-    init {
-        imageReader.setOnImageAvailableListener({ reader ->
-            onImageAvailable(reader)
-        }, imageReaderHandler)
-    }
-
+    /** Closes this buffer and its owned render surface. */
     override fun close() = closer.close()
+
+    /** Stops the ImageReader callback thread and waits briefly for its queued work to finish. */
+    private fun shutdownImageReaderThread() {
+        imageReaderThread.quitSafely()
+        try {
+            imageReaderThread.join(1000)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+    }
 
     /**
      * Enqueues rendering into this hardware surface.
      *
      * The first call waits (bounded) for initial frame publication to keep startup deterministic.
      *
-     * @throws IllegalArgumentException If [artboard] or [stateMachine] are not owned by this
-     *    buffer's worker, or if [stateMachine] was not created from [artboard].
-     * @throws IllegalStateException If this buffer has been closed, its surface has been closed,
-     *    or the worker has been released.
+     * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
+     *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
+     *    this buffer's worker, or if [stateMachine] was not created from [artboard].
      * @throws RiveRenderException If first-frame publication times out or hardware image
      *    acquisition fails.
      */
     @Throws(
-        IllegalArgumentException::class,
-        IllegalStateException::class,
+        RiveIncompatibleResourceException::class,
+        RiveResourceClosedException::class,
         RiveRenderException::class
     )
     fun render(
@@ -189,16 +217,12 @@ class HardwareRenderBuffer(
         fit: Fit = RenderingDefaults.defaultFit(),
         clearColor: Int = RenderingDefaults.CLEAR_COLOR
     ) {
-        check(!closed) { "HardwareRenderBuffer is closed" }
-        require(artboard.isOwnedBy(riveWorker)) {
-            "HardwareRenderBuffer and Artboard must use the same RiveWorker"
-        }
-        require(stateMachine.isOwnedBy(riveWorker)) {
-            "HardwareRenderBuffer and StateMachine must use the same RiveWorker"
-        }
-        require(stateMachine.isFromArtboard(artboard)) {
-            "HardwareRenderBuffer StateMachine must be created from the supplied Artboard"
-        }
+        closer.checkOpen()
+        surface.checkOpen()
+        artboard.checkOpen()
+        stateMachine.checkOpen()
+        artboard.requireOwnedBy(riveWorker)
+        stateMachine.requireFromArtboard(artboard)
 
         traceSection("Rive/RenderBuffer/Render") {
             traceSection("Rive/RenderBuffer/Hardware/Draw") {
@@ -223,9 +247,14 @@ class HardwareRenderBuffer(
      *
      * This is a consume/swap API: when a newer frame exists, prior consumed bitmaps may be
      * superseded and recycled.
+     *
+     * @return The latest bitmap, or null if no frame is available.
+     * @throws RiveResourceClosedException If this buffer has been closed.
+     * @throws RiveRenderException If hardware image acquisition has failed.
      */
+    @Throws(RiveResourceClosedException::class, RiveRenderException::class)
     fun consumeLatestBitmap(): Bitmap? {
-        check(!closed) { "HardwareRenderBuffer is closed" }
+        closer.checkOpen()
         val failure = imageReaderFailure
         if (failure != null) {
             throw RiveRenderException(

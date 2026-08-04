@@ -76,6 +76,23 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
     }
 
     @Test
+    fun renderInto_withClosedResource_throws() = runBlocking<Unit> {
+        val res = loadDefaultRiveResources(R.raw.empty)
+        res.artboard.close()
+
+        SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            val destination = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            try {
+                assertFailsWith<RiveResourceClosedException> {
+                    buffer.renderInto(destination, res.artboard, res.stateMachine)
+                }
+            } finally {
+                destination.recycle()
+            }
+        }
+    }
+
+    @Test
     fun renderInto_withMismatchedResources_throws() = runBlocking<Unit> {
         val foreignWorker = RiveWorker()
         try {
@@ -90,21 +107,21 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
                             Bitmap.Config.ARGB_8888
                         )
                         try {
-                            assertFailsWith<IllegalArgumentException> {
+                            assertFailsWith<RiveIncompatibleResourceException> {
                                 buffer.renderInto(
                                     destination,
                                     artboard,
                                     owningRes.stateMachine
                                 )
                             }
-                            assertFailsWith<IllegalArgumentException> {
+                            assertFailsWith<RiveIncompatibleResourceException> {
                                 buffer.renderInto(
                                     destination,
                                     owningRes.artboard,
                                     stateMachine
                                 )
                             }
-                            assertFailsWith<IllegalArgumentException> {
+                            assertFailsWith<RiveIncompatibleResourceException> {
                                 buffer.renderInto(
                                     destination,
                                     owningRes.artboard,

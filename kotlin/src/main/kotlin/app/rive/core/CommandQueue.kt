@@ -12,19 +12,29 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.Fit
 import app.rive.RenderBackend
+import app.rive.RiveArtboardException
+import app.rive.RiveAudioException
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileException
+import app.rive.RiveFontException
+import app.rive.RiveImageException
 import app.rive.RiveInitializationException
+import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
+import app.rive.RiveResourceClosedException
 import app.rive.RiveShutdownException
+import app.rive.RiveStateMachineException
+import app.rive.RiveViewModelInstanceException
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
+import app.rive.checkOpen
 import app.rive.effectiveRenderBackend
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
+import app.rive.requireCompatibleWith
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel
 import kotlinx.coroutines.CancellableContinuation
@@ -67,20 +77,20 @@ typealias RivePropertyUpdate<T> = CommandQueue.PropertyUpdate<T>
 const val COMMAND_QUEUE_TAG = "Rive/CQ"
 
 /**
- * A [CommandQueue] is the worker that runs Rive in a thread. It holds all of
- * the state, including assets ([images][ImageHandle], [audio][AudioHandle], and
+ * A [CommandQueue] is the worker that runs Rive in a thread. It holds all the
+ * state, including assets ([images][ImageHandle], [audio][AudioHandle], and
  * [fonts][FontHandle]), [Rive files][RiveFile], [artboards][Artboard], state machines, and
  * [view model instances][ViewModelInstance].
  *
  * Instances of the command queue are reference counted. At initialization, the command queue has a
  * ref count of 1. Call [acquire] to increment the ref count, and [release] to decrement it. When
- * the ref count reaches 0, the command queue is disposed, and its resources are released. Using
- * a disposed command queue will throw an [IllegalStateException]. Any pending operations will be
+ * the ref count reaches 0, the command queue is disposed, and its resources are released. Using a
+ * disposed command queue will throw a [RiveResourceClosedException]. Any pending operations will be
  * notified with a [CancellationException].
  *
- * Rive resources such as manually-created files, assets, and surfaces may acquire references to
- * the command queue. Releasing the command queue's own reference is not enough to fully dispose the
- * worker while those resources remain open; close each resource when you no longer need it.
+ * Rive resources such as manually-created files, assets, and surfaces may acquire references to the
+ * command queue. Releasing the command queue's own reference is not enough to fully dispose the
+ * command queue while those resources remain open; close each resource when you no longer need it.
  *
  * The command queue normally is passed into [rememberRiveFile] or, alternatively, created by
  * default if one is not supplied. This is then transitively supplied to other Rive elements, such
@@ -211,7 +221,7 @@ class CommandQueue internal constructor(
 
     companion object {
         /**
-         * Maximum number of Rive components that can safely use this CommandQueue instance
+         * Maximum number of Rive components that can safely use this command queue instance
          * concurrently.
          */
         const val MAX_CONCURRENT_SUBSCRIBERS = 32
@@ -395,10 +405,54 @@ class CommandQueue internal constructor(
         shutdownThread.start()
     }
 
-    // Implement the RefCounted interface by delegating to cppPointer
-    override fun acquire(source: String) = cppPointer.acquire(source)
+    /**
+     * Ensures this command queue still has at least one owning reference.
+     *
+     * The reference count reaches zero synchronously on final release, before asynchronous native
+     * shutdown completes. That zero count is therefore the authoritative point at which public
+     * command queue operations must stop, rather than the later native-shutdown state.
+     *
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() {
+        if (cppPointer.refCount <= 0) {
+            throw RiveResourceClosedException("RiveWorker is disposed")
+        }
+    }
+
+    /**
+     * Returns the native command queue pointer after verifying that the command queue has not been
+     * disposed.
+     *
+     * @return The open native command queue pointer.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    private fun requireNativePointer(): Long {
+        checkOpen()
+        return cppPointer.pointer
+    }
+
+    // Implement the RefCounted interface by delegating to cppPointer.
+    @Throws(RiveResourceClosedException::class)
+    override fun acquire(source: String) {
+        checkOpen()
+        cppPointer.acquire(source)
+    }
+
+    /**
+     * Releases one owning reference.
+     *
+     * @param source A string identifying the owner releasing its reference.
+     * @param reason An optional explanation for the release.
+     * @throws RiveResourceClosedException If this command queue has already been disposed.
+     * @throws IllegalStateException If called from the command server thread.
+     */
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
     override fun release(source: String, reason: String) {
-        check(!bridge.isCurrentThreadCommandServer(cppPointer.pointer)) {
+        val nativePointer = requireNativePointer()
+        check(!bridge.isCurrentThreadCommandServer(nativePointer)) {
             "CommandQueue.release() cannot be called from the command server thread as then it " +
                     "may attempt to join itself. Source: $source. Reason: $reason"
         }
@@ -427,14 +481,19 @@ class CommandQueue internal constructor(
     /**
      * Enables or disables native command server tracing for draw and advance work.
      *
-     * This setting applies to the entire worker and takes effect for subsequent draw/advance calls.
+     * This setting applies to the entire command queue and takes effect for subsequent draw/advance
+     * calls.
+     *
+     * @param enabled Whether tracing should be enabled.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun setTracingEnabled(enabled: Boolean) {
-        bridge.cppSetTracingEnabled(cppPointer.pointer, enabled)
+        bridge.cppSetTracingEnabled(requireNativePointer(), enabled)
     }
 
     /**
-     * Tie this CommandQueue's lifetime to a LifecycleOwner. This will call [release] when the
+     * Tie this command queue's lifetime to a LifecycleOwner. This will call [release] when the
      * owner's lifecycle reaches DESTROYED. Returns an [AutoCloseable] that can be used to manually
      * release early; calling it is idempotent.
      *
@@ -448,12 +507,15 @@ class CommandQueue internal constructor(
      * ⚠️ Do not use this with a command queue created with [rememberRiveWorker]. A command queue
      * created with that method has its lifecycle managed by the Composable's lifecycle.
      *
-     * @param owner The LifecycleOwner to tie this CommandQueue's lifetime to, such as an Activity
+     * @param owner The LifecycleOwner to tie this command queue's lifetime to, such as an Activity
      *    or Fragment.
      * @param source A string indicating the source of the acquisition, for logging purposes, e.g.
      *    "MyActivity".
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
+    @Throws(RiveResourceClosedException::class)
     fun withLifecycle(owner: LifecycleOwner, source: String): AutoCloseable {
+        checkOpen()
         lateinit var onClose: CloseOnce // lateinit to break circular reference
         var audioAcquired = false
         val observer = object : DefaultLifecycleObserver {
@@ -481,7 +543,7 @@ class CommandQueue internal constructor(
                 AudioEngine.release()
                 audioAcquired = false
             }
-            cppPointer.release(source, "Closed by withLifecycle")
+            release(source, "Closed by withLifecycle")
         }
         owner.lifecycle.addObserver(observer)
         // If already RESUMED, acquire immediately since the callback won't fire
@@ -492,7 +554,7 @@ class CommandQueue internal constructor(
         return onClose
     }
 
-    /** Durable settled state for state machines owned by this worker. */
+    /** Durable settled state for state machines owned by this command queue. */
     private val stateMachineSettlingStore = StateMachineSettlingStore {
         nextRequestID.getAndIncrement()
     }
@@ -569,24 +631,24 @@ class CommandQueue internal constructor(
     }
 
     /**
-     * Begin polling the CommandQueue for messages from the CommandServer. Without this, callbacks
+     * Begin polling this command queue for messages from the CommandServer. Without this, callbacks
      * and errors will not be delivered. This should typically be called by tying to the lifecycle
      * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
      *
      * The polling will automatically start and stop based on the lifecycle state, only polling when
-     * the lifecycle is in the RESUMED state and while this CommandQueue has not been disposed.
+     * the lifecycle is in the RESUMED state and while this command queue has not been disposed.
      *
      * @param lifecycle The lifecycle bounding the polling.
      * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
      *    which uses the Choreographer to sync to the display refresh rate.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     suspend fun beginPolling(
         lifecycle: Lifecycle,
         ticker: FrameTicker = ChoreographerFrameTicker
     ) {
-        check(!isDisposed) { "CommandQueue has been released." }
+        checkOpen()
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
             while (isActive && !isDisposed) {
@@ -594,11 +656,11 @@ class CommandQueue internal constructor(
                 ticker.withFrame {
                     try {
                         pollMessages()
-                    } catch (e: IllegalStateException) {
+                    } catch (e: RiveResourceClosedException) {
                         // Disposal can happen after the checks above but before pollMessages() reads
-                        // the native pointer. Only swallow that expected disposal race.
-                        // Preserve unrelated IllegalStateExceptions so polling does not hide bugs.
-                        if (!isDisposed) {
+                        // the native pointer. Only swallow that expected disposal race; preserve a
+                        // resource-closed error from another source rather than hiding it.
+                        if (refCount > 0) {
                             throw e
                         }
                         disposedDuringPoll = true
@@ -613,20 +675,20 @@ class CommandQueue internal constructor(
     }
 
     /**
-     * Poll messages from the CommandServer to the CommandQueue. This is the channel that all
+     * Poll messages from the CommandServer to this command queue. This is the channel that all
      * callbacks and errors arrive on. Should be called every frame, regardless of whether there is
      * any advancing or drawing.
      *
      * This method represents a single poll operation. To continuously poll, use [beginPolling],
      * which will handle starting and stopping the polling based on a lifecycle.
      *
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @see [beginPolling]
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun pollMessages() {
         traceSection("Rive/PollMessages") {
-            bridge.cppPollMessages(cppPointer.pointer)
+            bridge.cppPollMessages(requireNativePointer())
         }
     }
 
@@ -642,9 +704,9 @@ class CommandQueue internal constructor(
      *    server thread.
      * @return A [RiveSurface] that can be used for rendering.
      * @throws RiveRenderException If the underlying Android or backend surface cannot be created.
-     * @throws IllegalStateException If this command queue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RiveRenderException::class, IllegalStateException::class)
+    @Throws(RiveRenderException::class, RiveResourceClosedException::class)
     fun createRiveSurface(
         surface: CloseableSurface
     ): RiveSurface {
@@ -669,12 +731,12 @@ class CommandQueue internal constructor(
      * @return A [RiveSurface] that can be used for off-screen rendering.
      * @throws IllegalArgumentException If [width] or [height] is not positive.
      * @throws RiveRenderException If the backend cannot create an off-screen surface.
-     * @throws IllegalStateException If this command queue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(
         IllegalArgumentException::class,
         RiveRenderException::class,
-        IllegalStateException::class
+        RiveResourceClosedException::class
     )
     fun createImageSurface(width: Int, height: Int): RiveSurface =
         renderContext.createImageSurface(width, height, nextDrawKey(), this)
@@ -686,20 +748,25 @@ class CommandQueue internal constructor(
      * owning command queue.
      *
      * @param surface The [RiveSurface] to destroy.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveIncompatibleResourceException If [surface] is owned by another command queue.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Deprecated(
         "Call RiveSurface.close() directly.",
         ReplaceWith("surface.close()")
     )
-    @Throws(IllegalStateException::class)
-    fun destroyRiveSurface(surface: RiveSurface) = surface.close()
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+    fun destroyRiveSurface(surface: RiveSurface) {
+        checkOpen()
+        surface.requireOwnedBy(this)
+        surface.close()
+    }
 
-    private fun nextDrawKey() = DrawKey(bridge.cppCreateDrawKey(cppPointer.pointer))
+    private fun nextDrawKey() = DrawKey(bridge.cppCreateDrawKey(requireNativePointer()))
 
     /**
-     * Callback when there is any error on a file operation. The continuation will be resumed with
-     * an exception, including a message with the specific error.
+     * Callback when there is any error on a file operation. Any matching continuation is resumed
+     * with a [RiveFileException] containing the specific error.
      *
      * @param requestID The request ID for the original operation, used to complete the
      *    continuation.
@@ -710,14 +777,14 @@ class CommandQueue internal constructor(
     @JvmName("onFileError")
     internal fun onFileError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "File error for request $requestID: $error" }
-        (pendingContinuations.remove(requestID) as? Continuation<FileHandle>)?.resumeWithException(
+        pendingContinuations.remove(requestID)?.resumeWithException(
             RiveFileException("File error: $error")
         )
     }
 
     /**
-     * Callback when there is any error on an artboard operation. The continuation will be resumed
-     * with an exception, including a message with the specific error.
+     * Callback when there is any error on an artboard operation. Any matching continuation is
+     * resumed with a [RiveArtboardException] containing the specific error.
      *
      * @param requestID The request ID for the original operation, used to complete the
      *    continuation.
@@ -728,14 +795,14 @@ class CommandQueue internal constructor(
     @JvmName("onArtboardError")
     internal fun onArtboardError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "Artboard error for request $requestID: $error" }
-        (pendingContinuations.remove(requestID) as? Continuation<ArtboardHandle>)?.resumeWithException(
-            RuntimeException("Artboard error: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveArtboardException("Artboard error: $error")
         )
     }
 
     /**
-     * Callback when there is any error on a state machine operation. The continuation will be
-     * resumed with an exception, including a message with the specific error.
+     * Callback when there is any error on a state machine operation. Any matching continuation is
+     * resumed with a [RiveStateMachineException] containing the specific error.
      *
      * @param requestID The request ID for the original operation, used to complete the
      *    continuation.
@@ -746,14 +813,15 @@ class CommandQueue internal constructor(
     @JvmName("onStateMachineError")
     internal fun onStateMachineError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "State machine error for request $requestID: $error" }
-        (pendingContinuations.remove(requestID) as? Continuation<StateMachineHandle>)?.resumeWithException(
-            RuntimeException("State machine error: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveStateMachineException("State machine error: $error")
         )
     }
 
     /**
-     * Callback when there is any error on a view model instance operation. The continuation will be
-     * resumed with an exception, including a message with the specific error.
+     * Callback when there is any error on a view model instance operation. Any matching
+     * continuation is resumed with a [RiveViewModelInstanceException] containing the specific
+     * error.
      *
      * @param requestID The request ID for the original operation, used to complete the
      *    continuation.
@@ -764,8 +832,8 @@ class CommandQueue internal constructor(
     @JvmName("onViewModelInstanceError")
     internal fun onViewModelInstanceError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "View model instance error for request $requestID: $error" }
-        (pendingContinuations.remove(requestID) as? Continuation<ViewModelInstanceHandle>)?.resumeWithException(
-            RuntimeException("View model instance error: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveViewModelInstanceException("View model instance error: $error")
         )
     }
 
@@ -776,12 +844,12 @@ class CommandQueue internal constructor(
      * @param bytes The bytes of the Rive file to load.
      * @return A [FileHandle] that represents the loaded Rive file.
      * @throws RiveFileException If the file could not be loaded.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun loadFile(bytes: ByteArray): FileHandle = suspendNativeRequest { requestID ->
-        bridge.cppLoadFile(cppPointer.pointer, requestID, bytes)
+        bridge.cppLoadFile(requireNativePointer(), requestID, bytes)
     }
 
     /**
@@ -805,26 +873,26 @@ class CommandQueue internal constructor(
      * additional effect.
      *
      * @param fileHandle The handle of the file to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteFile(fileHandle: FileHandle) =
-        bridge.cppDeleteFile(cppPointer.pointer, nextRequestID.getAndIncrement(), fileHandle.handle)
+        bridge.cppDeleteFile(requireNativePointer(), nextRequestID.getAndIncrement(), fileHandle.handle)
 
     /**
      * Query the file for available artboard names. Returns on [onArtboardsListed].
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of artboard names in the file.
-     * @throws RuntimeException If the file handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getArtboardNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetArtboardNames(
-                cppPointer.pointer,
+                requireNativePointer(),
                 requestID,
                 fileHandle.handle
             )
@@ -849,15 +917,15 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard to query.
      * @return A list of state machine names in the artboard.
-     * @throws RuntimeException If the artboard handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getStateMachineNames(artboardHandle: ArtboardHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetStateMachineNames(
-                cppPointer.pointer,
+                requireNativePointer(),
                 requestID,
                 artboardHandle.handle
             )
@@ -883,15 +951,15 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard to query.
      * @return The current artboard volume multiplier.
-     * @throws RuntimeException If the artboard handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getArtboardVolume(artboardHandle: ArtboardHandle): Float =
         suspendNativeRequest { requestID ->
             bridge.cppGetArtboardVolume(
-                cppPointer.pointer,
+                requireNativePointer(),
                 requestID,
                 artboardHandle.handle
             )
@@ -918,19 +986,18 @@ class CommandQueue internal constructor(
      * @param fileHandle The handle of the file containing the artboard.
      * @param artboardHandle The handle of the artboard to query.
      * @return A [DefaultViewModelInfo] containing the view model name and instance name.
-     * @throws RuntimeException If the artboard or file handle is invalid, or no default view model
-     *    is found.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getDefaultViewModelInfo(
         fileHandle: FileHandle,
         artboardHandle: ArtboardHandle
     ): DefaultViewModelInfo =
         suspendNativeRequest { requestID ->
             bridge.cppGetDefaultViewModelInfo(
-                cppPointer.pointer,
+                requireNativePointer(),
                 requestID,
                 fileHandle.handle,
                 artboardHandle.handle
@@ -961,15 +1028,15 @@ class CommandQueue internal constructor(
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of view model names in the file.
-     * @throws RuntimeException If the file handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getViewModelNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetViewModelNames(
-                cppPointer.pointer,
+                requireNativePointer(),
                 requestID,
                 fileHandle.handle
             )
@@ -996,18 +1063,17 @@ class CommandQueue internal constructor(
      * @param fileHandle The handle of the file that owns the view model.
      * @param viewModelName The name of the view model to query.
      * @return A list of view model instance names on the view model.
-     * @throws RuntimeException If the file handle is invalid or the named view model does not
-     *    exist.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getViewModelInstanceNames(
         fileHandle: FileHandle,
         viewModelName: String
     ): List<String> = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelInstanceNames(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             fileHandle.handle,
             viewModelName
@@ -1035,18 +1101,17 @@ class CommandQueue internal constructor(
      * @param fileHandle The handle of the file that owns the view model.
      * @param viewModelName The name of the view model to query.
      * @return A list of properties on the view model.
-     * @throws RuntimeException If the file handle is invalid or the named view model does not
-     *    exist.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getViewModelProperties(
         fileHandle: FileHandle,
         viewModelName: String
     ): List<ViewModel.Property> = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelProperties(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             fileHandle.handle,
             viewModelName
@@ -1077,14 +1142,14 @@ class CommandQueue internal constructor(
      *
      * @param fileHandle The handle of the file to query.
      * @return A list of enums in the file.
-     * @throws RuntimeException If the file handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
     suspend fun getEnums(fileHandle: FileHandle): List<Enum> = suspendNativeRequest { requestID ->
         bridge.cppGetEnums(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             fileHandle.handle
         )
@@ -1110,12 +1175,12 @@ class CommandQueue internal constructor(
      *
      * @param fileHandle The handle of the file that owns the artboard.
      * @return The handle of the created artboard.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun createDefaultArtboard(fileHandle: FileHandle): ArtboardHandle = ArtboardHandle(
         bridge.cppCreateDefaultArtboard(
-            cppPointer.pointer,
+            requireNativePointer(),
             nextRequestID.getAndIncrement(),
             fileHandle.handle
         )
@@ -1127,13 +1192,13 @@ class CommandQueue internal constructor(
      *
      * @param fileHandle The handle of the file that owns the artboard.
      * @param name The name of the artboard to create.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun createArtboardByName(fileHandle: FileHandle, name: String): ArtboardHandle =
         ArtboardHandle(
             bridge.cppCreateArtboardByName(
-                cppPointer.pointer,
+                requireNativePointer(),
                 nextRequestID.getAndIncrement(),
                 fileHandle.handle,
                 name
@@ -1146,11 +1211,11 @@ class CommandQueue internal constructor(
      * [createArtboardByName].
      *
      * @param artboardHandle The handle of the artboard to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteArtboard(artboardHandle: ArtboardHandle) = bridge.cppDeleteArtboard(
-        cppPointer.pointer, nextRequestID.getAndIncrement(), artboardHandle.handle
+        requireNativePointer(), nextRequestID.getAndIncrement(), artboardHandle.handle
     )
 
     /**
@@ -1167,13 +1232,13 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @return The handle of the created state machine.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun createDefaultStateMachine(artboardHandle: ArtboardHandle): StateMachineHandle {
         val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateDefaultStateMachine(
-                cppPointer.pointer,
+                requireNativePointer(),
                 nextRequestID.getAndIncrement(),
                 artboardHandle.handle
             )
@@ -1196,16 +1261,16 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @param name The name of the state machine to create.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun createStateMachineByName(
         artboardHandle: ArtboardHandle,
         name: String
     ): StateMachineHandle {
         val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateStateMachineByName(
-                cppPointer.pointer,
+                requireNativePointer(),
                 nextRequestID.getAndIncrement(),
                 artboardHandle.handle,
                 name
@@ -1221,12 +1286,12 @@ class CommandQueue internal constructor(
      * [createStateMachineByName].
      *
      * @param stateMachineHandle The handle of the state machine to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteStateMachine(stateMachineHandle: StateMachineHandle) {
         bridge.cppDeleteStateMachine(
-            cppPointer.pointer,
+            requireNativePointer(),
             nextRequestID.getAndIncrement(),
             stateMachineHandle.handle
         )
@@ -1242,36 +1307,36 @@ class CommandQueue internal constructor(
      *
      * @param stateMachineHandle The handle of the state machine to advance.
      * @param deltaTime The delta time to advance the state machine by.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun advanceStateMachine(stateMachineHandle: StateMachineHandle, deltaTime: Duration) =
         bridge.cppAdvanceStateMachine(
-            cppPointer.pointer,
+            requireNativePointer(),
             nextRequestID.getAndIncrement(),
             stateMachineHandle.handle,
             deltaTime.inWholeNanoseconds
         )
 
     /**
-     * Returns the latest settled state for a state machine owned by this worker.
+     * Returns the latest settled state for a state machine owned by this command queue.
      *
      * @param stateMachineHandle The state machine whose state should be observed.
      * @return A flow containing the latest accepted settled state.
-     * @throws IllegalStateException If the state machine is not registered with this worker.
+     * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
     internal fun stateMachineSettled(
         stateMachineHandle: StateMachineHandle
     ): StateFlow<Boolean> = stateMachineSettlingStore.settled(stateMachineHandle)
 
     /**
-     * Begins a new unsettled generation for a state machine owned by this worker.
+     * Begins a new unsettled generation for a state machine owned by this command queue.
      *
      * This updates the observable state synchronously and invalidates settled callbacks from
      * earlier advances without exposing the underlying request boundary.
      *
      * @param stateMachineHandle The state machine to mark unsettled.
-     * @throws IllegalStateException If the state machine is not registered with this worker.
+     * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
     internal fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
         stateMachineSettlingStore.unsettle(stateMachineHandle)
@@ -1284,7 +1349,7 @@ class CommandQueue internal constructor(
      * Unsettling happens when the user "perturbs" the state machine, such as by pointer events or
      * setting a value on a property.
      *
-     * @param requestID The worker-scoped request ID of the advance that caused it to settle.
+     * @param requestID The command-queue-scoped request ID of the advance that caused it to settle.
      * @param stateMachineHandle The handle of the state machine that has settled.
      */
     @Keep // Called from JNI
@@ -1304,19 +1369,25 @@ class CommandQueue internal constructor(
      * @param source The source of the view model instance to create, which internally also has a
      *    [view model source][ViewModelSource].
      * @return The handle of the created view model instance.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed or a resource
+     *    referenced by [source] has been closed.
+     * @throws RiveIncompatibleResourceException If a resource referenced by [source] is owned by
+     *    another command queue or file.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     fun createViewModelInstance(
         fileHandle: FileHandle,
         source: ViewModelInstanceSource
-    ): ViewModelInstanceHandle =
-        when (source) {
+    ): ViewModelInstanceHandle {
+        checkOpen()
+        source.checkOpen()
+        source.requireCompatibleWith(this, fileHandle)
+        return when (source) {
             is ViewModelInstanceSource.Blank -> when (val vm = source.vmSource) {
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateBlankVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName
@@ -1326,7 +1397,7 @@ class CommandQueue internal constructor(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateBlankVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
@@ -1338,7 +1409,7 @@ class CommandQueue internal constructor(
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateDefaultVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName
@@ -1348,7 +1419,7 @@ class CommandQueue internal constructor(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateDefaultVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
@@ -1360,7 +1431,7 @@ class CommandQueue internal constructor(
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateNamedVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.viewModelName,
@@ -1371,7 +1442,7 @@ class CommandQueue internal constructor(
                 is ViewModelSource.DefaultForArtboard ->
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateNamedVMI(
-                            cppPointer.pointer,
+                            requireNativePointer(),
                             nextRequestID.getAndIncrement(),
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle,
@@ -1382,7 +1453,7 @@ class CommandQueue internal constructor(
 
             is ViewModelInstanceSource.Reference -> ViewModelInstanceHandle(
                 bridge.cppReferenceNestedVMI(
-                    cppPointer.pointer,
+                    requireNativePointer(),
                     nextRequestID.getAndIncrement(),
                     source.parentInstance.instanceHandle.handle,
                     source.path
@@ -1391,7 +1462,7 @@ class CommandQueue internal constructor(
 
             is ViewModelInstanceSource.ReferenceListItem -> ViewModelInstanceHandle(
                 bridge.cppReferenceListItemVMI(
-                    cppPointer.pointer,
+                    requireNativePointer(),
                     nextRequestID.getAndIncrement(),
                     source.parentInstance.instanceHandle.handle,
                     source.pathToList,
@@ -1399,22 +1470,27 @@ class CommandQueue internal constructor(
                 )
             )
         }
+    }
 
     /**
      * Gets the name of the view model that defines the view model instance.
      *
      * @param viewModelInstanceHandle The handle of the view model instance to query.
      * @return The name of the view model that defines the instance.
-     * @throws RuntimeException If the view model instance handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelInstanceViewModelName(
         viewModelInstanceHandle: ViewModelInstanceHandle
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelInstanceViewModelName(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle
         )
@@ -1441,16 +1517,20 @@ class CommandQueue internal constructor(
      * @param viewModelInstanceHandle The handle of the view model instance to query.
      * @return The name of the view model instance, or an empty string for instances without a
      *    name, e.g. blank instances.
-     * @throws RuntimeException If the view model instance handle is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelInstanceName(
         viewModelInstanceHandle: ViewModelInstanceHandle
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelInstanceName(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle
         )
@@ -1475,12 +1555,12 @@ class CommandQueue internal constructor(
      * the view model instance and want to free up memory. Counterpart to [createViewModelInstance].
      *
      * @param viewModelInstanceHandle The handle of the view model instance to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteViewModelInstance(viewModelInstanceHandle: ViewModelInstanceHandle) =
         bridge.cppDeleteViewModelInstance(
-            cppPointer.pointer,
+            requireNativePointer(),
             nextRequestID.getAndIncrement(),
             viewModelInstanceHandle.handle
         )
@@ -1489,18 +1569,19 @@ class CommandQueue internal constructor(
      * Bind a view model instance to a state machine. This establishes the data binding for the
      * instance's properties.
      *
+     * This operation is fire-and-forget. Invalid handles are reported asynchronously through the
+     * state machine error callback and command queue logging; they are not thrown by this method.
+     *
      * @param stateMachineHandle The handle of the state machine to bind to.
      * @param viewModelInstanceHandle The handle of the view model instance to bind.
-     * @throws RuntimeException If the state machine handle or view model instance handle is
-     *    invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun bindViewModelInstance(
         stateMachineHandle: StateMachineHandle,
         viewModelInstanceHandle: ViewModelInstanceHandle
     ) = bridge.cppBindViewModelInstance(
-        cppPointer.pointer,
+        requireNativePointer(),
         nextRequestID.getAndIncrement(),
         stateMachineHandle.handle,
         viewModelInstanceHandle.handle
@@ -1534,15 +1615,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: Float
     ) = bridge.cppSetNumberProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1555,18 +1636,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Float = suspendNativeRequest { requestID ->
         bridge.cppGetNumberProperty(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1607,15 +1691,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: String
     ) = bridge.cppSetStringProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1628,18 +1712,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetStringProperty(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1680,15 +1767,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: Boolean
     ) = bridge.cppSetBooleanProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1701,18 +1788,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property.
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Boolean = suspendNativeRequest { requestID ->
         bridge.cppGetBooleanProperty(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1753,15 +1843,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property, as a string.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         value: String
     ) = bridge.cppSetEnumProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1774,18 +1864,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property, as a string.
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetEnumProperty(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1826,15 +1919,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be updated. Slash delimited.
      * @param value The new value of the property, as an AARRGGBB [ColorInt].
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         @ColorInt value: Int
     ) = bridge.cppSetColorProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         value
@@ -1847,18 +1940,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The value of the property, as an AARRGGBB [ColorInt].
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Int = suspendNativeRequest { requestID ->
         bridge.cppGetColorProperty(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -1898,14 +1994,14 @@ class CommandQueue internal constructor(
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be fired. Slash delimited.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun fireTriggerProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ) = bridge.cppFireTriggerProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath
     )
@@ -1938,20 +2034,23 @@ class CommandQueue internal constructor(
      * Subscribe to changes to a property on the view model instance. Updates will be emitted on the
      * flow of the corresponding type, e.g. [numberPropertyFlow] for number properties.
      *
+     * This operation is fire-and-forget. Invalid handles, paths, or property types are reported
+     * asynchronously through the view model instance error callback and command queue logging; they
+     * are not thrown by this method.
+     *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the property that should be subscribed to. Slash delimited.
      * @param propertyType The type of the property to subscribe to.
-     * @throws RuntimeException If the property type is invalid.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun subscribeToProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         propertyType: ViewModel.PropertyDataType
     ) = bridge.cppSubscribeToProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         propertyType.value
@@ -1965,15 +2064,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
      * @param imageHandle The handle of the image to assign, or null to clear the property.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setImageProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         imageHandle: ImageHandle?
     ) = bridge.cppSetImageProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         imageHandle?.handle ?: 0L
@@ -1987,15 +2086,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
      * @param artboardHandle The handle of the artboard to assign, or null to clear the property.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setArtboardProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         artboardHandle: ArtboardHandle?
     ) = bridge.cppSetArtboardProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         artboardHandle?.handle ?: 0L
@@ -2008,15 +2107,15 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be assigned to. Slash delimited.
      * @param valueHandle The handle of the view model instance to assign.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setViewModelInstanceProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         valueHandle: ViewModelInstanceHandle
     ) = bridge.cppSetViewModelInstanceProperty(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         valueHandle.handle
@@ -2029,18 +2128,21 @@ class CommandQueue internal constructor(
      *    belongs to.
      * @param propertyPath The path to the property that should be retrieved. Slash delimited.
      * @return The size of the list.
-     * @throws RuntimeException If the view model instance handle is invalid, or the named property
-     *    does not exist or is of the wrong type.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveViewModelInstanceException If the view model instance operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getListSize(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String
     ): Int = suspendNativeRequest { requestID ->
         bridge.cppGetListSize(
-            cppPointer.pointer,
+            requireNativePointer(),
             requestID,
             viewModelInstanceHandle.handle,
             propertyPath
@@ -2069,16 +2171,16 @@ class CommandQueue internal constructor(
      * @param propertyPath The path to the list property. Slash delimited.
      * @param index The index at which to insert the item.
      * @param itemHandle The handle of the view model instance to insert into the list.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun insertToListAtIndex(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         index: Int,
         itemHandle: ViewModelInstanceHandle
     ) = bridge.cppInsertToListAtIndex(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         index,
@@ -2092,15 +2194,15 @@ class CommandQueue internal constructor(
      *    property.
      * @param propertyPath The path to the list property. Slash delimited.
      * @param itemHandle The handle of the view model instance to append to the list.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun appendToList(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         itemHandle: ViewModelInstanceHandle
     ) = bridge.cppAppendToList(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         itemHandle.handle
@@ -2113,15 +2215,15 @@ class CommandQueue internal constructor(
      *    property.
      * @param propertyPath The path to the list property. Slash delimited.
      * @param index The index of the item to remove.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun removeFromListAtIndex(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         index: Int
     ) = bridge.cppRemoveFromListAtIndex(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         index
@@ -2134,15 +2236,15 @@ class CommandQueue internal constructor(
      *    property.
      * @param propertyPath The path to the list property. Slash delimited.
      * @param itemHandle The handle of the view model instance to remove from the list.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun removeFromList(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         itemHandle: ViewModelInstanceHandle
     ) = bridge.cppRemoveFromList(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         itemHandle.handle
@@ -2156,16 +2258,16 @@ class CommandQueue internal constructor(
      * @param propertyPath The path to the list property. Slash delimited.
      * @param indexA The index of the first item to swap.
      * @param indexB The index of the second item to swap.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun swapListItems(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         indexA: Int,
         indexB: Int
     ) = bridge.cppSwapListItems(
-        cppPointer.pointer,
+        requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
         indexA,
@@ -2181,14 +2283,18 @@ class CommandQueue internal constructor(
      *
      * @param bytes The bytes of the image file to decode.
      * @return A handle to the decoded image.
-     * @throws RuntimeException If the image could not be decoded, e.g. if the bytes are not a valid
-     *    image.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveImageException If the image could not be decoded, e.g. if the bytes are not a
+     *    valid image.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveImageException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun decodeImage(bytes: ByteArray): ImageHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeImage(cppPointer.pointer, requestID, bytes)
+        bridge.cppDecodeImage(requireNativePointer(), requestID, bytes)
     }
 
     /**
@@ -2217,8 +2323,8 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onImageError")
     internal fun onImageError(requestID: Long, error: String) {
-        (pendingContinuations.remove(requestID) as? Continuation<ImageHandle>)?.resumeWithException(
-            RuntimeException("Failed to decode image: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveImageException("Failed to decode image: $error")
         )
     }
 
@@ -2227,11 +2333,11 @@ class CommandQueue internal constructor(
      * want to free up memory. Counterpart to [decodeImage].
      *
      * @param imageHandle The handle of the image to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteImage(imageHandle: ImageHandle) =
-        bridge.cppDeleteImage(cppPointer.pointer, imageHandle.handle)
+        bridge.cppDeleteImage(requireNativePointer(), imageHandle.handle)
 
     /**
      * Register an image as an asset with the given name. This allows the image to be used to
@@ -2240,20 +2346,20 @@ class CommandQueue internal constructor(
      * The CommandServer will keep a reference to the image. For it to be fully released, you must
      * unregister it with [unregisterImage].
      *
-     * Registrations are global to the CommandQueue, meaning that the [name] will be used to fulfill
-     * any file loaded by this CommandQueue that references the asset with the same name.
+     * Registrations are global to this command queue, meaning that the [name] will be used to
+     * fulfill any file loaded by this command queue that references the asset with the same name.
      *
      * The same image can be registered multiple times with different names, allowing it to fulfill
-     * multiple referenced assets in all Rive files on this CommandQueue.
+     * multiple referenced assets in all Rive files on this command queue.
      *
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param imageHandle The handle of the image to register.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun registerImage(name: String, imageHandle: ImageHandle) =
-        bridge.cppRegisterImage(cppPointer.pointer, name, imageHandle.handle)
+        bridge.cppRegisterImage(requireNativePointer(), name, imageHandle.handle)
 
     /**
      * Unregister an image that was previously registered with [registerImage]. This will remove the
@@ -2261,11 +2367,11 @@ class CommandQueue internal constructor(
      * handle was also deleted with [deleteImage].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerImage].
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun unregisterImage(name: String) =
-        bridge.cppUnregisterImage(cppPointer.pointer, name)
+        bridge.cppUnregisterImage(requireNativePointer(), name)
 
     /**
      * Decode an audio file from the given bytes. The decoded audio is stored on the CommandServer.
@@ -2274,14 +2380,18 @@ class CommandQueue internal constructor(
      *
      * @param bytes The bytes of the audio file to decode.
      * @return A handle to the decoded audio.
-     * @throws RuntimeException If the audio could not be decoded, e.g. if the bytes are not a valid
-     *    audio file.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveAudioException If the audio could not be decoded, e.g. if the bytes are not a
+     *    valid audio file.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveAudioException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun decodeAudio(bytes: ByteArray): AudioHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeAudio(cppPointer.pointer, requestID, bytes)
+        bridge.cppDecodeAudio(requireNativePointer(), requestID, bytes)
     }
 
     /**
@@ -2310,8 +2420,8 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onAudioError")
     internal fun onAudioError(requestID: Long, error: String) {
-        (pendingContinuations.remove(requestID) as? Continuation<AudioHandle>)?.resumeWithException(
-            RuntimeException("Failed to decode audio: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveAudioException("Failed to decode audio: $error")
         )
     }
 
@@ -2320,11 +2430,11 @@ class CommandQueue internal constructor(
      * want to free up memory. Counterpart to [decodeAudio].
      *
      * @param audioHandle The handle of the audio to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteAudio(audioHandle: AudioHandle) =
-        bridge.cppDeleteAudio(cppPointer.pointer, audioHandle.handle)
+        bridge.cppDeleteAudio(requireNativePointer(), audioHandle.handle)
 
     /**
      * Register audio as an asset with the given name. This allows the audio to be used to fulfill a
@@ -2333,20 +2443,20 @@ class CommandQueue internal constructor(
      * The CommandServer will keep a reference to the audio. For it to be fully released, you must
      * unregister it with [unregisterAudio].
      *
-     * Registrations are global to the CommandQueue, meaning that the [name] will be used to fulfill
-     * any file loaded by this CommandQueue that references the asset with the same name.
+     * Registrations are global to this command queue, meaning that the [name] will be used to
+     * fulfill any file loaded by this command queue that references the asset with the same name.
      *
      * The same audio can be registered multiple times with different names, allowing it to fulfill
-     * multiple referenced assets in all Rive files on this CommandQueue.
+     * multiple referenced assets in all Rive files on this command queue.
      *
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param audioHandle The handle of the audio to register.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun registerAudio(name: String, audioHandle: AudioHandle) =
-        bridge.cppRegisterAudio(cppPointer.pointer, name, audioHandle.handle)
+        bridge.cppRegisterAudio(requireNativePointer(), name, audioHandle.handle)
 
     /**
      * Unregister audio that was previously registered with [registerAudio]. This will remove the
@@ -2354,11 +2464,11 @@ class CommandQueue internal constructor(
      * handle was also deleted with [deleteAudio].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerAudio].
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun unregisterAudio(name: String) =
-        bridge.cppUnregisterAudio(cppPointer.pointer, name)
+        bridge.cppUnregisterAudio(requireNativePointer(), name)
 
     /**
      * Decode a font file from the given bytes. The bytes are for a font file, such as TTF. The
@@ -2368,14 +2478,18 @@ class CommandQueue internal constructor(
      *
      * @param bytes The bytes of the font file to decode.
      * @return A handle to the decoded font.
-     * @throws RuntimeException If the font could not be decoded, e.g. if the bytes are not a valid
+     * @throws RiveFontException If the font could not be decoded, e.g. if the bytes are not a valid
      *    font.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RuntimeException::class, IllegalStateException::class, CancellationException::class)
+    @Throws(
+        RiveFontException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun decodeFont(bytes: ByteArray): FontHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeFont(cppPointer.pointer, requestID, bytes)
+        bridge.cppDecodeFont(requireNativePointer(), requestID, bytes)
     }
 
     /**
@@ -2404,8 +2518,8 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onFontError")
     internal fun onFontError(requestID: Long, error: String) {
-        (pendingContinuations.remove(requestID) as? Continuation<FontHandle>)?.resumeWithException(
-            RuntimeException("Failed to decode font: $error")
+        pendingContinuations.remove(requestID)?.resumeWithException(
+            RiveFontException("Failed to decode font: $error")
         )
     }
 
@@ -2414,11 +2528,11 @@ class CommandQueue internal constructor(
      * want to free up memory. Counterpart to [decodeFont].
      *
      * @param fontHandle The handle of the font to delete.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun deleteFont(fontHandle: FontHandle) =
-        bridge.cppDeleteFont(cppPointer.pointer, fontHandle.handle)
+        bridge.cppDeleteFont(requireNativePointer(), fontHandle.handle)
 
     /**
      * Register a font as an asset with the given name. This allows the font to be used to fulfill a
@@ -2427,20 +2541,20 @@ class CommandQueue internal constructor(
      * The CommandServer will keep a reference to the font. For it to be fully released, you must
      * unregister it with [unregisterFont].
      *
-     * Registrations are global to the CommandQueue, meaning that the [name] will be used to fulfill
-     * any file loaded by this CommandQueue that references the asset with the same name.
+     * Registrations are global to this command queue, meaning that the [name] will be used to
+     * fulfill any file loaded by this command queue that references the asset with the same name.
      *
      * The same font can be registered multiple times with different names, allowing it to fulfill
-     * multiple referenced assets in all Rive files on this CommandQueue.
+     * multiple referenced assets in all Rive files on this command queue.
      *
      * @param name The name of the referenced asset to fulfill. Must match the name in the zip file
      *    when exporting from Rive.
      * @param fontHandle The handle of the font to register.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun registerFont(name: String, fontHandle: FontHandle) =
-        bridge.cppRegisterFont(cppPointer.pointer, name, fontHandle.handle)
+        bridge.cppRegisterFont(requireNativePointer(), name, fontHandle.handle)
 
     /**
      * Unregister a font that was previously registered with [registerFont]. This will remove the
@@ -2448,11 +2562,11 @@ class CommandQueue internal constructor(
      * handle was also deleted with [deleteFont].
      *
      * @param name The name of the referenced asset to unregister, the same used in [registerFont].
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun unregisterFont(name: String) =
-        bridge.cppUnregisterFont(cppPointer.pointer, name)
+        bridge.cppUnregisterFont(requireNativePointer(), name)
 
     /**
      * Notify the state machine that the pointer (typically a user's touch) has moved. This is used
@@ -2467,9 +2581,9 @@ class CommandQueue internal constructor(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun pointerMove(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -2479,7 +2593,7 @@ class CommandQueue internal constructor(
         pointerX: Float,
         pointerY: Float
     ) = bridge.cppPointerMove(
-        cppPointer.pointer,
+        requireNativePointer(),
         stateMachineHandle.handle,
         fit.nativeMapping,
         fit.alignment.nativeMapping,
@@ -2504,9 +2618,9 @@ class CommandQueue internal constructor(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun pointerDown(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -2516,7 +2630,7 @@ class CommandQueue internal constructor(
         pointerX: Float,
         pointerY: Float
     ) = bridge.cppPointerDown(
-        cppPointer.pointer,
+        requireNativePointer(),
         stateMachineHandle.handle,
         fit.nativeMapping,
         fit.alignment.nativeMapping,
@@ -2541,9 +2655,9 @@ class CommandQueue internal constructor(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun pointerUp(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -2553,7 +2667,7 @@ class CommandQueue internal constructor(
         pointerX: Float,
         pointerY: Float
     ) = bridge.cppPointerUp(
-        cppPointer.pointer,
+        requireNativePointer(),
         stateMachineHandle.handle,
         fit.nativeMapping,
         fit.alignment.nativeMapping,
@@ -2578,9 +2692,9 @@ class CommandQueue internal constructor(
      * @param surfaceHeight The height of the surface the artboard is drawn to.
      * @param pointerX The X coordinate of the pointer in surface space.
      * @param pointerY The Y coordinate of the pointer in surface space.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun pointerExit(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
@@ -2590,7 +2704,7 @@ class CommandQueue internal constructor(
         pointerX: Float,
         pointerY: Float
     ) = bridge.cppPointerExit(
-        cppPointer.pointer,
+        requireNativePointer(),
         stateMachineHandle.handle,
         fit.nativeMapping,
         fit.alignment.nativeMapping,
@@ -2613,17 +2727,24 @@ class CommandQueue internal constructor(
      * @param surface The surface whose width and height will be used to resize the artboard.
      * @param scaleFactor The scale factor to apply when resizing. The artboard will be resized to
      *    surface dimensions divided by this factor.
-     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
+     * @throws RiveResourceClosedException If this command queue has been disposed or [surface] has
+     *    been closed.
+     * @throws RiveIncompatibleResourceException If [surface] is owned by another command queue.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class
+    )
     fun resizeArtboard(
         artboardHandle: ArtboardHandle,
         surface: RiveSurface,
         scaleFactor: Float = 1f
     ) {
-        check(!surface.closed) { "Cannot resize a closed RiveSurface" }
+        checkOpen()
+        surface.checkOpen()
+        surface.requireOwnedBy(this)
         bridge.cppResizeArtboard(
-            cppPointer.pointer,
+            requireNativePointer(),
             artboardHandle.handle,
             surface.width,
             surface.height,
@@ -2638,13 +2759,13 @@ class CommandQueue internal constructor(
      * now have a fit type other than [Fit.Layout], to restore the artboard to its original size.
      *
      * @param artboardHandle The handle of the artboard to reset.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun resetArtboardSize(
         artboardHandle: ArtboardHandle
     ) = bridge.cppResetArtboardSize(
-        cppPointer.pointer,
+        requireNativePointer(),
         artboardHandle.handle
     )
 
@@ -2656,14 +2777,14 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard to update.
      * @param volume The volume multiplier to apply.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun setArtboardVolume(
         artboardHandle: ArtboardHandle,
         volume: Float
     ) = bridge.cppSetArtboardVolume(
-        cppPointer.pointer,
+        requireNativePointer(),
         nextRequestID.getAndIncrement(),
         artboardHandle.handle,
         volume
@@ -2677,9 +2798,14 @@ class CommandQueue internal constructor(
      * @param surface The surface to draw to.
      * @param fit The fit mode of the artboard.
      * @param clearColor The color to clear the surface with before drawing, in AARRGGBB format.
-     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
+     * @throws RiveResourceClosedException If this command queue has been disposed or [surface] has
+     *    been closed.
+     * @throws RiveIncompatibleResourceException If [surface] is owned by another command queue.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class
+    )
     fun draw(
         artboardHandle: ArtboardHandle,
         stateMachineHandle: StateMachineHandle,
@@ -2687,11 +2813,13 @@ class CommandQueue internal constructor(
         fit: Fit,
         clearColor: Int = Color.TRANSPARENT
     ) {
-        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        checkOpen()
+        val surfaceNativePointer = surface.requireNativePointer()
+        surface.requireOwnedBy(this)
         bridge.cppDraw(
-            cppPointer.pointer,
+            requireNativePointer(),
             renderContext.nativeObjectPointer,
-            surface.surfaceNativePointer.pointer,
+            surfaceNativePointer,
             surface.drawKey.handle,
             artboardHandle.handle,
             stateMachineHandle.handle,
@@ -2712,11 +2840,11 @@ class CommandQueue internal constructor(
      * already admitted to execution may still complete.
      *
      * @param drawKey The draw key to cancel.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     internal fun cancelDraw(drawKey: DrawKey) =
-        bridge.cppCancelDraw(cppPointer.pointer, drawKey.handle)
+        bridge.cppCancelDraw(requireNativePointer(), drawKey.handle)
 
     /**
      * Renders the current state of an artboard/state machine pair into an off-screen buffer that
@@ -2736,9 +2864,15 @@ class CommandQueue internal constructor(
      * @param clearColor Clear color used prior to drawing, defaults to transparent.
      * @throws RiveDrawToBufferException If the buffer could not be drawn to for any reason. Further
      *    details can be found in the exception message.
-     * @throws IllegalStateException If the CommandQueue has been released or [surface] is closed.
+     * @throws RiveResourceClosedException If this command queue has been disposed or [surface] has
+     *    been closed.
+     * @throws RiveIncompatibleResourceException If [surface] is owned by another command queue.
      */
-    @Throws(RiveDrawToBufferException::class, IllegalStateException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class,
+        RiveDrawToBufferException::class
+    )
     fun drawToBuffer(
         artboardHandle: ArtboardHandle,
         stateMachineHandle: StateMachineHandle,
@@ -2749,11 +2883,13 @@ class CommandQueue internal constructor(
         fit: Fit = Fit.Contain(),
         clearColor: Int = Color.TRANSPARENT
     ) {
-        check(!surface.closed) { "Cannot draw to a closed RiveSurface" }
+        checkOpen()
+        val surfaceNativePointer = surface.requireNativePointer()
+        surface.requireOwnedBy(this)
         bridge.cppDrawToBuffer(
-            cppPointer.pointer,
+            requireNativePointer(),
             renderContext.nativeObjectPointer,
-            surface.surfaceNativePointer.pointer,
+            surfaceNativePointer,
             surface.drawKey.handle,
             artboardHandle.handle,
             stateMachineHandle.handle,
@@ -2780,11 +2916,11 @@ class CommandQueue internal constructor(
      * The operation is fire-and-forget, so no response is expected.
      *
      * @param work The lambda to execute on the command server thread.
-     * @throws IllegalStateException If the CommandQueue has been released.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     internal fun runOnCommandServer(work: () -> Unit) =
-        bridge.cppRunOnCommandServer(cppPointer.pointer, work)
+        bridge.cppRunOnCommandServer(requireNativePointer(), work)
 
     /**
      * The map of all pending continuations, keyed by request ID. Entries are added when a suspend
@@ -2800,7 +2936,9 @@ class CommandQueue internal constructor(
      */
     private fun cancelPendingContinuations() {
         pendingContinuations.values.toList().forEach { cont ->
-            cont.cancel(CancellationException("CommandQueue was released before operation could complete."))
+            cont.cancel(
+                CancellationException("RiveWorker was disposed before operation could complete.")
+            )
         }
         pendingContinuations.clear()
     }

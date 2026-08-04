@@ -8,6 +8,7 @@ import android.view.Surface
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
+import app.rive.RiveResourceClosedException
 import app.rive.RiveShutdownException
 
 /**
@@ -47,9 +48,9 @@ internal abstract class RenderContext : CheckableAutoCloseable {
      *    can later schedule ordered disposal.
      * @return The created [RiveSurface].
      * @throws RiveRenderException If the backend cannot create a renderable surface.
-     * @throws IllegalStateException If the surface cannot acquire the command queue.
+     * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive worker.
      */
-    @Throws(RiveRenderException::class, IllegalStateException::class)
+    @Throws(RiveRenderException::class, RiveResourceClosedException::class)
     internal abstract fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
@@ -71,12 +72,12 @@ internal abstract class RenderContext : CheckableAutoCloseable {
      * @return The created [RiveSurface].
      * @throws IllegalArgumentException If the requested dimensions are invalid.
      * @throws RiveRenderException If the backend cannot create an off-screen surface.
-     * @throws IllegalStateException If the surface cannot acquire the command queue.
+     * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive worker.
      */
     @Throws(
         IllegalArgumentException::class,
         RiveRenderException::class,
-        IllegalStateException::class
+        RiveResourceClosedException::class
     )
     internal abstract fun createImageSurface(
         width: Int,
@@ -292,9 +293,9 @@ internal data class RenderContextGL(
      * @return The created [RiveSurfaceGL].
      * @throws RiveRenderException If the backing Android surface is invalid or EGL window surface
      *    creation fails.
-     * @throws IllegalStateException If the surface cannot acquire the command queue.
+     * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive worker.
      */
-    @Throws(RiveRenderException::class, IllegalStateException::class)
+    @Throws(RiveRenderException::class, RiveResourceClosedException::class)
     override fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
@@ -363,12 +364,12 @@ internal data class RenderContextGL(
      * @return The created [RiveSurface].
      * @throws IllegalArgumentException If [width] or [height] is not positive.
      * @throws RiveRenderException If EGL PBuffer surface creation fails.
-     * @throws IllegalStateException If the surface cannot acquire the command queue.
+     * @throws RiveResourceClosedException If the surface cannot acquire the disposed Rive worker.
      */
     @Throws(
         IllegalArgumentException::class,
         RiveRenderException::class,
-        IllegalStateException::class
+        RiveResourceClosedException::class
     )
     override fun createImageSurface(
         width: Int,
@@ -442,7 +443,7 @@ internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
 
     override fun dispose() = cppPointer.close()
 
-    @Throws(RiveRenderException::class, IllegalStateException::class)
+    @Throws(RiveRenderException::class, RiveResourceClosedException::class)
     override fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
@@ -452,7 +453,7 @@ internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
     @Throws(
         IllegalArgumentException::class,
         RiveRenderException::class,
-        IllegalStateException::class
+        RiveResourceClosedException::class
     )
     override fun createImageSurface(
         width: Int,

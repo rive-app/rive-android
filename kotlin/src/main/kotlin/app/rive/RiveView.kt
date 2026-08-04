@@ -143,11 +143,27 @@ class RiveView @JvmOverloads constructor(
         addView(textureView, LayoutParams(MATCH_PARENT, MATCH_PARENT))
     }
 
+    /**
+     * Sets the file and artboard used by this view and creates its state machine.
+     *
+     * @param file The file whose content will be rendered.
+     * @param artboard An optional artboard created from [file]. If null, the default artboard is
+     *    created.
+     * @param stateMachineName The state machine to create, or null to create the default state
+     *    machine.
+     * @throws RiveResourceClosedException If [file] or [artboard] has been closed, or if the owning
+     *    Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] was created from another file.
+     */
+    @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
     fun setRiveFile(
         file: RiveFile,
         artboard: Artboard? = null,
         stateMachineName: String? = null
     ) {
+        file.checkOpen()
+        artboard?.checkOpen()
+        artboard?.requireFromFile(file)
         riveFile = file
         artboardHandle =
             artboard?.artboardHandle ?: file.riveWorker.createDefaultArtboard(file.fileHandle)

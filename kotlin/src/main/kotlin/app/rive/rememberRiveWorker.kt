@@ -32,8 +32,8 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * creates a poll loop that runs while the [Lifecycle] is in the [Lifecycle.State.RESUMED] state.
  * The poll rate is once per frame, which is typically 60 FPS.
  *
- * This function throws a [RuntimeException] if the Rive worker cannot be created. If you want to
- * handle failure gracefully, use [rememberRiveWorkerOrNull] instead.
+ * This function throws a [RiveInitializationException] if the Rive worker cannot be created. If
+ * you want to handle failure gracefully, use [rememberRiveWorkerOrNull] instead.
  *
  * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.

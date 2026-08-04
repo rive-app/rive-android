@@ -42,12 +42,25 @@ private const val FILE_TAG = "Rive/File"
 class RiveFile internal constructor(
     val fileHandle: FileHandle,
     val riveWorker: RiveWorker
-) : AutoCloseable by CloseOnce("$fileHandle", {
-    RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
-    riveWorker.deleteFile(fileHandle)
+) : AutoCloseable {
+    private val closer = CloseOnce("$fileHandle") {
+        RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
+        riveWorker.deleteFile(fileHandle)
 
-    riveWorker.release(FILE_TAG, "RiveFile closed")
-}) {
+        riveWorker.release(FILE_TAG, "RiveFile closed")
+    }
+
+    /** Closes this file and schedules deletion on its Rive worker. */
+    override fun close() = closer.close()
+
+    /**
+     * Ensures this file has not been closed.
+     *
+     * @throws RiveResourceClosedException If this file has already been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() = closer.checkOpen()
+
     companion object {
         /**
          * Loads a [RiveFile] from the given [source].
@@ -61,7 +74,9 @@ class RiveFile internal constructor(
          * @param riveWorker The Rive worker that owns the file.
          * @return The loaded Rive file, or an error if loading failed. The Loading state is not
          *    used here since the loading is performed in a suspend function.
+         * @throws CancellationException If the coroutine is cancelled before loading completes.
          */
+        @Throws(CancellationException::class)
         suspend fun fromSource(
             source: RiveFileSource,
             riveWorker: RiveWorker
@@ -99,14 +114,36 @@ class RiveFile internal constructor(
         }
     }
 
-    /** @return A list of all exported artboard names available on this file. */
-    suspend fun getArtboardNames(): List<String> = artboardNamesCache.await()
+    /**
+     * @return A list of all exported artboard names available on this file.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getArtboardNames(): List<String> {
+        closer.checkOpen()
+        return artboardNamesCache.await()
+    }
+
     private val artboardNamesCache = SuspendLazy {
         riveWorker.getArtboardNames(fileHandle)
     }
 
-    /** @return A list of all view model names available on this file. */
-    suspend fun getViewModelNames(): List<String> = viewModelNamesCache.await()
+    /**
+     * @return A list of all view model names available on this file.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getViewModelNames(): List<String> {
+        closer.checkOpen()
+        return viewModelNamesCache.await()
+    }
+
     private val viewModelNamesCache = SuspendLazy {
         riveWorker.getViewModelNames(fileHandle)
     }
@@ -114,39 +151,62 @@ class RiveFile internal constructor(
     /**
      * @param viewModel The name of the view model to get instance names for.
      * @return A list of all instance names available on the given view model.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    suspend fun getViewModelInstanceNames(viewModel: String): List<String> =
-        synchronized(instanceNamesCache) {
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getViewModelInstanceNames(viewModel: String): List<String> {
+        closer.checkOpen()
+        return synchronized(instanceNamesCache) {
             instanceNamesCache.getOrPut(viewModel) {
                 SuspendLazy {
                     riveWorker.getViewModelInstanceNames(fileHandle, viewModel)
                 }
             }
         }.await()
+    }
 
     private val instanceNamesCache = mutableMapOf<String, SuspendLazy<List<String>>>()
 
     /**
      * @param viewModel The name of the view model to get properties for.
      * @return A list of all properties available on the given view model.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      * @see [Property]
      */
-    suspend fun getViewModelProperties(viewModel: String): List<Property> =
-        synchronized(propertiesCache) {
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getViewModelProperties(viewModel: String): List<Property> {
+        closer.checkOpen()
+        return synchronized(propertiesCache) {
             propertiesCache.getOrPut(viewModel) {
                 SuspendLazy {
                     riveWorker.getViewModelProperties(fileHandle, viewModel)
                 }
             }
         }.await()
+    }
 
     private val propertiesCache = mutableMapOf<String, SuspendLazy<List<Property>>>()
 
     /**
      * @return A list of all enums available on this file.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      * @see [Enum]
      */
-    suspend fun getEnums(): List<Enum> = enumsCache.await()
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getEnums(): List<Enum> {
+        closer.checkOpen()
+        return enumsCache.await()
+    }
+
     private val enumsCache = SuspendLazy {
         riveWorker.getEnums(fileHandle)
     }
@@ -154,15 +214,30 @@ class RiveFile internal constructor(
     /**
      * @param artboard The artboard to query for default view model information.
      * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     * @throws RiveResourceClosedException If this file or [artboard] has been closed, or if the
+     *    owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] was created from another file.
+     * @throws RiveArtboardException If the artboard operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo =
-        synchronized(defaultViewModelInfoCache) {
+    @Throws(
+        RiveIncompatibleResourceException::class,
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo {
+        closer.checkOpen()
+        artboard.checkOpen()
+        artboard.requireFromFile(this)
+        return synchronized(defaultViewModelInfoCache) {
             defaultViewModelInfoCache.getOrPut(artboard.artboardHandle) {
                 SuspendLazy {
                     riveWorker.getDefaultViewModelInfo(fileHandle, artboard.artboardHandle)
                 }
             }
         }.await()
+    }
 
     private val defaultViewModelInfoCache =
         mutableMapOf<ArtboardHandle, SuspendLazy<DefaultViewModelInfo>>()

@@ -1,6 +1,7 @@
 package app.rive.core
 
 import app.rive.RiveLog
+import app.rive.RiveResourceClosedException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -66,23 +67,27 @@ class RCPointer(
     /**
      * The native pointer address.
      *
-     * @throws IllegalStateException If the reference count is zero (i.e. the pointer has been
-     *    disposed).
+     * @throws RiveResourceClosedException If the reference count is zero and the pointer has been
+     *    disposed.
      */
     val pointer: Long
         get() {
-            check(referenceCount.get() > 0) { "Attempting to access a disposed RCPointer ($label)" }
+            if (referenceCount.get() <= 0) {
+                throw RiveResourceClosedException("RCPointer $label is closed")
+            }
             return cppPointer
         }
 
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     override fun acquire(source: String) {
         // This loop prevents a Time of Check/Time of Use (TOCTOU) race by checking the first
         // retrieved value again in the CAS operation. If another thread has modified the value in
         // the meantime, the CAS will fail and we retry.
         while (true) {
             val current = referenceCount.get()
-            check(current > 0) { "Attempting to acquire a null RCPointer ($label)." }
+            if (current <= 0) {
+                throw RiveResourceClosedException("RCPointer $label is closed")
+            }
 
             if (referenceCount.compareAndSet(current, current + 1)) {
                 RiveLog.v(TAG) {

@@ -40,7 +40,20 @@ class StateMachine internal constructor(
         riveWorker.deleteStateMachine(stateMachineHandle)
     }
 
-    /** Deletes this state machine and releases its resources. */
+    /**
+     * Ensures this state machine has not been closed.
+     *
+     * @throws RiveResourceClosedException If this state machine has already been closed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    internal fun checkOpen() = closer.checkOpen()
+
+    /**
+     * Deletes this state machine and releases its resources.
+     *
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
 
     /**
@@ -64,11 +77,15 @@ class StateMachine internal constructor(
          * @param stateMachineName The name of the state machine to load. If null, the default state
          *    machine will be loaded.
          * @return The created state machine.
+         * @throws RiveResourceClosedException If [artboard] has been closed or its Rive worker has
+         *    been disposed.
          */
+        @Throws(RiveResourceClosedException::class)
         fun fromArtboard(
             artboard: Artboard,
             stateMachineName: String? = null
         ): StateMachine {
+            artboard.checkOpen()
             val handle = stateMachineName?.let { name ->
                 artboard.riveWorker.createStateMachineByName(artboard.artboardHandle, name)
             } ?: artboard.riveWorker.createDefaultStateMachine(artboard.artboardHandle)
@@ -84,25 +101,42 @@ class StateMachine internal constructor(
     }
 
     /**
-     * Whether this state machine is owned by [worker].
+     * Requires this state machine to be owned by [worker].
      *
-     * Useful for validating that multiple Rive resources can safely be used together.
+     * This compatibility check assumes callers have already verified that participating resources
+     * are open.
      *
-     * @param worker A worker reference to check ownership against.
-     * @return true if this state machine is owned by [worker], false otherwise.
+     * @param worker The worker required to own this state machine.
+     * @throws RiveIncompatibleResourceException If this state machine is owned by another worker.
      */
-    internal fun isOwnedBy(worker: RiveWorker): Boolean = riveWorker === worker
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireOwnedBy(worker: RiveWorker) {
+        if (riveWorker !== worker) {
+            throw RiveIncompatibleResourceException(
+                "StateMachine $stateMachineHandle is not owned by the required RiveWorker"
+            )
+        }
+    }
 
     /**
-     * Whether this state machine was created from [artboard].
+     * Requires this state machine to have been created from [artboard].
      *
-     * Useful for validating resource compatibility before rendering.
+     * This compatibility check assumes callers have already verified that both resources are
+     * open.
      *
-     * @param artboard An artboard to check the state machine's artboard against.
-     * @return true if this state machine was created from [artboard], false otherwise.
+     * @param artboard The artboard required to own this state machine.
+     * @throws RiveIncompatibleResourceException If this state machine was created from another
+     *    artboard.
      */
-    internal fun isFromArtboard(artboard: Artboard): Boolean =
-        artboardHandle == artboard.artboardHandle
+    @Throws(RiveIncompatibleResourceException::class)
+    internal fun requireFromArtboard(artboard: Artboard) {
+        if (riveWorker !== artboard.riveWorker || artboardHandle != artboard.artboardHandle) {
+            throw RiveIncompatibleResourceException(
+                "StateMachine $stateMachineHandle was not created from " +
+                        "Artboard ${artboard.artboardHandle}"
+            )
+        }
+    }
 
     /**
      * Marks this state machine as needing to be evaluated again without advancing it.
@@ -110,10 +144,16 @@ class StateMachine internal constructor(
      * This sets [settled] to false synchronously. It is safe to call repeatedly while the state
      * machine remains open; it will settle again when it has no meaningful changes left to apply.
      *
-     * @throws IllegalStateException If the state machine is no longer registered with its worker.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If the state machine is otherwise no longer registered with
+     *    its worker.
      */
-    @Throws(IllegalStateException::class)
-    internal fun unsettle() = riveWorker.unsettleStateMachine(stateMachineHandle)
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    internal fun unsettle() {
+        closer.checkOpen()
+        riveWorker.unsettleStateMachine(stateMachineHandle)
+    }
 
     /**
      * Advance the state machine by the given delta time in nanoseconds.
@@ -121,12 +161,12 @@ class StateMachine internal constructor(
      * This is a fire-and-forget operation once the advance has been queued.
      *
      * @param deltaTime The delta time to advance the state machine by.
-     * @throws IllegalStateException If this state machine has been closed or its worker has been
-     *    released.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
      */
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun advance(deltaTime: Duration) {
-        check(!closer.closed) { "Cannot advance a closed StateMachine" }
+        closer.checkOpen()
         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
     }
 }
@@ -141,7 +181,10 @@ class StateMachine internal constructor(
  * @param stateMachineName The name of the state machine to load. If null, the default state machine
  *    will be loaded.
  * @return The created [StateMachine].
+ * @throws RiveResourceClosedException If [artboard] has been closed or its Rive worker has been
+ *    disposed.
  */
+@Throws(RiveResourceClosedException::class)
 @Composable
 fun rememberStateMachine(
     artboard: Artboard,

@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.nanoseconds
 
 private typealias PointerFn = (StateMachineHandle, Fit, Float, Float, Int, Float, Float) -> Unit
@@ -68,7 +69,8 @@ annotation class ExperimentalHardwareBitmapRendering
  * of [draw], and will be mapped into the render region.
  *
  * All instance methods are expected to be called on Android's main thread. Calling instance methods
- * after [close] throws [IllegalStateException] (except repeated [close], which remains idempotent).
+ * after [close] throws [RiveResourceClosedException] (except repeated [close], which remains
+ * idempotent).
  *
  * Call [setRegion] with the destination rectangle where frames should be presented. The render
  * buffer dimensions are derived from this region's width and height.
@@ -77,8 +79,8 @@ annotation class ExperimentalHardwareBitmapRendering
  *
  * This session is backed by a [HardwareRenderBuffer]. It owns that buffer's lifecycle and frame
  * loop, but not the supplied Rive resources. These must be created and closed by the caller, and
- * must outlive this session. The session will check that the supplied resources are from the
- * same [RiveWorker] instance, but does not check that they are valid or properly initialized.
+ * must outlive this session. The session verifies that the supplied resources are open and have
+ * compatible ownership and ancestry, but cannot otherwise verify their native initialization.
  *
  * The supplied [riveWorker] must be polled for messages. This is done separately from this session
  * using [RiveWorker.beginPolling][CommandQueue.beginPolling], so that the caller can manage the
@@ -89,16 +91,27 @@ annotation class ExperimentalHardwareBitmapRendering
  * @param artboard The artboard to render. Must be from the supplied [riveWorker].
  * @param stateMachine The state machine to advance and render. Must be from the supplied
  *    [artboard].
- * @param viewModelInstance An optional view model instance to bind to the state machine. Must be
- *    from the supplied [riveWorker].
+ * @param viewModelInstance An optional view model instance to bind to the state machine. It must be
+ *    from the supplied [riveWorker]. An instance from another file is supported only when the state
+ *    machine uses relative data-binding paths authored in the Rive editor. Cross-file binding with
+ *    absolute paths is unsupported.
  * @param fit The [Fit] to use when rendering. This controls how the artboard is scaled to fit the
  *    target surface. Defaults to [RenderingDefaults.defaultFit].
  * @param clearColor The color used to clear the draw region before drawing each frame. Defaults to
  *    [RenderingDefaults.CLEAR_COLOR].
+ * @throws RiveResourceClosedException If the Rive worker has been disposed or a supplied Rive
+ *    resource has been closed.
+ * @throws RiveIncompatibleResourceException If the supplied resources do not have compatible
+ *    ownership or ancestry.
+ * @throws IllegalStateException If hardware rendering is unsupported.
  */
 @ExperimentalHardwareBitmapRendering
 @RequiresApi(Build.VERSION_CODES.Q)
-class RiveCanvasSession(
+class RiveCanvasSession @Throws(
+    RiveResourceClosedException::class,
+    RiveIncompatibleResourceException::class,
+    IllegalStateException::class
+) constructor(
     private val riveWorker: RiveWorker,
     private val artboard: Artboard,
     private val stateMachine: StateMachine,
@@ -118,20 +131,15 @@ class RiveCanvasSession(
     }
 
     init {
+        riveWorker.checkOpen()
+        artboard.checkOpen()
+        stateMachine.checkOpen()
+        viewModelInstance?.checkOpen()
+        artboard.requireOwnedBy(riveWorker)
+        stateMachine.requireFromArtboard(artboard)
+        viewModelInstance?.requireOwnedBy(riveWorker)
         check(isSupported()) {
             "RiveCanvasSession requires API 29+ hardware bitmap support"
-        }
-        require(artboard.isOwnedBy(riveWorker)) {
-            "RiveCanvasSession artboard must use the same RiveWorker"
-        }
-        require(stateMachine.isOwnedBy(riveWorker)) {
-            "RiveCanvasSession state machine must use the same RiveWorker"
-        }
-        require(stateMachine.isFromArtboard(artboard)) {
-            "RiveCanvasSession state machine must be created from the supplied artboard"
-        }
-        require(viewModelInstance?.isOwnedBy(riveWorker) != false) {
-            "RiveCanvasSession view model instance must use the same RiveWorker"
         }
         RiveLog.d(TAG) {
             "Creating RiveCanvasSession with artboard '${artboard.name}'" +
@@ -228,13 +236,21 @@ class RiveCanvasSession(
      *
      * If only the region position changed, drawing and pointer mapping update without recreation.
      *
-     * @throws IllegalStateException If this session has been closed.
+     * @throws RiveResourceClosedException If this session or a supplied Rive resource has been
+     *    closed, or if the owning Rive worker has been disposed.
+     * @throws IllegalStateException If the state machine is no longer registered with its worker.
      * @throws IllegalArgumentException If the region has negative width or height.
+     * @throws RiveRenderException If a replacement hardware render surface cannot be created.
      */
     @MainThread
-    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        IllegalStateException::class,
+        IllegalArgumentException::class,
+        RiveRenderException::class
+    )
     fun setRegion(region: Rect) {
-        check(!closer.closed) { "RiveCanvasSession is closed" }
+        closer.checkOpen()
         require(region.width() >= 0 && region.height() >= 0) {
             "Region must have non-negative dimensions: $region"
         }
@@ -306,18 +322,26 @@ class RiveCanvasSession(
      * Ensure [setRegion] has been called with a valid region before calling this. Without a valid
      * region, the state machine will not be advanced and no frames will be rendered.
      *
-     * @throws IllegalStateException If this session has been closed at the time of calling or is
-     *    already playing, or if its active render surface is closed while submitting render work.
+     * @throws RiveResourceClosedException If this session or a Rive resource used while rendering
+     *    has been closed, or if the owning Rive worker has been disposed.
+     * @throws IllegalStateException If this session is already playing or the state machine is no
+     *    longer registered with its worker.
      * @throws RiveRenderException If hardware first-frame publication times out or image
      *    acquisition fails.
+     * @throws CancellationException If the coroutine is cancelled while playing.
      */
     @MainThread
-    @Throws(IllegalStateException::class, RiveRenderException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        IllegalStateException::class,
+        RiveRenderException::class,
+        CancellationException::class
+    )
     suspend fun beginPlaying(
         lifecycle: Lifecycle,
         ticker: FrameTicker = ChoreographerFrameTicker
     ) {
-        check(!closer.closed) { "RiveCanvasSession is closed" }
+        closer.checkOpen()
         check(!isPlaying) {
             "beginPlaying() is already running for this RiveCanvasSession"
         }
@@ -463,13 +487,13 @@ class RiveCanvasSession(
      *
      * ⚠️ The supplied canvas must be hardware accelerated.
      *
-     * @throws IllegalStateException If this session has been closed.
+     * @throws RiveResourceClosedException If this session has been closed.
      * @throws IllegalArgumentException If the destination canvas is not hardware-accelerated.
      */
     @MainThread
-    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+    @Throws(RiveResourceClosedException::class, IllegalArgumentException::class)
     fun draw(canvas: Canvas) {
-        check(!closer.closed) { "RiveCanvasSession is closed" }
+        closer.checkOpen()
         require(canvas.isHardwareAccelerated) {
             "RiveCanvasSession requires a hardware-accelerated canvas to draw hardware bitmaps"
         }
@@ -497,12 +521,13 @@ class RiveCanvasSession(
      * configured draw region set with [setRegion] before forwarding to Rive.
      *
      * @return true when this session handled the event type.
-     * @throws IllegalStateException If this session has been closed.
+     * @throws RiveResourceClosedException If this session has been closed or the owning Rive worker
+     *    has been disposed.
      */
     @MainThread
-    @Throws(IllegalStateException::class)
+    @Throws(RiveResourceClosedException::class)
     fun onTouchEvent(event: MotionEvent): Boolean {
-        check(!closer.closed) { "RiveCanvasSession is closed" }
+        closer.checkOpen()
 
         if (renderRegion.isEmpty) {
             return false

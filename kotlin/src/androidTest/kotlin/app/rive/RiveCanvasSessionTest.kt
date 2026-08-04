@@ -62,10 +62,21 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         withPlayingSession {
             close()
 
+            assertFailsWith<RiveResourceClosedException>(
+                "setRegion should fail after close"
+            ) {
+                session.setRegion(Rect(0, 0, 64, 64))
+            }
+            assertFailsWith<RiveResourceClosedException>(
+                "beginPlaying should fail after close"
+            ) {
+                session.beginPlaying(lifecycle)
+            }
+
             val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
             try {
                 val softwareCanvas = Canvas(bitmap)
-                assertFailsWith<IllegalStateException>(
+                assertFailsWith<RiveResourceClosedException>(
                     "Draw should fail after close"
                 ) {
                     session.draw(softwareCanvas)
@@ -84,7 +95,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                 0
             )
             try {
-                assertFailsWith<IllegalStateException>(
+                assertFailsWith<RiveResourceClosedException>(
                     "Touch should fail after close"
                 ) {
                     session.onTouchEvent(postCloseDown)
@@ -263,6 +274,10 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         private val startPlaying: () -> Job,
         private val frameCollector: Job,
     ) {
+        /** Lifecycle supplied to [RiveCanvasSession.beginPlaying]. */
+        val lifecycle: Lifecycle
+            get() = lifecycleOwner.lifecycle
+
         /** @return The number of public [RiveCanvasSession.frameAvailable] events observed. */
         fun currentFrameCount(): Int = frameCount.get()
 

@@ -11,6 +11,7 @@ import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.Fit
 import app.rive.RiveAndroidTest
+import app.rive.RiveResourceClosedException
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -153,8 +154,8 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
 
         surface.close()
 
-        assertFailsWith<IllegalStateException>(
-            "Expected draw to a closed surface to throw IllegalStateException"
+        assertFailsWith<RiveResourceClosedException>(
+            "Expected draw to a closed surface to throw RiveResourceClosedException"
         ) {
             riveWorker.draw(
                 ArtboardHandle(1),
@@ -163,6 +164,35 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
                 Fit.Contain(),
                 Color.TRANSPARENT
             )
+        }
+    }
+
+    @Test
+    @Suppress("DEPRECATION") // Deliberately exercise the compatibility-only pointer API.
+    fun nativePointerClose_closesSurfaceLifecycle() {
+        val surface = riveWorker.createImageSurface(64, 64)
+        try {
+            surface.surfaceNativePointer.close()
+
+            assertTrue(surface.closed)
+            assertFailsWith<RiveResourceClosedException>(
+                "Expected a surface with a closed native pointer to reject lifecycle checks"
+            ) {
+                surface.checkOpen()
+            }
+            assertFailsWith<RiveResourceClosedException>(
+                "Expected draw to reject a surface with a closed native pointer"
+            ) {
+                riveWorker.draw(
+                    ArtboardHandle(1),
+                    StateMachineHandle(1),
+                    surface,
+                    Fit.Contain(),
+                    Color.TRANSPARENT
+                )
+            }
+        } finally {
+            surface.close()
         }
     }
 
