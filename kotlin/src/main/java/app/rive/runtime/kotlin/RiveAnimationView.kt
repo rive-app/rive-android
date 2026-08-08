@@ -395,6 +395,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     loop = rendererAttributes.loop,
                     autoplay = rendererAttributes.autoplay,
                 )
+                controller.layoutScaleFactorAutomatic = resources.displayMetrics.density
                 /**
                  * Attach the observer to give us lifecycle hooks.
                  *
