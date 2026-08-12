@@ -6,12 +6,17 @@ import app.rive.core.FileHandle
 import app.rive.core.StateMachineHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.ZERO
 
 private const val STATE_MACHINE_TEST_FILE_HANDLE = 789L
@@ -20,6 +25,71 @@ class StateMachineUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
     val renderContextMock = fixture.renderContextMock
     val commandQueueBridgeMock = fixture.commandQueueBridgeMock
+
+    test("Factory returns a named state machine") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val artboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val handle = StateMachineHandle(HANDLE_NUM)
+        coEvery {
+            worker.createStateMachineByNameConfirmed(
+                artboard.artboardHandle,
+                "Named State Machine",
+            )
+        } returns handle
+        every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+
+        val stateMachine = StateMachine.create(artboard, "Named State Machine")
+
+        stateMachine.stateMachineHandle shouldBe handle
+        stateMachine.name shouldBe "Named State Machine"
+        coVerify(exactly = 1) {
+            worker.createStateMachineByNameConfirmed(
+                artboard.artboardHandle,
+                "Named State Machine",
+            )
+        }
+    }
+
+    test("Factory propagates creation failure") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val artboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val error = RiveArtboardException("Missing state machine")
+        coEvery {
+            worker.createDefaultStateMachineConfirmed(artboard.artboardHandle)
+        } throws error
+
+        shouldThrow<RiveArtboardException> {
+            StateMachine.create(artboard)
+        } shouldBe error
+    }
+
+    test("Factory propagates cancellation") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val artboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val cancellation = CancellationException("Cancelled state machine creation")
+        coEvery {
+            worker.createDefaultStateMachineConfirmed(artboard.artboardHandle)
+        } throws cancellation
+
+        shouldThrow<CancellationException> {
+            StateMachine.create(artboard)
+        } shouldBe cancellation
+    }
 
     test("Compatibility helpers reject another worker or artboard") {
         val worker = mockk<CommandQueue>(relaxed = true)

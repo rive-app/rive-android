@@ -6,16 +6,62 @@ import app.rive.core.FileHandle
 import app.rive.core.RiveSurface
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.mockk.every
+import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val TEST_FILE_HANDLE = 123L
 private const val TEST_ARTBOARD_HANDLE = 456L
 
 class ArtboardUnitTest : FunSpec({
+    test("Factory returns a named artboard") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        coEvery {
+            worker.createArtboardByNameConfirmed(file.fileHandle, "Named Artboard")
+        } returns handle
+
+        val artboard = Artboard.create(file, "Named Artboard")
+
+        artboard.artboardHandle shouldBe handle
+        artboard.name shouldBe "Named Artboard"
+        coVerify(exactly = 1) {
+            worker.createArtboardByNameConfirmed(file.fileHandle, "Named Artboard")
+        }
+    }
+
+    test("Factory propagates creation failure") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val error = RiveFileException("Missing artboard")
+        coEvery {
+            worker.createDefaultArtboardConfirmed(file.fileHandle)
+        } throws error
+
+        shouldThrow<RiveFileException> {
+            Artboard.create(file)
+        } shouldBe error
+    }
+
+    test("Factory propagates cancellation") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val cancellation = CancellationException("Cancelled")
+        coEvery {
+            worker.createDefaultArtboardConfirmed(file.fileHandle)
+        } throws cancellation
+
+        shouldThrow<CancellationException> {
+            Artboard.create(file)
+        } shouldBe cancellation
+    }
+
     test("Compatibility helpers reject another worker or file") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val foreignWorker = mockk<CommandQueue>(relaxed = true)

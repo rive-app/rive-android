@@ -60,7 +60,7 @@ internal interface AssetOps<H, A : Asset<H>> {
     /** Unregister the asset from the provided Rive worker for the given key. */
     fun unregister(worker: RiveWorker, key: String) {}
 
-    /** Construct the asset by taking ownership of the worker reference acquired by [Asset.fromBytes]. */
+    /** Construct the asset by taking ownership of the worker reference acquired by the factory. */
     fun construct(handle: H, worker: RiveWorker): A
 }
 
@@ -134,27 +134,39 @@ sealed class Asset<H>(
          * @param ops The operations for managing the asset type.
          * @param riveWorker The Rive worker that owns the asset.
          * @param bytes The byte array containing the asset data to decode.
-         * @return The [Result] of the asset decoding, which can be either loading, error, or
-         *    success with the decoded asset.
+         * @return The decoded asset.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
-        internal suspend fun <H, A : Asset<H>> fromBytes(
+        internal suspend fun <H, A : Asset<H>> createAsset(
             ops: AssetOps<H, A>,
             riveWorker: RiveWorker,
             bytes: ByteArray,
-        ): Result<A> {
+        ): A {
             RiveLog.d(ops.tag) { "Decoding ${ops.label}" }
-            riveWorker.acquire(ops.tag)
+            var workerReferenceAcquired = false // A failed acquire must not be balanced by release.
+            // The factory owns a decoded handle until construction transfers it to the asset.
+            var decodedHandle: H? = null
             return try {
+                riveWorker.acquire(ops.tag)
+                workerReferenceAcquired = true
                 val handle = ops.decode(riveWorker, bytes)
-                Result.Success(ops.construct(handle, riveWorker))
+                decodedHandle = handle
+                ops.construct(handle, riveWorker)
             } catch (ce: CancellationException) {
                 RiveLog.d(ops.tag) { "Decoding ${ops.label} was cancelled." }
-                riveWorker.release(ops.tag, "Cancellation")
+                if (workerReferenceAcquired) {
+                    decodedHandle?.let { ops.delete(riveWorker, it) }
+                    riveWorker.release(ops.tag, "Cancellation")
+                }
                 throw ce
             } catch (e: Exception) {
                 RiveLog.e(ops.tag, e) { "Failed to decode ${ops.label}." }
-                riveWorker.release(ops.tag, "Decode error")
-                Result.Error(e)
+                if (workerReferenceAcquired) {
+                    decodedHandle?.let { ops.delete(riveWorker, it) }
+                    riveWorker.release(ops.tag, "Decode error")
+                }
+                throw e
             }
         }
     }
@@ -209,10 +221,10 @@ class ImageAsset private constructor(
      * @param handle The handle to the image on the command server.
      * @param worker The Rive worker that owns the image.
      * @throws RiveResourceClosedException If [worker] has been disposed.
-     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     * @deprecated Use [create]. Raw-handle construction will become internal in 12.0.
      */
     @Deprecated(
-        "Raw-handle image construction will become internal in 12.0. Use ImageAsset.fromBytes()."
+        "Raw-handle image construction will become internal in 12.0. Use ImageAsset.create()."
     )
     @Throws(RiveResourceClosedException::class)
     constructor(handle: ImageHandle, worker: RiveWorker) : this(
@@ -222,7 +234,7 @@ class ImageAsset private constructor(
 
     companion object : AssetOps<ImageHandle, ImageAsset> {
         /**
-         * Create and decode an image asset from the given byte array on the provided Rive worker.
+         * Creates and decodes an image asset from the given byte array on the provided Rive worker.
          *
          * The image can only be used on the same [RiveWorker] it was created on.
          *
@@ -234,15 +246,48 @@ class ImageAsset private constructor(
          * to [riveWorker], so closing it is required before the worker can fully release memory
          * associated with this image.
          *
+         * This is the replacement for [fromBytes]. Its temporary name avoids a
+         * source-incompatible overload; it will be renamed to `fromBytes` in 12.0 when the
+         * result-returning API is removed.
+         *
          * @param riveWorker The Rive worker that owns the image.
          * @param bytes The byte array containing the image data to decode.
-         * @return The [Result] of the image decoding. Decode failures are returned as
-         *    [Result.Error] containing a [RiveImageException].
+         * @return The decoded image asset.
+         * @throws RiveImageException If [bytes] cannot be decoded as an image.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
          * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(
+            RiveImageException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): ImageAsset =
+            createAsset(this, riveWorker, bytes)
+
+        /**
+         * Decodes an image asset from [bytes].
+         *
+         * @param riveWorker The Rive worker that owns the image.
+         * @param bytes The encoded image bytes.
+         * @return A success containing the decoded image, or an error if decoding fails. The
+         *    loading state is not returned by this suspending function.
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
+         * @deprecated Use [create]. This result-returning implementation will be removed in 12.0,
+         *    when [create] will be renamed to `fromBytes` and return the image directly.
+         */
         @Throws(CancellationException::class)
-        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<ImageAsset> =
-            fromBytes(this, riveWorker, bytes)
+        @Deprecated(
+            "Use create. This result-returning implementation will be removed in 12.0, when " +
+                "create will be renamed to fromBytes and return the image directly."
+        )
+        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<ImageAsset> = try {
+            Result.Success(create(riveWorker, bytes))
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
 
         override val tag = IMAGE_TAG
         override val label = "image"
@@ -277,10 +322,10 @@ class AudioAsset private constructor(
      * @param handle The handle to the audio on the command server.
      * @param worker The Rive worker that owns the audio.
      * @throws RiveResourceClosedException If [worker] has been disposed.
-     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     * @deprecated Use [create]. Raw-handle construction will become internal in 12.0.
      */
     @Deprecated(
-        "Raw-handle audio construction will become internal in 12.0. Use AudioAsset.fromBytes()."
+        "Raw-handle audio construction will become internal in 12.0. Use AudioAsset.create()."
     )
     @Throws(RiveResourceClosedException::class)
     constructor(handle: AudioHandle, worker: RiveWorker) : this(
@@ -290,7 +335,7 @@ class AudioAsset private constructor(
 
     companion object : AssetOps<AudioHandle, AudioAsset> {
         /**
-         * Create and decode an audio asset from the given byte array on the provided Rive worker.
+         * Creates and decodes an audio asset from the given byte array on the provided Rive worker.
          *
          * The audio can only be used on the same [RiveWorker] it was created on.
          *
@@ -302,15 +347,48 @@ class AudioAsset private constructor(
          * to [riveWorker], so closing it is required before the worker can fully release memory
          * associated with this audio.
          *
+         * This is the replacement for [fromBytes]. Its temporary name avoids a
+         * source-incompatible overload; it will be renamed to `fromBytes` in 12.0 when the
+         * result-returning API is removed.
+         *
          * @param riveWorker The Rive worker that owns the audio.
          * @param bytes The byte array containing the audio data to decode.
-         * @return The [Result] of the audio decoding. Decode failures are returned as
-         *    [Result.Error] containing a [RiveAudioException].
+         * @return The decoded audio asset.
+         * @throws RiveAudioException If [bytes] cannot be decoded as audio.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
          * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(
+            RiveAudioException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): AudioAsset =
+            createAsset(this, riveWorker, bytes)
+
+        /**
+         * Decodes an audio asset from [bytes].
+         *
+         * @param riveWorker The Rive worker that owns the audio.
+         * @param bytes The encoded audio bytes.
+         * @return A success containing the decoded audio, or an error if decoding fails. The
+         *    loading state is not returned by this suspending function.
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
+         * @deprecated Use [create]. This result-returning implementation will be removed in 12.0,
+         *    when [create] will be renamed to `fromBytes` and return the audio directly.
+         */
         @Throws(CancellationException::class)
-        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<AudioAsset> =
-            fromBytes(this, riveWorker, bytes)
+        @Deprecated(
+            "Use create. This result-returning implementation will be removed in 12.0, when " +
+                "create will be renamed to fromBytes and return the audio directly."
+        )
+        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<AudioAsset> = try {
+            Result.Success(create(riveWorker, bytes))
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
 
         override val tag = AUDIO_TAG
         override val label = "audio"
@@ -345,10 +423,10 @@ class FontAsset private constructor(
      * @param handle The handle to the font on the command server.
      * @param worker The Rive worker that owns the font.
      * @throws RiveResourceClosedException If [worker] has been disposed.
-     * @deprecated Use [fromBytes]. Raw-handle construction will become internal in 12.0.
+     * @deprecated Use [create]. Raw-handle construction will become internal in 12.0.
      */
     @Deprecated(
-        "Raw-handle font construction will become internal in 12.0. Use FontAsset.fromBytes()."
+        "Raw-handle font construction will become internal in 12.0. Use FontAsset.create()."
     )
     @Throws(RiveResourceClosedException::class)
     constructor(handle: FontHandle, worker: RiveWorker) : this(
@@ -358,7 +436,7 @@ class FontAsset private constructor(
 
     companion object : AssetOps<FontHandle, FontAsset> {
         /**
-         * Create and decode a font asset from the given byte array on the provided Rive worker.
+         * Creates and decodes a font asset from the given byte array on the provided Rive worker.
          *
          * The font can only be used on the same [RiveWorker] it was created on.
          *
@@ -370,15 +448,48 @@ class FontAsset private constructor(
          * to [riveWorker], so closing it is required before the worker can fully release memory
          * associated with this font.
          *
+         * This is the replacement for [fromBytes]. Its temporary name avoids a
+         * source-incompatible overload; it will be renamed to `fromBytes` in 12.0 when the
+         * result-returning API is removed.
+         *
          * @param riveWorker The Rive worker that owns the font.
          * @param bytes The byte array containing the font data to decode.
-         * @return The [Result] of the font decoding. Decode failures are returned as
-         *    [Result.Error] containing a [RiveFontException].
+         * @return The decoded font asset.
+         * @throws RiveFontException If [bytes] cannot be decoded as a font.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
          * @throws CancellationException If the coroutine is cancelled before decoding completes.
          */
+        @Throws(
+            RiveFontException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): FontAsset =
+            createAsset(this, riveWorker, bytes)
+
+        /**
+         * Decodes a font asset from [bytes].
+         *
+         * @param riveWorker The Rive worker that owns the font.
+         * @param bytes The encoded font bytes.
+         * @return A success containing the decoded font, or an error if decoding fails. The loading
+         *    state is not returned by this suspending function.
+         * @throws CancellationException If the coroutine is cancelled before decoding completes.
+         * @deprecated Use [create]. This result-returning implementation will be removed in 12.0,
+         *    when [create] will be renamed to `fromBytes` and return the font directly.
+         */
         @Throws(CancellationException::class)
-        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<FontAsset> =
-            fromBytes(this, riveWorker, bytes)
+        @Deprecated(
+            "Use create. This result-returning implementation will be removed in 12.0, when " +
+                "create will be renamed to fromBytes and return the font directly."
+        )
+        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): Result<FontAsset> = try {
+            Result.Success(create(riveWorker, bytes))
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
 
         override val tag = FONT_TAG
         override val label = "font"
@@ -413,13 +524,13 @@ class FontAsset private constructor(
  * @param riveWorker The Rive worker that owns and performs operations on this image.
  * @param bytes The byte array containing the image data to decode.
  * @return The [Result] of the image decoding, which can be either loading, error, or success with
- *    the [ImageHandle].
+ *    the [ImageAsset].
  */
 @Composable
 fun rememberImage(
     riveWorker: RiveWorker,
     bytes: ByteArray,
-): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::fromBytes)
+): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::create)
 
 /**
  * Decode and register an image from the given [bytes] on the provided [RiveWorker]. The decoded
@@ -436,14 +547,14 @@ fun rememberImage(
  *    Rive file.
  * @param bytes The byte array containing the image data to decode.
  * @return The [Result] of the image decoding and registration, which can be either loading, error,
- *    or success with the [ImageHandle].
+ *    or success with the [ImageAsset].
  */
 @Composable
 fun rememberRegisteredImage(
     riveWorker: RiveWorker,
     key: String,
     bytes: ByteArray,
-): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::fromBytes, key)
+): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::create, key)
 
 /**
  * Decode audio from the given [bytes] on the provided [RiveWorker]. The decoded audio can only be
@@ -459,13 +570,13 @@ fun rememberRegisteredImage(
  * @param riveWorker The Rive worker that owns and performs operations on this audio.
  * @param bytes The byte array containing the audio data to decode.
  * @return The [Result] of the audio decoding, which can be either loading, error, or success with
- *    the [AudioHandle].
+ *    the [AudioAsset].
  */
 @Composable
 fun rememberAudio(
     riveWorker: RiveWorker,
     bytes: ByteArray,
-): Result<AudioAsset> = rememberAsset(riveWorker, bytes, constructFn = AudioAsset::fromBytes)
+): Result<AudioAsset> = rememberAsset(riveWorker, bytes, constructFn = AudioAsset::create)
 
 /**
  * Decode and register audio from the given [bytes] on the provided [riveWorker]. The decoded audio
@@ -482,14 +593,14 @@ fun rememberAudio(
  *    Rive file.
  * @param bytes The byte array containing the audio data to decode.
  * @return The [Result] of the audio decoding and registration, which can be either loading, error,
- *    or success with the [AudioHandle].
+ *    or success with the [AudioAsset].
  */
 @Composable
 fun rememberRegisteredAudio(
     riveWorker: RiveWorker,
     key: String,
     bytes: ByteArray,
-): Result<AudioAsset> = rememberAsset(riveWorker, bytes, AudioAsset::fromBytes, key)
+): Result<AudioAsset> = rememberAsset(riveWorker, bytes, AudioAsset::create, key)
 
 /**
  * Decode a font from the given [bytes] on the provided [RiveWorker]. The decoded font can only be
@@ -505,13 +616,13 @@ fun rememberRegisteredAudio(
  * @param riveWorker The Rive worker that owns and performs operations on this font.
  * @param bytes The byte array containing the font data to decode.
  * @return The [Result] of the font decoding, which can be either loading, error, or success with
- *    the [FontHandle].
+ *    the [FontAsset].
  */
 @Composable
 fun rememberFont(
     riveWorker: RiveWorker,
     bytes: ByteArray,
-): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::fromBytes)
+): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::create)
 
 /**
  * Decode and register a font from the given [bytes] on the provided [RiveWorker]. The decoded font
@@ -528,14 +639,14 @@ fun rememberFont(
  *    a Rive file.
  * @param bytes The byte array containing the font data to decode.
  * @return The [Result] of the font decoding and registration, which can be either loading, error,
- *    or success with the [FontHandle].
+ *    or success with the [FontAsset].
  */
 @Composable
 fun rememberRegisteredFont(
     riveWorker: RiveWorker,
     name: String,
     bytes: ByteArray,
-): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::fromBytes, name)
+): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::create, name)
 
 /**
  * Internal helper to unify the implementation of asset loading and registering.
@@ -556,23 +667,50 @@ fun rememberRegisteredFont(
 private fun <T : Asset<H>, H> rememberAsset(
     riveWorker: RiveWorker,
     bytes: ByteArray,
-    constructFn: (suspend (RiveWorker, ByteArray) -> Result<T>),
+    constructFn: suspend (RiveWorker, ByteArray) -> T,
     key: String? = null
 ): Result<T> = produceState<Result<T>>(Result.Loading, riveWorker, bytes, key) {
-    val asset = constructFn(riveWorker, bytes)
-
-    if (key != null && asset is Result.Success) {
-        asset.value.register(key)
+    val asset = try {
+        constructFn(riveWorker, bytes)
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        value = Result.Error(e)
+        return@produceState
     }
 
-    value = asset
+    if (key != null) {
+        try {
+            asset.register(key)
+        } catch (ce: CancellationException) {
+            try {
+                asset.close()
+            } catch (closeFailure: Exception) {
+                ce.addSuppressed(closeFailure)
+            }
+            throw ce
+        } catch (e: Exception) {
+            try {
+                asset.close()
+            } catch (closeFailure: Exception) {
+                e.addSuppressed(closeFailure)
+            }
+            value = Result.Error(e)
+            return@produceState
+        }
+    }
+
+    value = Result.Success(asset)
 
     awaitDispose {
-        if (asset !is Result.Success) return@awaitDispose
-
         if (key != null) {
-            asset.value.unregister(key)
+            try {
+                asset.unregister(key)
+            } finally {
+                asset.close()
+            }
+        } else {
+            asset.close()
         }
-        asset.value.close()
     }
 }.value

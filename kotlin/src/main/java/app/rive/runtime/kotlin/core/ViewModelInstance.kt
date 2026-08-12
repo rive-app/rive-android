@@ -1003,12 +1003,14 @@ class ViewModelArtboardProperty(
      * @throws RiveException if [artboard] has been disposed, if its file doesn't exist, or if its
      *    file has been disposed.
      * @deprecated This method is unsafe as the [artboard]'s lifetime is bound to that of the [File]
-     *    that created it. Use a [BindableArtboard] to ensure proper lifetimes.
+     *    that created it. Use a [BindableArtboard] to ensure proper lifetimes. This method will be
+     *    removed in 12.0.
      */
     @Throws(RiveException::class)
     @Deprecated(
         "This method is unsafe as the Artboard's lifetime is bound to that of the File " +
-                "that created it. Use a BindableArtboard to ensure proper lifetimes.",
+                "that created it. Use a BindableArtboard to ensure proper lifetimes. This method " +
+                "will be removed in 12.0.",
         ReplaceWith("set(bindableArtboard)")
     )
     fun set(artboard: Artboard) = withLock {

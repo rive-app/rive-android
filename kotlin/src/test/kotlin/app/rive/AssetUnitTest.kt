@@ -10,12 +10,16 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.clearMocks
 import io.mockk.confirmVerified
+import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlin.coroutines.cancellation.CancellationException
 
 private const val TEST_IMAGE_HANDLE = 101L
@@ -23,54 +27,90 @@ private const val TEST_AUDIO_HANDLE = 102L
 private const val TEST_FONT_HANDLE = 103L
 
 class AssetUnitTest : FunSpec({
-    test("Image decode preserves its typed exception in the result") {
+    assetFactoryCases.forEach { case ->
+        test("${case.name} factory returns a decoded asset") {
+            val worker = mockk<CommandQueue>(relaxed = true)
+            case.stubSuccess(worker)
+
+            val asset = case.create(worker)
+
+            asset.handle shouldBe case.handle
+            verify(exactly = 1) { worker.acquire(any()) }
+            verify(exactly = 0) { worker.release(any(), any()) }
+            asset.close()
+        }
+
+        test("${case.name} factory propagates decoding failure") {
+            val worker = mockk<CommandQueue>(relaxed = true)
+            val error = case.createFailure()
+            case.stubFailure(worker, error)
+
+            shouldThrow<Exception> {
+                case.create(worker)
+            } shouldBe error
+
+            verify(exactly = 1) { worker.acquire(any()) }
+            verify(exactly = 1) { worker.release(any(), "Decode error") }
+        }
+
+        test("${case.name} factory propagates cancellation") {
+            val worker = mockk<CommandQueue>(relaxed = true)
+            val cancellation = CancellationException("Cancelled ${case.name.lowercase()} decode")
+            case.stubFailure(worker, cancellation)
+
+            shouldThrow<CancellationException> {
+                case.create(worker)
+            } shouldBe cancellation
+
+            verify(exactly = 1) { worker.acquire(any()) }
+            verify(exactly = 1) { worker.release(any(), "Cancellation") }
+        }
+    }
+
+    test("Asset factory propagates worker acquisition failure without releasing") {
         val worker = mockk<CommandQueue>(relaxed = true)
-        coEvery { worker.decodeImage(any()) } throws RiveImageException("Invalid image")
+        val expected = RiveResourceClosedException("RiveWorker is disposed")
+        every { worker.acquire(any()) } throws expected
+
+        shouldThrow<RiveResourceClosedException> {
+            ImageAsset.create(worker, byteArrayOf())
+        } shouldBe expected
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 0) { worker.release(any(), any()) }
+        coVerify(exactly = 0) { worker.decodeImage(any()) }
+    }
+
+    test("Asset factory deletes a decoded handle when construction fails") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val ops = mockk<AssetOps<ImageHandle, ImageAsset>>()
+        val handle = ImageHandle(TEST_IMAGE_HANDLE)
+        val expected = IllegalStateException("Construction failed")
+        every { ops.tag } returns "Test/Asset"
+        every { ops.label } returns "test asset"
+        coEvery { ops.decode(worker, any()) } returns handle
+        every { ops.construct(handle, worker) } throws expected
+        every { ops.delete(worker, handle) } just runs
+
+        shouldThrow<IllegalStateException> {
+            Asset.createAsset(ops, worker, byteArrayOf())
+        } shouldBe expected
+
+        verifyOrder {
+            ops.delete(worker, handle)
+            worker.release("Test/Asset", "Decode error")
+        }
+    }
+
+    test("Deprecated asset factory maps decode failure to an error result") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val expected = RiveImageException("Invalid image")
+        coEvery { worker.decodeImage(any()) } throws expected
 
         val result = ImageAsset.fromBytes(worker, byteArrayOf())
 
-        result.shouldBeInstanceOf<Result.Error>()
-            .throwable.shouldBeInstanceOf<RiveImageException>()
+        result shouldBe Result.Error(expected)
         verify(exactly = 1) { worker.acquire(any()) }
         verify(exactly = 1) { worker.release(any(), "Decode error") }
-    }
-
-    test("Audio decode preserves its typed exception in the result") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        coEvery { worker.decodeAudio(any()) } throws RiveAudioException("Invalid audio")
-
-        val result = AudioAsset.fromBytes(worker, byteArrayOf())
-
-        result.shouldBeInstanceOf<Result.Error>()
-            .throwable.shouldBeInstanceOf<RiveAudioException>()
-        verify(exactly = 1) { worker.acquire(any()) }
-        verify(exactly = 1) { worker.release(any(), "Decode error") }
-    }
-
-    test("Font decode preserves its typed exception in the result") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        coEvery { worker.decodeFont(any()) } throws RiveFontException("Invalid font")
-
-        val result = FontAsset.fromBytes(worker, byteArrayOf())
-
-        result.shouldBeInstanceOf<Result.Error>()
-            .throwable.shouldBeInstanceOf<RiveFontException>()
-        verify(exactly = 1) { worker.acquire(any()) }
-        verify(exactly = 1) { worker.release(any(), "Decode error") }
-    }
-
-    // Image decoding represents cancellation cleanup in the shared Asset.fromBytes implementation.
-    test("Asset decode cancellation releases its worker reference and propagates") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        val cancellation = CancellationException("Cancelled asset decode")
-        coEvery { worker.decodeImage(any()) } throws cancellation
-
-        shouldThrow<CancellationException> {
-            ImageAsset.fromBytes(worker, byteArrayOf())
-        } shouldBe cancellation
-
-        verify(exactly = 1) { worker.acquire(any()) }
-        verify(exactly = 1) { worker.release(any(), "Cancellation") }
     }
 
     assetReferenceCases.forEach { case ->
@@ -88,7 +128,7 @@ class AssetUnitTest : FunSpec({
 
         test("${case.name} factory transfers its worker reference to the asset") {
             val worker = mockk<CommandQueue>(relaxed = true)
-            val asset = case.fromBytes(worker)
+            val asset = case.create(worker)
 
             verify(exactly = 1) { worker.acquire(any()) }
             verify(exactly = 0) { worker.release(any(), any()) }
@@ -136,6 +176,54 @@ class AssetUnitTest : FunSpec({
     }
 })
 
+private data class AssetFactoryCase(
+    val name: String,
+    val handle: Any,
+    val create: suspend (CommandQueue) -> Asset<*>,
+    val createFailure: () -> Exception,
+    val stubSuccess: (CommandQueue) -> Unit,
+    val stubFailure: (CommandQueue, Throwable) -> Unit,
+)
+
+private val assetFactoryCases = listOf(
+    AssetFactoryCase(
+        name = "Image asset",
+        handle = ImageHandle(TEST_IMAGE_HANDLE),
+        create = { worker -> ImageAsset.create(worker, byteArrayOf()) },
+        createFailure = { RiveImageException("Invalid image") },
+        stubSuccess = { worker ->
+            coEvery { worker.decodeImage(any()) } returns ImageHandle(TEST_IMAGE_HANDLE)
+        },
+        stubFailure = { worker, error ->
+            coEvery { worker.decodeImage(any()) } throws error
+        },
+    ),
+    AssetFactoryCase(
+        name = "Audio asset",
+        handle = AudioHandle(TEST_AUDIO_HANDLE),
+        create = { worker -> AudioAsset.create(worker, byteArrayOf()) },
+        createFailure = { RiveAudioException("Invalid audio") },
+        stubSuccess = { worker ->
+            coEvery { worker.decodeAudio(any()) } returns AudioHandle(TEST_AUDIO_HANDLE)
+        },
+        stubFailure = { worker, error ->
+            coEvery { worker.decodeAudio(any()) } throws error
+        },
+    ),
+    AssetFactoryCase(
+        name = "Font asset",
+        handle = FontHandle(TEST_FONT_HANDLE),
+        create = { worker -> FontAsset.create(worker, byteArrayOf()) },
+        createFailure = { RiveFontException("Invalid font") },
+        stubSuccess = { worker ->
+            coEvery { worker.decodeFont(any()) } returns FontHandle(TEST_FONT_HANDLE)
+        },
+        stubFailure = { worker, error ->
+            coEvery { worker.decodeFont(any()) } throws error
+        },
+    ),
+)
+
 private data class ClosedAssetCase(
     val name: String,
     val handle: Long,
@@ -173,38 +261,32 @@ private val closedAssetCases = listOf(
 private data class AssetReferenceCase(
     val name: String,
     val construct: (CommandQueue) -> Asset<*>,
-    val fromBytes: suspend (CommandQueue) -> Asset<*>,
+    val create: suspend (CommandQueue) -> Asset<*>,
 )
 
 private val assetReferenceCases = listOf(
     AssetReferenceCase(
         name = "Image asset",
         construct = { worker -> ImageAsset(ImageHandle(TEST_IMAGE_HANDLE), worker) },
-        fromBytes = { worker ->
+        create = { worker ->
             coEvery { worker.decodeImage(any()) } returns ImageHandle(TEST_IMAGE_HANDLE)
-            ImageAsset.fromBytes(worker, byteArrayOf())
-                .shouldBeInstanceOf<Result.Success<ImageAsset>>()
-                .value
+            ImageAsset.create(worker, byteArrayOf())
         },
     ),
     AssetReferenceCase(
         name = "Audio asset",
         construct = { worker -> AudioAsset(AudioHandle(TEST_AUDIO_HANDLE), worker) },
-        fromBytes = { worker ->
+        create = { worker ->
             coEvery { worker.decodeAudio(any()) } returns AudioHandle(TEST_AUDIO_HANDLE)
-            AudioAsset.fromBytes(worker, byteArrayOf())
-                .shouldBeInstanceOf<Result.Success<AudioAsset>>()
-                .value
+            AudioAsset.create(worker, byteArrayOf())
         },
     ),
     AssetReferenceCase(
         name = "Font asset",
         construct = { worker -> FontAsset(FontHandle(TEST_FONT_HANDLE), worker) },
-        fromBytes = { worker ->
+        create = { worker ->
             coEvery { worker.decodeFont(any()) } returns FontHandle(TEST_FONT_HANDLE)
-            FontAsset.fromBytes(worker, byteArrayOf())
-                .shouldBeInstanceOf<Result.Success<FontAsset>>()
-                .value
+            FontAsset.create(worker, byteArrayOf())
         },
     ),
 )

@@ -217,11 +217,12 @@ abstract class Renderer(
      *
      * @deprecated This method is dangerous as it does not correctly manage the Surface's lifecycle,
      *    which can lead to application crashes. Its internal implementation has been patched to be
-     *    safer, but it will be removed in a future major version. Prefer using higher-level APIs
-     *    like `setRiveResource`.
+     *    safer, but it will be removed in 12.0. Prefer using higher-level APIs like
+     *    `setRiveResource`.
      */
     @Deprecated(
-        message = "This low-level method can cause crashes and will be removed. Prefer using higher-level APIs.",
+        message = "This low-level method can cause crashes and will be removed in 12.0. Prefer " +
+            "using higher-level APIs.",
         level = DeprecationLevel.WARNING
     )
     fun setSurface(surface: Surface) {

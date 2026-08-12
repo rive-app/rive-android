@@ -96,6 +96,27 @@ public:
                      jError.get());
     }
 
+    void onArtboardInstantiated(const rive::FileHandle,
+                                uint64_t requestID,
+                                rive::ArtboardHandle handle) override
+    {
+        m_queue.call("onArtboardInstantiated",
+                     "(JJ)V",
+                     requestID,
+                     longFromHandle(handle));
+    }
+
+    void onViewModelInstanceInstantiated(
+        const rive::FileHandle,
+        uint64_t requestID,
+        rive::ViewModelInstanceHandle handle) override
+    {
+        m_queue.call("onViewModelInstanceInstantiated",
+                     "(JJ)V",
+                     requestID,
+                     longFromHandle(handle));
+    }
+
     void onFileLoaded(const rive::FileHandle handle,
                       uint64_t requestID) override
     {
@@ -275,6 +296,16 @@ public:
                      "(JLjava/lang/String;)V",
                      requestID,
                      jError.get());
+    }
+
+    void onStateMachineInstantiated(const rive::ArtboardHandle,
+                                    uint64_t requestID,
+                                    rive::StateMachineHandle handle) override
+    {
+        m_queue.call("onStateMachineInstantiated",
+                     "(JJ)V",
+                     requestID,
+                     longFromHandle(handle));
     }
 
     void onStateMachinesListed(
@@ -1184,7 +1215,7 @@ extern "C"
         commandQueue->setTracingEnabled(static_cast<bool>(enabled));
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppLoadFile(JNIEnv* env,
                                                          jobject,
                                                          jlong ref,
@@ -1194,7 +1225,8 @@ extern "C"
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->loadFile(byteVec, nullptr, requestID);
+        return longFromHandle(
+            commandQueue->loadFile(byteVec, nullptr, requestID));
     }
 
     JNIEXPORT void JNICALL
@@ -2172,7 +2204,7 @@ extern "C"
             static_cast<int32_t>(indexB));
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppDecodeImage(JNIEnv* env,
                                                             jobject,
                                                             jlong ref,
@@ -2182,7 +2214,8 @@ extern "C"
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->decodeImage(byteVec, nullptr, requestID);
+        return longFromHandle(
+            commandQueue->decodeImage(byteVec, nullptr, requestID));
     }
 
     JNIEXPORT void JNICALL
@@ -2226,7 +2259,7 @@ extern "C"
         commandQueue->removeGlobalImageAsset(path);
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppDecodeAudio(JNIEnv* env,
                                                             jobject,
                                                             jlong ref,
@@ -2236,7 +2269,8 @@ extern "C"
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->decodeAudio(byteVec, nullptr, requestID);
+        return longFromHandle(
+            commandQueue->decodeAudio(byteVec, nullptr, requestID));
     }
 
     JNIEXPORT void JNICALL
@@ -2280,7 +2314,7 @@ extern "C"
         commandQueue->removeGlobalAudioAsset(path);
     }
 
-    JNIEXPORT void JNICALL
+    JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppDecodeFont(JNIEnv* env,
                                                            jobject,
                                                            jlong ref,
@@ -2290,7 +2324,8 @@ extern "C"
         auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        commandQueue->decodeFont(byteVec, nullptr, requestID);
+        return longFromHandle(
+            commandQueue->decodeFont(byteVec, nullptr, requestID));
     }
 
     JNIEXPORT void JNICALL

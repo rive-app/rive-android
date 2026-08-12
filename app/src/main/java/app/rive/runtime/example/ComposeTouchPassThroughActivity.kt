@@ -36,7 +36,7 @@ import app.rive.RiveLog
 import app.rive.RivePointerInputMode
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
 import android.graphics.Color as AndroidColor
 
 class ComposeTouchPassThroughActivity : ComponentActivity() {
@@ -56,6 +56,10 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
                 RiveFileSource.RawRes.from(R.raw.touch_passthrough),
                 riveWorker
             )
+            val vmiResult = riveFile.andThen { file ->
+                rememberViewModelInstanceResult(file)
+            }
+            val contentResult = riveFile.zip(vmiResult)
 
             var inputMode by remember { mutableStateOf(RivePointerInputMode.Consume) }
 
@@ -73,13 +77,13 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
                             Text("Click Me")
                         }
 
-                        when (riveFile) {
+                        when (contentResult) {
                             is Result.Loading -> LoadingIndicator()
-                            is Result.Error -> ErrorMessage(riveFile.throwable)
+                            is Result.Error -> ErrorMessage(contentResult.throwable)
                             is Result.Success -> {
-                                val vmi = rememberViewModelInstance(riveFile.value)
+                                val (file, vmi) = contentResult.value
                                 Rive(
-                                    riveFile.value,
+                                    file,
                                     modifier = Modifier.matchParentSize(),
                                     viewModelInstance = vmi,
                                     fit = Fit.Layout(2f),

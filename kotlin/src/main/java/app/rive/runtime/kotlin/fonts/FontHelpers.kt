@@ -112,9 +112,11 @@ class FontHelper {
          *
          * @return A [Map]<String, Fonts.Family> representing all the available font families, or an
          *    empty map if no valid XML is found.
+         * @deprecated Use [getSystemFontList]. This method will be removed in 12.0.
          */
         @Deprecated(
-            message = "Use getSystemFontList() instead. Map approach can lose unnamed families with colliding first font names.",
+            message = "Use getSystemFontList() instead. The map approach can lose unnamed " +
+                "families with colliding first font names. This method will be removed in 12.0.",
             replaceWith = ReplaceWith("getSystemFontList()"),
             level = DeprecationLevel.WARNING
         )

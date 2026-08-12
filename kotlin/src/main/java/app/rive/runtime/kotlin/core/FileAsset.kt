@@ -135,10 +135,12 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
          * @return The constructed [RiveRenderImage].
          * @throws IllegalArgumentException if the bytes cannot be decoded.
          * @throws IllegalStateException if the decoded bitmap is not premultiplied.
-         * @deprecated This method name is misleading; use fromEncoded instead.
+         * @deprecated This method name is misleading; use [fromEncoded] instead. This method will
+         *    be removed in 12.0.
          */
         @Deprecated(
-            "This method name is misleading; use fromEncoded instead",
+            "This method name is misleading; use fromEncoded instead. This method will be " +
+                "removed in 12.0.",
             ReplaceWith("fromEncoded(bytes, rendererType)")
         )
         fun make(

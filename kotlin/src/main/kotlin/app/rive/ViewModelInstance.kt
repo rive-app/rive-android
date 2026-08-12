@@ -3,6 +3,7 @@ package app.rive
 import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.CloseOnce
 import app.rive.core.FileHandle
@@ -128,6 +129,65 @@ class ViewModelInstance internal constructor(
 
     companion object {
         /**
+         * Creates a new [ViewModelInstance] and suspends until its Rive worker confirms creation.
+         *
+         * This is the replacement for [fromFile]. Its temporary name avoids a source-incompatible
+         * overload; it will be renamed to `fromFile` in 12.0 when the unconfirmed API is removed.
+         *
+         * ⚠️ The lifetime of a successfully created view model instance is managed by the caller.
+         * Make sure to call [close] when you are done with it to release its resources.
+         *
+         * @param file The [RiveFile] to create the view model instance from.
+         * @param source The source of the view model instance. Constructed from [ViewModelSource]
+         *    combined with [ViewModelInstanceSource].
+         * @return The created view model instance.
+         * @throws RiveFileException If the requested view model instance cannot be resolved.
+         * @throws RiveResourceClosedException If [file] or a resource referenced by [source] has
+         *    been closed, or if the owning Rive worker has been disposed.
+         * @throws RiveIncompatibleResourceException If a resource referenced by [source] cannot
+         *    be used with [file].
+         * @throws CancellationException If the coroutine is cancelled before creation is
+         *    confirmed.
+         */
+        @Throws(
+            RiveFileException::class,
+            RiveIncompatibleResourceException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(
+            file: RiveFile,
+            source: ViewModelInstanceSource
+        ): ViewModelInstance {
+            RiveLog.d(VM_INSTANCE_TAG) {
+                "Creating view model instance from source: $source (${file.fileHandle})"
+            }
+            return try {
+                file.checkOpen()
+                val handle = file.riveWorker.createViewModelInstanceConfirmed(
+                    file.fileHandle,
+                    source
+                )
+                RiveLog.d(VM_INSTANCE_TAG) {
+                    "Created $handle from source: $source (${file.fileHandle})"
+                }
+                ViewModelInstance(handle, file.riveWorker, file.fileHandle)
+            } catch (ce: CancellationException) {
+                RiveLog.d(VM_INSTANCE_TAG) {
+                    "View model instance creation was cancelled for source: $source " +
+                        "(${file.fileHandle})"
+                }
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(VM_INSTANCE_TAG, e) {
+                    "Error creating view model instance from source: $source " +
+                        "(${file.fileHandle})"
+                }
+                throw e
+            }
+        }
+
+        /**
          * Creates a new [ViewModelInstance].
          *
          * ⚠️ The lifetime of the returned view model instance is managed by the caller. Make sure
@@ -141,8 +201,15 @@ class ViewModelInstance internal constructor(
          *    been closed, or if the owning Rive worker has been disposed.
          * @throws RiveIncompatibleResourceException If a resource referenced by [source] cannot
          *    be used with [file].
+         * @deprecated Use [create]. This unconfirmed implementation will be removed in 12.0, when
+         *    [create] will be renamed to `fromFile` as a suspending API.
          */
         @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+        @Deprecated(
+            "Use create. This unconfirmed implementation will be removed in 12.0, when create " +
+                "will be renamed to fromFile as a suspending API."
+        )
+        @Suppress("DEPRECATION")
         fun fromFile(
             file: RiveFile,
             source: ViewModelInstanceSource
@@ -597,12 +664,12 @@ class ViewModelInstance internal constructor(
      * keep your reference to it. The parent view model instance maintains its own native reference
      * to the nested instance.
      *
-     * If you created the view model instance manually (for example via
-     * [ViewModelInstance.fromFile]), you may [close][ViewModelInstance.close] it to
-     * release your reference once you no longer need that view model instance elsewhere.
+     * If you created the view model instance manually (for example via [ViewModelInstance.create]),
+     * you may [close][ViewModelInstance.close] it to release your reference once you no longer need
+     * that view model instance elsewhere.
      *
-     * If you used [rememberViewModelInstance], do not close it manually. It is closed automatically
-     * when the Composable leaves composition.
+     * If you used [rememberViewModelInstanceResult], do not close a successful result manually. It
+     * is closed automatically when the Composable leaves composition.
      *
      * @param propertyPath The path to the view model property from this view model instance. Slash
      *    delimited to refer to nested properties.
@@ -874,8 +941,17 @@ sealed interface ViewModelInstanceSource {
  *    closed, or if the owning Rive worker has been disposed.
  * @throws RiveIncompatibleResourceException If a resource referenced by [source] cannot be used
  *    with [file].
+ * @deprecated Use [rememberViewModelInstanceResult]. This implementation will be removed in 12.0,
+ *    when [rememberViewModelInstanceResult] will be renamed to `rememberViewModelInstance` and
+ *    return a [Result].
  */
 @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+@Deprecated(
+    "Use rememberViewModelInstanceResult. This implementation will be removed in 12.0, when " +
+        "rememberViewModelInstanceResult will be renamed to rememberViewModelInstance and " +
+        "return a Result."
+)
+@Suppress("DEPRECATION")
 @Composable
 fun rememberViewModelInstance(
     file: RiveFile,
@@ -894,3 +970,72 @@ fun rememberViewModelInstance(
 
     return instance
 }
+
+/**
+ * Creates a [ViewModelInstance] from [file] and exposes its creation state.
+ *
+ * The lifetime of a successfully created instance is managed by this composable. It will delete
+ * the instance when it falls out of scope.
+ *
+ * This is the replacement for [rememberViewModelInstance]; its temporary name will become
+ * `rememberViewModelInstance` in 12.0 when the unconfirmed API is removed.
+ *
+ * If [source] is null, the default artboard is created first and used to resolve its default view
+ * model and instance. If you already have an artboard, prefer
+ * [ViewModelSource.DefaultForArtboard] to avoid instantiating another artboard.
+ *
+ * @param file The [RiveFile] to create the view model instance from.
+ * @param source The source of the view model instance, or null to use the default instance for the
+ *    file's default artboard.
+ * @return The current creation result: loading, error, or success with the created
+ *    [ViewModelInstance].
+ */
+@Composable
+fun rememberViewModelInstanceResult(
+    file: RiveFile,
+    source: ViewModelInstanceSource? = null,
+): Result<ViewModelInstance> {
+    if (source != null) {
+        return rememberViewModelInstanceResultFromSource(file, source)
+    }
+
+    return when (val artboardResult = rememberArtboardResult(file)) {
+        is Result.Loading -> Result.Loading
+        is Result.Error -> Result.Error(artboardResult.throwable)
+        is Result.Success -> {
+            val defaultSource = remember(artboardResult.value) {
+                ViewModelSource.DefaultForArtboard(artboardResult.value).defaultInstance()
+            }
+            rememberViewModelInstanceResultFromSource(file, defaultSource)
+        }
+    }
+}
+
+/**
+ * Creates and owns a confirmed view model instance for an already resolved [source].
+ *
+ * @param file The [RiveFile] to create the view model instance from.
+ * @param source The resolved source of the view model instance.
+ * @return The current creation result.
+ */
+@Composable
+private fun rememberViewModelInstanceResultFromSource(
+    file: RiveFile,
+    source: ViewModelInstanceSource,
+): Result<ViewModelInstance> = produceState<Result<ViewModelInstance>>(
+    Result.Loading,
+    file,
+    source
+) {
+    val instance = try {
+        ViewModelInstance.create(file, source)
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        value = Result.Error(e)
+        return@produceState
+    }
+
+    value = Result.Success(instance)
+    awaitDispose { instance.close() }
+}.value

@@ -72,9 +72,6 @@
             android:name=".LegacyScriptingActivity"
             android:exported="true" />
         <activity
-            android:name=".RiveViewActivity"
-            android:exported="true" />
-        <activity
             android:name=".RiveSnapshotActivity"
             android:exported="true" />
         <activity

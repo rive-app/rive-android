@@ -21,8 +21,16 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
- * Note: This class is more experimental than others. It is not recommended for use at this time.
+ * An experimental View-based Rive renderer.
+ *
+ * @deprecated Use the [Rive] composable for UI or [RiveCanvasSession] for imperative rendering.
+ *    This class will be removed in 12.0.
  */
+@Deprecated(
+    message = "Use the Rive composable for UI or RiveCanvasSession for imperative rendering. " +
+        "RiveView will be removed in 12.0.",
+    level = DeprecationLevel.WARNING
+)
 class RiveView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -156,6 +164,7 @@ class RiveView @JvmOverloads constructor(
      * @throws RiveIncompatibleResourceException If [artboard] was created from another file.
      */
     @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
+    @Suppress("DEPRECATION") // This synchronous API still intentionally queues provisional handles.
     fun setRiveFile(
         file: RiveFile,
         artboard: Artboard? = null,

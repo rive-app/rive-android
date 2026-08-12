@@ -17,7 +17,6 @@ import app.rive.core.ViewModelInstanceHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.every
@@ -45,7 +44,6 @@ private const val TEST_FINAL_RELEASE_SOURCE = "Test final release"
 
 // TODO: Split the remaining tests by functional area:
 // - CommandQueueLifecycleUnitTest: construction, backend fallback, tracing, release, and polling.
-// - CommandQueueFileUnitTest: file loading, errors, continuation cleanup, and deletion.
 // - CommandQueueDataBindingUnitTest: view model metadata, instance names, and property setters.
 // - RiveSurfaceUnitTest: resizing behavior and the TestRiveSurface fixture.
 @OptIn(ExperimentalStdlibApi::class)
@@ -280,6 +278,7 @@ class CommandQueueUnitTest : FunSpec({
                 commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
             } answers {
                 submissionStarted.countDown()
+                HANDLE_NUM
             }
 
             // Start immediately so loadFile registers its continuation before release cancels it.
@@ -385,18 +384,6 @@ class CommandQueueUnitTest : FunSpec({
         verify(exactly = 1) { lifecycle.removeObserver(any()) }
     }
 
-    test("Native submission failure propagates") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val expectedError = IllegalStateException("Submission failed")
-        every {
-            commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
-        } throws expectedError
-
-        shouldThrow<IllegalStateException> {
-            commandQueue.loadFile(FILE_BYTES)
-        } shouldBe expectedError
-    }
-
     test("beginPolling throws if called on disposed worker") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val lifecycle = mockk<Lifecycle>()
@@ -409,100 +396,6 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.beginPolling(lifecycle, ticker)
         }.message shouldContain "disposed"
         verify(exactly = 0) { commandQueueBridgeMock.cppPollMessages(any()) }
-    }
-
-    test("Load file invokes native method and returns handle") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val bytes = FILE_BYTES
-        val requestID = slot<Long>()
-        val expected = FileHandle(HANDLE_NUM)
-
-        every {
-            commandQueueBridgeMock.cppLoadFile(
-                COMMAND_QUEUE_ADDR,
-                capture(requestID),
-                bytes
-            )
-        } answers {
-            commandQueue.onFileLoaded(requestID.captured, expected)
-        }
-
-        val result = commandQueue.loadFile(bytes)
-
-        result shouldBe expected
-        verify(exactly = 1) {
-            commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, bytes)
-        }
-    }
-
-    test("Load file failure invokes native method and throws error") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val bytes = FILE_BYTES
-        val requestID = slot<Long>()
-        val errorMessage = "Failed to load"
-
-        every {
-            commandQueueBridgeMock.cppLoadFile(
-                COMMAND_QUEUE_ADDR,
-                capture(requestID),
-                bytes
-            )
-        } answers {
-            commandQueue.onFileError(requestID.captured, errorMessage)
-        }
-
-        shouldThrow<RiveFileException> { commandQueue.loadFile(bytes) }.message shouldContain errorMessage
-        verify(exactly = 1) {
-            commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, bytes)
-        }
-    }
-
-    test("Load file failure clears continuation; subsequent load succeeds") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val expected = FileHandle(HANDLE_NUM)
-        val requestIDs = mutableListOf<Long>()
-
-        every {
-            commandQueueBridgeMock.cppLoadFile(
-                COMMAND_QUEUE_ADDR,
-                capture(requestIDs),
-                FILE_BYTES
-            )
-        } answers {
-            // First call simulates error
-            commandQueue.onFileError(requestIDs.last(), "Failed to load")
-        } andThenAnswer {
-            // Second call simulates success
-            commandQueue.onFileLoaded(requestIDs.last(), expected)
-        }
-
-        // First call throws
-        shouldThrow<RiveFileException> { commandQueue.loadFile(FILE_BYTES) }
-        // Second call succeeds
-        val result = commandQueue.loadFile(FILE_BYTES)
-
-        result shouldBe expected
-        verify(exactly = 2) {
-            commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
-        }
-        requestIDs[0] shouldBeLessThan requestIDs[1]
-    }
-
-
-    test("Delete file invokes native") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val requestID = slot<Long>()
-        val fileHandle = FileHandle(HANDLE_NUM)
-
-        every {
-            commandQueueBridgeMock.cppDeleteFile(COMMAND_QUEUE_ADDR, capture(requestID), HANDLE_NUM)
-        } just runs
-
-        commandQueue.deleteFile(fileHandle)
-
-        verify(exactly = 1) {
-            commandQueueBridgeMock.cppDeleteFile(COMMAND_QUEUE_ADDR, requestID.captured, HANDLE_NUM)
-        }
     }
 
     test("File query failure throws file error") {
@@ -943,63 +836,6 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
-    test("Image decode failure throws image exception") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val requestID = slot<Long>()
-        val errorMessage = "Invalid image bytes"
-        every {
-            commandQueueBridgeMock.cppDecodeImage(
-                COMMAND_QUEUE_ADDR,
-                capture(requestID),
-                FILE_BYTES
-            )
-        } answers {
-            commandQueue.onImageError(requestID.captured, errorMessage)
-        }
-
-        shouldThrow<RiveImageException> {
-            commandQueue.decodeImage(FILE_BYTES)
-        }.message shouldContain errorMessage
-    }
-
-    test("Audio decode failure throws audio exception") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val requestID = slot<Long>()
-        val errorMessage = "Invalid audio bytes"
-        every {
-            commandQueueBridgeMock.cppDecodeAudio(
-                COMMAND_QUEUE_ADDR,
-                capture(requestID),
-                FILE_BYTES
-            )
-        } answers {
-            commandQueue.onAudioError(requestID.captured, errorMessage)
-        }
-
-        shouldThrow<RiveAudioException> {
-            commandQueue.decodeAudio(FILE_BYTES)
-        }.message shouldContain errorMessage
-    }
-
-    test("Font decode failure throws font exception") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val requestID = slot<Long>()
-        val errorMessage = "Invalid font bytes"
-        every {
-            commandQueueBridgeMock.cppDecodeFont(
-                COMMAND_QUEUE_ADDR,
-                capture(requestID),
-                FILE_BYTES
-            )
-        } answers {
-            commandQueue.onFontError(requestID.captured, errorMessage)
-        }
-
-        shouldThrow<RiveFontException> {
-            commandQueue.decodeFont(FILE_BYTES)
-        }.message shouldContain errorMessage
-    }
-
     test("RiveSurface resize updates dimensions and invalidates render target after canceling draw") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
@@ -1189,69 +1025,6 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
-    test("View model creation validates every resource source before native dispatch") {
-        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val foreignQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val fileHandle = FileHandle(HANDLE_NUM)
-        every { commandQueueBridgeMock.cppDeleteArtboard(any(), any(), any()) } just runs
-        every { commandQueueBridgeMock.cppDeleteViewModelInstance(any(), any(), any()) } just runs
-        val closedArtboard = Artboard(
-            ArtboardHandle(ARTBOARD_HANDLE_NUM),
-            commandQueue,
-            fileHandle,
-            "Closed Artboard",
-        ).also { it.close() }
-        val siblingFileArtboard = Artboard(
-            ArtboardHandle(ARTBOARD_HANDLE_NUM + 1),
-            commandQueue,
-            FileHandle(HANDLE_NUM + 1),
-            "Sibling File Artboard",
-        )
-        val closedParent = ViewModelInstance(
-            ViewModelInstanceHandle(VALUE_HANDLE_NUM),
-            commandQueue,
-            fileHandle,
-        ).also { it.close() }
-        val foreignParent = ViewModelInstance(
-            ViewModelInstanceHandle(VALUE_HANDLE_NUM + 1),
-            foreignQueue,
-            fileHandle,
-        )
-
-        val closedArtboardSource = ViewModelSource.DefaultForArtboard(closedArtboard)
-        listOf(
-            closedArtboardSource.blankInstance(),
-            closedArtboardSource.defaultInstance(),
-            closedArtboardSource.namedInstance("Test Instance"),
-            ViewModelInstanceSource.Reference(closedParent, "nested"),
-            ViewModelInstanceSource.ReferenceListItem(closedParent, "list", 0),
-        ).forEach { source ->
-            shouldThrow<RiveResourceClosedException> {
-                commandQueue.createViewModelInstance(fileHandle, source)
-            }
-        }
-
-        val siblingArtboardSource = ViewModelSource.DefaultForArtboard(siblingFileArtboard)
-        listOf(
-            siblingArtboardSource.blankInstance(),
-            siblingArtboardSource.defaultInstance(),
-            siblingArtboardSource.namedInstance("Test Instance"),
-            ViewModelInstanceSource.Reference(foreignParent, "nested"),
-            ViewModelInstanceSource.ReferenceListItem(foreignParent, "list", 0),
-        ).forEach { source ->
-            shouldThrow<RiveIncompatibleResourceException> {
-                commandQueue.createViewModelInstance(fileHandle, source)
-            }
-        }
-
-        verify(exactly = 0) {
-            commandQueueBridgeMock.cppDefaultVMCreateBlankVMI(any(), any(), any(), any())
-            commandQueueBridgeMock.cppDefaultVMCreateDefaultVMI(any(), any(), any(), any())
-            commandQueueBridgeMock.cppDefaultVMCreateNamedVMI(any(), any(), any(), any(), any())
-            commandQueueBridgeMock.cppReferenceNestedVMI(any(), any(), any(), any())
-            commandQueueBridgeMock.cppReferenceListItemVMI(any(), any(), any(), any(), any())
-        }
-    }
 })
 
 internal class TestRiveSurface(

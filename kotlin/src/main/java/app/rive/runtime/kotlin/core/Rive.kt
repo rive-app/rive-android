@@ -202,9 +202,10 @@ object Rive {
      *
      * @param byteArray The [ByteArray] bytes for a font file.
      * @return Whether the font was successfully registered.
+     * @deprecated Define a [FontFallbackStrategy] instead. This method will be removed in 12.0.
      */
     @Deprecated(
-        "Prefer defining a `FontFallbackStrategy` instead",
+        "Prefer defining a FontFallbackStrategy instead. This method will be removed in 12.0.",
         level = DeprecationLevel.WARNING
     )
     fun setFallbackFont(byteArray: ByteArray): Boolean =
@@ -216,9 +217,10 @@ object Rive {
      * @param opts The [Fonts.FontOpts] specifying the desired font characteristics. If not
      *    provided, default options are used.
      * @return Whether the font was successfully registered.
+     * @deprecated Define a [FontFallbackStrategy] instead. This method will be removed in 12.0.
      */
     @Deprecated(
-        "Prefer defining a `FontFallbackStrategy` instead",
+        "Prefer defining a FontFallbackStrategy instead. This method will be removed in 12.0.",
         level = DeprecationLevel.WARNING
     )
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean =

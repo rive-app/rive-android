@@ -1,7 +1,6 @@
 package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.rive.core.loadRiveFileOrFail
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -48,13 +47,19 @@ class DataBindingTest : RiveAndroidTest() {
         artboardName: String,
         expectedLabel: String,
     ) {
-        riveWorker.loadRiveFileOrFail(R.raw.cross_file_binding_a).use { hostFile ->
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.cross_file_binding_a, context.resources),
+            riveWorker,
+        ).use { hostFile ->
             assertContains(
                 hostFile.getArtboardNames(),
                 artboardName,
                 "Cross-file binding fixture is missing its $artboardName artboard",
             )
-            riveWorker.loadRiveFileOrFail(R.raw.cross_file_binding_b).use { sourceFile ->
+            RiveFile.load(
+                RiveFileSource.RawRes(R.raw.cross_file_binding_b, context.resources),
+                riveWorker,
+            ).use { sourceFile ->
                 // The dummy property deliberately precedes label so File B's numeric property path
                 // differs from File A's while relative name-based resolution remains possible.
                 assertEquals(
@@ -62,9 +67,9 @@ class DataBindingTest : RiveAndroidTest() {
                     sourceFile.getViewModelProperties(FILE_B_VIEW_MODEL).map { it.name },
                     "File B must retain its intentionally shifted property order",
                 )
-                Artboard.fromFile(hostFile, artboardName).use { artboard ->
-                    StateMachine.fromArtboard(artboard).use { stateMachine ->
-                        ViewModelInstance.fromFile(
+                Artboard.create(hostFile, artboardName).use { artboard ->
+                    StateMachine.create(artboard).use { stateMachine ->
+                        ViewModelInstance.create(
                             sourceFile,
                             ViewModelSource.Named(FILE_B_VIEW_MODEL).blankInstance(),
                         ).use { viewModelInstance ->

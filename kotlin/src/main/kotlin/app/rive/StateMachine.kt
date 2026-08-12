@@ -2,12 +2,14 @@ package app.rive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
 import app.rive.core.CloseOnce
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 private const val STATE_MACHINE_TAG = "Rive/StateMachine"
@@ -17,7 +19,7 @@ private const val STATE_MACHINE_TAG = "Rive/StateMachine"
  *
  * Can be used to create a [Rive] composable and to manually advance the state machine.
  *
- * Create an instance of this class using [rememberStateMachine] or [StateMachine.fromArtboard].
+ * Create an instance of this class using [rememberStateMachineResult] or [StateMachine.create].
  * When using the latter, make sure to call [close] when you are done with the state machine to
  * release its resources.
  *
@@ -68,6 +70,74 @@ class StateMachine internal constructor(
 
     companion object {
         /**
+         * Creates a new [StateMachine] and suspends until its Rive worker confirms creation.
+         *
+         * This is the replacement for [fromArtboard]. Its temporary name avoids a
+         * source-incompatible overload; it will be renamed to `fromArtboard` in 12.0 when the
+         * unconfirmed API is removed.
+         *
+         * ⚠️ The lifetime of a successfully created state machine is managed by the caller. Make
+         * sure to call [close] when you are done with it to release its resources.
+         *
+         * @param artboard The [Artboard] to instantiate the state machine from.
+         * @param stateMachineName The name of the state machine to load. If null, the default state
+         *    machine will be loaded.
+         * @return The created state machine.
+         * @throws RiveArtboardException If the artboard or requested state machine cannot be
+         *    resolved.
+         * @throws RiveResourceClosedException If [artboard] has been closed or its Rive worker has
+         *    been disposed.
+         * @throws CancellationException If the coroutine is cancelled before creation is
+         *    confirmed.
+         */
+        @Throws(
+            RiveArtboardException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(
+            artboard: Artboard,
+            stateMachineName: String? = null
+        ): StateMachine {
+            val nameLog = stateMachineName?.let { "with name $it" } ?: "(default)"
+            RiveLog.d(STATE_MACHINE_TAG) {
+                "Creating state machine $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})"
+            }
+            return try {
+                artboard.checkOpen()
+                val handle = stateMachineName?.let { name ->
+                    artboard.riveWorker.createStateMachineByNameConfirmed(
+                        artboard.artboardHandle,
+                        name
+                    )
+                } ?: artboard.riveWorker.createDefaultStateMachineConfirmed(
+                    artboard.artboardHandle
+                )
+                RiveLog.d(STATE_MACHINE_TAG) {
+                    "Created $handle $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})"
+                }
+                StateMachine(
+                    handle,
+                    artboard.riveWorker,
+                    artboard.artboardHandle,
+                    stateMachineName
+                )
+            } catch (ce: CancellationException) {
+                RiveLog.d(STATE_MACHINE_TAG) {
+                    "State machine creation was cancelled $nameLog " +
+                        "(${artboard.artboardHandle}; ${artboard.fileHandle})"
+                }
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(STATE_MACHINE_TAG, e) {
+                    "Error creating state machine $nameLog " +
+                        "(${artboard.artboardHandle}; ${artboard.fileHandle})"
+                }
+                throw e
+            }
+        }
+
+        /**
          * Creates a new [StateMachine] from an [Artboard].
          *
          * ⚠️ The lifetime of the returned state machine is managed by the caller. Make sure to call
@@ -79,8 +149,15 @@ class StateMachine internal constructor(
          * @return The created state machine.
          * @throws RiveResourceClosedException If [artboard] has been closed or its Rive worker has
          *    been disposed.
+         * @deprecated Use [create]. This unconfirmed implementation will be removed in 12.0, when
+         *    [create] will be renamed to `fromArtboard` as a suspending API.
          */
         @Throws(RiveResourceClosedException::class)
+        @Deprecated(
+            "Use create. This unconfirmed implementation will be removed in 12.0, when create " +
+                "will be renamed to fromArtboard as a suspending API."
+        )
+        @Suppress("DEPRECATION")
         fun fromArtboard(
             artboard: Artboard,
             stateMachineName: String? = null
@@ -183,8 +260,15 @@ class StateMachine internal constructor(
  * @return The created [StateMachine].
  * @throws RiveResourceClosedException If [artboard] has been closed or its Rive worker has been
  *    disposed.
+ * @deprecated Use [rememberStateMachineResult]. This implementation will be removed in 12.0, when
+ *    [rememberStateMachineResult] will be renamed to `rememberStateMachine` and return a [Result].
  */
 @Throws(RiveResourceClosedException::class)
+@Deprecated(
+    "Use rememberStateMachineResult. This implementation will be removed in 12.0, when " +
+        "rememberStateMachineResult will be renamed to rememberStateMachine and return a Result."
+)
+@Suppress("DEPRECATION")
 @Composable
 fun rememberStateMachine(
     artboard: Artboard,
@@ -200,3 +284,39 @@ fun rememberStateMachine(
 
     return stateMachine
 }
+
+/**
+ * Creates a [StateMachine] from [artboard] and exposes its creation state.
+ *
+ * The lifetime of a successfully created state machine is managed by this composable. It will
+ * delete the state machine when it falls out of scope.
+ *
+ * This is the replacement for [rememberStateMachine]; its temporary name will become
+ * `rememberStateMachine` in 12.0 when the unconfirmed API is removed.
+ *
+ * @param artboard The [Artboard] to instantiate the state machine from.
+ * @param stateMachineName The name of the state machine to load. If null, the default state machine
+ *    will be loaded.
+ * @return The current creation result: loading, error, or success with the created [StateMachine].
+ */
+@Composable
+fun rememberStateMachineResult(
+    artboard: Artboard,
+    stateMachineName: String? = null,
+): Result<StateMachine> = produceState<Result<StateMachine>>(
+    Result.Loading,
+    artboard,
+    stateMachineName
+) {
+    val stateMachine = try {
+        StateMachine.create(artboard, stateMachineName)
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        value = Result.Error(e)
+        return@produceState
+    }
+
+    value = Result.Success(stateMachine)
+    awaitDispose { stateMachine.close() }
+}.value

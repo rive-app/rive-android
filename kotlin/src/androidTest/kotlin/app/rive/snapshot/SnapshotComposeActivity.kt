@@ -18,12 +18,12 @@ import app.rive.Result
 import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
+import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
-import app.rive.rememberArtboard
-import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberStateMachine
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
+import app.rive.compose.TestRiveResources
+import app.rive.compose.rememberTestRiveResources
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
 import java.util.concurrent.CountDownLatch
@@ -66,23 +66,27 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
 
         setContent {
             val riveWorker = rememberRiveWorker()
-            val riveFileResult =
-                rememberRiveFile(RiveFileSource.RawRes.from(R.raw.snapshot_test), riveWorker)
+            val resourcesResult = rememberTestRiveResources(
+                RiveFileSource.RawRes.from(R.raw.snapshot_test),
+                riveWorker,
+                artboardName = config.artboardName
+            )
+            val contentResult = resourcesResult.andThen { resources ->
+                rememberViewModelInstanceResult(
+                    resources.file,
+                    ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance()
+                ).map { vmi ->
+                    SnapshotComposeContent(resources, vmi)
+                }
+            }
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                when (riveFileResult) {
+                when (contentResult) {
                     is Result.Loading -> {}
                     is Result.Error -> {}
                     is Result.Success -> {
-                        val riveFile = riveFileResult.value
-
-                        // Create an artboard and state machine to manually advance
-                        val artboard = rememberArtboard(riveFile, config.artboardName)
-                        val stateMachine = rememberStateMachine(artboard)
-                        val vmi = rememberViewModelInstance(
-                            riveFile,
-                            ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
-                        )
+                        val (resources, vmi) = contentResult.value
+                        val (riveFile, artboard, stateMachine) = resources
 
                         // Handle scenario-specific logic
                         when (config) {
@@ -159,3 +163,8 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
         }
     }
 }
+
+private data class SnapshotComposeContent(
+    val resources: TestRiveResources,
+    val viewModelInstance: ViewModelInstance,
+)

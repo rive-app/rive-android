@@ -31,7 +31,7 @@ import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.example.compose.RewardsBottomPanel
 import kotlinx.coroutines.flow.map
 
@@ -61,6 +61,10 @@ class ComposeDataBindingActivity : ComponentActivity() {
             val riveWorker = rememberRiveWorker()
             val riveFileResult =
                 rememberRiveFile(RiveFileSource.RawRes.from(R.raw.rewards_demo), riveWorker)
+            val vmiResult = riveFileResult.andThen { file ->
+                rememberViewModelInstanceResult(file)
+            }
+            val contentResult = riveFileResult.zip(vmiResult)
             var showBottomPanel by remember { mutableStateOf(false) }
 
             Scaffold(
@@ -76,12 +80,11 @@ class ComposeDataBindingActivity : ComponentActivity() {
                     }
                 }) { innerPadding ->
                 Box(modifier = Modifier.padding(innerPadding)) {
-                    when (riveFileResult) {
+                    when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
-                        is Result.Error -> ErrorMessage(riveFileResult.throwable)
+                        is Result.Error -> ErrorMessage(contentResult.throwable)
                         is Result.Success -> {
-                            val riveFile = riveFileResult.value
-                            val vmi = rememberViewModelInstance(riveFile)
+                            val (riveFile, vmi) = contentResult.value
                             val lives by vmi.getNumberFlow("Energy_Bar/Lives")
                                 .collectAsStateWithLifecycle(0f)
                             val energy by vmi.getNumberFlow("Energy_Bar/Energy_Bar")

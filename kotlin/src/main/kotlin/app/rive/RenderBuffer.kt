@@ -25,11 +25,14 @@ import app.rive.core.traceSection
  * @throws IllegalArgumentException If width or height are not positive.
  * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
  * @throws RiveRenderException If the software render surface cannot be created.
+ * @deprecated Use [SoftwareRenderBuffer] for software rendering or [HardwareRenderBuffer] for
+ *    hardware rendering. This class will be removed in 12.0.
  * @see SoftwareRenderBuffer
  * @see HardwareRenderBuffer
  */
 @Deprecated(
-    message = "RenderBuffer is deprecated. Use SoftwareRenderBuffer for software rendering or HardwareRenderBuffer for hardware rendering.",
+    message = "Use SoftwareRenderBuffer for software rendering or HardwareRenderBuffer for " +
+        "hardware rendering. RenderBuffer will be removed in 12.0.",
     replaceWith = ReplaceWith("SoftwareRenderBuffer(width, height, riveWorker)"),
     level = DeprecationLevel.WARNING
 )
@@ -115,10 +118,11 @@ class RenderBuffer @Throws(
      * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
      *    this buffer's worker, or if [stateMachine] was not created from [artboard].
      * @throws RiveDrawToBufferException If the native draw-to-buffer operation fails.
+     * @deprecated Use [render]. This alias will be removed in 12.0.
      * @see render
      */
     @Deprecated(
-        message = "Use render(...) instead.",
+        message = "Use render(...) instead. This alias will be removed in 12.0.",
         replaceWith = ReplaceWith("render(artboard, stateMachine, fit, clearColor)"),
         level = DeprecationLevel.WARNING
     )

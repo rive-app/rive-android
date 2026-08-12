@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
+import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.ViewModelInstance
@@ -42,7 +43,8 @@ import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
+import app.rive.sequence
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.graphics.Color as AndroidColor
@@ -62,35 +64,38 @@ class ComposeListActivity : ComponentActivity() {
                 RiveFileSource.RawRes.from(R.raw.lists_demo),
                 riveWorker
             )
+            val contentResult = riveFile.andThen { file ->
+                val mainVmiResult = rememberViewModelInstanceResult(
+                    file,
+                    ViewModelSource.Named("main").blankInstance()
+                )
+                val itemVmisResult = listOf("sw", "st", "bs", "br").map { instanceName ->
+                    rememberViewModelInstanceResult(
+                        file,
+                        ViewModelSource.Named("listItem").namedInstance(instanceName)
+                    )
+                }.sequence()
+                val customItemVmiResult = rememberViewModelInstanceResult(
+                    file,
+                    ViewModelSource.Named("listItem").blankInstance()
+                )
+
+                mainVmiResult.zip(itemVmisResult).zip(customItemVmiResult) {
+                        (mainVmi, itemVmis), customItemVmi ->
+                    ListContent(file, mainVmi, itemVmis, customItemVmi)
+                }
+            }
 
             val maxListItems = 10
 
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 Column(modifier = Modifier.padding(innerPadding)) {
-                    when (riveFile) {
+                    when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
-                        is Result.Error -> ErrorMessage(riveFile.throwable)
+                        is Result.Error -> ErrorMessage(contentResult.throwable)
                         is Result.Success -> {
-                            val mainVMI = rememberViewModelInstance(
-                                riveFile.value,
-                                ViewModelSource.Named("main").blankInstance()
-                            )
+                            val (file, mainVMI, itemVMIs, customItemVMI) = contentResult.value
                             val scope = rememberCoroutineScope()
-
-                            // Store instances of the VMIs from the Rive file
-                            val itemVMIs = remember(riveFile.value) {
-                                listOf("sw", "st", "bs", "br")
-                            }.map { instanceName ->
-                                rememberViewModelInstance(
-                                    riveFile.value,
-                                    ViewModelSource.Named("listItem").namedInstance(instanceName)
-                                )
-                            }
-                            // Create a fifth, custom item VMI
-                            val customItemVMI = rememberViewModelInstance(
-                                riveFile.value,
-                                ViewModelSource.Named("listItem").blankInstance()
-                            )
                             val allVMIs = itemVMIs + customItemVMI
 
                             var menuSize by remember { mutableIntStateOf(0) }
@@ -113,16 +118,15 @@ class ComposeListActivity : ComponentActivity() {
                             /**
                              * Create a clone of the given VMI that has independent state.
                              *
-                             * ⚠️ Because this uses [ViewModelInstance.fromFile] and not
-                             * [rememberViewModelInstance] (because it runs outside of composition),
-                             * the returned VMI must be closed or used with a `use` block.
+                             * ⚠️ Because this uses [ViewModelInstance.create] and not
+                             * [rememberViewModelInstanceResult] (because it runs outside of
+                             * composition), the returned VMI must be closed or used with a `use`
+                             * block.
                              */
                             suspend fun cloneListItem(item: ViewModelInstance): ViewModelInstance {
-                                val clone = ViewModelInstance.fromFile(
-                                    riveFile.value,
-                                    ViewModelSource
-                                        .Named("listItem")
-                                        .blankInstance()
+                                val clone = ViewModelInstance.create(
+                                    file,
+                                    ViewModelSource.Named("listItem").blankInstance()
                                 )
                                 clone.setString(
                                     "label",
@@ -160,7 +164,7 @@ class ComposeListActivity : ComponentActivity() {
                             }
 
                             Rive(
-                                riveFile.value,
+                                file,
                                 modifier = Modifier.weight(1f),
                                 viewModelInstance = mainVMI,
                                 fit = Fit.Layout(3f),
@@ -290,8 +294,8 @@ class ComposeListActivity : ComponentActivity() {
                                                 val listSize = mainVMI.getListSize("menu")
                                                 if (!canAdd) return@launch
                                                 val randomIndex = (0 until listSize).random()
-                                                ViewModelInstance.fromFile(
-                                                    riveFile.value,
+                                                ViewModelInstance.create(
+                                                    file,
                                                     ViewModelInstanceSource.ReferenceListItem(
                                                         mainVMI,
                                                         "menu",
@@ -328,3 +332,10 @@ class ComposeListActivity : ComponentActivity() {
         }
     }
 }
+
+private data class ListContent(
+    val file: RiveFile,
+    val mainVmi: ViewModelInstance,
+    val itemVmis: List<ViewModelInstance>,
+    val customItemVmi: ViewModelInstance,
+)

@@ -44,16 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.Fit
 import app.rive.Result
-import app.rive.Result.Loading.andThen
 import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.ViewModelSource
-import app.rive.rememberArtboard
+import app.rive.rememberArtboardResult
 import app.rive.rememberRegisteredFont
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorkerOrNull
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -129,70 +128,82 @@ class ComposeActivity : ComponentActivity() {
                             }
 
                             var artboardName by rememberSaveable { mutableStateOf<String?>(null) }
-                            // Load the artboard by name, or the default if null
-                            val artboard = rememberArtboard(riveFile, artboardName)
-
-                            // Store fit and alignment as strings, map to Rive types
-                            var alignmentString by rememberSaveable { mutableStateOf("Center") }
-                            val alignment = alignmentMap[alignmentString] ?: RiveAlignment.Center
-                            var fitString by rememberSaveable { mutableStateOf("Contain") }
-                            val fit = fitFrom(fitString, alignment)
-
-                            // Create a view model instance that can be used by all 3 artboards
-                            val vmi = rememberViewModelInstance(
+                            val artboardResult = rememberArtboardResult(riveFile, artboardName)
+                            val vmiResult = rememberViewModelInstanceResult(
                                 riveFile,
                                 ViewModelSource.Named("Rating Animation").defaultInstance()
                             )
-                            // Collect the rating value by the name of the property
-                            val rating by vmi.getNumberFlow("Number_Star")
-                                .collectAsStateWithLifecycle(0f)
+                            val resourcesResult = artboardResult.zip(vmiResult)
 
-                            // Render the Rive UI
-                            Rive(
-                                file = riveFile,
-                                artboard = artboard,
-                                viewModelInstance = vmi,
-                                fit = fit,
-                                modifier = Modifier
-                                    .height(300.dp)
-                                    .semantics {
-                                        contentDescription = "Rive UI: $artboardName"
+                            when (resourcesResult) {
+                                is Result.Loading -> LoadingIndicator()
+                                is Result.Error -> ErrorMessage(resourcesResult.throwable)
+                                is Result.Success -> {
+                                    val (artboard, vmi) = resourcesResult.value
+
+                                    // Store fit and alignment as strings, map to Rive types
+                                    var alignmentString by rememberSaveable {
+                                        mutableStateOf("Center")
                                     }
-                            )
+                                    val alignment =
+                                        alignmentMap[alignmentString] ?: RiveAlignment.Center
+                                    var fitString by rememberSaveable {
+                                        mutableStateOf("Contain")
+                                    }
+                                    val fit = fitFrom(fitString, alignment)
 
-                            // Reactive slider - changes and is changed by Rive
-                            RatingSlider(
-                                sliderValue = rating,
-                                onValueChange = {
-                                    vmi.setNumber("Number_Star", it)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                    // Collect the rating value by the name of the property
+                                    val rating by vmi.getNumberFlow("Number_Star")
+                                        .collectAsStateWithLifecycle(0f)
 
-                            // Artboard, fit, and alignment selectors
-                            LabelledDropdown(
-                                label = "Artboard",
-                                options = artboardNames,
-                                selectedOption = artboardName ?: "Default",
-                                onOptionSelected = { selectedArtboard ->
-                                    artboardName = selectedArtboard
-                                })
+                                    // Render the Rive UI
+                                    Rive(
+                                        file = riveFile,
+                                        artboard = artboard,
+                                        viewModelInstance = vmi,
+                                        fit = fit,
+                                        modifier = Modifier
+                                            .height(300.dp)
+                                            .semantics {
+                                                contentDescription = "Rive UI: $artboardName"
+                                            }
+                                    )
 
-                            LabelledDropdown(
-                                label = "Fit",
-                                options = fitTypes,
-                                selectedOption = fitString,
-                                onOptionSelected = { selectedFit ->
-                                    fitString = selectedFit
-                                })
+                                    // Reactive slider - changes and is changed by Rive
+                                    RatingSlider(
+                                        sliderValue = rating,
+                                        onValueChange = {
+                                            vmi.setNumber("Number_Star", it)
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
 
-                            LabelledDropdown(
-                                label = "Alignment",
-                                options = alignmentMap.keys.toList(),
-                                selectedOption = alignmentString,
-                                onOptionSelected = { selectedAlignment ->
-                                    alignmentString = selectedAlignment
-                                })
+                                    // Artboard, fit, and alignment selectors
+                                    LabelledDropdown(
+                                        label = "Artboard",
+                                        options = artboardNames,
+                                        selectedOption = artboardName ?: "Default",
+                                        onOptionSelected = { selectedArtboard ->
+                                            artboardName = selectedArtboard
+                                        })
+
+                                    LabelledDropdown(
+                                        label = "Fit",
+                                        options = fitTypes,
+                                        selectedOption = fitString,
+                                        onOptionSelected = { selectedFit ->
+                                            fitString = selectedFit
+                                        })
+
+                                    LabelledDropdown(
+                                        label = "Alignment",
+                                        options = alignmentMap.keys.toList(),
+                                        selectedOption = alignmentString,
+                                        onOptionSelected = { selectedAlignment ->
+                                            alignmentString = selectedAlignment
+                                        })
+                                }
+                            }
                         }
                     }
                 }

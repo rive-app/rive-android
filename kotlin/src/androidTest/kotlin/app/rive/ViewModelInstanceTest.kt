@@ -1,7 +1,6 @@
 package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.rive.core.loadRiveFileOrFail
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
@@ -15,35 +14,38 @@ class ViewModelInstanceTest : RiveAndroidTest() {
     @Test
     fun names_matchFixtureForAllCreationSources() {
         runBlocking {
-            val file = riveWorker.loadRiveFileOrFail(R.raw.data_bind_test_impl)
+            val file = RiveFile.load(
+                RiveFileSource.RawRes(R.raw.data_bind_test_impl, context.resources),
+                riveWorker,
+            )
             val instances = mutableListOf<ViewModelInstance>()
             var listArtboard: Artboard? = null
 
             try {
                 val viewModel = ViewModelSource.Named("Test All")
-                val namedInstance = ViewModelInstance.fromFile(
+                val namedInstance = ViewModelInstance.create(
                     file,
                     viewModel.namedInstance("Test Alternate")
                 ).also(instances::add)
-                val defaultInstance = ViewModelInstance.fromFile(
+                val defaultInstance = ViewModelInstance.create(
                     file,
                     viewModel.defaultInstance()
                 ).also(instances::add)
-                val blankInstance = ViewModelInstance.fromFile(
+                val blankInstance = ViewModelInstance.create(
                     file,
                     viewModel.blankInstance()
                 ).also(instances::add)
-                val nestedInstance = ViewModelInstance.fromFile(
+                val nestedInstance = ViewModelInstance.create(
                     file,
                     ViewModelInstanceSource.Reference(defaultInstance, "Test Nested")
                 ).also(instances::add)
 
-                listArtboard = Artboard.fromFile(file, "Test List")
-                val listOwnerInstance = ViewModelInstance.fromFile(
+                listArtboard = Artboard.create(file, "Test List")
+                val listOwnerInstance = ViewModelInstance.create(
                     file,
                     ViewModelSource.DefaultForArtboard(listArtboard).defaultInstance()
                 ).also(instances::add)
-                val listItemInstance = ViewModelInstance.fromFile(
+                val listItemInstance = ViewModelInstance.create(
                     file,
                     ViewModelInstanceSource.ReferenceListItem(
                         listOwnerInstance,

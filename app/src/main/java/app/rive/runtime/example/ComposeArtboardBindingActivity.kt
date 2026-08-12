@@ -25,16 +25,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import app.rive.Artboard
 import app.rive.Fit
 import app.rive.Result
-import app.rive.Result.Loading.zip
 import app.rive.Rive
+import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
-import app.rive.rememberArtboard
+import app.rive.ViewModelInstance
+import app.rive.rememberArtboardResult
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
 import android.graphics.Color as AndroidColor
 
 class ComposeArtboardBindingActivity : ComponentActivity() {
@@ -57,19 +59,31 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
                 riveWorker
             )
             val bothFiles = mainRiveFile.zip(assetRiveFile)
+            val contentResult = bothFiles.andThen { (mainFile, assetFile) ->
+                val artboardsResult = rememberArtboardResult(assetFile, "Character 1").zip(
+                    rememberArtboardResult(assetFile, "Character 2")
+                )
+                rememberViewModelInstanceResult(mainFile).zip(artboardsResult) {
+                        vmi, (dragonArtboard, crocodileArtboard) ->
+                    ArtboardBindingContent(
+                        mainFile,
+                        vmi,
+                        dragonArtboard,
+                        crocodileArtboard
+                    )
+                }
+            }
 
             var useDragon by remember { mutableStateOf(true) }
 
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 Column(modifier = Modifier.padding(innerPadding)) {
-                    when (bothFiles) {
+                    when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
-                        is Result.Error -> ErrorMessage(bothFiles.throwable)
+                        is Result.Error -> ErrorMessage(contentResult.throwable)
                         is Result.Success -> {
-                            val (mainFile, assetFile) = bothFiles.value
-                            val vmi = rememberViewModelInstance(mainFile)
-                            val dragonArtboard = rememberArtboard(assetFile, "Character 1")
-                            val crocodileArtboard = rememberArtboard(assetFile, "Character 2")
+                            val (mainFile, vmi, dragonArtboard, crocodileArtboard) =
+                                contentResult.value
 
                             LaunchedEffect(mainFile, dragonArtboard, useDragon) {
                                 if (useDragon) {
@@ -113,3 +127,10 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
         }
     }
 }
+
+private data class ArtboardBindingContent(
+    val file: RiveFile,
+    val vmi: ViewModelInstance,
+    val dragonArtboard: Artboard,
+    val crocodileArtboard: Artboard,
+)

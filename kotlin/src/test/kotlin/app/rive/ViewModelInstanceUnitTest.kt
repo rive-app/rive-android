@@ -9,11 +9,16 @@ import app.rive.core.ImageHandle
 import app.rive.core.ViewModelInstanceHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.clearMocks
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.confirmVerified
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val DIRTY_TIMEOUT_MS = 1_000L
 private const val TEST_FILE_HANDLE = 1L
@@ -31,6 +37,55 @@ private const val TEST_IMAGE_HANDLE = 4L
 private const val TEST_ARTBOARD_HANDLE = 5L
 
 class ViewModelInstanceUnitTest : FunSpec({
+    val fixture = installCommandQueueTestFixture()
+    val renderContext = fixture.renderContextMock
+    val bridge = fixture.commandQueueBridgeMock
+
+    test("Factory returns an instance") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val source = ViewModelSource.Named("Test View Model").defaultInstance()
+        val handle = ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+        coEvery {
+            worker.createViewModelInstanceConfirmed(file.fileHandle, source)
+        } returns handle
+
+        val instance = ViewModelInstance.create(file, source)
+
+        instance.instanceHandle shouldBe handle
+        coVerify(exactly = 1) {
+            worker.createViewModelInstanceConfirmed(file.fileHandle, source)
+        }
+    }
+
+    test("Factory propagates creation failure") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val source = ViewModelSource.Named("Missing").blankInstance()
+        val error = RiveFileException("Missing view model")
+        coEvery {
+            worker.createViewModelInstanceConfirmed(file.fileHandle, source)
+        } throws error
+
+        shouldThrow<RiveFileException> {
+            ViewModelInstance.create(file, source)
+        } shouldBe error
+    }
+
+    test("Factory propagates cancellation") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val source = ViewModelSource.Named("Test View Model").defaultInstance()
+        val cancellation = CancellationException("Cancelled view model instance creation")
+        coEvery {
+            worker.createViewModelInstanceConfirmed(file.fileHandle, source)
+        } throws cancellation
+
+        shouldThrow<CancellationException> {
+            ViewModelInstance.create(file, source)
+        } shouldBe cancellation
+    }
+
     test("Factory rejects a closed file before creating an instance") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker).also { it.close() }
@@ -44,6 +99,70 @@ class ViewModelInstanceUnitTest : FunSpec({
         }.message shouldContain TEST_FILE_HANDLE.toString()
 
         confirmVerified(worker)
+    }
+
+    test("Creation validates every resource source before native dispatch") {
+        val worker = CommandQueue(renderContext, bridge)
+        val foreignWorker = CommandQueue(renderContext, bridge)
+        val fileHandle = FileHandle(TEST_FILE_HANDLE)
+        every { bridge.cppDeleteArtboard(any(), any(), any()) } just runs
+        every { bridge.cppDeleteViewModelInstance(any(), any(), any()) } just runs
+        val closedArtboard = Artboard(
+            ArtboardHandle(TEST_ARTBOARD_HANDLE),
+            worker,
+            fileHandle,
+            "Closed Artboard",
+        ).also { it.close() }
+        val siblingFileArtboard = Artboard(
+            ArtboardHandle(TEST_ARTBOARD_HANDLE + 1),
+            worker,
+            FileHandle(TEST_FILE_HANDLE + 1),
+            "Sibling File Artboard",
+        )
+        val closedParent = ViewModelInstance(
+            ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+            worker,
+            fileHandle,
+        ).also { it.close() }
+        val foreignParent = ViewModelInstance(
+            ViewModelInstanceHandle(TEST_NESTED_INSTANCE_HANDLE),
+            foreignWorker,
+            fileHandle,
+        )
+
+        val closedArtboardSource = ViewModelSource.DefaultForArtboard(closedArtboard)
+        listOf(
+            closedArtboardSource.blankInstance(),
+            closedArtboardSource.defaultInstance(),
+            closedArtboardSource.namedInstance("Test Instance"),
+            ViewModelInstanceSource.Reference(closedParent, "nested"),
+            ViewModelInstanceSource.ReferenceListItem(closedParent, "list", 0),
+        ).forEach { source ->
+            shouldThrow<RiveResourceClosedException> {
+                worker.createViewModelInstanceConfirmed(fileHandle, source)
+            }
+        }
+
+        val siblingArtboardSource = ViewModelSource.DefaultForArtboard(siblingFileArtboard)
+        listOf(
+            siblingArtboardSource.blankInstance(),
+            siblingArtboardSource.defaultInstance(),
+            siblingArtboardSource.namedInstance("Test Instance"),
+            ViewModelInstanceSource.Reference(foreignParent, "nested"),
+            ViewModelInstanceSource.ReferenceListItem(foreignParent, "list", 0),
+        ).forEach { source ->
+            shouldThrow<RiveIncompatibleResourceException> {
+                worker.createViewModelInstanceConfirmed(fileHandle, source)
+            }
+        }
+
+        verify(exactly = 0) {
+            bridge.cppDefaultVMCreateBlankVMI(any(), any(), any(), any())
+            bridge.cppDefaultVMCreateDefaultVMI(any(), any(), any(), any())
+            bridge.cppDefaultVMCreateNamedVMI(any(), any(), any(), any(), any())
+            bridge.cppReferenceNestedVMI(any(), any(), any(), any())
+            bridge.cppReferenceListItemVMI(any(), any(), any(), any(), any())
+        }
     }
 
     test("All public operations throw after close without using the worker") {

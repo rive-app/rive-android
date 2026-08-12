@@ -12,7 +12,6 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.Fit
-import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
@@ -20,6 +19,7 @@ import app.rive.SoftwareRenderBuffer
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -44,25 +44,28 @@ class RiveSnapshotActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            when (val riveFile =
-                RiveFile.fromSource(
+            val file = try {
+                RiveFile.load(
                     RiveFileSource.RawRes(R.raw.snapshot_test, resources),
                     riveWorker
-                )) {
-                is Result.Loading -> Unit
-                is Result.Success -> renderSnapshot(riveFile.value)
-                is Result.Error -> RiveLog.e(TAG) {
-                    "Failed to load Rive file: ${riveFile.throwable.message ?: "unknown error"}"
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(TAG, e) {
+                    "Failed to load Rive file: ${e.message ?: "unknown error"}"
                 }
+                return@launch
             }
+            file.use { renderSnapshot(it) }
         }
     }
 
     private suspend fun renderSnapshot(file: RiveFile) {
         val (width, height) = snapshotView.awaitSize()
         SoftwareRenderBuffer(width, height, file.riveWorker).use { buffer ->
-            Artboard.fromFile(file).use { artboard ->
-                StateMachine.fromArtboard(artboard).use { stateMachine ->
+            Artboard.create(file).use { artboard ->
+                StateMachine.create(artboard).use { stateMachine ->
                     val targetTime = 500.milliseconds
                     // Advance once by 0 to exit the "Entry" state and apply initial values
                     stateMachine.advance(0.milliseconds)

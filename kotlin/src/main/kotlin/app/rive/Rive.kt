@@ -44,79 +44,6 @@ private const val GENERAL_TAG = "Rive/UI"
 private const val STATE_MACHINE_TAG = "Rive/UI/SM"
 private const val DRAW_TAG = "Rive/UI/Draw"
 
-/**
- * Represents the result of an operation - typically loading - that can be in a loading, error,
- * or success state. This includes Rive file loading. The Success result must be unwrapped to the
- * value, e.g. through Kotlin's when/is statements.
- */
-sealed interface Result<out T> {
-    object Loading : Result<Nothing>
-    data class Error(val throwable: Throwable) : Result<Nothing>
-    data class Success<T>(val value: T) : Result<T>
-
-    /**
-     * Convenience to chain the result of one Result into another, forwarding loading and error
-     * states, and mapping the success to another Result.
-     *
-     * @param onSuccess The mapping function to apply to a Success result.
-     */
-    @Composable
-    fun <T, R> Result<T>.andThen(
-        onSuccess: @Composable (T) -> Result<R>
-    ): Result<R> = when (this) {
-        is Loading -> Loading
-        is Error -> Error(this.throwable)
-        is Success -> onSuccess(this.value)
-    }
-
-    /**
-     * Convenience to join two Results into one, forwarding loading and error states, and mapping
-     * the combination to another Result.
-     *
-     * @param other The other Result to combine with.
-     * @param combine The mapping function to apply to the two values, e.g. into a Pair with `{ a, b
-     *    -> a to b }`.
-     */
-    fun <A, B, R> Result<A>.zip(
-        other: Result<B>,
-        combine: (A, B) -> R
-    ): Result<R> = when (this) {
-        is Loading -> Loading
-        is Error -> Error(this.throwable)
-        is Success -> when (other) {
-            is Loading -> Loading
-            is Error -> Error(other.throwable)
-            is Success -> Success(combine(this.value, other.value))
-        }
-    }
-
-    /**
-     * Convenience to join two Results into one, forwarding loading and error states, and mapping
-     * the combination to a Pair.
-     *
-     * @param other The other Result to combine with.
-     */
-    fun <A, B> Result<A>.zip(
-        other: Result<B>
-    ): Result<Pair<A, B>> = zip(other) { a, b -> a to b }
-
-    /**
-     * Convenience to join a list of Results into a Result of one List. Any loading or error states
-     * will become the final Result state.
-     */
-    fun <T> Iterable<Result<T>>.sequence(): Result<List<T>> {
-        val out = ArrayList<T>()
-        for (r in this) {
-            when (r) {
-                is Error -> return Error(r.throwable)
-                is Loading -> return Loading
-                is Success -> out += r.value
-            }
-        }
-        return Success(out)
-    }
-}
-
 /** Function type for getting a Bitmap. */
 typealias GetBitmapFun = () -> Bitmap
 
@@ -190,6 +117,16 @@ internal fun validateRiveResourceArguments(
  * will be restarted when influenced by other events, such as pointer input or view model instance
  * changes.
  *
+ * When [artboard] or [stateMachine] is null, its default is created asynchronously. This
+ * composable emits no UI while either resource is loading and automatically recomposes when its
+ * creation state changes. If implicit creation fails, it continues to emit no UI and does not
+ * expose the error.
+ *
+ * To display loading or error UI, create the resources with [rememberArtboardResult] and
+ * [rememberStateMachineResult], handle their [Result] states, and supply the successful [artboard]
+ * and [stateMachine] here. Any resource left null retains the silent implicit-creation behavior
+ * described above.
+ *
  * @param file The [RiveFile] that created the artboard and state machine.
  * @param modifier The [Modifier] to apply to the composable.
  * @param playing Whether the state machine should advance. When true (default), the state machine
@@ -241,12 +178,21 @@ fun Rive(
 
     val riveWorker = file.riveWorker
 
-    /** Use provided artboard or create a default one. */
-    val artboardToUse = artboard ?: rememberArtboard(file)
+    /** Use the provided artboard or create and own a confirmed default one. */
+    val artboardResult = artboard?.let { Result.Success(it) } ?: rememberArtboardResult(file)
+    val artboardToUse = when (artboardResult) {
+        is Result.Loading, is Result.Error -> return
+        is Result.Success -> artboardResult.value
+    }
     val artboardHandle = artboardToUse.artboardHandle
 
-    /** Use provided state machine or create a default one. */
-    val stateMachineToUse = stateMachine ?: rememberStateMachine(artboardToUse)
+    /** Use the provided state machine or create and own a confirmed default one. */
+    val stateMachineResult = stateMachine?.let { Result.Success(it) }
+        ?: rememberStateMachineResult(artboardToUse)
+    val stateMachineToUse = when (stateMachineResult) {
+        is Result.Loading, is Result.Error -> return
+        is Result.Success -> stateMachineResult.value
+    }
     val stateMachineHandle = stateMachineToUse.stateMachineHandle
     val isSettled by stateMachineToUse.settled.collectAsState()
 

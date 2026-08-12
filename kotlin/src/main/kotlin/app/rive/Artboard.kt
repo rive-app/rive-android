@@ -2,6 +2,7 @@ package app.rive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
 import app.rive.core.CheckableAutoCloseable
@@ -19,8 +20,9 @@ private const val ARTBOARD_TAG = "Rive/Artboard"
  *
  * Can be queried for state machine names, and used to create a [Rive] composable.
  *
- * Create an instance of this class using [rememberArtboard] or [Artboard.fromFile]. When using the
- * latter, make sure to call [close] when you are done with the artboard to release its resources.
+ * Create an instance of this class using [rememberArtboardResult] or [Artboard.create]. When using
+ * the latter, make sure to call [close] when you are done with the artboard to release its
+ * resources.
  *
  * @param artboardHandle The handle to the artboard on the command server.
  * @param riveWorker The Rive worker that owns the artboard.
@@ -59,6 +61,60 @@ class Artboard internal constructor(
 
     companion object {
         /**
+         * Creates a new [Artboard] and suspends until its Rive worker confirms creation.
+         *
+         * This is the replacement for [fromFile]. Its temporary name avoids a source-incompatible
+         * overload; it will be renamed to `fromFile` in 12.0 when the unconfirmed API is removed.
+         *
+         * ⚠️ The lifetime of a successfully created artboard is managed by the caller. Make sure
+         * to call [close] when you are done with it to release its resources.
+         *
+         * @param file The [RiveFile] to instantiate the artboard from.
+         * @param artboardName The name of the artboard to load. If null, the default artboard will
+         *    be loaded.
+         * @return The created artboard.
+         * @throws RiveFileException If the file or requested artboard cannot be resolved.
+         * @throws RiveResourceClosedException If [file] has been closed or its Rive worker has
+         *    been disposed.
+         * @throws CancellationException If the coroutine is cancelled before creation is
+         *    confirmed.
+         */
+        @Throws(
+            RiveFileException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun create(
+            file: RiveFile,
+            artboardName: String? = null
+        ): Artboard {
+            val nameLog = artboardName?.let { "with name $it" } ?: "(default)"
+            RiveLog.d(ARTBOARD_TAG) {
+                "Creating artboard $nameLog (${file.fileHandle})"
+            }
+            return try {
+                file.checkOpen()
+                val handle = artboardName?.let { name ->
+                    file.riveWorker.createArtboardByNameConfirmed(file.fileHandle, name)
+                } ?: file.riveWorker.createDefaultArtboardConfirmed(file.fileHandle)
+                RiveLog.d(ARTBOARD_TAG) {
+                    "Created $handle $nameLog (${file.fileHandle})"
+                }
+                Artboard(handle, file.riveWorker, file.fileHandle, artboardName)
+            } catch (ce: CancellationException) {
+                RiveLog.d(ARTBOARD_TAG) {
+                    "Artboard creation was cancelled $nameLog (${file.fileHandle})"
+                }
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(ARTBOARD_TAG, e) {
+                    "Error creating artboard $nameLog (${file.fileHandle})"
+                }
+                throw e
+            }
+        }
+
+        /**
          * Creates a new [Artboard].
          *
          * ⚠️ The lifetime of the returned artboard is managed by the caller. Make sure to call
@@ -70,8 +126,15 @@ class Artboard internal constructor(
          * @return The created artboard.
          * @throws RiveResourceClosedException If [file] has been closed or its Rive worker has been
          *    disposed.
+         * @deprecated Use [create]. This unconfirmed implementation will be removed in 12.0, when
+         *    [create] will be renamed to `fromFile` as a suspending API.
          */
         @Throws(RiveResourceClosedException::class)
+        @Deprecated(
+            "Use create. This unconfirmed implementation will be removed in 12.0, when create " +
+                "will be renamed to fromFile as a suspending API."
+        )
+        @Suppress("DEPRECATION")
         fun fromFile(
             file: RiveFile,
             artboardName: String? = null
@@ -256,8 +319,15 @@ class Artboard internal constructor(
  * @return The created [Artboard].
  * @throws RiveResourceClosedException If [file] has been closed or its Rive worker has been
  *    disposed.
+ * @deprecated Use [rememberArtboardResult]. This implementation will be removed in 12.0, when
+ *    [rememberArtboardResult] will be renamed to `rememberArtboard` and return a [Result].
  */
 @Throws(RiveResourceClosedException::class)
+@Deprecated(
+    "Use rememberArtboardResult. This implementation will be removed in 12.0, when " +
+        "rememberArtboardResult will be renamed to rememberArtboard and return a Result."
+)
+@Suppress("DEPRECATION")
 @Composable
 fun rememberArtboard(
     file: RiveFile,
@@ -273,3 +343,35 @@ fun rememberArtboard(
 
     return artboard
 }
+
+/**
+ * Creates an [Artboard] from [file] and exposes its creation state.
+ *
+ * The lifetime of a successfully created artboard is managed by this composable. It will delete
+ * the artboard when it falls out of scope.
+ *
+ * This is the replacement for [rememberArtboard]; its temporary name will become
+ * `rememberArtboard` in 12.0 when the unconfirmed API is removed.
+ *
+ * @param file The [RiveFile] to instantiate the artboard from.
+ * @param artboardName The name of the artboard to load. If null, the default artboard will be
+ *    loaded.
+ * @return The current creation result: loading, error, or success with the created [Artboard].
+ */
+@Composable
+fun rememberArtboardResult(
+    file: RiveFile,
+    artboardName: String? = null,
+): Result<Artboard> = produceState<Result<Artboard>>(Result.Loading, file, artboardName) {
+    val artboard = try {
+        Artboard.create(file, artboardName)
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        value = Result.Error(e)
+        return@produceState
+    }
+
+    value = Result.Success(artboard)
+    awaitDispose { artboard.close() }
+}.value

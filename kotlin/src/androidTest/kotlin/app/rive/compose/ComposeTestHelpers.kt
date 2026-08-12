@@ -1,7 +1,17 @@
 package app.rive.compose
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import app.rive.Artboard
+import app.rive.Result
+import app.rive.RiveFile
+import app.rive.RiveFileSource
+import app.rive.StateMachine
+import app.rive.core.RiveWorker
+import app.rive.rememberArtboardResult
+import app.rive.rememberRiveFile
+import app.rive.rememberStateMachineResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -12,6 +22,45 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicReference
 
 private const val DEFAULT_COMPOSE_TIMEOUT_MILLIS = 10_000L
+
+/**
+ * Fully resolved resources used by Compose instrumentation fixtures.
+ *
+ * This is intentionally test-only. The public resource-input shape will be designed separately
+ * for the 12.0 `Rive` composable API.
+ *
+ * @param file The loaded file.
+ * @param artboard The artboard created from [file].
+ * @param stateMachine The state machine created from [artboard].
+ */
+internal data class TestRiveResources(
+    val file: RiveFile,
+    val artboard: Artboard,
+    val stateMachine: StateMachine,
+)
+
+/**
+ * Sequentially remembers a file and its selected artboard and state machine for tests.
+ *
+ * @param source The source of the Rive file.
+ * @param riveWorker The worker that owns the resources.
+ * @param artboardName The artboard to create, or null for the default.
+ * @param stateMachineName The state machine to create, or null for the default.
+ * @return The current creation result for the fully resolved test resources.
+ */
+@Composable
+internal fun rememberTestRiveResources(
+    source: RiveFileSource,
+    riveWorker: RiveWorker,
+    artboardName: String? = null,
+    stateMachineName: String? = null,
+): Result<TestRiveResources> = rememberRiveFile(source, riveWorker).andThen { file ->
+    rememberArtboardResult(file, artboardName).andThen { artboard ->
+        rememberStateMachineResult(artboard, stateMachineName).map { stateMachine ->
+            TestRiveResources(file, artboard, stateMachine)
+        }
+    }
+}
 
 /**
  * Distinguishes a property that emitted `null` from one that has not emitted for timeout

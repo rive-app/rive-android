@@ -40,9 +40,10 @@ class LinearAnimationInstance(
      * @param elapsedTime The time in seconds to advance by.
      * @return The [Loop] type associated with the current animation if this advance caused a loop,
      *    otherwise null.
+     * @deprecated Use [advanceAndGetResult]. This method will be removed in 12.0.
      */
     @Deprecated(
-        "Use advanceAndGetResult instead.",
+        "Use advanceAndGetResult instead. This method will be removed in 12.0.",
         ReplaceWith("advanceAndGetResult(elapsedTime)")
     )
     fun advance(elapsedTime: Float): Loop? {

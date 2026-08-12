@@ -17,7 +17,7 @@ interface CommandQueueBridge {
     fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
     fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
-    fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray)
+    fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
 
     fun cppGetArtboardNames(
@@ -344,7 +344,7 @@ interface CommandQueueBridge {
         indexB: Int
     )
 
-    fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray)
+    fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteImage(pointer: Long, imageHandle: Long)
     fun cppRegisterImage(
         pointer: Long,
@@ -353,7 +353,7 @@ interface CommandQueueBridge {
     )
 
     fun cppUnregisterImage(pointer: Long, name: String)
-    fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray)
+    fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteAudio(pointer: Long, audioHandle: Long)
     fun cppRegisterAudio(
         pointer: Long,
@@ -362,7 +362,7 @@ interface CommandQueueBridge {
     )
 
     fun cppUnregisterAudio(pointer: Long, name: String)
-    fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray)
+    fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteFont(pointer: Long, fontHandle: Long)
     fun cppRegisterFont(
         pointer: Long,
@@ -490,7 +490,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
     external override fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
-    external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray)
+    external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteFile(
         pointer: Long,
         requestID: Long,
@@ -821,7 +821,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         indexB: Int
     )
 
-    external override fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray)
+    external override fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteImage(pointer: Long, imageHandle: Long)
     external override fun cppRegisterImage(
         pointer: Long,
@@ -830,7 +830,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppUnregisterImage(pointer: Long, name: String)
-    external override fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray)
+    external override fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteAudio(pointer: Long, audioHandle: Long)
     external override fun cppRegisterAudio(
         pointer: Long,
@@ -839,7 +839,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppUnregisterAudio(pointer: Long, name: String)
-    external override fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray)
+    external override fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteFont(pointer: Long, fontHandle: Long)
     external override fun cppRegisterFont(
         pointer: Long,

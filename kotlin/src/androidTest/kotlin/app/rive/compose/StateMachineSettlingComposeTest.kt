@@ -21,10 +21,7 @@ import app.rive.RiveFileSource
 import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
-import app.rive.rememberArtboard
-import app.rive.rememberRiveFile
-import app.rive.rememberStateMachine
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -54,21 +51,24 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
             portrait = remember { mutableStateOf(false) }
 
             // Create the Rive resources once the fixture has loaded.
-            val fileResult = rememberRiveFile(
+            val resourcesResult = rememberTestRiveResources(
                 source = RiveFileSource.RawRes.from(R.raw.resize_test),
                 riveWorker = riveWorker
             )
-            if (fileResult !is Result.Success) {
+            val contentResult = resourcesResult.andThen { resources ->
+                rememberViewModelInstanceResult(
+                    resources.file,
+                    ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance()
+                ).map { rememberedViewModelInstance ->
+                    SettlingTestContent(resources, rememberedViewModelInstance)
+                }
+            }
+            if (contentResult !is Result.Success) {
                 return@setContent
             }
 
-            val file = fileResult.value
-            val artboard = rememberArtboard(file)
-            val rememberedStateMachine = rememberStateMachine(artboard)
-            val rememberedViewModelInstance = rememberViewModelInstance(
-                file,
-                ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
-            )
+            val (resources, rememberedViewModelInstance) = contentResult.value
+            val (file, artboard, rememberedStateMachine) = resources
 
             // Publish the remembered resources for assertions outside composition.
             stateMachine.set(rememberedStateMachine)
@@ -189,3 +189,8 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
         private const val ARTBOARD_TO_VIEW_RATIO = 2f
     }
 }
+
+private data class SettlingTestContent(
+    val resources: TestRiveResources,
+    val viewModelInstance: ViewModelInstance,
+)

@@ -19,8 +19,8 @@ import app.rive.RiveFile
 import app.rive.RiveFileException
 import app.rive.RiveFontException
 import app.rive.RiveImageException
-import app.rive.RiveInitializationException
 import app.rive.RiveIncompatibleResourceException
+import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
 import app.rive.RiveResourceClosedException
@@ -39,6 +39,7 @@ import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -51,6 +52,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -102,9 +104,10 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * asynchronous.
  *
  * If the operation creates a resource, it will be received as a handle, a monotonically increasing
- * opaque identifier that can be translated to a pointer on the command server. A handle can be used
- * immediately, since commands are ordered, ensuring validity at the time of any operation that uses
- * it.
+ * opaque identifier that can be translated to a pointer on the command server. Resource-creation
+ * suspend functions return only after the command server confirms the handle. Deprecated
+ * fire-and-forget creation functions return a provisional handle immediately; that handle can be
+ * submitted to subsequent commands because command ordering ensures it is resolved first.
  *
  * If instead the operation is a query, such as getting the names of artboards or view models, it
  * is represented as a suspend function. In most cases, the result can be cached, as Rive files are
@@ -124,12 +127,14 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * @param nativePointer Allocated native command queue created by
  *    `createNativeCommandQueueResources`. Supplying it lets backend fallback finish native startup
  *    before ownership is transferred to this instance.
+ * @param settlingStore Settled-state store override used by unit tests without native code.
  */
 class CommandQueue internal constructor(
     private val renderContext: RenderContext,
     private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
     tracingEnabled: Boolean = false,
     nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
+    settlingStore: StateMachineSettlingStore? = null,
 ) : RefCounted {
     /**
      * Creates a command queue using the requested render backend.
@@ -555,7 +560,7 @@ class CommandQueue internal constructor(
     }
 
     /** Durable settled state for state machines owned by this command queue. */
-    private val stateMachineSettlingStore = StateMachineSettlingStore {
+    private val stateMachineSettlingStore = settlingStore ?: StateMachineSettlingStore {
         nextRequestID.getAndIncrement()
     }
 
@@ -750,9 +755,10 @@ class CommandQueue internal constructor(
      * @param surface The [RiveSurface] to destroy.
      * @throws RiveIncompatibleResourceException If [surface] is owned by another command queue.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Call [RiveSurface.close] directly. This method will be removed in 12.0.
      */
     @Deprecated(
-        "Call RiveSurface.close() directly.",
+        "Call RiveSurface.close() directly. This method will be removed in 12.0.",
         ReplaceWith("surface.close()")
     )
     @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
@@ -777,9 +783,7 @@ class CommandQueue internal constructor(
     @JvmName("onFileError")
     internal fun onFileError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "File error for request $requestID: $error" }
-        pendingContinuations.remove(requestID)?.resumeWithException(
-            RiveFileException("File error: $error")
-        )
+        failNativeRequest(requestID, RiveFileException("File error: $error"))
     }
 
     /**
@@ -795,9 +799,7 @@ class CommandQueue internal constructor(
     @JvmName("onArtboardError")
     internal fun onArtboardError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "Artboard error for request $requestID: $error" }
-        pendingContinuations.remove(requestID)?.resumeWithException(
-            RiveArtboardException("Artboard error: $error")
-        )
+        failNativeRequest(requestID, RiveArtboardException("Artboard error: $error"))
     }
 
     /**
@@ -813,7 +815,8 @@ class CommandQueue internal constructor(
     @JvmName("onStateMachineError")
     internal fun onStateMachineError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "State machine error for request $requestID: $error" }
-        pendingContinuations.remove(requestID)?.resumeWithException(
+        failNativeRequest(
+            requestID,
             RiveStateMachineException("State machine error: $error")
         )
     }
@@ -832,14 +835,17 @@ class CommandQueue internal constructor(
     @JvmName("onViewModelInstanceError")
     internal fun onViewModelInstanceError(requestID: Long, error: String) {
         RiveLog.e(COMMAND_QUEUE_TAG) { "View model instance error for request $requestID: $error" }
-        pendingContinuations.remove(requestID)?.resumeWithException(
+        failNativeRequest(
+            requestID,
             RiveViewModelInstanceException("View model instance error: $error")
         )
     }
 
     /**
-     * Load a Rive into the command queue. Returns the handle in either [onFileLoaded] or an error
-     * in [onFileError].
+     * Loads a Rive file and suspends until the command server confirms the load.
+     *
+     * If the coroutine is cancelled after submission, the provisional file is deleted in command
+     * order so a later successful load cannot orphan it.
      *
      * @param bytes The bytes of the Rive file to load.
      * @return A [FileHandle] that represents the loaded Rive file.
@@ -848,9 +854,10 @@ class CommandQueue internal constructor(
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
     @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
-    suspend fun loadFile(bytes: ByteArray): FileHandle = suspendNativeRequest { requestID ->
-        bridge.cppLoadFile(requireNativePointer(), requestID, bytes)
-    }
+    suspend fun loadFile(bytes: ByteArray): FileHandle =
+        suspendNativeResourceRequest(::deleteFile) { requestID ->
+            FileHandle(bridge.cppLoadFile(requireNativePointer(), requestID, bytes))
+        }
 
     /**
      * Callback when a Rive file is loaded successfully, from [loadFile].
@@ -863,7 +870,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onFileLoaded")
     internal fun onFileLoaded(requestID: Long, fileHandle: FileHandle) {
-        (pendingContinuations.remove(requestID) as? Continuation<FileHandle>)?.resume(fileHandle)
+        resumeResourceRequest(requestID, fileHandle)
     }
 
     /**
@@ -1170,14 +1177,78 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Creates the default artboard and suspends until the command server confirms creation.
+     *
+     * If the coroutine is cancelled after submission, the provisional artboard is deleted in
+     * command order so a later successful creation cannot orphan it.
+     *
+     * The `Confirmed` suffix is temporary. This method will be renamed to
+     * `createDefaultArtboard` in 12.0 when the fire-and-forget overload is removed.
+     *
+     * @param fileHandle The handle of the file that owns the artboard.
+     * @return The confirmed handle of the created artboard.
+     * @throws RiveFileException If the file or its default artboard cannot be resolved.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun createDefaultArtboardConfirmed(
+        fileHandle: FileHandle
+    ): ArtboardHandle = suspendNativeResourceRequest(::deleteArtboard) { requestID ->
+        ArtboardHandle(
+            bridge.cppCreateDefaultArtboard(
+                requireNativePointer(),
+                requestID,
+                fileHandle.handle
+            )
+        )
+    }
+
+    /**
+     * Creates a named artboard and suspends until the command server confirms creation.
+     *
+     * If the coroutine is cancelled after submission, the provisional artboard is deleted in
+     * command order so a later successful creation cannot orphan it.
+     *
+     * The `Confirmed` suffix is temporary. This method will be renamed to
+     * `createArtboardByName` in 12.0 when the fire-and-forget overload is removed.
+     *
+     * @param fileHandle The handle of the file that owns the artboard.
+     * @param name The name of the artboard to create.
+     * @return The confirmed handle of the created artboard.
+     * @throws RiveFileException If the file or named artboard cannot be resolved.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun createArtboardByNameConfirmed(
+        fileHandle: FileHandle,
+        name: String
+    ): ArtboardHandle = suspendNativeResourceRequest(::deleteArtboard) { requestID ->
+        ArtboardHandle(
+            bridge.cppCreateArtboardByName(
+                requireNativePointer(),
+                requestID,
+                fileHandle.handle,
+                name
+            )
+        )
+    }
+
+    /**
      * Create the default artboard for the given file. This is the artboard marked "Default" in the
      * Rive editor.
      *
      * @param fileHandle The handle of the file that owns the artboard.
-     * @return The handle of the created artboard.
+     * @return The provisional handle of the created artboard.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Use [createDefaultArtboardConfirmed]. This API returns before native creation is
+     *    confirmed and will be removed in 12.0.
      */
     @Throws(RiveResourceClosedException::class)
+    @Deprecated(
+        "Use createDefaultArtboardConfirmed. This fire-and-forget method will be removed in 12.0."
+    )
     fun createDefaultArtboard(fileHandle: FileHandle): ArtboardHandle = ArtboardHandle(
         bridge.cppCreateDefaultArtboard(
             requireNativePointer(),
@@ -1192,9 +1263,15 @@ class CommandQueue internal constructor(
      *
      * @param fileHandle The handle of the file that owns the artboard.
      * @param name The name of the artboard to create.
+     * @return The provisional handle reserved for the artboard.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Use [createArtboardByNameConfirmed]. This API returns before native creation is
+     *    confirmed and will be removed in 12.0.
      */
     @Throws(RiveResourceClosedException::class)
+    @Deprecated(
+        "Use createArtboardByNameConfirmed. This fire-and-forget method will be removed in 12.0."
+    )
     fun createArtboardByName(fileHandle: FileHandle, name: String): ArtboardHandle =
         ArtboardHandle(
             bridge.cppCreateArtboardByName(
@@ -1206,9 +1283,22 @@ class CommandQueue internal constructor(
         )
 
     /**
+     * Callback when an artboard is instantiated successfully.
+     *
+     * @param requestID The request ID used to create the artboard.
+     * @param artboardHandle The confirmed artboard handle.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onArtboardInstantiated")
+    internal fun onArtboardInstantiated(requestID: Long, artboardHandle: ArtboardHandle) {
+        resumeResourceRequest(requestID, artboardHandle)
+    }
+
+    /**
      * Delete an artboard and free its resources. This is useful when you no longer need
-     * the artboard and want to free up memory. Counterpart to [createDefaultArtboard] or
-     * [createArtboardByName].
+     * the artboard and want to free up memory. Counterpart to [createDefaultArtboardConfirmed] or
+     * [createArtboardByNameConfirmed].
      *
      * @param artboardHandle The handle of the artboard to delete.
      * @throws RiveResourceClosedException If this command queue has been disposed.
@@ -1217,6 +1307,73 @@ class CommandQueue internal constructor(
     fun deleteArtboard(artboardHandle: ArtboardHandle) = bridge.cppDeleteArtboard(
         requireNativePointer(), nextRequestID.getAndIncrement(), artboardHandle.handle
     )
+
+    /**
+     * Creates the default state machine and suspends until the command server confirms creation.
+     *
+     * Settled-state tracking starts only after confirmation. If the coroutine is cancelled after
+     * submission, the provisional state machine is deleted in command order.
+     *
+     * The `Confirmed` suffix is temporary. This method will be renamed to
+     * `createDefaultStateMachine` in 12.0 when the fire-and-forget overload is removed.
+     *
+     * @param artboardHandle The handle of the artboard that owns the state machine.
+     * @return The confirmed handle of the created state machine.
+     * @throws RiveArtboardException If the artboard or its default state machine cannot be resolved.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
+     */
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun createDefaultStateMachineConfirmed(
+        artboardHandle: ArtboardHandle
+    ): StateMachineHandle = suspendNativeResourceRequest(::deleteStateMachine) { requestID ->
+        StateMachineHandle(
+            bridge.cppCreateDefaultStateMachine(
+                requireNativePointer(),
+                requestID,
+                artboardHandle.handle
+            )
+        )
+    }
+
+    /**
+     * Creates a named state machine and suspends until the command server confirms creation.
+     *
+     * Settled-state tracking starts only after confirmation. If the coroutine is cancelled after
+     * submission, the provisional state machine is deleted in command order.
+     *
+     * The `Confirmed` suffix is temporary. This method will be renamed to
+     * `createStateMachineByName` in 12.0 when the fire-and-forget overload is removed.
+     *
+     * @param artboardHandle The handle of the artboard that owns the state machine.
+     * @param name The name of the state machine to create.
+     * @return The confirmed handle of the created state machine.
+     * @throws RiveArtboardException If the artboard or named state machine cannot be resolved.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
+     */
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun createStateMachineByNameConfirmed(
+        artboardHandle: ArtboardHandle,
+        name: String
+    ): StateMachineHandle = suspendNativeResourceRequest(::deleteStateMachine) { requestID ->
+        StateMachineHandle(
+            bridge.cppCreateStateMachineByName(
+                requireNativePointer(),
+                requestID,
+                artboardHandle.handle,
+                name
+            )
+        )
+    }
 
     /**
      * Create the default state machine for the given artboard. This is the state machine marked
@@ -1231,10 +1388,15 @@ class CommandQueue internal constructor(
      * initial "animated" state.
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
-     * @return The handle of the created state machine.
+     * @return The provisional handle reserved for the state machine.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Use [createDefaultStateMachineConfirmed]. This API returns before native
+     *    creation is confirmed and will be removed in 12.0.
      */
     @Throws(RiveResourceClosedException::class)
+    @Deprecated(
+        "Use createDefaultStateMachineConfirmed. This fire-and-forget method will be removed in 12.0."
+    )
     fun createDefaultStateMachine(artboardHandle: ArtboardHandle): StateMachineHandle {
         val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateDefaultStateMachine(
@@ -1261,9 +1423,15 @@ class CommandQueue internal constructor(
      *
      * @param artboardHandle The handle of the artboard that owns the state machine.
      * @param name The name of the state machine to create.
+     * @return The provisional handle reserved for the state machine.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Use [createStateMachineByNameConfirmed]. This API returns before native creation
+     *    is confirmed and will be removed in 12.0.
      */
     @Throws(RiveResourceClosedException::class)
+    @Deprecated(
+        "Use createStateMachineByNameConfirmed. This fire-and-forget method will be removed in 12.0."
+    )
     fun createStateMachineByName(
         artboardHandle: ArtboardHandle,
         name: String
@@ -1281,9 +1449,47 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Callback when a state machine is instantiated successfully.
+     *
+     * Confirmed creation requests defer settled-state registration until this callback. The
+     * fire-and-forget APIs scheduled for removal in 12.0 register their provisional handles when
+     * submitting the request instead.
+     *
+     * @param requestID The request ID used to create the state machine.
+     * @param stateMachineHandle The confirmed state machine handle.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onStateMachineInstantiated")
+    internal fun onStateMachineInstantiated(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle
+    ) {
+        val trackSettling = pendingContinuations.containsKey(requestID)
+        if (trackSettling) {
+            // Cancellation can occur after we remove the continuation from pendingContinuations
+            // but before the resumed value reaches the awaiting coroutine. Register first so that
+            // cancellation cleanup, which deletes and unregisters the state machine, cannot run
+            // before the entry exists.
+            stateMachineSettlingStore.register(stateMachineHandle)
+        }
+        val continuationRemovedBeforeResume =
+            !resumeResourceRequest(requestID, stateMachineHandle)
+        val registrationIsStale =
+            trackSettling && continuationRemovedBeforeResume
+
+        if (registrationIsStale) {
+            // Cancellation can remove the continuation after the check above but before
+            // registration. If so, cleanup ran before registration, so remove the entry that
+            // registration just added.
+            stateMachineSettlingStore.unregister(stateMachineHandle)
+        }
+    }
+
+    /**
      * Delete a state machine and free its resources. This is useful when you no longer need the
-     * state machine and want to free up memory. Counterpart to [createDefaultStateMachine] or
-     * [createStateMachineByName].
+     * state machine and want to free up memory. Counterpart to [createDefaultStateMachineConfirmed]
+     * or [createStateMachineByNameConfirmed].
      *
      * @param stateMachineHandle The handle of the state machine to delete.
      * @throws RiveResourceClosedException If this command queue has been disposed.
@@ -1361,6 +1567,43 @@ class CommandQueue internal constructor(
     ) = stateMachineSettlingStore.settle(requestID, stateMachineHandle)
 
     /**
+     * Creates a view model instance and suspends until the command server confirms creation.
+     *
+     * If the coroutine is cancelled after submission, the provisional instance is deleted in
+     * command order so a later successful creation cannot orphan it.
+     *
+     * The `Confirmed` suffix is temporary. This method will be renamed to
+     * `createViewModelInstance` in 12.0 when the fire-and-forget overload is removed.
+     *
+     * @param fileHandle The handle of the file that owns the view model instance.
+     * @param source The source from which to create the view model instance.
+     * @return The confirmed handle of the created view model instance.
+     * @throws RiveFileException If the file or requested view model source cannot be resolved.
+     * @throws RiveViewModelInstanceException If a referenced instance source cannot be resolved.
+     * @throws RiveResourceClosedException If this command queue or a referenced resource has been
+     *    disposed.
+     * @throws RiveIncompatibleResourceException If a referenced resource is owned by another
+     *    command queue or file.
+     * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
+     */
+    @Throws(
+        RiveFileException::class,
+        RiveViewModelInstanceException::class,
+        RiveIncompatibleResourceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun createViewModelInstanceConfirmed(
+        fileHandle: FileHandle,
+        source: ViewModelInstanceSource
+    ): ViewModelInstanceHandle {
+        checkViewModelInstanceSource(fileHandle, source)
+        return suspendNativeResourceRequest(::deleteViewModelInstance) { requestID ->
+            enqueueViewModelInstanceCreation(fileHandle, source, requestID)
+        }
+    }
+
+    /**
      * Create a new view model instance based on the given source. The source is a combination of a
      * view model source and an instance source, which multiply to capture all the possible ways to
      * create an instance (+1 for referencing).
@@ -1368,27 +1611,75 @@ class CommandQueue internal constructor(
      * @param fileHandle The handle of the file that owns the view model instance.
      * @param source The source of the view model instance to create, which internally also has a
      *    [view model source][ViewModelSource].
-     * @return The handle of the created view model instance.
+     * @return The provisional handle reserved for the view model instance.
      * @throws RiveResourceClosedException If this command queue has been disposed or a resource
      *    referenced by [source] has been closed.
      * @throws RiveIncompatibleResourceException If a resource referenced by [source] is owned by
      *    another command queue or file.
+     * @deprecated Use [createViewModelInstanceConfirmed]. This API returns before native creation
+     *    is confirmed and will be removed in 12.0.
      */
     @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+    @Deprecated(
+        "Use createViewModelInstanceConfirmed. This fire-and-forget method will be removed in 12.0."
+    )
     fun createViewModelInstance(
         fileHandle: FileHandle,
         source: ViewModelInstanceSource
     ): ViewModelInstanceHandle {
+        checkViewModelInstanceSource(fileHandle, source)
+        return enqueueViewModelInstanceCreation(
+            fileHandle,
+            source,
+            nextRequestID.getAndIncrement()
+        )
+    }
+
+    /**
+     * Validates resources referenced by a view model instance creation request.
+     *
+     * @param fileHandle The file that will own the created instance.
+     * @param source The source whose referenced resources must be open and compatible.
+     * @throws RiveResourceClosedException If this command queue or a referenced resource has been
+     *    disposed.
+     * @throws RiveIncompatibleResourceException If a referenced resource has different ownership.
+     */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+    private fun checkViewModelInstanceSource(
+        fileHandle: FileHandle,
+        source: ViewModelInstanceSource
+    ) {
         checkOpen()
         source.checkOpen()
         source.requireCompatibleWith(this, fileHandle)
-        return when (source) {
+    }
+
+    /**
+     * Queues one of the native view model instance creation commands.
+     *
+     * This extraction is shared by the confirmed and deprecated fire-and-forget creation APIs.
+     * Inline it into `createViewModelInstance` in 12.0 when the fire-and-forget API is removed and
+     * [createViewModelInstanceConfirmed] adopts that name.
+     *
+     * @param fileHandle The file that owns the requested instance.
+     * @param source The source from which to create the instance.
+     * @param requestID The request ID associated with native completion.
+     * @return The provisional handle reserved by the command queue.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    private fun enqueueViewModelInstanceCreation(
+        fileHandle: FileHandle,
+        source: ViewModelInstanceSource,
+        requestID: Long
+    ): ViewModelInstanceHandle =
+        when (source) {
             is ViewModelInstanceSource.Blank -> when (val vm = source.vmSource) {
                 is ViewModelSource.Named ->
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateBlankVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.viewModelName
                         )
@@ -1398,7 +1689,7 @@ class CommandQueue internal constructor(
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateBlankVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
                         )
@@ -1410,7 +1701,7 @@ class CommandQueue internal constructor(
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateDefaultVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.viewModelName
                         )
@@ -1420,7 +1711,7 @@ class CommandQueue internal constructor(
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateDefaultVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle
                         )
@@ -1432,7 +1723,7 @@ class CommandQueue internal constructor(
                     ViewModelInstanceHandle(
                         bridge.cppNamedVMCreateNamedVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.viewModelName,
                             source.instanceName
@@ -1443,7 +1734,7 @@ class CommandQueue internal constructor(
                     ViewModelInstanceHandle(
                         bridge.cppDefaultVMCreateNamedVMI(
                             requireNativePointer(),
-                            nextRequestID.getAndIncrement(),
+                            requestID,
                             fileHandle.handle,
                             vm.artboard.artboardHandle.handle,
                             source.instanceName
@@ -1454,7 +1745,7 @@ class CommandQueue internal constructor(
             is ViewModelInstanceSource.Reference -> ViewModelInstanceHandle(
                 bridge.cppReferenceNestedVMI(
                     requireNativePointer(),
-                    nextRequestID.getAndIncrement(),
+                    requestID,
                     source.parentInstance.instanceHandle.handle,
                     source.path
                 )
@@ -1463,13 +1754,28 @@ class CommandQueue internal constructor(
             is ViewModelInstanceSource.ReferenceListItem -> ViewModelInstanceHandle(
                 bridge.cppReferenceListItemVMI(
                     requireNativePointer(),
-                    nextRequestID.getAndIncrement(),
+                    requestID,
                     source.parentInstance.instanceHandle.handle,
                     source.pathToList,
                     source.index
                 )
             )
         }
+
+    /**
+     * Callback when a view model instance is instantiated successfully.
+     *
+     * @param requestID The request ID used to create the instance.
+     * @param viewModelInstanceHandle The confirmed view model instance handle.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onViewModelInstanceInstantiated")
+    internal fun onViewModelInstanceInstantiated(
+        requestID: Long,
+        viewModelInstanceHandle: ViewModelInstanceHandle
+    ) {
+        resumeResourceRequest(requestID, viewModelInstanceHandle)
     }
 
     /**
@@ -1552,7 +1858,8 @@ class CommandQueue internal constructor(
 
     /**
      * Delete a view model instance and free its resources. This is useful when you no longer need
-     * the view model instance and want to free up memory. Counterpart to [createViewModelInstance].
+     * the view model instance and want to free up memory. Counterpart to
+     * [createViewModelInstanceConfirmed].
      *
      * @param viewModelInstanceHandle The handle of the view model instance to delete.
      * @throws RiveResourceClosedException If this command queue has been disposed.
@@ -2275,8 +2582,12 @@ class CommandQueue internal constructor(
     )
 
     /**
-     * Decode an image file from the given bytes. The bytes are for a compressed image format such
-     * as PNG or JPEG. The decoded image is stored on the CommandServer.
+     * Decodes an image file from the given bytes and suspends until the command server confirms the
+     * decode. The bytes are for a compressed image format such as PNG or JPEG. The decoded image is
+     * stored on the CommandServer.
+     *
+     * If the coroutine is cancelled after submission, the provisional image is deleted in command
+     * order so a later successful decode cannot orphan it.
      *
      * Images may be used to supply a referenced asset in a Rive file with [registerImage] or used
      * for data binding (forthcoming).
@@ -2293,9 +2604,10 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun decodeImage(bytes: ByteArray): ImageHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeImage(requireNativePointer(), requestID, bytes)
-    }
+    suspend fun decodeImage(bytes: ByteArray): ImageHandle =
+        suspendNativeResourceRequest(::deleteImage) { requestID ->
+            ImageHandle(bridge.cppDecodeImage(requireNativePointer(), requestID, bytes))
+        }
 
     /**
      * Callback when an image is decoded, from [decodeImage].
@@ -2308,7 +2620,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onImageDecoded")
     internal fun onImageDecoded(requestID: Long, imageHandle: ImageHandle) {
-        (pendingContinuations.remove(requestID) as? Continuation<ImageHandle>)?.resume(imageHandle)
+        resumeResourceRequest(requestID, imageHandle)
     }
 
     /**
@@ -2323,9 +2635,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onImageError")
     internal fun onImageError(requestID: Long, error: String) {
-        pendingContinuations.remove(requestID)?.resumeWithException(
-            RiveImageException("Failed to decode image: $error")
-        )
+        failNativeRequest(requestID, RiveImageException("Failed to decode image: $error"))
     }
 
     /**
@@ -2374,7 +2684,11 @@ class CommandQueue internal constructor(
         bridge.cppUnregisterImage(requireNativePointer(), name)
 
     /**
-     * Decode an audio file from the given bytes. The decoded audio is stored on the CommandServer.
+     * Decodes an audio file from the given bytes and suspends until the command server confirms the
+     * decode. The decoded audio is stored on the CommandServer.
+     *
+     * If the coroutine is cancelled after submission, the provisional audio source is deleted in
+     * command order so a later successful decode cannot orphan it.
      *
      * Audio may be used to supply a referenced asset in a Rive file with [registerAudio].
      *
@@ -2390,9 +2704,10 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun decodeAudio(bytes: ByteArray): AudioHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeAudio(requireNativePointer(), requestID, bytes)
-    }
+    suspend fun decodeAudio(bytes: ByteArray): AudioHandle =
+        suspendNativeResourceRequest(::deleteAudio) { requestID ->
+            AudioHandle(bridge.cppDecodeAudio(requireNativePointer(), requestID, bytes))
+        }
 
     /**
      * Callback when audio is decoded, from [decodeAudio].
@@ -2405,7 +2720,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onAudioDecoded")
     internal fun onAudioDecoded(requestID: Long, audioHandle: AudioHandle) {
-        (pendingContinuations.remove(requestID) as? Continuation<AudioHandle>)?.resume(audioHandle)
+        resumeResourceRequest(requestID, audioHandle)
     }
 
     /**
@@ -2420,9 +2735,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onAudioError")
     internal fun onAudioError(requestID: Long, error: String) {
-        pendingContinuations.remove(requestID)?.resumeWithException(
-            RiveAudioException("Failed to decode audio: $error")
-        )
+        failNativeRequest(requestID, RiveAudioException("Failed to decode audio: $error"))
     }
 
     /**
@@ -2471,8 +2784,12 @@ class CommandQueue internal constructor(
         bridge.cppUnregisterAudio(requireNativePointer(), name)
 
     /**
-     * Decode a font file from the given bytes. The bytes are for a font file, such as TTF. The
-     * decoded font is stored on the CommandServer.
+     * Decodes a font file from the given bytes and suspends until the command server confirms the
+     * decode. The bytes are for a font file, such as TTF. The decoded font is stored on the
+     * CommandServer.
+     *
+     * If the coroutine is cancelled after submission, the provisional font is deleted in command
+     * order so a later successful decode cannot orphan it.
      *
      * Fonts may be used to supply a referenced asset in a Rive file with [registerFont].
      *
@@ -2488,9 +2805,10 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun decodeFont(bytes: ByteArray): FontHandle = suspendNativeRequest { requestID ->
-        bridge.cppDecodeFont(requireNativePointer(), requestID, bytes)
-    }
+    suspend fun decodeFont(bytes: ByteArray): FontHandle =
+        suspendNativeResourceRequest(::deleteFont) { requestID ->
+            FontHandle(bridge.cppDecodeFont(requireNativePointer(), requestID, bytes))
+        }
 
     /**
      * Callback when a font is decoded, from [decodeFont].
@@ -2503,7 +2821,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onFontDecoded")
     internal fun onFontDecoded(requestID: Long, fontHandle: FontHandle) {
-        (pendingContinuations.remove(requestID) as? Continuation<FontHandle>)?.resume(fontHandle)
+        resumeResourceRequest(requestID, fontHandle)
     }
 
     /**
@@ -2518,9 +2836,7 @@ class CommandQueue internal constructor(
     @Suppress("Unused")
     @JvmName("onFontError")
     internal fun onFontError(requestID: Long, error: String) {
-        pendingContinuations.remove(requestID)?.resumeWithException(
-            RiveFontException("Failed to decode font: $error")
-        )
+        failNativeRequest(requestID, RiveFontException("Failed to decode font: $error"))
     }
 
     /**
@@ -2931,6 +3247,15 @@ class CommandQueue internal constructor(
     private val pendingContinuations = ConcurrentHashMap<Long, CancellableContinuation<Any>>()
 
     /**
+     * Cleanup actions for pending requests that create native resources.
+     *
+     * The action remains registered until completion so a resource delivered after cancellation
+     * can still be deleted. Requests whose JNI submission returns a provisional handle may run the
+     * same action earlier; each action is guarded so cleanup is scheduled at most once.
+     */
+    private val pendingResourceCleanups = ConcurrentHashMap<Long, (Any) -> Unit>()
+
+    /**
      * Cancels all pending native requests because command queue disposal prevents any later JNI
      * callback from completing them.
      */
@@ -2941,6 +3266,8 @@ class CommandQueue internal constructor(
             )
         }
         pendingContinuations.clear()
+        // Native shutdown owns all remaining resources, and no callbacks can arrive after it.
+        pendingResourceCleanups.clear()
     }
 
     /**
@@ -2950,6 +3277,184 @@ class CommandQueue internal constructor(
      * @see [suspendNativeRequest]
      */
     private val nextRequestID = AtomicLong()
+
+    /**
+     * Completes a pending resource request and arranges cleanup if cancellation occurs before the
+     * resumed value reaches the awaiting coroutine.
+     *
+     * This is the success counterpart to [suspendNativeResourceRequest]. That function stores the
+     * continuation and its cleanup action under [requestID]. A native success callback passes the
+     * confirmed [resource] here to consume both entries.
+     *
+     * A missing continuation means the caller cancelled before native completion. In that case,
+     * any retained cleanup action deletes the newly delivered resource immediately.
+     *
+     * @param requestID The request ID associated with the native resource creation.
+     * @param resource The resource handle delivered by native code.
+     * @return True if a pending continuation was removed and resumed, or false if cancellation had
+     *    already removed it. Cancellation may still prevent the resumed value from reaching the
+     *    awaiting coroutine.
+     * @see [suspendNativeResourceRequest]
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T : Any> resumeResourceRequest(requestID: Long, resource: T): Boolean {
+        val cleanup = pendingResourceCleanups.remove(requestID)
+        @Suppress("UNCHECKED_CAST")
+        val continuation =
+            pendingContinuations.remove(requestID) as? CancellableContinuation<T>
+        if (continuation == null) {
+            cleanup?.invoke(resource)
+            return false
+        }
+        continuation.resume(resource) {
+            cleanup?.invoke(resource)
+        }
+        return true
+    }
+
+    /**
+     * Fails a pending native request and discards any resource cleanup awaiting successful output.
+     *
+     * This is the failure counterpart to both [suspendNativeResourceRequest] and
+     * [suspendNativeRequest]. Resource requests install an additional cleanup action, while
+     * non-resource requests install only a continuation. Removing both entries supports either
+     * request type.
+     *
+     * @param requestID The request ID associated with the failed operation.
+     * @param throwable The typed exception reported by the native listener.
+     * @see [suspendNativeResourceRequest]
+     * @see [suspendNativeRequest]
+     */
+    private fun failNativeRequest(requestID: Long, throwable: Throwable) {
+        pendingResourceCleanups.remove(requestID)
+        pendingContinuations.remove(requestID)?.resumeWithException(throwable)
+    }
+
+    /**
+     * Runs [work] immediately when already on Main, or dispatches it to Main otherwise. Dispatch
+     * mechanics remain internal so callers can express Main-confined operations as regular lambdas.
+     *
+     * @param context The coroutine context used to query and dispatch to Main.
+     * @param onFailure Handles a failure to dispatch or execute [work].
+     * @param work The work that must run on Main.
+     */
+    private fun runOrDispatchOnMain(
+        context: CoroutineContext,
+        onFailure: (Throwable) -> Unit,
+        work: () -> Unit
+    ) {
+        try {
+            val main = Dispatchers.Main.immediate
+            if (main.isDispatchNeeded(context)) {
+                main.dispatch(context) {
+                    try {
+                        work()
+                    } catch (t: Throwable) {
+                        onFailure(t)
+                    }
+                }
+            } else {
+                work()
+            }
+        } catch (t: Throwable) {
+            onFailure(t)
+        }
+    }
+
+    /**
+     * Makes a cancellable JNI request that creates a native resource.
+     *
+     * The caller's continuation remains responsible for the request while JNI submission alone is
+     * dispatched to Main. Submission, cancellation handling, and cleanup are serialized on Main,
+     * so request state needs no additional synchronization. This avoids an intermediate dispatcher
+     * handoff that could otherwise drop a confirmed handle while returning it to the caller.
+     *
+     * JNI submission synchronously returns the provisional handle reserved by the command queue.
+     * Cancellation queues deletion immediately after creation, without waiting for the command
+     * server's confirmation callback to be polled.
+     * Native callbacks complete the stored request through [resumeResourceRequest] on success or
+     * [failNativeRequest] on failure.
+     *
+     * TODO: Refactor suspension functionality into an interior utility class.
+     *
+     * @param cleanup Queues deletion of a submitted resource.
+     * @param nativeFn Submits native work and returns its provisional handle.
+     * @return The resource handle after native creation is confirmed.
+     * @throws CancellationException If the coroutine is cancelled before the confirmed resource
+     *    reaches the caller.
+     * @see [resumeResourceRequest]
+     * @see [failNativeRequest]
+     */
+    @Throws(CancellationException::class)
+    private suspend inline fun <reified T : Any> suspendNativeResourceRequest(
+        crossinline cleanup: (T) -> Unit,
+        crossinline nativeFn: (Long) -> T
+    ): T = suspendCancellableCoroutine { cont ->
+        val requestID = nextRequestID.getAndIncrement()
+        var provisionalResource: T? = null // Accessed only by work serialized on Main.
+        var cleanupScheduled = false // Accessed only by work serialized on Main.
+        // Confirmation delivery and direct cancellation can both request deletion. Route them
+        // through one Main-confined action so the native resource is deleted at most once.
+        val cleanupOnce: (Any) -> Unit = { value ->
+            runOrDispatchOnMain(
+                context = cont.context,
+                onFailure = { t ->
+                    // Worker disposal also releases its native resources, so cleanup can race
+                    // safely with shutdown without replacing the caller's cancellation.
+                    RiveLog.e(COMMAND_QUEUE_TAG, t) {
+                        "Failed to clean up resource for cancelled request $requestID"
+                    }
+                }
+            ) {
+                if (!cleanupScheduled) {
+                    cleanupScheduled = true
+                    @Suppress("UNCHECKED_CAST")
+                    cleanup(value as T)
+                }
+            }
+        }
+
+        // Invoked when the caller cancels. Remove the callback state and promptly delete any
+        // provisional handle. Cancellation before submission is handled by the guard below.
+        cont.invokeOnCancellation {
+            runOrDispatchOnMain(
+                context = cont.context,
+                onFailure = { t ->
+                    // A retained cleanup remains a fallback if confirmation is later polled.
+                    RiveLog.e(COMMAND_QUEUE_TAG, t) {
+                        "Failed to process cancellation for resource request $requestID"
+                    }
+                }
+            ) {
+                pendingContinuations.remove(requestID)
+                pendingResourceCleanups.remove(requestID)
+                provisionalResource?.let(cleanupOnce)
+            }
+        }
+
+        // These failures occur before JNI returns a handle, so there is no resource to clean up.
+        val failBeforeProvisionalHandle: (Throwable) -> Unit = { throwable ->
+            pendingContinuations.remove(requestID)
+            pendingResourceCleanups.remove(requestID)
+            // Exceptional resume is ignored if cancellation won, avoiding a check-then-act race.
+            cont.resumeWithException(throwable)
+        }
+
+        runOrDispatchOnMain(
+            context = cont.context,
+            onFailure = failBeforeProvisionalHandle
+        ) {
+            if (cont.isCancelled) {
+                return@runOrDispatchOnMain // Cancellation happened before submission was scheduled.
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            pendingContinuations[requestID] = cont as CancellableContinuation<Any>
+            pendingResourceCleanups[requestID] = cleanupOnce
+
+            provisionalResource = nativeFn(requestID)
+        }
+    }
 
     /**
      * Make a JNI request that returns a value of type [T], split across a callback.
@@ -3009,8 +3514,8 @@ value class FileHandle(val handle: Long) {
 
 /**
  * A handle to an artboard instance on the CommandServer. Created with
- * [CommandQueue.createDefaultArtboard] or [CommandQueue.createArtboardByName]
- * and deleted with [CommandQueue.deleteArtboard].
+ * [CommandQueue.createDefaultArtboardConfirmed] or
+ * [CommandQueue.createArtboardByNameConfirmed] and deleted with [CommandQueue.deleteArtboard].
  *
  * @param handle The handle issued by the native CommandQueue.
  */
@@ -3021,8 +3526,9 @@ value class ArtboardHandle(val handle: Long) {
 
 /**
  * A handle to a state machine instance on the CommandServer. Created with
- * [CommandQueue.createDefaultStateMachine] or [CommandQueue.createStateMachineByName]
- * and deleted with [CommandQueue.deleteStateMachine].
+ * [CommandQueue.createDefaultStateMachineConfirmed] or
+ * [CommandQueue.createStateMachineByNameConfirmed] and deleted with
+ * [CommandQueue.deleteStateMachine].
  *
  * @param handle The handle issued by the native CommandQueue.
  */
@@ -3033,7 +3539,8 @@ value class StateMachineHandle(val handle: Long) {
 
 /**
  * A handle to a view model instance on the CommandServer. Created with
- * [CommandQueue.createViewModelInstance] and deleted with [CommandQueue.deleteViewModelInstance].
+ * [CommandQueue.createViewModelInstanceConfirmed] and deleted with
+ * [CommandQueue.deleteViewModelInstance].
  *
  * @param handle The handle issued by the native CommandQueue.
  */

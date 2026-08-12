@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.Fit
-import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
@@ -18,6 +17,7 @@ import app.rive.ViewModelSource
 import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
@@ -62,31 +62,28 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                     worker.beginPolling(lifecycle)
                 }
             }
-            val riveFileResult = RiveFile.fromSource(
-                RiveFileSource.RawRes(R.raw.snapshot_test, resources),
-                riveWorker
-            )
-
-            when (riveFileResult) {
-                is Result.Loading -> error("Rive file should only be loaded or error.")
-                is Result.Success -> {
-                    val file = riveFileResult.value
-                    renderBitmap(file)
-                    resultLatch.countDown()
-                    file.close()
+            val file = try {
+                RiveFile.load(
+                    RiveFileSource.RawRes(R.raw.snapshot_test, resources),
+                    riveWorker
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                RiveLog.e(BITMAP_TAG, e) {
+                    "Failed to load Rive file: ${e.message ?: "unknown error"}"
                 }
-
-                is Result.Error -> {
-                    RiveLog.e(BITMAP_TAG) {
-                        "Failed to load Rive file: ${riveFileResult.throwable.message ?: "unknown error"}"
-                    }
-                    resultLatch.countDown()
-                }
+                resultLatch.countDown()
+                return@launch
+            }
+            file.use {
+                renderBitmap(it)
+                resultLatch.countDown()
             }
         }
     }
 
-    private fun renderBitmap(file: RiveFile) {
+    private suspend fun renderBitmap(file: RiveFile) {
         val config = SnapshotActivityConfig.fromIntent(intent)
 
         val (width, height) = 100 to 100
@@ -101,9 +98,9 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
         }
 
         SoftwareRenderBuffer(width, height, file.riveWorker).use { buffer ->
-            Artboard.fromFile(file, config.artboardName).use { artboard ->
-                StateMachine.fromArtboard(artboard).use { stateMachine ->
-                    ViewModelInstance.fromFile(
+            Artboard.create(file, config.artboardName).use { artboard ->
+                StateMachine.create(artboard).use { stateMachine ->
+                    ViewModelInstance.create(
                         file,
                         ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
                     ).use { vmi ->

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package app.rive
 
 import app.rive.core.ArtboardHandle
@@ -6,18 +8,86 @@ import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.clearMocks
 import io.mockk.confirmVerified
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val TEST_RIVE_FILE_HANDLE = 123L
 private const val TEST_RIVE_FILE_ARTBOARD_HANDLE = 456L
 private const val TEST_VIEW_MODEL_NAME = "TestViewModel"
 
 class RiveFileUnitTest : FunSpec({
+    test("Factory returns a loaded file") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = FileHandle(TEST_RIVE_FILE_HANDLE)
+        coEvery { worker.loadFile(any()) } returns handle
+
+        val file = RiveFile.load(RiveFileSource.Bytes(byteArrayOf()), worker)
+
+        file.fileHandle shouldBe handle
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 0) { worker.release(any(), any()) }
+        file.close()
+    }
+
+    test("Factory propagates loading failure") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val error = RiveFileException("Invalid file")
+        coEvery { worker.loadFile(any()) } throws error
+
+        shouldThrow<RiveFileException> {
+            RiveFile.load(RiveFileSource.Bytes(byteArrayOf()), worker)
+        } shouldBe error
+
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 1) { worker.release(any(), "Load error") }
+    }
+
+    test("Factory propagates cancellation") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val cancellation = CancellationException("Cancelled file load")
+        coEvery { worker.loadFile(any()) } throws cancellation
+
+        shouldThrow<CancellationException> {
+            RiveFile.load(RiveFileSource.Bytes(byteArrayOf()), worker)
+        } shouldBe cancellation
+
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 1) { worker.release(any(), "Cancellation") }
+    }
+
+    test("Factory propagates worker acquisition failure without releasing") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val expected = RiveResourceClosedException("RiveWorker is disposed")
+        every { worker.acquire(any()) } throws expected
+
+        shouldThrow<RiveResourceClosedException> {
+            RiveFile.load(RiveFileSource.Bytes(byteArrayOf()), worker)
+        } shouldBe expected
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 0) { worker.release(any(), any()) }
+        coVerify(exactly = 0) { worker.loadFile(any()) }
+    }
+
+    test("Deprecated factory maps loading failure to an error result") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val expected = RiveFileException("Invalid file")
+        coEvery { worker.loadFile(any()) } throws expected
+
+        val result = RiveFile.fromSource(RiveFileSource.Bytes(byteArrayOf()), worker)
+
+        result shouldBe Result.Error(expected)
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 1) { worker.release(any(), "Load error") }
+    }
+
     test("Default view model query rejects a closed artboard before querying worker") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)

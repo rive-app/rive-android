@@ -241,10 +241,13 @@ abstract class RiveSurface internal constructor(
      * The concrete backend surface owns its render target and is disposed through command queue
      * ordering when [close] is called. Closing or otherwise accessing this pointer directly can
      * bypass [RiveSurface] lifecycle validation; use surface operations instead. This property
-     * will become non-public in a future major release.
+     * will become non-public in 12.0.
+     *
+     * @deprecated Use [RiveSurface] operations. This property will become non-public in 12.0.
      */
     @Deprecated(
-        message = "Direct native pointer access can violate RiveSurface lifecycle and will become non-public in a future major release. Use RiveSurface operations instead.",
+        message = "Direct native pointer access can violate RiveSurface lifecycle and will become " +
+            "non-public in 12.0. Use RiveSurface operations instead.",
         level = DeprecationLevel.WARNING
     )
     val surfaceNativePointer: UniquePointer

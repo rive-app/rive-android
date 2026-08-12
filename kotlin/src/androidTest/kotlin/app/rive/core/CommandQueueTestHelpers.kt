@@ -3,12 +3,15 @@ package app.rive.core
 import androidx.annotation.RawRes
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.Artboard
-import app.rive.Result
+import app.rive.RiveArtboardException
 import app.rive.RiveFile
+import app.rive.RiveFileException
 import app.rive.RiveFileSource
+import app.rive.RiveResourceClosedException
 import app.rive.StateMachine
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -71,7 +74,10 @@ internal data class DefaultRiveResources(
  *
  * @param rawResourceId The raw Rive resource to load.
  * @return The loaded file and its default artboard and state machine.
- * @throws AssertionError If the file fails to load or produces an unexpected result.
+ * @throws RiveFileException If the file or its default artboard cannot be loaded.
+ * @throws RiveArtboardException If the default state machine cannot be loaded.
+ * @throws RiveResourceClosedException If this worker is disposed during creation.
+ * @throws CancellationException If the coroutine is cancelled during creation.
  */
 internal suspend fun RiveWorker.loadDefaultRiveResources(
     @RawRes rawResourceId: Int
@@ -80,9 +86,13 @@ internal suspend fun RiveWorker.loadDefaultRiveResources(
     var artboard: Artboard? = null
     var stateMachine: StateMachine? = null
     try {
-        file = loadRiveFileOrFail(rawResourceId)
-        artboard = Artboard.fromFile(file)
-        stateMachine = StateMachine.fromArtboard(artboard)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        file = RiveFile.load(
+            RiveFileSource.RawRes(rawResourceId, context.resources),
+            this,
+        )
+        artboard = Artboard.create(file)
+        stateMachine = StateMachine.create(artboard)
         return DefaultRiveResources(file, artboard, stateMachine)
     } catch (failure: Throwable) {
         try {
@@ -103,7 +113,10 @@ internal suspend fun RiveWorker.loadDefaultRiveResources(
  * @param rawResourceId The raw Rive resource to load.
  * @param block The operation to run with the loaded resources.
  * @return The result of [block].
- * @throws AssertionError If the file fails to load or produces an unexpected result.
+ * @throws RiveFileException If the file or its default artboard cannot be loaded.
+ * @throws RiveArtboardException If the default state machine cannot be loaded.
+ * @throws RiveResourceClosedException If this worker is disposed during creation.
+ * @throws CancellationException If the coroutine is cancelled during creation.
  */
 internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
     @RawRes rawResourceId: Int,
@@ -128,30 +141,6 @@ internal fun assertDisposed(commandQueue: CommandQueue) {
         commandQueue.awaitShutdown(2_000),
         "CommandQueue native shutdown did not complete after final release"
     )
-}
-
-/**
- * Loads a raw Rive resource and fails the test if loading does not succeed.
- *
- * @param rawResourceId The raw Rive resource to load.
- * @return The loaded Rive file.
- * @throws AssertionError If the file fails to load or produces an unexpected result.
- */
-internal suspend fun RiveWorker.loadRiveFileOrFail(@RawRes rawResourceId: Int): RiveFile {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    return when (
-        val result = RiveFile.fromSource(
-            RiveFileSource.RawRes(rawResourceId, context.resources),
-            this
-        )
-    ) {
-        is Result.Success -> result.value
-        is Result.Error ->
-            throw AssertionError("Failed to load Rive file: ${result.throwable.message}")
-
-        is Result.Loading ->
-            throw AssertionError("RiveFile.fromSource should not return Loading")
-    }
 }
 
 /**

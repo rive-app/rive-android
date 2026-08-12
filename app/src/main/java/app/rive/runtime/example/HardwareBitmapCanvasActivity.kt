@@ -14,7 +14,6 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.rive.Artboard
 import app.rive.ExperimentalHardwareBitmapRendering
-import app.rive.Result
 import app.rive.RiveCanvasSession
 import app.rive.RiveFile
 import app.rive.RiveFileSource
@@ -22,6 +21,7 @@ import app.rive.RiveLog
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -60,19 +60,20 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            when (
-                val riveFile = RiveFile.fromSource(
+            val riveFile = try {
+                RiveFile.load(
                     RiveFileSource.RawRes(R.raw.basketball, resources),
                     riveWorker
                 )
-            ) {
-                is Result.Success -> startSession(riveFile.value, riveWorker)
-                is Result.Error -> renderView.setError(
-                    "Failed to load Rive file: ${riveFile.throwable.message ?: "unknown error"}"
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                renderView.setError(
+                    "Failed to load Rive file: ${e.message ?: "unknown error"}"
                 )
-
-                is Result.Loading -> Unit
+                return@launch
             }
+            startSession(riveFile, riveWorker)
         }
     }
 
@@ -86,18 +87,35 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun startSession(file: RiveFile, riveWorker: RiveWorker) {
+    private suspend fun startSession(file: RiveFile, riveWorker: RiveWorker) {
+        var createdArtboard: Artboard? = null
+        var createdStateMachine: StateMachine? = null
+
+        /** Releases resources created before the render session assumes their ownership. */
+        fun closeCreatedResources() {
+            createdStateMachine?.close()
+            createdArtboard?.close()
+            file.close()
+        }
+
         val resources = try {
-            val artboard = Artboard.fromFile(file)
-            val stateMachine = StateMachine.fromArtboard(artboard)
+            val artboard = Artboard.create(file).also {
+                createdArtboard = it
+            }
+            val stateMachine = StateMachine.create(artboard).also {
+                createdStateMachine = it
+            }
             val session = RiveCanvasSession(
                 riveWorker = riveWorker,
                 artboard = artboard,
                 stateMachine = stateMachine,
             )
             OwnedSession(file, artboard, stateMachine, session)
+        } catch (ce: CancellationException) {
+            closeCreatedResources()
+            throw ce
         } catch (e: Exception) {
-            file.close()
+            closeCreatedResources()
             renderView.setError("Failed to initialize renderer: ${e.message ?: "unknown error"}")
             return
         }

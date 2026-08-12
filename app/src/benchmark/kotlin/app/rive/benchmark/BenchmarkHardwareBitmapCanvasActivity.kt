@@ -1,3 +1,5 @@
+@file:OptIn(app.rive.ExperimentalHardwareBitmapRendering::class)
+
 package app.rive.benchmark
 
 import android.content.Context
@@ -15,7 +17,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.Fit
 import app.rive.HardwareRenderBuffer
-import app.rive.Result
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.StateMachine
@@ -23,6 +24,7 @@ import app.rive.core.RiveWorker
 import app.rive.core.traceSection
 import app.rive.core.withFrameNanosChoreographer
 import app.rive.runtime.example.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -48,16 +50,12 @@ class BenchmarkHardwareBitmapCanvasActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            when (
-                val riveFile = RiveFile.fromSource(
+            startRenderLoop(
+                RiveFile.load(
                     RiveFileSource.RawRes(R.raw.basketball, resources),
                     riveWorker
                 )
-            ) {
-                is Result.Success -> startRenderLoop(riveFile.value)
-                is Result.Error -> throw IllegalStateException("Failed to load benchmark Rive file", riveFile.throwable)
-                is Result.Loading -> Unit
-            }
+            )
         }
     }
 
@@ -69,13 +67,30 @@ class BenchmarkHardwareBitmapCanvasActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun startRenderLoop(file: RiveFile) {
-        val session = try {
-            val artboard = Artboard.fromFile(file)
-            val stateMachine = StateMachine.fromArtboard(artboard)
-            BenchmarkRenderSession(file, artboard, stateMachine)
-        } catch (e: Exception) {
+    private suspend fun startRenderLoop(file: RiveFile) {
+        var createdArtboard: Artboard? = null
+        var createdStateMachine: StateMachine? = null
+
+        /** Releases resources created before the render session assumes their ownership. */
+        fun closeCreatedResources() {
+            createdStateMachine?.close()
+            createdArtboard?.close()
             file.close()
+        }
+
+        val session = try {
+            val artboard = Artboard.create(file).also {
+                createdArtboard = it
+            }
+            val stateMachine = StateMachine.create(artboard).also {
+                createdStateMachine = it
+            }
+            BenchmarkRenderSession(file, artboard, stateMachine)
+        } catch (ce: CancellationException) {
+            closeCreatedResources()
+            throw ce
+        } catch (e: Exception) {
+            closeCreatedResources()
             throw IllegalStateException("Failed to initialize benchmark renderer", e)
         }
 

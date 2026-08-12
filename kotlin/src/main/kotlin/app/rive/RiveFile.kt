@@ -15,6 +15,7 @@ import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel.Property
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import androidx.annotation.RawRes as RawResource
 
@@ -25,13 +26,13 @@ private const val FILE_TAG = "Rive/File"
  *
  * A Rive file is created from the Rive editor and is exported as a `.riv` file.
  *
- * Create an instance of this class using [rememberRiveFile] or [RiveFile.fromSource]. When using
+ * Create an instance of this class using [rememberRiveFile] or [RiveFile.load]. When using
  * the latter, make sure to call [close] when you are done with the file to release its resources.
  * A manually-created file holds a reference to its [RiveWorker], so releasing the worker alone is
  * not enough to purge the file or worker memory while this file remains open.
  *
- * This object can be used to query the file for its contents, such as artboards names. It can then
- * be passed to [rememberArtboard] to create an [Artboard], and then to [Rive] for rendering.
+ * This object can be used to query the file for its contents, such as artboard names. It can then
+ * be passed to [rememberArtboardResult] to create an [Artboard], and then to [Rive] for rendering.
  *
  * Queries are cached for performance.
  *
@@ -70,20 +71,35 @@ class RiveFile internal constructor(
          * reference to [riveWorker], so closing it is required before the worker can fully release
          * memory associated with this file.
          *
+         * This is the replacement for [fromSource]. Its temporary name avoids a source-incompatible
+         * overload; it will be renamed to `fromSource` in 12.0 when the result-returning API is
+         * removed.
+         *
          * @param source The source of the Rive file.
          * @param riveWorker The Rive worker that owns the file.
-         * @return The loaded Rive file, or an error if loading failed. The Loading state is not
-         *    used here since the loading is performed in a suspend function.
+         * @return The loaded Rive file.
+         * @throws RiveFileException If the file cannot be loaded by the Rive worker.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
+         * @throws Resources.NotFoundException If a raw resource source cannot be found.
+         * @throws IOException If a raw resource source cannot be read.
          * @throws CancellationException If the coroutine is cancelled before loading completes.
          */
-        @Throws(CancellationException::class)
-        suspend fun fromSource(
+        @Throws(
+            RiveFileException::class,
+            RiveResourceClosedException::class,
+            Resources.NotFoundException::class,
+            IOException::class,
+            CancellationException::class
+        )
+        suspend fun load(
             source: RiveFileSource,
             riveWorker: RiveWorker
-        ): Result<RiveFile> {
+        ): RiveFile {
             RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
+            var workerReferenceAcquired = false // A failed acquire must not be balanced by release.
             return try {
                 riveWorker.acquire(FILE_TAG)
+                workerReferenceAcquired = true
 
                 val fileBytes = when (source) {
                     is RiveFileSource.Bytes -> source.data
@@ -99,18 +115,52 @@ class RiveFile internal constructor(
                 val fileHandle = riveWorker.loadFile(fileBytes)
 
                 RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
-                Result.Success(RiveFile(fileHandle, riveWorker))
+                RiveFile(fileHandle, riveWorker)
             } catch (ce: CancellationException) {
                 // Thrown by withContext if the coroutine is cancelled
                 RiveLog.d(FILE_TAG) { "Rive file loading was cancelled: $source" }
-                riveWorker.release(FILE_TAG, "Cancellation")
+                if (workerReferenceAcquired) {
+                    riveWorker.release(FILE_TAG, "Cancellation")
+                }
                 // Propagate the cancellation exception, needed by callers to handle cancellation correctly
                 throw ce
             } catch (e: Exception) {
                 RiveLog.e(FILE_TAG, e) { "Error loading Rive file with source: $source" }
-                riveWorker.release(FILE_TAG, "Load error")
-                Result.Error(e)
+                if (workerReferenceAcquired) {
+                    riveWorker.release(FILE_TAG, "Load error")
+                }
+                throw e
             }
+        }
+
+        /**
+         * Loads a [RiveFile] from the given [source].
+         *
+         * ⚠️ The lifetime of a successfully loaded file is managed by the caller. Make sure to
+         * call [close] when you are done with it to release its resources.
+         *
+         * @param source The source of the Rive file.
+         * @param riveWorker The Rive worker that owns the file.
+         * @return A success containing the loaded file, or an error if loading fails. The loading
+         *    state is not returned by this suspending function.
+         * @throws CancellationException If the coroutine is cancelled before loading completes.
+         * @deprecated Use [load]. This result-returning implementation will be removed in 12.0,
+         *    when [load] will be renamed to `fromSource` and return the file directly.
+         */
+        @Throws(CancellationException::class)
+        @Deprecated(
+            "Use load. This result-returning implementation will be removed in 12.0, when load " +
+                "will be renamed to fromSource and return the file directly."
+        )
+        suspend fun fromSource(
+            source: RiveFileSource,
+            riveWorker: RiveWorker
+        ): Result<RiveFile> = try {
+            Result.Success(load(source, riveWorker))
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Result.Error(e)
         }
     }
 
@@ -288,14 +338,15 @@ fun rememberRiveFile(
     source: RiveFileSource,
     riveWorker: RiveWorker,
 ): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source, riveWorker) {
-    val result = RiveFile.fromSource(source, riveWorker)
-    value = result
-
-    when (result) {
-        is Result.Success -> awaitDispose {
-            result.value.close()
-        }
-
-        else -> {}
+    val file = try {
+        RiveFile.load(source, riveWorker)
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        value = Result.Error(e)
+        return@produceState
     }
+
+    value = Result.Success(file)
+    awaitDispose { file.close() }
 }.value

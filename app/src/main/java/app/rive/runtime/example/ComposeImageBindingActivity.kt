@@ -17,16 +17,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.Fit
 import app.rive.Result
-import app.rive.Result.Loading.andThen
-import app.rive.Result.Loading.sequence
-import app.rive.Result.Loading.zip
 import app.rive.Rive
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.rememberImage
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstance
+import app.rive.rememberViewModelInstanceResult
+import app.rive.sequence
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.runningFold
@@ -46,13 +44,13 @@ class ComposeImageBindingActivity : ComponentActivity() {
             val context = LocalContext.current
 
             val riveWorker = rememberRiveWorker()
-            val riveFile = rememberRiveFile(
+            val riveFileResult = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.image_db_cats),
                 riveWorker
             )
 
             // Convert the list of image resources into a Result<List<ImageAsset>>
-            val images = listOf(
+            val imagesResult = listOf(
                 R.raw.cat1,
                 R.raw.cat2,
                 R.raw.cat3,
@@ -69,15 +67,19 @@ class ComposeImageBindingActivity : ComponentActivity() {
                 }.value.andThen { bytes -> rememberImage(riveWorker, bytes) }
             }.sequence()
 
-            val fileAndImages = riveFile.zip(images)
+            val fileAndImagesResult = riveFileResult.zip(imagesResult)
+            val contentResult = fileAndImagesResult.andThen { (file, loadedImages) ->
+                rememberViewModelInstanceResult(file).andThen { vmi ->
+                    Result.Success(Triple(file, loadedImages, vmi))
+                }
+            }
 
             Scaffold(containerColor = Color.Black) { innerPadding ->
-                when (fileAndImages) {
+                when (contentResult) {
                     is Result.Loading -> LoadingIndicator()
-                    is Result.Error -> ErrorMessage(fileAndImages.throwable)
+                    is Result.Error -> ErrorMessage(contentResult.throwable)
                     is Result.Success -> {
-                        val (riveFile, images) = fileAndImages.value
-                        val vmi = rememberViewModelInstance(riveFile)
+                        val (riveFile, images, vmi) = contentResult.value
 
                         // Convert updates to wrapped incrementing indices
                         val imageIndex by remember(vmi, images.size) {
