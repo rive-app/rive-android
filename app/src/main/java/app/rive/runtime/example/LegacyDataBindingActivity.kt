@@ -8,7 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -47,7 +47,7 @@ class LegacyDataBindingActivity : ComponentActivity() {
                 floatingActionButton = {
                     if (viewModelInstance != null) {
                         FloatingActionButton(onClick = { showBottomPanel = true }) {
-                            Icon(Icons.Default.List, "Data binding options")
+                            Icon(Icons.AutoMirrored.Filled.List, "Data binding options")
                         }
                     }
                 }) { innerPadding ->

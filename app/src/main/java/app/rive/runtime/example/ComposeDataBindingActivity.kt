@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -74,7 +74,7 @@ class ComposeDataBindingActivity : ComponentActivity() {
                         showBottomPanel = true
                     }) {
                         Icon(
-                            imageVector = Icons.Default.List,
+                            imageVector = Icons.AutoMirrored.Filled.List,
                             contentDescription = "Data binding options"
                         )
                     }
