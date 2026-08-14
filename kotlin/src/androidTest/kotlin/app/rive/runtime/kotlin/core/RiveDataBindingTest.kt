@@ -285,7 +285,7 @@ class RiveDataBindingTest {
     @Test
     fun vm_by_index() {
         val vmCount = view.controller.file?.viewModelCount!!
-        assertEquals(10, vmCount)
+        assertEquals(13, vmCount)
 
         // Iterate indices and verify all VM names are present
         assertEquals(
@@ -300,6 +300,9 @@ class RiveDataBindingTest {
                 "Test List Item VM",
                 "Test Bound Artboard Child VM",
                 "Test Bound Artboard Parent VM",
+                "Test Main",
+                "Test Global",
+                "Test Global 2",
             ).sorted().toList(),
             (0 until vmCount).map { view.controller.file?.getViewModelByIndex(it)!!.name }
                 .sorted().toList()
@@ -1006,6 +1009,31 @@ class RiveDataBindingTest {
 
         assertFailsWith<IndexOutOfBoundsException> { list.elementAt(-1) }
         assertFailsWith<IndexOutOfBoundsException> { list[-1] }
+    }
+
+    /** Verifies that state machine writes refresh cached properties on list item instances. */
+    @Test
+    fun list_item_property_updates_after_state_machine_write() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val item = vmi.getListProperty("Test List")[0]
+        val number = item.getNumberProperty("Test Item Number")
+
+        // Instantiate and settle the list item's nested state machine before firing its trigger.
+        view.play()
+        view.controller.advance(0f)
+
+        // Cache a known Kotlin-side value before the state machine overwrites the native value.
+        assertEquals(1f, number.value)
+        number.value = 5f
+        assertEquals(5f, number.value)
+
+        item.getTriggerProperty("Set").trigger()
+        view.controller.advance(0f)
+        view.controller.advance(0f)
+
+        assertEquals(10f, number.value)
     }
 
     @Test

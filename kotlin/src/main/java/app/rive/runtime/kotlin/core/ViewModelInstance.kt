@@ -804,6 +804,17 @@ class ViewModelListProperty(
         cachedInstances.forEach { it.updateFileLock(newFileLock) }
     }
 
+    /**
+     * Polls this list property and every cached list item instance for changes.
+     *
+     * List item instances are cached by this property rather than by the parent
+     * [ViewModelInstance], so the parent's polling traversal cannot reach them directly.
+     */
+    override fun pollChanges() = withLock {
+        super.pollChanges()
+        cachedItems.values.forEach { it.instance.pollChanges() }
+    }
+
     override fun cppDelete(pointer: Long) = withLock {
         super.cppDelete(pointer)
 
