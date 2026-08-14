@@ -4,6 +4,9 @@
 
 #include "helpers/conversions.hpp"
 #include "helpers/jni_exception_handler.hpp"
+#include "rive/assets/blob_asset.hpp"
+#include "rive/assets/manifest_asset.hpp"
+#include "rive/assets/text_asset.hpp"
 #include "rive/span.hpp"
 
 namespace rive_android
@@ -37,6 +40,16 @@ bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
     // If not set, FileAsset constructor will throw on RendererType::None value
     // being -1
     assert(m_rendererType != RendererType::None);
+
+    if (asset.is<rive::TextAsset>() || asset.is<rive::BlobAsset>() ||
+        asset.is<rive::ManifestAsset>())
+    {
+        // These assets have no Kotlin counterpart. Returning false lets the
+        // importer decode their in-band contents. TextAsset includes its
+        // concrete ScriptAsset and ShaderAsset subclasses.
+        return false;
+    }
+
     jobject ktFileAsset =
         JNIFileAssetLoader::MakeKtAsset(env, asset, m_rendererType);
     if (!ktFileAsset)
