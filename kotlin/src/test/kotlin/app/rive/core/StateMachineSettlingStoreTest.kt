@@ -2,7 +2,14 @@ package app.rive.core
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -13,6 +20,32 @@ private const val STATE_MACHINE_HANDLE = 123L
 private const val SECOND_STATE_MACHINE_HANDLE = 456L
 
 class StateMachineSettlingStoreTest : FunSpec({
+    test("Compatibility events follow accepted canonical settled transitions") {
+        coroutineScope {
+            val nextRequestID = AtomicLong()
+            val store = StateMachineSettlingStore(nextRequestID::getAndIncrement)
+            val stateMachineHandle = StateMachineHandle(STATE_MACHINE_HANDLE)
+            val emittedHandles = mutableListOf<StateMachineHandle>()
+            store.register(stateMachineHandle) // Request 0 establishes the initial boundary.
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                store.acceptedSettlements.collect(emittedHandles::add)
+            }
+
+            store.settle(0L, stateMachineHandle) // At the boundary, so it is stale.
+            store.settle(nextRequestID.getAndIncrement(), stateMachineHandle)
+            store.settle(nextRequestID.getAndIncrement(), stateMachineHandle) // Already settled.
+            store.unsettle(stateMachineHandle)
+            store.settle(2L, stateMachineHandle) // Before the new boundary, so it is stale.
+            store.settle(nextRequestID.getAndIncrement(), stateMachineHandle)
+            store.unregister(stateMachineHandle)
+            store.settle(Long.MAX_VALUE, stateMachineHandle) // Closed, so it is ignored.
+            yield()
+
+            collector.cancelAndJoin()
+            emittedHandles.shouldContainExactly(stateMachineHandle, stateMachineHandle)
+        }
+    }
+
     test("A registered state machine starts unsettled and accepts a newer callback") {
         val nextRequestID = AtomicLong()
         val store = StateMachineSettlingStore(nextRequestID::getAndIncrement)

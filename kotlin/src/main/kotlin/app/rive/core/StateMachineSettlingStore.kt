@@ -1,6 +1,9 @@
 package app.rive.core
 
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -51,6 +54,21 @@ internal class StateMachineSettlingStore(
     private val lock = Any()
 
     private val slots = mutableMapOf<StateMachineHandle, Slot>()
+
+    private val _acceptedSettlements = MutableSharedFlow<StateMachineHandle>(
+        replay = 0,
+        extraBufferCapacity = CommandQueue.MAX_CONCURRENT_SUBSCRIBERS,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    /**
+     * Emits when the canonical state for a registered state machine changes to settled.
+     *
+     * This event stream exists only to back the deprecated [CommandQueue.settledFlow]
+     * compatibility shim. New internal consumers must observe the state-machine-specific [settled]
+     * state instead.
+     */
+    val acceptedSettlements: SharedFlow<StateMachineHandle> = _acceptedSettlements
 
     /**
      * Registers a newly created state machine for durable settled-state tracking.
@@ -142,8 +160,11 @@ internal class StateMachineSettlingStore(
     fun settle(requestID: Long, stateMachineHandle: StateMachineHandle) {
         synchronized(lock) {
             val slot = slots[stateMachineHandle] ?: return
-            if (requestID > slot.requestIDBoundary) {
+            if (requestID > slot.requestIDBoundary && !slot.mutableSettled.value) {
                 slot.mutableSettled.value = true
+                // Publish from the same critical section as the canonical state change so a newer
+                // unsettled boundary cannot be established between acceptance and publication.
+                _acceptedSettlements.tryEmit(stateMachineHandle)
             }
         }
     }

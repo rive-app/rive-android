@@ -565,6 +565,28 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Emits a state-machine handle when the worker accepts a transition to its render-idle settled
+     * state.
+     *
+     * This is a compatibility shim for code compiled against Rive 11.7 and earlier. It is backed
+     * by the same generational settling store used internally, so callbacks from before the latest
+     * unsettled boundary are rejected before they can be emitted. The flow is still a transient
+     * event stream: a state machine may become active again before a collector reacts.
+     *
+     * Settled does not mean stopped, finished, or that an animation reached an authored terminal
+     * state. A state machine may settle temporarily between transitions, or may never settle at
+     * all. Use a data-binding trigger for authored completion signals.
+     *
+     * New code must not depend on this flow. It will be removed in 12.0.
+     */
+    @Deprecated(
+        "settledFlow is a compatibility shim and will be removed in 12.0. Settled does not mean " +
+                "stopped or finished; use a data-binding trigger for authored completion signals."
+    )
+    val settledFlow: SharedFlow<StateMachineHandle> =
+        stateMachineSettlingStore.acceptedSettlements
+
+    /**
      * Contains the data associated with a property update event.
      *
      * @param handle The handle of the ViewModelInstance that the property belongs to.
