@@ -697,6 +697,13 @@ public:
                                                               sizeInBytes);
     }
 
+    // The device an import through this factory gives its scripts; without it
+    // canvas backings have nothing to allocate against.
+    rive::Factory* renderContext() override
+    {
+        return m_renderContext->riveContext.get();
+    }
+
     RenderContext* getRenderContext() { return m_renderContext; }
 
 private:
