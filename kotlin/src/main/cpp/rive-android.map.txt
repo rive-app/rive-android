@@ -1,0 +1,7 @@
+{
+    global:
+        JNI_OnLoad;
+        Java_app_rive_*;
+    local:
+        *;
+};

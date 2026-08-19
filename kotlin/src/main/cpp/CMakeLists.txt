@@ -18,6 +18,19 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
 # Create the rive-android library target with the given sources
 add_library(rive-android SHARED ${SOURCES})
 
+# JNI discovers these entry points by name, but the rest of the native
+# implementation is private to librive-android. Limiting the dynamic symbol
+# table reduces binary size and prevents unrelated C++ symbols from colliding
+# with symbols exported by other libraries in the application.
+set(RIVE_ANDROID_VERSION_SCRIPT
+        "${CMAKE_CURRENT_SOURCE_DIR}/rive-android.map.txt")
+target_link_options(rive-android PRIVATE
+        "-Wl,--version-script=${RIVE_ANDROID_VERSION_SCRIPT}"
+        -Wl,--no-undefined-version)
+# Relink when only the version script changes.
+set_property(TARGET rive-android APPEND PROPERTY
+        LINK_DEPENDS "${RIVE_ANDROID_VERSION_SCRIPT}")
+
 # List of static libraries
 set(static_libs
         rive
