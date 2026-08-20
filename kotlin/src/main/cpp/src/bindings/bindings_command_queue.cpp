@@ -134,6 +134,54 @@ public:
                      jList.get());
     }
 
+    void onFileAssetsListed(
+        const rive::FileHandle,
+        uint64_t requestID,
+        std::vector<rive::CommandQueue::FileListener::FileAssetData> assets)
+        override
+    {
+        auto env = GetJNIEnv();
+        auto arrayListClass = FindClass(env, "java/util/ArrayList");
+        auto arrayListConstructor =
+            env->GetMethodID(arrayListClass.get(), "<init>", "()V");
+        auto arrayListAddFn = env->GetMethodID(arrayListClass.get(),
+                                               "add",
+                                               "(Ljava/lang/Object;)Z");
+        auto fileAssetClass = FindClass(env, "app/rive/RiveFileAsset");
+        auto fileAssetConstructor = env->GetMethodID(
+            fileAssetClass.get(),
+            "<init>",
+            "(Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;"
+            "Ljava/lang/String;Ljava/lang/String;I)V");
+        auto jAssets =
+            MakeObject(env, arrayListClass.get(), arrayListConstructor);
+
+        for (const auto& asset : assets)
+        {
+            auto jName = MakeJString(env, asset.name);
+            auto jRegistrationKey = MakeJString(env, asset.uniqueName);
+            auto jCdnUuid = MakeJString(env, asset.cdnUUID);
+            auto jCdnBaseUrl = MakeJString(env, asset.cdnBaseURL);
+            auto jFileExtension = MakeJString(env, asset.fileExtension);
+            auto jAsset = MakeObject(env,
+                                     fileAssetClass.get(),
+                                     fileAssetConstructor,
+                                     jName.get(),
+                                     jRegistrationKey.get(),
+                                     static_cast<jlong>(asset.assetID),
+                                     jCdnUuid.get(),
+                                     jCdnBaseUrl.get(),
+                                     jFileExtension.get(),
+                                     static_cast<jint>(asset.type));
+            env->CallBooleanMethod(jAssets.get(), arrayListAddFn, jAsset.get());
+        }
+
+        m_queue.call("onFileAssetsListed",
+                     "(JLjava/util/List;)V",
+                     requestID,
+                     jAssets.get());
+    }
+
     void onViewModelsListed(const rive::FileHandle,
                             uint64_t requestID,
                             std::vector<std::string> viewModelNames) override
@@ -1260,6 +1308,19 @@ extern "C"
         auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
 
         commandQueue->requestArtboardNames(fileHandle, requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppGetFileAssets(JNIEnv*,
+                                                              jobject,
+                                                              jlong ref,
+                                                              jlong requestID,
+                                                              jlong jFileHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
+
+        commandQueue->requestFileAssets(fileHandle, requestID);
     }
 
     JNIEXPORT void JNICALL

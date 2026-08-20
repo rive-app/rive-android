@@ -16,6 +16,7 @@ import app.rive.RiveArtboardException
 import app.rive.RiveAudioException
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
+import app.rive.RiveFileAsset
 import app.rive.RiveFileException
 import app.rive.RiveFontException
 import app.rive.RiveImageException
@@ -939,6 +940,41 @@ class CommandQueue internal constructor(
     @JvmName("onArtboardsListed")
     internal fun onArtboardsListed(requestID: Long, names: List<String>) {
         (pendingContinuations.remove(requestID) as? Continuation<List<String>>)?.resume(names)
+    }
+
+    /**
+     * Query the file for its exported file assets. Returns on [onFileAssetsListed].
+     *
+     * @param fileHandle The handle of the file to query.
+     * @return Metadata for every file asset exported in the file.
+     * @throws RiveFileException If the file operation fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getFileAssets(fileHandle: FileHandle): List<RiveFileAsset> =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetFileAssets(
+                requireNativePointer(),
+                requestID,
+                fileHandle.handle
+            )
+        }
+
+    /**
+     * Callback when file assets are listed, from [getFileAssets].
+     *
+     * @param requestID The request ID used when querying file assets, used to complete the
+     *    continuation.
+     * @param assets Metadata for the file's exported assets.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onFileAssetsListed")
+    internal fun onFileAssetsListed(requestID: Long, assets: List<RiveFileAsset>) {
+        (pendingContinuations.remove(requestID) as? Continuation<List<RiveFileAsset>>)?.resume(
+            assets
+        )
     }
 
     /**

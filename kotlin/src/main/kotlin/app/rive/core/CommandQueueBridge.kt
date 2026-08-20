@@ -26,6 +26,12 @@ interface CommandQueueBridge {
         fileHandle: Long
     )
 
+    fun cppGetFileAssets(
+        pointer: Long,
+        requestID: Long,
+        fileHandle: Long
+    )
+
     fun cppGetStateMachineNames(
         pointer: Long,
         requestID: Long,
@@ -498,6 +504,12 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppGetArtboardNames(
+        pointer: Long,
+        requestID: Long,
+        fileHandle: Long
+    )
+
+    external override fun cppGetFileAssets(
         pointer: Long,
         requestID: Long,
         fileHandle: Long

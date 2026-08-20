@@ -427,6 +427,43 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Get file assets returns metadata") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val expected = listOf(
+            RiveFileAsset(
+                name = "Inter",
+                registrationKey = "Inter-43276",
+                assetId = 43276,
+                cdnUuid = "edcb1816-8405-4983-acd2-16db48d85df4",
+                cdnBaseUrl = "https://public.rive.app/cdn/uuid",
+                fileExtension = "ttf",
+                typeKey = 141,
+            )
+        )
+
+        every {
+            commandQueueBridgeMock.cppGetFileAssets(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onFileAssetsListed(requestID.captured, expected)
+        }
+
+        commandQueue.getFileAssets(fileHandle) shouldBe expected
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetFileAssets(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
+        }
+    }
+
     test("Get default view model info returns name and instance") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val requestID = slot<Long>()

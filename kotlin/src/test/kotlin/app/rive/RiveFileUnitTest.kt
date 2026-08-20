@@ -140,8 +140,20 @@ class RiveFileUnitTest : FunSpec({
         val artboardHandle = ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE)
         val file = RiveFile(fileHandle, worker)
         val artboard = Artboard(artboardHandle, worker, fileHandle, "TestArtboard")
+        val fileAssets = listOf(
+            RiveFileAsset(
+                name = "Inter",
+                registrationKey = "Inter-43276",
+                assetId = 43276,
+                cdnUuid = "",
+                cdnBaseUrl = "https://public.rive.app/cdn/uuid",
+                fileExtension = "ttf",
+                typeKey = 141,
+            )
+        )
 
         coEvery { worker.getArtboardNames(fileHandle) } returns listOf("TestArtboard")
+        coEvery { worker.getFileAssets(fileHandle) } returns fileAssets
         coEvery { worker.getViewModelNames(fileHandle) } returns listOf(TEST_VIEW_MODEL_NAME)
         coEvery {
             worker.getViewModelInstanceNames(fileHandle, TEST_VIEW_MODEL_NAME)
@@ -155,6 +167,7 @@ class RiveFileUnitTest : FunSpec({
         } returns DefaultViewModelInfo(TEST_VIEW_MODEL_NAME, "TestInstance")
 
         file.getArtboardNames()
+        file.getFileAssets()
         file.getViewModelNames()
         file.getViewModelInstanceNames(TEST_VIEW_MODEL_NAME)
         file.getViewModelProperties(TEST_VIEW_MODEL_NAME)
@@ -164,6 +177,9 @@ class RiveFileUnitTest : FunSpec({
 
         shouldThrow<RiveResourceClosedException> {
             file.getArtboardNames()
+        }.message shouldContain TEST_RIVE_FILE_HANDLE.toString()
+        shouldThrow<RiveResourceClosedException> {
+            file.getFileAssets()
         }.message shouldContain TEST_RIVE_FILE_HANDLE.toString()
         shouldThrow<RiveResourceClosedException> {
             file.getViewModelNames()
@@ -182,6 +198,7 @@ class RiveFileUnitTest : FunSpec({
         }.message shouldContain TEST_RIVE_FILE_HANDLE.toString()
 
         coVerify(exactly = 1) { worker.getArtboardNames(fileHandle) }
+        coVerify(exactly = 1) { worker.getFileAssets(fileHandle) }
         coVerify(exactly = 1) { worker.getViewModelNames(fileHandle) }
         coVerify(exactly = 1) {
             worker.getViewModelInstanceNames(fileHandle, TEST_VIEW_MODEL_NAME)

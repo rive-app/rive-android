@@ -182,6 +182,24 @@ class RiveFile internal constructor(
     }
 
     /**
+     * @return Metadata for every file asset exported in this file. Each
+     *    [RiveFileAsset.registrationKey] is the exact key used to register a replacement asset.
+     * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
+     *    disposed.
+     * @throws RiveFileException If the file operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    suspend fun getFileAssets(): List<RiveFileAsset> {
+        closer.checkOpen()
+        return fileAssetsCache.await()
+    }
+
+    private val fileAssetsCache = SuspendLazy {
+        riveWorker.getFileAssets(fileHandle)
+    }
+
+    /**
      * @return A list of all view model names available on this file.
      * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
      *    disposed.
