@@ -102,7 +102,8 @@ if (WITH_SCRIPTING)
     # Flag for Premake
     set(RIVE_SCRIPTING_ARG "--with_rive_scripting")
     # Keep JNI translation units ABI-compatible with the static runtime.
-    target_compile_definitions(rive-android PRIVATE WITH_RIVE_SCRIPTING)
+    target_compile_definitions(rive-android PRIVATE WITH_RIVE_SCRIPTING
+                               WITH_RIVE_SCRIPTING_LUAU)
     # Add to the list of static libraries
     list(APPEND static_libs luau_vm)
 endif ()
