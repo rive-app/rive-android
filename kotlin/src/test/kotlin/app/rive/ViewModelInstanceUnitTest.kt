@@ -167,7 +167,9 @@ class ViewModelInstanceUnitTest : FunSpec({
 
     test("All public operations throw after close without using the worker") {
         val subject = ViewModelInstanceDirtySubject()
+        subject.instance.closed shouldBe false
         subject.instance.close()
+        subject.instance.closed shouldBe true
         clearMocks(subject.worker, answers = false, recordedCalls = true)
 
         /** Verifies that [operation] rejects the closed test instance. */

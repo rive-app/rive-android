@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import app.rive.core.ArtboardHandle
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.DefaultViewModelInfo
 import app.rive.core.FileHandle
@@ -43,7 +44,7 @@ private const val FILE_TAG = "Rive/File"
 class RiveFile internal constructor(
     val fileHandle: FileHandle,
     val riveWorker: RiveWorker
-) : AutoCloseable {
+) : CheckableAutoCloseable {
     private val closer = CloseOnce("$fileHandle") {
         RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
         riveWorker.deleteFile(fileHandle)
@@ -53,6 +54,10 @@ class RiveFile internal constructor(
 
     /** Closes this file and schedules deletion on its Rive worker. */
     override fun close() = closer.close()
+
+    /** Whether this file has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
 
     /**
      * Ensures this file has not been closed.

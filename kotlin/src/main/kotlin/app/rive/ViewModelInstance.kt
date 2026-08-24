@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.FileHandle
 import app.rive.core.RivePropertyUpdate
@@ -105,7 +106,7 @@ class ViewModelInstance internal constructor(
     val instanceHandle: ViewModelInstanceHandle,
     private val riveWorker: RiveWorker,
     private val fileHandle: FileHandle,
-) : AutoCloseable {
+) : CheckableAutoCloseable {
     private val closer = CloseOnce("$instanceHandle") {
         RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
         riveWorker.deleteViewModelInstance(instanceHandle)
@@ -118,6 +119,10 @@ class ViewModelInstance internal constructor(
      */
     @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
+
+    /** Whether this view model instance has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
 
     /**
      * Ensures this view model instance has not been closed.

@@ -32,9 +32,11 @@ class RiveFileUnitTest : FunSpec({
         val file = RiveFile.load(RiveFileSource.Bytes(byteArrayOf()), worker)
 
         file.fileHandle shouldBe handle
+        file.closed shouldBe false
         verify(exactly = 1) { worker.acquire(any()) }
         verify(exactly = 0) { worker.release(any(), any()) }
         file.close()
+        file.closed shouldBe true
     }
 
     test("Factory propagates loading failure") {

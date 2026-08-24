@@ -3,6 +3,7 @@ package app.rive
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import app.rive.core.AudioHandle
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
@@ -82,7 +83,7 @@ sealed class Asset<H>(
     val handle: H,
     protected val riveWorker: RiveWorker,
     private val ops: AssetOps<H, out Asset<H>>,
-) : AutoCloseable {
+) : CheckableAutoCloseable {
     private val closer = CloseOnce("$handle") {
         RiveLog.d(ops.tag) { "Deleting ${ops.label} with handle: $handle" }
         ops.delete(riveWorker, handle)
@@ -101,6 +102,10 @@ sealed class Asset<H>(
      */
     @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
+
+    /** Whether this asset has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
 
     /**
      * Ensures this asset has not been closed.

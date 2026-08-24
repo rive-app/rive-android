@@ -27,6 +27,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -60,7 +61,9 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun operations_afterClose_throw() = runBlocking {
         withPlayingSession {
+            assertFalse(session.closed)
             close()
+            assertTrue(session.closed)
 
             assertFailsWith<RiveResourceClosedException>(
                 "setRegion should fail after close"

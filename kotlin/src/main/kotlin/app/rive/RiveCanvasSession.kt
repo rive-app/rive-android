@@ -12,6 +12,7 @@ import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.ChoreographerFrameTicker
 import app.rive.core.CloseOnce
 import app.rive.core.CommandQueue
@@ -118,7 +119,7 @@ class RiveCanvasSession @Throws(
     private val viewModelInstance: ViewModelInstance? = null,
     private val fit: Fit = RenderingDefaults.defaultFit(),
     @param:ColorInt private val clearColor: Int = RenderingDefaults.CLEAR_COLOR,
-) : AutoCloseable {
+) : CheckableAutoCloseable {
     companion object {
         private const val TAG = "Rive/CanvasSession"
 
@@ -172,6 +173,10 @@ class RiveCanvasSession @Throws(
 
     @MainThread
     override fun close() = closer.close()
+
+    /** Whether this canvas session has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
 
     /**
      * The underlying render buffer used to render frames. This is recreated when the render region

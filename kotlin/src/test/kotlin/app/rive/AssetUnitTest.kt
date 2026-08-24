@@ -35,9 +35,11 @@ class AssetUnitTest : FunSpec({
             val asset = case.create(worker)
 
             asset.handle shouldBe case.handle
+            asset.closed shouldBe false
             verify(exactly = 1) { worker.acquire(any()) }
             verify(exactly = 0) { worker.release(any(), any()) }
             asset.close()
+            asset.closed shouldBe true
         }
 
         test("${case.name} factory propagates decoding failure") {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
+import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
@@ -33,7 +34,7 @@ class StateMachine internal constructor(
     private val riveWorker: RiveWorker,
     private val artboardHandle: ArtboardHandle,
     val name: String?,
-) : AutoCloseable {
+) : CheckableAutoCloseable {
     private val closer = CloseOnce("$stateMachineHandle") {
         val nameLog = name?.let { "with name $it" } ?: "(default)"
         RiveLog.d(STATE_MACHINE_TAG) {
@@ -57,6 +58,10 @@ class StateMachine internal constructor(
      */
     @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
+
+    /** Whether this state machine has been closed. */
+    override val closed: Boolean
+        get() = closer.closed
 
     /**
      * Whether this state machine currently has no meaningful changes left to apply.

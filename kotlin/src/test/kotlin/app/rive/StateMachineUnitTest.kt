@@ -185,7 +185,9 @@ class StateMachineUnitTest : FunSpec({
             name = null
         )
 
+        stateMachine.closed shouldBe false
         stateMachine.close()
+        stateMachine.closed shouldBe true
 
         val exception = shouldThrow<RiveResourceClosedException> {
             stateMachine.advance(ZERO)
