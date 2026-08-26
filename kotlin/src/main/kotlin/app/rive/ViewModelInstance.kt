@@ -3,6 +3,7 @@ package app.rive
 import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.CheckableAutoCloseable
@@ -993,7 +994,8 @@ fun rememberViewModelInstance(
  * @param source The source of the view model instance, or null to use the default instance for the
  *    file's default artboard.
  * @return The current creation result: loading, error, or success with the created
- *    [ViewModelInstance].
+ *    [ViewModelInstance]. Changing [file] or [source] synchronously returns loading while the
+ *    replacement is created.
  */
 @Composable
 fun rememberViewModelInstanceResult(
@@ -1027,20 +1029,18 @@ fun rememberViewModelInstanceResult(
 private fun rememberViewModelInstanceResultFromSource(
     file: RiveFile,
     source: ViewModelInstanceSource,
-): Result<ViewModelInstance> = produceState<Result<ViewModelInstance>>(
-    Result.Loading,
-    file,
-    source
-) {
-    val instance = try {
-        ViewModelInstance.create(file, source)
-    } catch (ce: CancellationException) {
-        throw ce
-    } catch (e: Exception) {
-        value = Result.Error(e)
-        return@produceState
-    }
+): Result<ViewModelInstance> = key(file, source) {
+    produceState<Result<ViewModelInstance>>(Result.Loading) {
+        val instance = try {
+            ViewModelInstance.create(file, source)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            value = Result.Error(e)
+            return@produceState
+        }
 
-    value = Result.Success(instance)
-    awaitDispose { instance.close() }
-}.value
+        value = Result.Success(instance)
+        awaitDispose { instance.close() }
+    }.value
+}

@@ -45,6 +45,21 @@ abstract class RiveAndroidTest(
         }
 
     /**
+     * Temporarily pauses automatic polling of [riveWorker].
+     *
+     * Polling resumes automatically after [block] finishes, including when it throws.
+     *
+     * @param block The operation to run without native message polling.
+     * @return The value produced by [block].
+     * @throws IllegalStateException If automatic polling is disabled or [riveWorker] has not been
+     *    accessed yet.
+     */
+    protected fun <T> withRiveWorkerPollingPaused(block: () -> T): T =
+        checkNotNull(poller) {
+            "Automatic Rive worker polling is not active"
+        }.withPollingPaused(block)
+
+    /**
      * Loads default Rive resources owned by this test's shared worker.
      *
      * Resources are registered for automatic cleanup before polling stops and the worker is

@@ -1,6 +1,9 @@
 package app.rive.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import app.rive.Artboard
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.assertIs
 
 private const val DEFAULT_COMPOSE_TIMEOUT_MILLIS = 10_000L
 
@@ -70,6 +74,9 @@ internal fun rememberTestRiveResources(
  */
 private data class ObservedProperty<T>(val value: T)
 
+/** Returns the list index represented by this replacement selector. */
+internal fun Boolean.toIndex(): Int = if (this) 1 else 0
+
 /**
  * Waits for [condition] while allowing Compose, Android, and background work to progress.
  *
@@ -115,6 +122,77 @@ internal fun ComposeContentTestRule.awaitWithComposeClock(
     timeoutMillis = timeoutMillis,
     condition = condition,
 )
+
+/**
+ * Verifies a remembered resource synchronously resets to loading when its creation key changes.
+ *
+ * Native polling is deliberately paused between changing the key and inspecting [Result]. This
+ * distinguishes the committed Compose state from a fast replacement that might otherwise finish
+ * before the loading transition can be observed. Polling resumes before awaiting the replacement.
+ *
+ * @param resourceName The resource label used in timeout diagnostics.
+ * @param withNativePollingPaused Runs an operation while every worker that may confirm replacement
+ *    creation is paused, then resumes polling.
+ * @param result Produces the resource result for the initial or replacement key.
+ * @param assertClosed Verifies that the resource from the initial success has been closed.
+ * @throws AssertionError If either creation does not succeed, the transition does not report
+ *    loading, or the initial resource remains open.
+ */
+internal fun <T> ComposeContentTestRule.assertResultResetsToLoading(
+    resourceName: String,
+    withNativePollingPaused: (block: () -> Unit) -> Unit,
+    result: @Composable (useReplacement: Boolean) -> Result<T>,
+    assertClosed: (T) -> Unit,
+) {
+    lateinit var useReplacement: MutableState<Boolean>
+    var showContent: MutableState<Boolean>? = null
+    val observedResult = AtomicReference<Result<T>>(Result.Loading)
+
+    try {
+        setContent {
+            useReplacement = remember { mutableStateOf(false) }
+            val activeShowContent = remember { mutableStateOf(true) }
+            showContent = activeShowContent
+            if (activeShowContent.value) {
+                observedResult.set(result(useReplacement.value))
+            }
+        }
+
+        awaitWithWallClock(
+            timeoutMessage = { "The initial $resourceName did not reach Success" },
+        ) {
+            observedResult.get() is Result.Success
+        }
+        val initialResource = assertIs<Result.Success<T>>(observedResult.get()).value
+
+        withNativePollingPaused {
+            // Keep the replacement pending while inspecting the committed result and disposal of
+            // the preceding generation.
+            runOnUiThread {
+                useReplacement.value = true
+            }
+            waitForIdle()
+
+            assertIs<Result.Loading>(observedResult.get())
+            assertClosed(initialResource)
+        }
+
+        awaitWithWallClock(
+            timeoutMessage = { "The replacement $resourceName did not reach Success" },
+        ) {
+            (observedResult.get() as? Result.Success)?.value?.let {
+                it !== initialResource
+            } == true
+        }
+    } finally {
+        showContent?.let { activeShowContent ->
+            runOnUiThread {
+                activeShowContent.value = false
+            }
+            waitForIdle()
+        }
+    }
+}
 
 /**
  * Runs [waitStrategy] and translates its Compose timeout into a diagnostic assertion.

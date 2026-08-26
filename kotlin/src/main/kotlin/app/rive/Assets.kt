@@ -1,6 +1,7 @@
 package app.rive
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key as compositionKey
 import androidx.compose.runtime.produceState
 import app.rive.core.AudioHandle
 import app.rive.core.CheckableAutoCloseable
@@ -666,7 +667,8 @@ fun rememberRegisteredFont(
  * @param key The key of the asset, used for registration. If null, the asset will not be
  *    registered.
  * @return A [Result] containing the result of the asset decoding (and possible registration), which
- *    can be either loading, error, or success with the decoded asset.
+ *    can be either loading, error, or success with the decoded asset. Changing an input
+ *    synchronously returns loading while the replacement is decoded.
  */
 @Composable
 private fun <T : Asset<H>, H> rememberAsset(
@@ -674,48 +676,50 @@ private fun <T : Asset<H>, H> rememberAsset(
     bytes: ByteArray,
     constructFn: suspend (RiveWorker, ByteArray) -> T,
     key: String? = null
-): Result<T> = produceState<Result<T>>(Result.Loading, riveWorker, bytes, key) {
-    val asset = try {
-        constructFn(riveWorker, bytes)
-    } catch (ce: CancellationException) {
-        throw ce
-    } catch (e: Exception) {
-        value = Result.Error(e)
-        return@produceState
-    }
-
-    if (key != null) {
-        try {
-            asset.register(key)
+): Result<T> = compositionKey(riveWorker, bytes, key) {
+    produceState<Result<T>>(Result.Loading) {
+        val asset = try {
+            constructFn(riveWorker, bytes)
         } catch (ce: CancellationException) {
-            try {
-                asset.close()
-            } catch (closeFailure: Exception) {
-                ce.addSuppressed(closeFailure)
-            }
             throw ce
         } catch (e: Exception) {
-            try {
-                asset.close()
-            } catch (closeFailure: Exception) {
-                e.addSuppressed(closeFailure)
-            }
             value = Result.Error(e)
             return@produceState
         }
-    }
 
-    value = Result.Success(asset)
-
-    awaitDispose {
         if (key != null) {
             try {
-                asset.unregister(key)
-            } finally {
+                asset.register(key)
+            } catch (ce: CancellationException) {
+                try {
+                    asset.close()
+                } catch (closeFailure: Exception) {
+                    ce.addSuppressed(closeFailure)
+                }
+                throw ce
+            } catch (e: Exception) {
+                try {
+                    asset.close()
+                } catch (closeFailure: Exception) {
+                    e.addSuppressed(closeFailure)
+                }
+                value = Result.Error(e)
+                return@produceState
+            }
+        }
+
+        value = Result.Success(asset)
+
+        awaitDispose {
+            if (key != null) {
+                try {
+                    asset.unregister(key)
+                } finally {
+                    asset.close()
+                }
+            } else {
                 asset.close()
             }
-        } else {
-            asset.close()
         }
-    }
-}.value
+    }.value
+}

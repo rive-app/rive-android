@@ -3,6 +3,7 @@ package app.rive
 import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import app.rive.core.ArtboardHandle
@@ -354,22 +355,25 @@ sealed interface RiveFileSource {
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
  * @param riveWorker The Rive worker that owns the file.
  * @return The [Result] of loading the Rive file, which can be either loading, error, or success
- *    with the [RiveFile].
+ *    with the [RiveFile]. Changing [source] or [riveWorker] synchronously returns loading while the
+ *    replacement is created.
  */
 @Composable
 fun rememberRiveFile(
     source: RiveFileSource,
     riveWorker: RiveWorker,
-): Result<RiveFile> = produceState<Result<RiveFile>>(Result.Loading, source, riveWorker) {
-    val file = try {
-        RiveFile.load(source, riveWorker)
-    } catch (ce: CancellationException) {
-        throw ce
-    } catch (e: Exception) {
-        value = Result.Error(e)
-        return@produceState
-    }
+): Result<RiveFile> = key(source, riveWorker) {
+    produceState<Result<RiveFile>>(Result.Loading) {
+        val file = try {
+            RiveFile.load(source, riveWorker)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            value = Result.Error(e)
+            return@produceState
+        }
 
-    value = Result.Success(file)
-    awaitDispose { file.close() }
-}.value
+        value = Result.Success(file)
+        awaitDispose { file.close() }
+    }.value
+}

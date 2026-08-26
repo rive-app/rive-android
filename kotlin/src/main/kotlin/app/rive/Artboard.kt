@@ -2,6 +2,7 @@ package app.rive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
@@ -357,21 +358,25 @@ fun rememberArtboard(
  * @param artboardName The name of the artboard to load. If null, the default artboard will be
  *    loaded.
  * @return The current creation result: loading, error, or success with the created [Artboard].
+ *    Changing [file] or [artboardName] synchronously returns loading while the replacement is
+ *    created.
  */
 @Composable
 fun rememberArtboardResult(
     file: RiveFile,
     artboardName: String? = null,
-): Result<Artboard> = produceState<Result<Artboard>>(Result.Loading, file, artboardName) {
-    val artboard = try {
-        Artboard.create(file, artboardName)
-    } catch (ce: CancellationException) {
-        throw ce
-    } catch (e: Exception) {
-        value = Result.Error(e)
-        return@produceState
-    }
+): Result<Artboard> = key(file, artboardName) {
+    produceState<Result<Artboard>>(Result.Loading) {
+        val artboard = try {
+            Artboard.create(file, artboardName)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            value = Result.Error(e)
+            return@produceState
+        }
 
-    value = Result.Success(artboard)
-    awaitDispose { artboard.close() }
-}.value
+        value = Result.Success(artboard)
+        awaitDispose { artboard.close() }
+    }.value
+}

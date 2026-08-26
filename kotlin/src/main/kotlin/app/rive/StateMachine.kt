@@ -2,6 +2,7 @@ package app.rive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import app.rive.core.ArtboardHandle
@@ -303,25 +304,25 @@ fun rememberStateMachine(
  * @param stateMachineName The name of the state machine to load. If null, the default state machine
  *    will be loaded.
  * @return The current creation result: loading, error, or success with the created [StateMachine].
+ *    Changing [artboard] or [stateMachineName] synchronously returns loading while the replacement
+ *    is created.
  */
 @Composable
 fun rememberStateMachineResult(
     artboard: Artboard,
     stateMachineName: String? = null,
-): Result<StateMachine> = produceState<Result<StateMachine>>(
-    Result.Loading,
-    artboard,
-    stateMachineName
-) {
-    val stateMachine = try {
-        StateMachine.create(artboard, stateMachineName)
-    } catch (ce: CancellationException) {
-        throw ce
-    } catch (e: Exception) {
-        value = Result.Error(e)
-        return@produceState
-    }
+): Result<StateMachine> = key(artboard, stateMachineName) {
+    produceState<Result<StateMachine>>(Result.Loading) {
+        val stateMachine = try {
+            StateMachine.create(artboard, stateMachineName)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            value = Result.Error(e)
+            return@produceState
+        }
 
-    value = Result.Success(stateMachine)
-    awaitDispose { stateMachine.close() }
-}.value
+        value = Result.Success(stateMachine)
+        awaitDispose { stateMachine.close() }
+    }.value
+}

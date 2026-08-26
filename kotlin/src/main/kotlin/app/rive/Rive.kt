@@ -8,12 +8,12 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEvent
@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.RivePointerInputMode.Consume
@@ -32,6 +33,7 @@ import app.rive.RivePointerInputMode.PassThrough
 import app.rive.core.RebuggerWrapper
 import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
+import app.rive.core.RiveWorker
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
 import kotlinx.coroutines.delay
@@ -117,10 +119,11 @@ internal fun validateRiveResourceArguments(
  * will be restarted when influenced by other events, such as pointer input or view model instance
  * changes.
  *
- * When [artboard] or [stateMachine] is null, its default is created asynchronously. This
- * composable emits no UI while either resource is loading and automatically recomposes when its
- * creation state changes. If implicit creation fails, it continues to emit no UI and does not
- * expose the error.
+ * When [artboard] or [stateMachine] is null, its default is created asynchronously. The rendering
+ * surface remains composed while either resource is loading, but drawing and pointer input are
+ * suspended until both resources are ready. Before the first successful draw the surface is blank;
+ * during a replacement it retains its last rendered contents. Implicit creation errors are not
+ * exposed.
  *
  * To display loading or error UI, create the resources with [rememberArtboardResult] and
  * [rememberStateMachineResult], handle their [Result] states, and supply the successful [artboard]
@@ -177,138 +180,588 @@ fun Rive(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val riveWorker = file.riveWorker
+    val readyResources = rememberReadyResources(file, artboard, stateMachine)
 
-    /** Use the provided artboard or create and own a confirmed default one. */
-    val artboardResult = artboard?.let { Result.Success(it) } ?: rememberArtboardResult(file)
-    val artboardToUse = when (artboardResult) {
-        is Result.Loading, is Result.Error -> return
-        is Result.Success -> artboardResult.value
-    }
-    val artboardHandle = artboardToUse.artboardHandle
+    // A surface can only be used by the worker that created it. Key both the surface host and the
+    // resource effects so a worker change disposes the entire native presentation generation.
+    key(riveWorker) {
+        // In debug builds, output the reasons for recomposition.
+        RebuggerWrapper(
+            trackMap = mapOf(
+                "file" to file,
+                "playing" to playing,
+                "frameRate" to frameRate,
+                "artboard" to artboard,
+                "artboardHandle" to readyResources?.artboard?.artboardHandle,
+                "stateMachine" to stateMachine,
+                "stateMachineHandle" to readyResources?.stateMachine?.stateMachineHandle,
+                "viewModelInstance" to viewModelInstance,
+                "fit" to fit,
+                "backgroundColor" to backgroundColor,
+                "lifecycleOwner" to lifecycleOwner,
+            )
+        )
 
-    /** Use the provided state machine or create and own a confirmed default one. */
-    val stateMachineResult = stateMachine?.let { Result.Success(it) }
-        ?: rememberStateMachineResult(artboardToUse)
-    val stateMachineToUse = when (stateMachineResult) {
-        is Result.Loading, is Result.Error -> return
-        is Result.Success -> stateMachineResult.value
-    }
-    val stateMachineHandle = stateMachineToUse.stateMachineHandle
-    val isSettled by stateMachineToUse.settled.collectAsState()
+        val surfaceState = rememberRiveSurfaceState()
+        RiveSurfaceHost(
+            riveWorker = riveWorker,
+            surfaceState = surfaceState,
+            resources = readyResources,
+            modifier = modifier,
+            fit = fit,
+            pointerInputMode = pointerInputMode,
+            frameRate = frameRate,
+            playing = playing,
+            onBitmapAvailable = onBitmapAvailable,
+        )
 
-    var surface by remember { mutableStateOf<RiveSurface?>(null) }
-    var surfaceWidth by remember { mutableIntStateOf(0) }
-    var surfaceHeight by remember { mutableIntStateOf(0) }
-
-    /** Clean up for the surface. */
-    DisposableEffect(surface) {
-        val nonNullSurface = surface ?: return@DisposableEffect onDispose {}
-        onDispose {
-            nonNullSurface.close()
+        if (readyResources != null) {
+            RiveResourceEffects(
+                riveWorker = riveWorker,
+                resources = readyResources,
+                viewModelInstance = viewModelInstance,
+                fit = fit,
+                backgroundColor = backgroundColor,
+                playing = playing,
+                frameRate = frameRate,
+                lifecycleOwner = lifecycleOwner,
+                surface = surfaceState.surface,
+                surfaceWidth = surfaceState.width,
+                surfaceHeight = surfaceState.height,
+            )
         }
+    }
+}
+
+/** Resources that are confirmed ready for native operations in the current composition. */
+private data class ReadyResources(
+    val artboard: Artboard,
+    val stateMachine: StateMachine,
+)
+
+/**
+ * Resolves the artboard and state machine used by [Rive].
+ *
+ * Supplied resources are used directly. Missing resources are created asynchronously in dependency
+ * order, with the default state machine waiting for its artboard. Loading and error results both
+ * remain unavailable because [Rive] intentionally does not expose implicit-creation errors.
+ *
+ * @param file The file from which missing resources are created.
+ * @param artboard The supplied artboard, or null to create the default.
+ * @param stateMachine The supplied state machine, or null to create the selected artboard's
+ *    default.
+ * @return The confirmed resources, or null while creation is loading or after it fails.
+ */
+@Composable
+private fun rememberReadyResources(
+    file: RiveFile,
+    artboard: Artboard?,
+    stateMachine: StateMachine?,
+): ReadyResources? {
+    val artboardResult = artboard?.let { Result.Success(it) } ?: rememberArtboardResult(file)
+    val resolvedArtboard = (artboardResult as? Result.Success)?.value ?: return null
+
+    val stateMachineResult = stateMachine?.let { Result.Success(it) }
+        ?: rememberStateMachineResult(resolvedArtboard)
+    val resolvedStateMachine = (stateMachineResult as? Result.Success)?.value ?: return null
+
+    return ReadyResources(resolvedArtboard, resolvedStateMachine)
+}
+
+/** Mutable worker-scoped surface state shared by rendering effects and the surface host. */
+private class RiveSurfaceState {
+    var surface by mutableStateOf<RiveSurface?>(null)
+    var width by mutableIntStateOf(0)
+    var height by mutableIntStateOf(0)
+}
+
+/**
+ * Remembers the surface state for the current worker-keyed presentation generation.
+ *
+ * @return The state shared by [RiveSurfaceHost] and [RiveResourceEffects].
+ */
+@Composable
+private fun rememberRiveSurfaceState(): RiveSurfaceState = remember { RiveSurfaceState() }
+
+/**
+ * Adds Rive pointer dispatch for one confirmed state machine generation.
+ *
+ * @receiver The modifier to augment, returned unchanged when [stateMachine] is null.
+ * @param riveWorker The worker that dispatches pointer commands.
+ * @param stateMachine The state machine to influence, or null while resources are unavailable.
+ * @param fit The fit used to map surface coordinates into the artboard.
+ * @param surfaceWidth The current surface width in pixels.
+ * @param surfaceHeight The current surface height in pixels.
+ * @param pointerInputMode The pointer dispatch and consumption behavior.
+ * @return This modifier with Rive pointer input appended when [stateMachine] is available.
+ */
+private fun Modifier.rivePointerInput(
+    riveWorker: RiveWorker,
+    stateMachine: StateMachine?,
+    fit: Fit,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+    pointerInputMode: RivePointerInputMode,
+): Modifier {
+    val activeStateMachine = stateMachine ?: return this
+    val stateMachineHandle = activeStateMachine.stateMachineHandle
+    return then(
+        object : PointerInputModifier {
+            override val pointerInputFilter: PointerInputFilter =
+                object : PointerInputFilter() {
+                    override fun onPointerEvent(
+                        pointerEvent: PointerEvent,
+                        pass: PointerEventPass,
+                        bounds: IntSize,
+                    ) {
+                        traceSection("Rive/PointerInput") {
+                            // Only handle the main pass so we don't double-dispatch.
+                            if (pass != PointerEventPass.Main) return@traceSection
+
+                            activeStateMachine.unsettle()
+
+                            val pointerFunctions = when (pointerEvent.type) {
+                                PointerEventType.Move -> listOf(riveWorker::pointerMove)
+                                // Rive expects up and exit when a pointer is released along the Z
+                                // axis.
+                                PointerEventType.Release -> listOf(
+                                    riveWorker::pointerUp,
+                                    riveWorker::pointerExit,
+                                )
+
+                                PointerEventType.Press -> listOf(riveWorker::pointerDown)
+                                PointerEventType.Exit -> listOf(riveWorker::pointerExit)
+                                else -> return@traceSection
+                            }
+
+                            pointerEvent.changes.forEach { change ->
+                                val pointerPosition = change.position
+                                pointerFunctions.forEach { pointerFunction ->
+                                    pointerFunction(
+                                        stateMachineHandle,
+                                        fit,
+                                        surfaceWidth.toFloat(),
+                                        surfaceHeight.toFloat(),
+                                        change.id.value.toInt(),
+                                        pointerPosition.x,
+                                        pointerPosition.y,
+                                    )
+                                }
+                                if (pointerInputMode == Consume) {
+                                    change.consume()
+                                }
+                            }
+                        }
+                    }
+
+                    override fun onCancel() {}
+
+                    override val shareWithSiblings: Boolean =
+                        pointerInputMode == PassThrough
+                }
+        }
+    )
+}
+
+/**
+ * Hosts the worker-owned rendering surface and its Compose pointer-input bridge.
+ *
+ * The host remains composed while [resources] are loading so a same-worker replacement retains
+ * the existing surface and its last rendered frame. Pointer input is installed only while one
+ * confirmed resource generation is available.
+ *
+ * @param riveWorker The worker that creates and owns the rendering surface.
+ * @param surfaceState The surface state shared with resource-dependent effects.
+ * @param resources The confirmed generation used for pointer input and settlement, or null.
+ * @param modifier The modifier applied to the single-child surface layout.
+ * @param fit The fit used to map pointer coordinates into the artboard.
+ * @param pointerInputMode The pointer dispatch and consumption behavior.
+ * @param frameRate The requested rendering rate used for the Android view hint.
+ * @param playing Whether the state machine should advance continuously.
+ * @param onBitmapAvailable The optional callback for the first bitmap on each surface.
+ */
+@Composable
+private fun RiveSurfaceHost(
+    riveWorker: RiveWorker,
+    surfaceState: RiveSurfaceState,
+    resources: ReadyResources?,
+    modifier: Modifier,
+    fit: Fit,
+    pointerInputMode: RivePointerInputMode,
+    frameRate: RiveFrameRate,
+    playing: Boolean,
+    onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
+) {
+    val activeSurface = surfaceState.surface
+    val surfaceWidth = surfaceState.width
+    val surfaceHeight = surfaceState.height
+    val isSettled = resources?.stateMachine?.settled?.collectAsState()?.value ?: true
+
+    // Close the worker-owned surface when it is replaced or this host leaves composition.
+    DisposableEffect(activeSurface) {
+        val surfaceToClose = activeSurface ?: return@DisposableEffect onDispose {}
+        onDispose { surfaceToClose.close() }
     }
 
     val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
     var bitmapCallbackSent by remember { mutableStateOf(false) }
 
-    // In debug builds, output the reasons for recomposition
-    RebuggerWrapper(
-        trackMap = mapOf(
-            "file" to file,
-            "playing" to playing,
-            "frameRate" to frameRate,
-            "artboard" to artboard,
-            "artboardHandle" to artboardHandle,
-            "stateMachine" to stateMachine,
-            "stateMachineHandle" to stateMachineHandle,
-            "viewModelInstance" to viewModelInstance,
-            "fit" to fit,
-            "backgroundColor" to backgroundColor,
-            "surface" to surface,
-            "lifecycleOwner" to lifecycleOwner,
-        )
+    val surfaceModifier = modifier.rivePointerInput(
+        riveWorker = riveWorker,
+        stateMachine = resources?.stateMachine,
+        fit = fit,
+        surfaceWidth = surfaceWidth,
+        surfaceHeight = surfaceHeight,
+        pointerInputMode = pointerInputMode,
     )
 
-    /** Bind the view model instance to the state machine. */
-    LaunchedEffect(stateMachineHandle, viewModelInstance) {
+    // Layout provides a standard Compose pointer-input parent for the pass-through AndroidView.
+    Layout(
+        content = {
+            AndroidView(
+                factory = { context ->
+                    TextureView(context).apply {
+                        isOpaque = false
+
+                        surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                            override fun onSurfaceTextureAvailable(
+                                newSurfaceTexture: SurfaceTexture,
+                                width: Int,
+                                height: Int,
+                            ) {
+                                RiveLog.d(GENERAL_TAG) {
+                                    "Surface texture available ($width x $height)"
+                                }
+                                surfaceState.width = width
+                                surfaceState.height = height
+                                surfaceState.surface = riveWorker.createRiveSurface(
+                                    SurfaceTextureSurface(newSurfaceTexture, width, height)
+                                )
+                                bitmapCallbackSent = false
+                            }
+
+                            override fun onSurfaceTextureDestroyed(
+                                destroyedSurfaceTexture: SurfaceTexture,
+                            ): Boolean {
+                                RiveLog.d(GENERAL_TAG) {
+                                    "Surface texture destroyed (final release deferred to " +
+                                        "RenderContext disposal)"
+                                }
+                                surfaceState.surface = null
+                                bitmapCallbackSent = false
+                                // RiveSurface remains responsible for destroying the
+                                // SurfaceTexture when the render context releases it.
+                                return false
+                            }
+
+                            override fun onSurfaceTextureSizeChanged(
+                                surfaceTexture: SurfaceTexture,
+                                width: Int,
+                                height: Int,
+                            ) {
+                                RiveLog.d(GENERAL_TAG) {
+                                    "Surface texture size changed ($width x $height)"
+                                }
+                                surfaceState.width = width
+                                surfaceState.height = height
+                                surfaceState.surface?.resize(width, height)
+                                bitmapCallbackSent = false
+                            }
+
+                            override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {
+                                // Dispatch once per surface and only after a real frame is ready.
+                                if (!bitmapCallbackSent && currentOnBitmapAvailable != null) {
+                                    val currentBitmap = bitmap
+                                    if (currentBitmap != null) {
+                                        bitmapCallbackSent = true
+                                        post {
+                                            currentOnBitmapAvailable?.invoke {
+                                                // The getter is valid only while this surface is
+                                                // active.
+                                                bitmap ?: error(
+                                                    "Bitmap no longer available; surface may have " +
+                                                        "been destroyed"
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                update = { textureView ->
+                    textureView.applyRequestedFrameRateHint(
+                        frameRate = frameRate,
+                        active = playing && !isSettled,
+                    )
+                },
+            )
+        },
+        modifier = surfaceModifier,
+    ) { measurables, constraints ->
+        val placeable = measurables.single().measure(constraints)
+        layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+        }
+    }
+}
+
+/**
+ * Runs the effects that operate on a confirmed artboard and state machine generation.
+ *
+ * Removing this composable while replacement resources load cancels every resource-dependent
+ * effect without removing the worker-scoped rendering surface.
+ *
+ * @param riveWorker The worker that owns [resources] and [surface].
+ * @param resources The artboard and state machine generation to operate on.
+ * @param viewModelInstance The optional view model instance to bind.
+ * @param fit The fit used for sizing, pointer mapping, and drawing.
+ * @param backgroundColor The color used to clear each frame.
+ * @param playing Whether the state machine should advance continuously.
+ * @param frameRate The requested drawing rate.
+ * @param lifecycleOwner The lifecycle that controls the drawing loop.
+ * @param surface The current worker-owned rendering surface, or null while it is unavailable.
+ * @param surfaceWidth The current surface width in pixels.
+ * @param surfaceHeight The current surface height in pixels.
+ */
+@Composable
+private fun RiveResourceEffects(
+    riveWorker: RiveWorker,
+    resources: ReadyResources,
+    viewModelInstance: ViewModelInstance?,
+    fit: Fit,
+    backgroundColor: Int,
+    playing: Boolean,
+    frameRate: RiveFrameRate,
+    lifecycleOwner: LifecycleOwner,
+    surface: RiveSurface?,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+) {
+    val artboard = resources.artboard
+    val stateMachine = resources.stateMachine
+
+    BindViewModelInstanceEffect(
+        riveWorker = riveWorker,
+        stateMachine = stateMachine,
+        viewModelInstance = viewModelInstance,
+    )
+    UnsettleOnPresentationChangeEffect(
+        riveWorker = riveWorker,
+        stateMachine = stateMachine,
+        fit = fit,
+        backgroundColor = backgroundColor,
+    )
+    UnsettleOnPlaybackStartEffect(
+        riveWorker = riveWorker,
+        stateMachine = stateMachine,
+        playing = playing,
+    )
+    UpdateArtboardLayoutEffect(
+        riveWorker = riveWorker,
+        artboard = artboard,
+        stateMachine = stateMachine,
+        fit = fit,
+        surface = surface,
+        surfaceWidth = surfaceWidth,
+        surfaceHeight = surfaceHeight,
+    )
+    DrawRiveFramesEffect(
+        riveWorker = riveWorker,
+        lifecycleOwner = lifecycleOwner,
+        surface = surface,
+        artboard = artboard,
+        stateMachine = stateMachine,
+        viewModelInstance = viewModelInstance,
+        fit = fit,
+        backgroundColor = backgroundColor,
+        playing = playing,
+        frameRate = frameRate,
+    )
+}
+
+/**
+ * Binds a view model instance to one state machine generation and observes its dirty state.
+ *
+ * @param riveWorker The worker that owns [stateMachine] and [viewModelInstance].
+ * @param stateMachine The state machine to bind and unsettle.
+ * @param viewModelInstance The view model instance to bind, or null when none is configured.
+ */
+@Composable
+private fun BindViewModelInstanceEffect(
+    riveWorker: RiveWorker,
+    stateMachine: StateMachine,
+    viewModelInstance: ViewModelInstance?,
+) {
+    val stateMachineHandle = stateMachine.stateMachineHandle
+    LaunchedEffect(riveWorker, stateMachine, viewModelInstance) {
         if (viewModelInstance == null) {
             RiveLog.d(VM_INSTANCE_TAG) { "No view model instance to bind for $stateMachineHandle" }
             return@LaunchedEffect
         }
 
-        RiveLog.d(VM_INSTANCE_TAG) { "Binding view model instance ${viewModelInstance.instanceHandle}" }
+        RiveLog.d(VM_INSTANCE_TAG) {
+            "Binding view model instance ${viewModelInstance.instanceHandle}"
+        }
         riveWorker.bindViewModelInstance(
             stateMachineHandle,
-            viewModelInstance.instanceHandle
+            viewModelInstance.instanceHandle,
         )
 
-        // Assigning a view model instance unsettles the state machine
-        stateMachineToUse.unsettle()
+        // Assigning a view model instance unsettles the state machine.
+        stateMachine.unsettle()
 
-        // Subscribe to the instance's dirty flow to unsettle when properties change
+        // Subscribe to the instance's dirty flow to unsettle when properties change.
         viewModelInstance.dirtyFlow.collect {
-            RiveLog.v(VM_INSTANCE_TAG) { "View model instance dirty, unsettling $stateMachineHandle" }
-            stateMachineToUse.unsettle()
+            RiveLog.v(VM_INSTANCE_TAG) {
+                "View model instance dirty, unsettling $stateMachineHandle"
+            }
+            stateMachine.unsettle()
         }
     }
+}
 
-    /**
-     * Changing the fit, alignment, layout scale factor, or clear color unsettles the state machine,
-     * forcing a re-draw.
-     */
-    LaunchedEffect(fit, backgroundColor) {
+/**
+ * Unsettles one state machine generation when presentation parameters change.
+ *
+ * @param riveWorker The worker that owns [stateMachine].
+ * @param stateMachine The state machine that requires a fresh draw.
+ * @param fit The current fit mode.
+ * @param backgroundColor The current frame-clear color.
+ */
+@Composable
+private fun UnsettleOnPresentationChangeEffect(
+    riveWorker: RiveWorker,
+    stateMachine: StateMachine,
+    fit: Fit,
+    backgroundColor: Int,
+) {
+    val stateMachineHandle = stateMachine.stateMachineHandle
+    LaunchedEffect(riveWorker, stateMachine, fit, backgroundColor) {
         RiveLog.d(STATE_MACHINE_TAG) {
             "State machine $stateMachineHandle unsettled due to parameter change"
         }
-        stateMachineToUse.unsettle()
+        stateMachine.unsettle()
     }
+}
 
-    /**
-     * Update artboard sizing when the fit or surface changes, then unsettle the state machine so
-     * the drawing loop can advance and render the updated layout.
-     */
-    LaunchedEffect(fit, surface, surfaceWidth, surfaceHeight) {
+/**
+ * Unsettles one state machine generation when playback begins or resumes.
+ *
+ * @param riveWorker The worker that owns [stateMachine].
+ * @param stateMachine The state machine to unsettle.
+ * @param playing Whether continuous playback is enabled.
+ */
+@Composable
+private fun UnsettleOnPlaybackStartEffect(
+    riveWorker: RiveWorker,
+    stateMachine: StateMachine,
+    playing: Boolean,
+) = LaunchedEffect(riveWorker, stateMachine, playing) {
+    if (playing) {
+        stateMachine.unsettle()
+    }
+}
+
+/**
+ * Updates one artboard generation for the current surface layout and schedules a fresh draw.
+ *
+ * @param riveWorker The worker that owns [artboard], [stateMachine], and [surface].
+ * @param artboard The artboard whose dimensions should be updated.
+ * @param stateMachine The state machine that applies the resulting layout.
+ * @param fit The fit mode that determines whether the artboard is resized or reset.
+ * @param surface The current rendering surface, or null while unavailable.
+ * @param surfaceWidth The current surface width in pixels.
+ * @param surfaceHeight The current surface height in pixels.
+ */
+@Composable
+private fun UpdateArtboardLayoutEffect(
+    riveWorker: RiveWorker,
+    artboard: Artboard,
+    stateMachine: StateMachine,
+    fit: Fit,
+    surface: RiveSurface?,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+) = LaunchedEffect(
+        riveWorker,
+        artboard,
+        stateMachine,
+        fit,
+        surface,
+        surfaceWidth,
+        surfaceHeight,
+    ) {
         val activeSurface = surface ?: return@LaunchedEffect
         when (fit) {
             is Fit.Layout -> {
                 traceSection("Rive/Layout/ResizeArtboard") {
-                    RiveLog.d(GENERAL_TAG) { "Resizing artboard to $surfaceWidth x $surfaceHeight" }
-                    artboardToUse.resizeArtboard(activeSurface, fit.scaleFactor)
+                    RiveLog.d(GENERAL_TAG) {
+                        "Resizing artboard to $surfaceWidth x $surfaceHeight"
+                    }
+                    artboard.resizeArtboard(activeSurface, fit.scaleFactor)
                 }
             }
 
             else -> {
                 traceSection("Rive/Layout/ResetArtboardSize") {
                     RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
-                    artboardToUse.resetArtboardSize()
+                    artboard.resetArtboardSize()
                 }
             }
         }
         // The queued resize only affects layout when the state machine advances again.
-        stateMachineToUse.unsettle()
+        stateMachine.unsettle()
     }
 
-    /** Start a fresh unsettled generation when playback is resumed. */
-    LaunchedEffect(playing) {
-        if (playing) {
-            stateMachineToUse.unsettle()
-        }
-    }
-
-    /** Drawing loop while RESUMED. */
+/**
+ * Draws one confirmed resource generation while its lifecycle is resumed.
+ *
+ * @param riveWorker The worker that owns [artboard], [stateMachine], and [surface].
+ * @param lifecycleOwner The lifecycle that controls continuous drawing.
+ * @param surface The current rendering surface, or null while unavailable.
+ * @param artboard The artboard to draw.
+ * @param stateMachine The state machine to advance and draw.
+ * @param viewModelInstance The bound view model instance, included in effect identity.
+ * @param fit The fit used when drawing.
+ * @param backgroundColor The color used to clear each frame.
+ * @param playing Whether to draw once or advance continuously.
+ * @param frameRate The requested drawing rate.
+ */
+@Composable
+private fun DrawRiveFramesEffect(
+    riveWorker: RiveWorker,
+    lifecycleOwner: LifecycleOwner,
+    surface: RiveSurface?,
+    artboard: Artboard,
+    stateMachine: StateMachine,
+    viewModelInstance: ViewModelInstance?,
+    fit: Fit,
+    backgroundColor: Int,
+    playing: Boolean,
+    frameRate: RiveFrameRate,
+) {
+    val artboardHandle = artboard.artboardHandle
+    val stateMachineHandle = stateMachine.stateMachineHandle
     LaunchedEffect(
+        riveWorker,
         lifecycleOwner,
         surface,
-        artboardHandle,
-        stateMachineHandle,
+        artboard,
+        stateMachine,
         viewModelInstance,
         fit,
         backgroundColor,
         playing,
         frameRate,
     ) {
-        if (surface == null) {
+        val activeSurface = surface ?: run {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
+            return@LaunchedEffect
+        }
+        if (activeSurface.closed) {
+            RiveLog.d(DRAW_TAG) { "Surface is closed, skipping drawing" }
             return@LaunchedEffect
         }
         if (!playing) {
@@ -318,21 +771,17 @@ fun Rive(
 
             traceSection("Rive/Frame") {
                 traceSection("Rive/Frame/Advance") {
-                    // Advance the state machine once to exit the "Entry" state and apply initial values,
-                    // including any pending artboard resizes from the fit mode.
-                    stateMachineToUse.advance(0.nanoseconds)
-                }
-                val drawSurface = surface ?: run {
-                    RiveLog.d(DRAW_TAG) { "Surface was released before draw, skipping frame" }
-                    return@traceSection
+                    // Advance once to exit the Entry state and apply initial values, including any
+                    // pending artboard resize from the fit mode.
+                    stateMachine.advance(0.nanoseconds)
                 }
                 traceSection("Rive/Frame/Draw") {
                     riveWorker.draw(
                         artboardHandle,
                         stateMachineHandle,
-                        drawSurface,
+                        activeSurface,
                         fit,
-                        backgroundColor
+                        backgroundColor,
                     )
                 }
             }
@@ -340,13 +789,15 @@ fun Rive(
             return@LaunchedEffect
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            RiveLog.d(DRAW_TAG) { "Starting drawing with $artboardHandle and $stateMachineHandle" }
+            RiveLog.d(DRAW_TAG) {
+                "Starting drawing with $artboardHandle and $stateMachineHandle"
+            }
             val framePacer = RiveFramePacer(frameRate)
             var lastFrameTimeNs = 0L
             while (isActive) {
-                if (isSettled) {
+                if (stateMachine.settled.value) {
                     traceSection("Rive/Frame/SettledSuspend") {
-                        snapshotFlow { isSettled }.first { !it }
+                        stateMachine.settled.first { !it }
                     }
                     lastFrameTimeNs = 0L
                     framePacer.reset()
@@ -357,22 +808,25 @@ fun Rive(
                 if (frameDelay > ZERO) {
                     delay(frameDelay)
                 }
-                if (isSettled) {
+                if (stateMachine.settled.value) {
                     continue
                 }
-
-                // Because we cannot break the outer loop directly from inside a traceSection lambda
-                var stopDrawLoop = false
 
                 val frameTimeNs = withFrameNanos { frameTimeNs -> frameTimeNs }
 
                 // Settled events can arrive while withFrameNanos is suspended.
-                if (isSettled) {
+                if (stateMachine.settled.value) {
                     continue
                 }
                 // FPS cap gate: skip platform frames that arrive before the next Rive frame is due.
                 if (!framePacer.tryScheduleFrame(frameTimeNs)) {
                     continue
+                }
+                // The surface can close while this coroutine is suspended for a frame. The
+                // captured instance remains the effect key until cancellation is observed.
+                if (activeSurface.closed) {
+                    RiveLog.d(DRAW_TAG) { "Surface was released, stopping draw loop" }
+                    return@repeatOnLifecycle
                 }
 
                 val deltaTime = if (lastFrameTimeNs == 0L) {
@@ -383,12 +837,6 @@ fun Rive(
                 lastFrameTimeNs = frameTimeNs
 
                 traceSection("Rive/Frame") {
-                    val drawSurface = surface
-                    if (drawSurface == null) {
-                        RiveLog.d(DRAW_TAG) { "Surface was released during draw, stopping draw loop" }
-                        stopDrawLoop = true
-                        return@traceSection
-                    }
                     traceSection("Rive/Frame/Advance") {
                         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
                     }
@@ -396,167 +844,16 @@ fun Rive(
                         riveWorker.draw(
                             artboardHandle,
                             stateMachineHandle,
-                            drawSurface,
+                            activeSurface,
                             fit,
-                            backgroundColor
+                            backgroundColor,
                         )
                     }
                 }
-                if (stopDrawLoop) {
-                    return@repeatOnLifecycle
-                }
             }
-            RiveLog.d(DRAW_TAG) { "Ending drawing with $artboardHandle and $stateMachineHandle" }
-        }
-    }
-
-    /**
-     * A wrapper for the interior AndroidView, since it handles pointer inputs in a non-standard way
-     * by passing through all touch events. This gives us a standard Composable to handle pointer
-     * events. Effectively a Box, but without pulling in the dependency on the Layout lib.
-     */
-    @Composable
-    fun SingleChildLayout(
-        modifier: Modifier = Modifier,
-        content: @Composable () -> Unit
-    ) {
-        Layout(
-            content = content,
-            modifier = modifier
-        ) { measurables, constraints ->
-            val placeable = measurables.single().measure(constraints)
-            layout(placeable.width, placeable.height) {
-                placeable.place(0, 0)
+            RiveLog.d(DRAW_TAG) {
+                "Ending drawing with $artboardHandle and $stateMachineHandle"
             }
         }
-    }
-
-    val passThroughInputModifier = object : PointerInputModifier {
-        override val pointerInputFilter: PointerInputFilter =
-            object : PointerInputFilter() {
-                override fun onPointerEvent(
-                    pointerEvent: PointerEvent,
-                    pass: PointerEventPass,
-                    bounds: IntSize
-                ) {
-                    traceSection("Rive/PointerInput") {
-                        // Only handle the main pass so we don't double-dispatch.
-                        if (pass != PointerEventPass.Main) return@traceSection
-
-                        // Pointer events unsettle the state machine.
-                        stateMachineToUse.unsettle()
-
-                        val pointerFns = when (pointerEvent.type) {
-                            PointerEventType.Move -> listOf(riveWorker::pointerMove)
-                            // On release, Rive expects both up + exit (logically "exiting" on the Z axis).
-                            PointerEventType.Release -> listOf(
-                                riveWorker::pointerUp,
-                                riveWorker::pointerExit
-                            )
-
-                            PointerEventType.Press -> listOf(riveWorker::pointerDown)
-                            PointerEventType.Exit -> listOf(riveWorker::pointerExit)
-                            else -> return@traceSection // Ignore other pointer events
-                        }
-
-                        pointerEvent.changes.forEach { change ->
-                            val pointerPosition = change.position
-                            pointerFns.forEach { fn ->
-                                fn(
-                                    stateMachineHandle,
-                                    fit,
-                                    surfaceWidth.toFloat(),
-                                    surfaceHeight.toFloat(),
-                                    change.id.value.toInt(),
-                                    pointerPosition.x,
-                                    pointerPosition.y
-                                )
-                            }
-                            // Only consume in Consume mode. Observe/PassThrough do not consume.
-                            if (pointerInputMode == Consume) {
-                                change.consume()
-                            }
-                        }
-                    }
-                }
-
-                override fun onCancel() {}
-                override val shareWithSiblings: Boolean =
-                    pointerInputMode == PassThrough
-            }
-    }
-
-    SingleChildLayout(modifier = modifier.then(passThroughInputModifier)) {
-        AndroidView(
-            factory = { context ->
-                TextureView(context).apply {
-                    isOpaque = false
-
-                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                        override fun onSurfaceTextureAvailable(
-                            newSurfaceTexture: SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                            RiveLog.d(GENERAL_TAG) { "Surface texture available ($width x $height)" }
-                            surfaceWidth = width
-                            surfaceHeight = height
-                            surface = riveWorker.createRiveSurface(
-                                SurfaceTextureSurface(newSurfaceTexture, width, height)
-                            )
-                            // Because this is a new surface, we send a fresh callback
-                            bitmapCallbackSent = false
-                        }
-
-                        override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
-                            RiveLog.d(GENERAL_TAG) { "Surface texture destroyed (final release deferred to RenderContext disposal)" }
-                            surface = null
-                            bitmapCallbackSent = false
-                            // False here means that we are responsible for destroying the surface texture.
-                            // This happens when the RiveSurface is closed.
-                            return false
-                        }
-
-                        override fun onSurfaceTextureSizeChanged(
-                            surfaceTexture: SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                            RiveLog.d(GENERAL_TAG) { "Surface texture size changed ($width x $height)" }
-                            surfaceWidth = width
-                            surfaceHeight = height
-                            surface?.resize(width, height)
-                            bitmapCallbackSent = false
-                        }
-
-                        override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) {
-                            // Only dispatch once per surface, and only when a real frame is available
-                            if (!bitmapCallbackSent && currentOnBitmapAvailable != null) {
-                                val bmp = bitmap
-                                if (bmp != null) {
-                                    bitmapCallbackSent = true
-                                    // Post the callback to the next frame to ensure the bitmap is fully rendered.
-                                    // Prevents race conditions where the callback is invoked before the
-                                    // draw command has completed rendering to the surface.
-                                    post {
-                                        currentOnBitmapAvailable?.invoke {
-                                            // Getter is safe because we only expose it after first non-null frame
-                                            bitmap
-                                                ?: error("Bitmap no longer available; surface may have been destroyed")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            update = { textureView ->
-                textureView.applyRequestedFrameRateHint(
-                    frameRate = frameRate,
-                    active = playing && !isSettled
-                )
-            }
-        )
     }
 }

@@ -9,32 +9,111 @@ import app.rive.RiveFileException
 import app.rive.RiveFileSource
 import app.rive.RiveResourceClosedException
 import app.rive.StateMachine
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Continuously polls a [CommandQueue] on a background thread until closed.
+ * Continuously polls one or more [CommandQueue] instances on a background thread until closed.
  *
- * @param commandQueue The command queue whose callbacks should be delivered.
+ * @param commandQueues The command queues whose callbacks should be delivered.
  */
 internal class CommandQueuePoller(
-    private val commandQueue: CommandQueue
+    private val commandQueues: List<CommandQueue>
 ) : AutoCloseable {
-    private val keepPolling = AtomicBoolean(true)
+    /**
+     * Creates a poller for a single command queue.
+     *
+     * @param commandQueue The command queue whose callbacks should be delivered.
+     */
+    constructor(commandQueue: CommandQueue) : this(listOf(commandQueue))
+
+    private val pollingStateLock = ReentrantLock()
+    private val pollingStateChanged = pollingStateLock.newCondition()
+    private var isRunning = true
+    private var pauseDepth = 0
+    private var isPollInProgress = false
     private val pollThread = thread(name = "RiveTestPoll") {
-        while (keepPolling.get()) {
-            commandQueue.pollMessages()
+        while (beginPoll()) {
+            try {
+                commandQueues.forEach(CommandQueue::pollMessages)
+            } finally {
+                finishPoll()
+            }
             Thread.sleep(1)
+        }
+    }
+
+    /**
+     * Pauses polling and waits for any poll already in progress to finish.
+     *
+     * Polling resumes in `finally` after [block] finishes. Pause scopes may be nested.
+     *
+     * @param block The operation to run without native message polling.
+     * @return The value produced by [block].
+     * @throws IllegalStateException If this poller has already been closed.
+     */
+    internal fun <T> withPollingPaused(block: () -> T): T {
+        pausePolling()
+        return try {
+            block()
+        } finally {
+            resumePolling()
         }
     }
 
     /** Stops polling and waits for the background thread to finish. */
     override fun close() {
-        keepPolling.set(false)
+        pollingStateLock.withLock {
+            isRunning = false
+            pollingStateChanged.signalAll()
+        }
         pollThread.join(2_000)
+    }
+
+    /** Waits until polling is allowed and reserves the next poll operation. */
+    private fun beginPoll(): Boolean = pollingStateLock.withLock {
+        while (isRunning && pauseDepth > 0) {
+            pollingStateChanged.await()
+        }
+        if (!isRunning) {
+            return false
+        }
+        isPollInProgress = true
+        true
+    }
+
+    /** Marks the current poll operation complete and wakes a thread waiting to pause. */
+    private fun finishPoll() {
+        pollingStateLock.withLock {
+            isPollInProgress = false
+            pollingStateChanged.signalAll()
+        }
+    }
+
+    /** Pauses polling after any poll already in progress finishes. */
+    private fun pausePolling() {
+        pollingStateLock.withLock {
+            check(isRunning) { "Cannot pause a closed command queue poller" }
+            pauseDepth++
+            while (isPollInProgress) {
+                pollingStateChanged.await()
+            }
+        }
+    }
+
+    /** Resumes one nested polling pause. */
+    private fun resumePolling() {
+        pollingStateLock.withLock {
+            check(pauseDepth > 0) { "Command queue polling is not paused" }
+            pauseDepth--
+            if (pauseDepth == 0) {
+                pollingStateChanged.signalAll()
+            }
+        }
     }
 }
 
