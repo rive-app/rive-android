@@ -1,3 +1,5 @@
+@file:OptIn(app.rive.ExperimentalRiveSemantics::class)
+
 package app.rive.runtime.example
 
 import android.os.Bundle
@@ -38,6 +40,7 @@ import app.rive.Rive
 import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
+import app.rive.RiveSemanticsMode
 import app.rive.ViewModelInstance
 import app.rive.ViewModelInstanceSource
 import app.rive.ViewModelSource
@@ -61,7 +64,7 @@ class ComposeListActivity : ComponentActivity() {
         setContent {
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
-                RiveFileSource.RawRes.from(R.raw.lists_demo),
+                RiveFileSource.RawRes.from(R.raw.data_binding_lists),
                 riveWorker
             )
             val contentResult = riveFile.andThen { file ->
@@ -168,6 +171,7 @@ class ComposeListActivity : ComponentActivity() {
                                 modifier = Modifier.weight(1f),
                                 viewModelInstance = mainVMI,
                                 fit = Fit.Layout(3f),
+                                semantics = RiveSemanticsMode.Automatic,
                             )
 
                             Column(

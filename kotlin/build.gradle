@@ -81,6 +81,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = javaVersion.toString()
+        // This module implements its own experimental semantics API. The marker remains on the
+        // published declarations and is still enforced for downstream consumers.
+        freeCompilerArgs += ["-opt-in=app.rive.ExperimentalRiveSemantics"]
     }
 
     externalNativeBuild {
@@ -115,6 +118,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.android)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.customview)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.startup.runtime)

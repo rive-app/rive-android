@@ -17,7 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Continuously polls one or more [CommandQueue] instances on a background thread until closed.
+ * Continuously dispatches polling for one or more [CommandQueue] instances to the Android main
+ * thread until closed.
  *
  * @param commandQueues The command queues whose callbacks should be delivered.
  */
@@ -36,10 +37,13 @@ internal class CommandQueuePoller(
     private var isRunning = true
     private var pauseDepth = 0
     private var isPollInProgress = false
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val pollThread = thread(name = "RiveTestPoll") {
         while (beginPoll()) {
             try {
-                commandQueues.forEach(CommandQueue::pollMessages)
+                instrumentation.runOnMainSync {
+                    commandQueues.forEach(CommandQueue::pollMessages)
+                }
             } finally {
                 finishPoll()
             }
@@ -118,11 +122,13 @@ internal class CommandQueuePoller(
 }
 
 /**
- * Runs [block] while a temporary background thread continuously polls this command queue.
+ * Runs [block] while a temporary background coordinator continuously dispatches command queue
+ * polling to the Android main thread.
  *
  * Android instrumentation tests that enqueue command server work need polling even when the code
- * under test is not running inside the normal lifecycle-driven polling loop. Polling is stopped in
- * `finally` so failures inside [block] do not leak the helper thread.
+ * under test is not running inside the normal lifecycle-driven polling loop. Each poll runs on main
+ * to preserve [CommandQueue] callback confinement. Polling is stopped in `finally` so failures
+ * inside [block] do not leak the helper thread.
  */
 internal inline fun <T> CommandQueue.withPolling(block: CommandQueue.() -> T): T {
     val poller = CommandQueuePoller(this)

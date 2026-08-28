@@ -3,9 +3,11 @@ package app.rive
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Build
 import android.os.SystemClock
 import android.view.MotionEvent
+import androidx.annotation.MainThread
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -14,11 +16,17 @@ import androidx.test.filters.SdkSuppress
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import app.rive.runtime.kotlin.test.R
+import app.rive.semantics.ProjectedSemanticHierarchy
+import app.rive.semantics.SemanticActionType
+import app.rive.semantics.SemanticState
+import app.rive.semantics.SemanticTreeModel
+import app.rive.semantics.hitTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -29,7 +37,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.ZERO
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalHardwareBitmapRendering::class)
@@ -50,6 +61,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             "Session should fail fast when API < 29"
         ) {
             RiveCanvasSession(
+                context = context,
                 riveWorker = riveWorker,
                 artboard = res.artboard,
                 stateMachine = res.stateMachine
@@ -69,6 +81,11 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                 "setRegion should fail after close"
             ) {
                 session.setRegion(Rect(0, 0, 64, 64))
+            }
+            assertFailsWith<RiveResourceClosedException>(
+                "Changing semantics mode should fail after close"
+            ) {
+                session.semantics = RiveSemanticsMode.On
             }
             assertFailsWith<RiveResourceClosedException>(
                 "beginPlaying should fail after close"
@@ -181,6 +198,347 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    /** Verifies ordinary session playback does not implicitly activate semantic draining. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun playback_withoutEnableSemanticsDoesNotPublishSemanticTree() = runBlocking {
+        val resources = loadDefaultRiveResources(R.raw.tabtest)
+        val viewModelInstance = ViewModelInstance.create(
+            resources.file,
+            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance(),
+        )
+        try {
+            coroutineScope {
+                lateinit var lifecycleOwner: TestLifecycleOwner
+                lateinit var session: RiveCanvasSession
+                lateinit var tree: SemanticTreeModel
+                withContext(Dispatchers.Main.immediate) {
+                    lifecycleOwner = TestLifecycleOwner()
+                    session = RiveCanvasSession(
+                        context = context,
+                        riveWorker = riveWorker,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        viewModelInstance = viewModelInstance,
+                        fit = Fit.Fill,
+                    ).also { created ->
+                        created.setRegion(INITIAL_SEMANTICS_REGION)
+                    }
+                    tree = resources.stateMachine.semanticTree
+                }
+
+                val playJob = launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+                try {
+                    withContext(Dispatchers.Main.immediate) {
+                        assertFalse(resources.stateMachine.settled.value)
+                        lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        resources.stateMachine.settled.first { settled -> settled }
+                    }
+
+                    withContext(Dispatchers.Main.immediate) {
+                        assertEquals(0, tree.version)
+                        assertEquals(0, tree.nodeCount)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main.immediate) { session.close() }
+                    playJob.cancelAndJoin()
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) { viewModelInstance.close() }
+        }
+    }
+
+    /** Verifies session activation drains initial and resized view-space semantic geometry. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun semanticsOn_whilePlayingPublishesAndResizesSemanticTree() = runBlocking {
+        val resources = loadDefaultRiveResources(R.raw.tabtest)
+        val viewModelInstance = ViewModelInstance.create(
+            resources.file,
+            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance(),
+        )
+        try {
+            coroutineScope {
+                lateinit var lifecycleOwner: TestLifecycleOwner
+                lateinit var session: RiveCanvasSession
+                lateinit var tree: SemanticTreeModel
+                withContext(Dispatchers.Main.immediate) {
+                    lifecycleOwner = TestLifecycleOwner()
+                    session = RiveCanvasSession(
+                        context = context,
+                        riveWorker = riveWorker,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        viewModelInstance = viewModelInstance,
+                        fit = Fit.Fill,
+                    ).also { created ->
+                        created.setRegion(INITIAL_SEMANTICS_REGION)
+                    }
+                    tree = resources.stateMachine.semanticTree
+                    assertEquals(0, tree.version)
+                    assertEquals(0, tree.nodeCount)
+                }
+
+                val playJob = launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+                try {
+                    withContext(Dispatchers.Main.immediate) {
+                        lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                        session.semantics = RiveSemanticsMode.On
+                        session.semantics = RiveSemanticsMode.On
+                    }
+                    val initialVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version -> version > 0 }
+                    }
+                    val initialBounds = withContext(Dispatchers.Main.immediate) {
+                        tree.boundsForLabel(SEMANTIC_NODE_LABEL)
+                    }
+
+                    withContext(Dispatchers.Main.immediate) {
+                        session.setRegion(RESIZED_SEMANTICS_REGION)
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version -> version > initialVersion }
+                    }
+                    val resizedBounds = withContext(Dispatchers.Main.immediate) {
+                        tree.boundsForLabel(SEMANTIC_NODE_LABEL)
+                    }
+
+                    assertEquals(initialBounds.width() * 2f, resizedBounds.width(), 0.1f)
+                    assertEquals(initialBounds.height(), resizedBounds.height(), 0.1f)
+                } finally {
+                    withContext(Dispatchers.Main.immediate) { session.close() }
+                    playJob.cancelAndJoin()
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) { viewModelInstance.close() }
+        }
+    }
+
+    /** Verifies a semantic action wakes a settled session for another advance and render. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun semanticAction_afterSettledEmitsFrame() = runBlocking {
+        val resources = loadDefaultRiveResources(R.raw.tabtest)
+        val viewModelInstance = ViewModelInstance.create(
+            resources.file,
+            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance(),
+        )
+        try {
+            coroutineScope {
+                lateinit var lifecycleOwner: TestLifecycleOwner
+                lateinit var session: RiveCanvasSession
+                lateinit var tree: SemanticTreeModel
+                val frameCount = AtomicInteger(0)
+                withContext(Dispatchers.Main.immediate) {
+                    lifecycleOwner = TestLifecycleOwner()
+                    session = RiveCanvasSession(
+                        context = context,
+                        riveWorker = riveWorker,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        viewModelInstance = viewModelInstance,
+                        fit = Fit.Fill,
+                    ).also { created ->
+                        created.setRegion(INITIAL_SEMANTICS_REGION)
+                    }
+                    tree = resources.stateMachine.semanticTree
+                }
+                val frameCollector = launch {
+                    session.frameAvailable.collect { frameCount.incrementAndGet() }
+                }
+                val playJob = launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+
+                try {
+                    withContext(Dispatchers.Main.immediate) {
+                        lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                        session.semantics = RiveSemanticsMode.On
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version -> version > 0 }
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        resources.stateMachine.settled.first { settled -> settled }
+                    }
+                    val settledFrameCount = frameCount.awaitSettledFrameCount()
+                    val semanticNodeId = withContext(Dispatchers.Main.immediate) {
+                        tree.nodeIdForLabel(SEMANTIC_NODE_LABEL)
+                    }
+
+                    withContext(Dispatchers.Main.immediate) {
+                        resources.stateMachine.fireSemanticAction(
+                            semanticNodeId,
+                            SemanticActionType.Tap,
+                        )
+                    }
+
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        while (frameCount.get() <= settledFrameCount) {
+                            delay(16)
+                        }
+                    }
+                } finally {
+                    withContext(Dispatchers.Main.immediate) { session.close() }
+                    playJob.cancelAndJoin()
+                    frameCollector.cancelAndJoin()
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) { viewModelInstance.close() }
+        }
+    }
+
+    /** Verifies closing a semantics-enabled session queues authored focus cleanup. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun close_withSemanticsEnabledClearsSemanticFocus() = runBlocking<Unit> {
+        val resources = loadDefaultRiveResources(R.raw.semantic_list_scroll_focus_fixed)
+        val viewModelInstance = ViewModelInstance.create(
+            resources.file,
+            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance(),
+        )
+        try {
+            coroutineScope {
+                lateinit var lifecycleOwner: TestLifecycleOwner
+                lateinit var session: RiveCanvasSession
+                lateinit var tree: SemanticTreeModel
+                withContext(Dispatchers.Main.immediate) {
+                    lifecycleOwner = TestLifecycleOwner()
+                    session = RiveCanvasSession(
+                        context = context,
+                        riveWorker = riveWorker,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        viewModelInstance = viewModelInstance,
+                        fit = Fit.Fill,
+                    ).also { created ->
+                        created.setRegion(INITIAL_SEMANTICS_REGION)
+                    }
+                    tree = resources.stateMachine.semanticTree
+                }
+                val playJob = launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+                var sessionClosed = false
+
+                try {
+                    withContext(Dispatchers.Main.immediate) {
+                        lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                        session.semantics = RiveSemanticsMode.On
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version -> version > 0 }
+                    }
+                    val focusNodeId = withContext(Dispatchers.Main.immediate) {
+                        tree.nodeIdForLabel(FOCUS_NODE_LABEL)
+                    }
+                    withContext(Dispatchers.Main.immediate) {
+                        resources.stateMachine.requestSemanticFocus(focusNodeId)
+                    }
+                    val focusedVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first {
+                            withContext(Dispatchers.Main.immediate) {
+                                tree.isNodeFocused(focusNodeId)
+                            }
+                        }
+                    }
+
+                    withContext(Dispatchers.Main.immediate) {
+                        session.close()
+                        sessionClosed = true
+                    }
+                    playJob.cancelAndJoin()
+
+                    withContext(Dispatchers.Main.immediate) {
+                        resources.stateMachine.advance(ZERO)
+                        resources.stateMachine.drainSemanticsDiff(
+                            fit = Fit.Fill,
+                            surfaceWidth = INITIAL_SEMANTICS_REGION.width().toFloat(),
+                            surfaceHeight = INITIAL_SEMANTICS_REGION.height().toFloat(),
+                        )
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version ->
+                            version > focusedVersion && withContext(Dispatchers.Main.immediate) {
+                                !tree.isNodeFocused(focusNodeId)
+                            }
+                        }
+                    }
+                } finally {
+                    if (!sessionClosed) {
+                        withContext(Dispatchers.Main.immediate) { session.close() }
+                    }
+                    playJob.cancelAndJoin()
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) { viewModelInstance.close() }
+        }
+    }
+
+    /** Verifies the render-region origin is not folded into session-local semantic bounds. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun semanticsOn_withOffsetRegionPublishesRenderRegionLocalBounds() = runBlocking {
+        // Both sessions render the same file at the same size. Only the destination origin differs.
+        val zeroOriginBounds = semanticBoundsForRegion(INITIAL_SEMANTICS_REGION)
+        val offsetOriginBounds = semanticBoundsForRegion(OFFSET_SEMANTICS_REGION)
+
+        assertEquals(zeroOriginBounds.left, offsetOriginBounds.left, 0.1f)
+        assertEquals(zeroOriginBounds.top, offsetOriginBounds.top, 0.1f)
+        assertEquals(zeroOriginBounds.right, offsetOriginBounds.right, 0.1f)
+        assertEquals(zeroOriginBounds.bottom, offsetOriginBounds.bottom, 0.1f)
+    }
+
+    /** Verifies a Canvas host applies its non-zero render-region origin exactly once. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun semanticHost_withOffsetRegionMapsBoundsAndHitTests() = runBlocking<Unit> {
+        withSemanticTreeForRegion(OFFSET_SEMANTICS_REGION) { tree ->
+            val nodeId = tree.nodeIdForLabel(SEMANTIC_NODE_LABEL)
+            val localBounds = tree.boundsForLabel(SEMANTIC_NODE_LABEL)
+            val host = TestCanvasSemanticHost(tree, OFFSET_SEMANTICS_REGION)
+            val hostBounds = host.boundsInHost(nodeId)
+
+            assertEquals(
+                localBounds.left + OFFSET_SEMANTICS_REGION.left,
+                hostBounds.left,
+                0.1f,
+            )
+            assertEquals(
+                localBounds.top + OFFSET_SEMANTICS_REGION.top,
+                hostBounds.top,
+                0.1f,
+            )
+            assertEquals(
+                localBounds.right + OFFSET_SEMANTICS_REGION.left,
+                hostBounds.right,
+                0.1f,
+            )
+            assertEquals(
+                localBounds.bottom + OFFSET_SEMANTICS_REGION.top,
+                hostBounds.bottom,
+                0.1f,
+            )
+            assertEquals(nodeId, host.hitTest(hostBounds.centerX(), hostBounds.centerY()))
+            assertNull(
+                host.hitTest(
+                    OFFSET_SEMANTICS_REGION.left - 1f,
+                    OFFSET_SEMANTICS_REGION.top - 1f,
+                )
+            )
+        }
+    }
+
     /** Verifies that restarting playback establishes a boundary against prior settled callbacks. */
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
@@ -205,6 +563,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             }
             val session = withContext(Dispatchers.Main.immediate) {
                 RiveCanvasSession(
+                    context = context,
                     riveWorker = riveWorker,
                     artboard = res.artboard,
                     stateMachine = res.stateMachine,
@@ -240,6 +599,128 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             } finally {
                 playingSession.close()
             }
+        }
+    }
+
+    /**
+     * Publishes the initial real-asset semantic tree for [region] and returns one node's bounds.
+     *
+     * @param region Destination render region supplied to the Canvas session.
+     * @return Normalized render-region-local bounds for [SEMANTIC_NODE_LABEL].
+     */
+    private suspend fun semanticBoundsForRegion(region: Rect): RectF {
+        return withSemanticTreeForRegion(region) { tree ->
+            tree.boundsForLabel(SEMANTIC_NODE_LABEL)
+        }
+    }
+
+    /**
+     * Publishes a real-asset semantic tree for [region] and evaluates [block] on the main thread.
+     *
+     * @param region Destination render region supplied to the Canvas session.
+     * @param block Main-thread operation to perform while the semantic fixture remains active.
+     * @return Value produced by [block].
+     */
+    private suspend fun <T> withSemanticTreeForRegion(
+        region: Rect,
+        block: (SemanticTreeModel) -> T,
+    ): T {
+        val resources = loadDefaultRiveResources(R.raw.tabtest)
+        val viewModelInstance = ViewModelInstance.create(
+            resources.file,
+            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance(),
+        )
+        return try {
+            coroutineScope {
+                lateinit var lifecycleOwner: TestLifecycleOwner
+                lateinit var session: RiveCanvasSession
+                lateinit var tree: SemanticTreeModel
+                withContext(Dispatchers.Main.immediate) {
+                    lifecycleOwner = TestLifecycleOwner()
+                    session = RiveCanvasSession(
+                        context = context,
+                        riveWorker = riveWorker,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        viewModelInstance = viewModelInstance,
+                        fit = Fit.Fill,
+                    ).also { created ->
+                        created.setRegion(region)
+                    }
+                    tree = resources.stateMachine.semanticTree
+                }
+
+                val playJob = launch(Dispatchers.Main.immediate) {
+                    session.beginPlaying(lifecycleOwner.lifecycle)
+                }
+                try {
+                    withContext(Dispatchers.Main.immediate) {
+                        lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                        session.semantics = RiveSemanticsMode.On
+                    }
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        tree.versionFlow.first { version -> version > 0 }
+                    }
+                    withContext(Dispatchers.Main.immediate) {
+                        block(tree)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main.immediate) { session.close() }
+                    playJob.cancelAndJoin()
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) { viewModelInstance.close() }
+        }
+    }
+
+    /**
+     * Test-only model of the coordinate work required from a client-owned Canvas host.
+     *
+     * Core publishes semantic geometry local to [renderRegion]. The host adds that region's origin
+     * when exposing bounds and removes it before hit testing the projected semantic hierarchy.
+     *
+     * @param tree Current render-region-local semantic tree.
+     * @param renderRegion Rive destination rectangle in host-view coordinates.
+     */
+    @MainThread
+    private class TestCanvasSemanticHost(
+        private val tree: SemanticTreeModel,
+        renderRegion: Rect,
+    ) {
+        private val region = Rect(renderRegion)
+        private val hierarchy = ProjectedSemanticHierarchy.from(tree)
+
+        /**
+         * Returns one node's semantic bounds in host-view coordinates.
+         *
+         * @param nodeId Rive semantic node ID.
+         * @return Normalized node bounds offset by the render-region origin.
+         */
+        fun boundsInHost(nodeId: Int): RectF {
+            val node = requireNotNull(tree.nodeById(nodeId)) {
+                "Semantic node '$nodeId' was not published"
+            }
+            return RectF(
+                minOf(node.minX, node.maxX) + region.left,
+                minOf(node.minY, node.maxY) + region.top,
+                maxOf(node.minX, node.maxX) + region.left,
+                maxOf(node.minY, node.maxY) + region.top,
+            )
+        }
+
+        /**
+         * Hit-tests a host-view point against render-region-local semantic geometry.
+         *
+         * @param x Horizontal host-view coordinate in physical pixels.
+         * @param y Vertical host-view coordinate in physical pixels.
+         * @return Deepest matching Rive semantic node ID, or `null` outside the region/tree.
+         */
+        fun hitTest(x: Float, y: Float): Int? {
+            if (x < region.left || x >= region.right || y < region.top || y >= region.bottom) {
+                return null
+            }
+            return hierarchy.hitTest(tree, x - region.left, y - region.top)
         }
     }
 
@@ -400,4 +881,95 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             frameCollector.cancelAndJoin()
         }
     }
+
+    /** Constants for real semantic-tree session integration. */
+    private companion object {
+        val INITIAL_SEMANTICS_REGION = Rect(0, 0, 96, 96)
+        val RESIZED_SEMANTICS_REGION = Rect(0, 0, 192, 96)
+        val OFFSET_SEMANTICS_REGION = Rect(37, 61, 133, 157)
+        const val SEMANTIC_NODE_LABEL = "All"
+        const val FOCUS_NODE_LABEL = "Element 1"
+        const val SEMANTICS_TIMEOUT_MILLIS = 5_000L
+    }
+}
+
+/**
+ * Returns normalized view-space bounds for the semantic node carrying [label].
+ *
+ * @param label Authored label identifying the node to inspect.
+ * @return The matching node's normalized view-space bounds.
+ */
+@MainThread
+private fun SemanticTreeModel.boundsForLabel(label: String): RectF {
+    val pending = ArrayDeque<Int>().apply { roots.forEach(::addLast) }
+    while (pending.isNotEmpty()) {
+        val node = nodeById(pending.removeFirst()) ?: continue
+        if (node.label == label) {
+            return RectF(
+                minOf(node.minX, node.maxX),
+                minOf(node.minY, node.maxY),
+                maxOf(node.minX, node.maxX),
+                maxOf(node.minY, node.maxY),
+            )
+        }
+        node.children.forEach(pending::addLast)
+    }
+    error("Semantic node '$label' was not published")
+}
+
+/**
+ * Returns the semantic node ID carrying [label].
+ *
+ * @param label Authored label identifying the node.
+ * @return Matching semantic node ID.
+ */
+@MainThread
+private fun SemanticTreeModel.nodeIdForLabel(label: String): Int {
+    val pending = ArrayDeque<Int>().apply { roots.forEach(::addLast) }
+    while (pending.isNotEmpty()) {
+        val node = nodeById(pending.removeFirst()) ?: continue
+        if (node.label == label) {
+            return node.id
+        }
+        node.children.forEach(pending::addLast)
+    }
+    error("Semantic node '$label' was not published")
+}
+
+/**
+ * Reports whether the node identified by [nodeId] carries Rive's authored focused state.
+ *
+ * @param nodeId Semantic node ID to inspect.
+ * @return `true` when the current node snapshot is semantically focused.
+ */
+@MainThread
+private fun SemanticTreeModel.isNodeFocused(nodeId: Int): Boolean {
+    val node = requireNotNull(nodeById(nodeId)) { "Semantic node '$nodeId' was not published" }
+    return SemanticState.has(node.stateFlags, SemanticState.Focused)
+}
+
+/**
+ * Waits for frame publication to remain unchanged, then returns the stable count.
+ *
+ * @param quietMs Duration without a new frame required to consider publication settled.
+ * @param timeoutMs Maximum total wait duration.
+ * @return Stable frame count after the quiet interval.
+ */
+private suspend fun AtomicInteger.awaitSettledFrameCount(
+    quietMs: Long = 250L,
+    timeoutMs: Long = 5_000L,
+): Int {
+    var lastCount = get()
+    var lastChangedAt = SystemClock.uptimeMillis()
+    withTimeout(timeoutMs) {
+        while (SystemClock.uptimeMillis() - lastChangedAt < quietMs) {
+            delay(16)
+            val count = get()
+            if (count != lastCount) {
+                lastCount = count
+                lastChangedAt = SystemClock.uptimeMillis()
+            }
+        }
+    }
+    return lastCount
 }

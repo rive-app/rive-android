@@ -4,6 +4,7 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.StateMachineHandle
+import app.rive.semantics.SemanticActionType
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -15,6 +16,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.ZERO
@@ -195,6 +197,143 @@ class StateMachineUnitTest : FunSpec({
         exception.message shouldContain HANDLE_NUM.toString()
         verify(exactly = 0) {
             commandQueueBridgeMock.cppAdvanceStateMachine(any(), any(), any(), any())
+        }
+    }
+
+    test("Enable semantics delegates and unsettles in order") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.enableSemantics(stateMachineHandle) } just runs
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        stateMachine.enableSemantics()
+
+        verifyOrder {
+            worker.enableSemantics(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+    }
+
+    test("Fire semantic action delegates and unsettles in order") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap) } just runs
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        stateMachine.fireSemanticAction(17, SemanticActionType.Tap)
+
+        verifyOrder {
+            worker.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+    }
+
+    test("Request semantic focus delegates and unsettles in order") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.requestSemanticFocus(stateMachineHandle, 42) } just runs
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        stateMachine.requestSemanticFocus(42)
+
+        verifyOrder {
+            worker.requestSemanticFocus(stateMachineHandle, 42)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+    }
+
+    test("Clear semantic focus delegates and unsettles in order") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.clearSemanticFocus(stateMachineHandle) } just runs
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        stateMachine.clearSemanticFocus()
+
+        verifyOrder {
+            worker.clearSemanticFocus(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+    }
+
+    test("Lifecycle focus cleanup ignores a closed state machine") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+        stateMachine.close()
+
+        stateMachine.clearSemanticFocusForLifecycleCleanup()
+
+        verify(exactly = 0) { worker.clearSemanticFocus(any()) }
+    }
+
+    test("Lifecycle focus cleanup ignores a disposed worker") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.clearSemanticFocus(stateMachineHandle) } throws
+            RiveResourceClosedException("RiveWorker is disposed")
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        stateMachine.clearSemanticFocusForLifecycleCleanup()
+
+        verify(exactly = 0) { worker.unsettleStateMachine(any()) }
+    }
+
+    test("Lifecycle focus cleanup preserves invariant failures") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.clearSemanticFocus(stateMachineHandle) } throws
+            IllegalStateException("State machine is not registered")
+        val stateMachine = StateMachine(
+            stateMachineHandle = stateMachineHandle,
+            riveWorker = worker,
+            artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            name = null
+        )
+
+        shouldThrow<IllegalStateException> {
+            stateMachine.clearSemanticFocusForLifecycleCleanup()
         }
     }
 })

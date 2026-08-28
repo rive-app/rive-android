@@ -42,6 +42,7 @@ android {
             debuggable true
             minifyEnabled false
             shrinkResources = false
+            matchingFallbacks = ['debug']
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             getIsDefault().set(true)
             signingConfig = signingConfigs.debug
@@ -96,7 +97,8 @@ dependencies {
     debugImplementation project(path: ":kotlin")
     benchmarkImplementation project(path: ":kotlin")
     releaseImplementation project(path: ":kotlin")
-    previewImplementation(libs.rive.android.preview)
+    // Main sources exercise APIs that may not exist in the latest published runtime yet.
+    previewImplementation project(path: ":kotlin")
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

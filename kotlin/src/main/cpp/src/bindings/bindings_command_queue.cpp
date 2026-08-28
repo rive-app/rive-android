@@ -12,6 +12,7 @@
 #include "helpers/jni_resource.hpp"
 #include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
+#include "helpers/semantics.hpp"
 #include "helpers/tracer.hpp"
 #include "models/jni_renderer.hpp"
 #include "models/render_context.hpp"
@@ -414,6 +415,12 @@ public:
                      jError.get());
     }
 
+    void onStateMachineDeleted(const rive::StateMachineHandle smHandle,
+                               uint64_t) override
+    {
+        m_queue.call("onStateMachineDeleted", "(J)V", longFromHandle(smHandle));
+    }
+
     void onStateMachineSettled(const rive::StateMachineHandle smHandle,
                                uint64_t requestID) override
     {
@@ -421,6 +428,18 @@ public:
                      "(JJ)V",
                      requestID,
                      longFromHandle(smHandle));
+    }
+
+    void onSemanticsDiffReceived(const rive::StateMachineHandle smHandle,
+                                 uint64_t,
+                                 rive::SemanticsDiff diff) override
+    {
+        auto env = GetJNIEnv();
+        auto jDiff = semanticsDiffToJObject(env, diff);
+        m_queue.call("onSemanticsDiffReceived",
+                     "(JLapp/rive/semantics/SemanticsDiff;)V",
+                     longFromHandle(smHandle),
+                     jDiff.get());
     }
 
 private:
@@ -1578,6 +1597,96 @@ extern "C"
                                               deltaSeconds,
                                               requestID);
         }
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppEnableSemantics(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong stateMachineHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->enableSemantics(
+            handleFromLong<rive::StateMachineHandle>(stateMachineHandle));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppDrainSemanticsDiff(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jbyte jFit,
+        jbyte jAlignment,
+        jfloat jScaleFactor,
+        jfloat jSurfaceWidth,
+        jfloat jSurfaceHeight)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+        auto fit = GetFit(static_cast<uint8_t>(jFit));
+        auto alignment = GetAlignment(static_cast<uint8_t>(jAlignment));
+        auto scaleFactor = static_cast<float_t>(jScaleFactor);
+        auto bounds = rive::Vec2D(static_cast<float_t>(jSurfaceWidth),
+                                  static_cast<float_t>(jSurfaceHeight));
+
+        commandQueue->drainSemanticsDiff(stateMachineHandle,
+                                         fit,
+                                         alignment,
+                                         scaleFactor,
+                                         bounds);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppFireSemanticAction(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jint jSemanticNodeID,
+        jint jActionType)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+        auto semanticNodeID = static_cast<uint32_t>(jSemanticNodeID);
+        auto actionType = static_cast<rive::SemanticActionType>(jActionType);
+
+        commandQueue->fireSemanticAction(stateMachineHandle,
+                                         semanticNodeID,
+                                         actionType);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppRequestSemanticFocus(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jint jSemanticNodeID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+        auto semanticNodeID = static_cast<uint32_t>(jSemanticNodeID);
+
+        commandQueue->requestSemanticFocus(stateMachineHandle, semanticNodeID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppClearSemanticFocus(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->clearSemanticFocus(stateMachineHandle);
     }
 
     JNIEXPORT jlong JNICALL

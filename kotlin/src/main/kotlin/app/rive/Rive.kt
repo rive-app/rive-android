@@ -36,6 +36,7 @@ import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
+import app.rive.semantics.rememberRiveSemanticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -132,8 +133,9 @@ internal fun validateRiveResourceArguments(
  *
  * @param file The [RiveFile] that created the artboard and state machine.
  * @param modifier The [Modifier] to apply to the composable.
- * @param playing Whether the state machine should advance. When true (default), the state machine
- *    will advance on each frame. When false, the advancement loop will not activate.
+ * @param playing Whether the state machine should advance with elapsed frame time. When true
+ *    (default), the state machine advances on each frame. When false, time-based advancement is
+ *    paused, but external input is still evaluated at zero elapsed time and redrawn.
  * @param artboard The [Artboard] to render. If null, the default artboard will be used.
  * @param stateMachine The [StateMachine] to use. It must have been created from [artboard], which
  *    must also be supplied. If null, the default state machine for the selected artboard will be
@@ -150,6 +152,16 @@ internal fun validateRiveResourceArguments(
  * @param frameRate Controls how often Rive advances and draws while [playing] is true. Defaults to
  *    [RiveFrameRate.Unbounded], which renders on every platform frame callback. On supported
  *    Android versions, capped rates are also used as an advisory view frame-rate hint.
+ * @param semantics Controls whether Rive-authored Android accessibility semantics are exposed.
+ *    Defaults to [RiveSemanticsMode.Off]. When enabled, the backing [TextureView] exposes and
+ *    updates a virtual accessibility hierarchy and this composable manages semantic enablement,
+ *    actions, and focus synchronization as the state machine advances. Sliders support discrete
+ *    increase/decrease actions but not numeric range or set-progress actions. Text fields expose
+ *    accessible content and state but are not editable. A modal Rive subtree hides background
+ *    nodes within this texture host, but cannot hide application-owned Compose or View siblings.
+ *    [RiveSemanticsMode.Automatic] is generally preferred when displaying a file with authored
+ *    semantics because it follows Android's accessibility-enabled state. Enabling semantics is
+ *    experimental and requires opting into [ExperimentalRiveSemantics].
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
@@ -172,12 +184,14 @@ fun Rive(
     backgroundColor: Int = RenderingDefaults.CLEAR_COLOR,
     pointerInputMode: RivePointerInputMode = Consume,
     frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
+    semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) {
     validateRiveResourceArguments(file, artboard, stateMachine, viewModelInstance)
 
     RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val semanticsEnabled = rememberRiveSemanticsEnabled(semantics)
 
     val riveWorker = file.riveWorker
     val readyResources = rememberReadyResources(file, artboard, stateMachine)
@@ -198,11 +212,20 @@ fun Rive(
                 "viewModelInstance" to viewModelInstance,
                 "fit" to fit,
                 "backgroundColor" to backgroundColor,
+                "semantics" to semantics,
+                "semanticsEnabled" to semanticsEnabled,
                 "lifecycleOwner" to lifecycleOwner,
             )
         )
 
         val surfaceState = rememberRiveSurfaceState()
+        var pausedFrameGeneration by remember { mutableIntStateOf(0) }
+        val currentPlaying by rememberUpdatedState(playing)
+        val requestPausedFrame = {
+            if (!currentPlaying) {
+                pausedFrameGeneration++
+            }
+        }
         RiveSurfaceHost(
             riveWorker = riveWorker,
             surfaceState = surfaceState,
@@ -213,6 +236,7 @@ fun Rive(
             frameRate = frameRate,
             playing = playing,
             onBitmapAvailable = onBitmapAvailable,
+            requestPausedFrame = requestPausedFrame,
         )
 
         if (readyResources != null) {
@@ -228,6 +252,10 @@ fun Rive(
                 surface = surfaceState.surface,
                 surfaceWidth = surfaceState.width,
                 surfaceHeight = surfaceState.height,
+                pausedFrameGeneration = pausedFrameGeneration,
+                requestPausedFrame = requestPausedFrame,
+                textureView = surfaceState.textureView,
+                semanticsEnabled = semanticsEnabled,
             )
         }
     }
@@ -273,6 +301,7 @@ private class RiveSurfaceState {
     var surface by mutableStateOf<RiveSurface?>(null)
     var width by mutableIntStateOf(0)
     var height by mutableIntStateOf(0)
+    var textureView by mutableStateOf<RiveTextureView?>(null)
 }
 
 /**
@@ -293,6 +322,7 @@ private fun rememberRiveSurfaceState(): RiveSurfaceState = remember { RiveSurfac
  * @param surfaceWidth The current surface width in pixels.
  * @param surfaceHeight The current surface height in pixels.
  * @param pointerInputMode The pointer dispatch and consumption behavior.
+ * @param requestPausedFrame Requests a zero-delta frame after external input while paused.
  * @return This modifier with Rive pointer input appended when [stateMachine] is available.
  */
 private fun Modifier.rivePointerInput(
@@ -302,6 +332,7 @@ private fun Modifier.rivePointerInput(
     surfaceWidth: Int,
     surfaceHeight: Int,
     pointerInputMode: RivePointerInputMode,
+    requestPausedFrame: () -> Unit,
 ): Modifier {
     val activeStateMachine = stateMachine ?: return this
     val stateMachineHandle = activeStateMachine.stateMachineHandle
@@ -351,6 +382,7 @@ private fun Modifier.rivePointerInput(
                                     change.consume()
                                 }
                             }
+                            requestPausedFrame()
                         }
                     }
 
@@ -379,6 +411,7 @@ private fun Modifier.rivePointerInput(
  * @param frameRate The requested rendering rate used for the Android view hint.
  * @param playing Whether the state machine should advance continuously.
  * @param onBitmapAvailable The optional callback for the first bitmap on each surface.
+ * @param requestPausedFrame Requests a zero-delta frame after pointer input while paused.
  */
 @Composable
 private fun RiveSurfaceHost(
@@ -391,6 +424,7 @@ private fun RiveSurfaceHost(
     frameRate: RiveFrameRate,
     playing: Boolean,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
+    requestPausedFrame: () -> Unit,
 ) {
     val activeSurface = surfaceState.surface
     val surfaceWidth = surfaceState.width
@@ -405,6 +439,16 @@ private fun RiveSurfaceHost(
 
     val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
     var bitmapCallbackSent by remember { mutableStateOf(false) }
+    val textureView = surfaceState.textureView
+
+    // Clear the host reference when this AndroidView generation leaves composition.
+    DisposableEffect(textureView) {
+        onDispose {
+            if (surfaceState.textureView === textureView) {
+                surfaceState.textureView = null
+            }
+        }
+    }
 
     val surfaceModifier = modifier.rivePointerInput(
         riveWorker = riveWorker,
@@ -413,6 +457,7 @@ private fun RiveSurfaceHost(
         surfaceWidth = surfaceWidth,
         surfaceHeight = surfaceHeight,
         pointerInputMode = pointerInputMode,
+        requestPausedFrame = requestPausedFrame,
     )
 
     // Layout provides a standard Compose pointer-input parent for the pass-through AndroidView.
@@ -420,7 +465,7 @@ private fun RiveSurfaceHost(
         content = {
             AndroidView(
                 factory = { context ->
-                    TextureView(context).apply {
+                    RiveTextureView(context).apply {
                         isOpaque = false
 
                         surfaceTextureListener = object : TextureView.SurfaceTextureListener {
@@ -488,7 +533,7 @@ private fun RiveSurfaceHost(
                                 }
                             }
                         }
-                    }
+                    }.also { surfaceState.textureView = it }
                 },
                 update = { textureView ->
                     textureView.applyRequestedFrameRateHint(
@@ -524,6 +569,10 @@ private fun RiveSurfaceHost(
  * @param surface The current worker-owned rendering surface, or null while it is unavailable.
  * @param surfaceWidth The current surface width in pixels.
  * @param surfaceHeight The current surface height in pixels.
+ * @param pausedFrameGeneration Incremented to rerun the one-shot draw path while paused.
+ * @param requestPausedFrame Requests a zero-delta frame after external input while paused.
+ * @param textureView The current Android host for virtual accessibility nodes, or null.
+ * @param semanticsEnabled Whether Rive-authored accessibility semantics should be exposed.
  */
 @Composable
 private fun RiveResourceEffects(
@@ -538,6 +587,10 @@ private fun RiveResourceEffects(
     surface: RiveSurface?,
     surfaceWidth: Int,
     surfaceHeight: Int,
+    pausedFrameGeneration: Int,
+    requestPausedFrame: () -> Unit,
+    textureView: RiveTextureView?,
+    semanticsEnabled: Boolean,
 ) {
     val artboard = resources.artboard
     val stateMachine = resources.stateMachine
@@ -546,6 +599,13 @@ private fun RiveResourceEffects(
         riveWorker = riveWorker,
         stateMachine = stateMachine,
         viewModelInstance = viewModelInstance,
+        requestPausedFrame = requestPausedFrame,
+    )
+    RiveSemanticsEffects(
+        stateMachine = stateMachine,
+        textureView = textureView,
+        semanticsEnabled = semanticsEnabled,
+        requestPausedFrame = requestPausedFrame,
     )
     UnsettleOnPresentationChangeEffect(
         riveWorker = riveWorker,
@@ -578,7 +638,74 @@ private fun RiveResourceEffects(
         backgroundColor = backgroundColor,
         playing = playing,
         frameRate = frameRate,
+        pausedFrameGeneration = pausedFrameGeneration,
+        surfaceWidth = surfaceWidth,
+        surfaceHeight = surfaceHeight,
+        semanticsEnabled = semanticsEnabled,
     )
+}
+
+/**
+ * Manages semantic enablement and one virtual Android hierarchy for a state machine generation.
+ *
+ * @param stateMachine The state machine whose semantic tree is exposed.
+ * @param textureView The active Android host, or null while unavailable.
+ * @param semanticsEnabled Whether semantic publication is enabled.
+ * @param requestPausedFrame Requests a zero-delta frame after semantic input while paused.
+ */
+@Composable
+private fun RiveSemanticsEffects(
+    stateMachine: StateMachine,
+    textureView: RiveTextureView?,
+    semanticsEnabled: Boolean,
+    requestPausedFrame: () -> Unit,
+) {
+    val semanticTree = remember(stateMachine) { stateMachine.semanticTree }
+
+    DisposableEffect(stateMachine, semanticsEnabled) {
+        if (semanticsEnabled) {
+            stateMachine.enableSemantics()
+        }
+        onDispose {
+            if (semanticsEnabled) {
+                stateMachine.clearSemanticFocusForLifecycleCleanup()
+            }
+        }
+    }
+
+    DisposableEffect(textureView, stateMachine, semanticTree, semanticsEnabled) {
+        val host = textureView
+        if (host == null || !semanticsEnabled) {
+            host?.clearSemantics()
+            return@DisposableEffect onDispose {}
+        }
+
+        host.installSemantics(
+            tree = semanticTree,
+            onSemanticAction = { nodeId, action ->
+                stateMachine.fireSemanticAction(nodeId, action)
+                requestPausedFrame()
+            },
+            onAccessibilityFocusChanged = {},
+            onSemanticFocusRequested = { nodeId ->
+                stateMachine.requestSemanticFocus(nodeId)
+                requestPausedFrame()
+            },
+            onSemanticFocusCleared = {
+                stateMachine.clearSemanticFocusForLifecycleCleanup()
+                requestPausedFrame()
+            },
+        )
+        onDispose { host.clearSemantics() }
+    }
+
+    LaunchedEffect(textureView, semanticTree, semanticsEnabled) {
+        val host = textureView ?: return@LaunchedEffect
+        if (!semanticsEnabled) {
+            return@LaunchedEffect
+        }
+        semanticTree.versionFlow.collect { host.synchronizeSemantics() }
+    }
 }
 
 /**
@@ -587,12 +714,14 @@ private fun RiveResourceEffects(
  * @param riveWorker The worker that owns [stateMachine] and [viewModelInstance].
  * @param stateMachine The state machine to bind and unsettle.
  * @param viewModelInstance The view model instance to bind, or null when none is configured.
+ * @param requestPausedFrame Requests a zero-delta frame after a binding mutation while paused.
  */
 @Composable
 private fun BindViewModelInstanceEffect(
     riveWorker: RiveWorker,
     stateMachine: StateMachine,
     viewModelInstance: ViewModelInstance?,
+    requestPausedFrame: () -> Unit,
 ) {
     val stateMachineHandle = stateMachine.stateMachineHandle
     LaunchedEffect(riveWorker, stateMachine, viewModelInstance) {
@@ -618,6 +747,7 @@ private fun BindViewModelInstanceEffect(
                 "View model instance dirty, unsettling $stateMachineHandle"
             }
             stateMachine.unsettle()
+            requestPausedFrame()
         }
     }
 }
@@ -728,6 +858,10 @@ private fun UpdateArtboardLayoutEffect(
  * @param backgroundColor The color used to clear each frame.
  * @param playing Whether to draw once or advance continuously.
  * @param frameRate The requested drawing rate.
+ * @param pausedFrameGeneration Incremented to rerun the one-shot draw path while paused.
+ * @param surfaceWidth The current surface width in pixels.
+ * @param surfaceHeight The current surface height in pixels.
+ * @param semanticsEnabled Whether semantic diffs should be drained after each advance.
  */
 @Composable
 private fun DrawRiveFramesEffect(
@@ -741,6 +875,10 @@ private fun DrawRiveFramesEffect(
     backgroundColor: Int,
     playing: Boolean,
     frameRate: RiveFrameRate,
+    pausedFrameGeneration: Int,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+    semanticsEnabled: Boolean,
 ) {
     val artboardHandle = artboard.artboardHandle
     val stateMachineHandle = stateMachine.stateMachineHandle
@@ -755,6 +893,10 @@ private fun DrawRiveFramesEffect(
         backgroundColor,
         playing,
         frameRate,
+        pausedFrameGeneration,
+        surfaceWidth,
+        surfaceHeight,
+        semanticsEnabled,
     ) {
         val activeSurface = surface ?: run {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
@@ -774,6 +916,13 @@ private fun DrawRiveFramesEffect(
                     // Advance once to exit the Entry state and apply initial values, including any
                     // pending artboard resize from the fit mode.
                     stateMachine.advance(0.nanoseconds)
+                }
+                if (semanticsEnabled && surfaceWidth > 0 && surfaceHeight > 0) {
+                    stateMachine.drainSemanticsDiff(
+                        fit,
+                        surfaceWidth.toFloat(),
+                        surfaceHeight.toFloat(),
+                    )
                 }
                 traceSection("Rive/Frame/Draw") {
                     riveWorker.draw(
@@ -839,6 +988,14 @@ private fun DrawRiveFramesEffect(
                 traceSection("Rive/Frame") {
                     traceSection("Rive/Frame/Advance") {
                         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                    }
+                    if (semanticsEnabled && surfaceWidth > 0 && surfaceHeight > 0) {
+                        riveWorker.drainSemanticsDiff(
+                            stateMachineHandle,
+                            fit,
+                            surfaceWidth.toFloat(),
+                            surfaceHeight.toFloat(),
+                        )
                     }
                     traceSection("Rive/Frame/Draw") {
                         riveWorker.draw(

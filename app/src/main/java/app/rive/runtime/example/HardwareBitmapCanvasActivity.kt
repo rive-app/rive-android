@@ -106,6 +106,7 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
                 createdStateMachine = it
             }
             val session = RiveCanvasSession(
+                context = this@HardwareBitmapCanvasActivity,
                 riveWorker = riveWorker,
                 artboard = artboard,
                 stateMachine = stateMachine,

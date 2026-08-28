@@ -14,6 +14,11 @@ import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
 import app.rive.core.ViewModelInstanceHandle
+import app.rive.semantics.SemanticActionType
+import app.rive.semantics.SemanticsBoundsUpdate
+import app.rive.semantics.SemanticsChildrenUpdate
+import app.rive.semantics.SemanticsDiff
+import app.rive.semantics.SemanticsDiffNode
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -1062,6 +1067,266 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Enable semantics invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppEnableSemantics(COMMAND_QUEUE_ADDR, HANDLE_NUM)
+        } just runs
+
+        commandQueue.enableSemantics(stateMachineHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppEnableSemantics(COMMAND_QUEUE_ADDR, HANDLE_NUM)
+        }
+    }
+
+    test("Drain semantics diff invokes native with fit mapping") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        val fit = Fit.Contain(Alignment.BottomRight)
+        val fitMapping = slot<Byte>()
+        val alignmentMapping = slot<Byte>()
+        val scaleFactor = slot<Float>()
+
+        every {
+            commandQueueBridgeMock.cppDrainSemanticsDiff(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                capture(fitMapping),
+                capture(alignmentMapping),
+                capture(scaleFactor),
+                100f,
+                50f
+            )
+        } just runs
+
+        commandQueue.drainSemanticsDiff(stateMachineHandle, fit, 100f, 50f)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppDrainSemanticsDiff(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                fit.nativeMapping,
+                fit.alignment.nativeMapping,
+                fit.scaleFactor,
+                100f,
+                50f
+            )
+        }
+        fitMapping.captured shouldBe fit.nativeMapping
+        alignmentMapping.captured shouldBe fit.alignment.nativeMapping
+        scaleFactor.captured shouldBe fit.scaleFactor
+    }
+
+    test("Fire semantic action invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppFireSemanticAction(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                17,
+                SemanticActionType.Tap.value
+            )
+        } just runs
+
+        commandQueue.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppFireSemanticAction(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                17,
+                SemanticActionType.Tap.value
+            )
+        }
+    }
+
+    test("Request semantic focus invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppRequestSemanticFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM, 42)
+        } just runs
+
+        commandQueue.requestSemanticFocus(stateMachineHandle, 42)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppRequestSemanticFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM, 42)
+        }
+    }
+
+    test("Clear semantic focus invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppClearSemanticFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM)
+        } just runs
+
+        commandQueue.clearSemanticFocus(stateMachineHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppClearSemanticFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM)
+        }
+    }
+
+    test("Clear semantic focus rejects a disposed worker before native submission") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.clearSemanticFocus(stateMachineHandle)
+        }
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppClearSemanticFocus(any(), any())
+        }
+    }
+
+    test("Semantics diff callback applies diff to matching semantic tree") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        val tree = commandQueue.semanticTree(stateMachineHandle)
+        tree.nodeCount shouldBe 0
+
+        val diff = SemanticsDiff(
+            treeVersion = 1L,
+            frameNumber = 1L,
+            rootId = 0,
+            removed = intArrayOf(),
+            added = arrayOf(
+                SemanticsDiffNode(
+                    id = 1,
+                    role = 9,
+                    label = "Root",
+                    value = "",
+                    hint = "",
+                    stateFlags = 0,
+                    traitFlags = 0,
+                    headingLevel = 0,
+                    minX = 0f,
+                    minY = 0f,
+                    maxX = 100f,
+                    maxY = 50f,
+                    parentId = -1,
+                    siblingIndex = 0
+                )
+            ),
+            moved = emptyArray(),
+            childrenUpdated = arrayOf(
+                SemanticsChildrenUpdate(parentId = -1, childIds = intArrayOf(1))
+            ),
+            updatedSemantic = emptyArray(),
+            updatedGeometry = arrayOf(
+                SemanticsBoundsUpdate(id = 1, minX = 0f, minY = 0f, maxX = 100f, maxY = 50f)
+            )
+        )
+
+        commandQueue.onSemanticsDiffReceived(stateMachineHandle, diff)
+
+        tree.nodeCount shouldBe 1
+        tree.nodeById(1)?.label shouldBe "Root"
+        tree.roots shouldBe listOf(1)
+    }
+
+    test("Delete state machine callback clears maintained semantic tree after queued diffs") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        val requestID = slot<Long>()
+
+        every {
+            commandQueueBridgeMock.cppDeleteStateMachine(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM
+            )
+        } just runs
+
+        val tree = commandQueue.semanticTree(stateMachineHandle)
+        tree.applyDiff(
+            SemanticsDiff(
+                treeVersion = 1L,
+                frameNumber = 1L,
+                rootId = 0,
+                removed = intArrayOf(),
+                added = arrayOf(
+                    SemanticsDiffNode(
+                        id = 9,
+                        role = 9,
+                        label = "x",
+                        value = "",
+                        hint = "",
+                        stateFlags = 0,
+                        traitFlags = 0,
+                        headingLevel = 0,
+                        minX = 0f,
+                        minY = 0f,
+                        maxX = 1f,
+                        maxY = 1f,
+                        parentId = -1,
+                        siblingIndex = 0
+                    )
+                ),
+                moved = emptyArray(),
+                childrenUpdated = emptyArray(),
+                updatedSemantic = emptyArray(),
+                updatedGeometry = emptyArray()
+            )
+        )
+        tree.nodeCount shouldBe 1
+
+        commandQueue.deleteStateMachine(stateMachineHandle)
+        commandQueue.semanticTree(stateMachineHandle) shouldBe tree
+
+        commandQueue.onSemanticsDiffReceived(
+            stateMachineHandle,
+            SemanticsDiff(
+                treeVersion = 2L,
+                frameNumber = 2L,
+                rootId = 0,
+                removed = intArrayOf(),
+                added = emptyArray(),
+                moved = emptyArray(),
+                childrenUpdated = emptyArray(),
+                updatedSemantic = arrayOf(
+                    SemanticsDiffNode(
+                        id = 9,
+                        role = 9,
+                        label = "updated before deletion",
+                        value = "",
+                        hint = "",
+                        stateFlags = 0,
+                        traitFlags = 0,
+                        headingLevel = 0,
+                        minX = 0f,
+                        minY = 0f,
+                        maxX = 1f,
+                        maxY = 1f,
+                        parentId = -1,
+                        siblingIndex = 0
+                    )
+                ),
+                updatedGeometry = emptyArray()
+            )
+        )
+        tree.nodeById(9)?.label shouldBe "updated before deletion"
+
+        commandQueue.onStateMachineDeleted(stateMachineHandle)
+        val replacementTree = commandQueue.semanticTree(stateMachineHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppDeleteStateMachine(COMMAND_QUEUE_ADDR, requestID.captured, HANDLE_NUM)
+        }
+        (replacementTree === tree) shouldBe false
+        replacementTree.nodeCount shouldBe 0
+    }
 })
 
 internal class TestRiveSurface(

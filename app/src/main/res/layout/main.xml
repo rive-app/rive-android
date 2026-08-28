@@ -98,6 +98,33 @@
                 android:textColor="@color/textColorPrimary" />
 
             <Button
+                android:id="@+id/go_semantics"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Semantics"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_semantics_test"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Semantics Test"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
+                android:id="@+id/go_semantics_harness"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:text="Semantics Harness"
+                android:textColor="@color/textColorPrimary" />
+
+            <Button
                 android:id="@+id/go_compose_touch_pass_through"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"

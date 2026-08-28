@@ -33,3 +33,6 @@ local.properties
 # =====
 *.hprof
 tombstones/
+
+# Local planning and investigation documents
+work/

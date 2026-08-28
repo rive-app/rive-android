@@ -1,5 +1,6 @@
 package app.rive
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -21,6 +22,8 @@ import app.rive.core.RenderingDefaults
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import app.rive.core.traceSection
+import app.rive.semantics.AndroidAccessibilityStateProvider
+import app.rive.semantics.RiveSemanticsModeController
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
@@ -64,6 +67,11 @@ annotation class ExperimentalHardwareBitmapRendering
  * The session manages an advance and render loop after calling [beginPlaying]. While this render
  * loop will produce bitmaps, it is the caller's responsibility to present them on a canvas
  * using [draw]. Collect [frameAvailable] to know when new frames are available after rendering.
+ * Use [semantics] to make that loop drain semantic updates after each advance. Observe the
+ * resulting tree through the supplied [stateMachine]'s [StateMachine.semanticTree].
+ * The session does not install an accessibility node provider or merge Rive nodes into a
+ * client-owned provider. The Canvas host is responsible for mapping the tree into its own
+ * accessibility hierarchy and for enforcing any modal behavior outside the Rive subtree.
  *
  * Callers must pass touch events to the session with [onTouchEvent] to apply them to the state
  * machine. Coordinates of the events are expected to be in the same space as the destination canvas
@@ -87,6 +95,9 @@ annotation class ExperimentalHardwareBitmapRendering
  * using [RiveWorker.beginPolling][CommandQueue.beginPolling], so that the caller can manage the
  * worker lifecycle and share it across multiple sessions.
  *
+ * @param context Android context used to observe platform accessibility state when [semantics] is
+ *    [RiveSemanticsMode.Automatic]. The session retains only the application context. Requiring it
+ *    explicitly keeps automatic behavior synchronized without relying on process-global state.
  * @param riveWorker The Rive worker that holds the resources to render. See the note above
  *    regarding polling.
  * @param artboard The artboard to render. Must be from the supplied [riveWorker].
@@ -100,6 +111,9 @@ annotation class ExperimentalHardwareBitmapRendering
  *    target surface. Defaults to [RenderingDefaults.defaultFit].
  * @param clearColor The color used to clear the draw region before drawing each frame. Defaults to
  *    [RenderingDefaults.CLEAR_COLOR].
+ * @param semantics Controls whether Rive-authored semantics are produced. Defaults to
+ *    [RiveSemanticsMode.Off]. Automatic mode follows Android's accessibility-enabled state.
+ *    Enabling semantics requires opting into [ExperimentalRiveSemantics].
  * @throws RiveResourceClosedException If the Rive worker has been disposed or a supplied Rive
  *    resource has been closed.
  * @throws RiveIncompatibleResourceException If the supplied resources do not have compatible
@@ -113,12 +127,14 @@ class RiveCanvasSession @Throws(
     RiveIncompatibleResourceException::class,
     IllegalStateException::class
 ) constructor(
+    context: Context,
     private val riveWorker: RiveWorker,
     private val artboard: Artboard,
     private val stateMachine: StateMachine,
     private val viewModelInstance: ViewModelInstance? = null,
     private val fit: Fit = RenderingDefaults.defaultFit(),
     @param:ColorInt private val clearColor: Int = RenderingDefaults.CLEAR_COLOR,
+    semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
 ) : CheckableAutoCloseable {
     companion object {
         private const val TAG = "Rive/CanvasSession"
@@ -163,15 +179,34 @@ class RiveCanvasSession @Throws(
     /** Completed when [close] is called, used to stop [beginPlaying]. */
     private val closeSignal = CompletableDeferred<Unit>()
     private val closer = CloseOnce("RiveCanvasSession") {
-        closeSignal.complete(Unit)
-        renderBufferState.value = null
-        renderBuffer.also { renderBuffer = null }?.close()
-        latestBitmap = null
-        renderRegion.setEmpty()
-        isPlaying = false
+        try {
+            semanticsModeController.close()
+            if (semanticsEnabled) {
+                stateMachine.clearSemanticFocusForLifecycleCleanup()
+            }
+        } finally {
+            // Session-owned rendering resources must be released even if the caller closed a
+            // supplied Rive resource before closing this session.
+            closeSignal.complete(Unit)
+            renderBufferState.value = null
+            renderBuffer.also { renderBuffer = null }?.close()
+            latestBitmap = null
+            renderRegion.setEmpty()
+            isPlaying = false
+        }
     }
 
+    /**
+     * Stops playback, clears authored semantic focus when enabled, and releases session resources.
+     *
+     * Semantic focus cleanup is best effort if the supplied state machine or its Rive worker was
+     * closed first. Repeated calls are safe and perform no additional work.
+     *
+     * @throws IllegalStateException If semantics were enabled but the state machine is no longer
+     *    registered with its worker.
+     */
     @MainThread
+    @Throws(IllegalStateException::class)
     override fun close() = closer.close()
 
     /** Whether this canvas session has been closed. */
@@ -214,6 +249,9 @@ class RiveCanvasSession @Throws(
      */
     private var isPlaying = false
 
+    /** Whether session-managed advances should be followed by a semantic diff drain. */
+    private var semanticsEnabled = false
+
     init {
         viewModelInstance?.let { instance ->
             RiveLog.d(TAG) { "Binding view model instance ${instance.instanceHandle}" }
@@ -222,6 +260,54 @@ class RiveCanvasSession @Throws(
                 instance.instanceHandle
             )
         }
+    }
+
+    private val semanticsModeController = RiveSemanticsModeController(
+        initialMode = semantics,
+        provider = AndroidAccessibilityStateProvider(context.applicationContext),
+        onEnabledChanged = ::setSemanticsEnabled,
+    )
+
+    /**
+     * Controls whether this session produces and drains Rive-authored semantics.
+     *
+     * [RiveSemanticsMode.Automatic] follows Android accessibility state through the [Context]
+     * supplied to the constructor. Disabling stops session-managed drains and clears authored
+     * semantic focus. Rive core does not currently disable semantic tracking after it has first
+     * been enabled. While enabled, every session-managed advance is followed by a drain using the
+     * current render-buffer dimensions. Observe applied changes through [StateMachine.semanticTree]
+     * on the supplied state machine.
+     *
+     * Published bounds are physical pixels local to the render region. A host exposing those
+     * bounds in a larger view must add the render region's left and top offset. A valid render
+     * region is required before [beginPlaying] can advance or drain.
+     *
+     * @throws RiveResourceClosedException If this session, state machine, or Rive worker has been
+     *    closed.
+     * @throws IllegalStateException If disabling attempts to clear a state machine that is no
+     *    longer registered with its worker.
+     */
+    @ExperimentalRiveSemantics
+    @set:MainThread
+    var semantics: RiveSemanticsMode
+        get() = semanticsModeController.mode
+        @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+        set(value) {
+            closer.checkOpen()
+            semanticsModeController.mode = value
+        }
+
+    /** Updates session behavior after the configured semantics mode resolves. */
+    private fun setSemanticsEnabled(enabled: Boolean) {
+        if (semanticsEnabled == enabled) {
+            return
+        }
+        if (enabled) {
+            stateMachine.enableSemantics()
+        } else {
+            stateMachine.clearSemanticFocusForLifecycleCleanup()
+        }
+        semanticsEnabled = enabled
     }
 
     /**
@@ -438,6 +524,15 @@ class RiveCanvasSession @Throws(
                                     if (!stateMachine.settled.value) {
                                         traceSection("Rive/Frame/Advance") {
                                             stateMachine.advance(deltaNs.nanoseconds)
+                                        }
+                                        if (semanticsEnabled) {
+                                            traceSection("Rive/Frame/DrainSemantics") {
+                                                stateMachine.drainSemanticsDiff(
+                                                    fit = fit,
+                                                    surfaceWidth = activeBuffer.width.toFloat(),
+                                                    surfaceHeight = activeBuffer.height.toFloat(),
+                                                )
+                                            }
                                         }
                                         traceSection("Rive/Frame/Draw") {
                                             // Dispatch an async render to the active buffer.

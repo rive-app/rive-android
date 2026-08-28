@@ -1,5 +1,6 @@
 package app.rive
 
+import androidx.annotation.MainThread
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
@@ -10,6 +11,8 @@ import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
+import app.rive.semantics.SemanticActionType
+import app.rive.semantics.SemanticTreeModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
@@ -251,6 +254,149 @@ class StateMachine internal constructor(
     fun advance(deltaTime: Duration) {
         closer.checkOpen()
         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+    }
+
+    /**
+     * Enable semantic tracking for this state machine.
+     *
+     * This operation enables core semantic diff production and marks the state machine unsettled so
+     * an active renderer evaluates it. It does not advance the state machine or retrieve diffs.
+     * Low-level callers must call [advance] followed by [drainSemanticsDiff]. The [Rive] composable
+     * manages that sequence when its [RiveSemanticsMode] resolves to enabled.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     */
+    @ExperimentalRiveSemantics
+    @Throws(RiveResourceClosedException::class)
+    fun enableSemantics() {
+        closer.checkOpen()
+        riveWorker.enableSemantics(stateMachineHandle)
+        unsettle()
+    }
+
+    /**
+     * Drain all pending semantic diff records for this state machine.
+     *
+     * Queue this after [advance] so the drain observes that advance. The resulting diff is
+     * delivered asynchronously and applied to [semanticTree] when the Rive worker's messages are
+     * polled. Empty drains do not update the tree.
+     *
+     * The delivered semantic node bounds are mapped to view space based on [fit], [surfaceWidth],
+     * and [surfaceHeight]. Bounds are physical pixels local to that viewport.
+     *
+     * Diffs are applied to [semanticTree]. To observe when a diff has been applied, collect
+     * [SemanticTreeModel.versionFlow]. The version increments only when the applied diff changes
+     * the tree. The flow may be collected from any thread, but tree contents must be read on the
+     * Android main thread.
+     *
+     * @param fit The fit used when drawing the artboard.
+     * @param surfaceWidth The view width in pixels.
+     * @param surfaceHeight The view height in pixels.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     */
+    @ExperimentalRiveSemantics
+    @Throws(RiveResourceClosedException::class)
+    fun drainSemanticsDiff(
+        fit: Fit,
+        surfaceWidth: Float,
+        surfaceHeight: Float
+    ) {
+        closer.checkOpen()
+        riveWorker.drainSemanticsDiff(stateMachineHandle, fit, surfaceWidth, surfaceHeight)
+    }
+
+    /**
+     * Semantic tree maintained for this state machine.
+     *
+     * Updated by [drainSemanticsDiff]. Collect [SemanticTreeModel.versionFlow] to detect when an
+     * applied diff changes this tree. The flow may be collected from any thread, but this property
+     * and all tree contents must be accessed on the Android main thread.
+     */
+    @ExperimentalRiveSemantics
+    @get:MainThread
+    val semanticTree: SemanticTreeModel
+        get() {
+            closer.checkOpen()
+            return riveWorker.semanticTree(stateMachineHandle)
+        }
+
+    /**
+     * Fire a semantic action on the specified semantic node.
+     *
+     * This queues the action on the Rive worker and marks the state machine unsettled so an active
+     * renderer evaluates it. Advance and drain the state machine afterward to publish any resulting
+     * visual or semantic changes. The [Rive] composable schedules that work for accessibility
+     * actions dispatched through its virtual Android hierarchy.
+     *
+     * @param nodeId The semantic node ID.
+     * @param action The semantic action to fire.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveSemantics
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun fireSemanticAction(nodeId: Int, action: SemanticActionType) {
+        closer.checkOpen()
+        riveWorker.fireSemanticAction(stateMachineHandle, nodeId, action)
+        unsettle()
+    }
+
+    /**
+     * Request accessibility focus on a semantic node.
+     *
+     * This queues a Rive-authored semantic focus request; it does not directly move Android
+     * accessibility focus. The state machine is marked unsettled so an active renderer evaluates
+     * the request; advance and drain afterward to publish resulting semantic state.
+     *
+     * @param nodeId The semantic node ID to focus.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveSemantics
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun requestSemanticFocus(nodeId: Int) {
+        closer.checkOpen()
+        riveWorker.requestSemanticFocus(stateMachineHandle, nodeId)
+        unsettle()
+    }
+
+    /**
+     * Clear Rive runtime focus for this state machine.
+     *
+     * This clears focus held by Rive's authored focus graph. It does not directly clear Android
+     * view focus, Compose focus, or TalkBack accessibility focus. The state machine is marked
+     * unsettled so an active renderer evaluates the request; advance and drain afterward to publish
+     * resulting semantic state.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveSemantics
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun clearSemanticFocus() {
+        closer.checkOpen()
+        riveWorker.clearSemanticFocus(stateMachineHandle)
+        unsettle()
+    }
+
+    /**
+     * Attempts to clear semantic focus during lifecycle cleanup.
+     *
+     * A closed state machine or disposed worker cannot retain semantic focus, so its
+     * [RiveResourceClosedException] is ignored. Other failures still indicate a runtime invariant
+     * violation and propagate to the caller.
+     */
+    internal fun clearSemanticFocusForLifecycleCleanup() {
+        try {
+            clearSemanticFocus()
+        } catch (_: RiveResourceClosedException) {
+            // The resource that could hold focus no longer exists.
+        }
     }
 }
 

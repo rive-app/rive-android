@@ -3,6 +3,7 @@
 
 package app.rive
 
+import android.content.Context
 import android.graphics.Bitmap
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
@@ -17,6 +18,9 @@ import io.mockk.mockk
 private const val RENDER_FILE_HANDLE = 10L
 private const val RENDER_ARTBOARD_HANDLE = 20L
 private const val RENDER_STATE_MACHINE_HANDLE = 30L
+
+/** Context required by the Canvas session; validation failures occur before it is accessed. */
+private val canvasContext = mockk<Context>(relaxed = true)
 
 class RenderResourceValidationUnitTest : FunSpec({
     test("Software render buffer rejects closed resource arguments before bitmap validation") {
@@ -104,6 +108,7 @@ class RenderResourceValidationUnitTest : FunSpec({
 
         shouldThrow<RiveResourceClosedException> {
             RiveCanvasSession(
+                canvasContext,
                 subject.worker,
                 subject.artboard,
                 subject.stateMachine,
@@ -118,6 +123,7 @@ class RenderResourceValidationUnitTest : FunSpec({
 
         shouldThrow<RiveResourceClosedException> {
             RiveCanvasSession(
+                canvasContext,
                 subject.worker,
                 subject.artboard,
                 subject.stateMachine,
@@ -132,6 +138,7 @@ class RenderResourceValidationUnitTest : FunSpec({
 
         shouldThrow<RiveResourceClosedException> {
             RiveCanvasSession(
+                canvasContext,
                 subject.worker,
                 subject.artboard,
                 subject.stateMachine,
@@ -157,7 +164,7 @@ class RenderResourceValidationUnitTest : FunSpec({
         every { worker.checkOpen() } throws RiveResourceClosedException("RiveWorker is disposed")
 
         shouldThrow<RiveResourceClosedException> {
-            RiveCanvasSession(worker, artboard, stateMachine)
+            RiveCanvasSession(canvasContext, worker, artboard, stateMachine)
         }
     }
 
@@ -165,16 +172,32 @@ class RenderResourceValidationUnitTest : FunSpec({
         val subject = RenderValidationSubject()
 
         shouldThrow<RiveIncompatibleResourceException> {
-            RiveCanvasSession(subject.worker, subject.foreignArtboard, subject.stateMachine)
-        }
-        shouldThrow<RiveIncompatibleResourceException> {
-            RiveCanvasSession(subject.worker, subject.artboard, subject.foreignStateMachine)
-        }
-        shouldThrow<RiveIncompatibleResourceException> {
-            RiveCanvasSession(subject.worker, subject.artboard, subject.siblingStateMachine)
+            RiveCanvasSession(
+                canvasContext,
+                subject.worker,
+                subject.foreignArtboard,
+                subject.stateMachine,
+            )
         }
         shouldThrow<RiveIncompatibleResourceException> {
             RiveCanvasSession(
+                canvasContext,
+                subject.worker,
+                subject.artboard,
+                subject.foreignStateMachine,
+            )
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            RiveCanvasSession(
+                canvasContext,
+                subject.worker,
+                subject.artboard,
+                subject.siblingStateMachine,
+            )
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            RiveCanvasSession(
+                canvasContext,
                 subject.worker,
                 subject.artboard,
                 subject.stateMachine,
@@ -199,7 +222,7 @@ class RenderResourceValidationUnitTest : FunSpec({
         val subject = RenderValidationSubject()
 
         shouldThrow<IllegalStateException> {
-            RiveCanvasSession(subject.worker, subject.artboard, subject.stateMachine)
+            RiveCanvasSession(canvasContext, subject.worker, subject.artboard, subject.stateMachine)
         }
     }
 })

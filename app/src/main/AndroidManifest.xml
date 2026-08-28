@@ -51,6 +51,15 @@
             android:name=".ComposeCappedFPSActivity"
             android:exported="true" />
         <activity
+            android:name=".SemanticActivity"
+            android:exported="true" />
+        <activity
+            android:name=".SemanticsTestActivity"
+            android:exported="true" />
+        <activity
+            android:name=".SemanticsHarnessActivity"
+            android:exported="true" />
+        <activity
             android:name=".ComposeTouchPassThroughActivity"
             android:exported="true" />
         <activity

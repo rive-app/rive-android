@@ -118,6 +118,39 @@ interface CommandQueueBridge {
         deltaTimeNs: Long
     )
 
+    fun cppEnableSemantics(
+        pointer: Long,
+        stateMachineHandle: Long
+    )
+
+    fun cppDrainSemanticsDiff(
+        pointer: Long,
+        stateMachineHandle: Long,
+        fit: Byte,
+        alignment: Byte,
+        scaleFactor: Float,
+        surfaceWidth: Float,
+        surfaceHeight: Float
+    )
+
+    fun cppFireSemanticAction(
+        pointer: Long,
+        stateMachineHandle: Long,
+        semanticNodeID: Int,
+        actionType: Int
+    )
+
+    fun cppRequestSemanticFocus(
+        pointer: Long,
+        stateMachineHandle: Long,
+        semanticNodeID: Int
+    )
+
+    fun cppClearSemanticFocus(
+        pointer: Long,
+        stateMachineHandle: Long
+    )
+
     fun cppNamedVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
@@ -599,6 +632,39 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         stateMachineHandle: Long,
         deltaTimeNs: Long
+    )
+
+    external override fun cppEnableSemantics(
+        pointer: Long,
+        stateMachineHandle: Long
+    )
+
+    external override fun cppDrainSemanticsDiff(
+        pointer: Long,
+        stateMachineHandle: Long,
+        fit: Byte,
+        alignment: Byte,
+        scaleFactor: Float,
+        surfaceWidth: Float,
+        surfaceHeight: Float
+    )
+
+    external override fun cppFireSemanticAction(
+        pointer: Long,
+        stateMachineHandle: Long,
+        semanticNodeID: Int,
+        actionType: Int
+    )
+
+    external override fun cppRequestSemanticFocus(
+        pointer: Long,
+        stateMachineHandle: Long,
+        semanticNodeID: Int
+    )
+
+    external override fun cppClearSemanticFocus(
+        pointer: Long,
+        stateMachineHandle: Long
     )
 
     external override fun cppNamedVMCreateBlankVMI(

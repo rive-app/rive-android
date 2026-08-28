@@ -15,6 +15,7 @@ composeBom = "2025.11.01"
 composeCompiler = "1.5.15"
 constraintlayout = "2.2.1"
 coreKtx = "1.17.0"
+customView = "1.1.0"
 dokka = "2.1.0"
 dropshots = "0.5.1"
 fragmentKtx = "1.8.9"
@@ -56,6 +57,7 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 androidx-compose-ui-tooling-preview-android = { module = "androidx.compose.ui:ui-tooling-preview-android" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-customview = { module = "androidx.customview:customview", version.ref = "customView" }
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }

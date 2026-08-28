@@ -2,8 +2,10 @@ package app.rive.core
 
 import android.graphics.Color
 import android.os.Build
+import android.os.Looper
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
+import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
@@ -38,6 +40,9 @@ import app.rive.rememberRiveWorker
 import app.rive.requireCompatibleWith
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel
+import app.rive.semantics.SemanticActionType
+import app.rive.semantics.SemanticTreeModel
+import app.rive.semantics.SemanticsDiff
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +59,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -363,6 +369,14 @@ class CommandQueue internal constructor(
     private fun dispose(cppPointer: Long) {
         cancelPendingContinuations()
         stateMachineSettlingStore.clear()
+        // Final release may occur from any thread. Serialize semantic-tree cleanup with
+        // main-thread diff application and access without blocking asynchronous worker shutdown.
+        val mainDispatcher = Dispatchers.Main.immediate
+        if (mainDispatcher.isDispatchNeeded(EmptyCoroutineContext)) {
+            mainDispatcher.dispatch(EmptyCoroutineContext) { semanticTrees.clear() }
+        } else {
+            semanticTrees.clear()
+        }
 
         val shutdownThreadID = nextShutdownThreadID.getAndIncrement()
         val shutdownThreadName = "RiveWorkerShutdown-$shutdownThreadID"
@@ -565,6 +579,21 @@ class CommandQueue internal constructor(
         nextRequestID.getAndIncrement()
     }
 
+    /** Semantic trees maintained per state machine handle. */
+    private val semanticTrees = mutableMapOf<Long, SemanticTreeModel>()
+
+    /**
+     * Returns the semantic tree model for the given state machine. The model is lazily created and
+     * updated from JNI semantic diff callbacks. The model and its contents are confined to the
+     * Android main thread.
+     *
+     * @param stateMachineHandle State machine whose semantic tree should be returned.
+     * @return The maintained semantic tree for [stateMachineHandle].
+     */
+    @MainThread
+    fun semanticTree(stateMachineHandle: StateMachineHandle): SemanticTreeModel =
+        semanticTrees.getOrPut(stateMachineHandle.handle) { SemanticTreeModel() }
+
     /**
      * Emits a state-machine handle when the worker accepts a transition to its render-idle settled
      * state.
@@ -586,6 +615,17 @@ class CommandQueue internal constructor(
     )
     val settledFlow: SharedFlow<StateMachineHandle> =
         stateMachineSettlingStore.acceptedSettlements
+
+    /**
+     * Whether this worker currently owns a semantic tree for [stateMachineHandle].
+     *
+     * @param stateMachineHandle State machine whose semantic-tree ownership should be checked.
+     * @return `true` when the worker currently maintains a tree for the handle.
+     */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @MainThread
+    internal fun hasSemanticTree(stateMachineHandle: StateMachineHandle): Boolean =
+        semanticTrees.containsKey(stateMachineHandle.handle)
 
     /**
      * Contains the data associated with a property update event.
@@ -664,7 +704,8 @@ class CommandQueue internal constructor(
      * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
      *
      * The polling will automatically start and stop based on the lifecycle state, only polling when
-     * the lifecycle is in the RESUMED state and while this command queue has not been disposed.
+     * the lifecycle is in the RESUMED state and while this command queue has not been disposed. The
+     * polling loop runs on the Android main thread regardless of the caller's coroutine context.
      *
      * @param lifecycle The lifecycle bounding the polling.
      * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
@@ -675,24 +716,25 @@ class CommandQueue internal constructor(
     suspend fun beginPolling(
         lifecycle: Lifecycle,
         ticker: FrameTicker = ChoreographerFrameTicker
-    ) {
+    ) = withContext(Dispatchers.Main.immediate) {
         checkOpen()
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
             while (isActive && !isDisposed) {
                 var disposedDuringPoll = false
-                ticker.withFrame {
-                    try {
-                        pollMessages()
-                    } catch (e: RiveResourceClosedException) {
-                        // Disposal can happen after the checks above but before pollMessages() reads
-                        // the native pointer. Only swallow that expected disposal race; preserve a
-                        // resource-closed error from another source rather than hiding it.
-                        if (refCount > 0) {
-                            throw e
-                        }
-                        disposedDuringPoll = true
+                ticker.withFrame { }
+                try {
+                    // Poll after the frame wait returns so coroutine context restoration guarantees
+                    // main-thread delivery even when an injected ticker waits on another thread.
+                    pollMessages()
+                } catch (e: RiveResourceClosedException) {
+                    // Disposal can happen after the checks above but before pollMessages() reads
+                    // the native pointer. Only swallow that expected disposal race; preserve a
+                    // resource-closed error from another source rather than hiding it.
+                    if (refCount > 0) {
+                        throw e
                     }
+                    disposedDuringPoll = true
                 }
                 if (disposedDuringPoll) {
                     break
@@ -707,14 +749,25 @@ class CommandQueue internal constructor(
      * callbacks and errors arrive on. Should be called every frame, regardless of whether there is
      * any advancing or drawing.
      *
+     * This synchronous method does not switch threads. It must be called from the Android main
+     * thread so callbacks that update UI-owned runtime state are delivered there. Call
+     * [beginPolling] instead when the caller's coroutine context is not known; it moves its polling
+     * loop to the main thread.
+     *
      * This method represents a single poll operation. To continuously poll, use [beginPolling],
      * which will handle starting and stopping the polling based on a lifecycle.
      *
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws IllegalStateException If this method is called from a thread other than the Android
+     *    main thread.
      * @see [beginPolling]
      */
-    @Throws(RiveResourceClosedException::class)
+    @MainThread
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
     fun pollMessages() {
+        check(Looper.myLooper() == Looper.getMainLooper()) {
+            "CommandQueue.pollMessages must be called on the main thread."
+        }
         traceSection("Rive/PollMessages") {
             bridge.cppPollMessages(requireNativePointer())
         }
@@ -1563,6 +1616,22 @@ class CommandQueue internal constructor(
     }
 
     /**
+     * Removes the maintained semantic tree after native state-machine deletion completes.
+     *
+     * The callback is delivered in command-server message order, so any semantic diff queued before
+     * deletion is applied before this cleanup runs.
+     *
+     * @param stateMachineHandle The deleted state machine.
+     */
+    @MainThread
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onStateMachineDeleted")
+    internal fun onStateMachineDeleted(stateMachineHandle: StateMachineHandle) {
+        semanticTrees.remove(stateMachineHandle.handle)
+    }
+
+    /**
      * Advance the state machine by the given delta time in nanoseconds.
      *
      * This operation returns after queuing the advance. An invalid state-machine handle is reported
@@ -1604,6 +1673,126 @@ class CommandQueue internal constructor(
      */
     internal fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
         stateMachineSettlingStore.unsettle(stateMachineHandle)
+
+    /**
+     * Enable semantics for this state machine. This will construct the semantic tree and begin
+     * circulating semantic updates.
+     *
+     * @param stateMachineHandle The handle of the state machine to enable semantics for.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun enableSemantics(stateMachineHandle: StateMachineHandle) =
+        bridge.cppEnableSemantics(
+            requireNativePointer(),
+            stateMachineHandle.handle
+        )
+
+    /**
+     * Drain the latest semantic diff for this state machine.
+     *
+     * The delivered semantic node bounds are mapped to view space based on [fit], [surfaceWidth],
+     * and [surfaceHeight].
+     *
+     * @param stateMachineHandle The handle of the state machine to drain semantic diffs for.
+     * @param fit The fit used when drawing the artboard.
+     * @param surfaceWidth The view width in pixels.
+     * @param surfaceHeight The view height in pixels.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun drainSemanticsDiff(
+        stateMachineHandle: StateMachineHandle,
+        fit: Fit,
+        surfaceWidth: Float,
+        surfaceHeight: Float
+    ) = bridge.cppDrainSemanticsDiff(
+        requireNativePointer(),
+        stateMachineHandle.handle,
+        fit.nativeMapping,
+        fit.alignment.nativeMapping,
+        fit.scaleFactor,
+        surfaceWidth,
+        surfaceHeight
+    )
+
+    /**
+     * Callback when a semantic diff is received for a state machine.
+     *
+     * Triggered by [drainSemanticsDiff], with node bounds already mapped to view space by the
+     * command server.
+     *
+     * @param stateMachineHandle The state machine that produced this diff.
+     * @param diff The semantic diff payload.
+     */
+    @MainThread
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onSemanticsDiffReceived")
+    internal fun onSemanticsDiffReceived(
+        stateMachineHandle: StateMachineHandle,
+        diff: SemanticsDiff
+    ) {
+        semanticTree(stateMachineHandle).applyDiff(diff)
+        RiveLog.v(COMMAND_QUEUE_TAG) {
+            "Semantics diff applied for $stateMachineHandle (treeVersion=${diff.treeVersion})"
+        }
+    }
+
+    /**
+     * Fire a semantic action on a semantic node.
+     *
+     * @param stateMachineHandle The handle of the state machine.
+     * @param semanticNodeID The semantic node ID to target.
+     * @param actionType The semantic action type.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun fireSemanticAction(
+        stateMachineHandle: StateMachineHandle,
+        semanticNodeID: Int,
+        actionType: SemanticActionType
+    ) = bridge.cppFireSemanticAction(
+        requireNativePointer(),
+        stateMachineHandle.handle,
+        semanticNodeID,
+        actionType.value
+    )
+
+    /**
+     * Request accessibility focus for a semantic node.
+     *
+     * @param stateMachineHandle The handle of the state machine.
+     * @param semanticNodeID The semantic node ID to focus.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun requestSemanticFocus(
+        stateMachineHandle: StateMachineHandle,
+        semanticNodeID: Int
+    ) = bridge.cppRequestSemanticFocus(
+        requireNativePointer(),
+        stateMachineHandle.handle,
+        semanticNodeID
+    )
+
+    /**
+     * Clear Rive runtime focus for this state machine.
+     *
+     * This should be called when Android accessibility focus leaves the Rive content or when Rive
+     * accessibility semantics are no longer exposed. It clears only Rive focus state; it does not
+     * directly manipulate Android view focus or Compose focus.
+     *
+     * @param stateMachineHandle The handle of the state machine whose focus should be cleared.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun clearSemanticFocus(
+        stateMachineHandle: StateMachineHandle
+    ) = bridge.cppClearSemanticFocus(
+        requireNativePointer(),
+        stateMachineHandle.handle
+    )
 
     /**
      * Callback when the state machine settles. This is called when the state machine has determined
