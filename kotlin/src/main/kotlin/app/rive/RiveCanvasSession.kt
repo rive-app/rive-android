@@ -84,7 +84,17 @@ annotation class ExperimentalHardwareBitmapRendering
  * Call [setRegion] with the destination rectangle where frames should be presented. The render
  * buffer dimensions are derived from this region's width and height.
  *
- * If [viewModelInstance] is supplied, this session binds it eagerly during initialization.
+ * The main [viewModelInstance] and [globalViewModelInstances] are bound eagerly during
+ * initialization. Omitted instances are created from their authored defaults and are not exposed
+ * to the caller; create and supply explicit instances when their properties must be read or
+ * changed from application code. The configuration is fixed for the lifetime of the session;
+ * create a new session to use different bindings.
+ *
+ * A [stateMachine] should not be shared by multiple active sessions. Each session operates on the
+ * same mutable native state machine: advancing it in either session affects both, and binding a
+ * different view model instance in one session replaces the binding observed by the other. Use a
+ * separately instantiated artboard and state machine for each concurrently active session when
+ * their playback or data-binding state must be independent.
  *
  * This session is backed by a [HardwareRenderBuffer]. It owns that buffer's lifecycle and frame
  * loop, but not the supplied Rive resources. These must be created and closed by the caller, and
@@ -102,11 +112,12 @@ annotation class ExperimentalHardwareBitmapRendering
  *    regarding polling.
  * @param artboard The artboard to render. Must be from the supplied [riveWorker].
  * @param stateMachine The state machine to advance and render. Must be from the supplied
- *    [artboard].
- * @param viewModelInstance An optional view model instance to bind to the state machine. It must be
- *    from the supplied [riveWorker]. An instance from another file is supported only when the state
- *    machine uses relative data-binding paths authored in the Rive editor. Cross-file binding with
- *    absolute paths is unsupported.
+ *    [artboard] and should not be used by another active rendering session.
+ * @param viewModelInstance The optional main view model instance to bind to the state machine. A
+ *    null value creates a main instance from its authored default, when one is available. It must
+ *    be from the supplied [riveWorker]. An instance from another file is supported only when the
+ *    state machine uses relative data-binding paths authored in the Rive editor. Cross-file binding
+ *    with absolute paths is unsupported.
  * @param fit The [Fit] to use when rendering. This controls how the artboard is scaled to fit the
  *    target surface. Defaults to [RenderingDefaults.defaultFit].
  * @param clearColor The color used to clear the draw region before drawing each frame. Defaults to
@@ -114,6 +125,15 @@ annotation class ExperimentalHardwareBitmapRendering
  * @param semantics Controls whether Rive-authored semantics are produced. Defaults to
  *    [RiveSemanticsMode.Off]. Automatic mode follows Android's accessibility-enabled state.
  *    Enabling semantics requires opting into [ExperimentalRiveSemantics].
+ * @param globalViewModelInstances Explicit global view model instances keyed by global view model
+ *    name. Omitted names create instances from their authored defaults. Implicit instances are not
+ *    exposed. The map is snapshotted during construction, and every instance must be from the
+ *    supplied [riveWorker]. An instance from another file is supported only when the state machine
+ *    uses relative data-binding paths authored in the Rive editor. Cross-file binding with absolute
+ *    paths is unsupported. Invalid global names and native binding failures are reported
+ *    asynchronously through command queue logging.
+ * @param initializationToken Internal token that distinguishes the shared primary constructor from
+ *    its stable and experimental public overloads.
  * @throws RiveResourceClosedException If the Rive worker has been disposed or a supplied Rive
  *    resource has been closed.
  * @throws RiveIncompatibleResourceException If the supplied resources do not have compatible
@@ -122,20 +142,108 @@ annotation class ExperimentalHardwareBitmapRendering
  */
 @ExperimentalHardwareBitmapRendering
 @RequiresApi(Build.VERSION_CODES.Q)
-class RiveCanvasSession @Throws(
-    RiveResourceClosedException::class,
-    RiveIncompatibleResourceException::class,
-    IllegalStateException::class
-) constructor(
+class RiveCanvasSession private constructor(
     context: Context,
     private val riveWorker: RiveWorker,
     private val artboard: Artboard,
     private val stateMachine: StateMachine,
-    private val viewModelInstance: ViewModelInstance? = null,
-    private val fit: Fit = RenderingDefaults.defaultFit(),
-    @param:ColorInt private val clearColor: Int = RenderingDefaults.CLEAR_COLOR,
-    semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+    private val viewModelInstance: ViewModelInstance?,
+    private val fit: Fit,
+    @param:ColorInt private val clearColor: Int,
+    semantics: RiveSemanticsMode,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
+    @Suppress("UNUSED_PARAMETER") initializationToken: Unit,
 ) : CheckableAutoCloseable {
+    /**
+     * Creates a canvas session using authored defaults for every global view model.
+     *
+     * @param context Android context used to observe platform accessibility state.
+     * @param riveWorker The Rive worker that owns the supplied resources.
+     * @param artboard The artboard to render.
+     * @param stateMachine The state machine to advance and render.
+     * @param viewModelInstance The optional main view model instance to bind.
+     * @param fit The fit used when rendering.
+     * @param clearColor The color used to clear the draw region before each frame.
+     * @param semantics Controls whether Rive-authored semantics are produced.
+     * @throws RiveResourceClosedException If the worker or a supplied resource has been closed.
+     * @throws RiveIncompatibleResourceException If the resources have incompatible ownership or
+     *    ancestry.
+     * @throws IllegalStateException If hardware rendering is unsupported.
+     */
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class,
+        IllegalStateException::class,
+    )
+    constructor(
+        context: Context,
+        riveWorker: RiveWorker,
+        artboard: Artboard,
+        stateMachine: StateMachine,
+        viewModelInstance: ViewModelInstance? = null,
+        fit: Fit = RenderingDefaults.defaultFit(),
+        @ColorInt clearColor: Int = RenderingDefaults.CLEAR_COLOR,
+        semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+    ) : this(
+        context = context,
+        riveWorker = riveWorker,
+        artboard = artboard,
+        stateMachine = stateMachine,
+        viewModelInstance = viewModelInstance,
+        fit = fit,
+        clearColor = clearColor,
+        semantics = semantics,
+        globalViewModelInstances = emptyMap(),
+        initializationToken = Unit,
+    )
+
+    /**
+     * Creates a canvas session with explicit global view model bindings.
+     *
+     * @param context Android context used to observe platform accessibility state.
+     * @param riveWorker The Rive worker that owns the supplied resources.
+     * @param artboard The artboard to render.
+     * @param stateMachine The state machine to advance and render.
+     * @param viewModelInstance The optional main view model instance to bind.
+     * @param fit The fit used when rendering.
+     * @param clearColor The color used to clear the draw region before each frame.
+     * @param semantics Controls whether Rive-authored semantics are produced.
+     * @param globalViewModelInstances Explicit global view model instances keyed by global view
+     *    model name.
+     * @throws RiveResourceClosedException If the worker or a supplied resource has been closed.
+     * @throws RiveIncompatibleResourceException If the resources have incompatible ownership or
+     *    ancestry.
+     * @throws IllegalStateException If hardware rendering is unsupported.
+     */
+    @ExperimentalRiveGlobalViewModels
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class,
+        IllegalStateException::class,
+    )
+    constructor(
+        context: Context,
+        riveWorker: RiveWorker,
+        artboard: Artboard,
+        stateMachine: StateMachine,
+        viewModelInstance: ViewModelInstance? = null,
+        fit: Fit = RenderingDefaults.defaultFit(),
+        @ColorInt clearColor: Int = RenderingDefaults.CLEAR_COLOR,
+        semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+        globalViewModelInstances: Map<String, ViewModelInstance>,
+    ) : this(
+        context = context,
+        riveWorker = riveWorker,
+        artboard = artboard,
+        stateMachine = stateMachine,
+        viewModelInstance = viewModelInstance,
+        fit = fit,
+        clearColor = clearColor,
+        semantics = semantics,
+        globalViewModelInstances = globalViewModelInstances,
+        initializationToken = Unit,
+    )
+
     companion object {
         private const val TAG = "Rive/CanvasSession"
 
@@ -147,14 +255,24 @@ class RiveCanvasSession @Throws(
         fun isSupported(): Boolean = HardwareRenderBuffer.isSupported()
     }
 
+    private val globalViewModelInstancesSnapshot = globalViewModelInstances.toMap()
+    private val boundViewModelInstances = buildList {
+        viewModelInstance?.let(::add)
+        addAll(globalViewModelInstancesSnapshot.values)
+    }.distinctBy(ViewModelInstance::instanceHandle)
+
     init {
         riveWorker.checkOpen()
         artboard.checkOpen()
         stateMachine.checkOpen()
         viewModelInstance?.checkOpen()
+        globalViewModelInstancesSnapshot.values.forEach(ViewModelInstance::checkOpen)
         artboard.requireOwnedBy(riveWorker)
         stateMachine.requireFromArtboard(artboard)
         viewModelInstance?.requireOwnedBy(riveWorker)
+        globalViewModelInstancesSnapshot.values.forEach { instance ->
+            instance.requireOwnedBy(riveWorker)
+        }
         check(isSupported()) {
             "RiveCanvasSession requires API 29+ hardware bitmap support"
         }
@@ -253,13 +371,7 @@ class RiveCanvasSession @Throws(
     private var semanticsEnabled = false
 
     init {
-        viewModelInstance?.let { instance ->
-            RiveLog.d(TAG) { "Binding view model instance ${instance.instanceHandle}" }
-            riveWorker.bindViewModelInstance(
-                stateMachine.stateMachineHandle,
-                instance.instanceHandle
-            )
-        }
+        stateMachine.bindViewModels(viewModelInstance, globalViewModelInstancesSnapshot)
     }
 
     private val semanticsModeController = RiveSemanticsModeController(
@@ -441,25 +553,24 @@ class RiveCanvasSession @Throws(
 
         try {
             /* Host for a number of jobs:
-             * - viewModelDirtyCollector: Observes the view model instance's dirty flow
+             * - viewModelDirtyCollectors: Observe the bound view model instances' dirty flows
              * - frameAvailableCollector: Updates latest session bitmap from buffer publications
              * - renderLoop: Runs the advance and render loop while lifecycle is RESUMED
              * - closeWatcher: Cancel the render loop when the session is closed
              */
             coroutineScope {
-                // If a view model instance is bound, also observe its dirty flow to know when to
-                // un-settle the state machine when the view model instance is updated.
-                val viewModelDirtyCollector = if (viewModelInstance != null) {
+                // Observe every explicitly bound instance so either main or global data changes
+                // can wake a state machine that previously settled.
+                val viewModelDirtyCollectors = boundViewModelInstances.map { instance ->
                     launch {
-                        viewModelInstance.dirtyFlow.collect {
+                        instance.dirtyFlow.collect {
                             RiveLog.v(TAG) {
-                                "View model instance dirty, unsettling ${stateMachine.stateMachineHandle}"
+                                "View model instance ${instance.instanceHandle} dirty, " +
+                                        "unsettling ${stateMachine.stateMachineHandle}"
                             }
                             stateMachine.unsettle()
                         }
                     }
-                } else {
-                    null
                 }
 
                 val frameAvailableCollector = launch {
@@ -572,7 +683,9 @@ class RiveCanvasSession @Throws(
                 } finally {
                     closeWatcher.cancelAndJoin()
                     frameAvailableCollector.cancelAndJoin()
-                    viewModelDirtyCollector?.cancelAndJoin()
+                    viewModelDirtyCollectors.forEach { collector ->
+                        collector.cancelAndJoin()
+                    }
                 }
             }
         } finally {

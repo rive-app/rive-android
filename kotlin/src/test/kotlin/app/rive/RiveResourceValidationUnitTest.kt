@@ -26,6 +26,7 @@ class RiveResourceValidationUnitTest : FunSpec({
                 artboard = null,
                 stateMachine = subject.stateMachine,
                 viewModelInstance = null,
+                globalViewModelInstances = emptyMap(),
             )
         }
     }
@@ -43,7 +44,43 @@ class RiveResourceValidationUnitTest : FunSpec({
             subject.artboard,
             subject.stateMachine,
             crossFileViewModelInstance,
+            emptyMap(),
         )
+    }
+
+    test("Rive validation rejects a global VMI from another worker") {
+        val subject = RiveValidationSubject()
+        val foreignWorker = mockk<CommandQueue>(relaxed = true)
+        val foreignInstance = ViewModelInstance(
+            ViewModelInstanceHandle(RIVE_VALIDATION_CROSS_FILE_VIEW_MODEL_INSTANCE_HANDLE),
+            foreignWorker,
+            FileHandle(RIVE_VALIDATION_OTHER_FILE_HANDLE),
+        )
+
+        shouldThrow<RiveIncompatibleResourceException> {
+            validateRiveResourceArguments(
+                subject.file,
+                subject.artboard,
+                subject.stateMachine,
+                viewModelInstance = null,
+                globalViewModelInstances = mapOf("Theme" to foreignInstance),
+            )
+        }
+    }
+
+    test("Rive validation rejects a closed global VMI") {
+        val subject = RiveValidationSubject()
+        subject.viewModelInstance.close()
+
+        shouldThrow<RiveResourceClosedException> {
+            validateRiveResourceArguments(
+                subject.file,
+                subject.artboard,
+                subject.stateMachine,
+                viewModelInstance = null,
+                globalViewModelInstances = mapOf("Theme" to subject.viewModelInstance),
+            )
+        }
     }
 
     closedRiveResourceCases.forEach { case ->
@@ -57,6 +94,7 @@ class RiveResourceValidationUnitTest : FunSpec({
                     subject.artboard,
                     subject.stateMachine,
                     subject.viewModelInstance,
+                    emptyMap(),
                 )
             }
         }

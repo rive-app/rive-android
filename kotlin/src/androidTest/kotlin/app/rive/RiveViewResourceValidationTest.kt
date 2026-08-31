@@ -13,8 +13,8 @@ import kotlin.test.assertFailsWith
 class RiveViewResourceValidationTest : RiveAndroidTest() {
     @Test
     fun setRiveFile_rejectsClosedResources() = runBlocking<Unit> {
-        val closedFileResources = loadDefaultRiveResources(R.raw.empty)
-        val closedArtboardResources = loadDefaultRiveResources(R.raw.empty)
+        val closedFileResources = loadRiveResources(R.raw.empty)
+        val closedArtboardResources = loadRiveResources(R.raw.empty)
         closedFileResources.file.close()
         closedArtboardResources.artboard.close()
 
@@ -34,8 +34,8 @@ class RiveViewResourceValidationTest : RiveAndroidTest() {
 
     @Test
     fun setRiveFile_rejectsArtboardFromAnotherFile() = runBlocking<Unit> {
-        val first = loadDefaultRiveResources(R.raw.empty)
-        val second = loadDefaultRiveResources(R.raw.empty)
+        val first = loadRiveResources(R.raw.empty)
+        val second = loadRiveResources(R.raw.empty)
 
         withContext(Dispatchers.Main.immediate) {
             val view = RiveView(context)

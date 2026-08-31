@@ -2,12 +2,12 @@ package app.rive
 
 import android.content.Context
 import androidx.annotation.RawRes
+import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.core.CloseableRiveResources
 import app.rive.core.CommandQueuePoller
-import app.rive.core.DefaultRiveResources
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.loadDefaultRiveResources
-import androidx.test.platform.app.InstrumentationRegistry
+import app.rive.core.loadRiveResources
 import app.rive.runtime.kotlin.core.Rive
 import org.junit.Rule
 import org.junit.rules.ExternalResource
@@ -28,7 +28,7 @@ abstract class RiveAndroidTest(
 
     private var worker: RiveWorker? = null
     private var poller: CommandQueuePoller? = null
-    private val managedResources = mutableListOf<DefaultRiveResources>()
+    private val managedResources = mutableListOf<CloseableRiveResources>()
 
     /**
      * Lazily-created worker for tests that only need one command queue.
@@ -60,20 +60,39 @@ abstract class RiveAndroidTest(
         }.withPollingPaused(block)
 
     /**
-     * Loads default Rive resources owned by this test's shared worker.
+     * Loads selected Rive resources owned by this test's shared worker.
      *
      * Resources are registered for automatic cleanup before polling stops and the worker is
      * released. Callers may close them earlier because each resource's close operation is
      * idempotent.
      *
      * @param rawResourceId The raw Rive resource to load.
+     * @param artboardName The artboard to create, or null for the default artboard.
+     * @param stateMachineName The state machine to create, or null for the selected artboard's
+     *    default.
+     * @return The loaded file and its selected artboard and state machine.
+     * @throws AssertionError If the file fails to load or produces an unexpected result.
+     */
+    internal suspend fun loadRiveResources(
+        @RawRes rawResourceId: Int,
+        artboardName: String? = null,
+        stateMachineName: String? = null,
+    ): CloseableRiveResources = riveWorker.loadRiveResources(
+        rawResourceId,
+        artboardName,
+        stateMachineName,
+    ).also(managedResources::add)
+
+    /**
+     * Loads default Rive resources owned by this test's shared worker.
+     *
+     * @param rawResourceId The raw Rive resource to load.
      * @return The loaded file and its default artboard and state machine.
      * @throws AssertionError If the file fails to load or produces an unexpected result.
      */
     internal suspend fun loadDefaultRiveResources(
-        @RawRes rawResourceId: Int
-    ): DefaultRiveResources =
-        riveWorker.loadDefaultRiveResources(rawResourceId).also(managedResources::add)
+        @RawRes rawResourceId: Int,
+    ): CloseableRiveResources = loadRiveResources(rawResourceId)
 
     /**
      * Initializes Rive before other rules and releases the worker after their teardown.

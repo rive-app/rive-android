@@ -1925,7 +1925,7 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
-    Java_app_rive_core_CommandQueueJNIBridge_cppBindViewModelInstance(
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetMainViewModelInstance(
         JNIEnv*,
         jobject,
         jlong ref,
@@ -1940,9 +1940,75 @@ extern "C"
             handleFromLong<rive::ViewModelInstanceHandle>(
                 jViewModelInstanceHandle);
 
-        commandQueue->bindViewModelInstance(stateMachineHandle,
-                                            viewModelInstanceHandle,
-                                            requestID);
+        commandQueue->setViewModelInstance(stateMachineHandle,
+                                           viewModelInstanceHandle,
+                                           requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppClearMainViewModelInstance(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jStateMachineHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->clearViewModelInstance(
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle),
+            requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetGlobalViewModelInstance(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jStateMachineHandle,
+        jstring jName,
+        jlong jViewModelInstanceHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+        auto viewModelInstanceHandle =
+            handleFromLong<rive::ViewModelInstanceHandle>(
+                jViewModelInstanceHandle);
+
+        commandQueue->setGlobalViewModelInstance(stateMachineHandle,
+                                                 JStringToString(env, jName),
+                                                 viewModelInstanceHandle,
+                                                 requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppClearGlobalViewModelInstance(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jlong requestID,
+        jlong jStateMachineHandle,
+        jstring jName)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->clearGlobalViewModelInstance(
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle),
+            JStringToString(env, jName),
+            requestID);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppBind(JNIEnv*,
+                                                     jobject,
+                                                     jlong ref,
+                                                     jlong requestID,
+                                                     jlong jStateMachineHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        commandQueue->bind(
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle),
+            requestID);
     }
 
     JNIEXPORT void JNICALL

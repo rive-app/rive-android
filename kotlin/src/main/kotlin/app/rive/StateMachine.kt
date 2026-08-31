@@ -11,6 +11,7 @@ import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
+import app.rive.core.ViewModelInstanceHandle
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticTreeModel
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,109 @@ class StateMachine internal constructor(
     private val artboardHandle: ArtboardHandle,
     val name: String?,
 ) : CheckableAutoCloseable {
+    /**
+     * Coordinates declarative view model bindings for the enclosing state machine.
+     *
+     * It encapsulates the complete binding workflow: serializing updates, validating the desired
+     * configuration before dispatch, caching and diffing it, queuing only changes, and finishing
+     * each changed configuration with one bind command. Its first application always binds, even
+     * when empty, so core can create and apply default instances.
+     *
+     * @param riveWorker The worker on which binding commands are queued.
+     * @param stateMachineHandle The state machine whose bindings are coordinated.
+     */
+    @OptIn(ExperimentalRiveGlobalViewModels::class)
+    private class Bindings(
+        private val riveWorker: RiveWorker,
+        private val stateMachineHandle: StateMachineHandle,
+    ) {
+        /**
+         * An immutable, handle-only record of one explicitly supplied binding configuration.
+         *
+         * Avoiding [ViewModelInstance] references keeps their lifetimes caller-managed. A null
+         * cached snapshot means no configuration has been applied; a snapshot with a null [main]
+         * and empty [globals] means defaults were explicitly bound.
+         *
+         * @param main The handle of the explicitly supplied main instance, or null for its default.
+         * @param globals Explicitly supplied global handles keyed by global view model name.
+         */
+        private data class BindingSnapshot(
+            val main: ViewModelInstanceHandle?,
+            val globals: Map<String, ViewModelInstanceHandle>,
+        )
+
+        private var applied: BindingSnapshot? = null
+
+        /**
+         * Applies one complete desired view model binding configuration if it has changed.
+         *
+         * @param main The explicitly supplied main view model instance, or null to create one from
+         *    its authored default. Clearing a previous override creates a fresh default instance.
+         * @param globals The explicitly supplied instances keyed by global view model name.
+         *    Omitted slots create fresh instances from their authored defaults when first bound or
+         *    after an explicit binding is removed.
+         * @return true if commands were dispatched; false if the configuration was unchanged.
+         * @throws RiveResourceClosedException If a supplied instance has been closed or the worker
+         *    has been disposed.
+         * @throws RiveIncompatibleResourceException If a supplied instance belongs to another
+         *    worker.
+         */
+        @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
+        @Synchronized
+        fun apply(
+            main: ViewModelInstance?,
+            globals: Map<String, ViewModelInstance>,
+        ): Boolean {
+            val globalSnapshot = globals.toMap()
+            main?.checkOpen()
+            main?.requireOwnedBy(riveWorker)
+            globalSnapshot.values.forEach { instance ->
+                instance.checkOpen()
+                instance.requireOwnedBy(riveWorker)
+            }
+
+            val next = BindingSnapshot(
+                main = main?.instanceHandle,
+                globals = globalSnapshot.mapValues { (_, instance) -> instance.instanceHandle },
+            )
+            val previous = applied
+            if (previous == next) {
+                return false
+            }
+
+            RiveLog.d(STATE_MACHINE_TAG) {
+                "Binding view models to $stateMachineHandle: " +
+                    "main override=${next.main ?: "none"}, " +
+                    "global overrides=${next.globals.keys}"
+            }
+
+            if (previous?.main != next.main) {
+                if (next.main != null) {
+                    riveWorker.setMainViewModelInstance(stateMachineHandle, next.main)
+                } else if (previous != null) {
+                    riveWorker.clearMainViewModelInstance(stateMachineHandle)
+                }
+            }
+
+            previous?.globals?.keys
+                ?.minus(next.globals.keys)
+                ?.forEach { name ->
+                    riveWorker.clearGlobalViewModelInstance(stateMachineHandle, name)
+                }
+            next.globals.forEach { (name, handle) ->
+                if (previous?.globals?.get(name) != handle) {
+                    riveWorker.setGlobalViewModelInstance(stateMachineHandle, name, handle)
+                }
+            }
+
+            riveWorker.bind(stateMachineHandle)
+            applied = next
+            return true
+        }
+    }
+
+    private val bindings = Bindings(riveWorker, stateMachineHandle)
+
     private val closer = CloseOnce("$stateMachineHandle") {
         val nameLog = name?.let { "with name $it" } ?: "(default)"
         RiveLog.d(STATE_MACHINE_TAG) {
@@ -221,6 +325,42 @@ class StateMachine internal constructor(
                 "StateMachine $stateMachineHandle was not created from " +
                         "Artboard ${artboard.artboardHandle}"
             )
+        }
+    }
+
+    /**
+     * Applies the complete desired main and global view model binding configuration.
+     *
+     * Only changes from the last successfully queued configuration are dispatched. An initial
+     * empty configuration still binds so core can create and apply default instances.
+     *
+     * Binding marks this state machine unsettled but does not evaluate it. If no renderer is
+     * actively advancing the state machine, call [advance] before drawing or observing artboard or
+     * state-machine effects produced by the new bindings. Advancing by 0 is sufficient to adopt the
+     * bound values.
+     *
+     * @param main The explicitly supplied main view model instance, or null to create one from its
+     *    authored default. Clearing a previous override creates a fresh default instance.
+     * @param globals The explicitly supplied instances keyed by global view model name. Omitted
+     *    slots create fresh instances from their authored defaults when first bound or after an
+     *    explicit binding is removed.
+     * @throws RiveResourceClosedException If this state machine or a supplied instance has been
+     *    closed, or if the owning worker has been disposed.
+     * @throws RiveIncompatibleResourceException If a supplied instance belongs to another worker.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveIncompatibleResourceException::class,
+        IllegalStateException::class,
+    )
+    internal fun bindViewModels(
+        main: ViewModelInstance?,
+        globals: Map<String, ViewModelInstance>,
+    ) {
+        checkOpen()
+        if (bindings.apply(main, globals)) {
+            unsettle()
         }
     }
 

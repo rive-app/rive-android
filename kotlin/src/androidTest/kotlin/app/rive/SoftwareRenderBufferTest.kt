@@ -5,7 +5,7 @@ import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.withDefaultRiveResources
+import app.rive.core.withRiveResources
 import app.rive.core.withPolling
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.runBlocking
@@ -20,7 +20,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class SoftwareRenderBufferTest : RiveAndroidTest() {
     @Test
     fun renderInto_writesArgb8888() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             res.stateMachine.advance(0.milliseconds)
             val destination = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
@@ -32,7 +32,7 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
 
     @Test
     fun renderInto_withClearColor_fillsBitmap() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         SoftwareRenderBuffer(16, 16, riveWorker).use { buffer ->
             val destination = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
 
@@ -61,7 +61,7 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
 
     @Test
     fun renderInto_invalidBitmap_throws() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             assertFailsWith<IllegalArgumentException>(
                 "renderInto should throw on invalid bitmap shape"
@@ -77,7 +77,7 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
 
     @Test
     fun renderInto_withClosedResource_throws() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         res.artboard.close()
 
         SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
@@ -96,10 +96,10 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
     fun renderInto_withMismatchedResources_throws() = runBlocking<Unit> {
         val foreignWorker = RiveWorker()
         try {
-            val owningRes = loadDefaultRiveResources(R.raw.empty)
-            val siblingRes = loadDefaultRiveResources(R.raw.empty)
+            val owningRes = loadRiveResources(R.raw.empty)
+            val siblingRes = loadRiveResources(R.raw.empty)
             foreignWorker.withPolling {
-                foreignWorker.withDefaultRiveResources(R.raw.empty) {
+                foreignWorker.withRiveResources(R.raw.empty) {
                     SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
                         val destination = Bitmap.createBitmap(
                             64,

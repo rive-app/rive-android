@@ -13,6 +13,14 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import app.rive.GlobalViewModelTestFixture.DEFAULT_INSTANCE
+import app.rive.GlobalViewModelTestFixture.GLOBALS_ARTBOARD
+import app.rive.GlobalViewModelTestFixture.GLOBAL_STRING_2
+import app.rive.GlobalViewModelTestFixture.GLOBAL_VIEW_MODEL
+import app.rive.GlobalViewModelTestFixture.GLOBAL_VIEW_MODEL_2
+import app.rive.GlobalViewModelTestFixture.InstanceSpec
+import app.rive.GlobalViewModelTestFixture.MAIN_VIEW_MODEL
+import app.rive.GlobalViewModelTestFixture.withInstances
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import app.rive.runtime.kotlin.test.R
@@ -43,7 +51,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.ZERO
 
 @RunWith(AndroidJUnit4::class)
-@OptIn(ExperimentalHardwareBitmapRendering::class)
+@OptIn(
+    ExperimentalHardwareBitmapRendering::class,
+    ExperimentalRiveGlobalViewModels::class,
+)
 class RiveCanvasSessionTest : RiveAndroidTest() {
     @Test
     fun isSupported_matchesApiGate() {
@@ -56,7 +67,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(maxSdkVersion = Build.VERSION_CODES.P)
     fun constructor_throwsBelowApi29() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         assertFailsWith<IllegalStateException>(
             "Session should fail fast when API < 29"
         ) {
@@ -539,6 +550,48 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    /** Verifies that mutating an explicitly bound global wakes a settled canvas session. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun globalViewModelMutation_afterSettled_emitsFrame() = runBlocking {
+        val resources = loadRiveResources(
+            R.raw.data_bind_test_impl,
+            artboardName = GLOBALS_ARTBOARD,
+        )
+        withInstances(
+            resources.file,
+            InstanceSpec(MAIN_VIEW_MODEL, DEFAULT_INSTANCE),
+            InstanceSpec(GLOBAL_VIEW_MODEL, DEFAULT_INSTANCE),
+            InstanceSpec(GLOBAL_VIEW_MODEL_2, DEFAULT_INSTANCE),
+        ) { (main, global, global2) ->
+            val session = withContext(Dispatchers.Main.immediate) {
+                RiveCanvasSession(
+                    context = context,
+                    riveWorker = riveWorker,
+                    artboard = resources.artboard,
+                    stateMachine = resources.stateMachine,
+                    viewModelInstance = main,
+                    globalViewModelInstances = mapOf(
+                        GLOBAL_VIEW_MODEL to global,
+                        GLOBAL_VIEW_MODEL_2 to global2,
+                    ),
+                )
+            }
+            withPlayingSession(
+                session = session,
+                stateMachineHandle = resources.stateMachine.stateMachineHandle,
+            ) {
+                resume()
+                awaitFrameCountGreaterThan(0)
+                val settledFrameCount = awaitFrameCountSettled()
+
+                global2.setString(GLOBAL_STRING_2, "Canvas Global 2")
+
+                awaitFrameCountGreaterThan(settledFrameCount)
+            }
+        }
+    }
+
     /** Verifies that restarting playback establishes a boundary against prior settled callbacks. */
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
@@ -556,20 +609,36 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
     }
 
     private suspend fun withPlayingSession(block: suspend PlayingSession.() -> Unit) {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
+        val session = withContext(Dispatchers.Main.immediate) {
+            RiveCanvasSession(
+                context = context,
+                riveWorker = riveWorker,
+                artboard = res.artboard,
+                stateMachine = res.stateMachine,
+            )
+        }
+        withPlayingSession(session, res.stateMachine.stateMachineHandle, block)
+    }
+
+    /**
+     * Runs [block] with [session] actively collecting frames and driven by a test lifecycle.
+     *
+     * @param session The session to play and close after [block].
+     * @param stateMachineHandle The handle used to inject settling callbacks in tests.
+     * @param block The test operation to run with the playing session fixture.
+     */
+    private suspend fun withPlayingSession(
+        session: RiveCanvasSession,
+        stateMachineHandle: StateMachineHandle,
+        block: suspend PlayingSession.() -> Unit,
+    ) {
         coroutineScope {
             val lifecycleOwner = withContext(Dispatchers.Main.immediate) {
                 TestLifecycleOwner()
             }
-            val session = withContext(Dispatchers.Main.immediate) {
-                RiveCanvasSession(
-                    context = context,
-                    riveWorker = riveWorker,
-                    artboard = res.artboard,
-                    stateMachine = res.stateMachine,
-                ).also { created ->
-                    created.setRegion(Rect(0, 0, 96, 96))
-                }
+            withContext(Dispatchers.Main.immediate) {
+                session.setRegion(Rect(0, 0, 96, 96))
             }
             val frameCount = AtomicInteger(0)
             val frameCollector = launch {
@@ -587,7 +656,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             val playingSession = PlayingSession(
                 session = session,
                 riveWorker = riveWorker,
-                stateMachineHandle = res.stateMachine.stateMachineHandle,
+                stateMachineHandle = stateMachineHandle,
                 lifecycleOwner = lifecycleOwner,
                 frameCount = frameCount,
                 playJob = playJob,

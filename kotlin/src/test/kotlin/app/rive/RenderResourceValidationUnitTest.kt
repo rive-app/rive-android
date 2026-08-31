@@ -1,5 +1,8 @@
 @file:Suppress("DEPRECATION")
-@file:OptIn(ExperimentalHardwareBitmapRendering::class)
+@file:OptIn(
+    ExperimentalHardwareBitmapRendering::class,
+    ExperimentalRiveGlobalViewModels::class,
+)
 
 package app.rive
 
@@ -147,6 +150,21 @@ class RenderResourceValidationUnitTest : FunSpec({
         }
     }
 
+    test("Canvas session rejects a closed global view model instance before platform validation") {
+        val subject = RenderValidationSubject()
+        subject.viewModelInstance.close()
+
+        shouldThrow<RiveResourceClosedException> {
+            RiveCanvasSession(
+                context = canvasContext,
+                riveWorker = subject.worker,
+                artboard = subject.artboard,
+                stateMachine = subject.stateMachine,
+                globalViewModelInstances = mapOf("Theme" to subject.viewModelInstance),
+            )
+        }
+    }
+
     test("Canvas session rejects a disposed worker before platform support validation") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val artboard = Artboard(
@@ -205,6 +223,21 @@ class RenderResourceValidationUnitTest : FunSpec({
                     ViewModelInstanceHandle(40L),
                     subject.foreignWorker,
                     FileHandle(RENDER_FILE_HANDLE),
+                ),
+            )
+        }
+        shouldThrow<RiveIncompatibleResourceException> {
+            RiveCanvasSession(
+                context = canvasContext,
+                riveWorker = subject.worker,
+                artboard = subject.artboard,
+                stateMachine = subject.stateMachine,
+                globalViewModelInstances = mapOf(
+                    "Theme" to ViewModelInstance(
+                        ViewModelInstanceHandle(41L),
+                        subject.foreignWorker,
+                        FileHandle(RENDER_FILE_HANDLE),
+                    )
                 ),
             )
         }

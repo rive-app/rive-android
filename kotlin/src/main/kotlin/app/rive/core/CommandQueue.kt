@@ -12,10 +12,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
+import app.rive.ExperimentalRiveGlobalViewModels
 import app.rive.Fit
 import app.rive.RenderBackend
+import app.rive.Rive
 import app.rive.RiveArtboardException
 import app.rive.RiveAudioException
+import app.rive.RiveCanvasSession
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileAsset
@@ -2120,25 +2123,161 @@ class CommandQueue internal constructor(
         )
 
     /**
-     * Bind a view model instance to a state machine. This establishes the data binding for the
-     * instance's properties.
+     * Set and bind the main view model instance on a state machine.
      *
-     * This operation is fire-and-forget. Invalid handles are reported asynchronously through the
+     * This compatibility method queues [setMainViewModelInstance] followed by [bind]. Both
+     * operations are fire-and-forget. Invalid handles are reported asynchronously through the
      * state machine error callback and command queue logging; they are not thrown by this method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
      *
-     * @param stateMachineHandle The handle of the state machine to bind to.
-     * @param viewModelInstanceHandle The handle of the view model instance to bind.
+     * @param stateMachineHandle The handle of the state machine to update and bind.
+     * @param viewModelInstanceHandle The handle of the main view model instance.
      * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @deprecated Use [setMainViewModelInstance] followed by [bind]. This method will be removed in
+     *    12.0.
      */
+    @Deprecated(
+        "Use setMainViewModelInstance followed by bind. This method will be removed in 12.0."
+    )
     @Throws(RiveResourceClosedException::class)
     fun bindViewModelInstance(
         stateMachineHandle: StateMachineHandle,
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+    ) {
+        setMainViewModelInstance(stateMachineHandle, viewModelInstanceHandle)
+        bind(stateMachineHandle)
+    }
+
+    /**
+     * Set the main view model instance on a state machine without applying its bindings.
+     *
+     * Call [bind] after setting the main and any global instances. This operation is
+     * fire-and-forget. Invalid handles are reported asynchronously through the state machine error
+     * callback and command queue logging; they are not thrown by this method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
+     *
+     * @param stateMachineHandle The handle of the state machine to update.
+     * @param viewModelInstanceHandle The handle of the main view model instance.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun setMainViewModelInstance(
+        stateMachineHandle: StateMachineHandle,
         viewModelInstanceHandle: ViewModelInstanceHandle
-    ) = bridge.cppBindViewModelInstance(
+    ) = bridge.cppSetMainViewModelInstance(
         requireNativePointer(),
         nextRequestID.getAndIncrement(),
         stateMachineHandle.handle,
         viewModelInstanceHandle.handle
+    )
+
+    /**
+     * Clear the main view model instance on a state machine without applying its bindings.
+     *
+     * Call [bind] afterward to create and apply the default main instance. This operation is
+     * fire-and-forget. An invalid state machine handle is reported asynchronously through the
+     * state machine error callback and command queue logging; it is not thrown by this method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
+     *
+     * @param stateMachineHandle The handle of the state machine whose main instance should be
+     *    cleared.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun clearMainViewModelInstance(stateMachineHandle: StateMachineHandle) =
+        bridge.cppClearMainViewModelInstance(
+            requireNativePointer(),
+            nextRequestID.getAndIncrement(),
+            stateMachineHandle.handle
+        )
+
+    /**
+     * Set a view model instance in a named global slot without applying its bindings.
+     *
+     * Call [bind] after setting the main and any global instances. This operation is
+     * fire-and-forget. Invalid handles and names are reported asynchronously through the state
+     * machine error callback and command queue logging; they are not thrown by this method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
+     *
+     * @param stateMachineHandle The handle of the state machine to update.
+     * @param name The name of the global view model slot.
+     * @param viewModelInstanceHandle The handle of the view model instance to place in the slot.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @ExperimentalRiveGlobalViewModels
+    @Throws(RiveResourceClosedException::class)
+    fun setGlobalViewModelInstance(
+        stateMachineHandle: StateMachineHandle,
+        name: String,
+        viewModelInstanceHandle: ViewModelInstanceHandle
+    ) = bridge.cppSetGlobalViewModelInstance(
+        requireNativePointer(),
+        nextRequestID.getAndIncrement(),
+        stateMachineHandle.handle,
+        name,
+        viewModelInstanceHandle.handle
+    )
+
+    /**
+     * Clear the view model instance in a named global slot without applying its bindings.
+     *
+     * The main instance and every other global slot are preserved. Call [bind] afterward to create
+     * and apply the cleared slot's default instance. This operation is fire-and-forget. Invalid
+     * handles and names are reported asynchronously through the state machine error callback and
+     * command queue logging; they are not thrown by this method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
+     *
+     * @param stateMachineHandle The handle of the state machine whose global slot should be
+     *    cleared.
+     * @param name The name of the global view model slot to clear.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @ExperimentalRiveGlobalViewModels
+    @Throws(RiveResourceClosedException::class)
+    fun clearGlobalViewModelInstance(
+        stateMachineHandle: StateMachineHandle,
+        name: String
+    ) = bridge.cppClearGlobalViewModelInstance(
+        requireNativePointer(),
+        nextRequestID.getAndIncrement(),
+        stateMachineHandle.handle,
+        name
+    )
+
+    /**
+     * Apply the main and global view model instances currently set on a state machine.
+     *
+     * Any missing main or global instances are created from their defaults before binding. This
+     * operation is fire-and-forget. An invalid state machine handle is reported asynchronously
+     * through the state machine error callback and command queue logging; it is not thrown by this
+     * method.
+     * Do not call this for a state machine concurrently managed by [Rive] or [RiveCanvasSession];
+     * raw commands bypass their declarative binding cache and can desynchronize native state from
+     * the declared configuration.
+     *
+     * Binding does not evaluate the state machine. If no renderer is actively advancing it, queue
+     * [advanceStateMachine] before drawing or observing artboard or state-machine effects produced
+     * by the new bindings. Advancing by 0 is sufficient to allow the state machine to adopt the
+     * bound values.
+     *
+     * @param stateMachineHandle The handle of the state machine whose bindings should be applied.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun bind(stateMachineHandle: StateMachineHandle) = bridge.cppBind(
+        requireNativePointer(),
+        nextRequestID.getAndIncrement(),
+        stateMachineHandle.handle
     )
 
     /**

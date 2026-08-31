@@ -3,6 +3,7 @@ package app.rive.compose
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.ExperimentalRiveGlobalViewModels
 import app.rive.Rive
 import app.rive.RiveAndroidTest
 import app.rive.RiveIncompatibleResourceException
@@ -25,7 +26,7 @@ class RiveResourceValidationComposeTest : RiveAndroidTest() {
 
     @Test
     fun rive_rejectsClosedResources() = runBlocking<Unit> {
-        val resources = loadDefaultRiveResources(R.raw.empty)
+        val resources = loadRiveResources(R.raw.empty)
         resources.file.close()
 
         assertFailsWith<RiveResourceClosedException> {
@@ -37,8 +38,8 @@ class RiveResourceValidationComposeTest : RiveAndroidTest() {
 
     @Test
     fun rive_rejectsArtboardFromAnotherFile() = runBlocking<Unit> {
-        val first = loadDefaultRiveResources(R.raw.empty)
-        val second = loadDefaultRiveResources(R.raw.empty)
+        val first = loadRiveResources(R.raw.empty)
+        val second = loadRiveResources(R.raw.empty)
 
         assertFailsWith<RiveIncompatibleResourceException> {
             composeRule.setContent {
@@ -49,8 +50,8 @@ class RiveResourceValidationComposeTest : RiveAndroidTest() {
 
     @Test
     fun rive_rejectsStateMachineFromAnotherArtboard() = runBlocking<Unit> {
-        val first = loadDefaultRiveResources(R.raw.empty)
-        val second = loadDefaultRiveResources(R.raw.empty)
+        val first = loadRiveResources(R.raw.empty)
+        val second = loadRiveResources(R.raw.empty)
 
         assertFailsWith<RiveIncompatibleResourceException> {
             composeRule.setContent {
@@ -65,7 +66,7 @@ class RiveResourceValidationComposeTest : RiveAndroidTest() {
 
     @Test
     fun rive_rejectsViewModelInstanceFromAnotherWorker() = runBlocking<Unit> {
-        val resources = loadDefaultRiveResources(R.raw.empty)
+        val resources = loadRiveResources(R.raw.empty)
         val foreignWorker = RiveWorker()
         val foreignInstance = ViewModelInstance(
             ViewModelInstanceHandle(1L),
@@ -81,6 +82,33 @@ class RiveResourceValidationComposeTest : RiveAndroidTest() {
                         artboard = resources.artboard,
                         stateMachine = resources.stateMachine,
                         viewModelInstance = foreignInstance,
+                    )
+                }
+            }
+        } finally {
+            foreignWorker.release(javaClass.simpleName, "Test cleanup")
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalRiveGlobalViewModels::class)
+    fun rive_rejectsGlobalViewModelInstanceFromAnotherWorker() = runBlocking<Unit> {
+        val resources = loadRiveResources(R.raw.empty)
+        val foreignWorker = RiveWorker()
+        val foreignInstance = ViewModelInstance(
+            ViewModelInstanceHandle(1L),
+            foreignWorker,
+            FileHandle(1L),
+        )
+
+        try {
+            assertFailsWith<RiveIncompatibleResourceException> {
+                composeRule.setContent {
+                    Rive(
+                        file = resources.file,
+                        artboard = resources.artboard,
+                        stateMachine = resources.stateMachine,
+                        globalViewModelInstances = mapOf("Theme" to foreignInstance),
                     )
                 }
             }

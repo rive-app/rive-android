@@ -4,6 +4,7 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.StateMachineHandle
+import app.rive.core.ViewModelInstanceHandle
 import app.rive.semantics.SemanticActionType
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -11,6 +12,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -23,6 +25,7 @@ import kotlin.time.Duration.Companion.ZERO
 
 private const val STATE_MACHINE_TEST_FILE_HANDLE = 789L
 
+@OptIn(ExperimentalRiveGlobalViewModels::class)
 class StateMachineUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
     val renderContextMock = fixture.renderContextMock
@@ -160,6 +163,195 @@ class StateMachineUnitTest : FunSpec({
         verify(exactly = 0) {
             worker.createStateMachineByName(any(), any())
         }
+    }
+
+    test("View model bindings apply an initial empty configuration only once") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            stateMachineHandle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        stateMachine.bindViewModels(null, emptyMap())
+        stateMachine.bindViewModels(null, emptyMap())
+
+        verify(exactly = 1) { worker.bind(stateMachineHandle) }
+        verify(exactly = 1) { worker.unsettleStateMachine(stateMachineHandle) }
+        verify(exactly = 0) { worker.setMainViewModelInstance(any(), any()) }
+        verify(exactly = 0) { worker.clearMainViewModelInstance(any()) }
+        verify(exactly = 0) { worker.setGlobalViewModelInstance(any(), any(), any()) }
+        verify(exactly = 0) { worker.clearGlobalViewModelInstance(any(), any()) }
+    }
+
+    test("View model bindings diff the complete configuration") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            stateMachineHandle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+        val mainA = ViewModelInstance(
+            ViewModelInstanceHandle(100),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val mainB = ViewModelInstance(
+            ViewModelInstanceHandle(101),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val globalA = ViewModelInstance(
+            ViewModelInstanceHandle(200),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val globalB = ViewModelInstance(
+            ViewModelInstanceHandle(201),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val preserved = ViewModelInstance(
+            ViewModelInstanceHandle(202),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+
+        stateMachine.bindViewModels(
+            mainA,
+            linkedMapOf(
+                "Theme" to globalA,
+                "Locale" to globalB,
+                "Preserved" to preserved,
+            ),
+        )
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        // Replace main and Theme, remove Locale, add Motion, and retain Preserved unchanged.
+        stateMachine.bindViewModels(
+            mainB,
+            linkedMapOf(
+                "Theme" to globalB,
+                "Preserved" to preserved,
+                "Motion" to globalA,
+            ),
+        )
+
+        verifyOrder {
+            worker.setMainViewModelInstance(stateMachineHandle, mainB.instanceHandle)
+            worker.clearGlobalViewModelInstance(stateMachineHandle, "Locale")
+            worker.setGlobalViewModelInstance(
+                stateMachineHandle,
+                "Theme",
+                globalB.instanceHandle,
+            )
+            worker.setGlobalViewModelInstance(
+                stateMachineHandle,
+                "Motion",
+                globalA.instanceHandle,
+            )
+            worker.bind(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+        verify(exactly = 0) {
+            worker.setGlobalViewModelInstance(stateMachineHandle, "Preserved", any())
+        }
+        verify(exactly = 0) {
+            worker.clearGlobalViewModelInstance(stateMachineHandle, "Preserved")
+        }
+
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        // Removing the explicit main and globals clears only their former slots.
+        stateMachine.bindViewModels(null, mapOf("Preserved" to preserved))
+
+        verifyOrder {
+            worker.clearMainViewModelInstance(stateMachineHandle)
+            worker.clearGlobalViewModelInstance(stateMachineHandle, "Theme")
+            worker.clearGlobalViewModelInstance(stateMachineHandle, "Motion")
+            worker.bind(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+        verify(exactly = 0) {
+            worker.clearGlobalViewModelInstance(stateMachineHandle, "Preserved")
+        }
+    }
+
+    test("View model bindings validate every instance before dispatch") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val foreignWorker = mockk<CommandQueue>(relaxed = true)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            stateMachineHandle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+        val main = ViewModelInstance(
+            ViewModelInstanceHandle(100),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val foreignGlobal = ViewModelInstance(
+            ViewModelInstanceHandle(200),
+            foreignWorker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        shouldThrow<RiveIncompatibleResourceException> {
+            stateMachine.bindViewModels(main, mapOf("Theme" to foreignGlobal))
+        }
+
+        verify(exactly = 0) { worker.setMainViewModelInstance(any(), any()) }
+        verify(exactly = 0) { worker.setGlobalViewModelInstance(any(), any(), any()) }
+        verify(exactly = 0) { worker.bind(any()) }
+        verify(exactly = 0) { worker.unsettleStateMachine(any()) }
+    }
+
+    test("View model bindings snapshot a mutable global map") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            stateMachineHandle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+        val first = ViewModelInstance(
+            ViewModelInstanceHandle(200),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val replacement = ViewModelInstance(
+            ViewModelInstanceHandle(201),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+        )
+        val globals = mutableMapOf("Theme" to first)
+        stateMachine.bindViewModels(null, globals)
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        globals["Theme"] = replacement
+        stateMachine.bindViewModels(null, globals)
+
+        verify(exactly = 1) {
+            worker.setGlobalViewModelInstance(
+                stateMachineHandle,
+                "Theme",
+                replacement.instanceHandle,
+            )
+        }
+        verify(exactly = 1) { worker.bind(stateMachineHandle) }
     }
 
     test("Advance throws after close without queuing native work") {

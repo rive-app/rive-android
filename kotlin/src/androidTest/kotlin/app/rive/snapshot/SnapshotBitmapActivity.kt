@@ -104,10 +104,7 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
                         file,
                         ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
                     ).use { vmi ->
-                        file.riveWorker.bindViewModelInstance(
-                            stateMachine.stateMachineHandle,
-                            vmi.instanceHandle
-                        )
+                        stateMachine.bindViewModels(vmi, emptyMap())
 
                         when (config) {
                             is SnapshotActivityConfig.Sweep -> {

@@ -40,6 +40,7 @@ import app.rive.semantics.rememberRiveSemanticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.nanoseconds
 
@@ -73,12 +74,13 @@ enum class RivePointerInputMode {
  * @param artboard An optional artboard that must have been created from [file].
  * @param stateMachine An optional state machine created from [artboard]. A state machine cannot be
  *    supplied without its originating artboard.
- * @param viewModelInstance An optional view model instance owned by [file]'s worker. An instance
- *    from another file is compatible only when used with relative data-binding paths authored in
- *    the Rive editor; cross-file use with absolute paths is unsupported.
+ * @param viewModelInstance An optional main view model instance owned by [file]'s worker.
+ * @param globalViewModelInstances Explicit global view model instances keyed by global view model
+ *    name. Every instance must be owned by [file]'s worker.
  * @throws RiveResourceClosedException If any supplied resource has been closed.
- * @throws RiveIncompatibleResourceException If [artboard], [stateMachine], or [viewModelInstance]
- *    cannot be used together, or if [stateMachine] is supplied without [artboard].
+ * @throws RiveIncompatibleResourceException If [artboard], [stateMachine], [viewModelInstance], or
+ *    an entry in [globalViewModelInstances] cannot be used together, or if [stateMachine] is
+ *    supplied without [artboard].
  */
 @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
 internal fun validateRiveResourceArguments(
@@ -86,11 +88,13 @@ internal fun validateRiveResourceArguments(
     artboard: Artboard?,
     stateMachine: StateMachine?,
     viewModelInstance: ViewModelInstance?,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
 ) {
     file.checkOpen()
     artboard?.checkOpen()
     stateMachine?.checkOpen()
     viewModelInstance?.checkOpen()
+    globalViewModelInstances.values.forEach(ViewModelInstance::checkOpen)
     artboard?.requireFromFile(file)
     if (stateMachine != null) {
         if (artboard == null) {
@@ -104,6 +108,9 @@ internal fun validateRiveResourceArguments(
     // binding mode is not available here, worker ownership is the compatibility boundary;
     // unsupported absolute cross-file bindings cannot be rejected synchronously.
     viewModelInstance?.requireOwnedBy(file.riveWorker)
+    globalViewModelInstances.values.forEach { instance ->
+        instance.requireOwnedBy(file.riveWorker)
+    }
 }
 
 /**
@@ -131,6 +138,17 @@ internal fun validateRiveResourceArguments(
  * and [stateMachine] here. Any resource left null retains the silent implicit-creation behavior
  * described above.
  *
+ * This composable always binds the selected state machine. On the initial bind, omitted main and
+ * global view model instances are created from their authored defaults instead of leaving the
+ * state machine unbound. These implicit instances are not exposed to the caller; create and supply
+ * explicit instances when their properties must be read or changed from application code.
+ *
+ * A supplied [stateMachine] should not be shared by multiple active renderers. Each renderer
+ * operates on the same mutable native state machine: advancing it in either renderer affects both,
+ * and binding a different view model instance in one replaces the binding observed by the other.
+ * Use a separately instantiated artboard and state machine for each concurrently active renderer
+ * when their playback or data-binding state must be independent.
+ *
  * @param file The [RiveFile] that created the artboard and state machine.
  * @param modifier The [Modifier] to apply to the composable.
  * @param playing Whether the state machine should advance with elapsed frame time. When true
@@ -139,11 +157,12 @@ internal fun validateRiveResourceArguments(
  * @param artboard The [Artboard] to render. If null, the default artboard will be used.
  * @param stateMachine The [StateMachine] to use. It must have been created from [artboard], which
  *    must also be supplied. If null, the default state machine for the selected artboard will be
- *    created.
- * @param viewModelInstance The [ViewModelInstance] to bind to the state machine. An instance from
- *    another file on the same Rive worker is supported only when the state machine uses relative
- *    data-binding paths authored in the Rive editor. Cross-file binding with absolute paths is
- *    unsupported. If null, no view model instance will be bound.
+ *    created. A supplied instance should not be used by another active renderer.
+ * @param viewModelInstance The main [ViewModelInstance] to bind to the state machine. An instance
+ *    from another file on the same Rive worker is supported only when the state machine uses
+ *    relative data-binding paths authored in the Rive editor. Cross-file binding with absolute
+ *    paths is unsupported. If null, a main instance is created from its authored default when one
+ *    is available.
  * @param fit The [Fit] to use for the artboard. Defaults to [Fit.Contain].
  * @param backgroundColor The color to clear the surface with before drawing. Defaults to
  *    transparent.
@@ -186,8 +205,132 @@ fun Rive(
     frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
     semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
+) = RiveImpl(
+    file = file,
+    modifier = modifier,
+    playing = playing,
+    artboard = artboard,
+    stateMachine = stateMachine,
+    viewModelInstance = viewModelInstance,
+    fit = fit,
+    backgroundColor = backgroundColor,
+    pointerInputMode = pointerInputMode,
+    frameRate = frameRate,
+    semantics = semantics,
+    onBitmapAvailable = onBitmapAvailable,
+    globalViewModelInstances = emptyMap(),
+)
+
+/**
+ * Renders a Rive file with explicit global view model bindings.
+ *
+ * This overload has the same rendering and resource behavior as [Rive], while adding experimental
+ * global view model support.
+ *
+ * @param file The [RiveFile] that created the artboard and state machine.
+ * @param modifier The [Modifier] to apply to the composable.
+ * @param playing Whether the state machine should advance with elapsed frame time.
+ * @param artboard The [Artboard] to render, or null to create the default artboard.
+ * @param stateMachine The [StateMachine] to use, or null to create the default state machine.
+ * @param viewModelInstance The main [ViewModelInstance] to bind, or null to use its authored
+ *    default.
+ * @param fit The [Fit] to use for the artboard.
+ * @param backgroundColor The color used to clear the surface before drawing.
+ * @param pointerInputMode Controls how pointer events are handled and consumed by Rive.
+ * @param frameRate Controls how often Rive advances and draws while [playing] is true.
+ * @param semantics Controls whether Rive-authored Android accessibility semantics are exposed.
+ * @param onBitmapAvailable Optional callback invoked when the first bitmap frame is available.
+ * @param globalViewModelInstances Explicit global [ViewModelInstance] bindings keyed by global
+ *    view model name. Omitted globals are created from their authored defaults. Removing an entry
+ *    discards that binding and creates a fresh default instance from its authored values without
+ *    replacing unchanged globals; runtime state accumulated by the removed binding is not
+ *    retained. Implicit default instances are not exposed, so explicitly create and supply any
+ *    instance that application code needs to read or change. Map mutations must trigger
+ *    recomposition to be observed; immutable maps or Compose-observable state are recommended.
+ *    Every instance must belong to the same Rive worker; the same relative-path limitations
+ *    described for [viewModelInstance] apply across files. Invalid global names and native binding
+ *    failures are reported asynchronously through command queue logging.
+ * @throws RiveResourceClosedException If [file] or a supplied Rive resource has been closed, or if
+ *    the owning Rive worker has been disposed.
+ * @throws RiveIncompatibleResourceException If a supplied resource cannot be used with [file] or
+ *    the selected artboard.
+ */
+@ExperimentalRiveGlobalViewModels
+@Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
+@Composable
+fun Rive(
+    file: RiveFile,
+    modifier: Modifier = Modifier,
+    playing: Boolean = true,
+    artboard: Artboard? = null,
+    stateMachine: StateMachine? = null,
+    viewModelInstance: ViewModelInstance? = null,
+    fit: Fit = RenderingDefaults.defaultFit(),
+    backgroundColor: Int = RenderingDefaults.CLEAR_COLOR,
+    pointerInputMode: RivePointerInputMode = Consume,
+    frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
+    semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+    onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
+) = RiveImpl(
+    file = file,
+    modifier = modifier,
+    playing = playing,
+    artboard = artboard,
+    stateMachine = stateMachine,
+    viewModelInstance = viewModelInstance,
+    fit = fit,
+    backgroundColor = backgroundColor,
+    pointerInputMode = pointerInputMode,
+    frameRate = frameRate,
+    semantics = semantics,
+    onBitmapAvailable = onBitmapAvailable,
+    globalViewModelInstances = globalViewModelInstances,
+)
+
+/**
+ * Implements the stable and experimental [Rive] overloads.
+ *
+ * @param file The file to render.
+ * @param modifier The modifier applied to the composable.
+ * @param playing Whether playback is active.
+ * @param artboard The supplied artboard, or null to create the default.
+ * @param stateMachine The supplied state machine, or null to create the default.
+ * @param viewModelInstance The explicitly supplied main view model instance.
+ * @param fit The artboard fit.
+ * @param backgroundColor The surface clear color.
+ * @param pointerInputMode The pointer input behavior.
+ * @param frameRate The requested rendering frame rate.
+ * @param semantics The accessibility semantics mode.
+ * @param onBitmapAvailable The optional first-frame bitmap callback.
+ * @param globalViewModelInstances The explicit global view model bindings.
+ */
+@Composable
+private fun RiveImpl(
+    file: RiveFile,
+    modifier: Modifier,
+    playing: Boolean,
+    artboard: Artboard?,
+    stateMachine: StateMachine?,
+    viewModelInstance: ViewModelInstance?,
+    fit: Fit,
+    backgroundColor: Int,
+    pointerInputMode: RivePointerInputMode,
+    frameRate: RiveFrameRate,
+    semantics: RiveSemanticsMode,
+    onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
 ) {
-    validateRiveResourceArguments(file, artboard, stateMachine, viewModelInstance)
+    // Copy the map on every recomposition so a mutable caller-owned map cannot mutate a previously
+    // stored effect key in place and conceal a configuration change from Compose.
+    val globalViewModelInstancesSnapshot = globalViewModelInstances.toMap()
+    validateRiveResourceArguments(
+        file,
+        artboard,
+        stateMachine,
+        viewModelInstance,
+        globalViewModelInstancesSnapshot,
+    )
 
     RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -210,6 +353,7 @@ fun Rive(
                 "stateMachine" to stateMachine,
                 "stateMachineHandle" to readyResources?.stateMachine?.stateMachineHandle,
                 "viewModelInstance" to viewModelInstance,
+                "globalViewModelInstances" to globalViewModelInstancesSnapshot,
                 "fit" to fit,
                 "backgroundColor" to backgroundColor,
                 "semantics" to semantics,
@@ -244,6 +388,7 @@ fun Rive(
                 riveWorker = riveWorker,
                 resources = readyResources,
                 viewModelInstance = viewModelInstance,
+                globalViewModelInstances = globalViewModelInstancesSnapshot,
                 fit = fit,
                 backgroundColor = backgroundColor,
                 playing = playing,
@@ -560,7 +705,8 @@ private fun RiveSurfaceHost(
  *
  * @param riveWorker The worker that owns [resources] and [surface].
  * @param resources The artboard and state machine generation to operate on.
- * @param viewModelInstance The optional view model instance to bind.
+ * @param viewModelInstance The optional main view model instance to bind.
+ * @param globalViewModelInstances Explicit global instances keyed by global view model name.
  * @param fit The fit used for sizing, pointer mapping, and drawing.
  * @param backgroundColor The color used to clear each frame.
  * @param playing Whether the state machine should advance continuously.
@@ -579,6 +725,7 @@ private fun RiveResourceEffects(
     riveWorker: RiveWorker,
     resources: ReadyResources,
     viewModelInstance: ViewModelInstance?,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
     fit: Fit,
     backgroundColor: Int,
     playing: Boolean,
@@ -595,10 +742,11 @@ private fun RiveResourceEffects(
     val artboard = resources.artboard
     val stateMachine = resources.stateMachine
 
-    BindViewModelInstanceEffect(
+    BindViewModelInstancesEffect(
         riveWorker = riveWorker,
         stateMachine = stateMachine,
         viewModelInstance = viewModelInstance,
+        globalViewModelInstances = globalViewModelInstances,
         requestPausedFrame = requestPausedFrame,
     )
     RiveSemanticsEffects(
@@ -634,6 +782,7 @@ private fun RiveResourceEffects(
         artboard = artboard,
         stateMachine = stateMachine,
         viewModelInstance = viewModelInstance,
+        globalViewModelInstances = globalViewModelInstances,
         fit = fit,
         backgroundColor = backgroundColor,
         playing = playing,
@@ -709,45 +858,41 @@ private fun RiveSemanticsEffects(
 }
 
 /**
- * Binds a view model instance to one state machine generation and observes its dirty state.
+ * Binds main and global view model instances to one state machine generation and observes them.
  *
- * @param riveWorker The worker that owns [stateMachine] and [viewModelInstance].
+ * @param riveWorker The worker that owns [stateMachine] and every supplied instance.
  * @param stateMachine The state machine to bind and unsettle.
- * @param viewModelInstance The view model instance to bind, or null when none is configured.
+ * @param viewModelInstance The main view model instance to bind, or null to use its default.
+ * @param globalViewModelInstances Explicit global instances keyed by global view model name.
  * @param requestPausedFrame Requests a zero-delta frame after a binding mutation while paused.
  */
 @Composable
-private fun BindViewModelInstanceEffect(
+private fun BindViewModelInstancesEffect(
     riveWorker: RiveWorker,
     stateMachine: StateMachine,
     viewModelInstance: ViewModelInstance?,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
     requestPausedFrame: () -> Unit,
 ) {
     val stateMachineHandle = stateMachine.stateMachineHandle
-    LaunchedEffect(riveWorker, stateMachine, viewModelInstance) {
-        if (viewModelInstance == null) {
-            RiveLog.d(VM_INSTANCE_TAG) { "No view model instance to bind for $stateMachineHandle" }
-            return@LaunchedEffect
-        }
+    LaunchedEffect(riveWorker, stateMachine, viewModelInstance, globalViewModelInstances) {
+        stateMachine.bindViewModels(viewModelInstance, globalViewModelInstances)
 
-        RiveLog.d(VM_INSTANCE_TAG) {
-            "Binding view model instance ${viewModelInstance.instanceHandle}"
-        }
-        riveWorker.bindViewModelInstance(
-            stateMachineHandle,
-            viewModelInstance.instanceHandle,
-        )
-
-        // Assigning a view model instance unsettles the state machine.
-        stateMachine.unsettle()
-
-        // Subscribe to the instance's dirty flow to unsettle when properties change.
-        viewModelInstance.dirtyFlow.collect {
-            RiveLog.v(VM_INSTANCE_TAG) {
-                "View model instance dirty, unsettling $stateMachineHandle"
+        val instances = buildList {
+            viewModelInstance?.let(::add)
+            addAll(globalViewModelInstances.values)
+        }.distinctBy(ViewModelInstance::instanceHandle)
+        instances.forEach { instance ->
+            launch {
+                instance.dirtyFlow.collect {
+                    RiveLog.v(VM_INSTANCE_TAG) {
+                        "View model instance ${instance.instanceHandle} dirty, " +
+                            "unsettling $stateMachineHandle"
+                    }
+                    stateMachine.unsettle()
+                    requestPausedFrame()
+                }
             }
-            stateMachine.unsettle()
-            requestPausedFrame()
         }
     }
 }
@@ -853,7 +998,9 @@ private fun UpdateArtboardLayoutEffect(
  * @param surface The current rendering surface, or null while unavailable.
  * @param artboard The artboard to draw.
  * @param stateMachine The state machine to advance and draw.
- * @param viewModelInstance The bound view model instance, included in effect identity.
+ * @param viewModelInstance The bound main view model instance, included in effect identity.
+ * @param globalViewModelInstances The bound global view model instances, included in effect
+ *    identity.
  * @param fit The fit used when drawing.
  * @param backgroundColor The color used to clear each frame.
  * @param playing Whether to draw once or advance continuously.
@@ -871,6 +1018,7 @@ private fun DrawRiveFramesEffect(
     artboard: Artboard,
     stateMachine: StateMachine,
     viewModelInstance: ViewModelInstance?,
+    globalViewModelInstances: Map<String, ViewModelInstance>,
     fit: Fit,
     backgroundColor: Int,
     playing: Boolean,
@@ -889,6 +1037,7 @@ private fun DrawRiveFramesEffect(
         artboard,
         stateMachine,
         viewModelInstance,
+        globalViewModelInstances,
         fit,
         backgroundColor,
         playing,

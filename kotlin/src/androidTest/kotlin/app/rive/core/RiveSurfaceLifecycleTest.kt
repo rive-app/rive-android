@@ -101,7 +101,7 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
 
     @Test
     fun draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         val gate = CountDownLatch(1)
         val closeableSurface = LatchingImageReaderSurface()
         val surface = riveWorker.createRiveSurface(closeableSurface)
@@ -131,7 +131,7 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
 
     @Test
     fun stress_draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
 
         // Stressed variant of draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal.
         // Repeated close should cancel pending coalesced draws and keep disposal orderly.

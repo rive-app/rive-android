@@ -228,12 +228,74 @@ interface CommandQueueBridge {
         viewModelInstanceHandle: Long
     )
 
-    fun cppBindViewModelInstance(
+    /**
+     * Sets the main view model instance without applying the state machine's bindings.
+     *
+     * @param pointer Pointer to the native command queue.
+     * @param requestID ID used to associate asynchronous errors with this request.
+     * @param stateMachineHandle Handle of the state machine to update.
+     * @param viewModelInstanceHandle Handle of the main view model instance.
+     */
+    fun cppSetMainViewModelInstance(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
         viewModelInstanceHandle: Long
     )
+
+    /**
+     * Clears the main view model instance without applying the state machine's bindings.
+     *
+     * @param pointer Pointer to the native command queue.
+     * @param requestID ID used to associate asynchronous errors with this request.
+     * @param stateMachineHandle Handle of the state machine to update.
+     */
+    fun cppClearMainViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long
+    )
+
+    /**
+     * Sets a named global view model instance without applying the state machine's bindings.
+     *
+     * @param pointer Pointer to the native command queue.
+     * @param requestID ID used to associate asynchronous errors with this request.
+     * @param stateMachineHandle Handle of the state machine to update.
+     * @param name Name of the global view model slot.
+     * @param viewModelInstanceHandle Handle of the view model instance to place in the slot.
+     */
+    fun cppSetGlobalViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long,
+        name: String,
+        viewModelInstanceHandle: Long
+    )
+
+    /**
+     * Clears a named global view model instance without applying the state machine's bindings.
+     *
+     * @param pointer Pointer to the native command queue.
+     * @param requestID ID used to associate asynchronous errors with this request.
+     * @param stateMachineHandle Handle of the state machine to update.
+     * @param name Name of the global view model slot to clear.
+     */
+    fun cppClearGlobalViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long,
+        name: String
+    )
+
+    /**
+     * Applies the main and global view model instances currently set on a state machine.
+     *
+     * @param pointer Pointer to the native command queue.
+     * @param requestID ID used to associate asynchronous errors with this request.
+     * @param stateMachineHandle Handle of the state machine whose bindings should be applied.
+     */
+    fun cppBind(pointer: Long, requestID: Long, stateMachineHandle: Long)
 
     fun cppSetNumberProperty(
         pointer: Long,
@@ -744,11 +806,38 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         viewModelInstanceHandle: Long
     )
 
-    external override fun cppBindViewModelInstance(
+    external override fun cppSetMainViewModelInstance(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
         viewModelInstanceHandle: Long
+    )
+
+    external override fun cppClearMainViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long
+    )
+
+    external override fun cppSetGlobalViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long,
+        name: String,
+        viewModelInstanceHandle: Long
+    )
+
+    external override fun cppClearGlobalViewModelInstance(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long,
+        name: String
+    )
+
+    external override fun cppBind(
+        pointer: Long,
+        requestID: Long,
+        stateMachineHandle: Long
     )
 
     external override fun cppSetNumberProperty(

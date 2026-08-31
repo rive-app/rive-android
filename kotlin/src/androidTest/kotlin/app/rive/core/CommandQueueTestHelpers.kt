@@ -140,8 +140,8 @@ internal inline fun <T> CommandQueue.withPolling(block: CommandQueue.() -> T): T
     }
 }
 
-/** Public app.rive resource wrapper set used by tests that exercise higher-level APIs. */
-internal data class DefaultRiveResources(
+/** Closeable public app.rive resource set used by higher-level instrumentation tests. */
+internal data class CloseableRiveResources(
     val file: RiveFile,
     val artboard: Artboard,
     val stateMachine: StateMachine,
@@ -152,21 +152,28 @@ internal data class DefaultRiveResources(
     }
 }
 
+/** Compatibility name for callers that specifically request default resources. */
+internal typealias DefaultRiveResources = CloseableRiveResources
+
 /**
- * Loads [rawResourceId] and creates the default public [Artboard] and [StateMachine].
+ * Loads [rawResourceId] and creates its selected public [Artboard] and [StateMachine].
  *
  * The caller owns the returned resources and must close them.
  *
  * @param rawResourceId The raw Rive resource to load.
- * @return The loaded file and its default artboard and state machine.
- * @throws RiveFileException If the file or its default artboard cannot be loaded.
- * @throws RiveArtboardException If the default state machine cannot be loaded.
+ * @param artboardName The artboard to create, or null for the default artboard.
+ * @param stateMachineName The state machine to create, or null for the selected artboard's default.
+ * @return The loaded file and its selected artboard and state machine.
+ * @throws RiveFileException If the file or requested artboard cannot be loaded.
+ * @throws RiveArtboardException If the requested state machine cannot be loaded.
  * @throws RiveResourceClosedException If this worker is disposed during creation.
  * @throws CancellationException If the coroutine is cancelled during creation.
  */
-internal suspend fun RiveWorker.loadDefaultRiveResources(
-    @RawRes rawResourceId: Int
-): DefaultRiveResources {
+internal suspend fun RiveWorker.loadRiveResources(
+    @RawRes rawResourceId: Int,
+    artboardName: String? = null,
+    stateMachineName: String? = null,
+): CloseableRiveResources {
     var file: RiveFile? = null
     var artboard: Artboard? = null
     var stateMachine: StateMachine? = null
@@ -176,9 +183,9 @@ internal suspend fun RiveWorker.loadDefaultRiveResources(
             RiveFileSource.RawRes(rawResourceId, context.resources),
             this,
         )
-        artboard = Artboard.create(file)
-        stateMachine = StateMachine.create(artboard)
-        return DefaultRiveResources(file, artboard, stateMachine)
+        artboard = Artboard.create(file, artboardName)
+        stateMachine = StateMachine.create(artboard, stateMachineName)
+        return CloseableRiveResources(file, artboard, stateMachine)
     } catch (failure: Throwable) {
         try {
             closeAll(stateMachine, artboard, file)
@@ -190,10 +197,51 @@ internal suspend fun RiveWorker.loadDefaultRiveResources(
 }
 
 /**
- * Loads [rawResourceId] and creates the default public [Artboard] and [StateMachine].
+ * Loads [rawResourceId] and creates its default public [Artboard] and [StateMachine].
+ *
+ * @param rawResourceId The raw Rive resource to load.
+ * @return The loaded file and its default artboard and state machine.
+ * @throws RiveFileException If the file or its default artboard cannot be loaded.
+ * @throws RiveArtboardException If the default state machine cannot be loaded.
+ * @throws RiveResourceClosedException If this worker is disposed during creation.
+ * @throws CancellationException If the coroutine is cancelled during creation.
+ */
+internal suspend fun RiveWorker.loadDefaultRiveResources(
+    @RawRes rawResourceId: Int,
+): DefaultRiveResources = loadRiveResources(rawResourceId)
+
+/**
+ * Loads [rawResourceId] and creates its selected public [Artboard] and [StateMachine].
  *
  * The returned resources are closed after [block] completes, keeping tests focused on the behavior
  * under test rather than nested resource cleanup.
+ *
+ * @param rawResourceId The raw Rive resource to load.
+ * @param artboardName The artboard to create, or null for the default artboard.
+ * @param stateMachineName The state machine to create, or null for the selected artboard's default.
+ * @param block The operation to run with the loaded resources.
+ * @return The result of [block].
+ * @throws RiveFileException If the file or requested artboard cannot be loaded.
+ * @throws RiveArtboardException If the requested state machine cannot be loaded.
+ * @throws RiveResourceClosedException If this worker is disposed during creation.
+ * @throws CancellationException If the coroutine is cancelled during creation.
+ */
+internal suspend inline fun <T> RiveWorker.withRiveResources(
+    @RawRes rawResourceId: Int,
+    artboardName: String? = null,
+    stateMachineName: String? = null,
+    block: CloseableRiveResources.() -> T,
+): T {
+    val resources = loadRiveResources(rawResourceId, artboardName, stateMachineName)
+    try {
+        return resources.block()
+    } finally {
+        resources.close()
+    }
+}
+
+/**
+ * Runs [block] with the default resources created from [rawResourceId], then closes them.
  *
  * @param rawResourceId The raw Rive resource to load.
  * @param block The operation to run with the loaded resources.
@@ -205,15 +253,8 @@ internal suspend fun RiveWorker.loadDefaultRiveResources(
  */
 internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
     @RawRes rawResourceId: Int,
-    block: DefaultRiveResources.() -> T
-): T {
-    val resources = loadDefaultRiveResources(rawResourceId)
-    try {
-        return resources.block()
-    } finally {
-        resources.close()
-    }
-}
+    block: DefaultRiveResources.() -> T,
+): T = withRiveResources(rawResourceId, block = block)
 
 /** Verifies that final release started and completed command queue teardown. */
 internal fun assertDisposed(commandQueue: CommandQueue) {

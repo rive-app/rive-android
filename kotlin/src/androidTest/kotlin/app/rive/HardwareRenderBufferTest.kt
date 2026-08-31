@@ -6,7 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.withDefaultRiveResources
+import app.rive.core.withRiveResources
 import app.rive.core.withPolling
 import app.rive.runtime.kotlin.test.R
 import kotlinx.coroutines.CoroutineStart
@@ -49,7 +49,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun close_afterFramePublication_closesBufferAndSurface() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             buffer.render(res.artboard, res.stateMachine)
             assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
@@ -91,7 +91,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun operations_afterClose_throw() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         val buffer = HardwareRenderBuffer(64, 64, riveWorker)
         buffer.close()
 
@@ -106,7 +106,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_withClosedArtboard_throws() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         res.artboard.close()
 
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
@@ -119,7 +119,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_withClosedStateMachine_throws() = runBlocking<Unit> {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         res.stateMachine.close()
 
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
@@ -134,10 +134,10 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     fun render_withMismatchedResources_throws() = runBlocking<Unit> {
         val foreignWorker = RiveWorker()
         try {
-            val owningRes = loadDefaultRiveResources(R.raw.empty)
-            val siblingRes = loadDefaultRiveResources(R.raw.empty)
+            val owningRes = loadRiveResources(R.raw.empty)
+            val siblingRes = loadRiveResources(R.raw.empty)
             foreignWorker.withPolling {
-                foreignWorker.withDefaultRiveResources(R.raw.empty) {
+                foreignWorker.withRiveResources(R.raw.empty) {
                     HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
                         assertFailsWith<RiveIncompatibleResourceException> {
                             buffer.render(artboard, owningRes.stateMachine)
@@ -168,7 +168,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_firstFrame_canBeConsumedWithoutCollectingFrameAvailable() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             buffer.render(res.artboard, res.stateMachine)
 
@@ -179,7 +179,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun render_repeatedly_emitsAndConsumesHardwareBitmaps() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             repeat(3) {
                 val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
@@ -199,7 +199,7 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun consumeLatestBitmap_returnsHardwareBitmap() = runBlocking {
-        val res = loadDefaultRiveResources(R.raw.empty)
+        val res = loadRiveResources(R.raw.empty)
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
             val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
                 withTimeout(2_000L) { buffer.frameAvailable.first() }
