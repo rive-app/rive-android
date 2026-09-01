@@ -1184,11 +1184,16 @@ class CommandQueue internal constructor(
      * @param fileHandle The handle of the file that owns the view model.
      * @param viewModelName The name of the view model to query.
      * @return A list of view model instance names on the view model.
-     * @throws RiveFileException If the file operation fails.
+     * @throws RiveViewModelInstanceException If the file operation fails or [viewModelName] does
+     *    not exist.
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelInstanceNames(
         fileHandle: FileHandle,
         viewModelName: String

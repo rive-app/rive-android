@@ -24,6 +24,7 @@ private const val TEST_RIVE_FILE_ARTBOARD_HANDLE = 456L
 private const val TEST_VIEW_MODEL_NAME = "TestViewModel"
 
 class RiveFileUnitTest : FunSpec({
+    // Construction and lifecycle
     test("Factory returns a loaded file") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val handle = FileHandle(TEST_RIVE_FILE_HANDLE)
@@ -33,10 +34,24 @@ class RiveFileUnitTest : FunSpec({
 
         file.fileHandle shouldBe handle
         file.closed shouldBe false
-        verify(exactly = 1) { worker.acquire(any()) }
-        verify(exactly = 0) { worker.release(any(), any()) }
+        verify(exactly = 2) { worker.acquire(any()) }
+        verify(exactly = 1) { worker.release(any(), "Load success") }
         file.close()
         file.closed shouldBe true
+        verify(exactly = 1) { worker.release(any(), "RiveFile closed") }
+    }
+
+    test("Directly constructed file owns a worker reference until close") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+
+        val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)
+
+        verify(exactly = 1) { worker.acquire(any()) }
+        verify(exactly = 0) { worker.release(any(), any()) }
+
+        file.close()
+
+        verify(exactly = 1) { worker.release(any(), "RiveFile closed") }
     }
 
     test("Factory propagates loading failure") {
@@ -88,52 +103,6 @@ class RiveFileUnitTest : FunSpec({
         result shouldBe Result.Error(expected)
         verify(exactly = 1) { worker.acquire(any()) }
         verify(exactly = 1) { worker.release(any(), "Load error") }
-    }
-
-    test("Default view model query rejects a closed artboard before querying worker") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)
-        val artboard = Artboard(
-            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE),
-            worker,
-            FileHandle(TEST_RIVE_FILE_HANDLE),
-            "Closed Artboard",
-        ).also { it.close() }
-        clearMocks(worker, answers = false, recordedCalls = true)
-
-        shouldThrow<RiveResourceClosedException> {
-            file.getDefaultViewModelInfo(artboard)
-        }.message shouldContain TEST_RIVE_FILE_ARTBOARD_HANDLE.toString()
-
-        confirmVerified(worker)
-    }
-
-    test("Default view model query rejects an artboard from another file or worker") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        val foreignWorker = mockk<CommandQueue>(relaxed = true)
-        val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)
-        val siblingFileArtboard = Artboard(
-            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE),
-            worker,
-            FileHandle(TEST_RIVE_FILE_HANDLE + 1),
-            "Sibling File Artboard",
-        )
-        val foreignWorkerArtboard = Artboard(
-            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE + 1),
-            foreignWorker,
-            FileHandle(TEST_RIVE_FILE_HANDLE),
-            "Foreign Worker Artboard",
-        )
-
-        shouldThrow<RiveIncompatibleResourceException> {
-            file.getDefaultViewModelInfo(siblingFileArtboard)
-        }.message shouldContain TEST_RIVE_FILE_ARTBOARD_HANDLE.toString()
-        shouldThrow<RiveIncompatibleResourceException> {
-            file.getDefaultViewModelInfo(foreignWorkerArtboard)
-        }.message shouldContain (TEST_RIVE_FILE_ARTBOARD_HANDLE + 1).toString()
-
-        confirmVerified(worker)
-        confirmVerified(foreignWorker)
     }
 
     test("All cached queries throw after close without querying worker again") {
@@ -212,5 +181,53 @@ class RiveFileUnitTest : FunSpec({
         coVerify(exactly = 1) {
             worker.getDefaultViewModelInfo(fileHandle, artboardHandle)
         }
+    }
+
+    // getDefaultViewModelInfo
+    test("Default view model query rejects a closed artboard before querying worker") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)
+        val artboard = Artboard(
+            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE),
+            worker,
+            FileHandle(TEST_RIVE_FILE_HANDLE),
+            "Closed Artboard",
+        ).also { it.close() }
+        clearMocks(worker, answers = false, recordedCalls = true)
+
+        shouldThrow<RiveResourceClosedException> {
+            file.getDefaultViewModelInfo(artboard)
+        }.message shouldContain TEST_RIVE_FILE_ARTBOARD_HANDLE.toString()
+
+        confirmVerified(worker)
+    }
+
+    test("Default view model query rejects an artboard from another file or worker") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val foreignWorker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_RIVE_FILE_HANDLE), worker)
+        val siblingFileArtboard = Artboard(
+            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE),
+            worker,
+            FileHandle(TEST_RIVE_FILE_HANDLE + 1),
+            "Sibling File Artboard",
+        )
+        val foreignWorkerArtboard = Artboard(
+            ArtboardHandle(TEST_RIVE_FILE_ARTBOARD_HANDLE + 1),
+            foreignWorker,
+            FileHandle(TEST_RIVE_FILE_HANDLE),
+            "Foreign Worker Artboard",
+        )
+        clearMocks(worker, foreignWorker, answers = false, recordedCalls = true)
+
+        shouldThrow<RiveIncompatibleResourceException> {
+            file.getDefaultViewModelInfo(siblingFileArtboard)
+        }.message shouldContain TEST_RIVE_FILE_ARTBOARD_HANDLE.toString()
+        shouldThrow<RiveIncompatibleResourceException> {
+            file.getDefaultViewModelInfo(foreignWorkerArtboard)
+        }.message shouldContain (TEST_RIVE_FILE_ARTBOARD_HANDLE + 1).toString()
+
+        confirmVerified(worker)
+        confirmVerified(foreignWorker)
     }
 })

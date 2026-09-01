@@ -102,11 +102,8 @@ class RiveFile internal constructor(
             riveWorker: RiveWorker
         ): RiveFile {
             RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
-            var workerReferenceAcquired = false // A failed acquire must not be balanced by release.
-            return try {
-                riveWorker.acquire(FILE_TAG)
-                workerReferenceAcquired = true
-
+            riveWorker.acquire(FILE_TAG)
+            val file = try {
                 val fileBytes = when (source) {
                     is RiveFileSource.Bytes -> source.data
                     is RiveFileSource.RawRes -> {
@@ -125,18 +122,17 @@ class RiveFile internal constructor(
             } catch (ce: CancellationException) {
                 // Thrown by withContext if the coroutine is cancelled
                 RiveLog.d(FILE_TAG) { "Rive file loading was cancelled: $source" }
-                if (workerReferenceAcquired) {
-                    riveWorker.release(FILE_TAG, "Cancellation")
-                }
+                riveWorker.release(FILE_TAG, "Cancellation")
                 // Propagate the cancellation exception, needed by callers to handle cancellation correctly
                 throw ce
             } catch (e: Exception) {
                 RiveLog.e(FILE_TAG, e) { "Error loading Rive file with source: $source" }
-                if (workerReferenceAcquired) {
-                    riveWorker.release(FILE_TAG, "Load error")
-                }
+                riveWorker.release(FILE_TAG, "Load error")
                 throw e
             }
+            // The file now owns its own reference; release the factory's temporary load reference.
+            riveWorker.release(FILE_TAG, "Load success")
+            return file
         }
 
         /**
@@ -168,6 +164,11 @@ class RiveFile internal constructor(
         } catch (e: Exception) {
             Result.Error(e)
         }
+    }
+
+    init {
+        // Every file owns a worker reference, including files created through this constructor.
+        riveWorker.acquire(FILE_TAG)
     }
 
     /**
@@ -227,10 +228,15 @@ class RiveFile internal constructor(
      * @return A list of all instance names available on the given view model.
      * @throws RiveResourceClosedException If this file has been closed or its Rive worker has been
      *    disposed.
-     * @throws RiveFileException If the file operation fails.
+     * @throws RiveViewModelInstanceException If the file operation fails or [viewModel] does not
+     *    exist.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveViewModelInstanceException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelInstanceNames(viewModel: String): List<String> {
         closer.checkOpen()
         return synchronized(instanceNamesCache) {
