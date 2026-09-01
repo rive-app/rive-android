@@ -22,6 +22,7 @@ import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val STATE_MACHINE_TEST_FILE_HANDLE = 789L
 
@@ -30,6 +31,48 @@ class StateMachineUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
     val renderContextMock = fixture.renderContextMock
     val commandQueueBridgeMock = fixture.commandQueueBridgeMock
+
+    test("Close deletes once and reports closed") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            handle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+
+        stateMachine.closed shouldBe false
+        stateMachine.close()
+        stateMachine.closed shouldBe true
+        stateMachine.close()
+
+        verify(exactly = 1) { worker.deleteStateMachine(handle) }
+    }
+
+    test("Factory returns the default state machine") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val artboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val handle = StateMachineHandle(HANDLE_NUM)
+        coEvery {
+            worker.createDefaultStateMachineConfirmed(artboard.artboardHandle)
+        } returns handle
+        every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+
+        val stateMachine = StateMachine.create(artboard)
+
+        stateMachine.stateMachineHandle shouldBe handle
+        stateMachine.name shouldBe null
+        coVerify(exactly = 1) {
+            worker.createDefaultStateMachineConfirmed(artboard.artboardHandle)
+        }
+    }
 
     test("Factory returns a named state machine") {
         val worker = mockk<CommandQueue>(relaxed = true)
@@ -96,6 +139,30 @@ class StateMachineUnitTest : FunSpec({
         } shouldBe cancellation
     }
 
+    test("Factory rejects a closed artboard before creating a state machine") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val artboard = Artboard(
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            worker,
+            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
+            "Closed Artboard",
+        ).also { it.close() }
+
+        shouldThrow<RiveResourceClosedException> {
+            StateMachine.create(artboard)
+        }.message shouldContain ARTBOARD_HANDLE_NUM.toString()
+        shouldThrow<RiveResourceClosedException> {
+            StateMachine.create(artboard, "Named State Machine")
+        }.message shouldContain ARTBOARD_HANDLE_NUM.toString()
+
+        coVerify(exactly = 0) {
+            worker.createDefaultStateMachineConfirmed(any())
+        }
+        coVerify(exactly = 0) {
+            worker.createStateMachineByNameConfirmed(any(), any())
+        }
+    }
+
     test("Compatibility helpers reject another worker or artboard") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val foreignWorker = mockk<CommandQueue>(relaxed = true)
@@ -139,30 +206,6 @@ class StateMachineUnitTest : FunSpec({
                 )
             )
         }.message shouldContain HANDLE_NUM.toString()
-    }
-
-    test("Factory rejects a closed artboard before creating a state machine") {
-        val worker = mockk<CommandQueue>(relaxed = true)
-        val artboard = Artboard(
-            ArtboardHandle(ARTBOARD_HANDLE_NUM),
-            worker,
-            FileHandle(STATE_MACHINE_TEST_FILE_HANDLE),
-            "Closed Artboard",
-        ).also { it.close() }
-
-        shouldThrow<RiveResourceClosedException> {
-            StateMachine.fromArtboard(artboard)
-        }.message shouldContain ARTBOARD_HANDLE_NUM.toString()
-        shouldThrow<RiveResourceClosedException> {
-            StateMachine.fromArtboard(artboard, "Named State Machine")
-        }.message shouldContain ARTBOARD_HANDLE_NUM.toString()
-
-        verify(exactly = 0) {
-            worker.createDefaultStateMachine(any())
-        }
-        verify(exactly = 0) {
-            worker.createStateMachineByName(any(), any())
-        }
     }
 
     test("View model bindings apply an initial empty configuration only once") {
@@ -352,6 +395,23 @@ class StateMachineUnitTest : FunSpec({
             )
         }
         verify(exactly = 1) { worker.bind(stateMachineHandle) }
+    }
+
+    test("Advance delegates the duration to the worker") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = StateMachineHandle(HANDLE_NUM)
+        every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        val stateMachine = StateMachine(
+            handle,
+            worker,
+            ArtboardHandle(ARTBOARD_HANDLE_NUM),
+            "Test State Machine",
+        )
+        val duration = 16.milliseconds
+
+        stateMachine.advance(duration)
+
+        verify(exactly = 1) { worker.advanceStateMachine(handle, duration) }
     }
 
     test("Advance throws after close without queuing native work") {

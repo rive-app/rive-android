@@ -19,6 +19,41 @@ private const val TEST_FILE_HANDLE = 123L
 private const val TEST_ARTBOARD_HANDLE = 456L
 
 class ArtboardUnitTest : FunSpec({
+    test("Close deletes once and reports closed") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+
+        artboard.closed shouldBe false
+        artboard.close()
+        artboard.closed shouldBe true
+        artboard.close()
+
+        verify(exactly = 1) { worker.deleteArtboard(handle) }
+    }
+
+    test("Factory returns the default artboard") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        coEvery {
+            worker.createDefaultArtboardConfirmed(file.fileHandle)
+        } returns handle
+
+        val artboard = Artboard.create(file)
+
+        artboard.artboardHandle shouldBe handle
+        artboard.name shouldBe null
+        coVerify(exactly = 1) {
+            worker.createDefaultArtboardConfirmed(file.fileHandle)
+        }
+    }
+
     test("Factory returns a named artboard") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker)
@@ -62,6 +97,25 @@ class ArtboardUnitTest : FunSpec({
         } shouldBe cancellation
     }
 
+    test("Factory rejects a closed file before creating an artboard") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker).also { it.close() }
+
+        shouldThrow<RiveResourceClosedException> {
+            Artboard.create(file)
+        }.message shouldContain TEST_FILE_HANDLE.toString()
+        shouldThrow<RiveResourceClosedException> {
+            Artboard.create(file, "Named Artboard")
+        }.message shouldContain TEST_FILE_HANDLE.toString()
+
+        coVerify(exactly = 0) {
+            worker.createDefaultArtboardConfirmed(any())
+        }
+        coVerify(exactly = 0) {
+            worker.createArtboardByNameConfirmed(any(), any())
+        }
+    }
+
     test("Compatibility helpers reject another worker or file") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val foreignWorker = mockk<CommandQueue>(relaxed = true)
@@ -86,23 +140,21 @@ class ArtboardUnitTest : FunSpec({
         }.message shouldContain TEST_ARTBOARD_HANDLE.toString()
     }
 
-    test("Factory rejects a closed file before creating an artboard") {
+    test("Get state machine names returns the worker result") {
         val worker = mockk<CommandQueue>(relaxed = true)
-        val file = RiveFile(FileHandle(TEST_FILE_HANDLE), worker).also { it.close() }
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val names = listOf("Idle", "Pressed")
+        coEvery { worker.getStateMachineNames(handle) } returns names
 
-        shouldThrow<RiveResourceClosedException> {
-            Artboard.fromFile(file)
-        }.message shouldContain TEST_FILE_HANDLE.toString()
-        shouldThrow<RiveResourceClosedException> {
-            Artboard.fromFile(file, "Named Artboard")
-        }.message shouldContain TEST_FILE_HANDLE.toString()
+        artboard.getStateMachineNames() shouldBe names
 
-        verify(exactly = 0) {
-            worker.createDefaultArtboard(any())
-        }
-        verify(exactly = 0) {
-            worker.createArtboardByName(any(), any())
-        }
+        coVerify(exactly = 1) { worker.getStateMachineNames(handle) }
     }
 
     test("Get state machine names throws after close without querying worker") {
@@ -115,6 +167,22 @@ class ArtboardUnitTest : FunSpec({
         coVerify(exactly = 0) {
             subject.worker.getStateMachineNames(any())
         }
+    }
+
+    test("Resize artboard delegates the surface and scale factor") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        val surface = TestRiveSurface(worker, width = 100, height = 200)
+
+        artboard.resizeArtboard(surface, scaleFactor = 2f)
+
+        verify(exactly = 1) { worker.resizeArtboard(handle, surface, 2f) }
     }
 
     test("Resize artboard throws after close without queuing worker command") {
@@ -170,6 +238,21 @@ class ArtboardUnitTest : FunSpec({
         }
     }
 
+    test("Reset artboard size delegates to the worker") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+
+        artboard.resetArtboardSize()
+
+        verify(exactly = 1) { worker.resetArtboardSize(handle) }
+    }
+
     test("Reset artboard size throws after close without queuing worker command") {
         val subject = ClosedArtboardSubject()
 
@@ -182,6 +265,21 @@ class ArtboardUnitTest : FunSpec({
         }
     }
 
+    test("Set volume delegates to the worker") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+
+        artboard.setVolume(0.25f)
+
+        verify(exactly = 1) { worker.setArtboardVolume(handle, 0.25f) }
+    }
+
     test("Set volume throws after close without queuing worker command") {
         val subject = ClosedArtboardSubject()
 
@@ -192,6 +290,22 @@ class ArtboardUnitTest : FunSpec({
         verify(exactly = 0) {
             subject.worker.setArtboardVolume(any(), any())
         }
+    }
+
+    test("Get volume returns the worker result") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
+        val artboard = Artboard(
+            handle,
+            worker,
+            FileHandle(TEST_FILE_HANDLE),
+            "Test Artboard",
+        )
+        coEvery { worker.getArtboardVolume(handle) } returns 0.75f
+
+        artboard.getVolume() shouldBe 0.75f
+
+        coVerify(exactly = 1) { worker.getArtboardVolume(handle) }
     }
 
     test("Get volume throws after close without querying worker") {
