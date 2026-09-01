@@ -5,7 +5,9 @@ package app.rive.runtime.kotlin.core
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  * @see RiveGeneralEvent
+ * @deprecated Rive events are deprecated. Use data binding instead.
  */
+@Deprecated("Rive events are deprecated. Use data binding instead.")
 class RiveOpenURLEvent(unsafeCppPointer: Long, delay: Float) : RiveEvent(unsafeCppPointer, delay) {
     private external fun cppURL(cppPointer: Long): String
     private external fun cppTarget(cppPointer: Long): String

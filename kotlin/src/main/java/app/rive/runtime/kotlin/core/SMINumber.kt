@@ -2,7 +2,12 @@ package app.rive.runtime.kotlin.core
 
 import java.util.concurrent.locks.ReentrantLock
 
-/** A floating point number state machine input. */
+/**
+ * A floating point number state machine input.
+ *
+ * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+ */
+@Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
 class SMINumber internal constructor(
     unsafeCppPointer: Long,
     fileLock: ReentrantLock,

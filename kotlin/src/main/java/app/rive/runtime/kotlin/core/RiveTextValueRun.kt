@@ -9,7 +9,9 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  * @param fileLock Lock shared by the [File] and native graph this text run belongs to.
+ * @deprecated Text runs are deprecated. Use data binding instead.
  */
+@Deprecated("Text runs are deprecated. Use data binding instead.")
 open class RiveTextValueRun internal constructor(
     unsafeCppPointer: Long,
     private val fileLock: ReentrantLock,

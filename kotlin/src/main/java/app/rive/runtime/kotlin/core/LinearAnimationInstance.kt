@@ -9,7 +9,11 @@ import java.util.concurrent.locks.ReentrantLock
  * that the animation makes to components in an [Artboard].
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @deprecated Linear animations are deprecated. Use a state machine to control playback instead.
  */
+@Deprecated(
+    "Linear animations are deprecated. Use a state machine to control playback instead."
+)
 class LinearAnimationInstance(
     unsafeCppPointer: Long,
     private val lock: ReentrantLock,

@@ -2,6 +2,13 @@ package app.rive.runtime.kotlin.core
 
 enum class RendererType(val value: Int) {
     Rive(0),
+
+    /**
+     * Uses the Android Canvas renderer.
+     *
+     * @deprecated The Canvas renderer is deprecated. Use the Rive renderer instead.
+     */
+    @Deprecated("The Canvas renderer is deprecated. Use the Rive renderer instead.")
     Canvas(1);
 
     companion object {

@@ -71,7 +71,14 @@ import kotlin.math.min
  *
  * All of this is built upon the C++ wrappers under the `app.rive.runtime.kotlin.core` namespace
  * which can be used directly for the most flexibility.
+ *
+ * @deprecated Use the APIs in the `app.rive` package. The legacy API will be removed in a future
+ *    release.
  */
+@Deprecated(
+    message = "The legacy API is deprecated. Use the APIs in the app.rive package.",
+    level = DeprecationLevel.WARNING
+)
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     RiveTextureView(context, attrs), Observable<RiveFileController.Listener> {
     companion object {
@@ -82,6 +89,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Default attribute values.
         val alignmentIndexDefault = Alignment.CENTER.ordinal
         val fitIndexDefault = Fit.CONTAIN.ordinal
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         val loopIndexDefault = Loop.AUTO.ordinal
         const val traceAnimationsDefault = false
         const val shouldLoadCDNAssetsDefault = true
@@ -171,19 +181,51 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             controller.autoplay = value
         }
 
-    /** Get the currently loaded [animation instances][LinearAnimationInstance]. */
+    /**
+     * Get the currently loaded [animation instances][LinearAnimationInstance].
+     *
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val animations: List<LinearAnimationInstance>
         get() = controller.animations
 
-    /** Get the currently loaded [state machine instances][StateMachineInstance]. */
+    /**
+     * Get the currently loaded [state machine instances][StateMachineInstance].
+     *
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val stateMachines: List<StateMachineInstance>
         get() = controller.stateMachines
 
-    /** Get the currently playing [animation instances][LinearAnimationInstance]. */
+    /**
+     * Get the currently playing [animation instances][LinearAnimationInstance].
+     *
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val playingAnimations: HashSet<LinearAnimationInstance>
         get() = controller.playingAnimations
 
-    /** Get the currently playing [state machine instances][StateMachineInstance]. */
+    /**
+     * Get the currently playing [state machine instances][StateMachineInstance].
+     *
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val playingStateMachines: HashSet<StateMachineInstance>
         get() = controller.playingStateMachines
 
@@ -236,6 +278,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         var autoBind: Boolean = false,
         var riveTraceAnimations: Boolean = false,
         var artboardName: String?,
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         var animationName: String?,
         var stateMachineName: String?,
         var resource: ResourceType?,
@@ -278,6 +323,15 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         var alignment: Alignment = Alignment.fromIndex(alignmentIndex)
         var fit: Fit = Fit.fromIndex(fitIndex)
+        /**
+         * The playback behavior for linear animations.
+         *
+         * @deprecated Linear animations are deprecated. Use a state machine to control playback
+         *    instead.
+         */
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         var loop: Loop = Loop.fromIndex(loopIndex)
         var rendererType: RendererType = RendererType.fromIndex(rendererIndex)
     }
@@ -303,12 +357,32 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         fun setAlignment(value: Alignment) = apply { alignment = value }
         fun setFit(value: Fit) = apply { fit = value }
+
+        /**
+         * Sets the playback behavior for linear animations.
+         *
+         * @deprecated Linear animations are deprecated. Use a state machine to control playback
+         *    instead.
+         */
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         fun setLoop(value: Loop) = apply { loop = value }
         fun setRendererType(value: RendererType) = apply { rendererType = value }
         fun setAutoplay(value: Boolean) = apply { autoplay = value }
         fun setAutoBind(value: Boolean) = apply { autoBind = value }
         fun setTraceAnimations(value: Boolean) = apply { traceAnimations = value }
         fun setArtboardName(value: String) = apply { artboardName = value }
+
+        /**
+         * Selects a linear animation by name.
+         *
+         * @deprecated Linear animations are deprecated. Use a state machine to control playback
+         *    instead.
+         */
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         fun setAnimationName(value: String) = apply { animationName = value }
         fun setStateMachineName(value: String) = apply { stateMachineName = value }
         fun setResource(value: Any) = apply {
@@ -668,7 +742,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      *
      * @param stateMachineName The state machine name.
      * @param inputName The trigger input name.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun fireState(stateMachineName: String, inputName: String) {
         controller.fireState(stateMachineName = stateMachineName, inputName = inputName)
     }
@@ -679,7 +755,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @param stateMachineName The state machine name.
      * @param inputName The boolean input name.
      * @param value The new value.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
         controller.setBooleanState(
             stateMachineName = stateMachineName, inputName = inputName, value = value
@@ -692,7 +770,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @param stateMachineName The state machine name.
      * @param inputName The number input name.
      * @param value The new value.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
         controller.setNumberState(
             stateMachineName = stateMachineName, inputName = inputName, value = value
@@ -704,7 +784,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      *
      * @param inputName The trigger name.
      * @param path The path to the nested artboard.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun fireStateAtPath(inputName: String, path: String) {
         controller.fireStateAtPath(inputName = inputName, path = path)
     }
@@ -715,7 +797,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @param inputName The boolean input name.
      * @param value The new value.
      * @param path The path to the nested artboard.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
         controller.setBooleanStateAtPath(inputName = inputName, value = value, path = path)
     }
@@ -726,19 +810,29 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @param inputName The number input name.
      * @param value The new value.
      * @param path The path to the nested artboard.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
         controller.setNumberStateAtPath(inputName = inputName, value = value, path = path)
     }
 
-    /** Update multiple states at once supplying one or more [inputs]. */
+    /**
+     * Update multiple states at once supplying one or more [inputs].
+     *
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setMultipleStates(vararg inputs: ChangedInput) {
         controller.queueInputs(*inputs)
     }
 
     /**
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
+     *
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(textRunName: String): String? {
         return controller.getTextRunValue(textRunName = textRunName)
     }
@@ -746,7 +840,10 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     /**
      * Get the text value for a text run named [textRunName] on the nested artboard represented at
      * [path].
+     *
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(textRunName: String, path: String): String? {
         return controller.getTextRunValue(textRunName = textRunName, path = path)
     }
@@ -755,7 +852,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
      *
      * @throws TextValueRunException if the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun setTextRunValue(textRunName: String, textValue: String) {
         controller.setTextRunValue(textRunName = textRunName, textValue = textValue)
     }
@@ -765,7 +864,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * represented at [path].
      *
      * @throws TextValueRunException if the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun setTextRunValue(textRunName: String, textValue: String, path: String) {
         controller.setTextRunValue(textRunName = textRunName, textValue = textValue, path = path)
     }
@@ -1078,10 +1179,24 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         setMeasuredDimension(width, height)
     }
 
+    /**
+     * Registers a legacy controller [listener].
+     *
+     * @param listener The listener to register.
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     override fun registerListener(listener: RiveFileController.Listener) {
         controller.registerListener(listener)
     }
 
+    /**
+     * Unregisters a legacy controller [listener].
+     *
+     * @param listener The listener to unregister.
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     override fun unregisterListener(listener: RiveFileController.Listener) {
         controller.unregisterListener(listener)
     }
@@ -1091,12 +1206,20 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * [RiveEvent]s.
      *
      * Remove with: [removeEventListener].
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
      */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     fun addEventListener(listener: RiveFileController.RiveEventListener) {
         controller.addEventListener(listener)
     }
 
-    /** Removes the [listener]. */
+    /**
+     * Removes the [listener].
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
+     */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     fun removeEventListener(listener: RiveFileController.RiveEventListener) {
         controller.removeEventListener(listener)
     }
@@ -1290,7 +1413,10 @@ sealed class ResourceType {
 /**
  * Wraps the data necessary for grabbing an input with [name] with [value] [value] is necessary when
  * wrapping [SMINumber] and [SMIBoolean] inputs.
+ *
+ * @deprecated State machine inputs are deprecated. Use data binding properties instead.
  */
+@Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
 data class ChangedInput(
     val stateMachineName: String,
     val name: String,

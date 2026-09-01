@@ -2,7 +2,12 @@ package app.rive.runtime.kotlin.core
 
 /**
  * Represents the outcome of advancing a [LinearAnimationInstance].
+ *
+ * @deprecated Linear animations are deprecated. Use a state machine to control playback instead.
  */
+@Deprecated(
+    "Linear animations are deprecated. Use a state machine to control playback instead."
+)
 enum class AdvanceResult {
     /** The animation advanced but did not loop or finish. */
     ADVANCED,

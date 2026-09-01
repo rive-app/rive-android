@@ -46,9 +46,23 @@ annotation class ControllerStateManagement
 class ControllerState internal constructor(
     val file: File,
     val activeArtboard: Artboard,
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val animations: List<LinearAnimationInstance>,
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val playingAnimations: HashSet<LinearAnimationInstance>,
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val stateMachines: List<StateMachineInstance>,
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val playingStateMachines: HashSet<StateMachineInstance>,
     val isActive: Boolean,
 ) {
@@ -60,14 +74,28 @@ class ControllerState internal constructor(
 
 typealias OnStartCallback = () -> Unit
 
+/**
+ * Controls the file, artboard, animations, and state machines displayed by a legacy Rive view.
+ *
+ * @deprecated Use the APIs in the `app.rive` package. The legacy API will be removed in a future
+ *    release.
+ */
+@Deprecated(
+    message = "The legacy API is deprecated. Use the APIs in the app.rive package.",
+    level = DeprecationLevel.WARNING
+)
 @OpenForTesting
 class RiveFileController internal constructor(
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     var loop: Loop = Loop.AUTO,
     var autoplay: Boolean = true,
     file: File? = null,
     activeArtboard: Artboard? = null,
     var onStart: OnStartCallback? = null,
 
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal val changedInputs: ConcurrentLinkedQueue<ChangedInput> = ConcurrentLinkedQueue(),
 ) : Observable<RiveFileController.Listener>, RefCount {
@@ -206,6 +234,16 @@ class RiveFileController internal constructor(
     // Warning: `toList()` access is not thread-safe, use animations instead
     private var animationList =
         Collections.synchronizedList(mutableListOf<LinearAnimationInstance>())
+
+    /**
+     * The linear animation instances loaded by this controller.
+     *
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val animations: List<LinearAnimationInstance>
         get() {
             return synchronized(animationList) {
@@ -216,6 +254,15 @@ class RiveFileController internal constructor(
     // Warning: `toList()` access is not thread-safe, use stateMachines instead
     private var stateMachineList =
         Collections.synchronizedList(mutableListOf<StateMachineInstance>())
+    /**
+     * The state machine instances loaded by this controller.
+     *
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val stateMachines: List<StateMachineInstance>
         get() {
             return synchronized(stateMachineList) {
@@ -226,6 +273,16 @@ class RiveFileController internal constructor(
     // Warning: toHashSet access is not thread-safe, use playingAnimations instead
     private var playingAnimationSet =
         Collections.synchronizedSet(HashSet<LinearAnimationInstance>())
+
+    /**
+     * The linear animation instances currently playing on this controller.
+     *
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val playingAnimations: HashSet<LinearAnimationInstance>
         get() {
             return synchronized(playingAnimationSet) {
@@ -236,6 +293,15 @@ class RiveFileController internal constructor(
     // Warning: toHashSet access is not thread-safe, use playingStateMachines instead
     private var playingStateMachineSet =
         Collections.synchronizedSet(HashSet<StateMachineInstance>())
+    /**
+     * The state machine instances currently playing on this controller.
+     *
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val playingStateMachines: HashSet<StateMachineInstance>
         get() {
             // toHashSet is not thread safe...
@@ -244,6 +310,15 @@ class RiveFileController internal constructor(
             }
         }
 
+    /**
+     * The loaded linear animation instances that are currently paused.
+     *
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val pausedAnimations: Set<LinearAnimationInstance>
         get() {
             return animations subtract playingAnimations
@@ -684,6 +759,13 @@ class RiveFileController internal constructor(
         )
     }
 
+    /**
+     * Queues state machine input changes for the next advance.
+     *
+     * @param inputs The state machine input changes to queue.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     internal fun queueInputs(vararg inputs: ChangedInput) {
         // `synchronize(startStopLock)` so the UI thread will not attempt starting while the worker
         // thread is still deciding to stop.
@@ -735,10 +817,29 @@ class RiveFileController internal constructor(
         playableSet.forEach { play(it, settleStateMachineState = false) }
     }
 
+    /**
+     * Queues a trigger input to fire.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The trigger input name.
+     * @param path An optional nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun fireState(stateMachineName: String, inputName: String, path: String? = null) {
         queueInput(stateMachineName = stateMachineName, inputName = inputName, path = path)
     }
 
+    /**
+     * Queues a boolean input value.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The boolean input name.
+     * @param value The new input value.
+     * @param path An optional nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setBooleanState(
         stateMachineName: String,
         inputName: String,
@@ -753,6 +854,16 @@ class RiveFileController internal constructor(
         )
     }
 
+    /**
+     * Queues a number input value.
+     *
+     * @param stateMachineName The state machine name.
+     * @param inputName The number input name.
+     * @param value The new input value.
+     * @param path An optional nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setNumberState(
         stateMachineName: String,
         inputName: String,
@@ -767,21 +878,50 @@ class RiveFileController internal constructor(
         )
     }
 
+    /**
+     * Queues a trigger input on a nested artboard to fire.
+     *
+     * @param inputName The trigger input name.
+     * @param path The nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun fireStateAtPath(inputName: String, path: String) {
         queueInput(stateMachineName = "", inputName = inputName, path = path)
     }
 
+    /**
+     * Queues a boolean input value on a nested artboard.
+     *
+     * @param inputName The boolean input name.
+     * @param value The new input value.
+     * @param path The nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setBooleanStateAtPath(inputName: String, value: Boolean, path: String) {
         queueInput(stateMachineName = "", inputName = inputName, value = value, path = path)
     }
 
+    /**
+     * Queues a number input value on a nested artboard.
+     *
+     * @param inputName The number input name.
+     * @param value The new input value.
+     * @param path The nested-artboard path.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setNumberStateAtPath(inputName: String, value: Float, path: String) {
         queueInput(stateMachineName = "", inputName = inputName, value = value, path = path)
     }
 
     /**
      * Get the current value for a text run named [textRunName] on the active artboard if it exists.
+     *
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(textRunName: String): String? {
         return activeArtboard?.getTextRunValue(textRunName)
     }
@@ -789,7 +929,10 @@ class RiveFileController internal constructor(
     /**
      * Get the text value for a text run named [textRunName] on the nested artboard represented at
      * [path].
+     *
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(textRunName: String, path: String): String? {
         return activeArtboard?.getTextRunValue(textRunName, path)
     }
@@ -798,7 +941,9 @@ class RiveFileController internal constructor(
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
      *
      * @throws TextValueRunException if the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun setTextRunValue(textRunName: String, textValue: String) {
         activeArtboard?.setTextRunValue(textRunName, textValue)
         stateMachines.forEach {
@@ -811,7 +956,9 @@ class RiveFileController internal constructor(
      * represented at [path].
      *
      * @throws TextValueRunException if the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun setTextRunValue(textRunName: String, textValue: String, path: String) {
         activeArtboard?.setTextRunValue(textRunName, textValue, path)
         stateMachines.forEach {
@@ -1083,6 +1230,12 @@ class RiveFileController internal constructor(
     private var _listeners: MutableSet<Listener> =
         Collections.synchronizedSet(HashSet<Listener>())
 
+    /**
+     * A snapshot of the registered controller listeners.
+     *
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val listeners: HashSet<Listener>
         get() {
@@ -1092,18 +1245,38 @@ class RiveFileController internal constructor(
     private var _eventListeners: MutableSet<RiveEventListener> =
         Collections.synchronizedSet(HashSet<RiveEventListener>())
 
+    /**
+     * A snapshot of the registered event listeners.
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
+     */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val eventListeners: HashSet<RiveEventListener>
         get() {
             return synchronized(_eventListeners) { _eventListeners.toHashSet() }
         }
 
+    /**
+     * Registers a legacy controller [listener].
+     *
+     * @param listener The listener to register.
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     override fun registerListener(listener: Listener) {
         synchronized(startStopLock) {
             _listeners.add(listener)
         }
     }
 
+    /**
+     * Unregisters a legacy controller [listener].
+     *
+     * @param listener The listener to unregister.
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     override fun unregisterListener(listener: Listener) {
         synchronized(startStopLock) {
             _listeners.remove(listener)
@@ -1114,14 +1287,22 @@ class RiveFileController internal constructor(
      * Adds a [RiveEventListener] to get notified on [RiveEvent]s.
      *
      * Remove with: [removeEventListener].
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
      */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     fun addEventListener(listener: RiveEventListener) {
         synchronized(startStopLock) {
             _eventListeners.add(listener)
         }
     }
 
-    /** Removes the [listener]. */
+    /**
+     * Removes the [listener].
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
+     */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     fun removeEventListener(listener: RiveEventListener) {
         synchronized(startStopLock) {
             _eventListeners.remove(listener)
@@ -1193,15 +1374,36 @@ class RiveFileController internal constructor(
         return count
     }
 
+    /**
+     * Receives legacy playback and state change callbacks from this controller.
+     *
+     * @deprecated Controller listeners are deprecated. Use data binding instead.
+     */
+    @Deprecated("Controller listeners are deprecated. Use data binding instead.")
     interface Listener {
         fun notifyPlay(animation: PlayableInstance)
         fun notifyPause(animation: PlayableInstance)
         fun notifyStop(animation: PlayableInstance)
+        /**
+         * Reports that a linear animation looped.
+         *
+         * @deprecated Linear animations are deprecated. Use a state machine to control playback
+         *    instead.
+         */
+        @Deprecated(
+            "Linear animations are deprecated. Use a state machine to control playback instead."
+        )
         fun notifyLoop(animation: PlayableInstance)
         fun notifyStateChanged(stateMachineName: String, stateName: String)
         fun notifyAdvance(elapsed: Float) {}
     }
 
+    /**
+     * Receives events reported by a state machine.
+     *
+     * @deprecated Rive events are deprecated. Use data binding instead.
+     */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     interface RiveEventListener {
         fun notifyEvent(event: RiveEvent)
     }

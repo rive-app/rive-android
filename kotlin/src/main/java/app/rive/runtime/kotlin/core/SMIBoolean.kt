@@ -2,7 +2,12 @@ package app.rive.runtime.kotlin.core
 
 import java.util.concurrent.locks.ReentrantLock
 
-/** A boolean state machine input. */
+/**
+ * A boolean state machine input.
+ *
+ * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+ */
+@Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
 class SMIBoolean internal constructor(
     unsafeCppPointer: Long,
     fileLock: ReentrantLock,

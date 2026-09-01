@@ -9,7 +9,9 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  * @param fileLock Lock shared by the [File] and native graph this input belongs to.
+ * @deprecated State machine inputs are deprecated. Use data binding properties instead.
  */
+@Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
 open class SMIInput internal constructor(
     unsafeCppPointer: Long,
     protected val fileLock: ReentrantLock,

@@ -2,7 +2,12 @@ package app.rive.runtime.kotlin.core
 
 import java.util.concurrent.locks.ReentrantLock
 
-/** A trigger state machines input. */
+/**
+ * A trigger state machine input.
+ *
+ * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+ */
+@Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
 class SMITrigger internal constructor(
     unsafeCppPointer: Long,
     fileLock: ReentrantLock,

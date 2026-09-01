@@ -106,7 +106,11 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
     fun pointerExit(pointerID: Int, x: Float, y: Float) =
         synchronized(fileLock) { cppPointerExit(cppPointer, pointerID, x, y) }
 
-    /** @return The number of inputs configured for the state machine. */
+    /**
+     * @return The number of inputs configured for the state machine.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     val inputCount: Int
         get() = synchronized(fileLock) { cppInputCount(cppPointer) }
 
@@ -131,7 +135,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * This starts at 0.
      *
      * @throws StateMachineInputException If no [SMIInput] is found at the given [index].
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     @Throws(StateMachineInputException::class)
     fun input(index: Int): SMIInput = synchronized(fileLock) {
         val stateMachineInputPointer = cppSMIInputByIndex(cppPointer, index)
@@ -146,7 +152,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * Get the input with a given [name] in the state machine.
      *
      * @throws StateMachineInputException If no [SMIInput] is found with the given [name].
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     @Throws(StateMachineInputException::class)
     fun input(name: String): SMIInput = synchronized(fileLock) {
         for (i in 0 until inputCount) {
@@ -158,11 +166,19 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
         throw StateMachineInputException("No StateMachineInput found with name $name.")
     }
 
-    /** @return All inputs in the state machine. */
+    /**
+     * @return All inputs in the state machine.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     val inputs: List<SMIInput>
         get() = synchronized(fileLock) { (0 until inputCount).map { input(it) } }
 
-    /** @return The names of all inputs in the state machine. */
+    /**
+     * @return The names of all inputs in the state machine.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
+     */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     val inputNames: List<String>
         get() = synchronized(fileLock) { (0 until inputCount).map { input(it).name } }
 
@@ -198,7 +214,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * @param index The index of the event.
      * @return The reported event at [index].
      * @throws RiveEventException If no event is found at the given [index].
+     * @deprecated Rive events are deprecated. Use data binding instead.
      */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     @Throws(RiveEventException::class)
     fun eventAt(index: Int): RiveEvent = synchronized(fileLock) {
         val eventReport = cppReportedEventAt(cppPointer, index)
@@ -229,7 +247,9 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
      * reset the native event reports between those operations.
      *
      * @return All events fired in the last advance.
+     * @deprecated Rive events are deprecated. Use data binding instead.
      */
+    @Deprecated("Rive events are deprecated. Use data binding instead.")
     val eventsReported: List<RiveEvent>
         get() = synchronized(fileLock) {
             (0 until reportedEventCount).map { eventAt(it) }

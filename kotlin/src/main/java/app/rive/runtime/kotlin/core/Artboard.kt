@@ -111,7 +111,12 @@ class Artboard(
      * If you use more than one animation, it is preferred to use the [animation] functions.
      *
      * @throws AnimationException if the animation does not exist.
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
      */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val firstAnimation: LinearAnimationInstance
         @Throws(AnimationException::class)
         get() = animation(0)
@@ -120,7 +125,12 @@ class Artboard(
      * Get the animation at a given 0-based [index] in the [Artboard].
      *
      * @throws AnimationException If the animation does not exist.
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
      */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     @Throws(AnimationException::class)
     fun animation(index: Int): LinearAnimationInstance {
         val animationPointer = cppAnimationByIndex(cppPointer, index)
@@ -136,7 +146,12 @@ class Artboard(
      * Get the animation with a given [name] in the [Artboard].
      *
      * @throws AnimationException If the animation does not exist.
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
      */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     @Throws(AnimationException::class)
     fun animation(name: String): LinearAnimationInstance {
         val animationPointer = cppAnimationByName(cppPointer, name)
@@ -165,8 +180,14 @@ class Artboard(
     /**
      * Get the state machine at a given 0-based [index] in the artboard.
      *
+     * @param index The zero-based index of the state machine to retrieve.
      * @throws StateMachineException If the state machine does not exist.
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
      */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     @Throws(StateMachineException::class)
     fun stateMachine(index: Int): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
@@ -181,8 +202,14 @@ class Artboard(
     /**
      * Get the state machine with a given [name] in the artboard.
      *
+     * @param name The name of the state machine to retrieve.
      * @throws StateMachineException If the state machine does not exist.
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
      */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     @Throws(StateMachineException::class)
     fun stateMachine(name: String): StateMachineInstance {
         val stateMachinePointer = cppStateMachineByName(cppPointer, name)
@@ -198,7 +225,9 @@ class Artboard(
      * Get the input instance with a given [name] on the nested artboard represented at [path].
      *
      * @throws StateMachineInputException If the input does not exist.
+     * @deprecated State machine inputs are deprecated. Use data binding properties instead.
      */
+    @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     @Throws(StateMachineInputException::class)
     fun input(name: String, path: String): SMIInput = synchronized(fileLock) {
         val stateMachineInputPointer = cppInputByNameAtPath(cppPointer, name, path)
@@ -214,7 +243,9 @@ class Artboard(
      *
      * @return The text value run.
      * @throws TextValueRunException If the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     @Throws(TextValueRunException::class)
     fun textRun(name: String): RiveTextValueRun {
         val textRunPointer = cppFindTextValueRun(cppPointer, name)
@@ -230,14 +261,18 @@ class Artboard(
      * Get the text value for a text run named [name].
      *
      * @return The text value of the run, or null if the run is not found.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(name: String): String? = cppFindValueOfTextValueRun(cppPointer, name)
 
     /**
      * Set the text value for a text run named [name] to [textValue].
      *
      * @throws TextValueRunException If the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String) {
         val successCheck = synchronized(fileLock) {
@@ -254,7 +289,9 @@ class Artboard(
      *
      * @return The text value run.
      * @throws TextValueRunException If the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     @Throws(TextValueRunException::class)
     fun textRun(name: String, path: String): RiveTextValueRun {
         val textRunPointer = cppFindTextValueRunAtPath(cppPointer, name, path)
@@ -270,7 +307,9 @@ class Artboard(
      * Get the text value for a text run named [name] on the nested artboard represented at [path].
      *
      * @return The text value of the run, or null if the run is not found.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     fun getTextRunValue(name: String, path: String): String? =
         cppFindValueOfTextValueRunAtPath(cppPointer, name, path)
 
@@ -279,7 +318,9 @@ class Artboard(
      * represented at [path].
      *
      * @throws TextValueRunException If the text run does not exist.
+     * @deprecated Text runs are deprecated. Use data binding instead.
      */
+    @Deprecated("Text runs are deprecated. Use data binding instead.")
     @Throws(TextValueRunException::class)
     fun setTextRunValue(name: String, textValue: String, path: String) {
         val successCheck = synchronized(fileLock) {
@@ -298,11 +339,25 @@ class Artboard(
             cppSetVolume(cppPointer, value)
         }
 
-    /** @return The number of animations stored inside the artboard. */
+    /**
+     * @return The number of animations stored inside the artboard.
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val animationCount: Int
         get() = cppAnimationCount(cppPointer)
 
-    /** @return The number of state machines stored inside the artboard. */
+    /**
+     * @return The number of state machines stored inside the artboard.
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val stateMachineCount: Int
         get() = cppStateMachineCount(cppPointer)
 
@@ -406,11 +461,25 @@ class Artboard(
             cppSetArtboardHeight(cppPointer, value)
         }
 
-    /** @return The names of all animations in the artboard. */
+    /**
+     * @return The names of all animations in the artboard.
+     * @deprecated Linear animations are deprecated. Use a state machine to control playback
+     *    instead.
+     */
+    @Deprecated(
+        "Linear animations are deprecated. Use a state machine to control playback instead."
+    )
     val animationNames: List<String>
         get() = (0 until animationCount).map { cppAnimationNameByIndex(cppPointer, it) }
 
-    /** @return The names of all stateMachines in the artboard. */
+    /**
+     * @return The names of all state machines in the artboard.
+     * @deprecated Multiple state machines are deprecated. Use only the first state machine.
+     */
+    @Deprecated(
+        message = "Multiple state machines are deprecated. Use only the first state machine.",
+        level = DeprecationLevel.WARNING
+    )
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
 

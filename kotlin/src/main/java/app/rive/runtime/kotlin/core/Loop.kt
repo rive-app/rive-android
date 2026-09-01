@@ -1,5 +1,13 @@
 package app.rive.runtime.kotlin.core
 
+/**
+ * Configures how a linear animation behaves when it reaches an endpoint.
+ *
+ * @deprecated Linear animations are deprecated. Use a state machine to control playback instead.
+ */
+@Deprecated(
+    "Linear animations are deprecated. Use a state machine to control playback instead."
+)
 enum class Loop {
     ONESHOT, LOOP, PINGPONG, AUTO;
 

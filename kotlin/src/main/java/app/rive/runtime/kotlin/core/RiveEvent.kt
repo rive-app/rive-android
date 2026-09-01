@@ -4,7 +4,9 @@ package app.rive.runtime.kotlin.core
  * A class for reported Rive events to match its C++ counterpart.
  *
  * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @deprecated Rive events are deprecated. Use data binding instead.
  */
+@Deprecated("Rive events are deprecated. Use data binding instead.")
 class RiveEventReport(val unsafeCppPointer: Long, secondsDelay: Float) :
     NativeObject(unsafeCppPointer) {
     val event: RiveEvent = convertEvent(RiveEvent(unsafeCppPointer, delay = secondsDelay))
@@ -21,7 +23,9 @@ class RiveEventReport(val unsafeCppPointer: Long, secondsDelay: Float) :
  * @param unsafeCppPointer Pointer to the C++ counterpart.
  * @see RiveOpenURLEvent
  * @see RiveGeneralEvent
+ * @deprecated Rive events are deprecated. Use data binding instead.
  */
+@Deprecated("Rive events are deprecated. Use data binding instead.")
 open class RiveEvent(unsafeCppPointer: Long, val delay: Float) : NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppType(cppPointer: Long): Short
