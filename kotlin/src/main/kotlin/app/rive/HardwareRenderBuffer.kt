@@ -2,18 +2,12 @@ package app.rive
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.ColorSpace
-import android.graphics.PixelFormat
-import android.hardware.HardwareBuffer
-import android.media.ImageReader
 import android.os.Build
-import android.os.Handler
-import android.os.HandlerThread
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
-import app.rive.core.ImageReaderSurface
 import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
@@ -49,26 +43,16 @@ import java.util.concurrent.TimeUnit
  *
  * API level:
  * - Requires Android API 29+ for hardware bitmap and usage-flag support.
- *
- * @param width Width in pixels.
- * @param height Height in pixels.
- * @param riveWorker Worker used for draw submission.
- * @throws IllegalArgumentException If width or height are not positive.
- * @throws IllegalStateException If hardware rendering is unsupported on this API level.
- * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
- * @throws RiveRenderException If the hardware render surface cannot be created.
  */
 @ExperimentalHardwareBitmapRendering
 @RequiresApi(Build.VERSION_CODES.Q)
-class HardwareRenderBuffer @Throws(
-    IllegalArgumentException::class,
-    IllegalStateException::class,
-    RiveResourceClosedException::class,
-    RiveRenderException::class
-) constructor(
+class HardwareRenderBuffer private constructor(
     val width: Int,
     val height: Int,
-    private val riveWorker: RiveWorker
+    private val riveWorker: RiveWorker,
+    frameSourceFactory: HardwareFrameSourceFactory,
+    sdkInt: Int,
+    private val firstFrameTimeoutMillis: Long,
 ) : CheckableAutoCloseable {
     companion object {
         private const val TAG = "Rive/RenderBuffer/Hardware"
@@ -77,11 +61,74 @@ class HardwareRenderBuffer @Throws(
         /** @return true when hardware bitmap rendering is supported on this API level. */
         @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.Q)
         fun isSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+        /**
+         * Creates a hardware render buffer with injectable platform behavior for local tests.
+         *
+         * @param width Buffer width in pixels.
+         * @param height Buffer height in pixels.
+         * @param riveWorker Worker used for draw submission.
+         * @param frameSourceFactory Factory for the test frame source and surface.
+         * @param sdkInt Android API level used for the hardware support check.
+         * @param firstFrameTimeoutMillis Timeout used while waiting for the first frame.
+         * @return The created hardware render buffer.
+         * @throws IllegalArgumentException If dimensions or timeout are invalid.
+         * @throws IllegalStateException If [sdkInt] does not support hardware rendering.
+         */
+        @VisibleForTesting
+        internal fun createForTesting(
+            width: Int,
+            height: Int,
+            riveWorker: RiveWorker,
+            frameSourceFactory: HardwareFrameSourceFactory,
+            sdkInt: Int = Build.VERSION_CODES.Q,
+            firstFrameTimeoutMillis: Long = 0L,
+        ): HardwareRenderBuffer = HardwareRenderBuffer(
+            width,
+            height,
+            riveWorker,
+            frameSourceFactory,
+            sdkInt,
+            firstFrameTimeoutMillis,
+        )
     }
+
+    /**
+     * Creates a GPU-backed offscreen render target.
+     *
+     * @param width Width in pixels.
+     * @param height Height in pixels.
+     * @param riveWorker Worker used for draw submission.
+     * @throws IllegalArgumentException If width or height are not positive.
+     * @throws IllegalStateException If hardware rendering is unsupported on this API level.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * @throws RiveRenderException If the hardware render surface cannot be created.
+     */
+    @Throws(
+        IllegalArgumentException::class,
+        IllegalStateException::class,
+        RiveResourceClosedException::class,
+        RiveRenderException::class
+    )
+    constructor(
+        width: Int,
+        height: Int,
+        riveWorker: RiveWorker,
+    ) : this(
+        width,
+        height,
+        riveWorker,
+        AndroidHardwareFrameSource,
+        Build.VERSION.SDK_INT,
+        FIRST_FRAME_TIMEOUT_MILLIS,
+    )
 
     init {
         require(width > 0 && height > 0) { "HardwareRenderBuffer width/height must be > 0" }
-        check(isSupported()) {
+        require(firstFrameTimeoutMillis >= 0L) {
+            "HardwareRenderBuffer first-frame timeout must be >= 0"
+        }
+        check(sdkInt >= Build.VERSION_CODES.Q) {
             "Hardware bitmap rendering requires API ${Build.VERSION_CODES.Q}+"
         }
     }
@@ -100,24 +147,12 @@ class HardwareRenderBuffer @Throws(
      */
     val frameAvailable: SharedFlow<Unit> = _frameAvailable
 
-    /** Receives rendered frames through [surface]. */
-    private val imageReader: ImageReader =
-        ImageReader.newInstance(
-            width,
-            height,
-            PixelFormat.RGBA_8888,
-            2,
-            HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
-        )
-
-    /** Dedicated callback thread for ImageReader callbacks and acquisition work. */
-    private val imageReaderThread = HandlerThread("Rive/ImageReader")
+    /** Platform source that publishes hardware bitmaps rendered through [surface]. */
+    private val frameSource = frameSourceFactory.create(width, height, riveWorker)
 
     /** Destination surface used by the worker draw call. */
     val surface: RiveSurface
-
-    /** Explicit SRGB color interpretation for wrapped hardware bitmaps. */
-    private val srgbColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
+        get() = frameSource.surface
 
     /** Protects [pendingBitmap]/[currentBitmap] handoff. */
     private val bitmapLock = Any()
@@ -140,57 +175,67 @@ class HardwareRenderBuffer @Throws(
     /** Newly published frame awaiting consumption. */
     private var pendingBitmap: Bitmap? = null
 
-    init {
-        val imageReaderSurface = ImageReaderSurface(imageReader)
-        imageReaderThread.start()
-        var createdSurface: RiveSurface? = null
-        try {
-            val imageReaderHandler = Handler(imageReaderThread.looper)
-            createdSurface = riveWorker.createRiveSurface(imageReaderSurface)
-            imageReader.setOnImageAvailableListener({ reader ->
-                onImageAvailable(reader)
-            }, imageReaderHandler)
-            surface = createdSurface
-        } catch (failure: Throwable) {
-            try {
-                // Once created, the RiveSurface owns the ImageReaderSurface. Before that point,
-                // construction retains responsibility for closing it.
-                createdSurface?.close() ?: imageReaderSurface.close()
-            } catch (cleanupFailure: Throwable) {
-                failure.addSuppressed(cleanupFailure)
-            }
-            shutdownImageReaderThread()
-            throw failure
-        }
-    }
-
     private val closer = CloseOnce("HardwareRenderBuffer") {
         isClosedFlag = true
         firstFrameLatch.countDown()
-        imageReader.setOnImageAvailableListener(null, null)
-        shutdownImageReaderThread()
-        synchronized(bitmapLock) {
-            pendingBitmap?.let { if (!it.isRecycled) it.recycle() }
-            currentBitmap?.let { if (!it.isRecycled) it.recycle() }
+        var cleanupFailure = runCleanupStep(null) { frameSource.stop() }
+        val bitmapsToRecycle = synchronized(bitmapLock) {
+            val pending = pendingBitmap
+            val current = currentBitmap
             pendingBitmap = null
             currentBitmap = null
+            if (pending === current) arrayOf(pending) else arrayOf(pending, current)
         }
-        surface.close()
+        bitmapsToRecycle.forEach { bitmap ->
+            if (bitmap != null && !bitmap.isRecycled) {
+                cleanupFailure = runCleanupStep(cleanupFailure) { bitmap.recycle() }
+            }
+        }
+        cleanupFailure = runCleanupStep(cleanupFailure) { surface.close() }
+        cleanupFailure?.let { throw it }
     }
 
     override val closed: Boolean
         get() = closer.closed
 
+    init {
+        try {
+            frameSource.setListener(object : HardwareFrameSource.Listener {
+                override fun onFrame(bitmap: Bitmap) = publishFrame(bitmap)
+
+                override fun onFailure(failure: Throwable) = reportFrameFailure(failure)
+            })
+        } catch (failure: Throwable) {
+            // The failed instance never reaches its caller, so run its complete close path.
+            runCleanupStep(failure) { closer.close() }
+            throw failure
+        }
+    }
+
     /** Closes this buffer and its owned render surface. */
     override fun close() = closer.close()
 
-    /** Stops the ImageReader callback thread and waits briefly for its queued work to finish. */
-    private fun shutdownImageReaderThread() {
-        imageReaderThread.quitSafely()
-        try {
-            imageReaderThread.join(1000)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
+    /**
+     * Runs one cleanup operation while retaining an earlier failure for eventual rethrow.
+     *
+     * @param firstFailure The first failure from an earlier cleanup step, if any.
+     * @param cleanup Cleanup operation to attempt.
+     * @return The first failure encountered, with any later failure added as suppressed.
+     */
+    private inline fun runCleanupStep(
+        firstFailure: Throwable?,
+        cleanup: () -> Unit,
+    ): Throwable? = try {
+        cleanup()
+        firstFailure
+    } catch (failure: Throwable) {
+        if (firstFailure == null) {
+            failure
+        } else {
+            if (failure !== firstFailure) {
+                firstFailure.addSuppressed(failure)
+            }
+            firstFailure
         }
     }
 
@@ -285,7 +330,7 @@ class HardwareRenderBuffer @Throws(
         if (firstFramePublished) {
             return
         }
-        val success = firstFrameLatch.await(FIRST_FRAME_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+        val success = firstFrameLatch.await(firstFrameTimeoutMillis, TimeUnit.MILLISECONDS)
         val failure = imageReaderFailure
         if (failure != null) {
             throw RiveRenderException(
@@ -301,69 +346,50 @@ class HardwareRenderBuffer @Throws(
         )
     }
 
-    private fun onImageAvailable(reader: ImageReader) {
+    /** Publishes [bitmap], replacing and recycling any frame still waiting to be consumed. */
+    private fun publishFrame(bitmap: Bitmap) {
+        if (isClosedFlag) {
+            if (!bitmap.isRecycled) {
+                bitmap.recycle()
+            }
+            return
+        }
+        traceSection("Rive/RenderBuffer/Hardware/Callback/PublishBitmap") {
+            synchronized(bitmapLock) {
+                if (isClosedFlag) {
+                    if (!bitmap.isRecycled) {
+                        bitmap.recycle()
+                    }
+                    return@synchronized
+                }
+                val previousPending = pendingBitmap
+                pendingBitmap = bitmap
+                if (previousPending != null &&
+                    previousPending !== bitmap &&
+                    !previousPending.isRecycled
+                ) {
+                    previousPending.recycle()
+                }
+                firstFramePublished = true
+                firstFrameLatch.countDown()
+            }
+            _frameAvailable.tryEmit(Unit)
+        }
+    }
+
+    /** Records [failure] and releases a caller waiting for first-frame publication. */
+    private fun reportFrameFailure(failure: Throwable) {
         if (isClosedFlag) {
             return
         }
-        try {
-            val image = traceSection(
-                "Rive/RenderBuffer/Hardware/Callback/AcquireLatestImage"
-            ) {
-                reader.acquireLatestImage()
-            } ?: return
-
-            var hardwareBuffer: HardwareBuffer? = null
-            val wrappedBitmap = try {
-                traceSection("Rive/RenderBuffer/Hardware/Callback/WrapHardwareBuffer") {
-                    val buffer = image.hardwareBuffer
-                        ?: throw RiveRenderException("Image did not provide a HardwareBuffer")
-                    hardwareBuffer = buffer
-                    Bitmap.wrapHardwareBuffer(buffer, srgbColorSpace)
-                        ?: throw RiveRenderException("Failed to wrap HardwareBuffer as Bitmap")
-                }
-            } finally {
-                hardwareBuffer?.close()
-                image.close()
-            }
-
-            traceSection("Rive/RenderBuffer/Hardware/Callback/PublishBitmap") {
-                synchronized(bitmapLock) {
-                    if (isClosedFlag) {
-                        if (!wrappedBitmap.isRecycled) {
-                            wrappedBitmap.recycle()
-                        }
-                        return@synchronized
-                    }
-                    val previousPending = pendingBitmap
-                    pendingBitmap = wrappedBitmap
-                    if (previousPending != null &&
-                        previousPending !== wrappedBitmap &&
-                        !previousPending.isRecycled
-                    ) {
-                        previousPending.recycle()
-                    }
-                    firstFramePublished = true
-                    firstFrameLatch.countDown()
-                }
-                _frameAvailable.tryEmit(Unit)
-            }
-        } catch (e: Exception) {
-            if (isClosedFlag) {
-                return
-            }
-            RiveLog.e(TAG, e) { "ImageReader callback failed while publishing hardware frame" }
-            imageReaderFailure = e
-            firstFrameLatch.countDown()
-        } catch (e: Error) {
-            if (isClosedFlag) {
-                throw e
-            }
-            RiveLog.e(TAG, e) {
+        RiveLog.e(TAG, failure) {
+            if (failure is Error) {
                 "Fatal error in ImageReader callback while publishing hardware frame"
+            } else {
+                "ImageReader callback failed while publishing hardware frame"
             }
-            imageReaderFailure = e
-            firstFrameLatch.countDown()
-            throw e
         }
+        imageReaderFailure = failure
+        firstFrameLatch.countDown()
     }
 }
