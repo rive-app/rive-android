@@ -14,6 +14,7 @@ import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
 import app.rive.core.ViewModelInstanceHandle
+import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticsBoundsUpdate
 import app.rive.semantics.SemanticsChildrenUpdate
@@ -756,6 +757,54 @@ class CommandQueueUnitTest : FunSpec({
                 propertyPath,
                 ARTBOARD_HANDLE_NUM
             )
+        }
+    }
+
+    test("Unsubscribe from property invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val propertyPath = "number/path"
+
+        every {
+            commandQueueBridgeMock.cppUnsubscribeFromProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                PropertyDataType.NUMBER.value
+            )
+        } just runs
+
+        commandQueue.unsubscribeFromProperty(
+            instanceHandle,
+            propertyPath,
+            PropertyDataType.NUMBER,
+        )
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppUnsubscribeFromProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                PropertyDataType.NUMBER.value
+            )
+        }
+    }
+
+    test("Unsubscribe from property rejects a disposed worker") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        shouldThrow<RiveResourceClosedException> {
+            commandQueue.unsubscribeFromProperty(
+                ViewModelInstanceHandle(HANDLE_NUM),
+                "number/path",
+                PropertyDataType.NUMBER,
+            )
+        }
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppUnsubscribeFromProperty(any(), any(), any(), any())
         }
     }
 

@@ -2,11 +2,23 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+
+private const val PROPERTY_FLOW_TIMEOUT_MILLIS = 2_000L
+private const val TEST_NUMBER_PROPERTY = "Test Num"
+private const val UPDATED_NUMBER_VALUE = 42f
 
 @RunWith(AndroidJUnit4::class)
 class ViewModelInstanceTest : RiveAndroidTest() {
@@ -69,6 +81,67 @@ class ViewModelInstanceTest : RiveAndroidTest() {
                 listArtboard?.close()
                 file.close()
             }
+        }
+    }
+
+    /**
+     * Verifies collector reference counting across the real Kotlin, JNI, and native pipeline.
+     *
+     * Cancelling one of two collectors must leave the shared native subscription active for the
+     * other collector. Cancelling the last collector invokes native unsubscribe, after which a new
+     * collector must be able to establish a fresh subscription and read the current value.
+     */
+    @Test
+    fun propertyFlow_unsubscribesAfterLastCollector() = runBlocking {
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.data_bind_test_impl, context.resources),
+            riveWorker,
+        ).use { file ->
+            ViewModelInstance.create(
+                file,
+                ViewModelSource.Named("Test All").blankInstance(),
+            ).use { instance ->
+                withTimeout(PROPERTY_FLOW_TIMEOUT_MILLIS) {
+                    assertPropertySubscriptionLifecycle(instance)
+                }
+            }
+        }
+    }
+
+    /**
+     * Exercises first-collector subscribe and last-collector unsubscribe transitions.
+     *
+     * @param instance The real native-backed view model instance under test.
+     */
+    private suspend fun assertPropertySubscriptionLifecycle(
+        instance: ViewModelInstance,
+    ) = coroutineScope {
+        val propertyFlow = instance.getNumberFlow(TEST_NUMBER_PROPERTY)
+        val firstValues = Channel<Float>(Channel.UNLIMITED)
+        val secondValues = Channel<Float>(Channel.UNLIMITED)
+        val firstCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+            propertyFlow.collect(firstValues::send)
+        }
+        val secondCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+            propertyFlow.collect(secondValues::send)
+        }
+
+        try {
+            // Both initial getter responses prove collection has started.
+            firstValues.receive()
+            secondValues.receive()
+
+            firstCollector.cancelAndJoin()
+            instance.setNumber(TEST_NUMBER_PROPERTY, UPDATED_NUMBER_VALUE)
+            assertEquals(UPDATED_NUMBER_VALUE, secondValues.receive())
+
+            secondCollector.cancelAndJoin() // Last collector crosses the JNI unsubscribe path.
+            assertEquals(UPDATED_NUMBER_VALUE, propertyFlow.first())
+        } finally {
+            firstCollector.cancelAndJoin()
+            secondCollector.cancelAndJoin()
+            firstValues.close()
+            secondValues.close()
         }
     }
 

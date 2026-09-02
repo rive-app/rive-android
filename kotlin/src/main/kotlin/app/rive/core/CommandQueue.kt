@@ -2732,6 +2732,12 @@ class CommandQueue internal constructor(
      * Subscribe to changes to a property on the view model instance. Updates will be emitted on the
      * flow of the corresponding type, e.g. [numberPropertyFlow] for number properties.
      *
+     * This is a low-level operation intended for implementers of a custom higher-level runtime.
+     * Callers own the subscription lifecycle and must balance this call with
+     * [unsubscribeFromProperty]. Do not mix direct calls with [ViewModelInstance] property flows
+     * for the same instance, path, and type. Those flows reference-count their native subscription,
+     * and bypassing that ownership can prevent updates or detach active collectors.
+     *
      * This operation is fire-and-forget. Invalid handles, paths, or property types are reported
      * asynchronously through the view model instance error callback and command queue logging; they
      * are not thrown by this method.
@@ -2748,6 +2754,37 @@ class CommandQueue internal constructor(
         propertyPath: String,
         propertyType: ViewModel.PropertyDataType
     ) = bridge.cppSubscribeToProperty(
+        requireNativePointer(),
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        propertyType.value
+    )
+
+    /**
+     * Unsubscribe from changes to a property on the view model instance.
+     *
+     * This is a low-level operation intended for implementers of a custom higher-level runtime and
+     * should balance a direct [subscribeToProperty] call. Do not mix direct calls with
+     * [ViewModelInstance] property flows for the same instance, path, and type. This removes all
+     * matching native subscriptions, including a subscription owned by those flows, even while
+     * collectors still depend on it.
+     *
+     * This operation is fire-and-forget. If no matching native subscription exists, including when
+     * the handle, path, or property type does not match, this is a no-op and no error callback is
+     * emitted.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the subscribed property. Slash delimited.
+     * @param propertyType The type of the subscribed property.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun unsubscribeFromProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        propertyType: ViewModel.PropertyDataType
+    ) = bridge.cppUnsubscribeFromProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
         propertyPath,
@@ -3855,9 +3892,11 @@ class CommandQueue internal constructor(
      * request ID. When the native callback is invoked, it retrieves the continuation from the map
      * and resumes it with the result.
      *
-     * We switch to the Main dispatcher before running. This is because the C++ CommandQueue
-     * implementation is currently not thread-safe, and so must always be called from the main
-     * thread. If this changes in the future, this can be removed.
+     * Request registration and JNI submission are deliberately confined to Main. Although native
+     * command enqueueing is synchronized, Main provides a stable ordering boundary for suspending
+     * requests alongside message polling and Android resource-lifecycle work. Keeping one boundary
+     * makes command ordering predictable and simplifies coordination with cleanup paths where the
+     * order of resource creation, use, and deletion is significant.
      *
      * @param nativeFn A lambda function invoked by the caller, using trailing lambda syntax, which
      *    takes the request ID as a parameter and performs the JNI function call.
@@ -3868,7 +3907,7 @@ class CommandQueue internal constructor(
     @Throws(CancellationException::class)
     private suspend inline fun <reified T> suspendNativeRequest(
         crossinline nativeFn: (Long) -> Unit
-    ): T = withContext(Dispatchers.Main.immediate) { // Ensure we're on the main thread
+    ): T = withContext(Dispatchers.Main.immediate) { // Preserve the request-ordering boundary.
         suspendCancellableCoroutine { cont ->
             val requestID = nextRequestID.getAndIncrement()
 

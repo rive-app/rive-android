@@ -13,16 +13,24 @@ import app.rive.core.RivePropertyUpdate
 import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 internal const val VM_INSTANCE_TAG = "Rive/VMI"
@@ -95,6 +103,126 @@ internal fun ViewModelSource.requireCompatibleWith(
 }
 
 /**
+ * Identifies one native view model property subscription.
+ *
+ * @param propertyPath The path to the property from its view model instance.
+ * @param propertyType The property's data type.
+ */
+private data class PropertySubscriptionKey(
+    val propertyPath: String,
+    val propertyType: PropertyDataType,
+)
+
+/**
+ * Shares each native property subscription across every Kotlin collector that depends on it.
+ *
+ * Native unsubscribe removes all matching subscriptions rather than one collector's subscription,
+ * so commands are sent only when a property's collector count crosses between zero and one.
+ * Starting and stopping collection is uncommon relative to property updates, making intrinsic
+ * synchronization appropriate here without adding locking to the update path.
+ *
+ * @param riveWorker The worker that owns the native subscriptions.
+ * @param instanceHandle The view model instance whose properties are observed.
+ */
+private class PropertySubscriptions(
+    private val riveWorker: RiveWorker,
+    private val instanceHandle: ViewModelInstanceHandle,
+) {
+    private val collectorCounts = mutableMapOf<PropertySubscriptionKey, Int>()
+    private var closed = false
+
+    /**
+     * Adds a collector, subscribing natively when it is the first collector for [key].
+     *
+     * @param key The property subscription required by the collector.
+     * @return false if all subscriptions have already been closed, otherwise true.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Synchronized
+    @Throws(RiveResourceClosedException::class)
+    fun acquire(key: PropertySubscriptionKey): Boolean {
+        if (closed) return false
+
+        val collectorCount = collectorCounts[key] ?: 0
+        if (collectorCount == 0) {
+            riveWorker.subscribeToProperty(
+                instanceHandle,
+                key.propertyPath,
+                key.propertyType,
+            )
+        }
+        collectorCounts[key] = collectorCount + 1
+        return true
+    }
+
+    /**
+     * Removes a collector, unsubscribing natively when it was the last collector for [key].
+     *
+     * This is a no-op after [closeAll], which has already removed the native subscription.
+     * A disposed worker is also treated as successful cleanup because disposal removes all of its
+     * native subscriptions.
+     *
+     * @param key The property subscription no longer required by the collector.
+     */
+    @Synchronized
+    fun release(key: PropertySubscriptionKey) {
+        if (closed) return
+
+        val collectorCount = collectorCounts[key] ?: return
+        if (collectorCount == 1) {
+            try {
+                riveWorker.unsubscribeFromProperty(
+                    instanceHandle,
+                    key.propertyPath,
+                    key.propertyType,
+                )
+            } catch (_: RiveResourceClosedException) {
+                // Worker disposal already releases the native subscription.
+                RiveLog.d(VM_INSTANCE_TAG) {
+                    "Skipping property unsubscribe for $instanceHandle because its worker is " +
+                        "disposed"
+                }
+            }
+            collectorCounts.remove(key)
+        } else {
+            collectorCounts[key] = collectorCount - 1
+        }
+    }
+
+    /**
+     * Prevents new subscriptions and unsubscribes every property with active collectors.
+     *
+     * All unsubscribe attempts are made before the first failure is rethrown.
+     *
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Synchronized
+    @Throws(RiveResourceClosedException::class)
+    fun closeAll() {
+        if (closed) return
+        closed = true
+
+        val activeSubscriptions = collectorCounts.keys.toList()
+        collectorCounts.clear()
+        var firstFailure: RuntimeException? = null
+        activeSubscriptions.forEach { key ->
+            try {
+                riveWorker.unsubscribeFromProperty(
+                    instanceHandle,
+                    key.propertyPath,
+                    key.propertyType,
+                )
+            } catch (exception: RuntimeException) {
+                if (firstFailure == null) {
+                    firstFailure = exception
+                }
+            }
+        }
+        firstFailure?.let { throw it }
+    }
+}
+
+/**
  * A view model instance for data binding which has properties that can be set and observed.
  *
  * The instance must be bound to a state machine for its values to take effect. This is done by
@@ -108,13 +236,23 @@ class ViewModelInstance internal constructor(
     private val riveWorker: RiveWorker,
     private val fileHandle: FileHandle,
 ) : CheckableAutoCloseable {
+    private val closeFlow = MutableSharedFlow<Unit>(replay = 1)
+    private val propertySubscriptions = PropertySubscriptions(riveWorker, instanceHandle)
     private val closer = CloseOnce("$instanceHandle") {
-        RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
-        riveWorker.deleteViewModelInstance(instanceHandle)
+        closeFlow.tryEmit(Unit)
+        try {
+            propertySubscriptions.closeAll()
+        } finally {
+            RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
+            riveWorker.deleteViewModelInstance(instanceHandle)
+        }
     }
 
     /**
      * Closes this view model instance and schedules deletion on its Rive worker.
+     *
+     * Active property flows complete normally. Their native property subscriptions are removed
+     * before the instance is deleted.
      *
      * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
      */
@@ -308,6 +446,30 @@ class ViewModelInstance internal constructor(
     private val triggerFlows = mutableMapOf<String, Flow<Unit>>()
 
     /**
+     * Completes this flow normally as soon as the view model instance is closed.
+     *
+     * The update collector starts undispatched so it is listening before a native subscription or
+     * initial getter can produce a callback. A rendezvous output preserves downstream backpressure
+     * rather than introducing another implicit property-value buffer.
+     *
+     * @return A flow that relays this flow until the view model instance closes.
+     */
+    private fun <T> Flow<T>.completeWhenClosed(): Flow<T> = channelFlow {
+        val updatesJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            this@completeWhenClosed.collect { send(it) }
+        }
+        val closeJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            closeFlow.first()
+            updatesJob.cancel()
+        }
+        try {
+            updatesJob.join()
+        } finally {
+            closeJob.cancel()
+        }
+    }.buffer(Channel.RENDEZVOUS)
+
+    /**
      * Creates or retrieves a cached property flow after verifying that this instance is open.
      *
      * The instance is checked again when collection starts because callers can retain a flow
@@ -332,18 +494,42 @@ class ViewModelInstance internal constructor(
     ): Flow<T> {
         closer.checkOpen()
         return cache.getOrPut(propertyPath) {
-            updateFlow
-                // Ensure we’re subscribed, then kick off fetching latest value
-                .onSubscription {
-                    closer.checkOpen()
-                    riveWorker.subscribeToProperty(instanceHandle, propertyPath, propertyType)
-                    // Fire the getter so its reply comes through as the first emission
-                    // (ignoring the immediately returned value).
-                    getter(instanceHandle, propertyPath)
+            flow {
+                closer.checkOpen()
+                val subscriptionKey = PropertySubscriptionKey(propertyPath, propertyType)
+                var subscriptionAcquired = false
+                try {
+                    emitAll(
+                        updateFlow
+                            // Ensure we’re subscribed, then kick off fetching latest value.
+                            .onSubscription {
+                                subscriptionAcquired =
+                                    propertySubscriptions.acquire(subscriptionKey)
+                                if (subscriptionAcquired) {
+                                    // Fire the getter so its reply comes through as the first
+                                    // emission (ignoring the immediately returned value).
+                                    try {
+                                        getter(instanceHandle, propertyPath)
+                                    } catch (exception: RiveViewModelInstanceException) {
+                                        // Closure completes active flows normally even if the
+                                        // native deletion error reaches this getter first.
+                                        if (!closer.closed) throw exception
+                                    }
+                                }
+                            }
+                            .filter {
+                                it.handle == instanceHandle && it.propertyPath == propertyPath
+                            }
+                            .map { it.value }
+                            .distinctUntilChanged() // Don't emit duplicates
+                            .completeWhenClosed()
+                    )
+                } finally {
+                    if (subscriptionAcquired) {
+                        propertySubscriptions.release(subscriptionKey)
+                    }
                 }
-                .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
-                .map { it.value }
-                .distinctUntilChanged() // Don't emit duplicates
+            }
         }
     }
 
@@ -351,6 +537,7 @@ class ViewModelInstance internal constructor(
      * Creates or retrieves from cache a [number][Float] property, represented as a cold [Flow].
      *
      * The flow is subscribed to updates from the Rive worker while it is being collected.
+     * It completes normally if this view model instance is closed during collection.
      *
      * This flow emits every distinct value (up to the backing buffer limit). If you process
      * the flow slowly, consider applying [conflate] if you only need the latest value to skip
@@ -496,18 +683,31 @@ class ViewModelInstance internal constructor(
     fun getTriggerFlow(propertyPath: String): Flow<Unit> {
         closer.checkOpen()
         return triggerFlows.getOrPut(propertyPath) {
-            riveWorker.triggerPropertyFlow
-                .onSubscription {
-                    closer.checkOpen()
-                    riveWorker.subscribeToProperty(
-                        instanceHandle,
-                        propertyPath,
-                        PropertyDataType.TRIGGER
+            flow {
+                closer.checkOpen()
+                val subscriptionKey =
+                    PropertySubscriptionKey(propertyPath, PropertyDataType.TRIGGER)
+                var subscriptionAcquired = false
+                try {
+                    emitAll(
+                        riveWorker.triggerPropertyFlow
+                            .onSubscription {
+                                subscriptionAcquired =
+                                    propertySubscriptions.acquire(subscriptionKey)
+                            }
+                            .filter {
+                                it.handle == instanceHandle && it.propertyPath == propertyPath
+                            }
+                            .map { /* Unit */ }
+                            .buffer(32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+                            .completeWhenClosed()
                     )
+                } finally {
+                    if (subscriptionAcquired) {
+                        propertySubscriptions.release(subscriptionKey)
+                    }
                 }
-                .filter { it.handle == instanceHandle && it.propertyPath == propertyPath }
-                .map { /* Unit */ }
-                .buffer(32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+            }
         }
     }
 

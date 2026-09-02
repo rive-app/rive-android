@@ -6,7 +6,9 @@ import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.ImageHandle
+import app.rive.core.RivePropertyUpdate
 import app.rive.core.ViewModelInstanceHandle
+import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -20,13 +22,24 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import io.mockk.verifyOrder
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 
 private const val DIRTY_TIMEOUT_MS = 1_000L
@@ -229,6 +242,465 @@ class ViewModelInstanceUnitTest : FunSpec({
         confirmVerified(subject.worker)
     }
 
+    test("Value collection completes when close wins before subscription acquisition") {
+        val subject = ViewModelInstanceFlowSubject()
+        val updates = BlockingSharedFlow<RivePropertyUpdate<Float>>()
+        every { subject.worker.numberPropertyFlow } returns updates
+        val propertyFlow = subject.instance.getNumberFlow("number")
+
+        coroutineScope {
+            val collector = launch(Dispatchers.Default) {
+                propertyFlow.collect()
+            }
+            updates.awaitCollection()
+            try {
+                subject.instance.close()
+            } finally {
+                updates.resumeCollection()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                collector.join()
+            }
+        }
+
+        verify(exactly = 0) {
+            subject.worker.subscribeToProperty(any(), any(), any())
+        }
+        coVerify(exactly = 0) {
+            subject.worker.getNumberProperty(any(), any())
+        }
+    }
+
+    test("Trigger collection completes when close wins before subscription acquisition") {
+        val subject = ViewModelInstanceFlowSubject()
+        val updates = BlockingSharedFlow<RivePropertyUpdate<Unit>>()
+        every { subject.worker.triggerPropertyFlow } returns updates
+        val triggerFlow = subject.instance.getTriggerFlow("trigger")
+
+        coroutineScope {
+            val collector = launch(Dispatchers.Default) {
+                triggerFlow.collect()
+            }
+            updates.awaitCollection()
+            try {
+                subject.instance.close()
+            } finally {
+                updates.resumeCollection()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                collector.join()
+            }
+        }
+
+        verify(exactly = 0) {
+            subject.worker.subscribeToProperty(any(), any(), any())
+        }
+    }
+
+    test("Collectors share one native property subscription") {
+        val subject = ViewModelInstanceFlowSubject()
+        val propertyFlow = subject.instance.getNumberFlow("number")
+        val getterCount = AtomicInteger()
+        val bothCollectorsStarted = CompletableDeferred<Unit>()
+        coEvery {
+            subject.worker.getNumberProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+            )
+        } answers {
+            if (getterCount.incrementAndGet() == 2) {
+                bothCollectorsStarted.complete(Unit)
+            }
+            0f
+        }
+
+        coroutineScope {
+            val firstCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                propertyFlow.collect()
+            }
+            val secondCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                propertyFlow.collect()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                bothCollectorsStarted.await()
+            }
+
+            verify(exactly = 1) {
+                subject.worker.subscribeToProperty(
+                    ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                    "number",
+                    PropertyDataType.NUMBER,
+                )
+            }
+            coVerify(exactly = 2) {
+                subject.worker.getNumberProperty(
+                    ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                    "number",
+                )
+            }
+
+            firstCollector.cancelAndJoin()
+            verify(exactly = 0) {
+                subject.worker.unsubscribeFromProperty(any(), any(), any())
+            }
+
+            secondCollector.cancelAndJoin()
+            verify(exactly = 1) {
+                subject.worker.unsubscribeFromProperty(
+                    ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                    "number",
+                    PropertyDataType.NUMBER,
+                )
+            }
+        }
+    }
+
+    test("Trigger collectors share one native property subscription") {
+        val subject = ViewModelInstanceFlowSubject()
+        val triggerFlow = subject.instance.getTriggerFlow("trigger")
+        val firstReceived = CompletableDeferred<Unit>()
+        val secondReceived = CompletableDeferred<Unit>()
+
+        coroutineScope {
+            val firstCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                triggerFlow.collect { firstReceived.complete(Unit) }
+            }
+            val secondCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                triggerFlow.collect { secondReceived.complete(Unit) }
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                subject.triggerUpdates.subscriptionCount.first { it == 2 }
+                subject.triggerUpdates.emit(
+                    CommandQueue.PropertyUpdate(
+                        ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                        "trigger",
+                        Unit,
+                    )
+                )
+                firstReceived.await()
+                secondReceived.await()
+            }
+
+            verify(exactly = 1) {
+                subject.worker.subscribeToProperty(
+                    ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                    "trigger",
+                    PropertyDataType.TRIGGER,
+                )
+            }
+
+            firstCollector.cancelAndJoin()
+            verify(exactly = 0) {
+                subject.worker.unsubscribeFromProperty(any(), any(), any())
+            }
+
+            secondCollector.cancelAndJoin()
+            verify(exactly = 1) {
+                subject.worker.unsubscribeFromProperty(
+                    ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                    "trigger",
+                    PropertyDataType.TRIGGER,
+                )
+            }
+        }
+    }
+
+    test("Property flow relays updates and unsubscribes after collection") {
+        val subject = ViewModelInstanceFlowSubject()
+        val subscribed = CompletableDeferred<Unit>()
+        every {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        } answers { subscribed.complete(Unit) }
+
+        val value = async(start = CoroutineStart.UNDISPATCHED) {
+            subject.instance.getNumberFlow("number").first()
+        }
+        withTimeout(DIRTY_TIMEOUT_MS) { subscribed.await() }
+
+        subject.numberUpdates.emit(
+            CommandQueue.PropertyUpdate(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                42f,
+            )
+        )
+
+        val actualValue = withTimeout(DIRTY_TIMEOUT_MS) {
+            value.await()
+        }
+        actualValue shouldBe 42f
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+    }
+
+    test("Cancelling a collector ignores a disposed worker during unsubscribe") {
+        val subject = ViewModelInstanceFlowSubject()
+        val subscribed = CompletableDeferred<Unit>()
+        every {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        } answers { subscribed.complete(Unit) }
+        every {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        } throws RiveResourceClosedException("RiveWorker is disposed")
+
+        coroutineScope {
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                subject.instance.getNumberFlow("number").collect()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) { subscribed.await() }
+
+            collector.cancelAndJoin()
+        }
+
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+    }
+
+    test("Cancelling the initial property request releases the native subscription") {
+        val subject = ViewModelInstanceFlowSubject()
+        val getterStarted = CompletableDeferred<Unit>()
+        val getterMayComplete = CompletableDeferred<Float>()
+        coEvery {
+            subject.worker.getNumberProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+            )
+        } coAnswers {
+            getterStarted.complete(Unit)
+            getterMayComplete.await()
+        }
+
+        coroutineScope {
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                subject.instance.getNumberFlow("number").collect()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) { getterStarted.await() }
+
+            collector.cancelAndJoin()
+        }
+
+        verify(exactly = 1) {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+    }
+
+    test("Failed initial property request releases native subscription") {
+        val subject = ViewModelInstanceFlowSubject()
+        val expectedFailure = RiveViewModelInstanceException("Missing number")
+        coEvery {
+            subject.worker.getNumberProperty(any(), "number")
+        } throws expectedFailure
+
+        shouldThrow<RiveViewModelInstanceException> {
+            subject.instance.getNumberFlow("number").first()
+        }
+
+        verify(exactly = 1) {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+    }
+
+    test("Close during initial property request completes collection normally") {
+        val subject = ViewModelInstanceFlowSubject()
+        coEvery {
+            subject.worker.getNumberProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+            )
+        } coAnswers {
+            subject.instance.close()
+            throw RiveViewModelInstanceException("View model instance was deleted")
+        }
+
+        withTimeout(DIRTY_TIMEOUT_MS) {
+            subject.instance.getNumberFlow("number").collect()
+        }
+
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+    }
+
+    test("Close completes active collectors and removes native subscriptions") {
+        val subject = ViewModelInstanceFlowSubject()
+        val numberFlow = subject.instance.getNumberFlow("number")
+        val triggerFlow = subject.instance.getTriggerFlow("trigger")
+        val numberSubscribed = CompletableDeferred<Unit>()
+        val triggerSubscribed = CompletableDeferred<Unit>()
+        every {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        } answers { numberSubscribed.complete(Unit) }
+        every {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "trigger",
+                PropertyDataType.TRIGGER,
+            )
+        } answers { triggerSubscribed.complete(Unit) }
+
+        coroutineScope {
+            val numberCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                numberFlow.collect()
+            }
+            val triggerCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                triggerFlow.collect()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                numberSubscribed.await()
+                triggerSubscribed.await()
+            }
+
+            subject.instance.close()
+
+            withTimeout(DIRTY_TIMEOUT_MS) {
+                numberCollector.join()
+                triggerCollector.join()
+            }
+        }
+
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "trigger",
+                PropertyDataType.TRIGGER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+        verifyOrder {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+        verifyOrder {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "trigger",
+                PropertyDataType.TRIGGER,
+            )
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+    }
+
+    test("Closing after the last collector stops does not unsubscribe twice") {
+        val subject = ViewModelInstanceFlowSubject()
+        val subscribed = CompletableDeferred<Unit>()
+        every {
+            subject.worker.subscribeToProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        } answers { subscribed.complete(Unit) }
+
+        coroutineScope {
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                subject.instance.getNumberFlow("number").collect()
+            }
+            withTimeout(DIRTY_TIMEOUT_MS) { subscribed.await() }
+
+            collector.cancelAndJoin()
+            subject.instance.close()
+        }
+
+        verify(exactly = 1) {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+        }
+        verify(exactly = 1) {
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+        verifyOrder {
+            subject.worker.unsubscribeFromProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "number",
+                PropertyDataType.NUMBER,
+            )
+            subject.worker.deleteViewModelInstance(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
+            )
+        }
+    }
+
     test("Resource arguments are checked before property mutations") {
         val subject = ViewModelInstanceDirtySubject()
         subject.image.close()
@@ -425,5 +897,55 @@ private class ViewModelInstanceDirtySubject {
         withTimeout(DIRTY_TIMEOUT_MS) {
             dirtyEvent.await()
         }
+    }
+}
+
+private class ViewModelInstanceFlowSubject {
+    val worker = mockk<CommandQueue>(relaxed = true)
+    val numberUpdates = MutableSharedFlow<RivePropertyUpdate<Float>>()
+    val triggerUpdates = MutableSharedFlow<RivePropertyUpdate<Unit>>()
+
+    val instance = ViewModelInstance(
+        ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+        worker,
+        FileHandle(TEST_FILE_HANDLE),
+    )
+
+    init {
+        every { worker.numberPropertyFlow } returns numberUpdates
+        every { worker.triggerPropertyFlow } returns triggerUpdates
+    }
+}
+
+/**
+ * Pauses collection before registering with the backing shared flow so a test can close the view
+ * model instance after collection begins but before its property subscription is acquired.
+ */
+private class BlockingSharedFlow<T> : SharedFlow<T> {
+    private val delegate = MutableSharedFlow<T>()
+    private val collectionEntered = CountDownLatch(1)
+    private val mayCollect = CountDownLatch(1)
+
+    override val replayCache: List<T>
+        get() = delegate.replayCache
+
+    override suspend fun collect(collector: FlowCollector<T>): Nothing {
+        collectionEntered.countDown()
+        check(mayCollect.await(DIRTY_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            "Timed out waiting to resume SharedFlow collection"
+        }
+        delegate.collect(collector)
+    }
+
+    /** Waits until a collector has reached the pause before shared-flow registration. */
+    fun awaitCollection() {
+        check(collectionEntered.await(DIRTY_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            "Timed out waiting for SharedFlow collection"
+        }
+    }
+
+    /** Allows the paused collector to register with the backing shared flow. */
+    fun resumeCollection() {
+        mayCollect.countDown()
     }
 }

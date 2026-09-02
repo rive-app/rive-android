@@ -380,6 +380,13 @@ interface CommandQueueBridge {
         propertyType: Int
     )
 
+    fun cppUnsubscribeFromProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        propertyType: Int
+    )
+
     fun cppSetImageProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
@@ -917,6 +924,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppSubscribeToProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        propertyType: Int
+    )
+
+    external override fun cppUnsubscribeFromProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
