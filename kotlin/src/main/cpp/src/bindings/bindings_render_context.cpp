@@ -85,9 +85,13 @@ extern "C"
 
 #ifdef RIVE_VULKAN
     JNIEXPORT jlong JNICALL
-    Java_app_rive_core_RenderContextVulkan_cppConstructor(JNIEnv*, jobject)
+    Java_app_rive_core_RenderContextVulkan_cppConstructor(
+        JNIEnv*,
+        jobject,
+        jboolean enableDebugNames)
     {
-        auto* contextVulkan = new RenderContextVulkan();
+        auto* contextVulkan =
+            new RenderContextVulkan(enableDebugNames == JNI_TRUE);
         return reinterpret_cast<jlong>(contextVulkan);
     }
 
@@ -132,12 +136,13 @@ extern "C"
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_RiveSurfaceVulkanImage_cppCreateImageSurface(JNIEnv* env,
                                                                     jclass,
-                                                                    jlong,
+                                                                    jlong ref,
                                                                     jint width,
                                                                     jint height)
     {
+        auto* renderContextVulkan = reinterpret_cast<RenderContextVulkan*>(ref);
         auto* surface =
-            RenderContextVulkan::createImageSurface(static_cast<int>(width),
+            renderContextVulkan->createImageSurface(static_cast<int>(width),
                                                     static_cast<int>(height));
         if (surface == nullptr)
         {

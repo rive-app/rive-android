@@ -78,6 +78,9 @@
             android:name=".ScriptingActivity"
             android:exported="true" />
         <activity
+            android:name=".DeferredRendererActivity"
+            android:exported="true" />
+        <activity
             android:name=".LegacyScriptingActivity"
             android:exported="true" />
         <activity

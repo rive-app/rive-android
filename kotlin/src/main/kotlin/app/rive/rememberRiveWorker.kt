@@ -90,10 +90,58 @@ fun rememberRiveWorkerOrNull(
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+): RiveWorker? = rememberRiveWorkerImpl(
+    errorState,
+    autoPoll,
+    tracingEnabled,
+    deferred = false,
+    renderBackend
+)
+
+/**
+ * A [rememberRiveWorker] whose draws record into a deferred session and replay synchronously,
+ * enabling GPU canvas (ore) content.
+ *
+ * Temporary scaffolding: deferred is on track to become the only mode, and this entry point
+ * disappears when it does.
+ *
+ * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
+ */
+@ExperimentalDeferredRendering
+@Composable
+@Throws(RiveInitializationException::class)
+fun rememberDeferredRiveWorker(
+    autoPoll: Boolean = true,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
+): RiveWorker {
+    val errorState = remember { mutableStateOf<Throwable?>(null) }
+    val riveWorker = rememberRiveWorkerImpl(
+        errorState,
+        autoPoll,
+        tracingEnabled,
+        deferred = true,
+        renderBackend
+    )
+    return riveWorker ?: throw RiveInitializationException(
+        "Failed to create Rive worker",
+        errorState.value
+    )
+}
+
+@Composable
+private fun rememberRiveWorkerImpl(
+    errorState: MutableState<Throwable?>,
+    autoPoll: Boolean,
+    tracingEnabled: Boolean,
+    deferred: Boolean,
+    renderBackend: RenderBackend,
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val worker = remember(renderBackend) {
-        runCatching { createRiveWorker(renderBackend, tracingEnabled) }
+    // Deferred is fixed per queue because files import through the mode's factory, so a change
+    // rebuilds the worker.
+    val worker = remember(renderBackend, deferred) {
+        runCatching { createRiveWorker(renderBackend, tracingEnabled, deferred) }
             .onFailure {
                 if (errorState.value == null) {
                     errorState.value = it
@@ -154,7 +202,12 @@ fun rememberRiveWorkerOrNull(
 private fun createRiveWorker(
     renderBackend: RenderBackend,
     tracingEnabled: Boolean,
-): RiveWorker = RiveWorker(
-    renderBackend = renderBackend,
-    tracingEnabled = tracingEnabled
-)
+    deferred: Boolean,
+): RiveWorker = if (deferred) {
+    RiveWorker.createDeferred(
+        renderBackend = renderBackend,
+        tracingEnabled = tracingEnabled
+    )
+} else {
+    RiveWorker(renderBackend = renderBackend, tracingEnabled = tracingEnabled)
+}

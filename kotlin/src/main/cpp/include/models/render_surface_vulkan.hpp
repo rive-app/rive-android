@@ -15,6 +15,7 @@ namespace rive_vkb
 {
 class VulkanDevice;
 class VulkanFrameSynchronizer;
+class VulkanFrameSyncCoordinator;
 class VulkanHeadlessFrameSynchronizer;
 class VulkanSwapchain;
 } // namespace rive_vkb
@@ -169,14 +170,18 @@ struct RenderSurfaceVulkan : RenderSurface
 {
     static std::unique_ptr<RenderSurfaceVulkan> MakeWindow(
         rive_vkb::VulkanDevice* device,
+        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
         ANativeWindow* nativeWindow,
         VkInstance instance,
         PFN_vkDestroySurfaceKHR destroySurfaceKHR,
         int width,
         int height);
 
-    static std::unique_ptr<RenderSurfaceVulkan> MakeImage(int width,
-                                                          int height);
+    static std::unique_ptr<RenderSurfaceVulkan> MakeImage(
+        rive_vkb::VulkanDevice* device,
+        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+        int width,
+        int height);
 
     ~RenderSurfaceVulkan();
 
@@ -188,23 +193,38 @@ struct RenderSurfaceVulkan : RenderSurface
      */
     [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
 
+    /** Register the prepared synchronizer with the context-wide coordinator. */
+    void registerFrameSynchronizer();
+    /** Unregister the prepared synchronizer before replacing or destroying it.
+     */
+    void unregisterFrameSynchronizer();
+
     std::variant<VulkanWindowSurface, VulkanImageSurface> backend;
     // Borrowed from RenderContextVulkan so destruction can wait for idle before
     // releasing per-surface Vulkan resources. RenderContextVulkan must outlive
     // every RenderSurfaceVulkan created from it.
     rive_vkb::VulkanDevice* device = nullptr;
+    // Borrowed from RenderContextVulkan. Synchronizers must be removed before
+    // their owning surface state is invalidated or destroyed.
+    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator = nullptr;
 
 private:
     void onResize() override;
 
-    RenderSurfaceVulkan(rive_vkb::VulkanDevice* device,
-                        ANativeWindow* nativeWindow,
-                        VkInstance instance,
-                        PFN_vkDestroySurfaceKHR destroySurfaceKHR,
-                        uint32_t width,
-                        uint32_t height);
+    RenderSurfaceVulkan(
+        rive_vkb::VulkanDevice* device,
+        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+        ANativeWindow* nativeWindow,
+        VkInstance instance,
+        PFN_vkDestroySurfaceKHR destroySurfaceKHR,
+        uint32_t width,
+        uint32_t height);
 
-    RenderSurfaceVulkan(uint32_t width, uint32_t height);
+    RenderSurfaceVulkan(
+        rive_vkb::VulkanDevice* device,
+        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+        uint32_t width,
+        uint32_t height);
 };
 
 } // namespace rive_android

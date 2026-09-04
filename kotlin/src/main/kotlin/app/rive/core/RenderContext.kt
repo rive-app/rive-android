@@ -1,5 +1,6 @@
 package app.rive.core
 
+import android.os.Build
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
@@ -425,14 +426,17 @@ internal data class RenderContextGL(
  * @throws RiveInitializationException If native Vulkan resources cannot be initialized.
  */
 internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
-    private external fun cppConstructor(): Long
+    private external fun cppConstructor(enableDebugNames: Boolean): Long
     private external fun cppDelete(pointer: Long)
 
     companion object {
         const val TAG = "Rive/RenderContextVulkan"
     }
 
-    private val cppPointer = UniquePointer(cppConstructor(), TAG) { pointer ->
+    private val cppPointer = UniquePointer(
+        cppConstructor(enableDebugNames = supportsVulkanDebugNames(Build.HARDWARE)),
+        TAG,
+    ) { pointer ->
         RiveLog.d(TAG) { "Deleting RenderContextVulkan native object" }
         cppDelete(pointer)
     }
@@ -462,4 +466,18 @@ internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
         commandQueue: CommandQueue,
     ): RiveSurface = RiveSurfaceVulkanImage.create(this, width, height, commandQueue, drawKey)
 
+}
+
+/**
+ * Determines whether optional Vulkan object names are safe for this Android graphics stack.
+ *
+ * Android's emulator drivers currently crash in `vkSetDebugUtilsObjectNameEXT`, so object names
+ * are disabled there without disabling Vulkan rendering itself.
+ *
+ * @param hardware Android's hardware identifier.
+ * @return `false` for recognized emulator hardware and `true` otherwise.
+ */
+private fun supportsVulkanDebugNames(hardware: String): Boolean = when (hardware) {
+    "goldfish", "ranchu", "gce_x86" -> false
+    else -> true
 }

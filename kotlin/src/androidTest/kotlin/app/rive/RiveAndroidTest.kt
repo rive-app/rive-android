@@ -37,12 +37,22 @@ abstract class RiveAndroidTest(
      * teardown.
      */
     protected val riveWorker: RiveWorker
-        get() = worker ?: RiveWorker().also { activeWorker ->
+        get() = worker ?: createTestRiveWorker().also { activeWorker ->
             worker = activeWorker
             if (autoPoll) {
                 poller = CommandQueuePoller(activeWorker)
             }
         }
+
+    /**
+     * Creates the worker owned by this test.
+     *
+     * Subclasses can override this to exercise worker configurations such as deferred rendering
+     * while retaining the base class's polling and cleanup behavior.
+     *
+     * @return A worker configured for the test.
+     */
+    protected open fun createTestRiveWorker(): RiveWorker = RiveWorker()
 
     /**
      * Temporarily pauses automatic polling of [riveWorker].

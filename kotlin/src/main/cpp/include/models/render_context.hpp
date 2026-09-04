@@ -19,6 +19,7 @@ struct ANativeWindow;
 namespace rive_vkb
 {
 class VulkanDevice;
+class VulkanFrameSyncCoordinator;
 class VulkanInstance;
 } // namespace rive_vkb
 
@@ -126,6 +127,15 @@ public:
      */
     virtual rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) = 0;
     /**
+     * Begin the ORE portion of the current surface frame.
+     *
+     * This must be called after beginFrame() because explicit graphics APIs
+     * need the surface's active command buffer and frame numbers.
+     *
+     * @param surface Backend-specific surface whose frame is active.
+     */
+    virtual void beginOreFrame(RenderSurface* surface) = 0;
+    /**
      * Flush backend-specific render commands to the surface's current target.
      *
      * @param surface Backend-specific surface pointer.
@@ -176,6 +186,7 @@ struct RenderContextGL : RenderContext
                                                 uint32_t height) override;
 
     rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) override;
+    void beginOreFrame(RenderSurface* surface) override;
     bool flush(RenderSurface* surface) override;
     bool present(RenderSurface* surface) override;
 
@@ -199,7 +210,11 @@ private:
 /** Native RenderContext implementation for Vulkan. */
 struct RenderContextVulkan : RenderContext
 {
-    RenderContextVulkan();
+    /**
+     * @param enableDebugNames Whether optional Vulkan object names may be
+     * assigned by the shared renderer.
+     */
+    explicit RenderContextVulkan(bool enableDebugNames);
     ~RenderContextVulkan() override;
 
     StartupResult initialize() override;
@@ -209,7 +224,7 @@ struct RenderContextVulkan : RenderContext
                                              int width,
                                              int height);
 
-    static RenderSurfaceVulkan* createImageSurface(int width, int height);
+    RenderSurfaceVulkan* createImageSurface(int width, int height);
 
     rive::rcp<rive::RenderImage> createRenderImage(
         uint32_t width,
@@ -221,6 +236,7 @@ struct RenderContextVulkan : RenderContext
                                                 uint32_t height) override;
 
     rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
+    void beginOreFrame(RenderSurface* nativeSurface) override;
     bool flush(RenderSurface* nativeSurface) override;
     bool present(RenderSurface* nativeSurface) override;
 
@@ -233,11 +249,16 @@ private:
     [[nodiscard]] rive::gpu::RenderContextVulkanImpl* impl() const;
     [[nodiscard]] rive::gpu::VulkanContext* vk() const;
     bool ensureFrameSurface(RenderSurfaceVulkan* surface);
-    bool ensureSwapchain(VulkanWindowSurface& window);
-    bool ensureHeadlessFrameSynchronizer(VulkanImageSurface& image);
+    bool ensureSwapchain(RenderSurfaceVulkan* surface,
+                         VulkanWindowSurface& window);
+    bool ensureHeadlessFrameSynchronizer(RenderSurfaceVulkan* surface,
+                                         VulkanImageSurface& image);
 
     std::unique_ptr<rive_vkb::VulkanInstance> m_instance;
     std::unique_ptr<rive_vkb::VulkanDevice> m_device;
+    std::unique_ptr<rive_vkb::VulkanFrameSyncCoordinator>
+        m_frameSyncCoordinator;
+    const bool m_enableDebugNames;
 };
 
 #endif

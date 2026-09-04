@@ -69,6 +69,9 @@ class CommandQueueUnitTest : FunSpec({
             commandQueueBridgeMock.cppSetTracingEnabled(COMMAND_QUEUE_ADDR, false)
         }
         verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetDeferredEnabled(COMMAND_QUEUE_ADDR, false)
+        }
+        verify(exactly = 1) {
             commandQueueBridgeMock.cppCreateListeners(COMMAND_QUEUE_ADDR, commandQueue)
         }
     }
@@ -212,6 +215,21 @@ class CommandQueueUnitTest : FunSpec({
             commandQueueBridgeMock.cppSetTracingEnabled(
                 COMMAND_QUEUE_ADDR,
                 true
+            )
+        }
+    }
+
+    test("Constructor propagates deferred enabled when requested") {
+        CommandQueue(
+            renderContext = renderContextMock,
+            bridge = commandQueueBridgeMock,
+            deferredEnabled = true,
+        )
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetDeferredEnabled(
+                COMMAND_QUEUE_ADDR,
+                true,
             )
         }
     }

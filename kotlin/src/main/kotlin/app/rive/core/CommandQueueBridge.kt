@@ -15,6 +15,7 @@ interface CommandQueueBridge {
 
     fun cppPollMessages(pointer: Long)
     fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
+    fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
     fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
@@ -596,6 +597,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
 
     external override fun cppPollMessages(pointer: Long)
     external override fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
+    external override fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
     external override fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long

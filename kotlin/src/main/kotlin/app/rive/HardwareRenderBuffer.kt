@@ -56,7 +56,8 @@ class HardwareRenderBuffer private constructor(
 ) : CheckableAutoCloseable {
     companion object {
         private const val TAG = "Rive/RenderBuffer/Hardware"
-        private const val FIRST_FRAME_TIMEOUT_MILLIS = 250L
+        // Deferred Vulkan can compile pipelines before ImageReader publishes its first frame.
+        private const val FIRST_FRAME_TIMEOUT_MILLIS = 2_000L
 
         /** @return true when hardware bitmap rendering is supported on this API level. */
         @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.Q)

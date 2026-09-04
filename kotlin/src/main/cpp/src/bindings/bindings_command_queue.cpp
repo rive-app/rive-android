@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <android/native_window_jni.h>
 #include <atomic>
 #include <cstring>
 #include <future>
 #include <jni.h>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,6 +24,10 @@
 #include "rive/command_server.hpp"
 #include "rive/file.hpp"
 #include "rive/renderer/rive_render_image.hpp"
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+#include "rive/renderer/cmd/deferred_host.hpp"
+#endif
 
 using namespace rive_android;
 
@@ -777,6 +783,163 @@ private:
     RenderContext* const m_renderContext = nullptr;
 };
 
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+class CommandQueueWithThread;
+
+/**
+ * The factory handed to the command server. The server keeps one factory for
+ * its whole life while the deferred flag arrives from Kotlin after startup, so
+ * every create routes per call: to the deferred session when the queue is
+ * deferred (draws of its products record instead of being dropped as mixed
+ * factory), otherwise to the immediate factory.
+ */
+class RoutingServerFactory : public rive::Factory
+{
+public:
+    RoutingServerFactory(CommandQueueWithThread* commandQueue,
+                         CommandServerFactory* immediate) :
+        m_commandQueue(commandQueue), m_immediate(immediate)
+    {}
+
+    CommandServerFactory* immediateFactory() { return m_immediate; }
+    RenderContext* getRenderContext()
+    {
+        return m_immediate->getRenderContext();
+    }
+
+    /**
+     * Returns the GPU render context used by scripts imported through this
+     * routing factory.
+     *
+     * The routing factory owns no GPU context. Returning the immediate
+     * factory's context lets file import bind scripts before registration,
+     * while deferred canvas and ORE operations continue routing through the
+     * recording session.
+     *
+     * @return The command server's GPU render context.
+     */
+    rive::Factory* renderContext() override
+    {
+        return m_immediate->renderContext();
+    }
+
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(
+        rive::RenderBufferType type,
+        rive::RenderBufferFlags flags,
+        size_t sizeInBytes) override
+    {
+        if (auto* session = importSession())
+        {
+            return session->makeRenderBuffer(type, flags, sizeInBytes);
+        }
+        return m_immediate->makeRenderBuffer(type, flags, sizeInBytes);
+    }
+
+    rive::rcp<rive::RenderShader> makeLinearGradient(
+        float sx,
+        float sy,
+        float ex,
+        float ey,
+        const rive::ColorInt colors[],
+        const float stops[],
+        size_t count) override
+    {
+        if (auto* session = importSession())
+        {
+            return session
+                ->makeLinearGradient(sx, sy, ex, ey, colors, stops, count);
+        }
+        return m_immediate
+            ->makeLinearGradient(sx, sy, ex, ey, colors, stops, count);
+    }
+
+    rive::rcp<rive::RenderShader> makeRadialGradient(
+        float cx,
+        float cy,
+        float radius,
+        const rive::ColorInt colors[],
+        const float stops[],
+        size_t count) override
+    {
+        if (auto* session = importSession())
+        {
+            return session
+                ->makeRadialGradient(cx, cy, radius, colors, stops, count);
+        }
+        return m_immediate
+            ->makeRadialGradient(cx, cy, radius, colors, stops, count);
+    }
+
+    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath& path,
+                                               rive::FillRule fillRule) override
+    {
+        if (auto* session = importSession())
+        {
+            return session->makeRenderPath(path, fillRule);
+        }
+        return m_immediate->makeRenderPath(path, fillRule);
+    }
+
+    rive::rcp<rive::RenderPath> makeEmptyRenderPath() override
+    {
+        if (auto* session = importSession())
+        {
+            return session->makeEmptyRenderPath();
+        }
+        return m_immediate->makeEmptyRenderPath();
+    }
+
+    rive::rcp<rive::RenderPaint> makeRenderPaint() override
+    {
+        if (auto* session = importSession())
+        {
+            return session->makeRenderPaint();
+        }
+        return m_immediate->makeRenderPaint();
+    }
+
+    rive::rcp<rive::RenderImage> decodeImage(
+        rive::Span<const uint8_t> encodedBytes) override
+    {
+        if (auto* session = importSession())
+        {
+            return session->decodeImage(encodedBytes);
+        }
+        return m_immediate->decodeImage(encodedBytes);
+    }
+
+    rive::cmd::DeferredCanvasHost* deferredCanvasHost() override
+    {
+        if (auto* session = importSession())
+        {
+            return session->deferredCanvasHost();
+        }
+        return nullptr;
+    }
+
+    rive::ore::Context* ore() override
+    {
+        if (auto* session = importSession())
+        {
+            return session->ore();
+        }
+        return riveContext()->ore();
+    }
+
+private:
+    // Defined after CommandQueueWithThread, which owns the session.
+    rive::cmd::DeferredSession* importSession();
+
+    rive::gpu::RenderContext* riveContext()
+    {
+        return m_immediate->getRenderContext()->riveContext.get();
+    }
+
+    CommandQueueWithThread* const m_commandQueue;
+    CommandServerFactory* const m_immediate;
+};
+#endif // RIVE_CANVAS && RIVE_ORE
+
 /**
  * A subclass of rive::CommandQueue which handles starting and stopping of the
  * std::thread.
@@ -886,7 +1049,12 @@ public:
             // Takes a copy of this object's RCP, increasing the ref count to 3,
             // releasing it when the command server falls out of scope.
             RiveLogD(TAG_CQ, "Creating command server");
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+            auto routingFactory = RoutingServerFactory(self.get(), &factory);
+            auto commandServer = rive::CommandServer(self, &routingFactory);
+#else
             auto commandServer = rive::CommandServer(self, &factory);
+#endif
 
             // Signal success and unblock the main thread
             promise.set_value(
@@ -898,6 +1066,13 @@ public:
             commandServer.serveUntilDisconnect();
 
             RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+            // Replay resources need the backend context still alive. Files
+            // die later in ~CommandServer; their session releases no-op by
+            // design once the session is gone.
+            self->releaseDeferredState();
+#endif
 
             RiveLogD(TAG_CQ, "Deleting render context");
             renderContext->destroy();
@@ -934,10 +1109,68 @@ public:
 
     void setTracingEnabled(bool enabled) { m_tracingEnabled = enabled; }
     bool tracingEnabled() const { return m_tracingEnabled; }
+    // Atomic because it is set from the main thread but read by the command
+    // server during imports and draws.
+    void setDeferredEnabled(bool enabled) { m_deferredEnabled = enabled; }
+    bool deferredEnabled() const { return m_deferredEnabled; }
     bool isCurrentThreadCommandServer() const
     {
         return std::this_thread::get_id() == m_commandServerThreadId;
     }
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    /**
+     * Lazily creates the queue's deferred session. Command server thread only:
+     * the first ore() call queries the GPU API and needs the backend context
+     * current. A null ore context still defers 2D, only gpu canvas passes are
+     * lost.
+     */
+    rive::cmd::DeferredSession* ensureDeferredSession(
+        rive::gpu::RenderContext* riveContext)
+    {
+        if (m_deferredSession == nullptr)
+        {
+            auto* ore = riveContext->ore();
+            if (ore == nullptr)
+            {
+                RiveLogW(TAG_CQ,
+                         "Deferred: no ore context available, gpu canvas "
+                         "passes will not replay");
+            }
+            RiveLogD(TAG_CQ, "Creating deferred session");
+            // Caps only, so recording never holds the device; the sink hands
+            // the real ore context back at replay.
+            m_deferredSession = std::make_unique<rive::cmd::DeferredSession>(
+                ore != nullptr ? rive::ore::ReplayCaps::from(*ore)
+                               : rive::ore::ReplayCaps{});
+            // Record and replay run inside one draw call, one surface at a
+            // time, so every surface can share target 0; a threaded replay
+            // must acquireScreenTarget per surface instead.
+            m_deferredHost.bindSession(m_deferredSession.get());
+        }
+        return m_deferredSession.get();
+    }
+
+    /** The import factory when deferred, null when immediate. */
+    rive::cmd::DeferredSession* deferredImportSession(
+        rive::gpu::RenderContext* riveContext)
+    {
+        return m_deferredEnabled ? ensureDeferredSession(riveContext) : nullptr;
+    }
+
+    rive::cmd::DeferredInlineHost& deferredHost() { return m_deferredHost; }
+
+    /**
+     * Command server thread, after serving ends but before the render context
+     * is destroyed, so replay side GPU resources die with a live context.
+     */
+    void releaseDeferredState()
+    {
+        m_deferredHost.replayer().reset();
+        m_deferredHost.bindSession(nullptr);
+        m_deferredSession.reset();
+    }
+#endif
 
     /**
      * Check if we've logged a missing artboard error already for this draw
@@ -964,10 +1197,140 @@ private:
     // thread, so this remains a plain bool. If it changes to accept commands
     // from other threads, this should become atomic.
     bool m_tracingEnabled = false;
+    std::atomic<bool> m_deferredEnabled = false;
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    // Created, used, and released on the command server thread. Alive for
+    // every import and draw; at shutdown files outlive it briefly, which the
+    // deferred recorder registry no-ops by design.
+    std::unique_ptr<rive::cmd::DeferredSession> m_deferredSession;
+    rive::cmd::DeferredInlineHost m_deferredHost;
+#endif
     // Holds that an error has been reported, to avoid log spam
     std::unordered_set<rive::DrawKey> m_artboardNullKeys;
     std::unordered_set<rive::DrawKey> m_stateMachineNullKeys;
 };
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+inline rive::cmd::DeferredSession* RoutingServerFactory::importSession()
+{
+    return m_commandQueue->deferredImportSession(riveContext());
+}
+#endif // RIVE_CANVAS && RIVE_ORE
+
+/** The immediate factory behind the server's factory pointer. */
+static CommandServerFactory* serverImmediateFactory(rive::CommandServer* server)
+{
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    return static_cast<RoutingServerFactory*>(server->factory())
+        ->immediateFactory();
+#else
+    return static_cast<CommandServerFactory*>(server->factory());
+#endif
+}
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+/**
+ * Replays a recorded deferred frame onto a queue surface on the command server
+ * thread, which holds the backend context.
+ */
+class AndroidHostFrameSink : public rive::cmd::HostFrameSink
+{
+public:
+    AndroidHostFrameSink(RenderContext* renderContext,
+                         RenderSurface* surface,
+                         rive::gpu::RenderTarget* renderTarget,
+                         CommandServerFactory* replayFactory,
+                         bool clear,
+                         uint32_t color,
+                         bool replayOre) :
+        HostFrameSink(clear, color, /*target=*/0, replayOre),
+        m_renderContext(renderContext),
+        m_surface(surface),
+        m_renderTarget(renderTarget),
+        m_replayFactory(replayFactory)
+    {}
+
+    rive::gpu::RenderContext* renderContext() override
+    {
+        return m_renderContext->riveContext.get();
+    }
+
+    // Replay side images must resolve through the Android decode path; the
+    // rive context alone cannot decode with rive decoders off.
+    rive::Factory* factory() override { return m_replayFactory; }
+
+    rive::Renderer* beginScreen(uint64_t, bool clear, uint32_t color) override
+    {
+        renderContext()->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
+            .renderTargetWidth = m_renderTarget->width(),
+            .renderTargetHeight = m_renderTarget->height(),
+            .loadAction = clear ? rive::gpu::LoadAction::clear
+                                : rive::gpu::LoadAction::preserveRenderTarget,
+            .clearColor = color,
+        });
+        m_renderer = std::make_unique<rive::RiveRenderer>(renderContext());
+        return m_renderer.get();
+    }
+
+    void beginOreFrame() override { m_renderContext->beginOreFrame(m_surface); }
+
+private:
+    RenderContext* const m_renderContext;
+    RenderSurface* const m_surface;
+    // Acquired before recording so a failed acquisition cannot partially
+    // consume or reset one-shot deferred commands.
+    rive::gpu::RenderTarget* const m_renderTarget;
+    CommandServerFactory* const m_replayFactory;
+    std::unique_ptr<rive::RiveRenderer> m_renderer;
+};
+
+/**
+ * Replays the recorded frame onto the surface. present runs only when the
+ * screen frame actually opened.
+ */
+template <typename PresentFn>
+static void replayDeferredFrame(CommandQueueWithThread* commandQueue,
+                                RenderContext* renderContext,
+                                RenderSurface* nativeSurface,
+                                rive::gpu::RenderTarget* renderTarget,
+                                CommandServerFactory* replayFactory,
+                                PresentFn&& present)
+{
+    auto& host = commandQueue->deferredHost();
+    AndroidHostFrameSink sink(renderContext,
+                              nativeSurface,
+                              renderTarget,
+                              replayFactory,
+                              host.doClear(),
+                              host.clearColor(),
+                              host.replayOre());
+    host.replayInline(sink, present);
+}
+
+/** Records one aligned artboard draw into the session's screen stream. */
+static void recordDeferredDraw(rive::cmd::DeferredSession* session,
+                               rive::ArtboardInstance* artboard,
+                               uint32_t width,
+                               uint32_t height,
+                               rive::Fit fit,
+                               rive::Alignment alignment,
+                               float_t scaleFactor)
+{
+    auto* renderer = session->screenRenderer();
+    // The screen renderer is stable across frames, so balance the transform.
+    renderer->save();
+    renderer->align(fit,
+                    alignment,
+                    rive::AABB(0.0f,
+                               0.0f,
+                               static_cast<float_t>(width),
+                               static_cast<float_t>(height)),
+                    artboard->bounds(),
+                    scaleFactor);
+    artboard->draw(renderer);
+    renderer->restore();
+}
+#endif // RIVE_CANVAS && RIVE_ORE
 
 /**
  * Execute one traced state machine advance on the command server thread.
@@ -1058,13 +1421,22 @@ static void executeDrawWork(const TracerType* tracer,
     [[maybe_unused]] TraceScope<TracerType> drawTrace(*tracer,
                                                       "Rive/Frame/Draw");
 
-    auto factory = reinterpret_cast<CommandServerFactory*>(server->factory());
+    auto factory = serverImmediateFactory(server);
     auto riveContext = factory->getRenderContext()->riveContext.get();
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    const bool useDeferredRenderer = commandQueue->deferredEnabled();
+#else
+    constexpr bool useDeferredRenderer = false;
+#endif
+
     rive::gpu::RenderTarget* concreteRenderTarget = nullptr;
     {
         [[maybe_unused]] TraceScope<TracerType> beginTrace(
             *tracer,
             "Rive/Frame/Draw/Begin");
+        // Platform target admission precedes deferred recording. A null
+        // target is therefore a retryable no-op with no replay side effects.
         concreteRenderTarget = renderContext->beginFrame(nativeSurface);
         if (concreteRenderTarget == nullptr)
         {
@@ -1082,13 +1454,63 @@ static void executeDrawWork(const TracerType* tracer,
                      targetHeight);
             return;
         }
-        riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
-            .renderTargetWidth = targetWidth,
-            .renderTargetHeight = targetHeight,
-            .loadAction = rive::gpu::LoadAction::clear,
-            .clearColor = clearColor,
-        });
+        if (!useDeferredRenderer)
+        {
+            riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
+                .renderTargetWidth = targetWidth,
+                .renderTargetHeight = targetHeight,
+                .loadAction = rive::gpu::LoadAction::clear,
+                .clearColor = clearColor,
+            });
+        }
     }
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    if (useDeferredRenderer)
+    {
+        auto* session = commandQueue->ensureDeferredSession(riveContext);
+        auto& host = commandQueue->deferredHost();
+        host.beginRecord(true, clearColor);
+        {
+            [[maybe_unused]] TraceScope<TracerType> recordTrace(
+                *tracer,
+                "Rive/Frame/Draw/Record");
+            recordDeferredDraw(session,
+                               artboard,
+                               concreteRenderTarget->width(),
+                               concreteRenderTarget->height(),
+                               fit,
+                               alignment,
+                               scaleFactor);
+        }
+
+        [[maybe_unused]] TraceScope<TracerType> replayTrace(
+            *tracer,
+            "Rive/Frame/Draw/Replay");
+        replayDeferredFrame(
+            commandQueue,
+            renderContext,
+            nativeSurface,
+            concreteRenderTarget,
+            factory,
+            [&] {
+                {
+                    [[maybe_unused]] TraceScope<TracerType> flushTrace(
+                        *tracer,
+                        "Rive/Frame/Draw/Flush");
+                    if (!renderContext->flush(nativeSurface))
+                    {
+                        return;
+                    }
+                }
+                [[maybe_unused]] TraceScope<TracerType> presentTrace(
+                    *tracer,
+                    "Rive/Frame/Draw/Present");
+                renderContext->present(nativeSurface);
+            });
+        return;
+    }
+#endif
 
     {
         [[maybe_unused]] TraceScope<TracerType> renderTrace(
@@ -1289,6 +1711,17 @@ extern "C"
         commandQueue->setTracingEnabled(static_cast<bool>(enabled));
     }
 
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetDeferredEnabled(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jboolean enabled)
+    {
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        commandQueue->setDeferredEnabled(static_cast<bool>(enabled));
+    }
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppLoadFile(JNIEnv* env,
                                                          jobject,
@@ -1296,11 +1729,12 @@ extern "C"
                                                          jlong requestID,
                                                          jbyteArray bytes)
     {
-        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-        return longFromHandle(
-            commandQueue->loadFile(byteVec, nullptr, requestID));
+        auto fileHandle = commandQueue->loadFile(byteVec, nullptr, requestID);
+
+        return longFromHandle(fileHandle);
     }
 
     JNIEXPORT void JNICALL
@@ -2739,8 +3173,8 @@ extern "C"
         jobject,
         jlong ref,
         jlong jArtboardHandle,
-        jint jWidth,
-        jint jHeight,
+        [[maybe_unused]] jint jWidth,
+        [[maybe_unused]] jint jHeight,
         jfloat jScaleFactor)
     {
         auto* commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
@@ -2807,8 +3241,8 @@ extern "C"
         jlong drawKey,
         jlong artboardHandleRef,
         jlong stateMachineHandleRef,
-        jint,
-        jint,
+        jint jWidth,
+        jint jHeight,
         jbyte jFit,
         jbyte jAlignment,
         jfloat jScaleFactor,
@@ -2980,7 +3414,11 @@ extern "C"
                 return;
             }
 
-            auto concreteRenderTarget =
+            // Retrieve the Rive RenderContext from the CommandServer
+            auto factory = serverImmediateFactory(server);
+            auto riveContext = factory->getRenderContext()->riveContext.get();
+
+            auto* concreteRenderTarget =
                 renderContext->beginFrame(nativeSurface);
             if (concreteRenderTarget == nullptr ||
                 concreteRenderTarget->width() == 0 ||
@@ -2990,10 +3428,42 @@ extern "C"
                     DrawResult::RenderTargetUnavailable);
                 return;
             }
-            // Retrieve the Rive RenderContext from the CommandServer
-            auto factory =
-                reinterpret_cast<CommandServerFactory*>(server->factory());
-            auto riveContext = factory->getRenderContext()->riveContext.get();
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+            if (commandQueue->deferredEnabled())
+            {
+                auto* session =
+                    commandQueue->ensureDeferredSession(riveContext);
+                auto& host = commandQueue->deferredHost();
+                host.beginRecord(true, clearColor);
+                recordDeferredDraw(session,
+                                   artboard,
+                                   concreteRenderTarget->width(),
+                                   concreteRenderTarget->height(),
+                                   fit,
+                                   alignment,
+                                   scaleFactor);
+                auto result = DrawResult::RenderTargetUnavailable;
+                replayDeferredFrame(
+                    commandQueue,
+                    renderContext,
+                    nativeSurface,
+                    concreteRenderTarget,
+                    factory,
+                    [&] {
+                        if (renderContext->flush(nativeSurface) &&
+                            renderContext->readPixels(nativeSurface,
+                                                      width,
+                                                      height,
+                                                      pixels))
+                        {
+                            result = DrawResult::Success;
+                        }
+                    });
+                completionPromise->set_value(result);
+                return;
+            }
+#endif
 
             riveContext->beginFrame(rive::gpu::RenderContext::FrameDescriptor{
                 .renderTargetWidth = concreteRenderTarget->width(),

@@ -134,6 +134,8 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * @param bridge Native bridge used to create and communicate with the command queue. This is
  *    injectable so unit tests can mock JNI calls without loading native code.
  * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+ * @param deferredEnabled Whether draws record into a deferred session and replay synchronously,
+ *    enabling GPU canvas (ore) content. Fixed for the queue's lifetime.
  * @param nativePointer Allocated native command queue created by
  *    `createNativeCommandQueueResources`. Supplying it lets backend fallback finish native startup
  *    before ownership is transferred to this instance.
@@ -143,6 +145,7 @@ class CommandQueue internal constructor(
     private val renderContext: RenderContext,
     private val bridge: CommandQueueBridge = CommandQueueJNIBridge(),
     tracingEnabled: Boolean = false,
+    deferredEnabled: Boolean = false,
     nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
     settlingStore: StateMachineSettlingStore? = null,
 ) : RefCounted {
@@ -164,7 +167,8 @@ class CommandQueue internal constructor(
             renderBackend = renderBackend,
             bridge = CommandQueueJNIBridge(),
         ),
-        tracingEnabled = tracingEnabled
+        tracingEnabled = tracingEnabled,
+        deferredEnabled = false
     )
 
     /**
@@ -192,6 +196,7 @@ class CommandQueue internal constructor(
             renderContextFactory = renderContextFactory,
         ),
         tracingEnabled = tracingEnabled,
+        deferredEnabled = false,
     )
 
     /**
@@ -210,10 +215,12 @@ class CommandQueue internal constructor(
     private constructor(
         resources: NativeCommandQueueResources,
         tracingEnabled: Boolean,
+        deferredEnabled: Boolean = false,
     ) : this(
         renderContext = resources.renderContext,
         bridge = resources.bridge,
         tracingEnabled = tracingEnabled,
+        deferredEnabled = deferredEnabled,
         nativePointer = resources.nativePointer,
     )
 
@@ -235,6 +242,30 @@ class CommandQueue internal constructor(
     )
 
     companion object {
+        /**
+         * Creates a deferred command queue using the requested render backend.
+         *
+         * Deferred is on track to become the only mode, so until then it stays off the stable
+         * API and is reached through [app.rive.rememberDeferredRiveWorker].
+         *
+         * @param renderBackend Preferred render backend, with the same fallback behavior as the
+         *    public constructor.
+         * @param tracingEnabled Whether native command server tracing should start enabled.
+         * @throws RiveInitializationException If the command queue cannot be created.
+         */
+        @Throws(RiveInitializationException::class)
+        internal fun createDeferred(
+            renderBackend: RenderBackend = RenderBackend.OpenGL,
+            tracingEnabled: Boolean = false,
+        ): CommandQueue = CommandQueue(
+            resources = createNativeCommandQueueResources(
+                renderBackend = renderBackend,
+                bridge = CommandQueueJNIBridge(),
+            ),
+            tracingEnabled = tracingEnabled,
+            deferredEnabled = true,
+        )
+
         /**
          * Maximum number of Rive components that can safely use this command queue instance
          * concurrently.
@@ -352,6 +383,7 @@ class CommandQueue internal constructor(
 
     init {
         setTracingEnabled(tracingEnabled)
+        setDeferredEnabled(deferredEnabled)
     }
 
     /**
@@ -513,6 +545,14 @@ class CommandQueue internal constructor(
     @Throws(RiveResourceClosedException::class)
     fun setTracingEnabled(enabled: Boolean) {
         bridge.cppSetTracingEnabled(requireNativePointer(), enabled)
+    }
+
+    /**
+     * Private because the mode must be fixed before any file loads; files import through the
+     * mode's factory and cannot switch afterwards.
+     */
+    private fun setDeferredEnabled(enabled: Boolean) {
+        bridge.cppSetDeferredEnabled(cppPointer.pointer, enabled)
     }
 
     /**

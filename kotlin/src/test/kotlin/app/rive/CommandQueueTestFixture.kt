@@ -52,6 +52,7 @@ internal class CommandQueueTestFixture {
             )
         } returns listenersMock
         every { commandQueueBridgeMock.cppSetTracingEnabled(any(), any()) } just runs
+        every { commandQueueBridgeMock.cppSetDeferredEnabled(any(), any()) } just runs
         every { commandQueueBridgeMock.cppCancelDraw(any(), any()) } just runs
         every { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) } just runs
     }

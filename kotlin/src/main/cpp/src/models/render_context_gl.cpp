@@ -9,6 +9,7 @@
 #include "rive/gpu_texture_format.hpp"
 #include "rive/renderer/gl/render_context_gl_impl.hpp"
 #include "rive/renderer/gl/render_target_gl.hpp"
+#include "rive/renderer/ore/ore_context_gl.hpp"
 
 namespace rive_android
 {
@@ -164,6 +165,14 @@ rive::gpu::RenderTarget* RenderContextGL::beginFrame(RenderSurface* surface)
 {
     auto* glSurface = static_cast<RenderSurfaceGL*>(surface);
     auto eglSurface = glSurface->eglSurface();
+
+    // Capture the old drawable before eglMakeCurrent(), after which querying
+    // EGL_DRAW would necessarily return eglSurface. Although FBOs belong to
+    // the EGLContext rather than its drawable, Android emulator drivers can
+    // report GL_FRAMEBUFFER_UNSUPPORTED when an Ore scratch FBO survives an
+    // ImageReader EGLSurface replacement. Comparing the opaque EGLSurface IDs
+    // lets stable surfaces retain the cache while transitions discard it.
+    const EGLSurface previousEglSurface = eglGetCurrentSurface(EGL_DRAW);
     if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
     {
         RiveLogE(
@@ -172,7 +181,18 @@ rive::gpu::RenderTarget* RenderContextGL::beginFrame(RenderSurface* surface)
             errorString(eglGetError()).c_str());
         return nullptr;
     }
+    if (previousEglSurface != eglSurface)
+    {
+        auto* oreContext =
+            static_cast<rive::ore::ContextGL*>(riveContext->ore());
+        oreContext->invalidateScratchFramebuffers();
+    }
     return glSurface->getOrCreateRenderTarget(this);
+}
+
+void RenderContextGL::beginOreFrame(RenderSurface*)
+{
+    riveContext->ore()->beginFrame({});
 }
 
 bool RenderContextGL::flush(RenderSurface* surface)

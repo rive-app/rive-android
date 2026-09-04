@@ -15,9 +15,11 @@
 #include "helpers/general.hpp"
 #include "helpers/rive_log.hpp"
 #include "rive/gpu_texture_format.hpp"
+#include "rive/renderer/ore/ore_context.hpp"
 #include "rive/renderer/vulkan/render_context_vulkan_impl.hpp"
 #include "rive/renderer/vulkan/render_target_vulkan.hpp"
 #include "rive_vk_bootstrap/vulkan_device.hpp"
+#include "rive_vk_bootstrap/vulkan_frame_sync_coordinator.hpp"
 #include "rive_vk_bootstrap/vulkan_headless_frame_synchronizer.hpp"
 #include "rive_vk_bootstrap/vulkan_instance.hpp"
 #include "rive_vk_bootstrap/vulkan_swapchain.hpp"
@@ -56,6 +58,7 @@ void invalidateSwapchain(RenderSurfaceVulkan* surface)
     auto* window = surface->window();
     if (window != nullptr)
     {
+        surface->unregisterFrameSynchronizer();
         window->invalidate();
         surface->resetRenderTarget();
     }
@@ -91,7 +94,8 @@ bool invalidateSwapchainIfRecoverable(RenderSurfaceVulkan* surface,
 
 bool beginWindowFrame(RenderSurfaceVulkan* surface,
                       VulkanWindowSurface& window,
-                      rive::gpu::RenderTargetVulkanImpl& vulkanTarget)
+                      rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
+                      rive_vkb::VulkanFrameSyncCoordinator& coordinator)
 {
     auto* synchronizer = window.synchronizer();
     if (synchronizer == nullptr)
@@ -117,6 +121,7 @@ bool beginWindowFrame(RenderSurfaceVulkan* surface,
                      result);
             return false;
         }
+        coordinator.onFrameStart(synchronizer);
     }
     vulkanTarget.setTargetImageView(synchronizer->vkImageView(),
                                     synchronizer->vkImage(),
@@ -125,7 +130,8 @@ bool beginWindowFrame(RenderSurfaceVulkan* surface,
 }
 
 bool beginImageFrame(VulkanImageSurface& image,
-                     rive::gpu::RenderTargetVulkanImpl& vulkanTarget)
+                     rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
+                     rive_vkb::VulkanFrameSyncCoordinator& coordinator)
 {
     auto* synchronizer = image.synchronizer();
     if (synchronizer == nullptr)
@@ -147,6 +153,7 @@ bool beginImageFrame(VulkanImageSurface& image,
             RiveLogE(TAG_RC, "Failed to begin Vulkan image frame: %d", result);
             return false;
         }
+        coordinator.onFrameStart(synchronizer);
     }
     vulkanTarget.setTargetImageView(synchronizer->vkImageView(),
                                     synchronizer->vkImage(),
@@ -156,7 +163,9 @@ bool beginImageFrame(VulkanImageSurface& image,
 
 bool flushWindowFrame(rive::gpu::RenderContext* riveContext,
                       VulkanWindowSurface& window,
-                      rive::gpu::RenderTarget* renderTarget)
+                      rive::gpu::RenderTarget* renderTarget,
+                      uint64_t currentFrameNumber,
+                      uint64_t safeFrameNumber)
 {
     auto* synchronizer = window.synchronizer();
     if (synchronizer == nullptr)
@@ -166,15 +175,17 @@ bool flushWindowFrame(rive::gpu::RenderContext* riveContext,
     riveContext->flush({
         .renderTarget = renderTarget,
         .externalCommandBuffer = synchronizer->currentCommandBuffer(),
-        .currentFrameNumber = synchronizer->currentFrameNumber(),
-        .safeFrameNumber = synchronizer->safeFrameNumber(),
+        .currentFrameNumber = currentFrameNumber,
+        .safeFrameNumber = safeFrameNumber,
     });
     return true;
 }
 
 bool flushImageFrame(rive::gpu::RenderContext* riveContext,
                      VulkanImageSurface& image,
-                     rive::gpu::RenderTarget* renderTarget)
+                     rive::gpu::RenderTarget* renderTarget,
+                     uint64_t currentFrameNumber,
+                     uint64_t safeFrameNumber)
 {
     auto* synchronizer = image.synchronizer();
     if (synchronizer == nullptr)
@@ -185,8 +196,8 @@ bool flushImageFrame(rive::gpu::RenderContext* riveContext,
     riveContext->flush({
         .renderTarget = renderTarget,
         .externalCommandBuffer = synchronizer->currentCommandBuffer(),
-        .currentFrameNumber = synchronizer->currentFrameNumber(),
-        .safeFrameNumber = synchronizer->safeFrameNumber(),
+        .currentFrameNumber = currentFrameNumber,
+        .safeFrameNumber = safeFrameNumber,
     });
     return true;
 }
@@ -380,7 +391,11 @@ bool readImagePixels(VulkanImageSurface& image,
 }
 } // namespace
 
-RenderContextVulkan::RenderContextVulkan() = default;
+RenderContextVulkan::RenderContextVulkan(bool enableDebugNames) :
+    m_frameSyncCoordinator(
+        std::make_unique<rive_vkb::VulkanFrameSyncCoordinator>()),
+    m_enableDebugNames(enableDebugNames)
+{}
 
 RenderContextVulkan::~RenderContextVulkan() = default;
 
@@ -420,12 +435,22 @@ StartupResult RenderContextVulkan::initialize()
     }
 
     RiveLogD(TAG_RC, "Creating Rive RenderContextVulkan");
+    if (!m_enableDebugNames)
+    {
+        // GFXStream's ranchu driver crashes inside
+        // vkSetDebugUtilsObjectNameEXT even when VK_EXT_debug_utils is enabled.
+        RiveLogD(TAG_RC,
+                 "Disabling Vulkan debug names for the GFXStream emulator");
+    }
     riveContext = rive::gpu::RenderContextVulkanImpl::MakeContext(
         m_instance->vkInstance(),
         m_device->vkPhysicalDevice(),
         m_device->vkDevice(),
         m_device->vulkanFeatures(),
-        m_instance->getVkGetInstanceProcAddrPtr());
+        m_instance->getVkGetInstanceProcAddrPtr(),
+        rive::gpu::RenderContextVulkanImpl::ContextOptions{
+            .enableDebugNames = m_enableDebugNames,
+        });
     if (!riveContext)
     {
         return {false,
@@ -478,6 +503,7 @@ RenderSurfaceVulkan* RenderContextVulkan::createWindowSurface(
         m_instance->loadInstanceFunc<PFN_vkDestroySurfaceKHR>(
             "vkDestroySurfaceKHR");
     auto surface = RenderSurfaceVulkan::MakeWindow(m_device.get(),
+                                                   m_frameSyncCoordinator.get(),
                                                    nativeWindow,
                                                    m_instance->vkInstance(),
                                                    destroySurfaceKHR,
@@ -513,7 +539,11 @@ RenderSurfaceVulkan* RenderContextVulkan::createWindowSurface(
 RenderSurfaceVulkan* RenderContextVulkan::createImageSurface(int width,
                                                              int height)
 {
-    return RenderSurfaceVulkan::MakeImage(width, height).release();
+    return RenderSurfaceVulkan::MakeImage(m_device.get(),
+                                          m_frameSyncCoordinator.get(),
+                                          width,
+                                          height)
+        .release();
 }
 
 rive::rcp<rive::RenderImage> RenderContextVulkan::createRenderImage(
@@ -585,17 +615,43 @@ rive::gpu::RenderTarget* RenderContextVulkan::beginFrame(
         return nullptr;
     }
 
-    auto beganFrame = std::visit(
-        Overloaded{
-            [&](VulkanWindowSurface& window) {
-                return beginWindowFrame(surface, window, *vulkanTarget);
-            },
-            [&](VulkanImageSurface& image) {
-                return beginImageFrame(image, *vulkanTarget);
-            },
-        },
-        surface->backend);
-    return beganFrame ? renderTarget : nullptr;
+    auto beganFrame =
+        std::visit(Overloaded{
+                       [&](VulkanWindowSurface& window) {
+                           return beginWindowFrame(surface,
+                                                   window,
+                                                   *vulkanTarget,
+                                                   *m_frameSyncCoordinator);
+                       },
+                       [&](VulkanImageSurface& image) {
+                           return beginImageFrame(image,
+                                                  *vulkanTarget,
+                                                  *m_frameSyncCoordinator);
+                       },
+                   },
+                   surface->backend);
+    if (!beganFrame)
+    {
+        return nullptr;
+    }
+
+    return renderTarget;
+}
+
+void RenderContextVulkan::beginOreFrame(RenderSurface* nativeSurface)
+{
+    auto* synchronizer =
+        static_cast<RenderSurfaceVulkan*>(nativeSurface)->synchronizer();
+    if (synchronizer == nullptr)
+    {
+        missingPreparedFrameResource("beginOreFrame", "frame synchronizer");
+        return;
+    }
+    riveContext->ore()->beginFrame({
+        .externalCommandBuffer = synchronizer->currentCommandBuffer(),
+        .safeFrameNumber = m_frameSyncCoordinator->safeFrameNumber(),
+        .currentFrameNumber = m_frameSyncCoordinator->currentFrameNumber(),
+    });
 }
 
 bool RenderContextVulkan::flush(RenderSurface* nativeSurface)
@@ -606,18 +662,25 @@ bool RenderContextVulkan::flush(RenderSurface* nativeSurface)
     {
         return false;
     }
-    return std::visit(
-        Overloaded{
-            [&](VulkanWindowSurface& window) {
-                return flushWindowFrame(riveContext.get(),
-                                        window,
-                                        renderTarget);
-            },
-            [&](VulkanImageSurface& image) {
-                return flushImageFrame(riveContext.get(), image, renderTarget);
-            },
-        },
-        surface->backend);
+    return std::visit(Overloaded{
+                          [&](VulkanWindowSurface& window) {
+                              return flushWindowFrame(
+                                  riveContext.get(),
+                                  window,
+                                  renderTarget,
+                                  m_frameSyncCoordinator->currentFrameNumber(),
+                                  m_frameSyncCoordinator->safeFrameNumber());
+                          },
+                          [&](VulkanImageSurface& image) {
+                              return flushImageFrame(
+                                  riveContext.get(),
+                                  image,
+                                  renderTarget,
+                                  m_frameSyncCoordinator->currentFrameNumber(),
+                                  m_frameSyncCoordinator->safeFrameNumber());
+                          },
+                      },
+                      surface->backend);
 }
 
 bool RenderContextVulkan::present(RenderSurface* nativeSurface)
@@ -686,19 +749,20 @@ rive::gpu::VulkanContext* RenderContextVulkan::vk() const
 
 bool RenderContextVulkan::ensureFrameSurface(RenderSurfaceVulkan* surface)
 {
-    surface->device = m_device.get();
     return std::visit(Overloaded{
                           [&](VulkanWindowSurface& window) {
-                              return ensureSwapchain(window);
+                              return ensureSwapchain(surface, window);
                           },
                           [&](VulkanImageSurface& image) {
-                              return ensureHeadlessFrameSynchronizer(image);
+                              return ensureHeadlessFrameSynchronizer(surface,
+                                                                     image);
                           },
                       },
                       surface->backend);
 }
 
-bool RenderContextVulkan::ensureSwapchain(VulkanWindowSurface& window)
+bool RenderContextVulkan::ensureSwapchain(RenderSurfaceVulkan* surface,
+                                          VulkanWindowSurface& window)
 {
     auto* pending = window.pending();
     if (pending == nullptr)
@@ -757,10 +821,14 @@ bool RenderContextVulkan::ensureSwapchain(VulkanWindowSurface& window)
     }
 
     window.prepare(std::move(swapchain));
+    // Registration must happen after ownership moves into the surface so the
+    // coordinator observes the same stable pointer through destruction.
+    surface->registerFrameSynchronizer();
     return true;
 }
 
 bool RenderContextVulkan::ensureHeadlessFrameSynchronizer(
+    RenderSurfaceVulkan* surface,
     VulkanImageSurface& image)
 {
     auto* pending = image.pending();
@@ -786,6 +854,7 @@ bool RenderContextVulkan::ensureHeadlessFrameSynchronizer(
         return false;
     }
     image.prepare(std::move(frameSynchronizer));
+    surface->registerFrameSynchronizer();
     return true;
 }
 

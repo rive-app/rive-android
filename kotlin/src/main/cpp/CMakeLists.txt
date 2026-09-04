@@ -157,9 +157,13 @@ endif ()
 # Promote our ${ANDROID_NDK} to an environment var so Premake uses the same one.
 set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 
+# Declare Android's required default features explicitly. Scoping this environment variable to the
+# child process prevents build_rive.sh from prepending the same defaults a second time.
+set(RIVE_ANDROID_PREMAKE_ARGS "--with_rive_text --with_rive_layout --with_rive_canvas")
+
 # Build the Rive C++ runtime and its dependencies as static .a libs
 execute_process(
-        COMMAND bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
+        COMMAND ${CMAKE_COMMAND} -E env "RIVE_PREMAKE_ARGS=${RIVE_ANDROID_PREMAKE_ARGS}" bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE SCRIPT_RESULT
         OUTPUT_VARIABLE SCRIPT_OUTPUT
@@ -195,6 +199,15 @@ target_compile_definitions(rive-android PRIVATE
         VK_NO_PROTOTYPES
         VMA_STATIC_VULKAN_FUNCTIONS=0
         VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
+
+# Must match what --with_rive_canvas and --with_vulkan set in the renderer
+# Premake for android, or the shared deferred host headers change layout
+# between the static libs and these JNI translation units.
+target_compile_definitions(rive-android PRIVATE
+        RIVE_CANVAS
+        RIVE_ORE
+        ORE_BACKEND_GL
+        ORE_BACKEND_VK)
 
 target_sources(rive-android PRIVATE
         ${RIVE_RUNTIME_DIR}/renderer/rive_vk_bootstrap/src/vulkan_debug_callbacks.cpp

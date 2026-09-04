@@ -3,9 +3,11 @@
 #ifdef RIVE_VULKAN
 
 #include <android/native_window.h>
+#include <cassert>
 #include <utility>
 
 #include "rive_vk_bootstrap/vulkan_device.hpp"
+#include "rive_vk_bootstrap/vulkan_frame_sync_coordinator.hpp"
 #include "rive_vk_bootstrap/vulkan_headless_frame_synchronizer.hpp"
 #include "rive_vk_bootstrap/vulkan_swapchain.hpp"
 
@@ -130,6 +132,7 @@ void VulkanImageSurface::prepare(
 
 std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeWindow(
     rive_vkb::VulkanDevice* device,
+    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
     ANativeWindow* nativeWindow,
     VkInstance instance,
     PFN_vkDestroySurfaceKHR destroySurfaceKHR,
@@ -138,6 +141,7 @@ std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeWindow(
 {
     return std::unique_ptr<RenderSurfaceVulkan>(
         new RenderSurfaceVulkan(device,
+                                frameSyncCoordinator,
                                 nativeWindow,
                                 instance,
                                 destroySurfaceKHR,
@@ -145,11 +149,16 @@ std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeWindow(
                                 static_cast<uint32_t>(height)));
 }
 
-std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeImage(int width,
-                                                                    int height)
+std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeImage(
+    rive_vkb::VulkanDevice* device,
+    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+    int width,
+    int height)
 {
     return std::unique_ptr<RenderSurfaceVulkan>(
-        new RenderSurfaceVulkan(static_cast<uint32_t>(width),
+        new RenderSurfaceVulkan(device,
+                                frameSyncCoordinator,
+                                static_cast<uint32_t>(width),
                                 static_cast<uint32_t>(height)));
 }
 
@@ -164,6 +173,7 @@ RenderSurfaceVulkan::~RenderSurfaceVulkan()
     // images, and device-idle above guarantees no in-flight command buffer can
     // still reference them during teardown.
     resetRenderTarget();
+    unregisterFrameSynchronizer();
 }
 
 VulkanWindowSurface* RenderSurfaceVulkan::window()
@@ -185,16 +195,36 @@ rive_vkb::VulkanFrameSynchronizer* RenderSurfaceVulkan::synchronizer()
     return this->image()->synchronizer();
 }
 
+void RenderSurfaceVulkan::registerFrameSynchronizer()
+{
+    auto* sync = synchronizer();
+    assert(frameSyncCoordinator != nullptr);
+    assert(sync != nullptr);
+    frameSyncCoordinator->addFrameSynchronizer(sync);
+}
+
+void RenderSurfaceVulkan::unregisterFrameSynchronizer()
+{
+    auto* sync = synchronizer();
+    if (sync != nullptr)
+    {
+        assert(frameSyncCoordinator != nullptr);
+        frameSyncCoordinator->removeFrameSynchronizer(sync);
+    }
+}
+
 void RenderSurfaceVulkan::onResize()
 {
     if (auto* window = this->window())
     {
+        unregisterFrameSynchronizer();
         window->invalidate();
     }
 }
 
 RenderSurfaceVulkan::RenderSurfaceVulkan(
     rive_vkb::VulkanDevice* device,
+    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
     ANativeWindow* nativeWindow,
     VkInstance instance,
     PFN_vkDestroySurfaceKHR destroySurfaceKHR,
@@ -205,12 +235,19 @@ RenderSurfaceVulkan::RenderSurfaceVulkan(
             nativeWindow,
             instance,
             destroySurfaceKHR),
-    device(device)
+    device(device),
+    frameSyncCoordinator(frameSyncCoordinator)
 {}
 
-RenderSurfaceVulkan::RenderSurfaceVulkan(uint32_t width, uint32_t height) :
+RenderSurfaceVulkan::RenderSurfaceVulkan(
+    rive_vkb::VulkanDevice* device,
+    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+    uint32_t width,
+    uint32_t height) :
     RenderSurface(width, height),
-    backend(std::in_place_type<VulkanImageSurface>, width, height)
+    backend(std::in_place_type<VulkanImageSurface>, width, height),
+    device(device),
+    frameSyncCoordinator(frameSyncCoordinator)
 {}
 
 } // namespace rive_android
