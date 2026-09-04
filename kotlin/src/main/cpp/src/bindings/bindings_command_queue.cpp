@@ -1045,9 +1045,10 @@ public:
             RiveLogD(TAG_CQ, "Creating command server factory");
             auto factory = CommandServerFactory(renderContext);
 
-            // Stack allocated command server
+            // Stack allocated command server.
             // Takes a copy of this object's RCP, increasing the ref count to 3,
-            // releasing it when the command server falls out of scope.
+            // releasing it (and GPU buffers) when falling out of scope below.
+            {
             RiveLogD(TAG_CQ, "Creating command server");
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
             auto routingFactory = RoutingServerFactory(self.get(), &factory);
@@ -1073,21 +1074,21 @@ public:
             // design once the session is gone.
             self->releaseDeferredState();
 #endif
+            }
 
             RiveLogD(TAG_CQ, "Deleting render context");
             renderContext->destroy();
 
             // Extra information for debugging command queue lifetimes
             auto refCnt = self->debugging_refcnt();
-            if (refCnt != 3)
+            if (refCnt != 2)
             {
                 RiveLogW(
                     TAG_CQ,
                     "Command queue ref count before worker thread detach does not match expected value:\n"
-                    "  Expected: 3; Actual: %d\n"
+                    "  Expected: 2; Actual: %d\n"
                     "    1. Main thread's released reference\n"
-                    "    2. This worker thread, cleaned by rcp scope\n"
-                    "    3. Command server rcp, stack allocated and about to fall from scope",
+                    "    2. This worker thread, cleaned by rcp scope",
                     refCnt);
             }
         });
