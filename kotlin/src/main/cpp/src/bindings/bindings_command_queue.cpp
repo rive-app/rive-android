@@ -1041,53 +1041,57 @@ public:
                 return;
             }
 
-            // Stack allocated factory for the command server
-            RiveLogD(TAG_CQ, "Creating command server factory");
-            auto factory = CommandServerFactory(renderContext);
+            {
+                // Keep the factory and server in a scope that ends before
+                // renderContext teardown. CommandServer owns decoded images
+                // whose Vulkan resources must be released while VkDevice is
+                // still valid.
+                RiveLogD(TAG_CQ, "Creating command server factory");
+                auto factory = CommandServerFactory(renderContext);
 
-            // Stack allocated command server
-            // Takes a copy of this object's RCP, increasing the ref count to 3,
-            // releasing it when the command server falls out of scope.
-            RiveLogD(TAG_CQ, "Creating command server");
+                // Takes a copy of this object's RCP, increasing the ref count
+                // to 3 and releasing it with the server below.
+                RiveLogD(TAG_CQ, "Creating command server");
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
-            auto routingFactory = RoutingServerFactory(self.get(), &factory);
-            auto commandServer = rive::CommandServer(self, &routingFactory);
+                auto routingFactory =
+                    RoutingServerFactory(self.get(), &factory);
+                auto commandServer = rive::CommandServer(self, &routingFactory);
 #else
-            auto commandServer = rive::CommandServer(self, &factory);
+                auto commandServer = rive::CommandServer(self, &factory);
 #endif
 
-            // Signal success and unblock the main thread
-            promise.set_value(
-                {true, EGL_SUCCESS, "Command Server started successfully"});
+                // Signal success and unblock the main thread
+                promise.set_value(
+                    {true, EGL_SUCCESS, "Command Server started successfully"});
 
-            // Begin the serving loop. This will "block" the thread until
-            // the server receives the disconnect command.
-            RiveLogD(TAG_CQ, "Beginning command server processing loop");
-            commandServer.serveUntilDisconnect();
+                // Begin the serving loop. This will "block" the thread until
+                // the server receives the disconnect command.
+                RiveLogD(TAG_CQ, "Beginning command server processing loop");
+                commandServer.serveUntilDisconnect();
 
-            RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
+                RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
 
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
-            // Replay resources need the backend context still alive. Files
-            // die later in ~CommandServer; their session releases no-op by
-            // design once the session is gone.
-            self->releaseDeferredState();
+                // Replay resources need the backend context still alive. Files
+                // die later in ~CommandServer; their session releases no-op by
+                // design once the session is gone.
+                self->releaseDeferredState();
 #endif
+            }
 
             RiveLogD(TAG_CQ, "Deleting render context");
             renderContext->destroy();
 
             // Extra information for debugging command queue lifetimes
             auto refCnt = self->debugging_refcnt();
-            if (refCnt != 3)
+            if (refCnt != 2)
             {
                 RiveLogW(
                     TAG_CQ,
                     "Command queue ref count before worker thread detach does not match expected value:\n"
-                    "  Expected: 3; Actual: %d\n"
-                    "    1. Main thread's released reference\n"
-                    "    2. This worker thread, cleaned by rcp scope\n"
-                    "    3. Command server rcp, stack allocated and about to fall from scope",
+                    "  Expected: 2; Actual: %d\n"
+                    "    1. JNI-owned reference returned by cppConstructor\n"
+                    "    2. Worker thread's captured RCP",
                     refCnt);
             }
         });

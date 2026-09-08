@@ -1,10 +1,12 @@
 package app.rive.core
 
+import android.os.Build
 import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.Fit
 import app.rive.RiveAndroidTest
@@ -46,6 +48,33 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
         )
 
         assertDisposed(commandQueue)
+    }
+
+    /**
+     * Exercises Vulkan worker teardown with an image retained by the command server.
+     *
+     * The decoded handle is intentionally left in the command server. Drivers that strictly
+     * enforce VkDevice lifetime requirements can crash during [RiveWorker.release] if the command
+     * server outlives the render context.
+     */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun release_withCachedVulkanImage_doesNotCrash() {
+        val imageBytes = context.resources.openRawResource(R.raw.eve).use { it.readBytes() }
+        val worker = RiveWorker(renderContext = RenderContextVulkan())
+
+        try {
+            worker.withPolling {
+                runBlocking {
+                    worker.decodeImage(imageBytes)
+                }
+            }
+        } finally {
+            if (!worker.isDisposed) {
+                worker.release(javaClass.simpleName, "Vulkan image teardown test cleanup")
+            }
+            assertDisposed(worker)
+        }
     }
 
     @Test
