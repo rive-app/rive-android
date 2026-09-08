@@ -34,12 +34,12 @@ class FontPickerTest {
             val fontBytes = it.readBytes()
             assert(
                 // System default has 'u' glyph...
-                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), fontBytes) >= 0
+                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), fontBytes) >= 0,
             )
 
             assert(
                 // ...but not other Unicode (e.g. Thai) characters
-                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) < 0
+                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) < 0,
             )
 
             // Find a Thai font and configure fallback system
@@ -51,7 +51,7 @@ class FontPickerTest {
 
             thaiFont?.let { font ->
                 assertTrue(
-                    Rive.setFallbackFont(Fonts.FontOpts(familyName = font.name))
+                    Rive.setFallbackFont(Fonts.FontOpts(familyName = font.name)),
                 )
                 assert(NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0)
             }
@@ -74,7 +74,7 @@ class FontPickerTest {
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
             assert(
-                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), it.readBytes()) >= 0
+                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), it.readBytes()) >= 0,
             )
             assertTrue(isPickerCalled)
         }
@@ -174,10 +174,12 @@ class FontPickerTest {
 
         file.firstArtboard.let { artboard ->
             artboard.setTextRunValue(
-                "ultralight_start", "abc" // These characters are *not* part of the file.
+                "ultralight_start",
+                "abc", // These characters are *not* part of the file.
             )
             artboard.setTextRunValue(
-                "ultralight_mid", "def" // Neither are these.
+                "ultralight_mid",
+                "def", // Neither are these.
             )
             artboard.advance(0f) // shape text & pick fallback.
             assertEquals(1, pickerCalls)
@@ -217,7 +219,8 @@ class FontPickerTest {
 
         file.firstArtboard.let { artboard ->
             artboard.setTextRunValue(
-                "ultralight_start", "म अ 错 ا" // All types of different languages
+                "ultralight_start",
+                "म अ 错 ا", // All types of different languages
             )
             artboard.advance(0f) // shape text & pick fallback.
 
@@ -256,7 +259,7 @@ class FontPickerTest {
 
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
-        /**
+        /*
          * A bit of an odd test here: we query our fallback function to get back the index in the
          * Strategy stack found a match against the character in the "म错ا" string.
          * 1. Devangari
@@ -268,8 +271,8 @@ class FontPickerTest {
                 index,
                 NativeFontTestHelper.cppFindFontFallback(
                     codePoint,
-                    limitedFontBytes // just a placeholder...
-                )
+                    limitedFontBytes, // just a placeholder...
+                ),
             )
         }
 

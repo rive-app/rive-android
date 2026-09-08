@@ -65,7 +65,7 @@ class MultiTouchDataBindingComposeTest {
                         riveFile,
                         autoBind = true,
                         // Stretch to fill the view bounds. Useful during corner calculations.
-                        fit = Fit.FILL
+                        fit = Fit.FILL,
                     )
 
                     val vmi = controller.stateMachines.first().viewModelInstance!!
@@ -82,7 +82,7 @@ class MultiTouchDataBindingComposeTest {
             },
             modifier = Modifier
                 .fillMaxSize()
-                .testTag(RIVE_TAG)
+                .testTag(RIVE_TAG),
         )
     }
 
@@ -151,7 +151,7 @@ class MultiTouchDataBindingComposeTest {
          */
         fun haveDownCounts(vararg expected: Int): Boolean {
             require(expected.size == size) {
-                "Expected ${size} down counts, received ${expected.size}"
+                "Expected $size down counts, received ${expected.size}"
             }
             return inner.indices.all { inner[it].hasDownCount(expected[it]) }
         }
@@ -168,7 +168,7 @@ class MultiTouchDataBindingComposeTest {
 
     /** Pairs with the above scope DSL, allowing it to run similar to `performTouchInput`. */
     fun SemanticsNodeInteraction.performTouchTargets(
-        block: TouchTargetsScope.() -> Unit
+        block: TouchTargetsScope.() -> Unit,
     ) = performTouchInput { TouchTargetsScope(this).block() }
 
     /**
@@ -225,12 +225,11 @@ class MultiTouchDataBindingComposeTest {
      *
      * @param condition The Rive-backed condition to wait for.
      */
-    fun ComposeContentTestRule.waitFor(condition: () -> Boolean) =
-        waitUntil(TIMEOUT) {
-            val renderer = riveViewRef.artboardRenderer ?: return@waitUntil false
-            renderer.advance(0f)
-            condition()
-        }
+    fun ComposeContentTestRule.waitFor(condition: () -> Boolean) = waitUntil(TIMEOUT) {
+        val renderer = riveViewRef.artboardRenderer ?: return@waitUntil false
+        renderer.advance(0f)
+        condition()
+    }
 
     /**
      * Moves each pointer directly into the next occupied target and verifies every intermediate

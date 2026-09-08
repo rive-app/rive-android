@@ -7,17 +7,17 @@ import app.rive.runtime.kotlin.fonts.FontHelper.Companion.findMatches
 import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getFontFile
 import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFontList
 import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFonts
-import org.xmlpull.v1.XmlPullParser
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicReference
+import org.xmlpull.v1.XmlPullParser
 
 class Fonts {
     data class Font(
         val weight: Weight,
         val style: String,
-        val name: String,  // TTF file name
-        val axis: List<Axis>? = null,  // Optional axis for variable fonts
+        val name: String, // TTF file name
+        val axis: List<Axis>? = null, // Optional axis for variable fonts
         val ttcIndex: Int = 0,
         val postScriptName: String? = null,
         val fallbackFor: String? = null,
@@ -49,11 +49,11 @@ class Fonts {
     data class Weight(val weight: Int = 400) : Comparable<Weight> {
         companion object {
             fun fromString(stringValue: String?): Weight = Weight(
-                stringValue?.toIntOrNull()?.coerceIn(0..1000) ?: 400
+                stringValue?.toIntOrNull()?.coerceIn(0..1000) ?: 400,
             )
 
             fun fromInt(intValue: Int = 400): Weight = Weight(
-                intValue.coerceIn(0..1000)
+                intValue.coerceIn(0..1000),
             )
 
             val NORMAL = Weight(weight = 400)
@@ -118,7 +118,7 @@ class FontHelper {
             message = "Use getSystemFontList() instead. The map approach can lose unnamed " +
                 "families with colliding first font names. This method will be removed in 12.0.",
             replaceWith = ReplaceWith("getSystemFontList()"),
-            level = DeprecationLevel.WARNING
+            level = DeprecationLevel.WARNING,
         )
         fun getSystemFonts(): Map<String, Fonts.Family> {
             // Return cached fonts if available
@@ -179,7 +179,7 @@ class FontHelper {
             val validPath = sequenceOf(
                 SystemFontsParser.FONTS_XML_PATH,
                 SystemFontsParser.SYSTEM_FONTS_XML_PATH,
-                SystemFontsParser.FALLBACK_FONTS_XML_PATH
+                SystemFontsParser.FALLBACK_FONTS_XML_PATH,
             )
                 .map { pathStr -> File(pathStr) }
                 .firstOrNull { it.exists() }
@@ -209,7 +209,7 @@ class FontHelper {
             val validPath = sequenceOf(
                 SystemFontsParser.FONTS_XML_PATH,
                 SystemFontsParser.SYSTEM_FONTS_XML_PATH,
-                SystemFontsParser.FALLBACK_FONTS_XML_PATH
+                SystemFontsParser.FALLBACK_FONTS_XML_PATH,
             )
                 .map { pathStr -> File(pathStr) }
                 .firstOrNull { it.exists() }
@@ -247,8 +247,7 @@ class FontHelper {
          * @return The [Fonts.Font] matching the specified options, or `null` if no suitable font is
          *    found.
          */
-        fun getFallbackFont(opts: Fonts.FontOpts? = null): Fonts.Font? =
-            getFallbackFonts(opts ?: Fonts.FontOpts.DEFAULT).firstOrNull()
+        fun getFallbackFont(opts: Fonts.FontOpts? = null): Fonts.Font? = getFallbackFonts(opts ?: Fonts.FontOpts.DEFAULT).firstOrNull()
 
         /**
          * Retrieves a list of fallback fonts based on optional font preferences.
@@ -329,9 +328,10 @@ class FontHelper {
 
             val matchingFamiliesSequence = fontFamilies
                 .asSequence()
-                .filter { (_, family) -> // Value is Fonts.Family
+                .filter { (_, family) ->
+                    // Value is Fonts.Family
                     (familyName == null || family.name.equals(familyName, ignoreCase = true)) &&
-                            (lang == null || family.lang == lang) // Filter by lang here
+                        (lang == null || family.lang == lang) // Filter by lang here
                 }
                 .map { it.value } // Get the Family object
 
@@ -340,7 +340,7 @@ class FontHelper {
                 matchingFamiliesSequence = matchingFamiliesSequence,
                 requestedLang = opts.lang, // This is the lang used for sorting priority
                 requestedWeight = opts.weight,
-                requestedStyle = opts.style
+                requestedStyle = opts.style,
             )
         }
 
@@ -355,7 +355,7 @@ class FontHelper {
                 .asSequence() // Work with a sequence for consistency
                 .filter { family ->
                     (familyName == null || family.name.equals(familyName, ignoreCase = true)) &&
-                            (lang == null || family.lang == lang) // Filter by lang here
+                        (lang == null || family.lang == lang) // Filter by lang here
                 }
 
             // Pass opts.lang for sorting, and opts.weight, opts.style for final font filtering
@@ -363,7 +363,7 @@ class FontHelper {
                 matchingFamiliesSequence = matchingFamiliesSequence,
                 requestedLang = opts.lang, // This is the lang used for sorting priority
                 requestedWeight = opts.weight,
-                requestedStyle = opts.style
+                requestedStyle = opts.style,
             )
         }
 
@@ -394,13 +394,13 @@ class FontHelper {
                 families = sortedNamedFamilies,
                 weight = requestedWeight,
                 style = requestedStyle,
-                resultSet = resultFonts
+                resultSet = resultFonts,
             )
             filterFamilies(
                 families = sortedUnnamedFamilies,
                 weight = requestedWeight,
                 style = requestedStyle,
-                resultSet = resultFonts
+                resultSet = resultFonts,
             )
 
             return resultFonts.toList()
@@ -483,10 +483,9 @@ class FontHelper {
          * @return A [ByteArray] containing the font's data, or `null` if no suitable font is found
          *    or if there is an error accessing the font file.
          */
-        fun getFallbackFontBytes(opts: Fonts.FontOpts? = null): ByteArray? =
-            getFallbackFont(opts ?: Fonts.FontOpts.DEFAULT)?.let {
-                return getFontBytes(it)
-            }
+        fun getFallbackFontBytes(opts: Fonts.FontOpts? = null): ByteArray? = getFallbackFont(opts ?: Fonts.FontOpts.DEFAULT)?.let {
+            return getFontBytes(it)
+        }
 
         @VisibleForTesting
         fun resetForTesting() {
@@ -557,6 +556,7 @@ class SystemFontsParser {
                     }
 
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
+
                     "familyset" -> {
                         readNestedFamilies(parser, familiesMap, aliases)
                     }
@@ -621,10 +621,12 @@ class SystemFontsParser {
 
                 when (parser.name.trim()) {
                     "family" -> readFamilyEntry(parser, aliases)?.let { familiesList.add(it) }
+
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
+
                     "familyset" -> {
                         familiesList.addAll(
-                            readNestedFamiliesList(parser, aliases)
+                            readNestedFamiliesList(parser, aliases),
                         )
                     }
 
@@ -691,6 +693,7 @@ class SystemFontsParser {
                     }
 
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
+
                     else -> skip(parser)
                 }
             }
@@ -710,6 +713,7 @@ class SystemFontsParser {
                     }
 
                     "alias" -> readAlias(parser)?.let { aliases.add(it) }
+
                     else -> skip(parser)
                 }
             }
@@ -787,7 +791,7 @@ class SystemFontsParser {
                 return null // Failed to create an alias for a weight that doesn't exist
             }
 
-            val (_/*name*/, variant, lang) = ogFamily
+            val (_, variant, lang) = ogFamily
 
             return Fonts.Family(
                 name = alias.name,
@@ -802,7 +806,7 @@ class SystemFontsParser {
                 Triple(
                     getOptionalAttribute(this, "lang"),
                     getOptionalAttribute(this, "variant"),
-                    getOptionalAttribute(this, "ignore")
+                    getOptionalAttribute(this, "ignore"),
                 )
             }
             val (lang, variant, ignore) = attributes
@@ -835,7 +839,7 @@ class SystemFontsParser {
                 name = familyName,
                 variant = variant,
                 lang = lang,
-                fonts = fonts
+                fonts = fonts,
             )
         }
 
@@ -878,7 +882,7 @@ class SystemFontsParser {
                     familyName,
                     fontList,
                     lang = familyLang,
-                    variant = familyVariant
+                    variant = familyVariant,
                 )
             }
 
@@ -965,9 +969,9 @@ class SystemFontsParser {
                     name = familyName,
                     fonts = fontsMap,
                     variant = derivedVariant?.trim().let { if (it.isNullOrBlank()) null else it },
-                    lang = derivedLang?.trim().let { if (it.isNullOrBlank()) null else it }
+                    lang = derivedLang?.trim().let { if (it.isNullOrBlank()) null else it },
                 ),
-                aliases
+                aliases,
             )
         }
 
@@ -993,7 +997,7 @@ class SystemFontsParser {
                 RiveLog.w(TAG) { "Family '$familyName' from <font> list resulted in no valid fonts. Creating empty family." }
                 return Pair(
                     Fonts.Family(familyName, variant, lang, emptyMap()),
-                    emptyList()
+                    emptyList(),
                 )
             }
 
@@ -1011,10 +1015,12 @@ class SystemFontsParser {
         private fun readFont(parser: XmlPullParser): Fonts.Font {
             parser.require(XmlPullParser.START_TAG, null, "font")
             val weight = Fonts.Weight.fromString(
-                getOptionalAttribute(parser, "weight", "${Fonts.Weight.NORMAL.weight}")
+                getOptionalAttribute(parser, "weight", "${Fonts.Weight.NORMAL.weight}"),
             )
             val style = getOptionalAttribute(
-                parser, "style", Fonts.Font.STYLE_NORMAL
+                parser,
+                "style",
+                Fonts.Font.STYLE_NORMAL,
             ) ?: Fonts.Font.STYLE_NORMAL
 
             val ttcIndex = getOptionalAttribute(parser, "index")?.toIntOrNull() ?: 0
@@ -1029,6 +1035,7 @@ class SystemFontsParser {
             while (parser.next() != XmlPullParser.END_TAG) {
                 when (parser.eventType) {
                     XmlPullParser.TEXT -> parser.text?.let { filenameBuilder.append(it) }
+
                     XmlPullParser.START_TAG -> when (parser.name.trim()) {
                         "axis" -> try {
                             readAxis(parser).also { axes.add(it) }
@@ -1051,7 +1058,7 @@ class SystemFontsParser {
                 axis = axes.takeUnless { it.isEmpty() },
                 ttcIndex = ttcIndex,
                 postScriptName = postScriptName,
-                fallbackFor = fallbackFor
+                fallbackFor = fallbackFor,
             )
         }
 
@@ -1140,18 +1147,14 @@ class SystemFontsParser {
             }
         }
 
-        private fun getRequiredAttribute(parser: XmlPullParser, name: String): String {
-            return parser.getAttributeValue(null, name)
-                ?: throw IllegalArgumentException("Missing required attribute: $name")
-        }
+        private fun getRequiredAttribute(parser: XmlPullParser, name: String): String = parser.getAttributeValue(null, name)
+            ?: throw IllegalArgumentException("Missing required attribute: $name")
 
         private fun getOptionalAttribute(
             parser: XmlPullParser,
             name: String,
             default: String? = null,
-        ): String? {
-            return parser.getAttributeValue(null, name) ?: default
-        }
+        ): String? = parser.getAttributeValue(null, name) ?: default
 
         private fun skip(parser: XmlPullParser) {
             var depth = 1

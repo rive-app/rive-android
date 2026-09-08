@@ -36,6 +36,57 @@ In Android Studio, ensure the `app` build variant is set to `debug` (or manually
 
 To select which build variant to build and run, go to **Build > Select Build Variant...** and select a build variant from the menu.
 
+### Formatting
+
+From `packages/runtime_android`, format or check all Android Kotlin and C++ sources with:
+
+```shell
+./gradlew formatApply
+./gradlew formatCheck
+```
+
+These aggregate tasks preserve the canonical formatter for each language: Spotless with ktlint for
+Kotlin, and clang-format 19.1.7 for C++. Set `RIVE_CLANG_FORMAT` to the clang-format executable when
+it is not available on `PATH`.
+
+#### Kotlin
+
+Spotless with ktlint is the canonical Kotlin formatter. It uses ktlint's Android Studio style and
+requires trailing commas on declaration and call sites. From `packages/runtime_android`, run:
+
+```shell
+./gradlew spotlessApply
+./gradlew spotlessCheck
+```
+
+`spotlessApply` formats changed Kotlin source files, and `spotlessCheck` is the same check enforced
+by CI. The rollout is ratcheted from commit `882c10136621e07d7992b2e4e7817e870a0169fa`, so existing
+files are formatted in full when they are first changed instead of producing a repository-wide
+formatting commit. CI checks out full Git history so the fixed baseline is always available. Once
+all Kotlin files have passed through the ratchet, the baseline can be removed to enforce the whole
+Android source tree directly.
+
+Android Studio users can install the ktlint plugin and optionally enable ktlint formatting on save.
+The plugin reads the project `.editorconfig`, including the Android Studio style and trailing-comma
+policy used by Spotless. A Gradle run configuration for `spotlessApply` is another convenient
+integration. IDE and plugin versions can differ, so Spotless output remains authoritative.
+`.editorconfig` aligns shared IDE and ktlint behavior, but does not enforce formatting and is not a
+substitute for the Gradle check.
+
+#### C++
+
+The repository `.clang-format` is the canonical C++ formatter configuration. The Android-specific
+`.clang-format` inherits it and customizes include sorting. To format or check only Android C++
+sources, run:
+
+```shell
+./gradlew clangFormatApply
+./gradlew clangFormatCheck
+```
+
+In Android Studio, enable ClangFormat for C/C++ files. The IDE's built-in code-style scheme and its
+hard-wrap setting do not replace the repository ClangFormat configuration.
+
 ### Testing
 
 After making any changes to the source code, be sure to run the test suite.

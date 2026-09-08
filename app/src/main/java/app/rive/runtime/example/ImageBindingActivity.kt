@@ -41,7 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
+/*
  * This sample exercises the various ways to assign an image at runtime to Rive. These methods are:
  * - Supplying an AssetLoader and calling `decode` on a FileAsset
  * - Supplying an AssetLoader and setting the `image` property on an ImageAsset
@@ -75,7 +75,7 @@ private sealed interface RenderImageMethod {
     suspend fun make(
         ctx: Context,
         rendererType: RendererType,
-        isPremultiplied: Boolean
+        isPremultiplied: Boolean,
     ): RiveRenderImage
 
     /** From a raw image resource to an Android Bitmap. */
@@ -83,7 +83,7 @@ private sealed interface RenderImageMethod {
         override suspend fun make(
             ctx: Context,
             rendererType: RendererType,
-            isPremultiplied: Boolean
+            isPremultiplied: Boolean,
         ): RiveRenderImage = withContext(Dispatchers.IO) {
             val bmp = BitmapFactory.decodeResource(
                 ctx.resources,
@@ -92,7 +92,8 @@ private sealed interface RenderImageMethod {
                 BitmapFactory.Options().apply {
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                     inPremultiplied = true
-                })
+                },
+            )
                 ?: error("Failed to decode bitmap")
             RiveRenderImage.fromBitmap(bmp, rendererType)
         }
@@ -103,7 +104,7 @@ private sealed interface RenderImageMethod {
         override suspend fun make(
             ctx: Context,
             rendererType: RendererType,
-            isPremultiplied: Boolean
+            isPremultiplied: Boolean,
         ): RiveRenderImage = withContext(Dispatchers.IO) {
             val bytes = ctx.resources.openRawResource(resId).use { it.readBytes() }
             RiveRenderImage.fromEncoded(bytes, rendererType)
@@ -111,12 +112,11 @@ private sealed interface RenderImageMethod {
     }
 
     /** From user supplied ARGB ints. */
-    class FromARGB(private val pixels: IntArray, private val width: Int, private val height: Int) :
-        RenderImageMethod {
+    class FromARGB(private val pixels: IntArray, private val width: Int, private val height: Int) : RenderImageMethod {
         override suspend fun make(
             ctx: Context,
             rendererType: RendererType,
-            isPremultiplied: Boolean
+            isPremultiplied: Boolean,
         ): RiveRenderImage = withContext(Dispatchers.IO) {
             RiveRenderImage.fromARGBInts(pixels, width, height, rendererType, isPremultiplied)
         }
@@ -126,12 +126,12 @@ private sealed interface RenderImageMethod {
     class FromRGBA(
         private val pixelBytes: ByteArray,
         private val width: Int,
-        private val height: Int
+        private val height: Int,
     ) : RenderImageMethod {
         override suspend fun make(
             ctx: Context,
             rendererType: RendererType,
-            isPremultiplied: Boolean
+            isPremultiplied: Boolean,
         ): RiveRenderImage = withContext(Dispatchers.IO) {
             RiveRenderImage.fromRGBABytes(pixelBytes, width, height, rendererType, isPremultiplied)
         }
@@ -188,8 +188,7 @@ class DecodeAssetLoader(ctx: Context) : ContextAssetLoader(ctx) {
 }
 
 /** AssetLoader that creates a RiveRenderImage and sets it on an ImageAsset. */
-class ImageAssetLoader(ctx: Context, private val rendererType: RendererType) :
-    ContextAssetLoader(ctx) {
+class ImageAssetLoader(ctx: Context, private val rendererType: RendererType) : ContextAssetLoader(ctx) {
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         if (asset.name != ALPHA_TEST_ASSET_NAME) return false
         require(asset is ImageAsset)
@@ -215,15 +214,21 @@ private fun buildConfigs(ctx: Context): List<ImageConfig> {
         baseLabel: String,
         method: RenderImageMethod? = null,
         premul: Boolean? = null,
-        loader: ((RendererType) -> FileAssetLoader)? = null
+        loader: ((RendererType) -> FileAssetLoader)? = null,
     ) = listOf(
         ImageConfig(
-            baseLabel, RendererType.Rive, premul, method,
-            loader?.invoke(RendererType.Rive)
+            baseLabel,
+            RendererType.Rive,
+            premul,
+            method,
+            loader?.invoke(RendererType.Rive),
         ),
         ImageConfig(
-            baseLabel, RendererType.Canvas, premul, method,
-            loader?.invoke(RendererType.Canvas)
+            baseLabel,
+            RendererType.Canvas,
+            premul,
+            method,
+            loader?.invoke(RendererType.Canvas),
         ),
     )
 
@@ -236,35 +241,37 @@ private fun buildConfigs(ctx: Context): List<ImageConfig> {
             bothRenderers(
                 "RGBA Bytes",
                 premul = false,
-                method = RenderImageMethod.FromRGBA(PIXEL_BYTES, WIDTH, HEIGHT)
-            )
+                method = RenderImageMethod.FromRGBA(PIXEL_BYTES, WIDTH, HEIGHT),
+            ),
         )
         addAll(
             bothRenderers(
-                "RGBA Bytes", premul = true,
+                "RGBA Bytes",
+                premul = true,
                 method = RenderImageMethod.FromRGBA(
                     premultiplyRGBABytes(PIXEL_BYTES),
                     WIDTH,
-                    HEIGHT
-                )
-            )
+                    HEIGHT,
+                ),
+            ),
         )
         addAll(
             bothRenderers(
                 "ARGB Ints",
                 premul = false,
-                method = RenderImageMethod.FromARGB(PIXELS, WIDTH, HEIGHT)
-            )
+                method = RenderImageMethod.FromARGB(PIXELS, WIDTH, HEIGHT),
+            ),
         )
         addAll(
             bothRenderers(
-                "ARGB Ints", premul = true,
+                "ARGB Ints",
+                premul = true,
                 method = RenderImageMethod.FromARGB(
                     premultiplyARGBInts(PIXELS),
                     WIDTH,
-                    HEIGHT
-                )
-            )
+                    HEIGHT,
+                ),
+            ),
         )
     }
 }
@@ -288,7 +295,7 @@ class ImageBindingActivity : ComponentActivity() {
             Column(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     val scope = rememberCoroutineScope()
@@ -305,7 +312,7 @@ class ImageBindingActivity : ComponentActivity() {
                             }
                         },
                         enabled = !bound.value,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) { Text(if (bound.value) "Bound" else "Bind All") }
                 }
 
@@ -314,7 +321,7 @@ class ImageBindingActivity : ComponentActivity() {
                 RiveGrid(
                     configs = configs,
                     onViewReadyAt = { index, view -> riveViews[index] = view },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -325,7 +332,7 @@ class ImageBindingActivity : ComponentActivity() {
 private fun RiveGrid(
     configs: List<ImageConfig>,
     onViewReadyAt: (index: Int, view: RiveAnimationView) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         for (i in configs.indices step 2) {
@@ -338,7 +345,7 @@ private fun RiveGrid(
                         .weight(1f)
                         .padding(8.dp),
                     assetLoader = left.assetLoader,
-                    onViewReady = { onViewReadyAt(i, it) }
+                    onViewReady = { onViewReadyAt(i, it) },
                 )
 
                 if (i + 1 < configs.size) {
@@ -350,7 +357,7 @@ private fun RiveGrid(
                             .weight(1f)
                             .padding(8.dp),
                         assetLoader = right.assetLoader,
-                        onViewReady = { onViewReadyAt(i + 1, it) }
+                        onViewReady = { onViewReadyAt(i + 1, it) },
                     )
                 } else {
                     Spacer(modifier = Modifier.weight(1f))
@@ -366,7 +373,7 @@ private fun RiveLabeledView(
     rendererType: RendererType,
     modifier: Modifier = Modifier,
     assetLoader: FileAssetLoader? = null,
-    onViewReady: (RiveAnimationView) -> Unit
+    onViewReady: (RiveAnimationView) -> Unit,
 ) {
     Column(modifier = modifier) {
         AndroidView(
@@ -383,13 +390,13 @@ private fun RiveLabeledView(
                     builder.setAssetLoader(assetLoader)
                 }
                 builder.build().also { view -> onViewReady(view) }
-            }
+            },
         )
         Text(
             text = label,
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -430,7 +437,9 @@ private fun premultiplyARGBInts(straight: IntArray): IntArray {
         val b = pixel and LSB_MASK
         when (a) {
             255 -> out[i] = pixel
+
             0 -> out[i] = 0
+
             else -> {
                 val premulR = premulChannel(r, a)
                 val premulG = premulChannel(g, a)
@@ -452,7 +461,9 @@ private fun premultiplyRGBABytes(straight: ByteArray): ByteArray {
         val b = straight[i + 2].toInt() and LSB_MASK
         when (val a = straight[i + 3].toInt() and LSB_MASK) {
             255 -> (0..3).forEach { offset -> out[i + offset] = straight[i + offset] }
+
             0 -> (0..3).forEach { offset -> out[i + offset] = 0 }
+
             else -> {
                 val premulR = premulChannel(r, a)
                 val premulG = premulChannel(g, a)

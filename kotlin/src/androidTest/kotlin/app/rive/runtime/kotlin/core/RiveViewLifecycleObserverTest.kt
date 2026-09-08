@@ -37,7 +37,7 @@ class RiveViewLifecycleObserverTest {
             assertEquals(
                 "Controller refCount should be 1 after creation.",
                 1,
-                controller.refCount
+                controller.refCount,
             )
 
             // Attach the View: create the renderer, which acquires the controller.
@@ -45,7 +45,7 @@ class RiveViewLifecycleObserverTest {
             assertEquals(
                 "Controller refCount should be 2 after attach.",
                 2,
-                controller.refCount
+                controller.refCount,
             )
 
             // Detach the view: destroys the renderer, which releases the controller.
@@ -53,7 +53,7 @@ class RiveViewLifecycleObserverTest {
             assertEquals(
                 "Controller refCount should be 1 after detach.",
                 1,
-                controller.refCount
+                controller.refCount,
             )
 
             // Now, simulate the lifecycle ending, which will trigger the observer's onDestroy.
@@ -64,7 +64,7 @@ class RiveViewLifecycleObserverTest {
             assertEquals(
                 "Controller refCount should be 0 after observer's onDestroy.",
                 0,
-                controller.refCount
+                controller.refCount,
             )
         }
     }
@@ -89,7 +89,7 @@ class RiveViewLifecycleObserverTest {
             assertEquals(
                 "Controller refCount should be 0 after observer's onDestroy.",
                 0,
-                controller.refCount
+                controller.refCount,
             )
         }
     }

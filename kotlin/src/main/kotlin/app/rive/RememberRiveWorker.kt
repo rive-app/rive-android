@@ -58,11 +58,11 @@ fun rememberRiveWorker(
         errorState,
         autoPoll,
         tracingEnabled,
-        renderBackend
+        renderBackend,
     )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
-        errorState.value
+        errorState.value,
     )
 }
 
@@ -95,7 +95,7 @@ fun rememberRiveWorkerOrNull(
     autoPoll,
     tracingEnabled,
     deferred = false,
-    renderBackend
+    renderBackend,
 )
 
 /**
@@ -121,11 +121,11 @@ fun rememberDeferredRiveWorker(
         autoPoll,
         tracingEnabled,
         deferred = true,
-        renderBackend
+        renderBackend,
     )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
-        errorState.value
+        errorState.value,
     )
 }
 
@@ -156,7 +156,7 @@ private fun rememberRiveWorkerImpl(
         worker.setTracingEnabled(tracingEnabled)
     }
 
-    /**
+    /*
      * Start polling the Rive worker for messages. This runs in a loop while the [Lifecycle] is in
      * the [Lifecycle.State.RESUMED] state.
      *
@@ -168,7 +168,7 @@ private fun rememberRiveWorkerImpl(
         worker.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
     }
 
-    /**
+    /*
      * Manage audio engine start/stop state based on the surrounding lifecycle. Acquires a reference
      * when RESUMED and releases when exiting RESUMED.
      */
@@ -187,7 +187,7 @@ private fun rememberRiveWorkerImpl(
         }
     }
 
-    /** Disposes the Rive worker when it falls out of scope. */
+    // Disposes the Rive worker when it falls out of scope.
     DisposableEffect(worker) {
         if (worker == null) return@DisposableEffect onDispose {}
 
@@ -206,7 +206,7 @@ private fun createRiveWorker(
 ): RiveWorker = if (deferred) {
     RiveWorker.createDeferred(
         renderBackend = renderBackend,
-        tracingEnabled = tracingEnabled
+        tracingEnabled = tracingEnabled,
     )
 } else {
     RiveWorker(renderBackend = renderBackend, tracingEnabled = tracingEnabled)

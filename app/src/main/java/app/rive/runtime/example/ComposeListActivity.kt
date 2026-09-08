@@ -2,6 +2,7 @@
 
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -50,14 +51,13 @@ import app.rive.rememberViewModelInstanceResult
 import app.rive.sequence
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import android.graphics.Color as AndroidColor
 
 class ComposeListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK)
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.BLACK),
         )
         RiveLog.logger = RiveLog.LogcatLogger()
 
@@ -65,26 +65,25 @@ class ComposeListActivity : ComponentActivity() {
             val riveWorker = rememberRiveWorker()
             val riveFile = rememberRiveFile(
                 RiveFileSource.RawRes.from(R.raw.data_binding_lists),
-                riveWorker
+                riveWorker,
             )
             val contentResult = riveFile.andThen { file ->
                 val mainVmiResult = rememberViewModelInstanceResult(
                     file,
-                    ViewModelSource.Named("main").blankInstance()
+                    ViewModelSource.Named("main").blankInstance(),
                 )
                 val itemVmisResult = listOf("sw", "st", "bs", "br").map { instanceName ->
                     rememberViewModelInstanceResult(
                         file,
-                        ViewModelSource.Named("listItem").namedInstance(instanceName)
+                        ViewModelSource.Named("listItem").namedInstance(instanceName),
                     )
                 }.sequence()
                 val customItemVmiResult = rememberViewModelInstanceResult(
                     file,
-                    ViewModelSource.Named("listItem").blankInstance()
+                    ViewModelSource.Named("listItem").blankInstance(),
                 )
 
-                mainVmiResult.zip(itemVmisResult).zip(customItemVmiResult) {
-                        (mainVmi, itemVmis), customItemVmi ->
+                mainVmiResult.zip(itemVmisResult).zip(customItemVmiResult) { (mainVmi, itemVmis), customItemVmi ->
                     ListContent(file, mainVmi, itemVmis, customItemVmi)
                 }
             }
@@ -95,7 +94,9 @@ class ComposeListActivity : ComponentActivity() {
                 Column(modifier = Modifier.padding(innerPadding)) {
                     when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
+
                         is Result.Error -> ErrorMessage(contentResult.throwable)
+
                         is Result.Success -> {
                             val (file, mainVMI, itemVMIs, customItemVMI) = contentResult.value
                             val scope = rememberCoroutineScope()
@@ -129,25 +130,25 @@ class ComposeListActivity : ComponentActivity() {
                             suspend fun cloneListItem(item: ViewModelInstance): ViewModelInstance {
                                 val clone = ViewModelInstance.create(
                                     file,
-                                    ViewModelSource.Named("listItem").blankInstance()
+                                    ViewModelSource.Named("listItem").blankInstance(),
                                 )
                                 clone.setString(
                                     "label",
-                                    item.getStringFlow("label").first()
+                                    item.getStringFlow("label").first(),
                                 )
                                 clone.setString(
                                     "fontIcon",
-                                    item.getStringFlow("fontIcon").first()
+                                    item.getStringFlow("fontIcon").first(),
                                 )
                                 clone.setColor(
                                     "hoverColor",
-                                    item.getColorFlow("hoverColor").first()
+                                    item.getColorFlow("hoverColor").first(),
                                 )
 
                                 return clone
                             }
 
-                            /** Initial list setup. */
+                            // Initial list setup.
                             LaunchedEffect(mainVMI, itemVMIs, customItemVMI) {
                                 mainVMI.setBoolean("menuOpen", true)
 
@@ -176,14 +177,14 @@ class ComposeListActivity : ComponentActivity() {
 
                             Column(
                                 Modifier.windowInsetsPadding(
-                                    WindowInsets.safeGestures.only(WindowInsetsSides.Horizontal)
+                                    WindowInsets.safeGestures.only(WindowInsetsSides.Horizontal),
                                 ),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     Arrangement.SpaceAround,
-                                    Alignment.CenterVertically
+                                    Alignment.CenterVertically,
                                 ) {
                                     Button(
                                         {
@@ -195,14 +196,14 @@ class ComposeListActivity : ComponentActivity() {
                                                         mainVMI.insertToListAtIndex(
                                                             "menu",
                                                             0,
-                                                            clone
+                                                            clone,
                                                         )
                                                     }
                                                 }
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canAdd
+                                        enabled = canAdd,
                                     ) {
                                         Text("Insert Front")
                                     }
@@ -218,14 +219,14 @@ class ComposeListActivity : ComponentActivity() {
                                                         mainVMI.insertToListAtIndex(
                                                             "menu",
                                                             listSize,
-                                                            clone
+                                                            clone,
                                                         )
                                                     }
                                                 }
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canAdd
+                                        enabled = canAdd,
                                     ) {
                                         Text("Insert Back")
                                     }
@@ -233,7 +234,7 @@ class ComposeListActivity : ComponentActivity() {
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     Arrangement.SpaceAround,
-                                    Alignment.CenterVertically
+                                    Alignment.CenterVertically,
                                 ) {
                                     Button(
                                         {
@@ -245,7 +246,7 @@ class ComposeListActivity : ComponentActivity() {
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canRemove
+                                        enabled = canRemove,
                                     ) {
                                         Text("Remove First")
                                     }
@@ -257,13 +258,13 @@ class ComposeListActivity : ComponentActivity() {
                                                 mutateMenuAndSync {
                                                     mainVMI.removeFromListAtIndex(
                                                         "menu",
-                                                        listSize - 1
+                                                        listSize - 1,
                                                     )
                                                 }
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canRemove
+                                        enabled = canRemove,
                                     ) {
                                         Text("Remove Last")
                                     }
@@ -271,7 +272,7 @@ class ComposeListActivity : ComponentActivity() {
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     Arrangement.SpaceAround,
-                                    Alignment.CenterVertically
+                                    Alignment.CenterVertically,
                                 ) {
                                     Button(
                                         {
@@ -286,7 +287,7 @@ class ComposeListActivity : ComponentActivity() {
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canSwap
+                                        enabled = canSwap,
                                     ) {
                                         Text("Swap Two")
                                     }
@@ -303,8 +304,8 @@ class ComposeListActivity : ComponentActivity() {
                                                     ViewModelInstanceSource.ReferenceListItem(
                                                         mainVMI,
                                                         "menu",
-                                                        randomIndex
-                                                    )
+                                                        randomIndex,
+                                                    ),
                                                 ).use { item ->
                                                     val itemLabel =
                                                         item.getStringFlow("label").first()
@@ -317,13 +318,13 @@ class ComposeListActivity : ComponentActivity() {
                                                     Toast.makeText(
                                                         context,
                                                         "${randomIndex + 1}$suffix item: $itemLabel",
-                                                        Toast.LENGTH_SHORT
+                                                        Toast.LENGTH_SHORT,
                                                     ).show()
                                                 }
                                             }
                                         },
                                         Modifier.width(150.dp),
-                                        enabled = canAdd
+                                        enabled = canAdd,
                                     ) {
                                         Text("Toast Random")
                                     }

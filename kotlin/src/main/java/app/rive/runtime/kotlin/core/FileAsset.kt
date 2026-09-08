@@ -33,10 +33,10 @@ class ImageAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
     /** The [RiveRenderImage] object associated with this [ImageAsset]. */
     var image: RiveRenderImage
         set(value) = cppSetRenderImage(cppPointer, value.cppPointer)
-        /**
-         * This isn't safe to use outside tests.
-         *
-         * @return A light wrapper around a C++ address.
+
+        /*
+         * This getter isn't safe to use outside tests because it returns a light wrapper around a
+         * C++ address.
          */
         @VisibleForTesting
         get() = RiveRenderImage(cppGetRenderImage(cppPointer))
@@ -62,14 +62,13 @@ class FontAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, render
     /** The [RiveFont] object associated with this [FontAsset]. */
     var font: RiveFont
         set(value) = cppSetFont(cppPointer, value.cppPointer)
-        /**
-         * This isn't safe to use outside tests.
-         *
-         * @return A light wrapper around a C++ address.
+
+        /*
+         * This getter isn't safe to use outside tests because it returns a light wrapper around a
+         * C++ address.
          */
         @VisibleForTesting
         get() = RiveFont(cppGetFont(cppPointer))
-
 }
 
 /**
@@ -84,14 +83,13 @@ class AudioAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
     /** The [RiveAudio] object associated with this [AudioAsset]. */
     var audio: RiveAudio
         set(value) = cppSetAudio(cppPointer, value.cppPointer)
-        /**
-         * This isn't safe to use outside tests.
-         *
-         * @return A light wrapper around a C++ address.
+
+        /*
+         * This getter isn't safe to use outside tests because it returns a light wrapper around a
+         * C++ address.
          */
         @VisibleForTesting
         get() = RiveAudio(cppGetAudio(cppPointer))
-
 }
 
 /**
@@ -109,7 +107,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
             width: Int,
             height: Int,
             rendererTypeIdx: Int,
-            premultiplied: Boolean
+            premultiplied: Boolean,
         ): Long
 
         private external fun cppFromARGBInts(
@@ -117,7 +115,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
             width: Int,
             height: Int,
             rendererTypeIdx: Int,
-            premultiplied: Boolean
+            premultiplied: Boolean,
         ): Long
 
         private external fun cppFromBitmapRive(bitmap: Bitmap, premultiplied: Boolean): Long
@@ -141,11 +139,11 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
         @Deprecated(
             "This method name is misleading; use fromEncoded instead. This method will be " +
                 "removed in 12.0.",
-            ReplaceWith("fromEncoded(bytes, rendererType)")
+            ReplaceWith("fromEncoded(bytes, rendererType)"),
         )
         fun make(
             bytes: ByteArray,
-            rendererType: RendererType = Rive.defaultRendererType
+            rendererType: RendererType = Rive.defaultRendererType,
         ): RiveRenderImage = fromEncoded(bytes, rendererType)
 
         /**
@@ -163,7 +161,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
          */
         fun fromEncoded(
             encodedBytes: ByteArray,
-            rendererType: RendererType = Rive.defaultRendererType
+            rendererType: RendererType = Rive.defaultRendererType,
         ): RiveRenderImage {
             val options = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -173,7 +171,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
                 encodedBytes,
                 0,
                 encodedBytes.size,
-                options
+                options,
             )
 
             requireNotNull(bitmap) { "Failed to decode image from encoded bytes" }
@@ -210,7 +208,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
             width: Int,
             height: Int,
             rendererType: RendererType = Rive.defaultRendererType,
-            premultiplied: Boolean = true
+            premultiplied: Boolean = true,
         ): RiveRenderImage {
             require(width > 0 && height > 0) { "Width and height must be > 0" }
             require(pixelBytes.size == width * height * 4) { "Bytes must have size = width * height * 4" }
@@ -243,7 +241,7 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
             width: Int,
             height: Int,
             rendererType: RendererType = Rive.defaultRendererType,
-            premultiplied: Boolean = false
+            premultiplied: Boolean = false,
         ): RiveRenderImage {
             require(width > 0 && height > 0) { "Width and height must be > 0" }
             require(pixels.size == width * height) { "Colors must have size = width * height" }
@@ -327,7 +325,7 @@ class RiveFont internal constructor(address: Long) : NativeObject(address) {
          */
         fun make(
             bytes: ByteArray,
-            rendererType: RendererType = Rive.defaultRendererType
+            rendererType: RendererType = Rive.defaultRendererType,
         ): RiveFont {
             val address = cppMakeFont(bytes, rendererType.value)
             return RiveFont(address)
@@ -359,7 +357,7 @@ class RiveAudio internal constructor(address: Long) : NativeObject(address) {
          */
         fun make(
             bytes: ByteArray,
-            rendererType: RendererType = Rive.defaultRendererType
+            rendererType: RendererType = Rive.defaultRendererType,
         ): RiveAudio {
             val address = cppMakeAudio(bytes, rendererType.value)
             return RiveAudio(address)

@@ -11,13 +11,13 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.fonts.FontBytes
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 
 class TestUtils {
 
@@ -94,9 +94,8 @@ class TestUtils {
         }
     }
 
-    class MockArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
-        RiveArtboardRenderer(controller = controller) {
-        /**
+    class MockArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) : RiveArtboardRenderer(controller = controller) {
+        /*
          * Instead of scheduling a new frame via the Choreographer (which uses a native C++ thread)
          * force an advance cycle. (We don't need to draw in tests either).
          */
@@ -124,8 +123,7 @@ class TestUtils {
         context: Context,
         attachOnInit: Boolean = true,
         val latchCount: Int = 1,
-    ) :
-        RiveAnimationView(context) {
+    ) : RiveAnimationView(context) {
         init {
             // Simulate this lifecycle method which the test harness wouldn't trigger otherwise.
             if (attachOnInit) {
@@ -133,8 +131,7 @@ class TestUtils {
             }
         }
 
-        override fun createRenderer(): MockArtboardRenderer =
-            MockArtboardRenderer(controller, CountDownLatch(latchCount))
+        override fun createRenderer(): MockArtboardRenderer = MockArtboardRenderer(controller, CountDownLatch(latchCount))
 
         fun mockAttach() = onAttachedToWindow()
 
@@ -159,8 +156,7 @@ class TestUtils {
         public override fun createObserver(): LifecycleObserver = super.createObserver()
     }
 
-    class MockNoopArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) :
-        RiveArtboardRenderer(controller = controller) {
+    class MockNoopArtboardRenderer(controller: RiveFileController, val latch: CountDownLatch) : RiveArtboardRenderer(controller = controller) {
         /** NOP. */
         override fun scheduleFrame() {}
 
@@ -186,8 +182,7 @@ class TestUtils {
             mockAttach()
         }
 
-        override fun createRenderer(): MockNoopArtboardRenderer =
-            MockNoopArtboardRenderer(controller, latch)
+        override fun createRenderer(): MockNoopArtboardRenderer = MockNoopArtboardRenderer(controller, latch)
 
         fun setBounds(width: Float, height: Float) {
             controller.targetBounds = RectF(0f, 0f, width, height)

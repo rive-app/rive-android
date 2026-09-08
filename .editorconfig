@@ -1,2 +1,16 @@
 [*.kt]
 max_line_length = 100
+ktlint_code_style = android_studio
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# Spotless uses ktlint for canonical formatting. Keep non-autocorrectable lint policy separate.
+ktlint_standard_comment-wrapping = enabled
+ktlint_standard_filename = enabled
+ktlint_standard_function-naming = enabled
+ktlint_standard_kdoc = enabled
+# Enable this when the follow-up full-formatting change removes the Spotless ratchet.
+ktlint_standard_max-line-length = disabled
+ktlint_standard_mixed-condition-operators = enabled
+ktlint_standard_property-naming = disabled

@@ -26,6 +26,7 @@ kotest = "5.9.1"
 # Not all projects use 2.x+ yet, and forcing an upgrade can increase client DEX sizes.
 # noinspection NewerVersionAvailable
 kotlin = "1.9.25"
+ktlint = "1.8.0"
 # noinspection NewerVersionAvailable Last version that supports Kotlin 1.9.x
 kotlinxCoroutinesTest = "1.8.1"
 leakCanary = "2.14"
@@ -89,4 +90,5 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 git-version = { id = "com.palantir.git-version", version.ref = "gradleGitVersion" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechPublish" }
+spotless = { id = "com.diffplug.spotless", version = "8.10.1" }
 dropshots = { id = "com.dropbox.dropshots", version.ref = "dropshots" }
