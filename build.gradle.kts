@@ -3,10 +3,10 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.test) apply false
-    id 'base' // For built-in clean task
+    id("base") // For built-in clean task
 }
 
 // Root clean task (gradlew or Android Studio) to clean all subprojects
-tasks.named('clean') {
-    dependsOn(':kotlin:clean')
+tasks.named("clean") {
+    dependsOn(":kotlin:clean")
 }

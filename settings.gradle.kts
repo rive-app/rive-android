@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
 dependencyResolutionManagement {
@@ -18,7 +18,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "rive-android"
-include ':kotlin'
-include ':app'
-include ':compatibilitytest'
-include ':benchmark'
+include(":kotlin")
+include(":app")
+include(":compatibilitytest")
+include(":benchmark")

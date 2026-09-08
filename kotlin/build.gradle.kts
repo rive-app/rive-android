@@ -1,3 +1,7 @@
+import com.palantir.gradle.gitversion.VersionDetails
+import groovy.lang.Closure
+import org.jetbrains.dokka.gradle.DokkaTask
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +11,20 @@ plugins {
     alias(libs.plugins.git.version)
     alias(libs.plugins.maven.publish)
 }
+
+// Bridge to the Git Version Details Groovy plugin.
+val versionDetails: Closure<VersionDetails> by extra
+val details = versionDetails()
+val publishGroupId = "app.rive"
+val publishVersion: String = details.lastTag
+val publishArtifactId = "rive-android"
+
+// Enable removing miniaudio to reduce binary size
+val audioEnabled = !project.hasProperty("noAudio")
+// Enable removing scripting to reduce binary size
+val scriptingEnabled = !project.hasProperty("noScripting")
+// Enable ASAN support when debugging
+val asanEnabled = project.hasProperty("asan")
 
 android {
     compileSdk = 36
@@ -27,15 +45,8 @@ android {
         }
     }
 
-    // Enable removing miniaudio to reduce binary size
-    def audioEnabled = !project.hasProperty("noAudio")
-    // Enable removing scripting to reduce binary size
-    def scriptingEnabled = !project.hasProperty("noScripting")
-    // Enable ASAN support when debugging
-    def asanEnabled = project.hasProperty("asan")
-
     defaultConfig {
-        minSdkVersion 21
+        minSdk = 21
         targetSdk = 36
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -47,43 +58,48 @@ android {
                 if (project.hasProperty("abiFilters")) {
                     // Take a comma-separated string from the project property,
                     // split it into a list, and trim whitespace from each item
-                    def abiList = project.property('abiFilters').split(',').collect { it.trim() }
-                    // Spread (*) the list elements as separate arguments
-                    abiFilters(*abiList)
+                    val abiList =
+                        project.property("abiFilters").toString().split(',').map { it.trim() }
+                    abiFilters += abiList
                 } else {
                     // Default to building all when no property is passed
-                    abiFilters "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
+                    abiFilters += listOf("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
                 }
-                arguments "-DCMAKE_VERBOSE_MAKEFILE=1", "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON",
-                        "-DANDROID_CPP_FEATURES=no-exceptions no-rtti", "-DANDROID_STL=c++_shared",
+                arguments +=
+                    listOf(
+                        "-DCMAKE_VERBOSE_MAKEFILE=1",
+                        "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON",
+                        "-DANDROID_CPP_FEATURES=no-exceptions no-rtti",
+                        "-DANDROID_STL=c++_shared",
                         // Support for 16kb page sizes, necessary for NDK r27
                         // Can remove when upgrading to r28+
                         // https://developer.android.com/guide/practices/page-sizes#compile-r27
                         "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
                         // Toggle miniaudio
-                        "-DWITH_RIVE_AUDIO=${audioEnabled ? 'ON' : 'OFF'}",
+                        "-DWITH_RIVE_AUDIO=${if (audioEnabled) "ON" else "OFF"}",
                         // Toggle scripting
-                        "-DWITH_SCRIPTING=${scriptingEnabled ? 'ON' : 'OFF'}",
+                        "-DWITH_SCRIPTING=${if (scriptingEnabled) "ON" else "OFF"}",
                         // Needed for ASAN support (if enabled)
                         // See https://developer.android.com/ndk/guides/asan#building
                         // and https://developer.android.com/ndk/guides/cmake#android_arm_mode
-                        "-DANDROID_ARM_MODE=${asanEnabled ? 'arm' : 'thumb'}",
+                        "-DANDROID_ARM_MODE=${if (asanEnabled) "arm" else "thumb"}",
                         // Enable ASAN if requested
-                        "-DENABLE_ASAN=${asanEnabled ? 'ON' : 'OFF'}"
+                        "-DENABLE_ASAN=${if (asanEnabled) "ON" else "OFF"}",
+                    )
             }
         }
     }
 
-    def javaVersion = JavaVersion.VERSION_11
+    val javaVersion = JavaVersion.VERSION_11
     compileOptions {
-        sourceCompatibility javaVersion
-        targetCompatibility javaVersion
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
     kotlinOptions {
         jvmTarget = javaVersion.toString()
         // This module implements its own experimental semantics API. The marker remains on the
         // published declarations and is still enforced for downstream consumers.
-        freeCompilerArgs += ["-opt-in=app.rive.ExperimentalRiveSemantics"]
+        freeCompilerArgs += listOf("-opt-in=app.rive.ExperimentalRiveSemantics")
     }
 
     externalNativeBuild {
@@ -92,25 +108,10 @@ android {
             version = "3.22.1"
         }
     }
-
-    // HTML output is published to api.rive.app/android/<version>/. Dokka emits a
-    // browsable site (nested index.html files), which is what the S3/CloudFront
-    // hosting expects — GFM markdown is not servable as a site.
-    dokkaHtml {
-        // Module display name shown as the docs title/header
-        moduleName = "Rive Android"
-        dokkaSourceSets {
-            named("main") {
-                noAndroidSdkLink = false
-                outputDirectory = layout.buildDirectory.resolve("dokka")
-                reportUndocumented = true
-            }
-        }
-    }
 }
 
 dependencies {
-    def composeBom = platform(libs.androidx.compose.bom)
+    val composeBom = platform(libs.androidx.compose.bom)
 
     implementation(composeBom)
     implementation(libs.android.volley)
@@ -156,68 +157,81 @@ allOpen {
 }
 
 // Clean up native build and generated files
-tasks.named('clean', Delete) {
+tasks.named<Delete>("clean") {
     delete(
-            layout.projectDirectory.dir('.cxx'),
-            layout.projectDirectory.dir('src/main/cpp/dependencies'),
-            layout.projectDirectory.dir('src/main/cpp/out'),
+        layout.projectDirectory.dir(".cxx"),
+        layout.projectDirectory.dir("src/main/cpp/dependencies"),
+        layout.projectDirectory.dir("src/main/cpp/out"),
     )
 }
 
-def details = versionDetails()
-def PUBLISH_GROUP_ID = "app.rive"
-def PUBLISH_VERSION = details.lastTag
-def PUBLISH_ARTIFACT_ID = "rive-android"
+// HTML output is published to api.rive.app/android/<version>/. Dokka emits a
+// browsable site (nested index.html files), which is what the S3/CloudFront
+// hosting expects — GFM markdown is not servable as a site.
+tasks.named<DokkaTask>("dokkaHtml") {
+    // Module display name shown as the docs title/header
+    moduleName.set("Rive Android")
+    dokkaSourceSets.named("main") {
+        noAndroidSdkLink.set(false)
+        reportUndocumented.set(true)
+    }
+    outputDirectory.set(layout.buildDirectory.dir("dokka/html"))
+}
 
 mavenPublishing {
     // `true` will automatically publish the artifact to Maven Central Portal.
     publishToMavenCentral(true)
     signAllPublications()
-    coordinates(PUBLISH_GROUP_ID, PUBLISH_ARTIFACT_ID, PUBLISH_VERSION)
+    coordinates(publishGroupId, publishArtifactId, publishVersion)
 
     // Mostly self-explanatory metadata
     pom {
-        name = PUBLISH_ARTIFACT_ID
-        description = 'Rive is a real-time interactive design and animation tool. Use our collaborative editor to create motion graphics that respond to different states and user inputs. Then load your animations into apps, games, and websites with our lightweight open-source runtimes.'
-        url = 'https://rive.app'
+        name.set(publishArtifactId)
+        description.set(
+            "Rive is a real-time interactive design and animation tool. Use our collaborative " +
+                "editor to create motion graphics that respond to different states and user " +
+                "inputs. Then load your animations into apps, games, and websites with our " +
+                "lightweight open-source runtimes."
+        )
+        url.set("https://rive.app")
         licenses {
             license {
-                name = 'MIT License'
-                url = 'https://github.com/rive-app/rive-android/blob/master/LICENSE'
+                name.set("MIT License")
+                url.set("https://github.com/rive-app/rive-android/blob/master/LICENSE")
             }
         }
 
         developers {
             developer {
-                id = 'erikuggeldahl'
-                name = 'Erik Uggeldahl'
-                email = 'erik@rive.app'
-                roles = ['Android DevRel']
+                id.set("erikuggeldahl")
+                name.set("Erik Uggeldahl")
+                email.set("erik@rive.app")
+                roles.set(listOf("Android DevRel"))
             }
             developer {
-                id = 'umberto-sonnino'
-                name = 'Umberto Sonnino'
-                email = 'umberto@rive.app'
-                roles = ['Original Author']
+                id.set("umberto-sonnino")
+                name.set("Umberto Sonnino")
+                email.set("umberto@rive.app")
+                roles.set(listOf("Original Author"))
             }
             developer {
-                id = 'luigi-rosso'
-                name = 'Luigi Rosso'
-                email = 'luigi@rive.app'
-                roles = ['Founder', 'CTO']
+                id.set("luigi-rosso")
+                name.set("Luigi Rosso")
+                email.set("luigi@rive.app")
+                roles.set(listOf("Founder", "CTO"))
             }
             developer {
-                id = 'mjtalbot'
-                name = 'Maxwell Talbot'
-                roles = ['Original Contributor']
+                id.set("mjtalbot")
+                name.set("Maxwell Talbot")
+                roles.set(listOf("Original Contributor"))
             }
         }
 
         // Version control info
         scm {
-            connection = 'scm:git:git@github.com:rive-app/rive-android.git'
-            developerConnection = 'scm:git:ssh://git@github.com:rive-app/rive-android.git'
-            url = 'https://github.com/rive-app/rive-android/'
+            connection.set("scm:git:git@github.com:rive-app/rive-android.git")
+            developerConnection.set("scm:git:ssh://git@github.com:rive-app/rive-android.git")
+            url.set("https://github.com/rive-app/rive-android/")
         }
     }
 }

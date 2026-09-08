@@ -9,7 +9,7 @@ android {
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
-        applicationId "app.rive.runtime.compatibilitytest"
+        applicationId = "app.rive.runtime.compatibilitytest"
         minSdk = 21
         targetSdk = 36
         versionCode = 1
@@ -18,22 +18,22 @@ android {
 
     buildTypes {
         debug {
-            debuggable = true
-            minifyEnabled = false
-            shrinkResources = false
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
         release {
-            debuggable = true
-            minifyEnabled = false
-            shrinkResources = false
-            signingConfig = signingConfigs.debug
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
-    def javaVersion = JavaVersion.VERSION_11
+    val javaVersion = JavaVersion.VERSION_11
     compileOptions {
-        sourceCompatibility javaVersion
-        targetCompatibility javaVersion
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
     kotlinOptions {
         jvmTarget = javaVersion.toString()
@@ -45,5 +45,5 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.google.material)
-    implementation project(path: ":kotlin")
+    implementation(project(path = ":kotlin"))
 }

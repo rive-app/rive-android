@@ -16,21 +16,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["androidx.benchmark.enabledRules"] = "Macrobenchmark"
         // Keep benchmark runnable on local emulator-based development loops.
-        testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR,LOW-BATTERY"
+        testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
+            "EMULATOR,LOW-BATTERY"
     }
 
     buildTypes {
-        benchmark {
-            debuggable = false
-            matchingFallbacks = ["benchmark", "release"]
-            signingConfig = signingConfigs.debug
+        create("benchmark") {
+            isDebuggable = false
+            matchingFallbacks += listOf("benchmark", "release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
-    def javaVersion = JavaVersion.VERSION_11
+    val javaVersion = JavaVersion.VERSION_11
     compileOptions {
-        sourceCompatibility javaVersion
-        targetCompatibility javaVersion
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
     kotlinOptions {
         jvmTarget = javaVersion.toString()
