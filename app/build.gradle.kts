@@ -15,7 +15,6 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -106,11 +105,6 @@ dependencies {
     releaseImplementation(project(path = ":kotlin"))
     // Main sources exercise APIs that may not exist in the latest published runtime yet.
     add("previewImplementation", project(path = ":kotlin"))
-
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.test.uiautomator)
-    androidTestImplementation(project(path = ":kotlin"))
 
     debugImplementation(libs.leakcanary)
 }

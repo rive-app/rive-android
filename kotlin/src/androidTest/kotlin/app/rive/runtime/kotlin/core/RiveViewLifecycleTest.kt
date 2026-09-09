@@ -5,11 +5,13 @@ import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.ResourceType
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.controllers.ControllerStateManagement
+import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.test.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -38,7 +40,6 @@ class RiveViewLifecycleTest {
             // Remove renderer on detach.
             (mockView as TestUtils.MockRiveAnimationView).mockDetach()
             assertNull(mockView.artboardRenderer)
-
         }
     }
 
@@ -50,7 +51,7 @@ class RiveViewLifecycleTest {
             // Check defaults have been set.
             assertEquals(
                 attributes.alignment,
-                Alignment.fromIndex(RiveAnimationView.alignmentIndexDefault)
+                Alignment.fromIndex(RiveAnimationView.alignmentIndexDefault),
             )
             assertEquals(attributes.fit, Fit.fromIndex(RiveAnimationView.fitIndexDefault))
             assertEquals(attributes.loop, Loop.fromIndex(RiveAnimationView.loopIndexDefault))
@@ -199,6 +200,38 @@ class RiveViewLifecycleTest {
             // Clean up the rest.
             file.release()
             assertEquals(file.refCount, 0)
+        }
+    }
+
+    /** Verifies a view rejects a file created for an incompatible renderer. */
+    @Test
+    fun viewSetRiveFile_withIncompatibleRenderer_throws() {
+        UiThreadStatement.runOnUiThread {
+            val canvasFile = File(
+                appContext.resources.openRawResource(R.raw.off_road_car_blog).use { stream ->
+                    stream.readBytes()
+                },
+                RendererType.Canvas,
+            )
+
+            try {
+                assertEquals(RendererType.Rive, mockView.rendererAttributes.rendererType)
+                assertEquals(RendererType.Canvas, canvasFile.rendererType)
+
+                val exception = assertThrows(RiveException::class.java) {
+                    mockView.setRiveFile(canvasFile)
+                }
+
+                assertEquals(
+                    "Incompatible Renderer types: file initialized with Canvas" +
+                        " but View is set up for Rive",
+                    exception.message,
+                )
+                assertNull(mockView.controller.file)
+            } finally {
+                canvasFile.release()
+            }
+            assertEquals(0, canvasFile.refCount)
         }
     }
 

@@ -8,6 +8,16 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
+            android:name="app.rive.runtime.kotlin.core.LegacyRiveTestActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+        <activity
+            android:name="app.rive.runtime.kotlin.core.LegacyEmptyTestActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+        <activity
             android:name="app.rive.snapshot.SnapshotComposeActivity"
             android:exported="true"
             android:showWhenLocked="true"

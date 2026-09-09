@@ -109,7 +109,6 @@ for i in $(seq 1 "$NUM_RUNS"); do
     if ../../gradlew -p ../.. \
         -PabiFilters="$DEVICE_ABI" \
         kotlin:connectedDebugAndroidTest \
-        app:connectedDebugAndroidTest \
         --no-daemon \
         >"test_run_$i.log" 2>&1; then
         END_TIME=$(date +%s)

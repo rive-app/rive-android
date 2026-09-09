@@ -196,13 +196,6 @@
         <activity
             android:name=".ImageBindingActivity"
             android:exported="true" />
-        <!-- For testing 👇 -->
-        <activity
-            android:name=".SingleActivity"
-            android:exported="true" />
-        <activity
-            android:name=".EmptyActivity"
-            android:exported="true" />
     </application>
 
 </manifest>
