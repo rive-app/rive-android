@@ -70,9 +70,31 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
                 }
             }
         } finally {
-            if (!worker.isDisposed) {
-                worker.release(javaClass.simpleName, "Vulkan image teardown test cleanup")
+            worker.release("CommandQueueLifecycleTest", "Vulkan image teardown test cleanup")
+            assertDisposed(worker)
+        }
+    }
+
+    /**
+     * Verifies worker teardown releases embedded image resources retained by a native file.
+     *
+     * Use a raw file handle because a public RiveFile retains the worker and prevents final
+     * release while open. Intentionally omit deleteFile so CommandServer destroys the file.
+     */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun release_withCachedVulkanImageFile_doesNotCrash() {
+        val fileBytes = context.resources.openRawResource(R.raw.asset_load_check).use { it.readBytes() }
+        val worker = RiveWorker(renderContext = RenderContextVulkan())
+
+        try {
+            worker.withPolling {
+                runBlocking {
+                    worker.loadFile(fileBytes)
+                }
             }
+        } finally {
+            worker.release("CommandQueueLifecycleTest", "Vulkan file teardown test cleanup")
             assertDisposed(worker)
         }
     }

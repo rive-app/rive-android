@@ -489,7 +489,27 @@ void RenderContextVulkan::destroy()
         m_device->waitUntilIdle();
     }
 
+    // Retain the Vulkan context while renderer shutdown drains deferred GPU
+    // resources, so we can detect external owners before destroying the device.
+    rive::rcp<rive::gpu::VulkanContext> vk;
+    if (riveContext != nullptr)
+    {
+        vk = rive::ref_rcp(impl()->vulkanContext());
+    }
     riveContext = nullptr;
+    if (vk != nullptr)
+    {
+        const auto refCnt = vk->debugging_refcnt();
+        if (refCnt != 1)
+        {
+            RiveLogE(TAG_RC,
+                     "%d Vulkan context reference(s) outlive renderer shutdown",
+                     refCnt - 1);
+            assert(refCnt == 1 && "Vulkan resources must die before VkDevice");
+        }
+    }
+    // Destroy the allocator while its VkDevice and VkInstance are still valid.
+    vk = nullptr;
     m_device = nullptr;
     m_instance = nullptr;
 }
