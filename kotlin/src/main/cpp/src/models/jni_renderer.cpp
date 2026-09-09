@@ -52,12 +52,49 @@ void JNIRenderer::scheduleDispose()
         }
 
         auto env = GetJNIEnv();
-        auto ktClass = env->GetObjectClass(m_ktRenderer);
-        auto disposeDeps =
-            env->GetMethodID(ktClass, "disposeDependencies", "()V");
-        env->CallVoidMethod(m_ktRenderer, disposeDeps);
-        env->DeleteGlobalRef(m_ktRenderer);
+        const bool hadSurface = hasSurface();
         releaseSurface(&m_surface);
+        m_surface = std::monostate{};
+        if (hadSurface)
+        {
+            notifySurfaceReleased();
+        }
+
+        {
+            auto ktClass = GetObjectClass(env, m_ktRenderer);
+            if (ktClass.get() == nullptr)
+            {
+                JNIExceptionHandler::ClearAndLogErrors(
+                    env,
+                    TAG,
+                    "scheduleDispose: renderer class lookup failed");
+            }
+            else
+            {
+                auto disposeDeps = env->GetMethodID(ktClass.get(),
+                                                    "disposeDependencies",
+                                                    "()V");
+                if (disposeDeps == nullptr)
+                {
+                    JNIExceptionHandler::ClearAndLogErrors(
+                        env,
+                        TAG,
+                        "scheduleDispose: disposeDependencies lookup failed");
+                }
+                else
+                {
+                    env->CallVoidMethod(m_ktRenderer, disposeDeps);
+                    // A Kotlin override or dependency release can throw. Clear
+                    // it before native cleanup and the next shared-worker task.
+                    // This cannot resume any Kotlin cleanup the throw skipped.
+                    JNIExceptionHandler::ClearAndLogErrors(
+                        env,
+                        TAG,
+                        "scheduleDispose: disposeDependencies failed");
+                }
+            }
+        }
+        env->DeleteGlobalRef(m_ktRenderer);
 
         RiveLogD(TAG, "Worker thread: Deleting JNIRenderer.");
         delete this;
@@ -91,6 +128,8 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
 
         // Destroy the old surface
         SurfaceVariant oldSurface = m_surface;
+        const bool hadOldSurface =
+            !std::holds_alternative<std::monostate>(oldSurface);
         if (m_workerImpl)
         {
             m_workerImpl->destroy(threadState);
@@ -102,6 +141,13 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         // Important: Only assign m_surface in this worker thread lambda to
         // preserve work item ordering of the "current surface".
         m_surface = acquiredSurface;
+
+        if (hadOldSurface)
+        {
+            // Kotlin owns a parallel SharedSurface reference. It must outlive
+            // both WorkerImpl teardown and this native surface reference.
+            notifySurfaceReleased();
+        }
 
         // Create the new worker with the new surface
         if (hasSurface() && !isRecovering())
@@ -278,6 +324,39 @@ void JNIRenderer::notifyRenderContextEvent(int eventType,
         env,
         TAG,
         "notifyRenderContextEvent: jCallbackMID invocation failed");
+}
+
+void JNIRenderer::notifySurfaceReleased() const
+{
+    auto env = GetJNIEnv();
+    auto jRendererClass = GetObjectClass(env, m_ktRenderer);
+    if (jRendererClass.get() == nullptr)
+    {
+        RiveLogE(TAG, "Failed to get renderer class for surface release.");
+        JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "notifySurfaceReleased: GetObjectClass failed");
+        return;
+    }
+
+    auto jCallbackMID = env->GetMethodID(jRendererClass.get(),
+                                         "onNativeSurfaceReleased",
+                                         "()V");
+    if (jCallbackMID == nullptr)
+    {
+        JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "notifySurfaceReleased: callback lookup failed");
+        return;
+    }
+
+    env->CallVoidMethod(m_ktRenderer, jCallbackMID);
+    JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "notifySurfaceReleased: callback invocation failed");
 }
 
 void JNIRenderer::enterRecoveringState(

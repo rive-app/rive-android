@@ -9,6 +9,159 @@
 
 namespace rive_android
 {
+bool CanvasRenderer::clearSurfaceException(const char* message)
+{
+    auto env = GetJNIEnv();
+    if (!env->ExceptionCheck())
+    {
+        return false;
+    }
+    if (m_reportedSurfaceFailure)
+    {
+        // A dead surface may be retried every frame. Avoid repeated reflected
+        // stack traces while still leaving JNI usable for the next work item.
+        env->ExceptionClear();
+    }
+    else
+    {
+        m_reportedSurfaceFailure = true;
+        JNIExceptionHandler::ClearAndLogErrors(env, TAG, message);
+    }
+    return true;
+}
+
+bool CanvasRenderer::Clear(jobject ktCanvas)
+{
+    JNIEnv* env = GetJNIEnv();
+
+    jclass porterDuffModeClass = GetPorterDuffClass();
+    jobject clearMode =
+        env->GetStaticObjectField(porterDuffModeClass, GetPdClear());
+    env->DeleteLocalRef(porterDuffModeClass);
+    const bool clearModeFailed = JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Failed to get PorterDuff.Mode.CLEAR.");
+    if (clearModeFailed || clearMode == nullptr)
+    {
+        if (clearMode != nullptr)
+        {
+            env->DeleteLocalRef(clearMode);
+        }
+        if (!clearModeFailed)
+        {
+            RiveLogE(TAG, "Failed to get PorterDuff.Mode.CLEAR.");
+        }
+        return false;
+    }
+
+    // canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+    env->CallVoidMethod(ktCanvas,
+                        GetCanvasDrawColorMethodId(),
+                        0x0 /* Color.TRANSPARENT */,
+                        clearMode);
+    const bool failed = JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Canvas.drawColor() failed; aborting frame.");
+    env->DeleteLocalRef(clearMode);
+    return !failed;
+}
+
+bool CanvasRenderer::bindCanvas(jobject ktSurface)
+{
+    // Old canvas needs to be unbound as it might not be valid anymore.
+    assert(m_ktCanvas == nullptr);
+    JNIEnv* env = GetJNIEnv();
+    jobject localCanvas = env->CallObjectMethod(ktSurface,
+                                                GetSurfaceLockCanvasMethodId(),
+                                                nullptr);
+    const bool lockFailed =
+        clearSurfaceException("Surface.lockCanvas() failed; aborting frame.");
+    if (lockFailed || localCanvas == nullptr)
+    {
+        if (localCanvas != nullptr)
+        {
+            env->DeleteLocalRef(localCanvas);
+        }
+        if (!lockFailed)
+        {
+            RiveLogE(TAG,
+                     "Surface.lockCanvas() returned null; aborting frame.");
+        }
+        return false;
+    }
+
+    m_ktCanvas = env->NewGlobalRef(localCanvas);
+    const bool retainFailed = JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Failed to retain locked Canvas; aborting frame.");
+    if (retainFailed || m_ktCanvas == nullptr)
+    {
+        // NewGlobalRef can fail after lockCanvas succeeds. Use the local
+        // reference to balance the lock before giving up on this frame.
+        env->CallVoidMethod(ktSurface,
+                            GetSurfaceUnlockCanvasAndPostMethodId(),
+                            localCanvas);
+        JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "Surface.unlockCanvasAndPost() failed after Canvas retention failure.");
+        env->DeleteLocalRef(localCanvas);
+        m_ktCanvas = nullptr;
+        return false;
+    }
+    env->DeleteLocalRef(localCanvas);
+
+    m_width = env->CallIntMethod(m_ktCanvas, GetCanvasWidthMethodId());
+    const bool widthFailed = JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Canvas.getWidth() failed; aborting frame.");
+    m_height = env->CallIntMethod(m_ktCanvas, GetCanvasHeightMethodId());
+    const bool heightFailed = JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Canvas.getHeight() failed; aborting frame.");
+    if (widthFailed || heightFailed || !Clear(m_ktCanvas))
+    {
+        // Android does not support unlocking a software Canvas without posting.
+        // Balance the successful lock even though this may post a partial
+        // frame.
+        unlockAndPost(ktSurface);
+        return false;
+    }
+    return true;
+}
+
+bool CanvasRenderer::unlockAndPost(jobject ktSurface)
+{
+    assert(m_ktCanvas != nullptr);
+    if (m_ktCanvas == nullptr)
+    {
+        RiveLogE(TAG, "No locked Canvas to post; aborting frame.");
+        return false;
+    }
+
+    JNIEnv* env = GetJNIEnv();
+    env->CallVoidMethod(ktSurface,
+                        GetSurfaceUnlockCanvasAndPostMethodId(),
+                        m_ktCanvas);
+    const bool failed = clearSurfaceException(
+        "Surface.unlockCanvasAndPost() failed; aborting frame.");
+    if (!failed)
+    {
+        m_reportedSurfaceFailure = false;
+    }
+
+    m_width = -1;
+    m_height = -1;
+    env->DeleteGlobalRef(m_ktCanvas);
+    m_ktCanvas = nullptr;
+    return !failed;
+}
+
 void CanvasRenderer::save()
 {
     // bind m_ktCanvas before calling these methods.

@@ -28,6 +28,19 @@ struct WorkerFrameResult
     EGLResult eglResult = EGLResult::Ok();
 };
 
+/**
+ * Result of a worker's frame preparation or flush stage.
+ *
+ * A stage can stop a frame without reporting an EGL failure. Canvas uses that
+ * distinction when Android rejects `lockCanvas()` or `unlockCanvasAndPost()`;
+ * the frame is discarded, but the shared JNI worker remains usable.
+ */
+struct WorkerStageResult
+{
+    bool shouldContinue = true;
+    EGLResult eglResult = EGLResult::Ok();
+};
+
 class WorkerImpl
 {
 public:
@@ -51,11 +64,11 @@ public:
                               jobject ktRenderer,
                               std::chrono::steady_clock::time_point);
 
-    virtual EGLResult prepareForDraw(DrawableThreadState*) const = 0;
+    virtual WorkerStageResult prepareForDraw(DrawableThreadState*) const = 0;
 
     virtual void destroy(DrawableThreadState*) = 0;
 
-    virtual void flush(DrawableThreadState*) const = 0;
+    virtual WorkerStageResult flush(DrawableThreadState*) const = 0;
 
     [[nodiscard]] virtual rive::Renderer* renderer() const = 0;
 
@@ -92,17 +105,18 @@ public:
         }
     }
 
-    EGLResult prepareForDraw(DrawableThreadState* threadState) const override
+    WorkerStageResult prepareForDraw(
+        DrawableThreadState* threadState) const override
     {
         auto eglThreadState = static_cast<EGLThreadState*>(threadState);
         // Bind context to this thread.
         EGLResult makeCurrentResult = eglThreadState->makeCurrent(m_eglSurface);
         if (!makeCurrentResult.isSuccess())
         {
-            return makeCurrentResult;
+            return {.shouldContinue = false, .eglResult = makeCurrentResult};
         }
         clear(threadState);
-        return EGLResult::Ok();
+        return {};
     }
 
     virtual void clear(DrawableThreadState*) const = 0;
@@ -139,7 +153,7 @@ public:
 
     void clear(DrawableThreadState* threadState) const override;
 
-    void flush(DrawableThreadState* threadState) const override;
+    WorkerStageResult flush(DrawableThreadState* threadState) const override;
 
     [[nodiscard]] rive::Renderer* renderer() const override;
 
@@ -179,9 +193,9 @@ public:
         return m_canvasRenderer.get();
     }
 
-    void flush(DrawableThreadState*) const override;
+    WorkerStageResult flush(DrawableThreadState*) const override;
 
-    EGLResult prepareForDraw(DrawableThreadState*) const override;
+    WorkerStageResult prepareForDraw(DrawableThreadState*) const override;
 
     void destroy(DrawableThreadState*) override;
 

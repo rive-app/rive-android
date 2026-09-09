@@ -18,6 +18,7 @@ import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.NativeObject
 import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
+import java.util.ArrayDeque
 
 /** Lifecycle state transitions for the native render context. */
 enum class RenderContextEventType {
@@ -25,7 +26,7 @@ enum class RenderContextEventType {
     Lost,
 
     /** Rendering context was rebuilt and normal drawing resumed. */
-    Recovered
+    Recovered,
 }
 
 /**
@@ -105,7 +106,9 @@ abstract class Renderer(
     private fun onNativeRenderContextEvent(type: Int, eglErrorCode: Int, operation: String) {
         val eventType = when (type) {
             CONTEXT_EVENT_LOST -> RenderContextEventType.Lost
+
             CONTEXT_EVENT_RECOVERED -> RenderContextEventType.Recovered
+
             else -> {
                 RiveLog.e(TAG) { "Unknown render context event type: $type" }
                 return
@@ -116,7 +119,7 @@ abstract class Renderer(
             type = eventType,
             eglErrorCode = eglErrorCode,
             eglErrorName = EGLError.errorString(eglErrorCode),
-            operation = operation
+            operation = operation,
         )
         // Preserve the public API contract: callbacks are always delivered on
         // the main thread, even when the native event arrives from a worker.
@@ -153,6 +156,7 @@ abstract class Renderer(
     var isAttached: Boolean = false
 
     private var sharedSurface: SharedSurface? = null
+    private val pendingSurfaceReleases = ArrayDeque<SharedSurface>()
 
     /**
      * Optional callback for EGL context-loss lifecycle events (`Lost`/`Recovered`).
@@ -223,7 +227,7 @@ abstract class Renderer(
     @Deprecated(
         message = "This low-level method can cause crashes and will be removed in 12.0. Prefer " +
             "using higher-level APIs.",
-        level = DeprecationLevel.WARNING
+        level = DeprecationLevel.WARNING,
     )
     fun setSurface(surface: Surface) {
         setSurface(SharedSurface(surface))
@@ -240,7 +244,9 @@ abstract class Renderer(
     internal fun setSurface(surface: SharedSurface) {
         synchronized(frameLock) {
             RiveLog.d(TAG) { "Setting surface." }
-            sharedSurface?.release()
+            // Native surface replacement is asynchronous. Keep the renderer's old reference until
+            // its queued WorkerImpl teardown and native surface release have both completed.
+            sharedSurface?.let(pendingSurfaceReleases::addLast)
             surface.acquire()
             sharedSurface = surface
 
@@ -316,30 +322,52 @@ abstract class Renderer(
      * - Marks the isAttached state as false, gating play and frame operations
      * - Stops the JNIRenderer
      * - Enqueues the surface destruction in the C++ JNIRenderer
-     * - Releases and nulls the Kotlin reference to the surface
+     * - Moves the Kotlin surface reference to a pending-release queue. Native code releases it via
+     *   [onNativeSurfaceReleased] after the queued surface teardown completes.
      */
     private fun destroySurfaceLocked() {
         isAttached = false
         stopThread()
+        sharedSurface?.let(pendingSurfaceReleases::addLast)
+        sharedSurface = null
         if (hasCppObject) {
             RiveLog.d(TAG) { "Destroying surface." }
             cppDestroySurface(cppPointer)
         }
-        RiveLog.d(TAG) { "destroySurfaceLocked - releasing shared surface." }
-        sharedSurface?.release()
-        sharedSurface = null
+    }
+
+    /**
+     * Releases the oldest renderer-owned surface after native teardown has stopped using it.
+     *
+     * Native surface operations are serialized on the renderer worker, so callbacks arrive in the
+     * same order in which [setSurface] and [destroySurfaceAsync] queued their replaced surfaces.
+     */
+    @Keep
+    @WorkerThread
+    @Suppress("unused")
+    private fun onNativeSurfaceReleased() {
+        synchronized(frameLock) {
+            val surface = pendingSurfaceReleases.pollFirst()
+            if (surface == null) {
+                RiveLog.e(TAG) { "Native released a surface with no pending Kotlin reference." }
+                return
+            }
+            surface.release()
+        }
     }
 
     /** Schedule a new frame callback to the Choreographer loop, calling back to [doFrame]. */
     open fun scheduleFrame() {
-        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+        Handler(Looper.getMainLooper()).post {
+            // postFrameCallback must be called from the main looper
             Choreographer.getInstance().postFrameCallback(this@Renderer)
         }
     }
 
     /** Remove the active frame callback, breaking the Choreographer loop. */
     private fun removeFrameCallback() {
-        Handler(Looper.getMainLooper()).post { // postFrameCallback must be called from the main looper
+        Handler(Looper.getMainLooper()).post {
+            // postFrameCallback must be called from the main looper
             Choreographer.getInstance().removeFrameCallback(this@Renderer)
         }
     }
@@ -374,7 +402,7 @@ abstract class Renderer(
             alignment,
             targetBounds,
             sourceBounds,
-            scaleFactor
+            scaleFactor,
         )
     }
 
@@ -411,8 +439,8 @@ abstract class Renderer(
             } else {
                 RiveLog.d(TAG) {
                     "doFrame - " +
-                            "isPlaying: $isPlaying, isAttached: $isAttached - one or both are false; " +
-                            "not scheduling any new frames"
+                        "isPlaying: $isPlaying, isAttached: $isAttached - one or both are false; " +
+                        "not scheduling any new frames"
                 }
             }
         }
@@ -463,6 +491,8 @@ abstract class Renderer(
         synchronized(frameLock) {
             sharedSurface?.release()
             sharedSurface = null
+            pendingSurfaceReleases.forEach(SharedSurface::release)
+            pendingSurfaceReleases.clear()
             dependencies.forEach { it.release() }
             dependencies.clear()
         }

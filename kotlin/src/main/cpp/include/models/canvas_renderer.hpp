@@ -22,35 +22,24 @@ protected:
 
 private:
     static constexpr auto* TAG = "RiveLN/CanvasRenderer";
+    bool m_reportedSurfaceFailure = false;
 
-    static jobject GetCanvas(jobject ktSurface)
-    {
-        return GetJNIEnv()->CallObjectMethod(ktSurface,
-                                             GetSurfaceLockCanvasMethodId(),
-                                             nullptr);
-    }
+    /**
+     * Clears a pending Surface exception, logging only the first failure until
+     * a Canvas is successfully posted. Called only on the renderer worker.
+     *
+     * @param message Diagnostic identifying the failed Surface operation.
+     * @return Whether an exception was cleared.
+     */
+    bool clearSurfaceException(const char* message);
 
-    static void Clear(jobject ktCanvas)
-    {
-        JNIEnv* env = GetJNIEnv();
-
-        jclass porterDuffModeClass = GetPorterDuffClass();
-        jobject clearMode =
-            env->GetStaticObjectField(porterDuffModeClass, GetPdClear());
-        env->DeleteLocalRef(porterDuffModeClass);
-        if (clearMode == nullptr)
-        {
-            RiveLogE(TAG, "Failed to get PorterDuff.Mode.CLEAR.");
-            return;
-        }
-
-        // canvas.drawColor(Color.TRANSPARENT, PortDuff.Mode.Clear)
-        JNIExceptionHandler::CallVoidMethod(env,
-                                            ktCanvas,
-                                            GetCanvasDrawColorMethodId(),
-                                            0x0 /* Color.TRANSPARENT */,
-                                            clearMode);
-    }
+    /**
+     * Clears the currently locked Android Canvas.
+     *
+     * @param ktCanvas Android Canvas to clear.
+     * @return `true` on success; `false` if a JNI exception was cleared.
+     */
+    static bool Clear(jobject ktCanvas);
 
 public:
     ~CanvasRenderer() override { assert(m_ktCanvas == nullptr); }
@@ -84,35 +73,28 @@ public:
     [[nodiscard]] int width() const { return m_width; }
     [[nodiscard]] int height() const { return m_height; }
 
-    void bindCanvas(jobject ktSurface)
-    {
-        // Old canvas needs to be unbound as it might not be valid anymore.
-        assert(m_ktCanvas == nullptr);
-        JNIEnv* env = GetJNIEnv();
-        m_ktCanvas = env->NewGlobalRef(GetCanvas(ktSurface));
-        m_width = JNIExceptionHandler::CallIntMethod(env,
-                                                     m_ktCanvas,
-                                                     GetCanvasWidthMethodId());
-        m_height =
-            JNIExceptionHandler::CallIntMethod(env,
-                                               m_ktCanvas,
-                                               GetCanvasHeightMethodId());
-        Clear(m_ktCanvas);
-    }
+    /**
+     * Locks, measures, and clears the Canvas owned by an Android Surface.
+     *
+     * Expected Surface lifecycle exceptions are logged and cleared so they
+     * abort only the current frame and do not detach the JNI worker thread.
+     *
+     * @param ktSurface Android Surface whose Canvas should be locked.
+     * @return `true` when the Canvas is ready to draw; `false` when the frame
+     *         must be aborted.
+     */
+    bool bindCanvas(jobject ktSurface);
 
-    void unlockAndPost(jobject ktSurface)
-    {
-        JNIEnv* env = GetJNIEnv();
-        JNIExceptionHandler::CallVoidMethod(
-            env,
-            ktSurface,
-            GetSurfaceUnlockCanvasAndPostMethodId(),
-            m_ktCanvas);
-
-        m_width = -1;
-        m_height = -1;
-        env->DeleteGlobalRef(m_ktCanvas);
-        m_ktCanvas = nullptr;
-    }
+    /**
+     * Posts the locked Canvas and always releases its JNI global reference.
+     *
+     * Expected Surface lifecycle exceptions are logged and cleared so they
+     * abort only the current frame and do not detach the JNI worker thread.
+     *
+     * @param ktSurface Android Surface that owns the locked Canvas.
+     * @return `true` when the Canvas was posted; `false` when the frame was
+     *         aborted.
+     */
+    bool unlockAndPost(jobject ktSurface);
 };
 } // namespace rive_android

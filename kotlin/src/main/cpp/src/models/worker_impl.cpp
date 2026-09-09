@@ -120,13 +120,13 @@ WorkerFrameResult WorkerImpl::doFrame(
     tracer->beginSection("Rive/Frame/Draw");
 
     tracer->beginSection("Rive/Frame/Draw/Begin");
-    EGLResult prepareResult = prepareForDraw(threadState);
+    WorkerStageResult prepareResult = prepareForDraw(threadState);
     tracer->endSection(); // Rive/Frame/Draw/Begin
-    if (!prepareResult.isSuccess())
+    if (!prepareResult.shouldContinue)
     {
         tracer->endSection(); // Rive/Frame/Draw
         tracer->endSection(); // Rive/Frame
-        result.eglResult = prepareResult;
+        result.eglResult = prepareResult.eglResult;
         return result;
     }
 
@@ -136,8 +136,15 @@ WorkerFrameResult WorkerImpl::doFrame(
     tracer->endSection(); // Rive/Frame/Draw/Render
 
     tracer->beginSection("Rive/Frame/Draw/Flush");
-    flush(threadState);
+    WorkerStageResult flushResult = flush(threadState);
     tracer->endSection(); // Rive/Frame/Draw/Flush
+    if (!flushResult.shouldContinue)
+    {
+        tracer->endSection(); // Rive/Frame/Draw
+        tracer->endSection(); // Rive/Frame
+        result.eglResult = flushResult.eglResult;
+        return result;
+    }
 
     tracer->beginSection("Rive/Frame/Draw/Present");
     EGLResult swapResult = threadState->swapBuffers();
@@ -222,11 +229,12 @@ void PLSWorkerImpl::clear(DrawableThreadState* threadState) const
     });
 }
 
-void PLSWorkerImpl::flush(DrawableThreadState* threadState) const
+WorkerStageResult PLSWorkerImpl::flush(DrawableThreadState* threadState) const
 {
     PLSThreadState* plsThreadState = PLSWorkerImpl::PlsThreadState(threadState);
     rive::gpu::RenderContext* renderContext = plsThreadState->renderContext();
     renderContext->flush({.renderTarget = m_renderTarget.get()});
+    return {};
 }
 
 rive::Renderer* PLSWorkerImpl::renderer() const { return m_plsRenderer.get(); }
@@ -242,14 +250,13 @@ void CanvasWorkerImpl::destroy(DrawableThreadState*)
     m_ktSurface = nullptr;
 }
 
-EGLResult CanvasWorkerImpl::prepareForDraw(DrawableThreadState*) const
+WorkerStageResult CanvasWorkerImpl::prepareForDraw(DrawableThreadState*) const
 {
-    m_canvasRenderer->bindCanvas(m_ktSurface);
-    return EGLResult::Ok();
+    return {.shouldContinue = m_canvasRenderer->bindCanvas(m_ktSurface)};
 }
 
-void CanvasWorkerImpl::flush(DrawableThreadState*) const
+WorkerStageResult CanvasWorkerImpl::flush(DrawableThreadState*) const
 {
-    m_canvasRenderer->unlockAndPost(m_ktSurface);
+    return {.shouldContinue = m_canvasRenderer->unlockAndPost(m_ktSurface)};
 }
 } // namespace rive_android

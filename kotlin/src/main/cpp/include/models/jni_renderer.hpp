@@ -20,6 +20,11 @@ public:
 
     ~JNIRenderer();
 
+    /**
+     * Queues native teardown and Kotlin dependency disposal on the worker.
+     * Kotlin callback exceptions are logged and cleared to keep the shared
+     * worker usable; interrupted Kotlin cleanup is not retried.
+     */
     void scheduleDispose();
 
     void setSurface(SurfaceVariant);
@@ -142,6 +147,12 @@ private:
      * @param result EGL operation + error details for this event.
      */
     void notifyRenderContextEvent(int eventType, const EGLResult& result) const;
+
+    /**
+     * Notifies Kotlin that the worker has finished tearing down and releasing
+     * one previously assigned surface.
+     */
+    void notifySurfaceReleased() const;
 
     /**
      * Transitions the render loop into recovering state after a fatal EGL

@@ -13,11 +13,11 @@ namespace rive_android
 {
     std::ostringstream errorMsg;
     append_throwable_message(env, exception, errorMsg);
-    jthrowable cause = get_cause(env, exception);
-    if (cause != nullptr)
+    auto cause = MakeJniResource(get_cause(env, exception), env);
+    if (cause.get() != nullptr)
     {
         errorMsg << "\nCaused by: ";
-        append_throwable_message(env, cause, errorMsg);
+        append_throwable_message(env, cause.get(), errorMsg);
     }
     return errorMsg.str();
 }
@@ -90,9 +90,10 @@ namespace rive_android
 /* static  */ jthrowable JNIExceptionHandler::get_cause(JNIEnv* env,
                                                         jthrowable throwable)
 {
-    jclass throwableClass = env->FindClass("java/lang/Throwable");
-    jmethodID midGetCause =
-        env->GetMethodID(throwableClass, "getCause", "()Ljava/lang/Throwable;");
+    auto throwableClass = FindClass(env, "java/lang/Throwable");
+    jmethodID midGetCause = env->GetMethodID(throwableClass.get(),
+                                             "getCause",
+                                             "()Ljava/lang/Throwable;");
     return (jthrowable)env->CallObjectMethod(throwable, midGetCause);
 }
 

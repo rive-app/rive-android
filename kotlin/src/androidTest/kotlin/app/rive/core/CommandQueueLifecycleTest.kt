@@ -14,6 +14,16 @@ import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.runtime.kotlin.test.R
 import app.rive.semantics.SemanticTreeModel
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -25,16 +35,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.runner.RunWith
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotSame
-import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(AndroidJUnit4::class)
 class CommandQueueLifecycleTest : RiveAndroidTest() {
@@ -44,7 +44,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
 
         commandQueue.release(
             "CommandQueueLifecycleTest",
-            "Final release from caller thread"
+            "Final release from caller thread",
         )
 
         assertDisposed(commandQueue)
@@ -112,7 +112,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
         val releaseThread = Thread {
             commandQueue.release(
                 "CommandQueueLifecycleTest",
-                "Final release from background thread"
+                "Final release from background thread",
             )
         }
         releaseThread.start()
@@ -138,7 +138,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
             try {
                 commandQueue.release(
                     "CommandQueueLifecycleTest",
-                    "Final release from command server thread"
+                    "Final release from command server thread",
                 )
             } catch (t: Throwable) {
                 thrown.set(t)
@@ -149,20 +149,20 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
 
         assertTrue(
             releaseAttempted.await(2, TimeUnit.SECONDS),
-            "Command server release callback did not run"
+            "Command server release callback did not run",
         )
         assertTrue(
             thrown.get() is IllegalStateException,
-            "Expected command server release to throw IllegalStateException"
+            "Expected command server release to throw IllegalStateException",
         )
         assertFalse(
             commandQueue.isDisposed,
-            "CommandQueue should not be disposed after failed release attempt"
+            "CommandQueue should not be disposed after failed release attempt",
         )
 
         commandQueue.release(
             "CommandQueueLifecycleTest",
-            "Final release from caller thread"
+            "Final release from caller thread",
         )
         assertDisposed(commandQueue)
     }
@@ -209,14 +209,14 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
 
         assertTrue(
             firstFrameRequested.await(2, TimeUnit.SECONDS),
-            "Polling loop did not request a frame"
+            "Polling loop did not request a frame",
         )
         // Release while we are in the middle of a frame tick, before polling. This would trigger an
         // exception when polling the released command queue if polling is incorrectly handling
         // disposal.
         commandQueue.release(
             "CommandQueueLifecycleTest",
-            "Disposed while polling"
+            "Disposed while polling",
         )
         firstFrameMayContinue.complete(Unit)
 
@@ -224,7 +224,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
         // a timeout.
         assertFalse(
             secondFrameRequested.await(250, TimeUnit.MILLISECONDS),
-            "Polling requested another frame after the command queue was disposed"
+            "Polling requested another frame after the command queue was disposed",
         )
         // Destroy the lifecycle only after the above assertion, proving that the polling loop
         // stopped due to disposal rather than lifecycle teardown.
@@ -264,7 +264,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
 
         assertTrue(
             withTimeout(2_000) { tickerRanOnMain.await() },
-            "Polling ticker did not run on the main thread"
+            "Polling ticker did not run on the main thread",
         )
 
         withContext(Dispatchers.Main.immediate) {
@@ -273,7 +273,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
         withTimeout(2_000) { polling.await() }
         commandQueue.release(
             "CommandQueueLifecycleTest",
-            "Final release after main-thread polling"
+            "Final release after main-thread polling",
         )
         assertDisposed(commandQueue)
     }
@@ -289,7 +289,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
         assertTrue(thrown.message?.contains("main thread") == true)
         commandQueue.release(
             "CommandQueueLifecycleTest",
-            "Final release after off-main poll"
+            "Final release after off-main poll",
         )
         assertDisposed(commandQueue)
     }
@@ -302,11 +302,11 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
             withDefaultRiveResources(R.raw.tabtest) {
                 ViewModelInstance.fromFile(
                     file,
-                    ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
+                    ViewModelSource.DefaultForArtboard(artboard).defaultInstance(),
                 ).use { viewModelInstance ->
                     riveWorker.bindViewModelInstance(
                         stateMachine.stateMachineHandle,
-                        viewModelInstance.instanceHandle
+                        viewModelInstance.instanceHandle,
                     )
 
                     lateinit var tree: SemanticTreeModel
@@ -319,7 +319,7 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
                     // the thread on which the JNI callback completed diff application.
                     val observer = launch(
                         Dispatchers.Unconfined,
-                        start = CoroutineStart.UNDISPATCHED
+                        start = CoroutineStart.UNDISPATCHED,
                     ) {
                         tree.versionFlow.drop(1).first()
                         appliedOnMain.complete(Looper.myLooper() == Looper.getMainLooper())
@@ -332,12 +332,12 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
                     stateMachine.drainSemanticsDiff(
                         fit = Fit.Contain(),
                         surfaceWidth = 500f,
-                        surfaceHeight = 500f
+                        surfaceHeight = 500f,
                     )
 
                     assertTrue(
                         withTimeout(2_000) { appliedOnMain.await() },
-                        "Semantic diff was not applied on the main thread"
+                        "Semantic diff was not applied on the main thread",
                     )
                     observer.join()
 
@@ -380,14 +380,14 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
                     assertNotSame(
                         originalTree,
                         currentTree,
-                        "Native deletion callback did not remove the tree"
+                        "Native deletion callback did not remove the tree",
                     )
                 }
             }
         } finally {
             commandQueue.release(
                 "CommandQueueLifecycleTest",
-                "Final release after state machine deletion"
+                "Final release after state machine deletion",
             )
             assertDisposed(commandQueue)
         }
