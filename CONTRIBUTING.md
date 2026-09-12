@@ -2,6 +2,20 @@
 
 We love contributions! If you want to run the project locally to test out changes, run the examples, or just see how things work under the hood, read on below.
 
+## Getting the Source
+
+The C++ runtime is a submodule, so clone with it:
+
+```shell
+git clone --recursive git@github.com:rive-app/rive-android.git
+```
+
+If you have already cloned without `--recursive`, initialize it before building:
+
+```shell
+git submodule update --init --recursive
+```
+
 ## Project Layout
 
 ### `/kotlin`
@@ -38,7 +52,7 @@ To select which build variant to build and run, go to **Build > Select Build Var
 
 ### Formatting
 
-From `packages/runtime_android`, format or check all Android Kotlin and C++ sources with:
+From the project root, format or check all Android Kotlin and C++ sources with:
 
 ```shell
 ./gradlew formatApply
@@ -52,7 +66,7 @@ it is not available on `PATH`.
 #### Kotlin
 
 Spotless with ktlint is the canonical Kotlin formatter. It uses ktlint's Android Studio style and
-requires trailing commas on declaration and call sites. From `packages/runtime_android`, run:
+requires trailing commas on declaration and call sites. From the project root, run:
 
 ```shell
 ./gradlew spotlessApply
@@ -110,29 +124,20 @@ The runtime here should be updated to point to the latest `rive-runtime` submodu
 
 #### Pre-requisites
 
-1. Install Ninja - `brew install ninja`
-2. Download [Premake5](https://premake.github.io/download), and add it to your PATH
+1. Install Ninja and the shader toolchain - `brew install ninja glslang`
+2. Install NDK - Gradle auto-downloads the version pinned by `ndkVersion` in `kotlin/build.gradle.kts`, but [only if the SDK licenses are already accepted](https://developer.android.com/studio/projects/install-ndk#auto-download-ndk). Accept them once with `sdkmanager --licenses`, or install the NDK yourself with `sdkmanager --install "ndk;{ndk-version}"`.
 
 #### Steps
 
 The Android NDK builds `.so` files for [different architectures](https://developer.android.com/ndk/guides/abis).
 
-The current NDK version we're using is stored in [.ndk_version](./kotlin/src/main/cpp/.ndk_version). Rive is constantly making use of the latest clang features, so please ensure your NDK is up to date. ([How to install a specific NDK version](https://developer.android.com/studio/projects/install-ndk#specific-version))
+Rive is constantly making use of the latest clang features, and the C++ runtime checks it independently and fails the build on a mismatch.
 
 Make sure you're rebuilding the native libraries when pulling in the latest changes from `rive-runtime`:
 
 ```bash
-cd kotlin/src/main/cpp/
-
-# Add NDK_PATH variable to your .zshenv
-NDK_VERSION=$(tr <.ndk_version -d " \t\n\r")
-echo 'export NDK_PATH=~/Library/Android/sdk/ndk/${NDK_VERSION}' >> ~/.zshenv
-source ~/.zshenv
-
-# Back to the top of the repo
-cd -
 # Make sure everything still builds
 ./gradlew assembleDebug
-# After the script above completes successfully, commit your changes
+# After the command above completes successfully, commit your changes
 git add .
 ```
