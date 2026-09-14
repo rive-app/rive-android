@@ -74,7 +74,6 @@ class RiveAssetsTest {
                 }
                 return false
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
@@ -102,7 +101,6 @@ class RiveAssetsTest {
                 }
                 return false
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
@@ -151,7 +149,6 @@ class RiveAssetsTest {
                 }
                 return false
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.asset_load_check).readBytes(),
@@ -201,7 +198,6 @@ class RiveAssetsTest {
                 }
                 return false
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.audio_test).readBytes(),
@@ -219,18 +215,18 @@ class RiveAssetsTest {
 
     /** Straight 2x2 RGBA image with semi-transparent pixels. */
     fun testStraightByteImage(): ByteArray = byteArrayOf(
-        255.toByte(), 0, 0, 255.toByte(),   // Opaque red
-        0, 255.toByte(), 0, 128.toByte(),   // 50% green
-        0, 0, 255.toByte(), 64.toByte(),    // 25% blue
+        255.toByte(), 0, 0, 255.toByte(), // Opaque red
+        0, 255.toByte(), 0, 128.toByte(), // 50% green
+        0, 0, 255.toByte(), 64.toByte(), // 25% blue
         255.toByte(), 255.toByte(), 255.toByte(), 0.toByte() // Transparent white
     )
 
     /** Premultiplied 2x2 RGBA image with semi-transparent pixels. */
     fun testPremultipliedByteImage(): ByteArray = byteArrayOf(
-        255.toByte(), 0, 0, 255.toByte(),   // Opaque red
-        0, 128.toByte(), 0, 128.toByte(),   // 50% green premul
-        0, 0, 16.toByte(), 64.toByte(),     // 25% blue premul
-        0, 0, 0, 0                          // Transparent white premul
+        255.toByte(), 0, 0, 255.toByte(), // Opaque red
+        0, 128.toByte(), 0, 128.toByte(), // 50% green premul
+        0, 0, 16.toByte(), 64.toByte(), // 25% blue premul
+        0, 0, 0, 0 // Transparent white premul
     )
 
     @Test
@@ -312,15 +308,15 @@ class RiveAssetsTest {
     fun testStraightIntsImage(): IntArray = intArrayOf(
         Color.argb(255, 255, 0, 0), // Opaque red
         Color.argb(128, 0, 255, 0), // 50% green
-        Color.argb(64, 0, 0, 255),  // 25% blue
-        Color.argb(0, 255, 255, 255)// Transparent white
+        Color.argb(64, 0, 0, 255), // 25% blue
+        Color.argb(0, 255, 255, 255) // Transparent white
     )
 
     fun testPremultipliedIntsImage(): IntArray = intArrayOf(
         Color.argb(255, 255, 0, 0), // Opaque red
         Color.argb(128, 0, 128, 0), // 50% green premul
-        Color.argb(64, 0, 0, 16),   // 25% blue premul
-        Color.argb(0, 0, 0, 0)      // Transparent white premul
+        Color.argb(64, 0, 0, 16), // 25% blue premul
+        Color.argb(0, 0, 0, 0) // Transparent white premul
     )
 
     @Test

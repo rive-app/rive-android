@@ -8,10 +8,8 @@ import java.util.concurrent.locks.ReentrantLock
  * @deprecated State machine inputs are deprecated. Use data binding properties instead.
  */
 @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
-class SMITrigger internal constructor(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock,
-) : SMIInput(unsafeCppPointer, fileLock) {
+class SMITrigger internal constructor(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    SMIInput(unsafeCppPointer, fileLock) {
     private external fun cppFire(cppPointer: Long)
 
     /** Fires this input's trigger. */

@@ -12,12 +12,12 @@ import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.just
 import io.mockk.runs
+import kotlin.time.Duration.Companion.ZERO
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
-import kotlin.time.Duration.Companion.ZERO
 
 class StateMachineSettlingUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()

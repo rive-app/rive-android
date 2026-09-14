@@ -8,10 +8,8 @@ import java.util.concurrent.locks.ReentrantLock
  * @deprecated State machine inputs are deprecated. Use data binding properties instead.
  */
 @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
-class SMINumber internal constructor(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock,
-) : SMIInput(unsafeCppPointer, fileLock) {
+class SMINumber internal constructor(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    SMIInput(unsafeCppPointer, fileLock) {
     private external fun cppValue(cppPointer: Long): Float
     private external fun cppSetValue(cppPointer: Long, value: Float)
 

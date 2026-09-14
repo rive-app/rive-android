@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -12,6 +13,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import app.rive.Artboard
+import app.rive.ExperimentalDeferredRendering
 import app.rive.Result
 import app.rive.Rive
 import app.rive.RiveFile
@@ -20,17 +22,15 @@ import app.rive.RiveLog
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
 import app.rive.rememberArtboardResult
-import app.rive.rememberRiveFile
-import app.rive.ExperimentalDeferredRendering
 import app.rive.rememberDeferredRiveWorker
-import app.rive.rememberStateMachineResult
+import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
+import app.rive.rememberStateMachineResult
 import app.rive.rememberViewModelInstanceResult
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import android.graphics.Color as AndroidColor
 
 class ScriptingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +63,9 @@ class ScriptingActivity : ComponentActivity() {
             Scaffold(containerColor = Color(0xFF0C1935)) { innerPadding ->
                 when (contentResult) {
                     is Result.Loading -> LoadingIndicator()
+
                     is Result.Error -> ErrorMessage(contentResult.throwable)
+
                     is Result.Success -> {
                         val (resources, vmi) = contentResult.value
                         Rive(

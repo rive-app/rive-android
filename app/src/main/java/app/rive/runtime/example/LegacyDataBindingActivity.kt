@@ -50,7 +50,8 @@ class LegacyDataBindingActivity : ComponentActivity() {
                             Icon(Icons.AutoMirrored.Filled.List, "Data binding options")
                         }
                     }
-                }) { innerPadding ->
+                }
+            ) { innerPadding ->
                 Column(Modifier.padding(innerPadding)) {
                     AndroidView({ context ->
                         RiveAnimationView(context).also { view ->

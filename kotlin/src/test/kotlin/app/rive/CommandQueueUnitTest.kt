@@ -32,14 +32,14 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeout
 
 const val VULKAN_RENDER_CONTEXT_ADDR = 3L
 const val OPENGL_RENDER_CONTEXT_ADDR = 4L
@@ -78,7 +78,9 @@ class CommandQueueUnitTest : FunSpec({
 
     test("Constructor closes render context when native startup fails") {
         val expectedError = RiveInitializationException("Command server failed to start")
-        every { commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR) } throws expectedError
+        every {
+            commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR)
+        } throws expectedError
 
         val error = shouldThrow<RiveInitializationException> {
             CommandQueue(renderContextMock, commandQueueBridgeMock)
@@ -588,7 +590,8 @@ class CommandQueueUnitTest : FunSpec({
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val requestID = slot<Long>()
         val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
-        val errorMessage = "Invalid view model instance handle when requesting its view model name"
+        val errorMessage =
+            "Invalid view model instance handle when requesting its view model name"
 
         every {
             commandQueueBridgeMock.cppGetViewModelInstanceViewModelName(
@@ -644,7 +647,8 @@ class CommandQueueUnitTest : FunSpec({
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val requestID = slot<Long>()
         val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
-        val errorMessage = "Invalid view model instance handle when requesting the instance name"
+        val errorMessage =
+            "Invalid view model instance handle when requesting the instance name"
 
         every {
             commandQueueBridgeMock.cppGetViewModelInstanceName(
@@ -945,7 +949,9 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
-    test("RiveSurface resize updates dimensions and invalidates render target after canceling draw") {
+    test(
+        "RiveSurface resize updates dimensions and invalidates render target after canceling draw"
+    ) {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val surface = TestRiveSurface(commandQueue, width = 100, height = 200)
 
@@ -991,13 +997,16 @@ class CommandQueueUnitTest : FunSpec({
 
         surface.resize(100, 200)
 
-        verify(exactly = 0) { commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle) }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle)
+        }
         verify(exactly = 0) { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) }
     }
 
     test("RiveSurface resize rejects fixed-size surfaces") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val surface = TestRiveSurface(commandQueue, width = 100, height = 200, resizable = false)
+        val surface =
+            TestRiveSurface(commandQueue, width = 100, height = 200, resizable = false)
 
         shouldThrow<IllegalStateException> {
             surface.resize(300, 400)
@@ -1005,7 +1014,9 @@ class CommandQueueUnitTest : FunSpec({
 
         surface.width shouldBe 100
         surface.height shouldBe 200
-        verify(exactly = 0) { commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle) }
+        verify(exactly = 0) {
+            commandQueueBridgeMock.cppCancelDraw(any(), surface.drawKey.handle)
+        }
         verify(exactly = 0) { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) }
     }
 
@@ -1047,7 +1058,9 @@ class CommandQueueUnitTest : FunSpec({
 
     test("Surface-taking worker operations reject a closed surface before native work") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
-        val surface = TestRiveSurface(commandQueue, width = 100, height = 200).also { it.close() }
+        val surface = TestRiveSurface(commandQueue, width = 100, height = 200).also {
+            it.close()
+        }
 
         shouldThrow<RiveResourceClosedException> {
             commandQueue.resizeArtboard(ArtboardHandle(ARTBOARD_HANDLE_NUM), surface)
@@ -1076,12 +1089,34 @@ class CommandQueueUnitTest : FunSpec({
         }
         verify(exactly = 0) {
             commandQueueBridgeMock.cppDraw(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
             )
         }
         verify(exactly = 0) {
             commandQueueBridgeMock.cppDrawToBuffer(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -1123,12 +1158,34 @@ class CommandQueueUnitTest : FunSpec({
         }
         verify(exactly = 0) {
             commandQueueBridgeMock.cppDraw(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
             )
         }
         verify(exactly = 0) {
             commandQueueBridgeMock.cppDrawToBuffer(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -1389,7 +1446,11 @@ class CommandQueueUnitTest : FunSpec({
         val replacementTree = commandQueue.semanticTree(stateMachineHandle)
 
         verify(exactly = 1) {
-            commandQueueBridgeMock.cppDeleteStateMachine(COMMAND_QUEUE_ADDR, requestID.captured, HANDLE_NUM)
+            commandQueueBridgeMock.cppDeleteStateMachine(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM
+            )
         }
         (replacementTree === tree) shouldBe false
         replacementTree.nodeCount shouldBe 0

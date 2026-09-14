@@ -29,8 +29,8 @@ class CloseOnce(private val label: String, private val onClose: () -> Unit) :
         if (_closed.getAndSet(true)) {
             RiveLog.w("CloseOnce") {
                 "Attempted to close already closed resource ($label). " +
-                        "While safe, this may represent a mistake in ownership. " +
-                        "The resource should only be closed once."
+                    "While safe, this may represent a mistake in ownership. " +
+                    "The resource should only be closed once."
             }
             return
         }

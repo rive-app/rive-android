@@ -154,6 +154,7 @@ internal class RiveExploreByTouchHelper(
                 }
                 announceModalAppeared(nextModalNodeId)
             }
+
             previousModalNodeId != null && nextModalNodeId == null -> {
                 val nodeToRestore = preModalAccessibilityFocusedNodeId
                 preModalAccessibilityFocusedNodeId = null
@@ -161,7 +162,10 @@ internal class RiveExploreByTouchHelper(
                     requestAccessibilityFocus(nodeToRestore)
                 }
             }
-            nextModalNodeId != null && paneTitleChanged -> announceModalTitleChanged(nextModalNodeId)
+
+            nextModalNodeId != null && paneTitleChanged -> announceModalTitleChanged(
+                nextModalNodeId
+            )
         }
     }
 
@@ -426,6 +430,7 @@ internal class RiveExploreByTouchHelper(
         when {
             currentNodeId?.canRequestSemanticFocus() == true ->
                 onSemanticFocusRequested(currentNodeId)
+
             currentNodeId == null -> onSemanticFocusCleared()
         }
         onAccessibilityFocusChanged(transition)
@@ -440,8 +445,13 @@ internal class RiveExploreByTouchHelper(
     }
 
     /** Maps a focused Android virtual ID to its active Rive node ID. */
-    private fun Int.toActiveRiveNodeIdOrNull(): Int? =
-        if (this == INVALID_ID) null else idRegistry.riveNodeIdForVirtualNode(this)
+    private fun Int.toActiveRiveNodeIdOrNull(): Int? = if (this ==
+        INVALID_ID
+    ) {
+        null
+    } else {
+        idRegistry.riveNodeIdForVirtualNode(this)
+    }
 }
 
 /** Rive semantic node IDs before and after one atomic Android accessibility-focus action. */
@@ -499,7 +509,9 @@ private class ActiveSemanticNodeProvider(
         val focusedVirtualNodeId = when (focus) {
             AccessibilityNodeInfoCompat.FOCUS_ACCESSIBILITY ->
                 accessibilityFocusedVirtualNodeId()
+
             AccessibilityNodeInfoCompat.FOCUS_INPUT -> inputFocusedVirtualNodeId()
+
             else -> return delegate.findFocus(focus)
         }
         if (
@@ -517,11 +529,7 @@ private class ActiveSemanticNodeProvider(
      * Comparing focus around the complete delegated action suppresses the helper's internal clear
      * while moving directly between two virtual descendants.
      */
-    override fun performAction(
-        virtualViewId: Int,
-        action: Int,
-        arguments: Bundle?,
-    ): Boolean {
+    override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
         if (!isQueryable(virtualViewId)) {
             return false
         }

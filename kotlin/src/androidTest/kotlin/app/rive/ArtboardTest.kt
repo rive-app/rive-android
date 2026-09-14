@@ -2,10 +2,10 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
-import kotlinx.coroutines.runBlocking
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.runBlocking
+import org.junit.runner.RunWith
 
 /** Exercises artboard operations whose results cross the JNI boundary. */
 @RunWith(AndroidJUnit4::class)

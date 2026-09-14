@@ -1,19 +1,19 @@
 package app.rive.semantics.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.unit.Constraints
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticNodeActions
@@ -212,7 +212,7 @@ private fun RenderSemanticNodeComposable(
 private fun buildRenderableNode(
     nodeId: Int,
     siblingIndex: Int,
-    tree: SemanticTreeModel
+    tree: SemanticTreeModel,
 ): RenderSemanticNode? {
     val node = tree.nodeById(nodeId) ?: return null
     val state = mapSemanticNodeState(node.traitFlags, node.stateFlags)
@@ -251,12 +251,7 @@ private fun buildRenderableNode(
 }
 
 /** Normalizes authored bounds into a Compose [Rect]. */
-private fun mapRect(
-    minX: Float,
-    minY: Float,
-    maxX: Float,
-    maxY: Float
-): Rect {
+private fun mapRect(minX: Float, minY: Float, maxX: Float, maxY: Float): Rect {
     val left = minOf(minX, maxX)
     val top = minOf(minY, maxY)
     val right = maxOf(minX, maxX)

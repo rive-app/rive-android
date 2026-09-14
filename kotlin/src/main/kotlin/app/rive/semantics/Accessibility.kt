@@ -137,7 +137,10 @@ internal class AndroidAccessibilityStateProvider(context: Context) : Accessibili
     private val accessibilityManager =
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
     private val listenerAdapters =
-        mutableMapOf<AccessibilityEnabledListener, AccessibilityManager.AccessibilityStateChangeListener>()
+        mutableMapOf<
+            AccessibilityEnabledListener,
+            AccessibilityManager.AccessibilityStateChangeListener
+            >()
 
     override val isEnabled: Boolean
         get() = accessibilityManager.isEnabled
@@ -202,7 +205,9 @@ internal class RiveSemanticsModeController(
     private fun applyMode() {
         when (mode) {
             RiveSemanticsMode.Off -> publishEnabled(false)
+
             RiveSemanticsMode.On -> publishEnabled(true)
+
             RiveSemanticsMode.Automatic -> {
                 provider.addAccessibilityStateChangeListener(listener)
                 observing = true

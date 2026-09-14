@@ -121,7 +121,8 @@ class RiveBuilderTest {
     fun assetLoader() {
         val loadedAssets = mutableListOf<FileAsset>()
         val customLoader = object : FileAssetLoader() {
-            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean = loadedAssets.add(asset)
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean =
+                loadedAssets.add(asset)
         }
 
         runBuilderTest(

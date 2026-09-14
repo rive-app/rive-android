@@ -104,7 +104,6 @@ class RiveViewTest {
             mockView.setRiveResource(R.raw.multipleartboards)
             mockView.artboardName = "artboardDoesntExist"
         }
-
     }
 
     @Test
@@ -329,7 +328,6 @@ class RiveViewTest {
             assert(mockView.artboardRenderer != null)
             mockView.artboardRenderer!!.advance(1001f)
             assertEquals(Direction.BACKWARDS, mockView.playingAnimations.first().direction)
-
         }
     }
 
@@ -627,9 +625,8 @@ class RiveViewTest {
         UiThreadStatement.runOnUiThread {
             val assetStore = mutableListOf<FileAsset>()
             val customLoader = object : FileAssetLoader() {
-                override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
-                    return assetStore.add(asset)
-                }
+                override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean =
+                    assetStore.add(asset)
             }
             mockView.setAssetLoader(customLoader)
             assert(assetStore.isEmpty()) // Before loading.

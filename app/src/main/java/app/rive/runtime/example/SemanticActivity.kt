@@ -2,6 +2,7 @@
 
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -20,7 +21,6 @@ import app.rive.RiveSemanticsMode
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import android.graphics.Color as AndroidColor
 
 class SemanticActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +41,9 @@ class SemanticActivity : ComponentActivity() {
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 when (riveFile) {
                     is Result.Loading -> LoadingIndicator()
+
                     is Result.Error -> ErrorMessage(riveFile.throwable)
+
                     is Result.Success -> {
                         val viewModelInstance = rememberViewModelInstance(riveFile.value)
                         Rive(

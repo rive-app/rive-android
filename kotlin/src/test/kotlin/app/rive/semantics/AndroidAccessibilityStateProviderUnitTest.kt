@@ -34,7 +34,9 @@ class AndroidAccessibilityStateProviderUnitTest : FunSpec({
             accessibilityManager.addAccessibilityStateChangeListener(any())
         }
         verify(exactly = 1) {
-            accessibilityManager.removeAccessibilityStateChangeListener(registeredAdapter.captured)
+            accessibilityManager.removeAccessibilityStateChangeListener(
+                registeredAdapter.captured
+            )
         }
     }
 })

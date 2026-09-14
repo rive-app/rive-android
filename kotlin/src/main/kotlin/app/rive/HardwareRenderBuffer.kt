@@ -12,11 +12,11 @@ import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
 import app.rive.core.traceSection
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * GPU-backed offscreen render target for realtime canvas presentation (API 29+).
@@ -56,6 +56,7 @@ class HardwareRenderBuffer private constructor(
 ) : CheckableAutoCloseable {
     companion object {
         private const val TAG = "Rive/RenderBuffer/Hardware"
+
         // Deferred Vulkan can compile pipelines before ImageReader publishes its first frame.
         private const val FIRST_FRAME_TIMEOUT_MILLIS = 2_000L
 
@@ -223,22 +224,20 @@ class HardwareRenderBuffer private constructor(
      * @param cleanup Cleanup operation to attempt.
      * @return The first failure encountered, with any later failure added as suppressed.
      */
-    private inline fun runCleanupStep(
-        firstFailure: Throwable?,
-        cleanup: () -> Unit,
-    ): Throwable? = try {
-        cleanup()
-        firstFailure
-    } catch (failure: Throwable) {
-        if (firstFailure == null) {
-            failure
-        } else {
-            if (failure !== firstFailure) {
-                firstFailure.addSuppressed(failure)
-            }
+    private inline fun runCleanupStep(firstFailure: Throwable?, cleanup: () -> Unit): Throwable? =
+        try {
+            cleanup()
             firstFailure
+        } catch (failure: Throwable) {
+            if (firstFailure == null) {
+                failure
+            } else {
+                if (failure !== firstFailure) {
+                    firstFailure.addSuppressed(failure)
+                }
+                firstFailure
+            }
         }
-    }
 
     /**
      * Enqueues rendering into this hardware surface.
@@ -261,7 +260,7 @@ class HardwareRenderBuffer private constructor(
         artboard: Artboard,
         stateMachine: StateMachine,
         fit: Fit = RenderingDefaults.defaultFit(),
-        clearColor: Int = RenderingDefaults.CLEAR_COLOR
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR,
     ) {
         closer.checkOpen()
         surface.checkOpen()

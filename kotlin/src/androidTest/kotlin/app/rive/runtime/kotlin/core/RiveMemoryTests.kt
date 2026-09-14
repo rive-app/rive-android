@@ -11,6 +11,10 @@ import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.renderers.Renderer
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
+import java.util.concurrent.Phaser
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.locks.ReentrantLock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -19,10 +23,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.Phaser
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.locks.ReentrantLock
 
 @RunWith(AndroidJUnit4::class)
 class RiveMemoryTests {
@@ -317,7 +317,6 @@ class RiveMemoryTests {
                 "StackTrace should contain 'acquire'",
                 exception.stackTrace.first().methodName.contains("acquire")
             )
-
         }
     }
 
@@ -362,7 +361,8 @@ class RiveMemoryTests {
                 .dropWhile { it.className != "--- Current Stack Trace ---" }
                 .drop(1) // Skip also "--- Current Stack Trace ---"
             assertEquals(
-                "Stack Trace did not match", "app.rive.runtime.kotlin.core.NativeObject",
+                "Stack Trace did not match",
+                "app.rive.runtime.kotlin.core.NativeObject",
                 cppPointerStack.first().className
             )
             assertEquals(
@@ -503,9 +503,7 @@ class RiveMemoryTests {
     @Test
     fun fileAssetLoaderReleases() {
         val assetLoader = object : ContextAssetLoader(appContext) {
-            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
-                return false
-            }
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean = false
         }
         assertEquals(1, assetLoader.refCount)
         assertTrue(assetLoader.hasCppObject)
@@ -519,9 +517,7 @@ class RiveMemoryTests {
     @Test
     fun fileKeepsAssetLoaderAlive() {
         val assetLoader = object : ContextAssetLoader(appContext) {
-            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
-                return false
-            }
+            override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean = false
         }
         assertEquals(1, assetLoader.refCount)
 

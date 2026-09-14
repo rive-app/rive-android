@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -33,7 +34,6 @@ import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import java.util.Locale
-import android.graphics.Color as AndroidColor
 
 class ComposeLayoutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,7 +59,9 @@ class ComposeLayoutActivity : ComponentActivity() {
                     Box(modifier = Modifier.weight(1f)) {
                         when (riveFile) {
                             is Result.Loading -> LoadingIndicator()
+
                             is Result.Error -> ErrorMessage(riveFile.throwable)
+
                             is Result.Success -> {
                                 Rive(
                                     riveFile.value,

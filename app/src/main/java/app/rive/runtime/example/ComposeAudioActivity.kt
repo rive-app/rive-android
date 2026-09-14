@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -15,7 +16,6 @@ import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import android.graphics.Color as AndroidColor
 
 class ComposeAudioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,7 +36,9 @@ class ComposeAudioActivity : ComponentActivity() {
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 when (riveFile) {
                     is Result.Loading -> LoadingIndicator()
+
                     is Result.Error -> ErrorMessage(riveFile.throwable)
+
                     is Result.Success -> Rive(
                         riveFile.value,
                         Modifier.padding(innerPadding)

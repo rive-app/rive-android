@@ -17,7 +17,6 @@ class NestedInputActivity : ComponentActivity() {
         if (view is RadioButton && view.isChecked) {
             // Check which radio button was clicked
             when (view.id) {
-
                 R.id.outer_circle_on ->
                     animationView.setBooleanStateAtPath("CircleOuterState", true, "CircleOuter")
 
@@ -37,7 +36,6 @@ class NestedInputActivity : ComponentActivity() {
                         false,
                         "CircleOuter/CircleInner"
                     )
-
             }
         }
     }

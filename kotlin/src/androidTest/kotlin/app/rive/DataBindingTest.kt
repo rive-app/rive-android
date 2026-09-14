@@ -2,6 +2,10 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -12,10 +16,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 
 private const val FILE_B_VIEW_MODEL = "FileBMain"
 private const val DUMMY_PROPERTY = "dummy"
@@ -224,10 +224,7 @@ class DataBindingTest : RiveAndroidTest() {
      * @param artboardName The File A artboard whose binding mode is under test.
      * @param expectedLabel The expected File B label after binding and advancing.
      */
-    private suspend fun assertCrossFileBinding(
-        artboardName: String,
-        expectedLabel: String,
-    ) {
+    private suspend fun assertCrossFileBinding(artboardName: String, expectedLabel: String) {
         RiveFile.load(
             RiveFileSource.RawRes(R.raw.cross_file_binding_a, context.resources),
             riveWorker,

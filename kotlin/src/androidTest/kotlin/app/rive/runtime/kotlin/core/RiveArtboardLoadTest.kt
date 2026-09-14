@@ -53,7 +53,6 @@ class RiveArtboardLoadTest {
             "super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long super fun long ",
             file.firstArtboard.name
         )
-
     }
 
     @Test

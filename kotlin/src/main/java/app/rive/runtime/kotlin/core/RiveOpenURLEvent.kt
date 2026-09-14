@@ -20,7 +20,6 @@ class RiveOpenURLEvent(unsafeCppPointer: Long, delay: Float) : RiveEvent(unsafeC
     val target: String
         get() = cppTarget(cppPointer)
 
-    override fun toString(): String {
-        return "OpenURLRiveEvent, name: $name, url: $url, target: $target, properties: $properties"
-    }
+    override fun toString(): String =
+        "OpenURLRiveEvent, name: $name, url: $url, target: $target, properties: $properties"
 }

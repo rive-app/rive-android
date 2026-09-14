@@ -18,8 +18,8 @@ class LinearAnimationInstance(
     unsafeCppPointer: Long,
     private val lock: ReentrantLock,
     var mix: Float = 1.0f,
-) :
-    PlayableInstance, NativeObject(unsafeCppPointer) {
+) : NativeObject(unsafeCppPointer),
+    PlayableInstance {
 
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Loop?
     private external fun cppAdvanceAndGetResult(pointer: Long, elapsedTime: Float): AdvanceResult

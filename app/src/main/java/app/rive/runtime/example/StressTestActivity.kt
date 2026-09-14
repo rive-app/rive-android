@@ -39,16 +39,14 @@ class StressTestView(context: Context) : RiveTextureView(context) {
     private var totalElapsed: Float = 0f
     private var totalFrames: Int = 0
 
-    override fun createObserver(): LifecycleObserver {
-        return object : DefaultLifecycleObserver {
-            /* Optionally override lifecycle methods. */
-            // override fun onCreate(owner: LifecycleOwner) {
-            //     super.onCreate(owner)
-            // }
-            // override fun onDestroy(owner: LifecycleOwner) {
-            //     super.onDestroy(owner)
-            // }
-        }
+    override fun createObserver(): LifecycleObserver = object : DefaultLifecycleObserver {
+        /* Optionally override lifecycle methods. */
+        // override fun onCreate(owner: LifecycleOwner) {
+        //     super.onCreate(owner)
+        // }
+        // override fun onDestroy(owner: LifecycleOwner) {
+        //     super.onDestroy(owner)
+        // }
     }
 
     override fun createRenderer(): Renderer {
@@ -142,15 +140,15 @@ class StressTestView(context: Context) : RiveTextureView(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-
         val action: Int = event.actionMasked
 
         return when (action) {
             MotionEvent.ACTION_DOWN -> {
-                if (instanceCount < 7)
+                if (instanceCount < 7) {
                     instanceCount += 2
-                else
+                } else {
                     instanceCount += 7
+                }
                 totalElapsed = 0f
                 totalFrames = 0
                 val fpsView =

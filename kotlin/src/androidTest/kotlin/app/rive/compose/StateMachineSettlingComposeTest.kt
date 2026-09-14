@@ -23,11 +23,11 @@ import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.Test
+import kotlin.test.assertFalse
 import org.junit.Rule
 import org.junit.runner.RunWith
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.assertFalse
-import kotlin.test.Test
 
 @RunWith(AndroidJUnit4::class)
 class StateMachineSettlingComposeTest : RiveAndroidTest() {

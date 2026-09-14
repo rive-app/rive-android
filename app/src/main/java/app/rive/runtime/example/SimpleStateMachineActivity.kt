@@ -17,7 +17,6 @@ class SimpleStateMachineActivity : ComponentActivity() {
         if (view is RadioButton && view.isChecked) {
             // Check which radio button was clicked
             when (view.id) {
-
                 R.id.level_beginner ->
                     animationView.setNumberState("Designer's Test", "Level", 0f)
 
@@ -26,7 +25,6 @@ class SimpleStateMachineActivity : ComponentActivity() {
 
                 R.id.level_advanced ->
                     animationView.setNumberState("Designer's Test", "Level", 2f)
-
             }
         }
     }

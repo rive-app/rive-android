@@ -11,7 +11,10 @@ import app.rive.runtime.kotlin.core.RendererType
 import app.rive.runtime.kotlin.core.Rive
 
 enum class PointerEvents {
-    POINTER_DOWN, POINTER_UP, POINTER_MOVE, POINTER_EXIT
+    POINTER_DOWN,
+    POINTER_UP,
+    POINTER_MOVE,
+    POINTER_EXIT,
 }
 
 open class RiveArtboardRenderer(

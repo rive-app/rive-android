@@ -1,13 +1,14 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +41,6 @@ import app.rive.RiveLog
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import java.util.Locale
-import android.graphics.Color as AndroidColor
 
 private val FPS_PRESETS = listOf(12f, 24f, 30f, 60f, 90f, 120f, 240f)
 private val FPS_PRESET_ROWS = listOf(
@@ -81,7 +81,9 @@ class ComposeCappedFPSActivity : ComponentActivity() {
                     ) {
                         when (riveFile) {
                             is Result.Loading -> LoadingIndicator()
+
                             is Result.Error -> ErrorMessage(riveFile.throwable)
+
                             is Result.Success -> {
                                 Rive(
                                     file = riveFile.value,

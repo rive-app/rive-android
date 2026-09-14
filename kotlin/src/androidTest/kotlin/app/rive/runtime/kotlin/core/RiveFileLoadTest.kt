@@ -4,10 +4,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.core.errors.MalformedFileException
 import app.rive.runtime.kotlin.core.errors.UnsupportedRuntimeVersionException
 import app.rive.runtime.kotlin.test.R
+import java.net.URI
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.net.URI
 
 @RunWith(AndroidJUnit4::class)
 class RiveFileLoadTest {
@@ -65,7 +65,6 @@ class RiveFileLoadTest {
                     return asset.decode(bytes)
                 }
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.walle).readBytes(),
@@ -90,7 +89,6 @@ class RiveFileLoadTest {
                 )
                 return assetStore.add(asset)
             }
-
         }
         val file = File(
             appContext.resources.openRawResource(R.raw.cdn_image).readBytes(),

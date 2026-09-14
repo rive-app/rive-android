@@ -19,8 +19,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
@@ -38,16 +38,16 @@ import app.rive.compose.awaitWithWallClock
 import app.rive.compose.rememberTestRiveResources
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
+import kotlin.math.roundToInt
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.test.assertFalse
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
-import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.milliseconds
 
 /** Exercises the production virtual accessibility projection installed by [Rive]. */
 @RunWith(AndroidJUnit4::class)
@@ -107,7 +107,10 @@ class RiveVirtualSemanticsComposeTest : RiveAndroidTest() {
     @Test
     fun semanticsEnabled_changeWhilePlayingRemovesAndRestoresVirtualAccessibilityNodes() =
         withTouchExplorationEnabled {
-            val enabled = setRiveContent(resourceId = R.raw.tabtest, playing = true).semanticsEnabled
+            val enabled = setRiveContent(
+                resourceId = R.raw.tabtest,
+                playing = true
+            ).semanticsEnabled
             assertTrue(
                 assertNotNull(
                     awaitRootContaining(TAB_LABELS).findByLabel(ALL_TAB_LABEL)
@@ -128,43 +131,42 @@ class RiveVirtualSemanticsComposeTest : RiveAndroidTest() {
 
     /** Verifies Android accessibility focus requests and clears Rive semantic focus. */
     @Test
-    fun accessibilityFocus_synchronizesRiveFocusThroughComposable() =
-        withTouchExplorationEnabled {
-            val content = setRiveContent(
-                resourceId = R.raw.semantic_list_scroll_focus_fixed,
-                playing = false,
-            )
-            val firstItem = assertNotNull(
-                awaitRootContaining(FOCUS_ITEM_LABELS).findByLabel(FIRST_FOCUS_ITEM_LABEL)
-            )
+    fun accessibilityFocus_synchronizesRiveFocusThroughComposable() = withTouchExplorationEnabled {
+        val content = setRiveContent(
+            resourceId = R.raw.semantic_list_scroll_focus_fixed,
+            playing = false,
+        )
+        val firstItem = assertNotNull(
+            awaitRootContaining(FOCUS_ITEM_LABELS).findByLabel(FIRST_FOCUS_ITEM_LABEL)
+        )
 
-            assertTrue(
-                firstItem.performAction(
-                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
-                )
+        assertTrue(
+            firstItem.performAction(
+                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
             )
-            content.advanceAndDrain()
-            composeRule.awaitWithWallClock(
-                timeoutMessage = { "Android accessibility focus did not request Rive focus" }
-            ) {
-                content.focusedLabels() == setOf(FIRST_FOCUS_ITEM_LABEL)
-            }
-
-            val refreshedItem = assertNotNull(
-                assertNotNull(rootInActiveWindow).findByLabel(FIRST_FOCUS_ITEM_LABEL)
-            )
-            assertTrue(
-                refreshedItem.performAction(
-                    AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS
-                )
-            )
-            content.advanceAndDrain()
-            composeRule.awaitWithWallClock(
-                timeoutMessage = { "Clearing Android accessibility focus did not clear Rive focus" }
-            ) {
-                content.focusedLabels().isEmpty()
-            }
+        )
+        content.advanceAndDrain()
+        composeRule.awaitWithWallClock(
+            timeoutMessage = { "Android accessibility focus did not request Rive focus" }
+        ) {
+            content.focusedLabels() == setOf(FIRST_FOCUS_ITEM_LABEL)
         }
+
+        val refreshedItem = assertNotNull(
+            assertNotNull(rootInActiveWindow).findByLabel(FIRST_FOCUS_ITEM_LABEL)
+        )
+        assertTrue(
+            refreshedItem.performAction(
+                AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS
+            )
+        )
+        content.advanceAndDrain()
+        composeRule.awaitWithWallClock(
+            timeoutMessage = { "Clearing Android accessibility focus did not clear Rive focus" }
+        ) {
+            content.focusedLabels().isEmpty()
+        }
+    }
 
     /** Verifies a fixed-size texture resize updates both tree and framework bounds. */
     @Test
@@ -245,10 +247,7 @@ class RiveVirtualSemanticsComposeTest : RiveAndroidTest() {
     )
 
     /** Displays one real fixture through the production composable. */
-    private fun setRiveContent(
-        @RawRes resourceId: Int,
-        playing: Boolean,
-    ): RiveContent {
+    private fun setRiveContent(@RawRes resourceId: Int, playing: Boolean): RiveContent {
         val content = RiveContent(mutableStateOf(true))
         composeRule.setContent {
             RiveTestContent(
@@ -307,7 +306,9 @@ class RiveVirtualSemanticsComposeTest : RiveAndroidTest() {
     }
 
     /** Waits for an active window containing every requested label. */
-    private fun UiAutomation.awaitRootContaining(labels: Collection<String>): AccessibilityNodeInfo {
+    private fun UiAutomation.awaitRootContaining(
+        labels: Collection<String>,
+    ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
         composeRule.awaitWithWallClock(
             timeoutMessage = { "Virtual semantics did not publish labels $labels" }

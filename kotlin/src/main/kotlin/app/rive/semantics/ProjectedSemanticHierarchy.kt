@@ -86,23 +86,14 @@ private data class ProjectedSemanticHierarchyData(
 )
 
 /** One reachable modal candidate and its authored ancestors. */
-private data class ModalCandidate(
-    val nodeId: Int,
-    val depth: Int,
-    val ancestorNodeIds: Set<Int>,
-)
+private data class ModalCandidate(val nodeId: Int, val depth: Int, val ancestorNodeIds: Set<Int>)
 
 /** Deterministic active-modal selection for one tree version. */
-private data class ModalSelection(
-    val nodeId: Int?,
-    val hasDisjointCandidates: Boolean,
-)
+private data class ModalSelection(val nodeId: Int?, val hasDisjointCandidates: Boolean)
 
 /** Builds one immutable projected hierarchy from the current semantic tree version. */
 @MainThread
-private class ProjectedSemanticHierarchyBuilder(
-    private val tree: SemanticTreeModel,
-) {
+private class ProjectedSemanticHierarchyBuilder(private val tree: SemanticTreeModel) {
     private val activeNodeIds = mutableListOf<Int>()
     private val parentByNodeId = linkedMapOf<Int, Int?>()
     private val childrenByNodeId = mutableMapOf<Int, List<Int>>()
@@ -223,11 +214,7 @@ private class ProjectedSemanticHierarchyBuilder(
      * @param projectedParentId Exported parent ID, or `null` at the projected root level.
      * @param into Ordered projected sibling list that receives exported nodes.
      */
-    private fun projectNode(
-        nodeId: Int,
-        projectedParentId: Int?,
-        into: MutableList<Int>,
-    ) {
+    private fun projectNode(nodeId: Int, projectedParentId: Int?, into: MutableList<Int>) {
         if (!visitedNodeIds.add(nodeId)) {
             return
         }
@@ -254,11 +241,13 @@ private class ProjectedSemanticHierarchyBuilder(
             )
         ) {
             SemanticNodeProjection.PruneSubtree -> Unit
+
             SemanticNodeProjection.PromoteChildren -> {
                 for (childId in node.children) {
                     projectNode(childId, projectedParentId, into)
                 }
             }
+
             SemanticNodeProjection.ExportContainer -> {
                 exportNode(nodeId, projectedParentId, into)
                 val projectedChildren = mutableListOf<Int>()
@@ -267,6 +256,7 @@ private class ProjectedSemanticHierarchyBuilder(
                 }
                 childrenByNodeId[nodeId] = projectedChildren.toUnmodifiableList()
             }
+
             SemanticNodeProjection.ExportLeaf -> exportNode(nodeId, projectedParentId, into)
         }
     }
@@ -278,11 +268,7 @@ private class ProjectedSemanticHierarchyBuilder(
      * @param projectedParentId Exported parent ID, or `null` for a projected root.
      * @param into Ordered projected sibling list that receives the node.
      */
-    private fun exportNode(
-        nodeId: Int,
-        projectedParentId: Int?,
-        into: MutableList<Int>,
-    ) {
+    private fun exportNode(nodeId: Int, projectedParentId: Int?, into: MutableList<Int>) {
         into += nodeId
         activeNodeIds += nodeId
         parentByNodeId[nodeId] = projectedParentId

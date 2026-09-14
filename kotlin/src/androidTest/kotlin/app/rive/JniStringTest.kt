@@ -2,9 +2,9 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.core.NativeStringTestHelper
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class JniStringTest : RiveAndroidTest() {

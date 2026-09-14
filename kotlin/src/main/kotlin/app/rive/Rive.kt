@@ -37,12 +37,12 @@ import app.rive.core.RiveWorker
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
 import app.rive.semantics.rememberRiveSemanticsEnabled
+import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.Duration.Companion.nanoseconds
 
 private const val GENERAL_TAG = "Rive/UI"
 private const val STATE_MACHINE_TAG = "Rive/UI/SM"
@@ -407,10 +407,7 @@ private fun RiveImpl(
 }
 
 /** Resources that are confirmed ready for native operations in the current composition. */
-private data class ReadyResources(
-    val artboard: Artboard,
-    val stateMachine: StateMachine,
-)
+private data class ReadyResources(val artboard: Artboard, val stateMachine: StateMachine)
 
 /**
  * Resolves the artboard and state machine used by [Rive].
@@ -498,6 +495,7 @@ private fun Modifier.rivePointerInput(
 
                             val pointerFunctions = when (pointerEvent.type) {
                                 PointerEventType.Move -> listOf(riveWorker::pointerMove)
+
                                 // Rive expects up and exit when a pointer is released along the Z
                                 // axis.
                                 PointerEventType.Release -> listOf(
@@ -506,7 +504,9 @@ private fun Modifier.rivePointerInput(
                                 )
 
                                 PointerEventType.Press -> listOf(riveWorker::pointerDown)
+
                                 PointerEventType.Exit -> listOf(riveWorker::pointerExit)
+
                                 else -> return@traceSection
                             }
 
@@ -669,8 +669,8 @@ private fun RiveSurfaceHost(
                                                 // The getter is valid only while this surface is
                                                 // active.
                                                 bitmap ?: error(
-                                                    "Bitmap no longer available; surface may have " +
-                                                        "been destroyed"
+                                                    "Bitmap no longer available; " +
+                                                        "surface may have been destroyed"
                                                 )
                                             }
                                         }
@@ -960,35 +960,35 @@ private fun UpdateArtboardLayoutEffect(
     surfaceWidth: Int,
     surfaceHeight: Int,
 ) = LaunchedEffect(
-        riveWorker,
-        artboard,
-        stateMachine,
-        fit,
-        surface,
-        surfaceWidth,
-        surfaceHeight,
-    ) {
-        val activeSurface = surface ?: return@LaunchedEffect
-        when (fit) {
-            is Fit.Layout -> {
-                traceSection("Rive/Layout/ResizeArtboard") {
-                    RiveLog.d(GENERAL_TAG) {
-                        "Resizing artboard to $surfaceWidth x $surfaceHeight"
-                    }
-                    artboard.resizeArtboard(activeSurface, fit.scaleFactor)
+    riveWorker,
+    artboard,
+    stateMachine,
+    fit,
+    surface,
+    surfaceWidth,
+    surfaceHeight,
+) {
+    val activeSurface = surface ?: return@LaunchedEffect
+    when (fit) {
+        is Fit.Layout -> {
+            traceSection("Rive/Layout/ResizeArtboard") {
+                RiveLog.d(GENERAL_TAG) {
+                    "Resizing artboard to $surfaceWidth x $surfaceHeight"
                 }
-            }
-
-            else -> {
-                traceSection("Rive/Layout/ResetArtboardSize") {
-                    RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
-                    artboard.resetArtboardSize()
-                }
+                artboard.resizeArtboard(activeSurface, fit.scaleFactor)
             }
         }
-        // The queued resize only affects layout when the state machine advances again.
-        stateMachine.unsettle()
+
+        else -> {
+            traceSection("Rive/Layout/ResetArtboardSize") {
+                RiveLog.d(GENERAL_TAG) { "Resetting artboard size" }
+                artboard.resetArtboardSize()
+            }
+        }
     }
+    // The queued resize only affects layout when the state machine advances again.
+    stateMachine.unsettle()
+}
 
 /**
  * Draws one confirmed resource generation while its lifecycle is resumed.

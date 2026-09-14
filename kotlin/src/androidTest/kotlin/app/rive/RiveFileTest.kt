@@ -2,12 +2,12 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
-import kotlinx.coroutines.runBlocking
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import org.junit.runner.RunWith
 
 private const val IMAGE_ASSET_TYPE_KEY = 105
 private const val FONT_ASSET_TYPE_KEY = 141

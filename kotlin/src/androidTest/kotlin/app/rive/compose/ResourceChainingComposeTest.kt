@@ -10,10 +10,10 @@ import app.rive.rememberArtboardResult
 import app.rive.rememberRiveFile
 import app.rive.rememberStateMachineResult
 import app.rive.runtime.kotlin.test.R
-import org.junit.Rule
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import org.junit.Rule
+import org.junit.runner.RunWith
 
 /** Compose tests for dependent resource chains. */
 @RunWith(AndroidJUnit4::class)

@@ -78,10 +78,7 @@ class DeferredRendererActivity : ComponentActivity() {
 }
 
 /** A deferred-rendering sample bundled with the app. */
-private enum class DeferredRendererDemoFile(
-    @RawRes val resourceId: Int,
-    val displayName: String,
-) {
+private enum class DeferredRendererDemoFile(@RawRes val resourceId: Int, val displayName: String) {
     Ore(R.raw.ore, "ore.riv"),
     MultiStage(R.raw.multi_stage, "multi-stage.riv"),
 }
@@ -201,7 +198,9 @@ private fun DeferredRendererFile(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (contentResult) {
             is Result.Loading -> LoadingIndicator()
+
             is Result.Error -> ErrorMessage(contentResult.throwable)
+
             is Result.Success -> {
                 val (resources, vmi) = contentResult.value
                 Rive(

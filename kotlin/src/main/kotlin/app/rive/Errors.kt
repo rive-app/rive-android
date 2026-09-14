@@ -5,16 +5,13 @@ class RiveInitializationException(message: String, cause: Throwable? = null) :
     Exception(message, cause)
 
 /** Exceptions related to Rive failing to shut down properly. */
-class RiveShutdownException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+class RiveShutdownException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** Exceptions related to Rive rendering. */
-class RiveRenderException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+class RiveRenderException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** Exceptions related to Rive file handling. */
-class RiveFileException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+class RiveFileException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** Exceptions reported while performing an operation on a Rive artboard. */
 class RiveArtboardException(message: String, cause: Throwable? = null) :
@@ -45,9 +42,7 @@ class RiveDrawToBufferException(message: String, cause: Throwable? = null) :
     Exception(message, cause)
 
 /** Thrown when an operation requires a Rive resource that has already been closed. */
-class RiveResourceClosedException(message: String) :
-    IllegalStateException(message)
+class RiveResourceClosedException(message: String) : IllegalStateException(message)
 
 /** Thrown when otherwise valid Rive resources cannot be used together. */
-class RiveIncompatibleResourceException(message: String) :
-    IllegalArgumentException(message)
+class RiveIncompatibleResourceException(message: String) : IllegalArgumentException(message)

@@ -24,6 +24,9 @@ import app.rive.GlobalViewModelTestFixture.SET_GLOBAL_1
 import app.rive.GlobalViewModelTestFixture.SET_GLOBAL_2
 import app.rive.GlobalViewModelTestFixture.withInstances
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -32,9 +35,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 
 private const val GLOBAL_PROPERTY_TIMEOUT_MILLIS = 2_000L
 

@@ -2,13 +2,13 @@ package app.rive.semantics
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.test.assertFailsWith
 
 private data class ObservedTreeState(
     val version: Int,
@@ -417,7 +417,9 @@ class SemanticTreeModelUnitTest : FunSpec({
 
         model.applyDiff(
             diff(
-                moved = arrayOf(node(4, parentId = 1, siblingIndex = 0, minX = 1f, maxX = 2f, maxY = 2f)),
+                moved = arrayOf(
+                    node(4, parentId = 1, siblingIndex = 0, minX = 1f, maxX = 2f, maxY = 2f)
+                ),
                 childrenUpdated = arrayOf(
                     SemanticsChildrenUpdate(1, intArrayOf(4, 2, 3)),
                     SemanticsChildrenUpdate(2, intArrayOf())
@@ -550,7 +552,9 @@ class SemanticTreeModelUnitTest : FunSpec({
 
         model.applyDiff(
             diff(
-                updatedSemantic = arrayOf(node(1, label = "A", role = SemanticRole.Button.value))
+                updatedSemantic = arrayOf(
+                    node(1, label = "A", role = SemanticRole.Button.value)
+                )
             )
         )
         model.version shouldBe versionAfterAdd

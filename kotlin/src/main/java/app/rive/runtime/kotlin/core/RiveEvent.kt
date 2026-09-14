@@ -52,7 +52,5 @@ open class RiveEvent(unsafeCppPointer: Long, val delay: Float) : NativeObject(un
     val data: HashMap<String, Any>
         get() = cppData(cppPointer)
 
-    override fun toString(): String {
-        return "RiveEvent $data"
-    }
+    override fun toString(): String = "RiveEvent $data"
 }

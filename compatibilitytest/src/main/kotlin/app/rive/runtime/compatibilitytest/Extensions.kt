@@ -9,25 +9,20 @@ import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 class OnDrawRenderer(
     private val onDraw: (() -> Unit)?,
     controller: RiveFileController,
-    rendererType: RendererType
-) :
-    RiveArtboardRenderer(trace = false, controller = controller, rendererType = rendererType) {
+    rendererType: RendererType,
+) : RiveArtboardRenderer(trace = false, controller = controller, rendererType = rendererType) {
     override fun draw() {
         super.draw()
         onDraw?.invoke() // Frame drawn
     }
 }
 
-class CallbackRiveAnimationView(
-    builder: Builder
-) : RiveAnimationView(builder) {
+class CallbackRiveAnimationView(builder: Builder) : RiveAnimationView(builder) {
     var drawCallback: (() -> Unit)? = null
 
-    override fun createRenderer(): Renderer {
-        return OnDrawRenderer(
-            onDraw = drawCallback,
-            controller = controller,
-            rendererType = rendererAttributes.rendererType,
-        )
-    }
+    override fun createRenderer(): Renderer = OnDrawRenderer(
+        onDraw = drawCallback,
+        controller = controller,
+        rendererType = rendererAttributes.rendererType,
+    )
 }

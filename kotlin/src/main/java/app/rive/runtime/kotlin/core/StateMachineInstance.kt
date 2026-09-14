@@ -18,8 +18,8 @@ import java.util.concurrent.locks.ReentrantLock
  * @param fileLock Lock shared by the [File] and native graph this state machine belongs to.
  */
 class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: ReentrantLock) :
-    PlayableInstance,
-    NativeObject(unsafeCppPointer) {
+    NativeObject(unsafeCppPointer),
+    PlayableInstance {
     private external fun cppAdvance(pointer: Long, elapsedTime: Float): Boolean
     private external fun cppInputCount(cppPointer: Long): Int
     private external fun cppSMIInputByIndex(cppPointer: Long, index: Int): Long
@@ -33,15 +33,10 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
         cppPointer: Long,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     ): Boolean
 
-    private external fun cppPointerUp(
-        cppPointer: Long,
-        pointerID: Int,
-        x: Float,
-        y: Float
-    ): Boolean
+    private external fun cppPointerUp(cppPointer: Long, pointerID: Int, x: Float, y: Float): Boolean
 
     private external fun cppPointerMove(cppPointer: Long, pointerID: Int, x: Float, y: Float)
     private external fun cppPointerExit(cppPointer: Long, pointerID: Int, x: Float, y: Float)
@@ -94,17 +89,21 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
     fun advance(elapsed: Float): Boolean =
         synchronized(fileLock) { cppAdvance(cppPointer, elapsed) }
 
-    fun pointerDown(pointerID: Int, x: Float, y: Float) =
-        synchronized(fileLock) { cppPointerDown(cppPointer, pointerID, x, y) }
+    fun pointerDown(pointerID: Int, x: Float, y: Float) = synchronized(fileLock) {
+        cppPointerDown(cppPointer, pointerID, x, y)
+    }
 
-    fun pointerUp(pointerID: Int, x: Float, y: Float) =
-        synchronized(fileLock) { cppPointerUp(cppPointer, pointerID, x, y) }
+    fun pointerUp(pointerID: Int, x: Float, y: Float) = synchronized(fileLock) {
+        cppPointerUp(cppPointer, pointerID, x, y)
+    }
 
-    fun pointerMove(pointerID: Int, x: Float, y: Float) =
-        synchronized(fileLock) { cppPointerMove(cppPointer, pointerID, x, y) }
+    fun pointerMove(pointerID: Int, x: Float, y: Float) = synchronized(fileLock) {
+        cppPointerMove(cppPointer, pointerID, x, y)
+    }
 
-    fun pointerExit(pointerID: Int, x: Float, y: Float) =
-        synchronized(fileLock) { cppPointerExit(cppPointer, pointerID, x, y) }
+    fun pointerExit(pointerID: Int, x: Float, y: Float) = synchronized(fileLock) {
+        cppPointerExit(cppPointer, pointerID, x, y)
+    }
 
     /**
      * @return The number of inputs configured for the state machine.
@@ -124,9 +123,14 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
 
     private fun convertInput(input: SMIInput): SMIInput = when {
         input.isBoolean -> SMIBoolean(input.cppPointer, fileLock)
+
         input.isTrigger -> SMITrigger(input.cppPointer, fileLock)
+
         input.isNumber -> SMINumber(input.cppPointer, fileLock)
-        else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
+
+        else -> throw StateMachineInputException(
+            "Unknown State Machine Input Instance for ${input.name}."
+        )
     }
 
     /**
@@ -188,7 +192,7 @@ class StateMachineInstance(unsafeCppPointer: Long, private val fileLock: Reentra
         state.isEntryState -> EntryState(state.cppPointer)
         state.isExitState -> ExitState(state.cppPointer)
         state.isBlendState -> BlendState(state.cppPointer)
-        else -> throw StateMachineInputException("Unknown Layer State for ${state}.")
+        else -> throw StateMachineInputException("Unknown Layer State for $state.")
     }
 
     /**

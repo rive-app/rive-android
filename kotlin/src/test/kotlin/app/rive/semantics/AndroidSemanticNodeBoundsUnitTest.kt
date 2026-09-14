@@ -26,23 +26,19 @@ class AndroidSemanticNodeBoundsUnitTest : FunSpec({
 })
 
 /** Creates a semantic node containing only geometry relevant to bounds mapping. */
-private fun semanticNode(
-    minX: Float,
-    minY: Float,
-    maxX: Float,
-    maxY: Float,
-): SemanticNodeData = SemanticNodeData(
-    id = 0,
-    parentId = -1,
-    role = SemanticRole.None.value,
-    label = "",
-    value = "",
-    hint = "",
-    stateFlags = 0,
-    traitFlags = 0,
-    headingLevel = 0,
-    minX = minX,
-    minY = minY,
-    maxX = maxX,
-    maxY = maxY
-)
+private fun semanticNode(minX: Float, minY: Float, maxX: Float, maxY: Float): SemanticNodeData =
+    SemanticNodeData(
+        id = 0,
+        parentId = -1,
+        role = SemanticRole.None.value,
+        label = "",
+        value = "",
+        hint = "",
+        stateFlags = 0,
+        traitFlags = 0,
+        headingLevel = 0,
+        minX = minX,
+        minY = minY,
+        maxX = maxX,
+        maxY = maxY
+    )

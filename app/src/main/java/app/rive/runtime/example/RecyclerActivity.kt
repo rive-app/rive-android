@@ -53,13 +53,11 @@ class RecyclerActivity : ComponentActivity() {
 data class RiveResource(@RawRes val id: Int)
 
 object RiveFileDiffCallback : DiffUtil.ItemCallback<RiveResource>() {
-    override fun areItemsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean {
-        return oldItem == newItem
-    }
+    override fun areItemsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean =
+        oldItem == newItem
 
-    override fun areContentsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean {
-        return oldItem == newItem
-    }
+    override fun areContentsTheSame(oldItem: RiveResource, newItem: RiveResource): Boolean =
+        oldItem == newItem
 }
 
 @ControllerStateManagement
@@ -70,8 +68,7 @@ class RiveAdapter(private val sharedFile: File, private val useSharedFile: Boole
     internal val resourceCache =
         arrayOfNulls<ControllerState>(RecyclerActivity.holderCount)
 
-    class RiveViewHolder(itemView: View) :
-        RecyclerView.ViewHolder(itemView) {
+    class RiveViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         internal val riveAnimationView: RiveAnimationView =
             itemView.findViewById(R.id.rive_animation_view)
@@ -135,9 +132,7 @@ class RiveAdapter(private val sharedFile: File, private val useSharedFile: Boole
         super.onViewDetachedFromWindow(holder)
     }
 
-    override fun getItemCount(): Int {
-        return RecyclerActivity.holderCount
-    }
+    override fun getItemCount(): Int = RecyclerActivity.holderCount
 
     override fun getItem(position: Int): RiveResource {
         val res = if (position % 2 == 1) {

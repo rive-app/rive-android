@@ -9,7 +9,9 @@ import app.rive.runtime.kotlin.fonts.FontFallbackStrategy
 import app.rive.runtime.kotlin.fonts.FontHelper
 import app.rive.runtime.kotlin.fonts.Fonts
 
-class FontFallback : ComponentActivity(), FontFallbackStrategy {
+class FontFallback :
+    ComponentActivity(),
+    FontFallbackStrategy {
 
     private lateinit var binding: ActivityFontFallbackBinding
 
@@ -32,11 +34,13 @@ class FontFallback : ComponentActivity(), FontFallbackStrategy {
         )
         when {
             // 'Invert' the weights to make the fallback chars more prominent.
-            weight.weight < 400 -> fontMatch =
-                Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(900))
+            weight.weight < 400 ->
+                fontMatch =
+                    Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(900))
 
-            weight.weight > 400 -> fontMatch =
-                Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(100))
+            weight.weight > 400 ->
+                fontMatch =
+                    Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(100))
         }
         val fonts = listOf(
             fontMatch,

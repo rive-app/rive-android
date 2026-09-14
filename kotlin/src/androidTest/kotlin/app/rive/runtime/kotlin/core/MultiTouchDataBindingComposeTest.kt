@@ -87,10 +87,7 @@ class MultiTouchDataBindingComposeTest {
     }
 
     /** Stores the data-binding accessors for a touch target. */
-    private data class TouchTargetBindings(
-        val isDown: () -> Boolean,
-        val downCount: () -> Float,
-    )
+    private data class TouchTargetBindings(val isDown: () -> Boolean, val downCount: () -> Float)
 
     /** Stores a touch position and data-binding accessors for a touch target. */
     class TouchTarget(
@@ -123,7 +120,9 @@ class MultiTouchDataBindingComposeTest {
          */
         fun isOnlyDown(vararg indices: Int): Boolean {
             if (indices.any { it < 0 || it >= inner.size }) {
-                throw IndexOutOfBoundsException("One or more indices out of range: ${indices.joinToString()}")
+                throw IndexOutOfBoundsException(
+                    "One or more indices out of range: ${indices.joinToString()}"
+                )
             }
             val idxSet = indices.toSet()
             return inner.withIndex().all { (i, t) ->
@@ -167,9 +166,8 @@ class MultiTouchDataBindingComposeTest {
     }
 
     /** Pairs with the above scope DSL, allowing it to run similar to `performTouchInput`. */
-    fun SemanticsNodeInteraction.performTouchTargets(
-        block: TouchTargetsScope.() -> Unit,
-    ) = performTouchInput { TouchTargetsScope(this).block() }
+    fun SemanticsNodeInteraction.performTouchTargets(block: TouchTargetsScope.() -> Unit) =
+        performTouchInput { TouchTargetsScope(this).block() }
 
     /**
      * Creates the touch targets and returns them along with the Rive node.
@@ -238,10 +236,7 @@ class MultiTouchDataBindingComposeTest {
      * @param riveNode The Compose node receiving the injected pointer events.
      * @param targets The touch targets, initially occupied by the pointer with the same index.
      */
-    private fun cycleTouchTargets(
-        riveNode: SemanticsNodeInteraction,
-        targets: TouchTargets,
-    ) {
+    private fun cycleTouchTargets(riveNode: SemanticsNodeInteraction, targets: TouchTargets) {
         val expectedCounts = MutableList(targets.size) { 1 }
         targets.indices.forEach { pointerId ->
             val nextIndex = (pointerId + 1) % targets.size

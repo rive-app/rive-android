@@ -24,32 +24,28 @@ import com.android.volley.RequestQueue
 import com.android.volley.toolbox.Volley
 import kotlin.random.Random
 
-private fun makeContainer(context: Context): FrameLayout {
-    return FrameLayout(context).apply {
-        layoutParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-        ).apply {
-            // 16dp equivalent
-            val dpPadding = (16 * resources.displayMetrics.density).toInt()
-            topMargin = dpPadding
-        }
+private fun makeContainer(context: Context): FrameLayout = FrameLayout(context).apply {
+    layoutParams = FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.WRAP_CONTENT,
+        FrameLayout.LayoutParams.WRAP_CONTENT,
+    ).apply {
+        // 16dp equivalent
+        val dpPadding = (16 * resources.displayMetrics.density).toInt()
+        topMargin = dpPadding
     }
 }
 
 private fun makeButton(
     context: Context,
     label: String,
-    clickListener: View.OnClickListener
-): Button {
-    return Button(context).apply {
-        layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-        )
-        text = label
-        setOnClickListener(clickListener)
-    }
+    clickListener: View.OnClickListener,
+): Button = Button(context).apply {
+    layoutParams = ViewGroup.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+    )
+    text = label
+    setOnClickListener(clickListener)
 }
 
 class AssetLoaderFragment : Fragment() {
@@ -58,8 +54,9 @@ class AssetLoaderFragment : Fragment() {
     private lateinit var networkLoader: RandomNetworkLoader
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentAssetLoaderBinding.inflate(inflater, container, false)
         val view = binding.root
@@ -98,31 +95,29 @@ class AssetButtonFragment : Fragment() {
     private val maxSize = 1000
     private val maxId = 1084
 
-    private fun randomImageButton(context: Context): Button {
-        return makeButton(context, "Change Image") {
-            val randomWidth = Random.nextInt(minSize, maxSize)
-            val randomHeight = Random.nextInt(minSize, maxSize)
-            val imgId = Random.nextInt(maxId)
-            val url = "$loremImage/id/$imgId/$randomWidth/$randomHeight"
-            val request = BytesRequest(
-                url,
-                { bytes ->
-                    assetStore.nextAsset.image = RiveRenderImage.fromEncoded(bytes)
-                },
-                {
-                    Log.e("Request", "onAssetLoaded: failed to load $url.")
-                    it.printStackTrace()
-                }
-            )
-            queue.add(request)
-        }
+    private fun randomImageButton(context: Context): Button = makeButton(context, "Change Image") {
+        val randomWidth = Random.nextInt(minSize, maxSize)
+        val randomHeight = Random.nextInt(minSize, maxSize)
+        val imgId = Random.nextInt(maxId)
+        val url = "$loremImage/id/$imgId/$randomWidth/$randomHeight"
+        val request = BytesRequest(
+            url,
+            { bytes ->
+                assetStore.nextAsset.image = RiveRenderImage.fromEncoded(bytes)
+            },
+            {
+                Log.e("Request", "onAssetLoaded: failed to load $url.")
+                it.printStackTrace()
+            }
+        )
+        queue.add(request)
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View {
-
         _binding = FragmentAssetButtonBinding.inflate(inflater, container, false)
         val view = binding.root
         val ctx = view.context
@@ -178,26 +173,24 @@ class FontAssetFragment : Fragment() {
         "https://cdn.rive.app/runtime/flutter/send-flowers.ttf",
     )
 
-    private fun randomFontButton(context: Context): Button {
-        return makeButton(context, "Change Font") {
-            val url = fontUrls.random()
-            val request = BytesRequest(
-                url,
-                { bytes -> fontDecoder.fontAsset.font = RiveFont.make(bytes) },
-                {
-                    Log.e("Request", "onAssetLoaded: failed to load $url.")
-                    it.printStackTrace()
-                }
-            )
-            queue.add(request)
-        }
+    private fun randomFontButton(context: Context): Button = makeButton(context, "Change Font") {
+        val url = fontUrls.random()
+        val request = BytesRequest(
+            url,
+            { bytes -> fontDecoder.fontAsset.font = RiveFont.make(bytes) },
+            {
+                Log.e("Request", "onAssetLoaded: failed to load $url.")
+                it.printStackTrace()
+            }
+        )
+        queue.add(request)
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View {
-
         _binding = FragmentAssetButtonBinding.inflate(inflater, container, false)
         val view = binding.root
         val ctx = view.context

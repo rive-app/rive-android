@@ -48,7 +48,6 @@ class TouchPassthroughActivity : ComponentActivity() {
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.safeDrawing)
             ) {
-
                 // 1 - Background button to test clicks
                 Button(
                     onClick = { clickCount++ },

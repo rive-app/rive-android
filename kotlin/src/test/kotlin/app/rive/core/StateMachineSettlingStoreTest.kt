@@ -4,17 +4,17 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicLong
 
 private const val STATE_MACHINE_HANDLE = 123L
 private const val SECOND_STATE_MACHINE_HANDLE = 456L
@@ -33,7 +33,8 @@ class StateMachineSettlingStoreTest : FunSpec({
 
             store.settle(0L, stateMachineHandle) // At the boundary, so it is stale.
             store.settle(nextRequestID.getAndIncrement(), stateMachineHandle)
-            store.settle(nextRequestID.getAndIncrement(), stateMachineHandle) // Already settled.
+            // Already settled.
+            store.settle(nextRequestID.getAndIncrement(), stateMachineHandle)
             store.unsettle(stateMachineHandle)
             store.settle(2L, stateMachineHandle) // Before the new boundary, so it is stale.
             store.settle(nextRequestID.getAndIncrement(), stateMachineHandle)

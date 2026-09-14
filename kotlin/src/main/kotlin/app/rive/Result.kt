@@ -30,9 +30,7 @@ sealed interface Result<out T> {
      * @return The result produced by [onSuccess], or this loading or error state.
      */
     @Composable
-    fun <R> andThen(
-        onSuccess: @Composable (T) -> Result<R>,
-    ): Result<R> = when (this) {
+    fun <R> andThen(onSuccess: @Composable (T) -> Result<R>): Result<R> = when (this) {
         is Loading -> Loading
         is Error -> this
         is Success -> onSuccess(value)
@@ -57,12 +55,11 @@ sealed interface Result<out T> {
      * @param combine Maps both successful values to the combined value.
      * @return The combined success, or the first loading or error state.
      */
-    fun <U, R> zip(
-        other: Result<U>,
-        combine: (T, U) -> R,
-    ): Result<R> = when (this) {
+    fun <U, R> zip(other: Result<U>, combine: (T, U) -> R): Result<R> = when (this) {
         is Loading -> Loading
+
         is Error -> this
+
         is Success -> when (other) {
             is Loading -> Loading
             is Error -> other
@@ -93,9 +90,8 @@ sealed interface Result<out T> {
         replaceWith = ReplaceWith("this.andThen(onSuccess)")
     )
     @Composable
-    fun <U, R> Result<U>.andThen(
-        onSuccess: @Composable (U) -> Result<R>,
-    ): Result<R> = this.andThen(onSuccess)
+    fun <U, R> Result<U>.andThen(onSuccess: @Composable (U) -> Result<R>): Result<R> =
+        this.andThen(onSuccess)
 
     /**
      * Compatibility extension for the former dispatch-receiver API.
@@ -109,10 +105,8 @@ sealed interface Result<out T> {
         message = "Call zip directly. This dispatch-receiver extension will be removed in 12.0.",
         replaceWith = ReplaceWith("this.zip(other, combine)")
     )
-    fun <A, B, R> Result<A>.zip(
-        other: Result<B>,
-        combine: (A, B) -> R,
-    ): Result<R> = this.zip(other, combine)
+    fun <A, B, R> Result<A>.zip(other: Result<B>, combine: (A, B) -> R): Result<R> =
+        this.zip(other, combine)
 
     /**
      * Compatibility extension for the former dispatch-receiver API.

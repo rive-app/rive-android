@@ -10,19 +10,19 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
 import io.mockk.verifyOrder
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.flow.MutableStateFlow
 
 private const val STATE_MACHINE_TEST_FILE_HANDLE = 789L
 
@@ -477,7 +477,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
-        every { worker.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap) } just runs
+        every { worker.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap) } just
+            runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = StateMachine(
             stateMachineHandle = stateMachineHandle,

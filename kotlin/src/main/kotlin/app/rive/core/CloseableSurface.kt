@@ -99,9 +99,7 @@ class SurfaceTextureSurface(
  *
  * @param imageReader Reader that owns the render target surface.
  */
-class ImageReaderSurface(
-    private val imageReader: ImageReader
-) : CloseableSurface {
+class ImageReaderSurface(private val imageReader: ImageReader) : CloseableSurface {
     override val surface: Surface = imageReader.surface
     override val width: Int = imageReader.width
     override val height: Int = imageReader.height

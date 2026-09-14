@@ -2,6 +2,7 @@
 
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -42,7 +43,6 @@ import app.rive.core.RiveWorker
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstanceResult
-import android.graphics.Color as AndroidColor
 
 /** Manual device harness for the semantic fixtures used by automated runtime tests. */
 class SemanticsHarnessActivity : ComponentActivity() {
@@ -188,11 +188,7 @@ private fun SemanticsHarness() {
 
 /** Displays a labelled switch used to exercise semantics and playback lifecycle changes. */
 @Composable
-private fun HarnessToggle(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
+private fun HarnessToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -219,7 +215,9 @@ private fun SemanticsFixture(
         )
     ) {
         Result.Loading -> LoadingIndicator(modifier)
+
         is Result.Error -> ErrorMessage(fileResult.throwable, modifier)
+
         is Result.Success -> LoadedSemanticsFixture(
             file = fileResult.value,
             playing = playing,
@@ -239,6 +237,7 @@ private fun LoadedSemanticsFixture(
 ) {
     when (val viewModelResult = rememberViewModelInstanceResult(file)) {
         Result.Loading -> LoadingIndicator(modifier)
+
         is Result.Success -> Rive(
             file = file,
             modifier = modifier.fillMaxSize(),

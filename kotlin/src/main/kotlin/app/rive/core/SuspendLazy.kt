@@ -28,25 +28,27 @@ internal class SuspendLazy<T>(private val block: suspend () -> T) {
      * @return The computed value.
      * @throws Throwable If the computation fails.
      */
-    suspend fun await(): T {
-        return when (val res = result) {
-            is DeferredResult.Success -> res.value
-            is DeferredResult.Failure -> throw res.error
-            DeferredResult.Uninitialized -> mutex.withLock {
-                when (val lockedRes = result) {
-                    // Need to check again inside the lock on the small chance another coroutine
-                    // initialized the value while we were waiting for the lock.
-                    is DeferredResult.Success -> lockedRes.value
-                    is DeferredResult.Failure -> throw lockedRes.error
-                    // Non-cached path, compute the value.
-                    DeferredResult.Uninitialized -> try {
-                        val v = block()
-                        result = DeferredResult.Success(v)
-                        v
-                    } catch (t: Throwable) {
-                        result = DeferredResult.Failure(t)
-                        throw t
-                    }
+    suspend fun await(): T = when (val res = result) {
+        is DeferredResult.Success -> res.value
+
+        is DeferredResult.Failure -> throw res.error
+
+        DeferredResult.Uninitialized -> mutex.withLock {
+            when (val lockedRes = result) {
+                // Need to check again inside the lock on the small chance another coroutine
+                // initialized the value while we were waiting for the lock.
+                is DeferredResult.Success -> lockedRes.value
+
+                is DeferredResult.Failure -> throw lockedRes.error
+
+                // Non-cached path, compute the value.
+                DeferredResult.Uninitialized -> try {
+                    val v = block()
+                    result = DeferredResult.Success(v)
+                    v
+                } catch (t: Throwable) {
+                    result = DeferredResult.Failure(t)
+                    throw t
                 }
             }
         }

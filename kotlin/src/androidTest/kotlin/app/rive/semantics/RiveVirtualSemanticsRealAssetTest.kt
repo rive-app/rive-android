@@ -30,20 +30,20 @@ import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.compose.awaitWithWallClock
 import app.rive.runtime.kotlin.test.R
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.time.Duration.Companion.milliseconds
 
 /** Exercises the production virtual-node provider with semantic trees produced by real files. */
 @RunWith(AndroidJUnit4::class)
@@ -126,62 +126,61 @@ class RiveVirtualSemanticsRealAssetTest : RiveAndroidTest() {
 
     /** Verifies Android accessibility focus round-trips through Rive focus and geometry. */
     @Test
-    fun focusAsset_synchronizesFocusTransitionsAndScrollGeometry() =
-        withTouchExplorationEnabled {
-            prepareFixture(R.raw.semantic_list_scroll_focus_fixed).use { fixture ->
-                setVirtualSemanticsContent(fixture)
+    fun focusAsset_synchronizesFocusTransitionsAndScrollGeometry() = withTouchExplorationEnabled {
+        prepareFixture(R.raw.semantic_list_scroll_focus_fixed).use { fixture ->
+            setVirtualSemanticsContent(fixture)
 
-                val root = awaitRootContaining(FOCUS_ITEM_LABELS)
-                val initialItems = onMainThread { fixture.tree.focusItemsByLabel() }
-                assertEquals(FOCUS_ITEM_LABELS.toSet(), initialItems.keys)
-                initialItems.values.forEach { item ->
-                    assertTrue(SemanticTrait.has(item.traitFlags, SemanticTrait.Focusable))
-                    assertFalse(SemanticState.has(item.stateFlags, SemanticState.Focused))
+            val root = awaitRootContaining(FOCUS_ITEM_LABELS)
+            val initialItems = onMainThread { fixture.tree.focusItemsByLabel() }
+            assertEquals(FOCUS_ITEM_LABELS.toSet(), initialItems.keys)
+            initialItems.values.forEach { item ->
+                assertTrue(SemanticTrait.has(item.traitFlags, SemanticTrait.Focusable))
+                assertFalse(SemanticState.has(item.stateFlags, SemanticState.Focused))
+            }
+            val initialMinY = initialItems.mapValues { (_, item) -> item.minY }
+
+            val firstNode = assertNotNull(findByLabel(root, FIRST_FOCUS_ITEM_LABEL))
+            assertTrue(
+                firstNode.performAction(
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
+                )
+            )
+            awaitFocusedItem(fixture, FIRST_FOCUS_ITEM_LABEL)
+
+            val lastNode = awaitNodeByLabel(LAST_FOCUS_ITEM_LABEL)
+            assertTrue(
+                lastNode.performAction(
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
+                )
+            )
+            composeRule.awaitWithWallClock(
+                timeoutMessage = { "Rive focus did not move and scroll to the last item" }
+            ) {
+                onMainThread {
+                    val items = fixture.tree.focusItemsByLabel()
+                    items.focusedLabels() == setOf(LAST_FOCUS_ITEM_LABEL) &&
+                        FOCUS_ITEM_LABELS.all { label ->
+                            val item = items[label] ?: return@onMainThread false
+                            item.minY < assertNotNull(initialMinY[label])
+                        }
                 }
-                val initialMinY = initialItems.mapValues { (_, item) -> item.minY }
+            }
 
-                val firstNode = assertNotNull(findByLabel(root, FIRST_FOCUS_ITEM_LABEL))
-                assertTrue(
-                    firstNode.performAction(
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
-                    )
+            val refreshedLastNode = awaitNodeByLabel(LAST_FOCUS_ITEM_LABEL)
+            assertTrue(
+                refreshedLastNode.performAction(
+                    AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS
                 )
-                awaitFocusedItem(fixture, FIRST_FOCUS_ITEM_LABEL)
-
-                val lastNode = awaitNodeByLabel(LAST_FOCUS_ITEM_LABEL)
-                assertTrue(
-                    lastNode.performAction(
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS
-                    )
-                )
-                composeRule.awaitWithWallClock(
-                    timeoutMessage = { "Rive focus did not move and scroll to the last item" }
-                ) {
-                    onMainThread {
-                        val items = fixture.tree.focusItemsByLabel()
-                        items.focusedLabels() == setOf(LAST_FOCUS_ITEM_LABEL) &&
-                            FOCUS_ITEM_LABELS.all { label ->
-                                val item = items[label] ?: return@onMainThread false
-                                item.minY < assertNotNull(initialMinY[label])
-                            }
-                    }
-                }
-
-                val refreshedLastNode = awaitNodeByLabel(LAST_FOCUS_ITEM_LABEL)
-                assertTrue(
-                    refreshedLastNode.performAction(
-                        AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS
-                    )
-                )
-                composeRule.awaitWithWallClock(
-                    timeoutMessage = { "Clearing Android focus did not clear Rive semantic focus" }
-                ) {
-                    onMainThread {
-                        fixture.tree.focusItemsByLabel().focusedLabels().isEmpty()
-                    }
+            )
+            composeRule.awaitWithWallClock(
+                timeoutMessage = { "Clearing Android focus did not clear Rive semantic focus" }
+            ) {
+                onMainThread {
+                    fixture.tree.focusItemsByLabel().focusedLabels().isEmpty()
                 }
             }
         }
+    }
 
     /** Verifies real mapped bounds reach Android exactly once across fit and Compose placement. */
     @Test
@@ -427,7 +426,9 @@ class RiveVirtualSemanticsRealAssetTest : RiveAndroidTest() {
     }
 
     /** Waits for an active root containing every requested accessible label. */
-    private fun UiAutomation.awaitRootContaining(labels: Collection<String>): AccessibilityNodeInfo {
+    private fun UiAutomation.awaitRootContaining(
+        labels: Collection<String>,
+    ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
         composeRule.awaitWithWallClock(
             timeoutMillis = SEMANTICS_TIMEOUT_MILLIS,
@@ -530,20 +531,18 @@ class RiveVirtualSemanticsRealAssetTest : RiveAndroidTest() {
     }
 
     /** Returns matching labels in the provider's depth-first traversal order. */
-    private fun depthFirstLabels(
-        root: AccessibilityNodeInfo,
-        labels: Set<String>,
-    ): List<String> = buildList {
-        val pending = ArrayDeque<AccessibilityNodeInfo>()
-        pending.add(root)
-        while (pending.isNotEmpty()) {
-            val node = pending.removeFirst()
-            node.accessibleLabel()?.takeIf(labels::contains)?.let(::add)
-            for (index in node.childCount - 1 downTo 0) {
-                node.getChild(index)?.let(pending::addFirst)
+    private fun depthFirstLabels(root: AccessibilityNodeInfo, labels: Set<String>): List<String> =
+        buildList {
+            val pending = ArrayDeque<AccessibilityNodeInfo>()
+            pending.add(root)
+            while (pending.isNotEmpty()) {
+                val node = pending.removeFirst()
+                node.accessibleLabel()?.takeIf(labels::contains)?.let(::add)
+                for (index in node.childCount - 1 downTo 0) {
+                    node.getChild(index)?.let(pending::addFirst)
+                }
             }
         }
-    }
 
     /** Returns the user-facing text used to identify this framework node. */
     private fun AccessibilityNodeInfo.accessibleLabel(): String? =
@@ -563,10 +562,9 @@ class RiveVirtualSemanticsRealAssetTest : RiveAndroidTest() {
     }
 
     /** Returns labels carrying Rive's current semantic-focused state. */
-    private fun Map<String, SemanticNodeData>.focusedLabels(): Set<String> =
-        filterValues { node ->
-            SemanticState.has(node.stateFlags, SemanticState.Focused)
-        }.keys
+    private fun Map<String, SemanticNodeData>.focusedLabels(): Set<String> = filterValues { node ->
+        SemanticState.has(node.stateFlags, SemanticState.Focused)
+    }.keys
 
     /** Finds the current semantic node carrying [label]. */
     private fun SemanticTreeModel.nodeByLabel(label: String): SemanticNodeData? {

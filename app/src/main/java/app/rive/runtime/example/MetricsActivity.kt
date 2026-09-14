@@ -8,7 +8,9 @@ import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.RiveAnimationView
 import java.util.Locale
 
-class MetricsActivity : ComponentActivity(), Choreographer.FrameCallback {
+class MetricsActivity :
+    ComponentActivity(),
+    Choreographer.FrameCallback {
 
     private lateinit var binding: ActivityMetricsBinding
 

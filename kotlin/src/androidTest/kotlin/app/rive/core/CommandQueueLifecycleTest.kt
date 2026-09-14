@@ -84,7 +84,9 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun release_withCachedVulkanImageFile_doesNotCrash() {
-        val fileBytes = context.resources.openRawResource(R.raw.asset_load_check).use { it.readBytes() }
+        val fileBytes = context.resources.openRawResource(R.raw.asset_load_check).use {
+            it.readBytes()
+        }
         val worker = RiveWorker(renderContext = RenderContextVulkan())
 
         try {

@@ -59,7 +59,8 @@ class RiveFrameRateUnitTest : FunSpec({
         pacer.tryScheduleFrame(0L) shouldBe true
 
         pacer.tryScheduleFrame(frameRate.period.inWholeNanoseconds - 1L) shouldBe false
-        pacer.delayBeforeNextFrame(frameRate.period.inWholeNanoseconds - 1L) shouldBe 1.nanoseconds
+        pacer.delayBeforeNextFrame(frameRate.period.inWholeNanoseconds - 1L) shouldBe
+            1.nanoseconds
         pacer.tryScheduleFrame(frameRate.period.inWholeNanoseconds) shouldBe true
     }
 

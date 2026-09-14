@@ -16,7 +16,7 @@ import app.rive.RiveLog
 data class UniquePointer(
     private val cppPointer: Long,
     val label: String,
-    private val onDispose: (Long) -> Unit
+    private val onDispose: (Long) -> Unit,
 ) : CheckableAutoCloseable by CloseOnce("$label (UniquePointer)", {
     RiveLog.d(TAG) { "Disposing $label" }
     onDispose(cppPointer)

@@ -6,10 +6,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.ViewModelException
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * File lock migration can race with another migration. If two threads move wrappers A -> B and B ->
@@ -37,7 +37,7 @@ private inline fun <T> updateFileLockWithRetry(
     currentFileLock: () -> ReentrantLock,
     newFileLock: ReentrantLock,
     crossinline setFileLock: (ReentrantLock) -> Unit,
-    crossinline snapshotOfDependents: () -> T
+    crossinline snapshotOfDependents: () -> T,
 ): T? {
     while (true) {
         val oldFileLock = currentFileLock()
@@ -83,7 +83,7 @@ private val fileLockUpdateTieLock = Any()
 private inline fun withFileLocksInOrder(
     firstLock: ReentrantLock,
     secondLock: ReentrantLock,
-    block: () -> Unit
+    block: () -> Unit,
 ) {
     if (firstLock === secondLock) {
         synchronized(firstLock) { block() }
@@ -94,7 +94,9 @@ private inline fun withFileLocksInOrder(
     val secondHash = System.identityHashCode(secondLock)
     when {
         firstHash < secondHash -> synchronized(firstLock) { synchronized(secondLock) { block() } }
+
         firstHash > secondHash -> synchronized(secondLock) { synchronized(firstLock) { block() } }
+
         else -> synchronized(fileLockUpdateTieLock) {
             synchronized(firstLock) { synchronized(secondLock) { block() } }
         }
@@ -114,7 +116,7 @@ private inline fun withFileLocksInOrder(
  */
 private inline fun <R> withCurrentFileLock(
     crossinline currentFileLock: () -> ReentrantLock,
-    block: () -> R
+    block: () -> R,
 ): R {
     while (true) {
         val lock = currentFileLock()
@@ -143,9 +145,8 @@ private inline fun <R> withCurrentFileLock(
 @OpenForTesting
 class ViewModelInstance internal constructor(
     unsafeCppPointer: Long,
-    @Volatile private var fileLock: ReentrantLock
-) :
-    NativeObject(unsafeCppPointer) {
+    @Volatile private var fileLock: ReentrantLock,
+) : NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppPropertyNumber(cppPointer: Long, path: String): Long
     private external fun cppPropertyString(cppPointer: Long, path: String): Long
@@ -160,7 +161,7 @@ class ViewModelInstance internal constructor(
     private external fun cppSetInstanceProperty(
         cppPointer: Long,
         path: String,
-        instancePointer: Long
+        instancePointer: Long,
     ): Boolean
 
     private external fun cppRefInstance(cppPointer: Long)
@@ -381,7 +382,7 @@ class ViewModelInstance internal constructor(
     private inline fun <reified T : ViewModelProperty<*>> getProperty(
         path: String,
         crossinline cppGetPropertyFn: (Long, String) -> Long,
-        crossinline constructor: (Long, ReentrantLock) -> T
+        crossinline constructor: (Long, ReentrantLock) -> T,
     ): T {
         val pathParts = path.split("/")
         val nestedParts = pathParts.subList(0, pathParts.size - 1)
@@ -392,7 +393,9 @@ class ViewModelInstance internal constructor(
         synchronized(finalInstance.fileLock) {
             return finalInstance.properties[propertyName]?.let { cachedProperty ->
                 if (cachedProperty !is T) {
-                    throw ViewModelException("Property '$propertyName' exists but is not of the expected type.")
+                    throw ViewModelException(
+                        "Property '$propertyName' exists but is not of the expected type."
+                    )
                 }
                 cachedProperty
             } ?: run {
@@ -473,7 +476,9 @@ class ViewModelInstance internal constructor(
         @Throws(ViewModelException::class)
         fun dispose() {
             if (!valid) {
-                throw ViewModelException("Transfer of ViewModelInstance $instance already ended. Cannot dispose.")
+                throw ViewModelException(
+                    "Transfer of ViewModelInstance $instance already ended. Cannot dispose."
+                )
             }
 
             valid = false
@@ -492,7 +497,9 @@ class ViewModelInstance internal constructor(
         @Throws(ViewModelException::class)
         internal fun end(): ViewModelInstance {
             if (!valid) {
-                throw ViewModelException("Transfer of ViewModelInstance $instance already ended. Cannot end transfer again.")
+                throw ViewModelException(
+                    "Transfer of ViewModelInstance $instance already ended. Cannot end transfer again."
+                )
             }
 
             valid = false
@@ -528,7 +535,7 @@ class ViewModelInstance internal constructor(
  */
 abstract class ViewModelProperty<T>(
     unsafeCppPointer: Long,
-    @Volatile protected var fileLock: ReentrantLock
+    @Volatile protected var fileLock: ReentrantLock,
 ) : NativeObject(unsafeCppPointer) {
     external fun cppName(cppPointer: Long): String
 
@@ -577,8 +584,7 @@ abstract class ViewModelProperty<T>(
      * @param block Work to run after the current file lock is held.
      * @return The value returned by [block].
      */
-    protected fun <R> withLock(block: () -> R): R =
-        withCurrentFileLock({ fileLock }, block)
+    protected fun <R> withLock(block: () -> R): R = withCurrentFileLock({ fileLock }, block)
 
     /** The name of the property. */
     val name: String
@@ -619,10 +625,8 @@ abstract class ViewModelProperty<T>(
  * @param fileLock Lock shared by the [File] and native graph this property mutates. Updated through
  *    [ViewModelProperty.updateFileLock] when assigned to another native graph.
  */
-class ViewModelNumberProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Float>(unsafeCppPointer, fileLock) {
+class ViewModelNumberProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Float>(unsafeCppPointer, fileLock) {
     private external fun cppGetValue(cppPointer: Long): Float
     private external fun cppSetValue(cppPointer: Long, value: Float)
 
@@ -631,10 +635,8 @@ class ViewModelNumberProperty(
 }
 
 /** @see ViewModelNumberProperty */
-class ViewModelStringProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<String>(unsafeCppPointer, fileLock) {
+class ViewModelStringProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<String>(unsafeCppPointer, fileLock) {
     private external fun cppGetValue(cppPointer: Long): String
     private external fun cppSetValue(cppPointer: Long, value: String)
 
@@ -643,10 +645,8 @@ class ViewModelStringProperty(
 }
 
 /** @see ViewModelNumberProperty */
-class ViewModelBooleanProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Boolean>(unsafeCppPointer, fileLock) {
+class ViewModelBooleanProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Boolean>(unsafeCppPointer, fileLock) {
 
     private external fun cppGetValue(cppPointer: Long): Boolean
     private external fun cppSetValue(cppPointer: Long, value: Boolean)
@@ -666,10 +666,8 @@ class ViewModelBooleanProperty(
  *
  * @see ViewModelNumberProperty
  */
-class ViewModelColorProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Int>(unsafeCppPointer, fileLock) {
+class ViewModelColorProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Int>(unsafeCppPointer, fileLock) {
 
     private external fun cppGetValue(cppPointer: Long): Int
     private external fun cppSetValue(cppPointer: Long, value: Int)
@@ -683,10 +681,8 @@ class ViewModelColorProperty(
  *
  * @see ViewModelNumberProperty
  */
-class ViewModelEnumProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<String>(unsafeCppPointer, fileLock) {
+class ViewModelEnumProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<String>(unsafeCppPointer, fileLock) {
 
     private external fun cppGetValue(cppPointer: Long): String
     private external fun cppSetValue(cppPointer: Long, value: String)
@@ -700,10 +696,8 @@ class ViewModelEnumProperty(
  *
  * @see ViewModelNumberProperty
  */
-class ViewModelTriggerProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<ViewModelTriggerProperty.TriggerUnit>(unsafeCppPointer, fileLock) {
+class ViewModelTriggerProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<ViewModelTriggerProperty.TriggerUnit>(unsafeCppPointer, fileLock) {
 
     /**
      * A type similar to [Unit] for triggers. Unlike [Unit], this type can have unique instances to
@@ -735,14 +729,16 @@ class ViewModelTriggerProperty(
  *
  * @see ViewModelNumberProperty
  */
-class ViewModelImageProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
+class ViewModelImageProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
     private external fun cppSetValue(cppPointer: Long, value: Long)
 
-    fun set(image: RiveRenderImage?) =
-        withLock { cppSetValue(cppPointer, image?.cppPointer ?: NULL_POINTER) }
+    fun set(image: RiveRenderImage?) = withLock {
+        cppSetValue(
+            cppPointer,
+            image?.cppPointer ?: NULL_POINTER
+        )
+    }
 
     // Return Unit, as images don't have a value to get.
     override fun nativeGetValue() = Unit
@@ -762,10 +758,8 @@ class ViewModelImageProperty(
  *
  * @see ViewModelNumberProperty
  */
-class ViewModelListProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
+class ViewModelListProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
     private external fun cppSize(cppPointer: Long): Int
     private external fun cppElementAt(cppPointer: Long, index: Int): Long
     private external fun cppAdd(cppPointer: Long, itemPointer: Long)
@@ -774,10 +768,7 @@ class ViewModelListProperty(
     private external fun cppRemoveAt(cppPointer: Long, index: Int)
     private external fun cppSwap(cppPointer: Long, index1: Int, index2: Int)
 
-    private data class CacheEntry(
-        val instance: ViewModelInstance,
-        var count: Int
-    )
+    private data class CacheEntry(val instance: ViewModelInstance, var count: Int)
 
     private var cachedItems: MutableMap<Long, CacheEntry> = mutableMapOf()
 
@@ -881,7 +872,9 @@ class ViewModelListProperty(
      */
     @Throws(IllegalArgumentException::class)
     fun add(item: ViewModelInstance) {
-        require(item.hasCppObject) { "Cannot add a disposed ViewModelProperty to ViewModelListProperty." }
+        require(item.hasCppObject) {
+            "Cannot add a disposed ViewModelProperty to ViewModelListProperty."
+        }
         val destinationFileLock = fileLock
         item.updateFileLock(destinationFileLock)
 
@@ -904,7 +897,9 @@ class ViewModelListProperty(
      */
     @Throws(IndexOutOfBoundsException::class, IllegalArgumentException::class)
     fun add(index: Int, item: ViewModelInstance) {
-        require(item.hasCppObject) { "Cannot add a disposed ViewModelProperty to ViewModelListProperty." }
+        require(item.hasCppObject) {
+            "Cannot add a disposed ViewModelProperty to ViewModelListProperty."
+        }
         val destinationFileLock = fileLock
         item.updateFileLock(destinationFileLock)
 
@@ -926,7 +921,9 @@ class ViewModelListProperty(
      */
     @Throws(IllegalArgumentException::class)
     fun remove(item: ViewModelInstance) = withLock {
-        require(item.hasCppObject) { "Cannot remove a disposed ViewModelProperty from ViewModelListProperty." }
+        require(item.hasCppObject) {
+            "Cannot remove a disposed ViewModelProperty from ViewModelListProperty."
+        }
 
         cachedItems.remove(item.cppPointer)?.also { it.instance.release() }
 
@@ -988,21 +985,19 @@ class ViewModelListProperty(
  * @param fileLock Lock shared by the [File] and native graph this property mutates. Updated through
  *    [ViewModelProperty.updateFileLock] when assigned to another native graph.
  */
-class ViewModelArtboardProperty(
-    unsafeCppPointer: Long,
-    fileLock: ReentrantLock
-) : ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
+class ViewModelArtboardProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
+    ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
 
     private external fun cppSetArtboard(
         cppPointer: Long,
         fileCppPointer: Long,
-        artboardCppPointer: Long
+        artboardCppPointer: Long,
     )
 
     private external fun cppSetBindableArtboard(
         cppPointer: Long,
         bindableArtboardCppPointer: Long,
-        boundInstancePointer: Long
+        boundInstancePointer: Long,
     )
 
     /**
@@ -1020,17 +1015,21 @@ class ViewModelArtboardProperty(
     @Throws(RiveException::class)
     @Deprecated(
         "This method is unsafe as the Artboard's lifetime is bound to that of the File " +
-                "that created it. Use a BindableArtboard to ensure proper lifetimes. This method " +
-                "will be removed in 12.0.",
+            "that created it. Use a BindableArtboard to ensure proper lifetimes. This method " +
+            "will be removed in 12.0.",
         ReplaceWith("set(bindableArtboard)")
     )
     fun set(artboard: Artboard) = withLock {
         if (!artboard.hasCppObject) {
             throw RiveException("Cannot set a disposed Artboard to a ViewModelArtboardProperty.")
         } else if (artboard.file == null) {
-            throw RiveException("Cannot set an Artboard with no File reference to a ViewModelArtboardProperty.")
+            throw RiveException(
+                "Cannot set an Artboard with no File reference to a ViewModelArtboardProperty."
+            )
         } else if (!artboard.file!!.hasCppObject) {
-            throw RiveException("Cannot set an Artboard whose File has been disposed to a ViewModelArtboardProperty.")
+            throw RiveException(
+                "Cannot set an Artboard whose File has been disposed to a ViewModelArtboardProperty."
+            )
         }
         cppSetArtboard(cppPointer, artboard.file!!.cppPointer, artboard.cppPointer)
     }

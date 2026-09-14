@@ -24,7 +24,9 @@ class BindableArtboard(unsafeCppPointer: Long, val viewModelInstance: ViewModelI
 
         // If the user supplied an instance, make sure this object keeps a reference
         viewModelInstance?.let {
-            require(it.hasCppObject) { "Cannot bind a disposed ViewModelInstance to a BindableArtboard." }
+            require(it.hasCppObject) {
+                "Cannot bind a disposed ViewModelInstance to a BindableArtboard."
+            }
             it.acquire()
             dependencies.add(it)
         }

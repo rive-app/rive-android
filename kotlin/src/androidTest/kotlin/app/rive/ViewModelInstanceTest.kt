@@ -2,6 +2,9 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -12,9 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 private const val PROPERTY_FLOW_TIMEOUT_MILLIS = 2_000L
 private const val TEST_NUMBER_PROPERTY = "Test Num"
@@ -113,37 +113,36 @@ class ViewModelInstanceTest : RiveAndroidTest() {
      *
      * @param instance The real native-backed view model instance under test.
      */
-    private suspend fun assertPropertySubscriptionLifecycle(
-        instance: ViewModelInstance,
-    ) = coroutineScope {
-        val propertyFlow = instance.getNumberFlow(TEST_NUMBER_PROPERTY)
-        val firstValues = Channel<Float>(Channel.UNLIMITED)
-        val secondValues = Channel<Float>(Channel.UNLIMITED)
-        val firstCollector = launch(start = CoroutineStart.UNDISPATCHED) {
-            propertyFlow.collect(firstValues::send)
-        }
-        val secondCollector = launch(start = CoroutineStart.UNDISPATCHED) {
-            propertyFlow.collect(secondValues::send)
-        }
+    private suspend fun assertPropertySubscriptionLifecycle(instance: ViewModelInstance) =
+        coroutineScope {
+            val propertyFlow = instance.getNumberFlow(TEST_NUMBER_PROPERTY)
+            val firstValues = Channel<Float>(Channel.UNLIMITED)
+            val secondValues = Channel<Float>(Channel.UNLIMITED)
+            val firstCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                propertyFlow.collect(firstValues::send)
+            }
+            val secondCollector = launch(start = CoroutineStart.UNDISPATCHED) {
+                propertyFlow.collect(secondValues::send)
+            }
 
-        try {
-            // Both initial getter responses prove collection has started.
-            firstValues.receive()
-            secondValues.receive()
+            try {
+                // Both initial getter responses prove collection has started.
+                firstValues.receive()
+                secondValues.receive()
 
-            firstCollector.cancelAndJoin()
-            instance.setNumber(TEST_NUMBER_PROPERTY, UPDATED_NUMBER_VALUE)
-            assertEquals(UPDATED_NUMBER_VALUE, secondValues.receive())
+                firstCollector.cancelAndJoin()
+                instance.setNumber(TEST_NUMBER_PROPERTY, UPDATED_NUMBER_VALUE)
+                assertEquals(UPDATED_NUMBER_VALUE, secondValues.receive())
 
-            secondCollector.cancelAndJoin() // Last collector crosses the JNI unsubscribe path.
-            assertEquals(UPDATED_NUMBER_VALUE, propertyFlow.first())
-        } finally {
-            firstCollector.cancelAndJoin()
-            secondCollector.cancelAndJoin()
-            firstValues.close()
-            secondValues.close()
+                secondCollector.cancelAndJoin() // Last collector crosses the JNI unsubscribe path.
+                assertEquals(UPDATED_NUMBER_VALUE, propertyFlow.first())
+            } finally {
+                firstCollector.cancelAndJoin()
+                secondCollector.cancelAndJoin()
+                firstValues.close()
+                secondValues.close()
+            }
         }
-    }
 
     /**
      * Asserts the names attached to an instance by the fixture.
@@ -155,7 +154,7 @@ class ViewModelInstanceTest : RiveAndroidTest() {
     private suspend fun assertNames(
         instance: ViewModelInstance,
         expectedViewModelName: String,
-        expectedInstanceName: String
+        expectedInstanceName: String,
     ) {
         assertEquals(expectedViewModelName, instance.getViewModelName())
         assertEquals(expectedInstanceName, instance.getName())

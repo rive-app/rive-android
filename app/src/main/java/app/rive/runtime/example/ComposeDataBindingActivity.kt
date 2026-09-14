@@ -37,7 +37,8 @@ import kotlinx.coroutines.flow.map
 
 enum class WinKind(val enumValue: String) {
     COIN("Coin"),
-    GEM("Gem");
+    GEM("Gem"),
+    ;
 
     fun label(): String = "${enumValue}s"
 
@@ -78,11 +79,14 @@ class ComposeDataBindingActivity : ComponentActivity() {
                             contentDescription = "Data binding options"
                         )
                     }
-                }) { innerPadding ->
+                }
+            ) { innerPadding ->
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
+
                         is Result.Error -> ErrorMessage(contentResult.throwable)
+
                         is Result.Success -> {
                             val (riveFile, vmi) = contentResult.value
                             val lives by vmi.getNumberFlow("Energy_Bar/Lives")

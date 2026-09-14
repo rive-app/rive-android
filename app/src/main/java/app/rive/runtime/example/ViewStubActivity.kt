@@ -39,7 +39,6 @@ class ViewStubActivity : FragmentActivity() {
         binding.viewstubHideButton.setOnClickListener {
             viewStub.visibility = View.GONE
         }
-
     }
 }
 

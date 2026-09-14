@@ -300,14 +300,12 @@ class ImageAsset private constructor(
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): ImageHandle =
             worker.decodeImage(bytes)
 
-        override fun delete(worker: RiveWorker, handle: ImageHandle) =
-            worker.deleteImage(handle)
+        override fun delete(worker: RiveWorker, handle: ImageHandle) = worker.deleteImage(handle)
 
         override fun register(worker: RiveWorker, key: String, handle: ImageHandle) =
             worker.registerImage(key, handle)
 
-        override fun unregister(worker: RiveWorker, key: String) =
-            worker.unregisterImage(key)
+        override fun unregister(worker: RiveWorker, key: String) = worker.unregisterImage(key)
 
         override fun construct(handle: ImageHandle, worker: RiveWorker) =
             ImageAsset(handle, AcquiredWorkerReference(worker))
@@ -401,14 +399,12 @@ class AudioAsset private constructor(
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): AudioHandle =
             worker.decodeAudio(bytes)
 
-        override fun delete(worker: RiveWorker, handle: AudioHandle) =
-            worker.deleteAudio(handle)
+        override fun delete(worker: RiveWorker, handle: AudioHandle) = worker.deleteAudio(handle)
 
         override fun register(worker: RiveWorker, key: String, handle: AudioHandle) =
             worker.registerAudio(key, handle)
 
-        override fun unregister(worker: RiveWorker, key: String) =
-            worker.unregisterAudio(key)
+        override fun unregister(worker: RiveWorker, key: String) = worker.unregisterAudio(key)
 
         override fun construct(handle: AudioHandle, worker: RiveWorker) =
             AudioAsset(handle, AcquiredWorkerReference(worker))
@@ -419,10 +415,8 @@ class AudioAsset private constructor(
  * A font asset, representing a renderable typeface, managed by a [RiveWorker].
  *
  */
-class FontAsset private constructor(
-    handle: FontHandle,
-    workerReference: AcquiredWorkerReference,
-) : Asset<FontHandle>(handle, workerReference.worker, FontAsset) {
+class FontAsset private constructor(handle: FontHandle, workerReference: AcquiredWorkerReference) :
+    Asset<FontHandle>(handle, workerReference.worker, FontAsset) {
     /**
      * Creates a font asset for an existing decoded handle and acquires its worker reference.
      *
@@ -502,14 +496,12 @@ class FontAsset private constructor(
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): FontHandle =
             worker.decodeFont(bytes)
 
-        override fun delete(worker: RiveWorker, handle: FontHandle) =
-            worker.deleteFont(handle)
+        override fun delete(worker: RiveWorker, handle: FontHandle) = worker.deleteFont(handle)
 
         override fun register(worker: RiveWorker, key: String, handle: FontHandle) =
             worker.registerFont(key, handle)
 
-        override fun unregister(worker: RiveWorker, key: String) =
-            worker.unregisterFont(key)
+        override fun unregister(worker: RiveWorker, key: String) = worker.unregisterFont(key)
 
         override fun construct(handle: FontHandle, worker: RiveWorker) =
             FontAsset(handle, AcquiredWorkerReference(worker))
@@ -533,10 +525,8 @@ class FontAsset private constructor(
  *    the [ImageAsset].
  */
 @Composable
-fun rememberImage(
-    riveWorker: RiveWorker,
-    bytes: ByteArray,
-): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::create)
+fun rememberImage(riveWorker: RiveWorker, bytes: ByteArray): Result<ImageAsset> =
+    rememberAsset(riveWorker, bytes, ImageAsset::create)
 
 /**
  * Decode and register an image from the given [bytes] on the provided [RiveWorker]. The decoded
@@ -579,10 +569,8 @@ fun rememberRegisteredImage(
  *    the [AudioAsset].
  */
 @Composable
-fun rememberAudio(
-    riveWorker: RiveWorker,
-    bytes: ByteArray,
-): Result<AudioAsset> = rememberAsset(riveWorker, bytes, constructFn = AudioAsset::create)
+fun rememberAudio(riveWorker: RiveWorker, bytes: ByteArray): Result<AudioAsset> =
+    rememberAsset(riveWorker, bytes, constructFn = AudioAsset::create)
 
 /**
  * Decode and register audio from the given [bytes] on the provided [riveWorker]. The decoded audio
@@ -625,10 +613,8 @@ fun rememberRegisteredAudio(
  *    the [FontAsset].
  */
 @Composable
-fun rememberFont(
-    riveWorker: RiveWorker,
-    bytes: ByteArray,
-): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::create)
+fun rememberFont(riveWorker: RiveWorker, bytes: ByteArray): Result<FontAsset> =
+    rememberAsset(riveWorker, bytes, FontAsset::create)
 
 /**
  * Decode and register a font from the given [bytes] on the provided [RiveWorker]. The decoded font
@@ -675,7 +661,7 @@ private fun <T : Asset<H>, H> rememberAsset(
     riveWorker: RiveWorker,
     bytes: ByteArray,
     constructFn: suspend (RiveWorker, ByteArray) -> T,
-    key: String? = null
+    key: String? = null,
 ): Result<T> = compositionKey(riveWorker, bytes, key) {
     produceState<Result<T>>(Result.Loading) {
         val asset = try {

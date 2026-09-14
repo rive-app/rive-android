@@ -59,7 +59,6 @@ class LayoutActivity : ComponentActivity() {
             }
 
             animationView.layoutScaleFactor = animationView.layoutScaleFactor?.plus(1)
-
         }
         findViewById<Button>(R.id.scale_down).setOnClickListener {
             if (animationView.fit != Fit.LAYOUT) {

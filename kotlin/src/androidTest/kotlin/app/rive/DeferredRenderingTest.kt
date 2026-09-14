@@ -11,6 +11,8 @@ import androidx.test.filters.SdkSuppress
 import app.rive.core.RenderContextVulkan
 import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -23,8 +25,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.time.Duration.Companion.seconds
 
 /** Exercises a GPU Canvas fixture through Android's deferred renderer. */
 @RunWith(AndroidJUnit4::class)

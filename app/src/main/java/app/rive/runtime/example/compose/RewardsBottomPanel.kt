@@ -97,7 +97,8 @@ fun RewardsBottomPanel(
                     ),
                     { color: Color ->
                         onVmiSetColor("Energy_Bar/Bar_Color", color.toArgb())
-                    })
+                    }
+                )
             }
 
             LabelledComponent("Coins") {

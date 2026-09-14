@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.semantics.SemanticRole
 import app.rive.semantics.SemanticTrait
@@ -16,11 +16,11 @@ import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.SemanticsChildrenUpdate
 import app.rive.semantics.SemanticsDiff
 import app.rive.semantics.SemanticsDiffNode
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** Preserves direct coverage of the parked Compose semantics projection. */
 @RunWith(AndroidJUnit4::class)

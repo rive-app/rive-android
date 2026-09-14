@@ -6,8 +6,8 @@ import android.graphics.Rect
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
-import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
@@ -21,9 +21,6 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.RiveTextureView
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
@@ -31,6 +28,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /** Proves Android virtual accessibility nodes remain usable through Compose view interop. */
 @RunWith(AndroidJUnit4::class)
@@ -57,19 +57,18 @@ class VirtualAccessibilityNodeInteropComposeTest {
 
     /** Verifies an authored heading level reaches Android as native heading status. */
     @Test
-    fun headingLevel_isPublishedThroughAndroidAccessibilityNode() =
-        withTouchExplorationEnabled {
-            setProductionContent(firstNodeHeadingLevel = 2)
+    fun headingLevel_isPublishedThroughAndroidAccessibilityNode() = withTouchExplorationEnabled {
+        setProductionContent(firstNodeHeadingLevel = 2)
 
-            val firstNode = AccessibilityNodeInfoCompat.wrap(
-                awaitNodeByContentDescription(FIRST_NODE_LABEL)
-            )
-            val secondNode = AccessibilityNodeInfoCompat.wrap(
-                awaitNodeByContentDescription(SECOND_NODE_LABEL)
-            )
-            assertTrue(firstNode.isHeading)
-            assertFalse(secondNode.isHeading)
-        }
+        val firstNode = AccessibilityNodeInfoCompat.wrap(
+            awaitNodeByContentDescription(FIRST_NODE_LABEL)
+        )
+        val secondNode = AccessibilityNodeInfoCompat.wrap(
+            awaitNodeByContentDescription(SECOND_NODE_LABEL)
+        )
+        assertTrue(firstNode.isHeading)
+        assertFalse(secondNode.isHeading)
+    }
 
     /** Verifies nested bounds remain parent-relative and resolve to the expected screen position. */
     @Suppress("DEPRECATION") // ExploreByTouchHelper still consumes parent-local bounds.
@@ -360,124 +359,122 @@ class VirtualAccessibilityNodeInteropComposeTest {
 
     /** Verifies replacing the helper clears old focus and retires stale framework nodes. */
     @Test
-    fun replacedSemanticsHelper_clearsFocusAndPublishesSuccessor() =
-        withTouchExplorationEnabled {
-            val transitions = CopyOnWriteArrayList<SemanticAccessibilityFocusTransition>()
-            val host = setProductionContent(transitions::add)
-            val retiredProvider = composeRule.runOnIdle {
-                assertNotNull(ViewCompat.getAccessibilityNodeProvider(host))
-            }
-            val staleNode = awaitNodeByContentDescription(FIRST_NODE_LABEL)
-            assertTrue(
-                staleNode.performAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS)
-            )
-            composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
-                transitions.size == 1
-            }
+    fun replacedSemanticsHelper_clearsFocusAndPublishesSuccessor() = withTouchExplorationEnabled {
+        val transitions = CopyOnWriteArrayList<SemanticAccessibilityFocusTransition>()
+        val host = setProductionContent(transitions::add)
+        val retiredProvider = composeRule.runOnIdle {
+            assertNotNull(ViewCompat.getAccessibilityNodeProvider(host))
+        }
+        val staleNode = awaitNodeByContentDescription(FIRST_NODE_LABEL)
+        assertTrue(
+            staleNode.performAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS)
+        )
+        composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
+            transitions.size == 1
+        }
 
-            composeRule.runOnIdle {
-                host.installSemantics(
-                    tree = SemanticTreeModel().apply {
-                        applyDiff(
-                            SemanticsDiff(
-                                treeVersion = 1,
-                                frameNumber = 0,
-                                rootId = 0,
-                                removed = intArrayOf(),
-                                added = arrayOf(
-                                    productionNode(
-                                        id = REPLACEMENT_RIVE_NODE_ID,
+        composeRule.runOnIdle {
+            host.installSemantics(
+                tree = SemanticTreeModel().apply {
+                    applyDiff(
+                        SemanticsDiff(
+                            treeVersion = 1,
+                            frameNumber = 0,
+                            rootId = 0,
+                            removed = intArrayOf(),
+                            added = arrayOf(
+                                productionNode(
+                                    id = REPLACEMENT_RIVE_NODE_ID,
+                                    role = SemanticRole.Button,
+                                    state = DEFAULT_NODE_STATE,
+                                    content = mapSemanticNodeContent(
                                         role = SemanticRole.Button,
+                                        label = REPLACEMENT_NODE_LABEL,
+                                        value = "",
+                                        hint = "",
                                         state = DEFAULT_NODE_STATE,
-                                        content = mapSemanticNodeContent(
-                                            role = SemanticRole.Button,
-                                            label = REPLACEMENT_NODE_LABEL,
-                                            value = "",
-                                            hint = "",
-                                            state = DEFAULT_NODE_STATE,
-                                        ),
-                                        headingLevel = 0,
-                                        bounds = floatArrayOf(0f, 0f, 200f, 200f),
-                                        parentId = -1,
-                                        siblingIndex = 0,
-                                    )
-                                ),
-                                moved = emptyArray(),
-                                childrenUpdated = emptyArray(),
-                                updatedSemantic = emptyArray(),
-                                updatedGeometry = emptyArray(),
-                            )
-                        )
-                    },
-                    onSemanticAction = { _, _ -> },
-                    onAccessibilityFocusChanged = transitions::add,
-                )
-            }
-
-            assertNotNull(awaitNodeByContentDescription(REPLACEMENT_NODE_LABEL))
-            composeRule.runOnIdle {
-                for (virtualNodeId in 0..MAX_TEST_VIRTUAL_NODE_ID) {
-                    assertNull(retiredProvider.createAccessibilityNodeInfo(virtualNodeId))
-                    assertFalse(
-                        retiredProvider.performAction(
-                            virtualNodeId,
-                            AccessibilityNodeInfoCompat.ACTION_CLICK,
-                            null,
+                                    ),
+                                    headingLevel = 0,
+                                    bounds = floatArrayOf(0f, 0f, 200f, 200f),
+                                    parentId = -1,
+                                    siblingIndex = 0,
+                                )
+                            ),
+                            moved = emptyArray(),
+                            childrenUpdated = emptyArray(),
+                            updatedSemantic = emptyArray(),
+                            updatedGeometry = emptyArray(),
                         )
                     )
-                }
-            }
-            composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
-                transitions.size == 2
-            }
-            assertEquals(
-                listOf(
-                    SemanticAccessibilityFocusTransition(null, FIRST_RIVE_NODE_ID),
-                    SemanticAccessibilityFocusTransition(FIRST_RIVE_NODE_ID, null),
-                ),
-                transitions,
-            )
-            assertFalse(
-                staleNode.performAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS)
+                },
+                onSemanticAction = { _, _ -> },
+                onAccessibilityFocusChanged = transitions::add,
             )
         }
+
+        assertNotNull(awaitNodeByContentDescription(REPLACEMENT_NODE_LABEL))
+        composeRule.runOnIdle {
+            for (virtualNodeId in 0..MAX_TEST_VIRTUAL_NODE_ID) {
+                assertNull(retiredProvider.createAccessibilityNodeInfo(virtualNodeId))
+                assertFalse(
+                    retiredProvider.performAction(
+                        virtualNodeId,
+                        AccessibilityNodeInfoCompat.ACTION_CLICK,
+                        null,
+                    )
+                )
+            }
+        }
+        composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
+            transitions.size == 2
+        }
+        assertEquals(
+            listOf(
+                SemanticAccessibilityFocusTransition(null, FIRST_RIVE_NODE_ID),
+                SemanticAccessibilityFocusTransition(FIRST_RIVE_NODE_ID, null),
+            ),
+            transitions,
+        )
+        assertFalse(
+            staleNode.performAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS)
+        )
+    }
 
     /** Verifies generic Rive state reaches Android without claiming Android input focus. */
     @Test
-    fun semanticState_isPublishedThroughAndroidAccessibilityNode() =
-        withTouchExplorationEnabled {
-            val state = mapSemanticNodeState(
-                traitFlags = SemanticTrait.Expandable or
-                    SemanticTrait.Selectable or
-                    SemanticTrait.Checkable or
-                    SemanticTrait.Requirable or
-                    SemanticTrait.Enablable or
-                    SemanticTrait.Focusable,
-                stateFlags = SemanticState.Expanded or
-                    SemanticState.Selected or
-                    CHECK_STATE_MIXED_FLAGS or
-                    SemanticState.Required or
-                    SemanticState.Disabled or
-                    SemanticState.Focused or
-                    SemanticState.LiveRegion
-            )
-            setProductionContent(firstNodeState = state)
+    fun semanticState_isPublishedThroughAndroidAccessibilityNode() = withTouchExplorationEnabled {
+        val state = mapSemanticNodeState(
+            traitFlags = SemanticTrait.Expandable or
+                SemanticTrait.Selectable or
+                SemanticTrait.Checkable or
+                SemanticTrait.Requirable or
+                SemanticTrait.Enablable or
+                SemanticTrait.Focusable,
+            stateFlags = SemanticState.Expanded or
+                SemanticState.Selected or
+                CHECK_STATE_MIXED_FLAGS or
+                SemanticState.Required or
+                SemanticState.Disabled or
+                SemanticState.Focused or
+                SemanticState.LiveRegion
+        )
+        setProductionContent(firstNodeState = state)
 
-            val firstNode = AccessibilityNodeInfoCompat.wrap(
-                awaitNodeByContentDescription(FIRST_NODE_LABEL)
-            )
-            assertEquals(
-                AccessibilityNodeInfo.EXPANDED_STATE_FULL,
-                firstNode.expandedState
-            )
-            assertTrue(firstNode.isSelected)
-            assertTrue(firstNode.isCheckable)
-            assertEquals(AccessibilityNodeInfo.CHECKED_STATE_PARTIAL, firstNode.checked)
-            assertTrue(firstNode.isFieldRequired)
-            assertFalse(firstNode.isEnabled)
-            assertEquals(View.ACCESSIBILITY_LIVE_REGION_POLITE, firstNode.liveRegion)
-            assertFalse(firstNode.isFocused)
-        }
+        val firstNode = AccessibilityNodeInfoCompat.wrap(
+            awaitNodeByContentDescription(FIRST_NODE_LABEL)
+        )
+        assertEquals(
+            AccessibilityNodeInfo.EXPANDED_STATE_FULL,
+            firstNode.expandedState
+        )
+        assertTrue(firstNode.isSelected)
+        assertTrue(firstNode.isCheckable)
+        assertEquals(AccessibilityNodeInfo.CHECKED_STATE_PARTIAL, firstNode.checked)
+        assertTrue(firstNode.isFieldRequired)
+        assertFalse(firstNode.isEnabled)
+        assertEquals(View.ACCESSIBILITY_LIVE_REGION_POLITE, firstNode.liveRegion)
+        assertFalse(firstNode.isFocused)
+    }
 
     /** Verifies disabled gating and dispatch for standard Android accessibility actions. */
     @Test
@@ -515,65 +512,63 @@ class VirtualAccessibilityNodeInteropComposeTest {
 
     /** Verifies slider adjustment actions use Android's standard scrolling actions. */
     @Test
-    fun sliderActions_areAdvertisedAndDispatchIncreaseAndDecrease() =
-        withTouchExplorationEnabled {
-            val dispatchedActions = CopyOnWriteArrayList<DispatchedSemanticAction>()
-            setProductionContent(
-                firstNodeRole = SemanticRole.Slider,
-                onSemanticAction = { nodeId, action ->
-                    dispatchedActions.add(DispatchedSemanticAction(nodeId, action))
-                }
-            )
-
-            val sliderNode = awaitNodeByContentDescription(FIRST_NODE_LABEL)
-            val sliderNodeCompat = AccessibilityNodeInfoCompat.wrap(sliderNode)
-            assertFalse(sliderNode.isClickable)
-            assertFalse(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_CLICK))
-            assertFalse(
-                sliderNode.hasAction(
-                    AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SET_PROGRESS.id
-                )
-            )
-            assertNull(sliderNodeCompat.rangeInfo)
-            assertTrue(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD))
-            assertTrue(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD))
-            assertTrue(
-                sliderNode.performAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD)
-            )
-            assertTrue(
-                sliderNode.performAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD)
-            )
-            composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
-                dispatchedActions.size == 2
+    fun sliderActions_areAdvertisedAndDispatchIncreaseAndDecrease() = withTouchExplorationEnabled {
+        val dispatchedActions = CopyOnWriteArrayList<DispatchedSemanticAction>()
+        setProductionContent(
+            firstNodeRole = SemanticRole.Slider,
+            onSemanticAction = { nodeId, action ->
+                dispatchedActions.add(DispatchedSemanticAction(nodeId, action))
             }
-            assertEquals(
-                listOf(
-                    DispatchedSemanticAction(FIRST_RIVE_NODE_ID, SemanticActionType.Increase),
-                    DispatchedSemanticAction(FIRST_RIVE_NODE_ID, SemanticActionType.Decrease)
-                ),
-                dispatchedActions
+        )
+
+        val sliderNode = awaitNodeByContentDescription(FIRST_NODE_LABEL)
+        val sliderNodeCompat = AccessibilityNodeInfoCompat.wrap(sliderNode)
+        assertFalse(sliderNode.isClickable)
+        assertFalse(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_CLICK))
+        assertFalse(
+            sliderNode.hasAction(
+                AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SET_PROGRESS.id
             )
+        )
+        assertNull(sliderNodeCompat.rangeInfo)
+        assertTrue(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD))
+        assertTrue(sliderNode.hasAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD))
+        assertTrue(
+            sliderNode.performAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD)
+        )
+        assertTrue(
+            sliderNode.performAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD)
+        )
+        composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
+            dispatchedActions.size == 2
         }
+        assertEquals(
+            listOf(
+                DispatchedSemanticAction(FIRST_RIVE_NODE_ID, SemanticActionType.Increase),
+                DispatchedSemanticAction(FIRST_RIVE_NODE_ID, SemanticActionType.Decrease)
+            ),
+            dispatchedActions
+        )
+    }
 
     /** Verifies control labels, values, and usage hints use distinct Android properties. */
     @Test
-    fun controlContent_isPublishedThroughAndroidAccessibilityNode() =
-        withTouchExplorationEnabled {
-            val content = mapSemanticNodeContent(
-                role = SemanticRole.Button,
-                label = "Submit",
-                value = "Ready",
-                hint = "Activates form",
-                state = DEFAULT_NODE_STATE
-            )
-            setProductionContent(firstNodeContent = content)
+    fun controlContent_isPublishedThroughAndroidAccessibilityNode() = withTouchExplorationEnabled {
+        val content = mapSemanticNodeContent(
+            role = SemanticRole.Button,
+            label = "Submit",
+            value = "Ready",
+            hint = "Activates form",
+            state = DEFAULT_NODE_STATE
+        )
+        setProductionContent(firstNodeContent = content)
 
-            val node = AccessibilityNodeInfoCompat.wrap(awaitNodeByContentDescription("Submit"))
-            assertEquals("Submit", node.contentDescription.toString())
-            assertEquals("Ready", node.stateDescription?.toString())
-            assertEquals("Activates form", node.supplementalDescription?.toString())
-            assertEquals(null, node.text)
-        }
+        val node = AccessibilityNodeInfoCompat.wrap(awaitNodeByContentDescription("Submit"))
+        assertEquals("Submit", node.contentDescription.toString())
+        assertEquals("Ready", node.stateDescription?.toString())
+        assertEquals("Activates form", node.supplementalDescription?.toString())
+        assertEquals(null, node.text)
+    }
 
     /** Verifies static text remains text instead of replacing subtree content. */
     @Test
@@ -665,106 +660,104 @@ class VirtualAccessibilityNodeInteropComposeTest {
 
     /** Verifies obscured text fields expose native metadata without exposing raw text. */
     @Test
-    fun obscuredTextFieldContent_isPublishedWithoutRawValue() =
-        withTouchExplorationEnabled {
-            val secret = "do not expose"
-            val state = mapSemanticNodeState(
-                traitFlags = 0,
-                stateFlags = SemanticState.Obscured
-            )
-            val content = mapSemanticNodeContent(
-                role = SemanticRole.TextField,
-                label = "Password",
-                value = secret,
-                hint = "Required",
-                state = state
-            )
-            setProductionContent(
-                firstNodeState = state,
-                firstNodeRole = SemanticRole.TextField,
-                firstNodeContent = content
-            )
+    fun obscuredTextFieldContent_isPublishedWithoutRawValue() = withTouchExplorationEnabled {
+        val secret = "do not expose"
+        val state = mapSemanticNodeState(
+            traitFlags = 0,
+            stateFlags = SemanticState.Obscured
+        )
+        val content = mapSemanticNodeContent(
+            role = SemanticRole.TextField,
+            label = "Password",
+            value = secret,
+            hint = "Required",
+            state = state
+        )
+        setProductionContent(
+            firstNodeState = state,
+            firstNodeRole = SemanticRole.TextField,
+            firstNodeContent = content
+        )
 
-            val node = AccessibilityNodeInfoCompat.wrap(
-                awaitNodeByContentDescription("Password")
-            )
-            assertEquals("android.widget.EditText", node.className.toString())
-            assertEquals("Password", node.contentDescription.toString())
-            assertEquals(null, node.text)
-            assertEquals("Required", node.supplementalDescription?.toString())
-            assertFalse(node.isEditable)
-            assertTrue(node.isPassword)
-            assertTrue(node.isAccessibilityDataSensitive)
-            assertFalse(node.toString().contains(secret))
-        }
+        val node = AccessibilityNodeInfoCompat.wrap(
+            awaitNodeByContentDescription("Password")
+        )
+        assertEquals("android.widget.EditText", node.className.toString())
+        assertEquals("Password", node.contentDescription.toString())
+        assertEquals(null, node.text)
+        assertEquals("Required", node.supplementalDescription?.toString())
+        assertFalse(node.isEditable)
+        assertTrue(node.isPassword)
+        assertTrue(node.isAccessibilityDataSensitive)
+        assertFalse(node.toString().contains(secret))
+    }
 
     /** Verifies tree refresh invalidates the attached provider for updates and removal. */
     @Test
-    fun synchronizedTreeChanges_arePublishedThroughUiAutomation() =
-        withTouchExplorationEnabled {
-            val treeReference = AtomicReference<SemanticTreeModel>()
-            val host = setProductionContent(onTreeCreated = treeReference::set)
-            assertNotNull(awaitNodeByContentDescription(FIRST_NODE_LABEL))
+    fun synchronizedTreeChanges_arePublishedThroughUiAutomation() = withTouchExplorationEnabled {
+        val treeReference = AtomicReference<SemanticTreeModel>()
+        val host = setProductionContent(onTreeCreated = treeReference::set)
+        assertNotNull(awaitNodeByContentDescription(FIRST_NODE_LABEL))
 
-            composeRule.runOnIdle {
-                val tree = assertNotNull(treeReference.get())
-                tree.applyDiff(
-                    SemanticsDiff(
-                        treeVersion = 2,
-                        frameNumber = 1,
-                        rootId = 0,
-                        removed = intArrayOf(),
-                        added = emptyArray(),
-                        moved = emptyArray(),
-                        childrenUpdated = emptyArray(),
-                        updatedSemantic = arrayOf(
-                            productionNode(
-                                id = FIRST_RIVE_NODE_ID,
+        composeRule.runOnIdle {
+            val tree = assertNotNull(treeReference.get())
+            tree.applyDiff(
+                SemanticsDiff(
+                    treeVersion = 2,
+                    frameNumber = 1,
+                    rootId = 0,
+                    removed = intArrayOf(),
+                    added = emptyArray(),
+                    moved = emptyArray(),
+                    childrenUpdated = emptyArray(),
+                    updatedSemantic = arrayOf(
+                        productionNode(
+                            id = FIRST_RIVE_NODE_ID,
+                            role = SemanticRole.Button,
+                            state = DEFAULT_NODE_STATE,
+                            content = mapSemanticNodeContent(
                                 role = SemanticRole.Button,
+                                label = UPDATED_FIRST_NODE_LABEL,
+                                value = "",
+                                hint = "",
                                 state = DEFAULT_NODE_STATE,
-                                content = mapSemanticNodeContent(
-                                    role = SemanticRole.Button,
-                                    label = UPDATED_FIRST_NODE_LABEL,
-                                    value = "",
-                                    hint = "",
-                                    state = DEFAULT_NODE_STATE,
-                                ),
-                                headingLevel = 0,
-                                bounds = floatArrayOf(0f, 0f, 100f, 200f),
-                                parentId = -1,
-                                siblingIndex = 0,
-                            )
-                        ),
-                        updatedGeometry = emptyArray(),
-                    )
+                            ),
+                            headingLevel = 0,
+                            bounds = floatArrayOf(0f, 0f, 100f, 200f),
+                            parentId = -1,
+                            siblingIndex = 0,
+                        )
+                    ),
+                    updatedGeometry = emptyArray(),
                 )
-                assertTrue(host.synchronizeSemantics())
-            }
-            assertNotNull(awaitNodeByContentDescription(UPDATED_FIRST_NODE_LABEL))
-
-            composeRule.runOnIdle {
-                val tree = assertNotNull(treeReference.get())
-                tree.applyDiff(
-                    SemanticsDiff(
-                        treeVersion = 3,
-                        frameNumber = 2,
-                        rootId = 0,
-                        removed = intArrayOf(FIRST_RIVE_NODE_ID),
-                        added = emptyArray(),
-                        moved = emptyArray(),
-                        childrenUpdated = emptyArray(),
-                        updatedSemantic = emptyArray(),
-                        updatedGeometry = emptyArray(),
-                    )
-                )
-                assertTrue(host.synchronizeSemantics())
-            }
-            composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
-                val root = rootInActiveWindow ?: return@waitUntil false
-                findByContentDescription(root, UPDATED_FIRST_NODE_LABEL) == null &&
-                    findByContentDescription(root, SECOND_NODE_LABEL) != null
-            }
+            )
+            assertTrue(host.synchronizeSemantics())
         }
+        assertNotNull(awaitNodeByContentDescription(UPDATED_FIRST_NODE_LABEL))
+
+        composeRule.runOnIdle {
+            val tree = assertNotNull(treeReference.get())
+            tree.applyDiff(
+                SemanticsDiff(
+                    treeVersion = 3,
+                    frameNumber = 2,
+                    rootId = 0,
+                    removed = intArrayOf(FIRST_RIVE_NODE_ID),
+                    added = emptyArray(),
+                    moved = emptyArray(),
+                    childrenUpdated = emptyArray(),
+                    updatedSemantic = emptyArray(),
+                    updatedGeometry = emptyArray(),
+                )
+            )
+            assertTrue(host.synchronizeSemantics())
+        }
+        composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
+            val root = rootInActiveWindow ?: return@waitUntil false
+            findByContentDescription(root, UPDATED_FIRST_NODE_LABEL) == null &&
+                findByContentDescription(root, SECOND_NODE_LABEL) != null
+        }
+    }
 
     /** Verifies structural refresh emits a subtree event without disturbing surviving focus. */
     @Test
@@ -844,7 +837,7 @@ class VirtualAccessibilityNodeInteropComposeTest {
 
     /** Waits for and returns one virtual node from the active Android accessibility tree. */
     private fun UiAutomation.awaitNodeByContentDescription(
-        contentDescription: String
+        contentDescription: String,
     ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
         composeRule.waitUntil(timeoutMillis = ACCESSIBILITY_TIMEOUT_MILLIS) {
@@ -957,7 +950,7 @@ class VirtualAccessibilityNodeInteropComposeTest {
     /** Finds a node by content description in an Android accessibility subtree. */
     private fun findByContentDescription(
         root: AccessibilityNodeInfo,
-        contentDescription: String
+        contentDescription: String,
     ): AccessibilityNodeInfo? {
         val pending = ArrayDeque<AccessibilityNodeInfo>()
         pending.add(root)
@@ -974,10 +967,7 @@ class VirtualAccessibilityNodeInteropComposeTest {
     }
 
     /** Finds a node by text in an Android accessibility subtree. */
-    private fun findByText(
-        root: AccessibilityNodeInfo,
-        text: String
-    ): AccessibilityNodeInfo? {
+    private fun findByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
         val pending = ArrayDeque<AccessibilityNodeInfo>()
         pending.add(root)
         while (pending.isNotEmpty()) {
@@ -993,8 +983,10 @@ class VirtualAccessibilityNodeInteropComposeTest {
     }
 
     /** Returns whether this framework node advertises the requested action ID. */
-    private fun AccessibilityNodeInfo.hasAction(actionId: Int): Boolean =
-        actionList.any { action -> action.id == actionId }
+    private fun AccessibilityNodeInfo.hasAction(actionId: Int): Boolean = actionList.any { action ->
+        action.id ==
+            actionId
+    }
 
     /** Executes [block] synchronously on Android's main thread and returns its result. */
     private fun <T> onMainThread(block: () -> T): T {

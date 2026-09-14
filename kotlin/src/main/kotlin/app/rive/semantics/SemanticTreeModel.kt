@@ -2,9 +2,9 @@ package app.rive.semantics
 
 import androidx.annotation.MainThread
 import app.rive.ExperimentalRiveSemantics
+import java.util.Collections
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.util.Collections
 
 /**
  * Immutable semantic tree node stored in the platform model.
@@ -124,8 +124,13 @@ class SemanticTreeModel @MainThread internal constructor() {
         if (ids.isEmpty()) emptyList() else Collections.unmodifiableList(ArrayList(ids))
 
     /** Returns the child IDs for [parentId], where a negative ID represents the tree roots. */
-    private fun childIds(parentId: Int): List<Int> =
-        if (parentId < 0) rootIds else nodesById[parentId]?.children.orEmpty()
+    private fun childIds(parentId: Int): List<Int> = if (parentId <
+        0
+    ) {
+        rootIds
+    } else {
+        nodesById[parentId]?.children.orEmpty()
+    }
 
     /** Replaces the child IDs for [parentId] with an unmodifiable list. */
     private fun replaceChildIds(parentId: Int, children: Collection<Int>) {

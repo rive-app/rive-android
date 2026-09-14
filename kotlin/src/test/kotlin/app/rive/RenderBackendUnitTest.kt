@@ -7,16 +7,16 @@ import io.kotest.matchers.shouldBe
 class RenderBackendUnitTest : FunSpec({
     test("Vulkan is effective on API 29 and newer") {
         effectiveRenderBackend(RenderBackend.Vulkan, Build.VERSION_CODES.Q) shouldBe
-                RenderBackend.Vulkan
+            RenderBackend.Vulkan
     }
 
     test("Vulkan request falls back to OpenGL below API 29") {
         effectiveRenderBackend(RenderBackend.Vulkan, Build.VERSION_CODES.P) shouldBe
-                RenderBackend.OpenGL
+            RenderBackend.OpenGL
     }
 
     test("OpenGL request stays OpenGL on Vulkan-capable API levels") {
         effectiveRenderBackend(RenderBackend.OpenGL, Build.VERSION_CODES.Q) shouldBe
-                RenderBackend.OpenGL
+            RenderBackend.OpenGL
     }
 })

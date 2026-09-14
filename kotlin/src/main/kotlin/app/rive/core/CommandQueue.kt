@@ -46,16 +46,6 @@ import app.rive.runtime.kotlin.core.ViewModel
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.SemanticsDiff
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -67,6 +57,16 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 
 /**
  * [CommandQueue] is named to match the underlying core C++ class, which reflects its algorithm: a
@@ -316,7 +316,7 @@ class CommandQueue internal constructor(
 
             RiveLog.e(COMMAND_QUEUE_TAG) {
                 "Failed to initialize Vulkan render backend, falling back to OpenGL: " +
-                        vulkanFailure.message
+                    vulkanFailure.message
             }
 
             return runCatching {
@@ -354,7 +354,7 @@ class CommandQueue internal constructor(
          */
         private fun createNativeCommandQueue(
             renderContext: RenderContext,
-            bridge: CommandQueueBridge
+            bridge: CommandQueueBridge,
         ): Long {
             try {
                 return bridge.cppConstructor(renderContext.nativeObjectPointer)
@@ -425,7 +425,7 @@ class CommandQueue internal constructor(
             } catch (t: Throwable) {
                 RiveLog.e(COMMAND_QUEUE_TAG, t) {
                     "Command queue native shutdown failed. " +
-                            "Listener and render context cleanup skipped."
+                        "Listener and render context cleanup skipped."
                 }
                 shutdownComplete.countDown()
                 return@Thread
@@ -448,7 +448,7 @@ class CommandQueue internal constructor(
             if (!shutdownComplete.await(SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 RiveLog.w(COMMAND_QUEUE_TAG) {
                     "Command queue native shutdown is taking unusually long and has not " +
-                            "completed after ${SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS}s"
+                        "completed after ${SHUTDOWN_WATCHDOG_TIMEOUT_SECONDS}s"
                 }
             }
         }, "$shutdownThreadName-Watchdog").also {
@@ -509,7 +509,7 @@ class CommandQueue internal constructor(
         val nativePointer = requireNativePointer()
         check(!bridge.isCurrentThreadCommandServer(nativePointer)) {
             "CommandQueue.release() cannot be called from the command server thread as then it " +
-                    "may attempt to join itself. Source: $source. Reason: $reason"
+                "may attempt to join itself. Source: $source. Reason: $reason"
         }
         cppPointer.release(source, reason)
     }
@@ -654,7 +654,7 @@ class CommandQueue internal constructor(
      */
     @Deprecated(
         "settledFlow is a compatibility shim and will be removed in 12.0. Settled does not mean " +
-                "stopped or finished; use a data-binding trigger for authored completion signals."
+            "stopped or finished; use a data-binding trigger for authored completion signals."
     )
     val settledFlow: SharedFlow<StateMachineHandle> =
         stateMachineSettlingStore.acceptedSettlements
@@ -680,7 +680,7 @@ class CommandQueue internal constructor(
     data class PropertyUpdate<T>(
         val handle: ViewModelInstanceHandle,
         val propertyPath: String,
-        val value: T
+        val value: T,
     )
 
     private val _numberPropertyFlow = MutableSharedFlow<PropertyUpdate<Float>>(
@@ -756,36 +756,34 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    suspend fun beginPolling(
-        lifecycle: Lifecycle,
-        ticker: FrameTicker = ChoreographerFrameTicker
-    ) = withContext(Dispatchers.Main.immediate) {
-        checkOpen()
-        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-            while (isActive && !isDisposed) {
-                var disposedDuringPoll = false
-                ticker.withFrame { }
-                try {
-                    // Poll after the frame wait returns so coroutine context restoration guarantees
-                    // main-thread delivery even when an injected ticker waits on another thread.
-                    pollMessages()
-                } catch (e: RiveResourceClosedException) {
-                    // Disposal can happen after the checks above but before pollMessages() reads
-                    // the native pointer. Only swallow that expected disposal race; preserve a
-                    // resource-closed error from another source rather than hiding it.
-                    if (refCount > 0) {
-                        throw e
+    suspend fun beginPolling(lifecycle: Lifecycle, ticker: FrameTicker = ChoreographerFrameTicker) =
+        withContext(Dispatchers.Main.immediate) {
+            checkOpen()
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
+                while (isActive && !isDisposed) {
+                    var disposedDuringPoll = false
+                    ticker.withFrame { }
+                    try {
+                        // Poll after the frame wait returns so coroutine context restoration guarantees
+                        // main-thread delivery even when an injected ticker waits on another thread.
+                        pollMessages()
+                    } catch (e: RiveResourceClosedException) {
+                        // Disposal can happen after the checks above but before pollMessages() reads
+                        // the native pointer. Only swallow that expected disposal race; preserve a
+                        // resource-closed error from another source rather than hiding it.
+                        if (refCount > 0) {
+                            throw e
+                        }
+                        disposedDuringPoll = true
                     }
-                    disposedDuringPoll = true
+                    if (disposedDuringPoll) {
+                        break
+                    }
                 }
-                if (disposedDuringPoll) {
-                    break
-                }
+                RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
             }
-            RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
         }
-    }
 
     /**
      * Poll messages from the CommandServer to this command queue. This is the channel that all
@@ -831,16 +829,12 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveRenderException::class, RiveResourceClosedException::class)
-    fun createRiveSurface(
-        surface: CloseableSurface
-    ): RiveSurface {
-        return try {
-            renderContext.createSurface(surface, nextDrawKey(), this)
-        } catch (e: Throwable) {
-            // Do not leak the Android resources if surface creation fails.
-            surface.close()
-            throw e
-        }
+    fun createRiveSurface(surface: CloseableSurface): RiveSurface = try {
+        renderContext.createSurface(surface, nextDrawKey(), this)
+    } catch (e: Throwable) {
+        // Do not leak the Android resources if surface creation fails.
+        surface.close()
+        throw e
     }
 
     /**
@@ -972,7 +966,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun loadFile(bytes: ByteArray): FileHandle =
         suspendNativeResourceRequest(::deleteFile) { requestID ->
             FileHandle(bridge.cppLoadFile(requireNativePointer(), requestID, bytes))
@@ -1002,8 +1000,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun deleteFile(fileHandle: FileHandle) =
-        bridge.cppDeleteFile(requireNativePointer(), nextRequestID.getAndIncrement(), fileHandle.handle)
+    fun deleteFile(fileHandle: FileHandle) = bridge.cppDeleteFile(
+        requireNativePointer(),
+        nextRequestID.getAndIncrement(),
+        fileHandle.handle
+    )
 
     /**
      * Query the file for available artboard names. Returns on [onArtboardsListed].
@@ -1014,7 +1015,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getArtboardNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetArtboardNames(
@@ -1047,7 +1052,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getFileAssets(fileHandle: FileHandle): List<RiveFileAsset> =
         suspendNativeRequest { requestID ->
             bridge.cppGetFileAssets(
@@ -1082,7 +1091,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getStateMachineNames(artboardHandle: ArtboardHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetStateMachineNames(
@@ -1116,7 +1129,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getArtboardVolume(artboardHandle: ArtboardHandle): Float =
         suspendNativeRequest { requestID ->
             bridge.cppGetArtboardVolume(
@@ -1151,19 +1168,22 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveArtboardException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getDefaultViewModelInfo(
         fileHandle: FileHandle,
-        artboardHandle: ArtboardHandle
-    ): DefaultViewModelInfo =
-        suspendNativeRequest { requestID ->
-            bridge.cppGetDefaultViewModelInfo(
-                requireNativePointer(),
-                requestID,
-                fileHandle.handle,
-                artboardHandle.handle
-            )
-        }
+        artboardHandle: ArtboardHandle,
+    ): DefaultViewModelInfo = suspendNativeRequest { requestID ->
+        bridge.cppGetDefaultViewModelInfo(
+            requireNativePointer(),
+            requestID,
+            fileHandle.handle,
+            artboardHandle.handle
+        )
+    }
 
     /**
      * Callback when the default view model info is received, from [getDefaultViewModelInfo].
@@ -1178,7 +1198,7 @@ class CommandQueue internal constructor(
     internal fun onDefaultViewModelInfoReceived(
         requestID: Long,
         viewModelName: String,
-        instanceName: String
+        instanceName: String,
     ) {
         (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo>)
             ?.resume(DefaultViewModelInfo(viewModelName, instanceName))
@@ -1193,7 +1213,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelNames(fileHandle: FileHandle): List<String> =
         suspendNativeRequest { requestID ->
             bridge.cppGetViewModelNames(
@@ -1236,7 +1260,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getViewModelInstanceNames(
         fileHandle: FileHandle,
-        viewModelName: String
+        viewModelName: String,
     ): List<String> = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelInstanceNames(
             requireNativePointer(),
@@ -1271,10 +1295,14 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelProperties(
         fileHandle: FileHandle,
-        viewModelName: String
+        viewModelName: String,
     ): List<ViewModel.Property> = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelProperties(
             requireNativePointer(),
@@ -1296,7 +1324,7 @@ class CommandQueue internal constructor(
     @JvmName("onViewModelPropertiesListed")
     internal fun onViewModelPropertiesListed(
         requestID: Long,
-        properties: List<ViewModel.Property>
+        properties: List<ViewModel.Property>,
     ) {
         (pendingContinuations.remove(requestID) as? Continuation<List<ViewModel.Property>>)?.resume(
             properties
@@ -1312,7 +1340,11 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getEnums(fileHandle: FileHandle): List<Enum> = suspendNativeRequest { requestID ->
         bridge.cppGetEnums(
             requireNativePointer(),
@@ -1350,18 +1382,21 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
-    suspend fun createDefaultArtboardConfirmed(
-        fileHandle: FileHandle
-    ): ArtboardHandle = suspendNativeResourceRequest(::deleteArtboard) { requestID ->
-        ArtboardHandle(
-            bridge.cppCreateDefaultArtboard(
-                requireNativePointer(),
-                requestID,
-                fileHandle.handle
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun createDefaultArtboardConfirmed(fileHandle: FileHandle): ArtboardHandle =
+        suspendNativeResourceRequest(::deleteArtboard) { requestID ->
+            ArtboardHandle(
+                bridge.cppCreateDefaultArtboard(
+                    requireNativePointer(),
+                    requestID,
+                    fileHandle.handle
+                )
             )
-        )
-    }
+        }
 
     /**
      * Creates a named artboard and suspends until the command server confirms creation.
@@ -1379,10 +1414,14 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before creation is confirmed.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun createArtboardByNameConfirmed(
         fileHandle: FileHandle,
-        name: String
+        name: String,
     ): ArtboardHandle = suspendNativeResourceRequest(::deleteArtboard) { requestID ->
         ArtboardHandle(
             bridge.cppCreateArtboardByName(
@@ -1431,15 +1470,14 @@ class CommandQueue internal constructor(
     @Deprecated(
         "Use createArtboardByNameConfirmed. This fire-and-forget method will be removed in 12.0."
     )
-    fun createArtboardByName(fileHandle: FileHandle, name: String): ArtboardHandle =
-        ArtboardHandle(
-            bridge.cppCreateArtboardByName(
-                requireNativePointer(),
-                nextRequestID.getAndIncrement(),
-                fileHandle.handle,
-                name
-            )
+    fun createArtboardByName(fileHandle: FileHandle, name: String): ArtboardHandle = ArtboardHandle(
+        bridge.cppCreateArtboardByName(
+            requireNativePointer(),
+            nextRequestID.getAndIncrement(),
+            fileHandle.handle,
+            name
         )
+    )
 
     /**
      * Callback when an artboard is instantiated successfully.
@@ -1464,7 +1502,9 @@ class CommandQueue internal constructor(
      */
     @Throws(RiveResourceClosedException::class)
     fun deleteArtboard(artboardHandle: ArtboardHandle) = bridge.cppDeleteArtboard(
-        requireNativePointer(), nextRequestID.getAndIncrement(), artboardHandle.handle
+        requireNativePointer(),
+        nextRequestID.getAndIncrement(),
+        artboardHandle.handle
     )
 
     /**
@@ -1488,7 +1528,7 @@ class CommandQueue internal constructor(
         CancellationException::class
     )
     suspend fun createDefaultStateMachineConfirmed(
-        artboardHandle: ArtboardHandle
+        artboardHandle: ArtboardHandle,
     ): StateMachineHandle = suspendNativeResourceRequest(::deleteStateMachine) { requestID ->
         StateMachineHandle(
             bridge.cppCreateDefaultStateMachine(
@@ -1522,7 +1562,7 @@ class CommandQueue internal constructor(
     )
     suspend fun createStateMachineByNameConfirmed(
         artboardHandle: ArtboardHandle,
-        name: String
+        name: String,
     ): StateMachineHandle = suspendNativeResourceRequest(::deleteStateMachine) { requestID ->
         StateMachineHandle(
             bridge.cppCreateStateMachineByName(
@@ -1591,10 +1631,7 @@ class CommandQueue internal constructor(
     @Deprecated(
         "Use createStateMachineByNameConfirmed. This fire-and-forget method will be removed in 12.0."
     )
-    fun createStateMachineByName(
-        artboardHandle: ArtboardHandle,
-        name: String
-    ): StateMachineHandle {
+    fun createStateMachineByName(artboardHandle: ArtboardHandle, name: String): StateMachineHandle {
         val stateMachineHandle = StateMachineHandle(
             bridge.cppCreateStateMachineByName(
                 requireNativePointer(),
@@ -1622,7 +1659,7 @@ class CommandQueue internal constructor(
     @JvmName("onStateMachineInstantiated")
     internal fun onStateMachineInstantiated(
         requestID: Long,
-        stateMachineHandle: StateMachineHandle
+        stateMachineHandle: StateMachineHandle,
     ) {
         val trackSettling = pendingContinuations.containsKey(requestID)
         if (trackSettling) {
@@ -1706,9 +1743,8 @@ class CommandQueue internal constructor(
      * @return A flow containing the latest accepted settled state.
      * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
-    internal fun stateMachineSettled(
-        stateMachineHandle: StateMachineHandle
-    ): StateFlow<Boolean> = stateMachineSettlingStore.settled(stateMachineHandle)
+    internal fun stateMachineSettled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
+        stateMachineSettlingStore.settled(stateMachineHandle)
 
     /**
      * Begins a new unsettled generation for a state machine owned by this command queue.
@@ -1730,11 +1766,10 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun enableSemantics(stateMachineHandle: StateMachineHandle) =
-        bridge.cppEnableSemantics(
-            requireNativePointer(),
-            stateMachineHandle.handle
-        )
+    fun enableSemantics(stateMachineHandle: StateMachineHandle) = bridge.cppEnableSemantics(
+        requireNativePointer(),
+        stateMachineHandle.handle
+    )
 
     /**
      * Drain the latest semantic diff for this state machine.
@@ -1753,7 +1788,7 @@ class CommandQueue internal constructor(
         stateMachineHandle: StateMachineHandle,
         fit: Fit,
         surfaceWidth: Float,
-        surfaceHeight: Float
+        surfaceHeight: Float,
     ) = bridge.cppDrainSemanticsDiff(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -1779,7 +1814,7 @@ class CommandQueue internal constructor(
     @JvmName("onSemanticsDiffReceived")
     internal fun onSemanticsDiffReceived(
         stateMachineHandle: StateMachineHandle,
-        diff: SemanticsDiff
+        diff: SemanticsDiff,
     ) {
         semanticTree(stateMachineHandle).applyDiff(diff)
         RiveLog.v(COMMAND_QUEUE_TAG) {
@@ -1799,7 +1834,7 @@ class CommandQueue internal constructor(
     fun fireSemanticAction(
         stateMachineHandle: StateMachineHandle,
         semanticNodeID: Int,
-        actionType: SemanticActionType
+        actionType: SemanticActionType,
     ) = bridge.cppFireSemanticAction(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -1815,14 +1850,12 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun requestSemanticFocus(
-        stateMachineHandle: StateMachineHandle,
-        semanticNodeID: Int
-    ) = bridge.cppRequestSemanticFocus(
-        requireNativePointer(),
-        stateMachineHandle.handle,
-        semanticNodeID
-    )
+    fun requestSemanticFocus(stateMachineHandle: StateMachineHandle, semanticNodeID: Int) =
+        bridge.cppRequestSemanticFocus(
+            requireNativePointer(),
+            stateMachineHandle.handle,
+            semanticNodeID
+        )
 
     /**
      * Clear Rive runtime focus for this state machine.
@@ -1835,9 +1868,7 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun clearSemanticFocus(
-        stateMachineHandle: StateMachineHandle
-    ) = bridge.cppClearSemanticFocus(
+    fun clearSemanticFocus(stateMachineHandle: StateMachineHandle) = bridge.cppClearSemanticFocus(
         requireNativePointer(),
         stateMachineHandle.handle
     )
@@ -1858,7 +1889,7 @@ class CommandQueue internal constructor(
     @JvmName("onStateMachineSettled")
     internal fun onStateMachineSettled(
         requestID: Long,
-        stateMachineHandle: StateMachineHandle
+        stateMachineHandle: StateMachineHandle,
     ) = stateMachineSettlingStore.settle(requestID, stateMachineHandle)
 
     /**
@@ -1890,7 +1921,7 @@ class CommandQueue internal constructor(
     )
     suspend fun createViewModelInstanceConfirmed(
         fileHandle: FileHandle,
-        source: ViewModelInstanceSource
+        source: ViewModelInstanceSource,
     ): ViewModelInstanceHandle {
         checkViewModelInstanceSource(fileHandle, source)
         return suspendNativeResourceRequest(::deleteViewModelInstance) { requestID ->
@@ -1920,7 +1951,7 @@ class CommandQueue internal constructor(
     )
     fun createViewModelInstance(
         fileHandle: FileHandle,
-        source: ViewModelInstanceSource
+        source: ViewModelInstanceSource,
     ): ViewModelInstanceHandle {
         checkViewModelInstanceSource(fileHandle, source)
         return enqueueViewModelInstanceCreation(
@@ -1942,7 +1973,7 @@ class CommandQueue internal constructor(
     @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
     private fun checkViewModelInstanceSource(
         fileHandle: FileHandle,
-        source: ViewModelInstanceSource
+        source: ViewModelInstanceSource,
     ) {
         checkOpen()
         source.checkOpen()
@@ -1966,96 +1997,95 @@ class CommandQueue internal constructor(
     private fun enqueueViewModelInstanceCreation(
         fileHandle: FileHandle,
         source: ViewModelInstanceSource,
-        requestID: Long
-    ): ViewModelInstanceHandle =
-        when (source) {
-            is ViewModelInstanceSource.Blank -> when (val vm = source.vmSource) {
-                is ViewModelSource.Named ->
-                    ViewModelInstanceHandle(
-                        bridge.cppNamedVMCreateBlankVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.viewModelName
-                        )
+        requestID: Long,
+    ): ViewModelInstanceHandle = when (source) {
+        is ViewModelInstanceSource.Blank -> when (val vm = source.vmSource) {
+            is ViewModelSource.Named ->
+                ViewModelInstanceHandle(
+                    bridge.cppNamedVMCreateBlankVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.viewModelName
                     )
-
-                is ViewModelSource.DefaultForArtboard ->
-                    ViewModelInstanceHandle(
-                        bridge.cppDefaultVMCreateBlankVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.artboard.artboardHandle.handle
-                        )
-                    )
-            }
-
-            is ViewModelInstanceSource.Default -> when (val vm = source.vmSource) {
-                is ViewModelSource.Named ->
-                    ViewModelInstanceHandle(
-                        bridge.cppNamedVMCreateDefaultVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.viewModelName
-                        )
-                    )
-
-                is ViewModelSource.DefaultForArtboard ->
-                    ViewModelInstanceHandle(
-                        bridge.cppDefaultVMCreateDefaultVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.artboard.artboardHandle.handle
-                        )
-                    )
-            }
-
-            is ViewModelInstanceSource.Named -> when (val vm = source.vmSource) {
-                is ViewModelSource.Named ->
-                    ViewModelInstanceHandle(
-                        bridge.cppNamedVMCreateNamedVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.viewModelName,
-                            source.instanceName
-                        )
-                    )
-
-                is ViewModelSource.DefaultForArtboard ->
-                    ViewModelInstanceHandle(
-                        bridge.cppDefaultVMCreateNamedVMI(
-                            requireNativePointer(),
-                            requestID,
-                            fileHandle.handle,
-                            vm.artboard.artboardHandle.handle,
-                            source.instanceName
-                        )
-                    )
-            }
-
-            is ViewModelInstanceSource.Reference -> ViewModelInstanceHandle(
-                bridge.cppReferenceNestedVMI(
-                    requireNativePointer(),
-                    requestID,
-                    source.parentInstance.instanceHandle.handle,
-                    source.path
                 )
-            )
 
-            is ViewModelInstanceSource.ReferenceListItem -> ViewModelInstanceHandle(
-                bridge.cppReferenceListItemVMI(
-                    requireNativePointer(),
-                    requestID,
-                    source.parentInstance.instanceHandle.handle,
-                    source.pathToList,
-                    source.index
+            is ViewModelSource.DefaultForArtboard ->
+                ViewModelInstanceHandle(
+                    bridge.cppDefaultVMCreateBlankVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.artboard.artboardHandle.handle
+                    )
                 )
-            )
         }
+
+        is ViewModelInstanceSource.Default -> when (val vm = source.vmSource) {
+            is ViewModelSource.Named ->
+                ViewModelInstanceHandle(
+                    bridge.cppNamedVMCreateDefaultVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.viewModelName
+                    )
+                )
+
+            is ViewModelSource.DefaultForArtboard ->
+                ViewModelInstanceHandle(
+                    bridge.cppDefaultVMCreateDefaultVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.artboard.artboardHandle.handle
+                    )
+                )
+        }
+
+        is ViewModelInstanceSource.Named -> when (val vm = source.vmSource) {
+            is ViewModelSource.Named ->
+                ViewModelInstanceHandle(
+                    bridge.cppNamedVMCreateNamedVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.viewModelName,
+                        source.instanceName
+                    )
+                )
+
+            is ViewModelSource.DefaultForArtboard ->
+                ViewModelInstanceHandle(
+                    bridge.cppDefaultVMCreateNamedVMI(
+                        requireNativePointer(),
+                        requestID,
+                        fileHandle.handle,
+                        vm.artboard.artboardHandle.handle,
+                        source.instanceName
+                    )
+                )
+        }
+
+        is ViewModelInstanceSource.Reference -> ViewModelInstanceHandle(
+            bridge.cppReferenceNestedVMI(
+                requireNativePointer(),
+                requestID,
+                source.parentInstance.instanceHandle.handle,
+                source.path
+            )
+        )
+
+        is ViewModelInstanceSource.ReferenceListItem -> ViewModelInstanceHandle(
+            bridge.cppReferenceListItemVMI(
+                requireNativePointer(),
+                requestID,
+                source.parentInstance.instanceHandle.handle,
+                source.pathToList,
+                source.index
+            )
+        )
+    }
 
     /**
      * Callback when a view model instance is instantiated successfully.
@@ -2068,7 +2098,7 @@ class CommandQueue internal constructor(
     @JvmName("onViewModelInstanceInstantiated")
     internal fun onViewModelInstanceInstantiated(
         requestID: Long,
-        viewModelInstanceHandle: ViewModelInstanceHandle
+        viewModelInstanceHandle: ViewModelInstanceHandle,
     ) {
         resumeResourceRequest(requestID, viewModelInstanceHandle)
     }
@@ -2088,7 +2118,7 @@ class CommandQueue internal constructor(
         CancellationException::class
     )
     suspend fun getViewModelInstanceViewModelName(
-        viewModelInstanceHandle: ViewModelInstanceHandle
+        viewModelInstanceHandle: ViewModelInstanceHandle,
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetViewModelInstanceViewModelName(
             requireNativePointer(),
@@ -2127,15 +2157,14 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun getViewModelInstanceName(
-        viewModelInstanceHandle: ViewModelInstanceHandle
-    ): String = suspendNativeRequest { requestID ->
-        bridge.cppGetViewModelInstanceName(
-            requireNativePointer(),
-            requestID,
-            viewModelInstanceHandle.handle
-        )
-    }
+    suspend fun getViewModelInstanceName(viewModelInstanceHandle: ViewModelInstanceHandle): String =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetViewModelInstanceName(
+                requireNativePointer(),
+                requestID,
+                viewModelInstanceHandle.handle
+            )
+        }
 
     /**
      * Callback when the view model instance name is retrieved, from [getViewModelInstanceName].
@@ -2212,7 +2241,7 @@ class CommandQueue internal constructor(
     @Throws(RiveResourceClosedException::class)
     fun setMainViewModelInstance(
         stateMachineHandle: StateMachineHandle,
-        viewModelInstanceHandle: ViewModelInstanceHandle
+        viewModelInstanceHandle: ViewModelInstanceHandle,
     ) = bridge.cppSetMainViewModelInstance(
         requireNativePointer(),
         nextRequestID.getAndIncrement(),
@@ -2262,7 +2291,7 @@ class CommandQueue internal constructor(
     fun setGlobalViewModelInstance(
         stateMachineHandle: StateMachineHandle,
         name: String,
-        viewModelInstanceHandle: ViewModelInstanceHandle
+        viewModelInstanceHandle: ViewModelInstanceHandle,
     ) = bridge.cppSetGlobalViewModelInstance(
         requireNativePointer(),
         nextRequestID.getAndIncrement(),
@@ -2289,15 +2318,13 @@ class CommandQueue internal constructor(
      */
     @ExperimentalRiveGlobalViewModels
     @Throws(RiveResourceClosedException::class)
-    fun clearGlobalViewModelInstance(
-        stateMachineHandle: StateMachineHandle,
-        name: String
-    ) = bridge.cppClearGlobalViewModelInstance(
-        requireNativePointer(),
-        nextRequestID.getAndIncrement(),
-        stateMachineHandle.handle,
-        name
-    )
+    fun clearGlobalViewModelInstance(stateMachineHandle: StateMachineHandle, name: String) =
+        bridge.cppClearGlobalViewModelInstance(
+            requireNativePointer(),
+            nextRequestID.getAndIncrement(),
+            stateMachineHandle.handle,
+            name
+        )
 
     /**
      * Apply the main and global view model instances currently set on a state machine.
@@ -2340,7 +2367,7 @@ class CommandQueue internal constructor(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
         value: T,
-        flow: MutableSharedFlow<PropertyUpdate<T>>
+        flow: MutableSharedFlow<PropertyUpdate<T>>,
     ) {
         flow.tryEmit(PropertyUpdate(viewModelInstanceHandle, propertyName, value))
         pendingContinuations.remove(requestID)?.resume(value as Any)
@@ -2359,7 +2386,7 @@ class CommandQueue internal constructor(
     fun setNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        value: Float
+        value: Float,
     ) = bridge.cppSetNumberProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2385,7 +2412,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getNumberProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): Float = suspendNativeRequest { requestID ->
         bridge.cppGetNumberProperty(
             requireNativePointer(),
@@ -2413,7 +2440,7 @@ class CommandQueue internal constructor(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
-        value: Float
+        value: Float,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2435,7 +2462,7 @@ class CommandQueue internal constructor(
     fun setStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        value: String
+        value: String,
     ) = bridge.cppSetStringProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2461,7 +2488,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getStringProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetStringProperty(
             requireNativePointer(),
@@ -2489,7 +2516,7 @@ class CommandQueue internal constructor(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
-        value: String
+        value: String,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2511,7 +2538,7 @@ class CommandQueue internal constructor(
     fun setBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        value: Boolean
+        value: Boolean,
     ) = bridge.cppSetBooleanProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2537,7 +2564,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getBooleanProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): Boolean = suspendNativeRequest { requestID ->
         bridge.cppGetBooleanProperty(
             requireNativePointer(),
@@ -2565,7 +2592,7 @@ class CommandQueue internal constructor(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
-        value: Boolean
+        value: Boolean,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2587,7 +2614,7 @@ class CommandQueue internal constructor(
     fun setEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        value: String
+        value: String,
     ) = bridge.cppSetEnumProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2613,7 +2640,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getEnumProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): String = suspendNativeRequest { requestID ->
         bridge.cppGetEnumProperty(
             requireNativePointer(),
@@ -2641,7 +2668,7 @@ class CommandQueue internal constructor(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
-        value: String
+        value: String,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2663,7 +2690,7 @@ class CommandQueue internal constructor(
     fun setColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        @ColorInt value: Int
+        @ColorInt value: Int,
     ) = bridge.cppSetColorProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2689,7 +2716,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getColorProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): Int = suspendNativeRequest { requestID ->
         bridge.cppGetColorProperty(
             requireNativePointer(),
@@ -2717,7 +2744,7 @@ class CommandQueue internal constructor(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyName: String,
-        @ColorInt value: Int
+        @ColorInt value: Int,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2737,7 +2764,7 @@ class CommandQueue internal constructor(
     @Throws(RiveResourceClosedException::class)
     fun fireTriggerProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ) = bridge.cppFireTriggerProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2759,7 +2786,7 @@ class CommandQueue internal constructor(
     internal fun onTriggerPropertyUpdated(
         requestID: Long,
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyName: String
+        propertyName: String,
     ) = onPropertyUpdated(
         requestID,
         viewModelInstanceHandle,
@@ -2792,7 +2819,7 @@ class CommandQueue internal constructor(
     fun subscribeToProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        propertyType: ViewModel.PropertyDataType
+        propertyType: ViewModel.PropertyDataType,
     ) = bridge.cppSubscribeToProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2823,7 +2850,7 @@ class CommandQueue internal constructor(
     fun unsubscribeFromProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        propertyType: ViewModel.PropertyDataType
+        propertyType: ViewModel.PropertyDataType,
     ) = bridge.cppUnsubscribeFromProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2845,7 +2872,7 @@ class CommandQueue internal constructor(
     fun setImageProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        imageHandle: ImageHandle?
+        imageHandle: ImageHandle?,
     ) = bridge.cppSetImageProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2867,7 +2894,7 @@ class CommandQueue internal constructor(
     fun setArtboardProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        artboardHandle: ArtboardHandle?
+        artboardHandle: ArtboardHandle?,
     ) = bridge.cppSetArtboardProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2888,7 +2915,7 @@ class CommandQueue internal constructor(
     fun setViewModelInstanceProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        valueHandle: ViewModelInstanceHandle
+        valueHandle: ViewModelInstanceHandle,
     ) = bridge.cppSetViewModelInstanceProperty(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2914,7 +2941,7 @@ class CommandQueue internal constructor(
     )
     suspend fun getListSize(
         viewModelInstanceHandle: ViewModelInstanceHandle,
-        propertyPath: String
+        propertyPath: String,
     ): Int = suspendNativeRequest { requestID ->
         bridge.cppGetListSize(
             requireNativePointer(),
@@ -2953,7 +2980,7 @@ class CommandQueue internal constructor(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         index: Int,
-        itemHandle: ViewModelInstanceHandle
+        itemHandle: ViewModelInstanceHandle,
     ) = bridge.cppInsertToListAtIndex(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2975,7 +3002,7 @@ class CommandQueue internal constructor(
     fun appendToList(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        itemHandle: ViewModelInstanceHandle
+        itemHandle: ViewModelInstanceHandle,
     ) = bridge.cppAppendToList(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -2996,7 +3023,7 @@ class CommandQueue internal constructor(
     fun removeFromListAtIndex(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        index: Int
+        index: Int,
     ) = bridge.cppRemoveFromListAtIndex(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -3017,7 +3044,7 @@ class CommandQueue internal constructor(
     fun removeFromList(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
-        itemHandle: ViewModelInstanceHandle
+        itemHandle: ViewModelInstanceHandle,
     ) = bridge.cppRemoveFromList(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -3040,7 +3067,7 @@ class CommandQueue internal constructor(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         indexA: Int,
-        indexB: Int
+        indexB: Int,
     ) = bridge.cppSwapListItems(
         requireNativePointer(),
         viewModelInstanceHandle.handle,
@@ -3148,8 +3175,7 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun unregisterImage(name: String) =
-        bridge.cppUnregisterImage(requireNativePointer(), name)
+    fun unregisterImage(name: String) = bridge.cppUnregisterImage(requireNativePointer(), name)
 
     /**
      * Decodes an audio file from the given bytes and suspends until the command server confirms the
@@ -3248,8 +3274,7 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun unregisterAudio(name: String) =
-        bridge.cppUnregisterAudio(requireNativePointer(), name)
+    fun unregisterAudio(name: String) = bridge.cppUnregisterAudio(requireNativePointer(), name)
 
     /**
      * Decodes a font file from the given bytes and suspends until the command server confirms the
@@ -3349,8 +3374,7 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun unregisterFont(name: String) =
-        bridge.cppUnregisterFont(requireNativePointer(), name)
+    fun unregisterFont(name: String) = bridge.cppUnregisterFont(requireNativePointer(), name)
 
     /**
      * Notify the state machine that the pointer (typically a user's touch) has moved. This is used
@@ -3375,7 +3399,7 @@ class CommandQueue internal constructor(
         surfaceHeight: Float,
         pointerID: Int,
         pointerX: Float,
-        pointerY: Float
+        pointerY: Float,
     ) = bridge.cppPointerMove(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -3412,7 +3436,7 @@ class CommandQueue internal constructor(
         surfaceHeight: Float,
         pointerID: Int,
         pointerX: Float,
-        pointerY: Float
+        pointerY: Float,
     ) = bridge.cppPointerDown(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -3449,7 +3473,7 @@ class CommandQueue internal constructor(
         surfaceHeight: Float,
         pointerID: Int,
         pointerX: Float,
-        pointerY: Float
+        pointerY: Float,
     ) = bridge.cppPointerUp(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -3486,7 +3510,7 @@ class CommandQueue internal constructor(
         surfaceHeight: Float,
         pointerID: Int,
         pointerX: Float,
-        pointerY: Float
+        pointerY: Float,
     ) = bridge.cppPointerExit(
         requireNativePointer(),
         stateMachineHandle.handle,
@@ -3522,7 +3546,7 @@ class CommandQueue internal constructor(
     fun resizeArtboard(
         artboardHandle: ArtboardHandle,
         surface: RiveSurface,
-        scaleFactor: Float = 1f
+        scaleFactor: Float = 1f,
     ) {
         checkOpen()
         surface.checkOpen()
@@ -3546,9 +3570,7 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun resetArtboardSize(
-        artboardHandle: ArtboardHandle
-    ) = bridge.cppResetArtboardSize(
+    fun resetArtboardSize(artboardHandle: ArtboardHandle) = bridge.cppResetArtboardSize(
         requireNativePointer(),
         artboardHandle.handle
     )
@@ -3564,15 +3586,13 @@ class CommandQueue internal constructor(
      * @throws RiveResourceClosedException If this command queue has been disposed.
      */
     @Throws(RiveResourceClosedException::class)
-    fun setArtboardVolume(
-        artboardHandle: ArtboardHandle,
-        volume: Float
-    ) = bridge.cppSetArtboardVolume(
-        requireNativePointer(),
-        nextRequestID.getAndIncrement(),
-        artboardHandle.handle,
-        volume
-    )
+    fun setArtboardVolume(artboardHandle: ArtboardHandle, volume: Float) =
+        bridge.cppSetArtboardVolume(
+            requireNativePointer(),
+            nextRequestID.getAndIncrement(),
+            artboardHandle.handle,
+            volume
+        )
 
     /**
      * Draw the artboard with the given state machine.
@@ -3595,7 +3615,7 @@ class CommandQueue internal constructor(
         stateMachineHandle: StateMachineHandle,
         surface: RiveSurface,
         fit: Fit,
-        clearColor: Int = Color.TRANSPARENT
+        clearColor: Int = Color.TRANSPARENT,
     ) {
         checkOpen()
         val surfaceNativePointer = surface.requireNativePointer()
@@ -3665,7 +3685,7 @@ class CommandQueue internal constructor(
         width: Int,
         height: Int,
         fit: Fit = Fit.Contain(),
-        clearColor: Int = Color.TRANSPARENT
+        clearColor: Int = Color.TRANSPARENT,
     ) {
         checkOpen()
         val surfaceNativePointer = surface.requireNativePointer()
@@ -3767,6 +3787,7 @@ class CommandQueue internal constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun <T : Any> resumeResourceRequest(requestID: Long, resource: T): Boolean {
         val cleanup = pendingResourceCleanups.remove(requestID)
+
         @Suppress("UNCHECKED_CAST")
         val continuation =
             pendingContinuations.remove(requestID) as? CancellableContinuation<T>
@@ -3809,7 +3830,7 @@ class CommandQueue internal constructor(
     private fun runOrDispatchOnMain(
         context: CoroutineContext,
         onFailure: (Throwable) -> Unit,
-        work: () -> Unit
+        work: () -> Unit,
     ) {
         try {
             val main = Dispatchers.Main.immediate
@@ -3856,7 +3877,7 @@ class CommandQueue internal constructor(
     @Throws(CancellationException::class)
     private suspend inline fun <reified T : Any> suspendNativeResourceRequest(
         crossinline cleanup: (T) -> Unit,
-        crossinline nativeFn: (Long) -> T
+        crossinline nativeFn: (Long) -> T,
     ): T = suspendCancellableCoroutine { cont ->
         val requestID = nextRequestID.getAndIncrement()
         var provisionalResource: T? = null // Accessed only by work serialized on Main.
@@ -3946,8 +3967,9 @@ class CommandQueue internal constructor(
      */
     @Throws(CancellationException::class)
     private suspend inline fun <reified T> suspendNativeRequest(
-        crossinline nativeFn: (Long) -> Unit
-    ): T = withContext(Dispatchers.Main.immediate) { // Preserve the request-ordering boundary.
+        crossinline nativeFn: (Long) -> Unit,
+    ): T = withContext(Dispatchers.Main.immediate) {
+        // Preserve the request-ordering boundary.
         suspendCancellableCoroutine { cont ->
             val requestID = nextRequestID.getAndIncrement()
 
@@ -4052,10 +4074,7 @@ value class FontHandle(val handle: Long) {
     override fun toString(): String = "FontHandle($handle)"
 }
 
-data class DefaultViewModelInfo(
-    val viewModelName: String,
-    val instanceName: String
-)
+data class DefaultViewModelInfo(val viewModelName: String, val instanceName: String)
 
 /**
  * A key used to uniquely identify a draw operation in the CommandQueue. This is useful when the

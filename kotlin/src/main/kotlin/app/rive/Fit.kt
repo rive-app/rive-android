@@ -102,7 +102,6 @@ sealed class Fit {
      */
     data class FitHeight(override val alignment: Alignment = Alignment.Center) : Fit() {
         override val nativeMapping: Byte = 4
-
     }
 
     /** Do not preserve aspect ratio and stretch to the containing view's dimensions. */
@@ -131,7 +130,13 @@ sealed class Fit {
  *    not use these values, so the mapping only exists in JNI.
  */
 enum class Alignment(internal val nativeMapping: Byte) {
-    TopLeft(0), TopCenter(1), TopRight(2),
-    CenterLeft(3), Center(4), CenterRight(5),
-    BottomLeft(6), BottomCenter(7), BottomRight(8)
+    TopLeft(0),
+    TopCenter(1),
+    TopRight(2),
+    CenterLeft(3),
+    Center(4),
+    CenterRight(5),
+    BottomLeft(6),
+    BottomCenter(7),
+    BottomRight(8),
 }

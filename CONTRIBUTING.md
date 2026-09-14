@@ -66,19 +66,17 @@ it is not available on `PATH`.
 #### Kotlin
 
 Spotless with ktlint is the canonical Kotlin formatter. It uses ktlint's Android Studio style and
-requires trailing commas on declaration and call sites. From the project root, run:
+requires trailing commas in multiline declarations. Call-site trailing commas are optional and
+left to the author. From the project root, run:
 
 ```shell
 ./gradlew spotlessApply
 ./gradlew spotlessCheck
 ```
 
-`spotlessApply` formats changed Kotlin source files, and `spotlessCheck` is the same check enforced
-by CI. The rollout is ratcheted from commit `882c10136621e07d7992b2e4e7817e870a0169fa`, so existing
-files are formatted in full when they are first changed instead of producing a repository-wide
-formatting commit. CI checks out full Git history so the fixed baseline is always available. Once
-all Kotlin files have passed through the ratchet, the baseline can be removed to enforce the whole
-Android source tree directly.
+`spotlessApply` formats all Kotlin source files across the Android source tree, excluding build
+outputs, generated sources, and dependency sources. `spotlessCheck` enforces the same formatting
+in CI, including the 100-character line limit configured in `.editorconfig`.
 
 Android Studio users can install the ktlint plugin and optionally enable ktlint formatting on save.
 The plugin reads the project `.editorconfig`, including the Android Studio style and trailing-comma

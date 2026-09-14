@@ -123,7 +123,7 @@ class File(
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException(
                 "Artboard \"$name\" not found. " +
-                        "Available Artboards: ${artboardNames.map { "\"$it\"" }}"
+                    "Available Artboards: ${artboardNames.map { "\"$it\"" }}"
             )
         }
 
@@ -164,7 +164,7 @@ class File(
      */
     fun createBindableArtboardByName(
         name: String,
-        viewModelInstance: ViewModelInstance? = null
+        viewModelInstance: ViewModelInstance? = null,
     ): BindableArtboard {
         val artboardPointer = cppCreateBindableArtboardByName(cppPointer, name)
         if (artboardPointer == NULL_POINTER) {
@@ -185,7 +185,9 @@ class File(
      * @return A new [BindableArtboard] instance.
      * @throws ArtboardException If no default artboard exists.
      */
-    fun createDefaultBindableArtboard(viewModelInstance: ViewModelInstance? = null): BindableArtboard {
+    fun createDefaultBindableArtboard(
+        viewModelInstance: ViewModelInstance? = null,
+    ): BindableArtboard {
         val artboardPointer = cppCreateDefaultBindableArtboard(cppPointer)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No default BindableArtboard.")
@@ -264,8 +266,5 @@ class File(
     }
 
     /** The name and values of an enum, whether system or user defined. */
-    data class Enum(
-        val name: String,
-        val values: List<String>,
-    )
+    data class Enum(val name: String, val values: List<String>)
 }

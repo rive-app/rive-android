@@ -6,12 +6,6 @@ import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.core.errors.RiveException
 import app.rive.runtime.kotlin.core.errors.ViewModelException
 import app.rive.runtime.kotlin.test.R
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runTest
-import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,6 +25,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,11 +52,13 @@ class RiveDataBindingTest {
         }
     }
 
+    // World's smallest PNG, 1x1 black pixel
     @OptIn(ExperimentalEncodingApi::class)
     @Suppress("SpellCheckingInspection")
-    // World's smallest PNG, 1x1 black pixel
     val image =
-        Base64.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==")
+        Base64.decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR4AWNgAAAAAgABc3UBGAAAAABJRU5ErkJggg=="
+        )
     val imageAsset = RiveRenderImage.fromEncoded(image)
 
     private fun String.toColor(): Color = Color.fromString(this)
@@ -1319,7 +1321,9 @@ class RiveDataBindingTest {
         val bindableArtboard =
             view.file!!.createBindableArtboardByName("Bindable Artboard With VM", vmi)
         val artboardProperty =
-            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty("Child Artboard")
+            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty(
+                "Child Artboard"
+            )
 
         artboardProperty.set(bindableArtboard)
 
@@ -1352,7 +1356,9 @@ class RiveDataBindingTest {
         val bindableArtboard =
             view.file!!.createBindableArtboardByName("Bindable Artboard With VM", vmi)
         val artboardProperty =
-            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty("Child Artboard")
+            view.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty(
+                "Child Artboard"
+            )
 
         artboardProperty.set(bindableArtboard)
 
@@ -1384,7 +1390,7 @@ class RiveDataBindingTest {
             private val iterationStarted: CountDownLatch,
             private val mapMutated: CountDownLatch,
             unsafeCppPointer: Long,
-            fileLock: ReentrantLock
+            fileLock: ReentrantLock,
         ) : ViewModelInstance(unsafeCppPointer, fileLock) {
             /**
              * This version creates an iterator over the map and holds it. If the operation
@@ -1417,7 +1423,7 @@ class RiveDataBindingTest {
             private val iterationStarted: CountDownLatch,
             private val mapMutated: CountDownLatch,
             unsafeCppPointer: Long,
-            fileLock: ReentrantLock
+            fileLock: ReentrantLock,
         ) : ViewModel(unsafeCppPointer, fileLock) {
             override fun createBlankInstance(): ViewModelInstance {
                 val instancePointer = cppCreateBlankInstance(cppPointer)
@@ -1435,7 +1441,7 @@ class RiveDataBindingTest {
         class LatchedFile(
             private val iterationStarted: CountDownLatch,
             private val mapMutated: CountDownLatch,
-            bytes: ByteArray
+            bytes: ByteArray,
         ) : File(bytes) {
             override fun getViewModelByName(viewModelName: String): ViewModel {
                 val vm = cppViewModelByName(cppPointer, viewModelName)

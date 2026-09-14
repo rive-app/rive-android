@@ -10,7 +10,7 @@ object Helpers {
         fit: Fit,
         alignment: Alignment,
         artboardSpaceBounds: RectF,
-        scaleFactor: Float
+        scaleFactor: Float,
     ): PointF
 
     fun convertToArtboardSpace(
@@ -20,14 +20,12 @@ object Helpers {
         alignment: Alignment,
         artboardBounds: RectF,
         scaleFactor: Float = 1.0f,
-    ): PointF {
-        return cppConvertToArtboardSpace(
-            touchBounds,
-            touchLocation,
-            fit,
-            alignment,
-            artboardBounds,
-            scaleFactor
-        )
-    }
+    ): PointF = cppConvertToArtboardSpace(
+        touchBounds,
+        touchLocation,
+        fit,
+        alignment,
+        artboardBounds,
+        scaleFactor
+    )
 }

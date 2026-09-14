@@ -30,8 +30,11 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
     val hasCppObject get() = unsafeCppPointer.get() != NULL_POINTER
 
     final override var refs = AtomicInteger(
-        if (initialPointer == NULL_POINTER) 0 // null objects cannot be referenced.
-        else 1
+        if (initialPointer == NULL_POINTER) {
+            0 // null objects cannot be referenced.
+        } else {
+            1
+        },
     )
 
     /**
@@ -43,6 +46,7 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
         set(value) {
             unsafeCppPointer.set(value)
         }
+
         @Throws(RiveException::class)
         get() {
             val pointer = unsafeCppPointer.get()
@@ -80,7 +84,9 @@ abstract class NativeObject(initialPointer: Long) : RefCount {
         disposeStackTrace?.also { trace ->
             combinedTrace += StackTraceElement(
                 "--- Stack Trace for NativeObject Dispose ---",
-                "", null, -1
+                "",
+                null,
+                -1
             )
             combinedTrace += trace
             combinedTrace += StackTraceElement("--- Current Stack Trace ---", "", null, -1)

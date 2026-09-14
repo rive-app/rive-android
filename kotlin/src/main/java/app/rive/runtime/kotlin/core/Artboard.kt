@@ -27,9 +27,8 @@ import java.util.concurrent.locks.ReentrantLock
 class Artboard(
     unsafeCppPointer: Long,
     private val fileLock: ReentrantLock,
-    internal val file: File? = null
-) :
-    NativeObject(unsafeCppPointer) {
+    internal val file: File? = null,
+) : NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
 
     private external fun cppAnimationByIndex(cppPointer: Long, index: Int): Long
@@ -53,35 +52,37 @@ class Artboard(
     private external fun cppSetValueOfTextValueRun(
         cppPointer: Long,
         name: String,
-        newText: String
+        newText: String,
     ): Boolean
 
     private external fun cppFindTextValueRunAtPath(
         cppPointer: Long,
         name: String,
-        path: String
+        path: String,
     ): Long
 
     private external fun cppFindValueOfTextValueRunAtPath(
         cppPointer: Long,
         name: String,
-        path: String
+        path: String,
     ): String?
 
     private external fun cppSetValueOfTextValueRunAtPath(
         cppPointer: Long,
         name: String,
         newText: String,
-        path: String
+        path: String,
     ): Boolean
 
     private external fun cppDraw(cppPointer: Long, rendererPointer: Long)
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     protected external fun cppDrawAligned(
-        cppPointer: Long, rendererPointer: Long,
-        fit: Fit, alignment: Alignment,
-        scaleFactor: Float
+        cppPointer: Long,
+        rendererPointer: Long,
+        fit: Fit,
+        alignment: Alignment,
+        scaleFactor: Float,
     )
 
     private external fun cppBounds(cppPointer: Long): RectF
@@ -158,7 +159,7 @@ class Artboard(
         if (animationPointer == NULL_POINTER) {
             throw AnimationException(
                 "Animation \"$name\" not found. " +
-                        "Available Animations: ${animationNames.map { "\"$it\"" }}\""
+                    "Available Animations: ${animationNames.map { "\"$it\"" }}\""
             )
         }
         val lai = LinearAnimationInstance(animationPointer, fileLock)
@@ -232,7 +233,9 @@ class Artboard(
     fun input(name: String, path: String): SMIInput = synchronized(fileLock) {
         val stateMachineInputPointer = cppInputByNameAtPath(cppPointer, name, path)
         if (stateMachineInputPointer == NULL_POINTER) {
-            throw StateMachineInputException("No StateMachineInput found with name \"$name\" in nested artboard $path.")
+            throw StateMachineInputException(
+                "No StateMachineInput found with name \"$name\" in nested artboard $path."
+            )
         }
         val input = SMIInput(stateMachineInputPointer, fileLock)
         convertInput(input)
@@ -280,7 +283,9 @@ class Artboard(
             cppSetValueOfTextValueRun(cppPointer, name, textValue)
         }
         if (!successCheck) {
-            throw TextValueRunException("Could not set text run. No Rive TextValueRun found with name \"$name.\"")
+            throw TextValueRunException(
+                "Could not set text run. No Rive TextValueRun found with name \"$name.\""
+            )
         }
     }
 
@@ -296,7 +301,9 @@ class Artboard(
     fun textRun(name: String, path: String): RiveTextValueRun {
         val textRunPointer = cppFindTextValueRunAtPath(cppPointer, name, path)
         if (textRunPointer == NULL_POINTER) {
-            throw TextValueRunException("No Rive TextValueRun found with name \"$name.\" in nested artboard $path")
+            throw TextValueRunException(
+                "No Rive TextValueRun found with name \"$name.\" in nested artboard $path"
+            )
         }
         val run = RiveTextValueRun(textRunPointer, fileLock)
         dependencies.add(run)
@@ -328,7 +335,9 @@ class Artboard(
             cppSetValueOfTextValueRunAtPath(cppPointer, name, textValue, path)
         }
         if (!successCheck) {
-            throw TextValueRunException("Could not set text run value at path. No Rive TextValueRun found with name \"$name.\" in nested artboard \"$path.\"")
+            throw TextValueRunException(
+                "Could not set text run value at path. No Rive TextValueRun found with name \"$name.\" in nested artboard \"$path.\""
+            )
         }
     }
 
@@ -483,11 +492,15 @@ class Artboard(
     val stateMachineNames: List<String>
         get() = (0 until stateMachineCount).map { cppStateMachineNameByIndex(cppPointer, it) }
 
-    private fun convertInput(input: SMIInput): SMIInput =
-        when {
-            input.isBoolean -> SMIBoolean(input.cppPointer, fileLock)
-            input.isTrigger -> SMITrigger(input.cppPointer, fileLock)
-            input.isNumber -> SMINumber(input.cppPointer, fileLock)
-            else -> throw StateMachineInputException("Unknown State Machine Input Instance for ${input.name}.")
-        }
+    private fun convertInput(input: SMIInput): SMIInput = when {
+        input.isBoolean -> SMIBoolean(input.cppPointer, fileLock)
+
+        input.isTrigger -> SMITrigger(input.cppPointer, fileLock)
+
+        input.isNumber -> SMINumber(input.cppPointer, fileLock)
+
+        else -> throw StateMachineInputException(
+            "Unknown State Machine Input Instance for ${input.name}."
+        )
+    }
 }

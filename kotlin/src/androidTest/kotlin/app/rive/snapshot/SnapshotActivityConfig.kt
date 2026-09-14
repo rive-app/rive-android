@@ -11,7 +11,7 @@ sealed class SnapshotActivityConfig {
     enum class ScenarioType {
         SWEEP,
         DATA_BIND,
-        LAYOUT;
+        LAYOUT,
     }
 
     /** The scenario type used in the intent. */
@@ -78,7 +78,7 @@ sealed class SnapshotActivityConfig {
     data class DataBind(
         val value: String,
         override val scenarioType: ScenarioType = ScenarioType.DATA_BIND,
-        override val artboardName: String = "Data Bind Text"
+        override val artboardName: String = "Data Bind Text",
     ) : SnapshotActivityConfig() {
         companion object {
             const val EXTRA_DATA_BIND_STRING = "app.rive.snapshot.data_bind_value"
@@ -106,7 +106,7 @@ sealed class SnapshotActivityConfig {
         val useLayout: Boolean,
         val layoutScale: Float,
         override val scenarioType: ScenarioType = ScenarioType.LAYOUT,
-        override val artboardName: String = "Layout"
+        override val artboardName: String = "Layout",
     ) : SnapshotActivityConfig() {
         companion object {
             const val EXTRA_LAYOUT = "app.rive.snapshot.layout"

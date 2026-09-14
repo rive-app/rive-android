@@ -1,6 +1,7 @@
 package app.rive
 
 import android.content.res.Resources
+import androidx.annotation.RawRes as RawResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
@@ -15,11 +16,10 @@ import app.rive.core.RiveWorker
 import app.rive.core.SuspendLazy
 import app.rive.runtime.kotlin.core.File.Enum
 import app.rive.runtime.kotlin.core.ViewModel.Property
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
-import androidx.annotation.RawRes as RawResource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val FILE_TAG = "Rive/File"
 
@@ -42,10 +42,8 @@ private const val FILE_TAG = "Rive/File"
  * @param riveWorker The Rive worker that owns and performs operations on this file.
  */
 @Stable
-class RiveFile internal constructor(
-    val fileHandle: FileHandle,
-    val riveWorker: RiveWorker
-) : CheckableAutoCloseable {
+class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: RiveWorker) :
+    CheckableAutoCloseable {
     private val closer = CloseOnce("$fileHandle") {
         RiveLog.d(FILE_TAG) { "Deleting $fileHandle" }
         riveWorker.deleteFile(fileHandle)
@@ -97,15 +95,13 @@ class RiveFile internal constructor(
             IOException::class,
             CancellationException::class
         )
-        suspend fun load(
-            source: RiveFileSource,
-            riveWorker: RiveWorker
-        ): RiveFile {
+        suspend fun load(source: RiveFileSource, riveWorker: RiveWorker): RiveFile {
             RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
             riveWorker.acquire(FILE_TAG)
             val file = try {
                 val fileBytes = when (source) {
                     is RiveFileSource.Bytes -> source.data
+
                     is RiveFileSource.RawRes -> {
                         // Use an I/O worker to load the raw resource bytes
                         withContext(Dispatchers.IO) {
@@ -114,7 +110,9 @@ class RiveFile internal constructor(
                         }
                     }
                 }
-                RiveLog.v(FILE_TAG) { "Loaded Rive file bytes from source: $source; sending to Rive worker" }
+                RiveLog.v(FILE_TAG) {
+                    "Loaded Rive file bytes from source: $source; sending to Rive worker"
+                }
                 val fileHandle = riveWorker.loadFile(fileBytes)
 
                 RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
@@ -154,16 +152,14 @@ class RiveFile internal constructor(
             "Use load. This result-returning implementation will be removed in 12.0, when load " +
                 "will be renamed to fromSource and return the file directly."
         )
-        suspend fun fromSource(
-            source: RiveFileSource,
-            riveWorker: RiveWorker
-        ): Result<RiveFile> = try {
-            Result.Success(load(source, riveWorker))
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            Result.Error(e)
-        }
+        suspend fun fromSource(source: RiveFileSource, riveWorker: RiveWorker): Result<RiveFile> =
+            try {
+                Result.Success(load(source, riveWorker))
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                Result.Error(e)
+            }
     }
 
     init {
@@ -178,7 +174,11 @@ class RiveFile internal constructor(
      * @throws RiveFileException If the file operation fails.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getArtboardNames(): List<String> {
         closer.checkOpen()
         return artboardNamesCache.await()
@@ -196,7 +196,11 @@ class RiveFile internal constructor(
      * @throws RiveFileException If the file operation fails.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getFileAssets(): List<RiveFileAsset> {
         closer.checkOpen()
         return fileAssetsCache.await()
@@ -213,7 +217,11 @@ class RiveFile internal constructor(
      * @throws RiveFileException If the file operation fails.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelNames(): List<String> {
         closer.checkOpen()
         return viewModelNamesCache.await()
@@ -259,7 +267,11 @@ class RiveFile internal constructor(
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      * @see [Property]
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getViewModelProperties(viewModel: String): List<Property> {
         closer.checkOpen()
         return synchronized(propertiesCache) {
@@ -281,7 +293,11 @@ class RiveFile internal constructor(
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
      * @see [Enum]
      */
-    @Throws(RiveFileException::class, RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveFileException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
     suspend fun getEnums(): List<Enum> {
         closer.checkOpen()
         return enumsCache.await()
@@ -332,10 +348,8 @@ sealed interface RiveFileSource {
     @JvmInline
     value class Bytes(val data: ByteArray) : RiveFileSource
 
-    data class RawRes(
-        @param:RawResource val resId: Int,
-        val resources: Resources
-    ) : RiveFileSource {
+    data class RawRes(@param:RawResource val resId: Int, val resources: Resources) :
+        RiveFileSource {
         companion object {
             /**
              * Convenience function for Compose contexts to create a [RawRes] instance.
@@ -365,21 +379,19 @@ sealed interface RiveFileSource {
  *    replacement is created.
  */
 @Composable
-fun rememberRiveFile(
-    source: RiveFileSource,
-    riveWorker: RiveWorker,
-): Result<RiveFile> = key(source, riveWorker) {
-    produceState<Result<RiveFile>>(Result.Loading) {
-        val file = try {
-            RiveFile.load(source, riveWorker)
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            value = Result.Error(e)
-            return@produceState
-        }
+fun rememberRiveFile(source: RiveFileSource, riveWorker: RiveWorker): Result<RiveFile> =
+    key(source, riveWorker) {
+        produceState<Result<RiveFile>>(Result.Loading) {
+            val file = try {
+                RiveFile.load(source, riveWorker)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                value = Result.Error(e)
+                return@produceState
+            }
 
-        value = Result.Success(file)
-        awaitDispose { file.close() }
-    }.value
-}
+            value = Result.Success(file)
+            awaitDispose { file.close() }
+        }.value
+    }

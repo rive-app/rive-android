@@ -5,12 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.RiveSemanticsMode
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AccessibilityComposeTest {
@@ -117,9 +117,7 @@ class AccessibilityComposeTest {
     }
 }
 
-private class FakeAccessibilityStateProvider(
-    initialEnabled: Boolean
-) : AccessibilityStateProvider {
+private class FakeAccessibilityStateProvider(initialEnabled: Boolean) : AccessibilityStateProvider {
     private val listeners = mutableSetOf<AccessibilityEnabledListener>()
     private var enabled = initialEnabled
 

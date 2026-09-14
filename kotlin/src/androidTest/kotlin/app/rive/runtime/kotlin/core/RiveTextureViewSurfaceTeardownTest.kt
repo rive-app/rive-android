@@ -22,46 +22,44 @@ class RiveTextureViewSurfaceTeardownTest {
     }
 
     @Test
-    fun surfaceDestroyed_immediatelyDetachesRenderer() =
-        UiThreadStatement.runOnUiThread {
-            val view = TestUtils.MockRiveAnimationView(appContext, attachOnInit = false)
-            view.mockAttach()
-            val renderer = view.artboardRenderer!!
-            val surfaceTexture = SurfaceTexture(1)
+    fun surfaceDestroyed_immediatelyDetachesRenderer() = UiThreadStatement.runOnUiThread {
+        val view = TestUtils.MockRiveAnimationView(appContext, attachOnInit = false)
+        view.mockAttach()
+        val renderer = view.artboardRenderer!!
+        val surfaceTexture = SurfaceTexture(1)
 
+        view.onSurfaceTextureAvailable(surfaceTexture, 64, 64)
+        assertTrue(renderer.isAttached)
+
+        val listenerReleasedTexture = view.onSurfaceTextureDestroyed(surfaceTexture)
+        assertFalse(listenerReleasedTexture)
+        // We expect that the renderer should immediately be marked as detached when the
+        // callback comes through.
+        assertFalse(renderer.isAttached)
+
+        surfaceTexture.release()
+        view.mockDetach()
+    }
+
+    @Test
+    fun rapidSurfaceDestroyAndRecreateRemainsStable() = UiThreadStatement.runOnUiThread {
+        val view = TestUtils.MockRiveAnimationView(appContext, attachOnInit = false)
+        view.mockAttach()
+        val renderer = view.artboardRenderer!!
+
+        repeat(10) { index ->
+            val surfaceTexture = SurfaceTexture(index + 10)
             view.onSurfaceTextureAvailable(surfaceTexture, 64, 64)
             assertTrue(renderer.isAttached)
 
             val listenerReleasedTexture = view.onSurfaceTextureDestroyed(surfaceTexture)
             assertFalse(listenerReleasedTexture)
-            // We expect that the renderer should immediately be marked as detached when the
-            // callback comes through.
             assertFalse(renderer.isAttached)
-
             surfaceTexture.release()
-            view.mockDetach()
         }
 
-    @Test
-    fun rapidSurfaceDestroyAndRecreateRemainsStable() =
-        UiThreadStatement.runOnUiThread {
-            val view = TestUtils.MockRiveAnimationView(appContext, attachOnInit = false)
-            view.mockAttach()
-            val renderer = view.artboardRenderer!!
-
-            repeat(10) { index ->
-                val surfaceTexture = SurfaceTexture(index + 10)
-                view.onSurfaceTextureAvailable(surfaceTexture, 64, 64)
-                assertTrue(renderer.isAttached)
-
-                val listenerReleasedTexture = view.onSurfaceTextureDestroyed(surfaceTexture)
-                assertFalse(listenerReleasedTexture)
-                assertFalse(renderer.isAttached)
-                surfaceTexture.release()
-            }
-
-            view.mockDetach()
-        }
+        view.mockDetach()
+    }
 
     @Test
     fun surfaceDestroyedAndViewDetached_preservesControllerRefCounts() =

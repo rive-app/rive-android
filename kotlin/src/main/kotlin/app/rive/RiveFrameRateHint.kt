@@ -3,10 +3,7 @@ package app.rive
 import android.os.Build
 import android.view.View
 
-internal fun View.applyRequestedFrameRateHint(
-    frameRate: RiveFrameRate,
-    active: Boolean
-) {
+internal fun View.applyRequestedFrameRateHint(frameRate: RiveFrameRate, active: Boolean) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         return
     }

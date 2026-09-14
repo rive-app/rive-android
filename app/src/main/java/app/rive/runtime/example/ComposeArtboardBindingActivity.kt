@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -37,7 +38,6 @@ import app.rive.rememberArtboardResult
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstanceResult
-import android.graphics.Color as AndroidColor
 
 class ComposeArtboardBindingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,7 +64,9 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
                     rememberArtboardResult(assetFile, "Character 2")
                 )
                 rememberViewModelInstanceResult(mainFile).zip(artboardsResult) {
-                        vmi, (dragonArtboard, crocodileArtboard) ->
+                        vmi,
+                        (dragonArtboard, crocodileArtboard),
+                    ->
                     ArtboardBindingContent(
                         mainFile,
                         vmi,
@@ -80,7 +82,9 @@ class ComposeArtboardBindingActivity : ComponentActivity() {
                 Column(modifier = Modifier.padding(innerPadding)) {
                     when (contentResult) {
                         is Result.Loading -> LoadingIndicator()
+
                         is Result.Error -> ErrorMessage(contentResult.throwable)
+
                         is Result.Success -> {
                             val (mainFile, vmi, dragonArtboard, crocodileArtboard) =
                                 contentResult.value

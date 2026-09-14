@@ -36,7 +36,7 @@ class Artboard internal constructor(
 ) : CheckableAutoCloseable {
     private val closer = CloseOnce("$artboardHandle") {
         val nameLog = name?.let { "with name $it" } ?: "(default)"
-        RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle $nameLog (${fileHandle})" }
+        RiveLog.d(ARTBOARD_TAG) { "Deleting $artboardHandle $nameLog ($fileHandle)" }
         riveWorker.deleteArtboard(artboardHandle)
     }
 
@@ -85,10 +85,7 @@ class Artboard internal constructor(
             RiveResourceClosedException::class,
             CancellationException::class
         )
-        suspend fun create(
-            file: RiveFile,
-            artboardName: String? = null
-        ): Artboard {
+        suspend fun create(file: RiveFile, artboardName: String? = null): Artboard {
             val nameLog = artboardName?.let { "with name $it" } ?: "(default)"
             RiveLog.d(ARTBOARD_TAG) {
                 "Creating artboard $nameLog (${file.fileHandle})"
@@ -136,10 +133,7 @@ class Artboard internal constructor(
                 "will be renamed to fromFile as a suspending API."
         )
         @Suppress("DEPRECATION")
-        fun fromFile(
-            file: RiveFile,
-            artboardName: String? = null
-        ): Artboard {
+        fun fromFile(file: RiveFile, artboardName: String? = null): Artboard {
             file.checkOpen()
             val handle = artboardName?.let { name ->
                 file.riveWorker.createArtboardByName(file.fileHandle, name)
@@ -241,10 +235,7 @@ class Artboard internal constructor(
      * @throws RiveIncompatibleResourceException If [surface] is owned by another Rive worker.
      */
     @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
-    fun resizeArtboard(
-        surface: RiveSurface,
-        scaleFactor: Float = 1f
-    ) {
+    fun resizeArtboard(surface: RiveSurface, scaleFactor: Float = 1f) {
         closer.checkOpen()
         surface.checkOpen()
         surface.requireOwnedBy(riveWorker)
@@ -330,10 +321,7 @@ class Artboard internal constructor(
 )
 @Suppress("DEPRECATION")
 @Composable
-fun rememberArtboard(
-    file: RiveFile,
-    artboardName: String? = null,
-): Artboard {
+fun rememberArtboard(file: RiveFile, artboardName: String? = null): Artboard {
     val artboard = remember(file, artboardName) {
         Artboard.fromFile(file, artboardName)
     }
@@ -362,21 +350,19 @@ fun rememberArtboard(
  *    created.
  */
 @Composable
-fun rememberArtboardResult(
-    file: RiveFile,
-    artboardName: String? = null,
-): Result<Artboard> = key(file, artboardName) {
-    produceState<Result<Artboard>>(Result.Loading) {
-        val artboard = try {
-            Artboard.create(file, artboardName)
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            value = Result.Error(e)
-            return@produceState
-        }
+fun rememberArtboardResult(file: RiveFile, artboardName: String? = null): Result<Artboard> =
+    key(file, artboardName) {
+        produceState<Result<Artboard>>(Result.Loading) {
+            val artboard = try {
+                Artboard.create(file, artboardName)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                value = Result.Error(e)
+                return@produceState
+            }
 
-        value = Result.Success(artboard)
-        awaitDispose { artboard.close() }
-    }.value
-}
+            value = Result.Success(artboard)
+            awaitDispose { artboard.close() }
+        }.value
+    }

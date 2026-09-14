@@ -5,12 +5,12 @@ import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.errors.TextValueRunException
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.assertFailsWith
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.test.assertFailsWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveTextValueRunTest {
@@ -144,7 +144,7 @@ class RiveTextValueRunTest {
         name: String,
         path: String,
         originalValue: String,
-        updatedValue: String
+        updatedValue: String,
     ) {
         // Get the text value run. This should increase the dependency count
         val textRun = artboard.textRun(name, path = path)

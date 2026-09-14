@@ -207,7 +207,8 @@ class ArtboardUnitTest : FunSpec({
             "Test Artboard",
         )
         val surface = mockk<RiveSurface>()
-        every { surface.checkOpen() } throws RiveResourceClosedException("RiveSurface is closed")
+        every { surface.checkOpen() } throws
+            RiveResourceClosedException("RiveSurface is closed")
 
         shouldThrow<RiveResourceClosedException> {
             artboard.resizeArtboard(surface)

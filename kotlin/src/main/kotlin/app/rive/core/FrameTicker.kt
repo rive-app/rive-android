@@ -3,9 +3,9 @@ package app.rive.core
 import android.view.Choreographer
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.AndroidUiDispatcher
+import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
 
 /** A way of getting frame callbacks every vsync. */
 fun interface FrameTicker {

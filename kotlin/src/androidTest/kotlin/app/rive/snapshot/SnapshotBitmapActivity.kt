@@ -17,10 +17,10 @@ import app.rive.ViewModelSource
 import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 private const val BITMAP_TAG = "Rive/BitmapSnapshotActivity"
 
@@ -30,7 +30,9 @@ private const val BITMAP_TAG = "Rive/BitmapSnapshotActivity"
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
+class SnapshotBitmapActivity :
+    ComponentActivity(),
+    SnapshotActivityResult {
     companion object {
         /**
          * Creates an Intent to launch this activity with the specified configuration.
@@ -38,12 +40,10 @@ class SnapshotBitmapActivity : ComponentActivity(), SnapshotActivityResult {
          * @param context The context to use for creating the Intent.
          * @param config The configuration for the snapshot activity.
          */
-        fun createIntent(
-            context: android.content.Context,
-            config: SnapshotActivityConfig
-        ): Intent = Intent(context, SnapshotBitmapActivity::class.java).apply {
-            config.applyToIntent(this)
-        }
+        fun createIntent(context: android.content.Context, config: SnapshotActivityConfig): Intent =
+            Intent(context, SnapshotBitmapActivity::class.java).apply {
+                config.applyToIntent(this)
+            }
     }
 
     override lateinit var resultBitmap: Bitmap

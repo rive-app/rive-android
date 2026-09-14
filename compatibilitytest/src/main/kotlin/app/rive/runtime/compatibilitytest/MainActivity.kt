@@ -92,7 +92,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setView(setup: RendererSetup, test: AnimationTest) {
-
         val builder = RiveAnimationView.Builder(context = applicationContext).apply {
             this.setFit(Fit.CONTAIN)
             this.setRendererType(setup.type)

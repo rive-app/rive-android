@@ -16,9 +16,9 @@ import app.rive.core.StateMachineHandle
 import app.rive.core.SurfaceTextureSurface
 import app.rive.core.traceSection
 import app.rive.core.withFrameNanosChoreographer
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * An experimental View-based Rive renderer.
@@ -67,7 +67,15 @@ class RiveView @JvmOverloads constructor(
                     var shouldBreak = false
                     val deltaTime = withFrameNanosChoreographer { frameTimeNs ->
                         val frameTime = frameTimeNs.nanoseconds
-                        (if (lastFrameTime == 0.nanoseconds) 0.nanoseconds else frameTime - lastFrameTime).also {
+                        (
+                            if (lastFrameTime ==
+                                0.nanoseconds
+                            ) {
+                                0.nanoseconds
+                            } else {
+                                frameTime - lastFrameTime
+                            }
+                            ).also {
                             lastFrameTime = frameTime
                         }
                     }
@@ -117,7 +125,7 @@ class RiveView @JvmOverloads constructor(
             override fun onSurfaceTextureAvailable(
                 newSurfaceTexture: SurfaceTexture,
                 width: Int,
-                height: Int
+                height: Int,
             ) {
                 this@RiveView.surfaceTexture = newSurfaceTexture
                 surfaceWidth = width
@@ -127,7 +135,9 @@ class RiveView @JvmOverloads constructor(
                 }
             }
 
-            override fun onSurfaceTextureDestroyed(destroyedSurfaceTexture: SurfaceTexture): Boolean {
+            override fun onSurfaceTextureDestroyed(
+                destroyedSurfaceTexture: SurfaceTexture,
+            ): Boolean {
                 riveSurface = null
                 // False here means that we are responsible for destroying the surface texture.
                 // This happens when the RiveSurface is closed.
@@ -135,7 +145,9 @@ class RiveView @JvmOverloads constructor(
             }
 
             override fun onSurfaceTextureSizeChanged(
-                surfaceTexture: SurfaceTexture, width: Int, height: Int
+                surfaceTexture: SurfaceTexture,
+                width: Int,
+                height: Int,
             ) {
                 this@RiveView.surfaceTexture = surfaceTexture
                 surfaceWidth = width
@@ -165,30 +177,26 @@ class RiveView @JvmOverloads constructor(
      */
     @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
     @Suppress("DEPRECATION") // This synchronous API still intentionally queues provisional handles.
-    fun setRiveFile(
-        file: RiveFile,
-        artboard: Artboard? = null,
-        stateMachineName: String? = null
-    ) {
+    fun setRiveFile(file: RiveFile, artboard: Artboard? = null, stateMachineName: String? = null) {
         file.checkOpen()
         artboard?.checkOpen()
         artboard?.requireFromFile(file)
         riveFile = file
         artboardHandle =
             artboard?.artboardHandle ?: file.riveWorker.createDefaultArtboard(file.fileHandle)
-        stateMachineHandle = if (stateMachineName != null)
+        stateMachineHandle = if (stateMachineName != null) {
             file.riveWorker.createStateMachineByName(artboardHandle!!, stateMachineName)
-        else
+        } else {
             file.riveWorker.createDefaultStateMachine(artboardHandle!!)
+        }
 
         if (surfaceTexture != null && riveSurface == null) {
             riveSurface = createRiveSurface(file, surfaceTexture!!)
         }
     }
 
-    private fun createRiveSurface(file: RiveFile, surfaceTexture: SurfaceTexture): RiveSurface {
-        return file.riveWorker.createRiveSurface(
+    private fun createRiveSurface(file: RiveFile, surfaceTexture: SurfaceTexture): RiveSurface =
+        file.riveWorker.createRiveSurface(
             SurfaceTextureSurface(surfaceTexture, surfaceWidth, surfaceHeight)
         )
-    }
 }

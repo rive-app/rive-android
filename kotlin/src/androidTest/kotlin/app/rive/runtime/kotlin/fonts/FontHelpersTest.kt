@@ -6,6 +6,8 @@ import app.rive.runtime.kotlin.core.NativeFontTestHelper
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
+import java.io.ByteArrayInputStream
+import java.nio.charset.Charset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -16,8 +18,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.xmlpull.v1.XmlPullParserException
-import java.io.ByteArrayInputStream
-import java.nio.charset.Charset
 
 @RunWith(AndroidJUnit4::class)
 class FontHelpersTest {
@@ -84,10 +84,10 @@ class FontHelpersTest {
             )
 
             val expectedSerifFontNames = setOf(
-                "NotoSerif-Regular.ttf",    // weight 400, style normal
-                "NotoSerif-Bold.ttf",       // weight 700, style normal
-                "NotoSerif-Italic.ttf",     // weight 400, style italic
-                "NotoSerif-BoldItalic.ttf"  // weight 700, style italic
+                "NotoSerif-Regular.ttf", // weight 400, style normal
+                "NotoSerif-Bold.ttf", // weight 700, style normal
+                "NotoSerif-Italic.ttf", // weight 400, style italic
+                "NotoSerif-BoldItalic.ttf" // weight 700, style italic
             )
             val actualSerifFontNames = serifFonts.map { it.name }.toSet()
 
@@ -123,7 +123,7 @@ class FontHelpersTest {
             <font weight="400">DroidSansFallback.ttf</font>
         </family>
     </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithFallbacks.toByteArray(Charsets.UTF_8))
         val families = SystemFontsParser.parseFontsXMLMap(inputStream)
@@ -275,8 +275,12 @@ class FontHelpersTest {
                 )
             )
             val expectedSansSerifNormal = setOf(
-                "Roboto-Thin.ttf", "Roboto-Light.ttf", "Roboto-Regular.ttf",
-                "Roboto-Medium.ttf", "Roboto-Black.ttf", "Roboto-Bold.ttf"
+                "Roboto-Thin.ttf",
+                "Roboto-Light.ttf",
+                "Roboto-Regular.ttf",
+                "Roboto-Medium.ttf",
+                "Roboto-Black.ttf",
+                "Roboto-Bold.ttf"
             )
             assertEquals(
                 expectedSansSerifNormal.size, // => 6 vals
@@ -298,8 +302,12 @@ class FontHelpersTest {
                 )
             )
             val expectedSansSerifItalic = setOf(
-                "Roboto-ThinItalic.ttf", "Roboto-LightItalic.ttf", "Roboto-Italic.ttf",
-                "Roboto-MediumItalic.ttf", "Roboto-BlackItalic.ttf", "Roboto-BoldItalic.ttf"
+                "Roboto-ThinItalic.ttf",
+                "Roboto-LightItalic.ttf",
+                "Roboto-Italic.ttf",
+                "Roboto-MediumItalic.ttf",
+                "Roboto-BlackItalic.ttf",
+                "Roboto-BoldItalic.ttf"
             )
 
             assertEquals(
@@ -332,7 +340,7 @@ class FontHelpersTest {
             <font weight="400">UnnamedKorean.ttf</font>
         </family>
     </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithMultipleLanguages.toByteArray(Charsets.UTF_8))
         val families = SystemFontsParser.parseFontsXMLMap(inputStream)
@@ -582,7 +590,6 @@ class FontHelpersTest {
                 assertTrue(weightedFonts?.size == 1)
                 assertNotNull(weightedFonts?.find { it.name == fontName })
             }
-
         }
     }
 
@@ -937,7 +944,7 @@ class FontHelpersTest {
         </font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(Charset.forName("UTF-16").encode(systemFontXml).array())
@@ -961,7 +968,7 @@ class FontHelpersTest {
         </font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(Charset.forName("UTF-16").encode(systemFontXml).array())
@@ -983,7 +990,7 @@ class FontHelpersTest {
         <font weight="400">Roboto-Regular.ttf</font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1010,7 +1017,7 @@ class FontHelpersTest {
         <font weight="400" style="normal">Roboto-Regular.ttf</font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1038,7 +1045,7 @@ class FontHelpersTest {
         <font weight="700" style="bold">Roboto-Bold.ttf</font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1068,7 +1075,7 @@ class FontHelpersTest {
     <family name="Roboto" lang="en" variant="compact">
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1086,7 +1093,7 @@ class FontHelpersTest {
         <font weight="400" style="normal">Roboto-Regular.ttf</font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1107,7 +1114,7 @@ class FontHelpersTest {
         </font>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1138,7 +1145,7 @@ class FontHelpersTest {
         </fileset>
     </family>
 </familyset>
-""".trimIndent()
+        """.trimIndent()
 
         val inputStream =
             ByteArrayInputStream(systemFontXml.toByteArray(Charsets.UTF_8))
@@ -1298,7 +1305,7 @@ class FontHelpersTest {
                  </family>
                  <alias name="bad-alias" to="non-existent-family" />
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1324,7 +1331,7 @@ class FontHelpersTest {
                  </family>
                  <alias name="collision-name" to="another-family" />
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1349,7 +1356,7 @@ class FontHelpersTest {
                  </family>
                  <alias name="weighted-bad" to="target-family" weight="700" />
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1383,7 +1390,7 @@ class FontHelpersTest {
                      <font weight="400" /> <!-- Empty font tag -->
                  </family>
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         // Current parser throws IllegalStateException for empty filename in readFont,
         // which is caught in readFamily, resulting in the family being skipped.
@@ -1407,7 +1414,7 @@ class FontHelpersTest {
                      <font weight="400">SecondFont.ttf</font>
                  </family>
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1436,7 +1443,7 @@ class FontHelpersTest {
                  </family>
                  <!-- Another comment -->
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1464,7 +1471,7 @@ class FontHelpersTest {
                  </familyset>
                  <alias name="outer-alias" to="outer-family"/>
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
 
@@ -1509,7 +1516,7 @@ class FontHelpersTest {
                 <font weight="400">ValidFont.ttf</font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(malformedXml.toByteArray(Charsets.UTF_8))
 
@@ -1534,7 +1541,7 @@ class FontHelpersTest {
                 <font weight="400">KoreanBackup.ttf</font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithMultipleLanguages.toByteArray(Charsets.UTF_8))
         val families = SystemFontsParser.parseFontsXMLMap(inputStream)
@@ -1557,7 +1564,7 @@ class FontHelpersTest {
                 <font weight="400"><![CDATA[CdataFont.ttf]]></font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithCdata.toByteArray(Charsets.UTF_8))
         val result = SystemFontsParser.parseFontsXMLMap(inputStream)
@@ -1609,7 +1616,7 @@ class FontHelpersTest {
                 <font weight="400">ResetTest.ttf</font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(mockXml.toByteArray(Charsets.UTF_8))
 
@@ -1639,7 +1646,7 @@ class FontHelpersTest {
         <font weight="400" style="normal">SimpleFont.ttf</font>
       </family>
     </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithNewAttrs.toByteArray(Charsets.UTF_8))
         val families = SystemFontsParser.parseFontsXMLMap(inputStream)
@@ -1728,7 +1735,7 @@ class FontHelpersTest {
             <font weight="400">DroidSansFallback.ttf</font>
         </family>
     </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithFallbacks.toByteArray(Charsets.UTF_8))
         val familiesList = SystemFontsParser.parseFontsXML(inputStream)
@@ -1771,7 +1778,7 @@ class FontHelpersTest {
                      <font weight="400">SecondFont.ttf</font>
                  </family>
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         // parseFontsXML includes alias resolution which might affect the final list structure
         // if these were aliases. Here they are direct families.
@@ -1784,9 +1791,17 @@ class FontHelpersTest {
 
         // Check that both versions are present
         assertTrue(
-            duplicateFamilies.any { it.fonts[Fonts.Weight.NORMAL]?.firstOrNull()?.name == "FirstFont.ttf" })
+            duplicateFamilies.any {
+                it.fonts[Fonts.Weight.NORMAL]?.firstOrNull()?.name ==
+                    "FirstFont.ttf"
+            }
+        )
         assertTrue(
-            duplicateFamilies.any { it.fonts[Fonts.Weight.NORMAL]?.firstOrNull()?.name == "SecondFont.ttf" })
+            duplicateFamilies.any {
+                it.fonts[Fonts.Weight.NORMAL]?.firstOrNull()?.name ==
+                    "SecondFont.ttf"
+            }
+        )
 
         val otherFamily = resultList.find { it.name == "other" }
         assertNotNull(otherFamily)
@@ -1836,7 +1851,7 @@ class FontHelpersTest {
                  </family>
                  <alias name="collision-name" to="another-family" />
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val resultList = SystemFontsParser.parseFontsXML(inputStream)
 
@@ -1870,7 +1885,7 @@ class FontHelpersTest {
                  </familyset>
                  <alias name="outer-alias" to="outer-family"/>
              </familyset>
-         """.trimIndent()
+        """.trimIndent()
         val inputStream = ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8))
         val resultList =
             SystemFontsParser.parseFontsXML(inputStream) // Calls readRootElement (list version)
@@ -1982,7 +1997,7 @@ class FontHelpersTest {
                 <font weight="400">Default.ttf</font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         val inputStream = ByteArrayInputStream(xmlWithMultipleUnnamed.toByteArray(Charsets.UTF_8))
         val families = SystemFontsParser.parseFontsXML(inputStream)
@@ -2026,7 +2041,7 @@ class FontHelpersTest {
                 <font weight="700">ChineseSpecific-Bold.ttf</font>
             </family>
         </familyset>
-    """.trimIndent()
+        """.trimIndent()
 
         // Map loses data with collisions...
         val mapStream =

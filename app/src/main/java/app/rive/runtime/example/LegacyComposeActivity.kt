@@ -36,7 +36,7 @@ fun CustomRiveAnimationView(
     modifier: Modifier = Modifier,
     @RawRes animation: Int,
     stateMachineName: String? = null,
-    alignment: Alignment = Alignment.CENTER
+    alignment: Alignment = Alignment.CENTER,
 ) {
     AndroidView(
         modifier = modifier,

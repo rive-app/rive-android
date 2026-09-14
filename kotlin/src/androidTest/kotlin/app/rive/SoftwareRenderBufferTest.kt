@@ -5,16 +5,16 @@ import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.withRiveResources
 import app.rive.core.withPolling
+import app.rive.core.withRiveResources
 import app.rive.runtime.kotlin.test.R
-import kotlinx.coroutines.runBlocking
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.runBlocking
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SoftwareRenderBufferTest : RiveAndroidTest() {

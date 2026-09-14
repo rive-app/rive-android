@@ -52,7 +52,6 @@ fun ColumnScope.LabelledComponent(label: String, component: @Composable ColumnSc
     component()
 }
 
-
 /**
  * Slider that shows the current value on the left and a Slider on the right.
  *
@@ -108,7 +107,7 @@ fun ColorSwatch(
     color: Color,
     setColor: (Color) -> Unit,
     modifier: Modifier = Modifier,
-    children: @Composable () -> Unit = {}
+    children: @Composable () -> Unit = {},
 ) {
     Box(
         modifier = modifier
@@ -141,7 +140,7 @@ fun ColorSwatch(
 fun ColorSwatchRow(
     colors: List<Pair<Color, @Composable () -> Unit>>,
     setColor: (Color) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -170,7 +169,7 @@ fun ColorSwatchRow(
 fun RadioGroup(
     options: List<Pair<String, String?>>,
     selectedOption: String,
-    onOptionSelected: (String) -> Unit
+    onOptionSelected: (String) -> Unit,
 ) {
     Row {
         options.forEach { option ->

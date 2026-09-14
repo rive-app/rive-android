@@ -27,12 +27,10 @@ class AssetLoaderActivity : FragmentActivity() {
         binding.viewPager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 3
 
-            override fun createFragment(position: Int): Fragment {
-                return when (position) {
-                    0 -> AssetLoaderFragment()
-                    1 -> AssetButtonFragment()
-                    else -> FontAssetFragment()
-                }
+            override fun createFragment(position: Int): Fragment = when (position) {
+                0 -> AssetLoaderFragment()
+                1 -> AssetButtonFragment()
+                else -> FontAssetFragment()
             }
         }
 
@@ -55,8 +53,11 @@ class AssetLoaderActivity : FragmentActivity() {
 class WalleAssetLoader(context: Context) : ContextAssetLoader(context) {
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         val identifier =
-            if (asset.uniqueFilename.contains("eve")) R.raw.walle_img_eve
-            else R.raw.walle_img_walle
+            if (asset.uniqueFilename.contains("eve")) {
+                R.raw.walle_img_eve
+            } else {
+                R.raw.walle_img_walle
+            }
 
         context.resources.openRawResource(identifier).use {
             asset.decode(it.readBytes())

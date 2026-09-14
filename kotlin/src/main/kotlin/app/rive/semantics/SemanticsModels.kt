@@ -89,7 +89,8 @@ enum class SemanticRole(val value: Int) {
     RadioGroup(16),
 
     /** Mutually exclusive choice within a radio group. */
-    RadioButton(17);
+    RadioButton(17),
+    ;
 
     companion object {
         /**
@@ -101,8 +102,7 @@ enum class SemanticRole(val value: Int) {
          * @param value Core role integer to interpret.
          * @return Matching role, or [None] when this SDK does not recognize [value].
          */
-        fun fromValue(value: Int): SemanticRole =
-            entries.firstOrNull { it.value == value } ?: None
+        fun fromValue(value: Int): SemanticRole = entries.firstOrNull { it.value == value } ?: None
     }
 }
 
@@ -233,12 +233,14 @@ object SemanticState {
      * @param flags Bitmask from [SemanticNodeData.stateFlags].
      * @return The decoded check state.
      */
-    fun checkState(flags: Int): SemanticCheckState =
-        when ((flags and CHECK_STATE_MASK) ushr CHECK_STATE_OFFSET) {
-            0 -> SemanticCheckState.Unchecked
-            1 -> SemanticCheckState.Checked
-            else -> SemanticCheckState.Mixed
-        }
+    fun checkState(flags: Int): SemanticCheckState = when (
+        (flags and CHECK_STATE_MASK) ushr
+            CHECK_STATE_OFFSET
+    ) {
+        0 -> SemanticCheckState.Unchecked
+        1 -> SemanticCheckState.Checked
+        else -> SemanticCheckState.Mixed
+    }
 
     /**
      * Returns whether the decoded check state is checked.
@@ -248,8 +250,7 @@ object SemanticState {
      * @param flags Bitmask from [SemanticNodeData.stateFlags].
      * @return `true` when [checkState] returns [SemanticCheckState.Checked].
      */
-    fun effectiveChecked(flags: Int): Boolean =
-        checkState(flags) == SemanticCheckState.Checked
+    fun effectiveChecked(flags: Int): Boolean = checkState(flags) == SemanticCheckState.Checked
 
     /**
      * Returns whether the effective check state is mixed or indeterminate.
@@ -259,8 +260,7 @@ object SemanticState {
      * @param flags Bitmask from [SemanticNodeData.stateFlags].
      * @return `true` when [checkState] returns [SemanticCheckState.Mixed].
      */
-    fun effectiveMixed(flags: Int): Boolean =
-        checkState(flags) == SemanticCheckState.Mixed
+    fun effectiveMixed(flags: Int): Boolean = checkState(flags) == SemanticCheckState.Mixed
 }
 
 /**
@@ -286,10 +286,7 @@ internal data class SemanticsDiffNode(
 /**
  * Authoritative child ordering for a parent.
  */
-internal data class SemanticsChildrenUpdate(
-    val parentId: Int,
-    val childIds: IntArray,
-)
+internal data class SemanticsChildrenUpdate(val parentId: Int, val childIds: IntArray)
 
 /**
  * Bounds-only update.

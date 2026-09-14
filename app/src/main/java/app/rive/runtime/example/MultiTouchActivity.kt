@@ -40,8 +40,8 @@ import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.runtime.kotlin.RiveAnimationView
-import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 class MultiTouchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,9 +85,9 @@ private fun MultiTouchScreen() {
             "Finger $slot: —"
         } else {
             "Finger $slot: (" +
-                    String.format(locale, "X: %.1f", x) + ", " +
-                    String.format(locale, "Y: %.1f", y) + ", " +
-                    "ID: ${s.pointerId})"
+                String.format(locale, "X: %.1f", x) + ", " +
+                String.format(locale, "Y: %.1f", y) + ", " +
+                "ID: ${s.pointerId})"
         }
     }
 
@@ -130,7 +130,11 @@ private fun MultiTouchScreen() {
                             when (event.actionMasked) {
                                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                                     val i = event.actionIndex
-                                    if (!multiTouchEnabled && i != 0) return@setOnTouchListener false
+                                    if (!multiTouchEnabled &&
+                                        i != 0
+                                    ) {
+                                        return@setOnTouchListener false
+                                    }
                                     val id = event.getPointerId(i)
                                     var slot = findSlotForPointerId(id)
                                     if (slot == -1) slot = firstFreeSlot()
@@ -141,10 +145,15 @@ private fun MultiTouchScreen() {
 
                                 MotionEvent.ACTION_MOVE -> {
                                     val range =
-                                        if (multiTouchEnabled) 0 until event.pointerCount else 0 until minOf(
-                                            1,
-                                            event.pointerCount
-                                        )
+                                        if (multiTouchEnabled) {
+                                            0 until event.pointerCount
+                                        } else {
+                                            0 until
+                                                minOf(
+                                                    1,
+                                                    event.pointerCount
+                                                )
+                                        }
                                     for (i in range) {
                                         val id = event.getPointerId(i)
                                         val slot = findSlotForPointerId(id)
@@ -156,7 +165,11 @@ private fun MultiTouchScreen() {
 
                                 MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                                     val i = event.actionIndex
-                                    if (!multiTouchEnabled && i != 0) return@setOnTouchListener false
+                                    if (!multiTouchEnabled &&
+                                        i != 0
+                                    ) {
+                                        return@setOnTouchListener false
+                                    }
                                     val id = event.getPointerId(i)
                                     val slot = findSlotForPointerId(id)
                                     if (slot != -1) clearSlot(slot)

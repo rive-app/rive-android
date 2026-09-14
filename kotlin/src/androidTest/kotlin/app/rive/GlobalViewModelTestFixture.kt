@@ -31,10 +31,7 @@ internal object GlobalViewModelTestFixture {
     const val SET_GLOBAL_2 = "Set Global 2"
 
     /** Identifies one named view model instance to create for a binding test. */
-    data class InstanceSpec(
-        val viewModel: String,
-        val instance: String,
-    )
+    data class InstanceSpec(val viewModel: String, val instance: String)
 
     /**
      * Creates and owns an arbitrary number of named view model instances for [block].

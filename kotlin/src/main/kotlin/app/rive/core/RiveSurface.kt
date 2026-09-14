@@ -46,7 +46,7 @@ abstract class RiveSurface internal constructor(
      * [ImageReaderSurface] and off-screen image surfaces, must be recreated at the desired size
      * instead.
      */
-    val resizable: Boolean
+    val resizable: Boolean,
 ) : CheckableAutoCloseable {
     companion object {
         /**
@@ -63,11 +63,7 @@ abstract class RiveSurface internal constructor(
 
         @JvmStatic
         @WorkerThread
-        private external fun cppResizeSurface(
-            surfacePointer: Long,
-            width: Int,
-            height: Int
-        )
+        private external fun cppResizeSurface(surfacePointer: Long, width: Int, height: Int)
     }
 
     /** The width of the surface in pixels. */
@@ -246,8 +242,9 @@ abstract class RiveSurface internal constructor(
      * @deprecated Use [RiveSurface] operations. This property will become non-public in 12.0.
      */
     @Deprecated(
-        message = "Direct native pointer access can violate RiveSurface lifecycle and will become " +
-            "non-public in 12.0. Use RiveSurface operations instead.",
+        message =
+            "Direct native pointer access can violate RiveSurface lifecycle and will become " +
+                "non-public in 12.0. Use RiveSurface operations instead.",
         level = DeprecationLevel.WARNING
     )
     val surfaceNativePointer: UniquePointer
@@ -284,7 +281,7 @@ internal class RiveSurfaceGL(
     drawKey: DrawKey,
     width: Int,
     height: Int,
-    resizable: Boolean
+    resizable: Boolean,
 ) : RiveSurface(
     commandQueue,
     nativeSurfacePointer,
@@ -292,7 +289,8 @@ internal class RiveSurfaceGL(
     width,
     height,
     resizable
-), AutoCloseable {
+),
+    AutoCloseable {
     companion object {
         const val TAG = "Rive/SurfaceGL"
     }
@@ -319,7 +317,6 @@ internal class RiveSurfaceGL(
         // ... Then dispose of base class resources
         super.dispose()
     }
-
 }
 
 /**
@@ -337,7 +334,7 @@ internal class RiveSurfaceGLPBuffer(
     nativeSurfacePointer: Long,
     drawKey: DrawKey,
     width: Int,
-    height: Int
+    height: Int,
 ) : RiveSurface(
     commandQueue,
     nativeSurfacePointer,
@@ -345,7 +342,8 @@ internal class RiveSurfaceGLPBuffer(
     width,
     height,
     resizable = false
-), AutoCloseable {
+),
+    AutoCloseable {
     companion object {
         const val TAG = "Rive/SurfaceGLPBuffer"
     }
@@ -389,7 +387,7 @@ internal class RiveSurfaceVulkan(
     drawKey: DrawKey,
     width: Int,
     height: Int,
-    resizable: Boolean
+    resizable: Boolean,
 ) : RiveSurface(
     commandQueue,
     nativeSurfacePointer,
@@ -397,7 +395,8 @@ internal class RiveSurfaceVulkan(
     width,
     height,
     resizable
-), AutoCloseable {
+),
+    AutoCloseable {
     companion object {
         const val TAG = "Rive/SurfaceVulkan"
 
@@ -406,7 +405,7 @@ internal class RiveSurfaceVulkan(
             renderContextPointer: Long,
             surface: Surface,
             width: Int,
-            height: Int
+            height: Int,
         ): Long
 
         /**
@@ -431,7 +430,7 @@ internal class RiveSurfaceVulkan(
             renderContext: RenderContextVulkan,
             surface: CloseableSurface,
             commandQueue: CommandQueue,
-            drawKey: DrawKey
+            drawKey: DrawKey,
         ): RiveSurfaceVulkan {
             if (!surface.surface.isValid) {
                 throw RiveRenderException("Unable to create Android Surface")
@@ -492,7 +491,7 @@ internal class RiveSurfaceVulkanImage(
     commandQueue: CommandQueue,
     drawKey: DrawKey,
     width: Int,
-    height: Int
+    height: Int,
 ) : RiveSurface(
     commandQueue,
     nativeSurfacePointer,
@@ -500,7 +499,8 @@ internal class RiveSurfaceVulkanImage(
     width,
     height,
     resizable = false
-), AutoCloseable {
+),
+    AutoCloseable {
     companion object {
         const val TAG = "Rive/SurfaceVulkanImage"
 
@@ -508,7 +508,7 @@ internal class RiveSurfaceVulkanImage(
         private external fun cppCreateImageSurface(
             renderContextPointer: Long,
             width: Int,
-            height: Int
+            height: Int,
         ): Long
 
         /**
@@ -538,7 +538,7 @@ internal class RiveSurfaceVulkanImage(
             width: Int,
             height: Int,
             commandQueue: CommandQueue,
-            drawKey: DrawKey
+            drawKey: DrawKey,
         ): RiveSurfaceVulkanImage {
             require(width > 0 && height > 0) {
                 "Image surfaces require a positive width and height."

@@ -2,12 +2,12 @@ package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveViewResourceValidationTest : RiveAndroidTest() {

@@ -10,9 +10,9 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.clearMocks
 import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.just
@@ -57,7 +57,8 @@ class AssetUnitTest : FunSpec({
 
         test("${case.name} factory propagates cancellation") {
             val worker = mockk<CommandQueue>(relaxed = true)
-            val cancellation = CancellationException("Cancelled ${case.name.lowercase()} decode")
+            val cancellation =
+                CancellationException("Cancelled ${case.name.lowercase()} decode")
             case.stubFailure(worker, cancellation)
 
             shouldThrow<CancellationException> {

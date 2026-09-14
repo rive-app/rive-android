@@ -34,9 +34,7 @@ import app.rive.runtime.kotlin.core.Rive
  * used. In fact, if you want to provide a custom renderer type you'll need to init Rive manually.
  */
 class RiveInitializer : Initializer<Unit> {
-    override fun create(context: Context) {
-        return Rive.init(context)
-    }
+    override fun create(context: Context) = Rive.init(context)
 
     override fun dependencies(): List<Class<out Initializer<*>>> {
         // No dependencies on other libraries.

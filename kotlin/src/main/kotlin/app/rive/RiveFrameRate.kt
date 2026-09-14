@@ -66,7 +66,7 @@ sealed interface RiveFrameRate {
  */
 internal class RiveFramePacer(
     frameRate: RiveFrameRate,
-    private val earlyWake: Duration = DEFAULT_EARLY_WAKE
+    private val earlyWake: Duration = DEFAULT_EARLY_WAKE,
 ) {
     private val period = (frameRate as? RiveFrameRate.Capped)?.period
     private var nextRenderTimeNs = 0L

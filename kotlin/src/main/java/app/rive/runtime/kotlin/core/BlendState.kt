@@ -7,7 +7,5 @@ package app.rive.runtime.kotlin.core
  */
 class BlendState(unsafeCppPointer: Long) : LayerState(unsafeCppPointer) {
 
-    override fun toString(): String {
-        return "BlendState"
-    }
+    override fun toString(): String = "BlendState"
 }

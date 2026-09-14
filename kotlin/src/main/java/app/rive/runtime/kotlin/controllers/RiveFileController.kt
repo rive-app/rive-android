@@ -36,7 +36,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
-@RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
+@RequiresOptIn(
+    message = "This API is experimental. It may be changed in the future without notice."
+)
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 annotation class ControllerStateManagement
@@ -98,7 +100,8 @@ class RiveFileController internal constructor(
     @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     @get:VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal val changedInputs: ConcurrentLinkedQueue<ChangedInput> = ConcurrentLinkedQueue(),
-) : Observable<RiveFileController.Listener>, RefCount {
+) : Observable<RiveFileController.Listener>,
+    RefCount {
 
     // The "primary" constructor as the actual primary is internal to expose the queue for testing.
     constructor(
@@ -254,6 +257,7 @@ class RiveFileController internal constructor(
     // Warning: `toList()` access is not thread-safe, use stateMachines instead
     private var stateMachineList =
         Collections.synchronizedList(mutableListOf<StateMachineInstance>())
+
     /**
      * The state machine instances loaded by this controller.
      *
@@ -293,6 +297,7 @@ class RiveFileController internal constructor(
     // Warning: toHashSet access is not thread-safe, use playingStateMachines instead
     private var playingStateMachineSet =
         Collections.synchronizedSet(HashSet<StateMachineInstance>())
+
     /**
      * The state machine instances currently playing on this controller.
      *
@@ -333,7 +338,8 @@ class RiveFileController internal constructor(
 
     val isAdvancing: Boolean
         get() =
-            playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() || changedInputs.isNotEmpty()
+            playingAnimationSet.isNotEmpty() || playingStateMachineSet.isNotEmpty() ||
+                changedInputs.isNotEmpty()
 
     val artboardBounds: RectF
         get() = activeArtboard?.bounds ?: RectF()
@@ -526,7 +532,9 @@ class RiveFileController internal constructor(
 
     fun autoplay() {
         if (autoplay) {
-            RiveLog.d(TAG) { "autoplay() with autoplay enabled. Playing all state machines and animations." }
+            RiveLog.d(TAG) {
+                "autoplay() with autoplay enabled. Playing all state machines and animations."
+            }
             play(settleInitialState = true)
         } else {
             RiveLog.d(TAG) { "autoplay() with autoplay disabled. Advancing the artboard by 0." }
@@ -798,8 +806,10 @@ class RiveFileController internal constructor(
                     }
                 }
             } else {
-                when (val smiInput =
-                    activeArtboard?.input(input.name, input.nestedArtboardPath)) {
+                when (
+                    val smiInput =
+                        activeArtboard?.input(input.name, input.nestedArtboardPath)
+                ) {
                     is SMITrigger -> {
                         smiInput.fire()
                     }
@@ -922,9 +932,7 @@ class RiveFileController internal constructor(
      * @deprecated Text runs are deprecated. Use data binding instead.
      */
     @Deprecated("Text runs are deprecated. Use data binding instead.")
-    fun getTextRunValue(textRunName: String): String? {
-        return activeArtboard?.getTextRunValue(textRunName)
-    }
+    fun getTextRunValue(textRunName: String): String? = activeArtboard?.getTextRunValue(textRunName)
 
     /**
      * Get the text value for a text run named [textRunName] on the nested artboard represented at
@@ -933,9 +941,8 @@ class RiveFileController internal constructor(
      * @deprecated Text runs are deprecated. Use data binding instead.
      */
     @Deprecated("Text runs are deprecated. Use data binding instead.")
-    fun getTextRunValue(textRunName: String, path: String): String? {
-        return activeArtboard?.getTextRunValue(textRunName, path)
-    }
+    fun getTextRunValue(textRunName: String, path: String): String? =
+        activeArtboard?.getTextRunValue(textRunName, path)
 
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
@@ -977,21 +984,21 @@ class RiveFileController internal constructor(
         activeArtboard?.volume = value
     }
 
-    private fun animations(animationName: String): List<LinearAnimationInstance> {
-        return animations(listOf(animationName))
-    }
+    private fun animations(animationName: String): List<LinearAnimationInstance> =
+        animations(listOf(animationName))
 
-    private fun stateMachines(animationName: String): List<StateMachineInstance> {
-        return stateMachines(listOf(animationName))
-    }
+    private fun stateMachines(animationName: String): List<StateMachineInstance> =
+        stateMachines(listOf(animationName))
 
-    private fun animations(animationNames: Collection<String>): List<LinearAnimationInstance> {
-        return animations.filter { animationNames.contains(it.name) }
-    }
+    private fun animations(animationNames: Collection<String>): List<LinearAnimationInstance> =
+        animations.filter {
+            animationNames.contains(it.name)
+        }
 
-    private fun stateMachines(animationNames: Collection<String>): List<StateMachineInstance> {
-        return stateMachines.filter { animationNames.contains(it.name) }
-    }
+    private fun stateMachines(animationNames: Collection<String>): List<StateMachineInstance> =
+        stateMachines.filter {
+            animationNames.contains(it.name)
+        }
 
     private fun getOrCreateStateMachines(animationName: String): List<StateMachineInstance> {
         val stateMachineInstances = stateMachines(animationName)
@@ -1170,7 +1177,7 @@ class RiveFileController internal constructor(
                 return@synchronized
             }
             traceSection("Rive/PointerInput") {
-                /// TODO: once we start composing artboards we may need x,y offsets here...
+                // / TODO: once we start composing artboards we may need x,y offsets here...
                 val artboardEventLocation = Helpers.convertToArtboardSpace(
                     touchBounds = targetBounds,
                     touchLocation = PointF(x, y),
@@ -1361,7 +1368,7 @@ class RiveFileController internal constructor(
     @Throws(IllegalStateException::class)
     override fun release(): Int {
         val old = refs.get()
-        RiveLog.d(TAG) { "Releasing. Old: ${old}; New: ${old - 1}" }
+        RiveLog.d(TAG) { "Releasing. Old: $old; New: ${old - 1}" }
         val count = super.release()
         require(count >= 0)
 
@@ -1384,6 +1391,7 @@ class RiveFileController internal constructor(
         fun notifyPlay(animation: PlayableInstance)
         fun notifyPause(animation: PlayableInstance)
         fun notifyStop(animation: PlayableInstance)
+
         /**
          * Reports that a linear animation looped.
          *

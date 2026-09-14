@@ -8,9 +8,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.Result
+import app.rive.RiveAndroidTest
 import app.rive.RiveArtboardException
 import app.rive.RiveAudioException
-import app.rive.RiveAndroidTest
 import app.rive.RiveFileException
 import app.rive.RiveFileSource
 import app.rive.RiveFontException
@@ -23,12 +23,12 @@ import app.rive.rememberFont
 import app.rive.rememberImage
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
-import org.junit.Rule
-import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import org.junit.Rule
+import org.junit.runner.RunWith
 
 /** Exercises resource creation through the real Compose and JNI path. */
 @RunWith(AndroidJUnit4::class)
@@ -53,7 +53,8 @@ class ResourceCreationComposeTest : RiveAndroidTest() {
                     resourcesResult.andThen { resources ->
                         rememberViewModelInstanceResult(
                             resources.file,
-                            ViewModelSource.DefaultForArtboard(resources.artboard).defaultInstance()
+                            ViewModelSource.DefaultForArtboard(resources.artboard)
+                                .defaultInstance()
                         ).map { vmi ->
                             ComposeResources(resources, vmi)
                         }
@@ -183,7 +184,4 @@ class ResourceCreationComposeTest : RiveAndroidTest() {
     }
 }
 
-private data class ComposeResources(
-    val resources: TestRiveResources,
-    val vmi: ViewModelInstance,
-)
+private data class ComposeResources(val resources: TestRiveResources, val vmi: ViewModelInstance)

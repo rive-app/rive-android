@@ -14,19 +14,17 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-// TODO: 
-// I'd like to trigger this after we finished rendering, is it possible to do that? in the meantime we are simply time based. 
+// TODO:
+// I'd like to trigger this after we finished rendering, is it possible to do that? in the meantime we are simply time based.
 class BitMapExtractor {
 
     fun extractView(
         activity: AppCompatActivity,
         view: RiveAnimationView,
         name: String,
-        delayMillis: Long = 2000
+        delayMillis: Long = 2000,
     ) {
-
         Handler(Looper.getMainLooper()).postDelayed({
-
             val bitmap: Bitmap? = view.bitmap
 
             val fos: OutputStream?

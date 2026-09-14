@@ -12,7 +12,5 @@ class AnimationState(unsafeCppPointer: Long) : LayerState(unsafeCppPointer) {
     val name: String
         get() = cppName(cppPointer)
 
-    override fun toString(): String {
-        return name
-    }
+    override fun toString(): String = name
 }

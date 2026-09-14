@@ -9,7 +9,8 @@ enum class RendererType(val value: Int) {
      * @deprecated The Canvas renderer is deprecated. Use the Rive renderer instead.
      */
     @Deprecated("The Canvas renderer is deprecated. Use the Rive renderer instead.")
-    Canvas(1);
+    Canvas(1),
+    ;
 
     companion object {
         fun fromIndex(index: Int): RendererType {

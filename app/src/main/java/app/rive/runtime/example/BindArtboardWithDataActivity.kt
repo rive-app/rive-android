@@ -35,7 +35,9 @@ class BindArtboardWithDataActivity : ComponentActivity() {
         }
 
         val artboardProperty =
-            rive.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty("Child Artboard")
+            rive.controller.stateMachines.first().viewModelInstance!!.getArtboardProperty(
+                "Child Artboard"
+            )
 
         artboardProperty.set(bindableArtboard)
         bindableArtboard.release() // Release the reference we hold from creation

@@ -21,108 +21,69 @@ interface CommandQueueBridge {
     fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
 
-    fun cppGetArtboardNames(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    fun cppGetArtboardNames(pointer: Long, requestID: Long, fileHandle: Long)
 
-    fun cppGetFileAssets(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    fun cppGetFileAssets(pointer: Long, requestID: Long, fileHandle: Long)
 
-    fun cppGetStateMachineNames(
-        pointer: Long,
-        requestID: Long,
-        artboardHandle: Long
-    )
+    fun cppGetStateMachineNames(pointer: Long, requestID: Long, artboardHandle: Long)
 
-    fun cppGetArtboardVolume(
-        pointer: Long,
-        requestID: Long,
-        artboardHandle: Long
-    )
+    fun cppGetArtboardVolume(pointer: Long, requestID: Long, artboardHandle: Long)
 
     fun cppGetDefaultViewModelInfo(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     )
 
-    fun cppGetViewModelNames(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    fun cppGetViewModelNames(pointer: Long, requestID: Long, fileHandle: Long)
 
     fun cppGetViewModelInstanceNames(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     )
 
     fun cppGetViewModelProperties(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     )
 
-    fun cppGetEnums(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    fun cppGetEnums(pointer: Long, requestID: Long, fileHandle: Long)
 
-    fun cppCreateDefaultArtboard(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    ): Long
+    fun cppCreateDefaultArtboard(pointer: Long, requestID: Long, fileHandle: Long): Long
 
     fun cppCreateArtboardByName(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        name: String
+        name: String,
     ): Long
 
     fun cppDeleteArtboard(pointer: Long, requestID: Long, artboardHandle: Long)
 
-    fun cppCreateDefaultStateMachine(
-        pointer: Long,
-        requestID: Long,
-        artboardHandle: Long
-    ): Long
+    fun cppCreateDefaultStateMachine(pointer: Long, requestID: Long, artboardHandle: Long): Long
 
     fun cppCreateStateMachineByName(
         pointer: Long,
         requestID: Long,
         artboardHandle: Long,
-        name: String
+        name: String,
     ): Long
 
-    fun cppDeleteStateMachine(
-        pointer: Long,
-        requestID: Long,
-        stateMachineHandle: Long
-    )
+    fun cppDeleteStateMachine(pointer: Long, requestID: Long, stateMachineHandle: Long)
 
     fun cppAdvanceStateMachine(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        deltaTimeNs: Long
+        deltaTimeNs: Long,
     )
 
-    fun cppEnableSemantics(
-        pointer: Long,
-        stateMachineHandle: Long
-    )
+    fun cppEnableSemantics(pointer: Long, stateMachineHandle: Long)
 
     fun cppDrainSemanticsDiff(
         pointer: Long,
@@ -131,53 +92,46 @@ interface CommandQueueBridge {
         alignment: Byte,
         scaleFactor: Float,
         surfaceWidth: Float,
-        surfaceHeight: Float
+        surfaceHeight: Float,
     )
 
     fun cppFireSemanticAction(
         pointer: Long,
         stateMachineHandle: Long,
         semanticNodeID: Int,
-        actionType: Int
+        actionType: Int,
     )
 
-    fun cppRequestSemanticFocus(
-        pointer: Long,
-        stateMachineHandle: Long,
-        semanticNodeID: Int
-    )
+    fun cppRequestSemanticFocus(pointer: Long, stateMachineHandle: Long, semanticNodeID: Int)
 
-    fun cppClearSemanticFocus(
-        pointer: Long,
-        stateMachineHandle: Long
-    )
+    fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
 
     fun cppNamedVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     ): Long
 
     fun cppDefaultVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     ): Long
 
     fun cppNamedVMCreateDefaultVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     ): Long
 
     fun cppDefaultVMCreateDefaultVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     ): Long
 
     fun cppNamedVMCreateNamedVMI(
@@ -185,7 +139,7 @@ interface CommandQueueBridge {
         requestID: Long,
         fileHandle: Long,
         viewModelName: String,
-        instanceName: String
+        instanceName: String,
     ): Long
 
     fun cppDefaultVMCreateNamedVMI(
@@ -193,14 +147,14 @@ interface CommandQueueBridge {
         requestID: Long,
         fileHandle: Long,
         artboardHandle: Long,
-        instanceName: String
+        instanceName: String,
     ): Long
 
     fun cppReferenceNestedVMI(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        path: String
+        path: String,
     ): Long
 
     fun cppReferenceListItemVMI(
@@ -208,26 +162,18 @@ interface CommandQueueBridge {
         requestID: Long,
         viewModelInstanceHandle: Long,
         path: String,
-        index: Int
+        index: Int,
     ): Long
 
     fun cppGetViewModelInstanceViewModelName(
         pointer: Long,
         requestID: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
-    fun cppGetViewModelInstanceName(
-        pointer: Long,
-        requestID: Long,
-        viewModelInstanceHandle: Long
-    )
+    fun cppGetViewModelInstanceName(pointer: Long, requestID: Long, viewModelInstanceHandle: Long)
 
-    fun cppDeleteViewModelInstance(
-        pointer: Long,
-        requestID: Long,
-        viewModelInstanceHandle: Long
-    )
+    fun cppDeleteViewModelInstance(pointer: Long, requestID: Long, viewModelInstanceHandle: Long)
 
     /**
      * Sets the main view model instance without applying the state machine's bindings.
@@ -241,7 +187,7 @@ interface CommandQueueBridge {
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     /**
@@ -251,11 +197,7 @@ interface CommandQueueBridge {
      * @param requestID ID used to associate asynchronous errors with this request.
      * @param stateMachineHandle Handle of the state machine to update.
      */
-    fun cppClearMainViewModelInstance(
-        pointer: Long,
-        requestID: Long,
-        stateMachineHandle: Long
-    )
+    fun cppClearMainViewModelInstance(pointer: Long, requestID: Long, stateMachineHandle: Long)
 
     /**
      * Sets a named global view model instance without applying the state machine's bindings.
@@ -271,7 +213,7 @@ interface CommandQueueBridge {
         requestID: Long,
         stateMachineHandle: Long,
         name: String,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     /**
@@ -286,7 +228,7 @@ interface CommandQueueBridge {
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        name: String
+        name: String,
     )
 
     /**
@@ -302,118 +244,114 @@ interface CommandQueueBridge {
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Float
+        value: Float,
     )
 
     fun cppGetNumberProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     fun cppSetStringProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: String
+        value: String,
     )
 
     fun cppGetStringProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     fun cppSetBooleanProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Boolean
+        value: Boolean,
     )
 
     fun cppGetBooleanProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     fun cppSetEnumProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: String
+        value: String,
     )
 
     fun cppGetEnumProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     fun cppSetColorProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Int
+        value: Int,
     )
 
     fun cppGetColorProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
-    fun cppFireTriggerProperty(
-        pointer: Long,
-        viewModelInstanceHandle: Long,
-        propertyPath: String
-    )
+    fun cppFireTriggerProperty(pointer: Long, viewModelInstanceHandle: Long, propertyPath: String)
 
     fun cppSubscribeToProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        propertyType: Int
+        propertyType: Int,
     )
 
     fun cppUnsubscribeFromProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        propertyType: Int
+        propertyType: Int,
     )
 
     fun cppSetImageProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        imageHandle: Long
+        imageHandle: Long,
     )
 
     fun cppSetArtboardProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        artboardHandle: Long
+        artboardHandle: Long,
     )
 
     fun cppSetViewModelInstanceProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        valueHandle: Long
+        valueHandle: Long,
     )
 
     fun cppGetListSize(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     fun cppInsertToListAtIndex(
@@ -421,28 +359,28 @@ interface CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         index: Int,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     fun cppAppendToList(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     fun cppRemoveFromListAtIndex(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        index: Int
+        index: Int,
     )
 
     fun cppRemoveFromList(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     fun cppSwapListItems(
@@ -450,34 +388,22 @@ interface CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         indexA: Int,
-        indexB: Int
+        indexB: Int,
     )
 
     fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteImage(pointer: Long, imageHandle: Long)
-    fun cppRegisterImage(
-        pointer: Long,
-        name: String,
-        imageHandle: Long
-    )
+    fun cppRegisterImage(pointer: Long, name: String, imageHandle: Long)
 
     fun cppUnregisterImage(pointer: Long, name: String)
     fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteAudio(pointer: Long, audioHandle: Long)
-    fun cppRegisterAudio(
-        pointer: Long,
-        name: String,
-        audioHandle: Long
-    )
+    fun cppRegisterAudio(pointer: Long, name: String, audioHandle: Long)
 
     fun cppUnregisterAudio(pointer: Long, name: String)
     fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray): Long
     fun cppDeleteFont(pointer: Long, fontHandle: Long)
-    fun cppRegisterFont(
-        pointer: Long,
-        name: String,
-        fontHandle: Long
-    )
+    fun cppRegisterFont(pointer: Long, name: String, fontHandle: Long)
 
     fun cppUnregisterFont(pointer: Long, name: String)
     fun cppPointerMove(
@@ -490,7 +416,7 @@ interface CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     fun cppPointerDown(
@@ -503,7 +429,7 @@ interface CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     fun cppPointerUp(
@@ -516,7 +442,7 @@ interface CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     fun cppPointerExit(
@@ -529,7 +455,7 @@ interface CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     fun cppResizeArtboard(
@@ -537,20 +463,12 @@ interface CommandQueueBridge {
         artboardHandle: Long,
         width: Int,
         height: Int,
-        scaleFactor: Float
+        scaleFactor: Float,
     )
 
-    fun cppResetArtboardSize(
-        pointer: Long,
-        artboardHandle: Long
-    )
+    fun cppResetArtboardSize(pointer: Long, artboardHandle: Long)
 
-    fun cppSetArtboardVolume(
-        pointer: Long,
-        requestID: Long,
-        artboardHandle: Long,
-        volume: Float
-    )
+    fun cppSetArtboardVolume(pointer: Long, requestID: Long, artboardHandle: Long, volume: Float)
 
     fun cppCreateDrawKey(pointer: Long): Long
     fun cppDraw(
@@ -565,7 +483,7 @@ interface CommandQueueBridge {
         fit: Byte,
         alignment: Byte,
         scaleFactor: Float,
-        clearColor: Int
+        clearColor: Int,
     )
 
     fun cppCancelDraw(pointer: Long, drawKey: Long)
@@ -583,7 +501,7 @@ interface CommandQueueBridge {
         alignment: Byte,
         scaleFactor: Float,
         clearColor: Int,
-        buffer: ByteArray
+        buffer: ByteArray,
     )
 
     fun cppRunOnCommandServer(pointer: Long, work: () -> Unit)
@@ -601,80 +519,56 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
-    external override fun cppDeleteFile(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    external override fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
 
-    external override fun cppGetArtboardNames(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    external override fun cppGetArtboardNames(pointer: Long, requestID: Long, fileHandle: Long)
 
-    external override fun cppGetFileAssets(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    external override fun cppGetFileAssets(pointer: Long, requestID: Long, fileHandle: Long)
 
     external override fun cppGetStateMachineNames(
         pointer: Long,
         requestID: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     )
 
-    external override fun cppGetArtboardVolume(
-        pointer: Long,
-        requestID: Long,
-        artboardHandle: Long
-    )
+    external override fun cppGetArtboardVolume(pointer: Long, requestID: Long, artboardHandle: Long)
 
     external override fun cppGetDefaultViewModelInfo(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     )
 
-    external override fun cppGetViewModelNames(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    external override fun cppGetViewModelNames(pointer: Long, requestID: Long, fileHandle: Long)
 
     external override fun cppGetViewModelInstanceNames(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     )
 
     external override fun cppGetViewModelProperties(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     )
 
-    external override fun cppGetEnums(
-        pointer: Long,
-        requestID: Long,
-        fileHandle: Long
-    )
+    external override fun cppGetEnums(pointer: Long, requestID: Long, fileHandle: Long)
 
     external override fun cppCreateDefaultArtboard(
         pointer: Long,
         requestID: Long,
-        fileHandle: Long
+        fileHandle: Long,
     ): Long
 
     external override fun cppCreateArtboardByName(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        name: String
+        name: String,
     ): Long
 
     external override fun cppDeleteArtboard(pointer: Long, requestID: Long, artboardHandle: Long)
@@ -682,33 +576,30 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppCreateDefaultStateMachine(
         pointer: Long,
         requestID: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     ): Long
 
     external override fun cppCreateStateMachineByName(
         pointer: Long,
         requestID: Long,
         artboardHandle: Long,
-        name: String
+        name: String,
     ): Long
 
     external override fun cppDeleteStateMachine(
         pointer: Long,
         requestID: Long,
-        stateMachineHandle: Long
+        stateMachineHandle: Long,
     )
 
     external override fun cppAdvanceStateMachine(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        deltaTimeNs: Long
+        deltaTimeNs: Long,
     )
 
-    external override fun cppEnableSemantics(
-        pointer: Long,
-        stateMachineHandle: Long
-    )
+    external override fun cppEnableSemantics(pointer: Long, stateMachineHandle: Long)
 
     external override fun cppDrainSemanticsDiff(
         pointer: Long,
@@ -717,53 +608,50 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         alignment: Byte,
         scaleFactor: Float,
         surfaceWidth: Float,
-        surfaceHeight: Float
+        surfaceHeight: Float,
     )
 
     external override fun cppFireSemanticAction(
         pointer: Long,
         stateMachineHandle: Long,
         semanticNodeID: Int,
-        actionType: Int
+        actionType: Int,
     )
 
     external override fun cppRequestSemanticFocus(
         pointer: Long,
         stateMachineHandle: Long,
-        semanticNodeID: Int
+        semanticNodeID: Int,
     )
 
-    external override fun cppClearSemanticFocus(
-        pointer: Long,
-        stateMachineHandle: Long
-    )
+    external override fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
 
     external override fun cppNamedVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     ): Long
 
     external override fun cppDefaultVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     ): Long
 
     external override fun cppNamedVMCreateDefaultVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        viewModelName: String
+        viewModelName: String,
     ): Long
 
     external override fun cppDefaultVMCreateDefaultVMI(
         pointer: Long,
         requestID: Long,
         fileHandle: Long,
-        artboardHandle: Long
+        artboardHandle: Long,
     ): Long
 
     external override fun cppNamedVMCreateNamedVMI(
@@ -771,7 +659,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         fileHandle: Long,
         viewModelName: String,
-        instanceName: String
+        instanceName: String,
     ): Long
 
     external override fun cppDefaultVMCreateNamedVMI(
@@ -779,14 +667,14 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         fileHandle: Long,
         artboardHandle: Long,
-        instanceName: String
+        instanceName: String,
     ): Long
 
     external override fun cppReferenceNestedVMI(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        path: String
+        path: String,
     ): Long
 
     external override fun cppReferenceListItemVMI(
@@ -794,38 +682,38 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         viewModelInstanceHandle: Long,
         path: String,
-        index: Int
+        index: Int,
     ): Long
 
     external override fun cppGetViewModelInstanceViewModelName(
         pointer: Long,
         requestID: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     external override fun cppGetViewModelInstanceName(
         pointer: Long,
         requestID: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     external override fun cppDeleteViewModelInstance(
         pointer: Long,
         requestID: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     external override fun cppSetMainViewModelInstance(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     external override fun cppClearMainViewModelInstance(
         pointer: Long,
         requestID: Long,
-        stateMachineHandle: Long
+        stateMachineHandle: Long,
     )
 
     external override fun cppSetGlobalViewModelInstance(
@@ -833,138 +721,134 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         stateMachineHandle: Long,
         name: String,
-        viewModelInstanceHandle: Long
+        viewModelInstanceHandle: Long,
     )
 
     external override fun cppClearGlobalViewModelInstance(
         pointer: Long,
         requestID: Long,
         stateMachineHandle: Long,
-        name: String
+        name: String,
     )
 
-    external override fun cppBind(
-        pointer: Long,
-        requestID: Long,
-        stateMachineHandle: Long
-    )
+    external override fun cppBind(pointer: Long, requestID: Long, stateMachineHandle: Long)
 
     external override fun cppSetNumberProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Float
+        value: Float,
     )
 
     external override fun cppGetNumberProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppSetStringProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: String
+        value: String,
     )
 
     external override fun cppGetStringProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppSetBooleanProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Boolean
+        value: Boolean,
     )
 
     external override fun cppGetBooleanProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppSetEnumProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: String
+        value: String,
     )
 
     external override fun cppGetEnumProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppSetColorProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        value: Int
+        value: Int,
     )
 
     external override fun cppGetColorProperty(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppFireTriggerProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppSubscribeToProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        propertyType: Int
+        propertyType: Int,
     )
 
     external override fun cppUnsubscribeFromProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        propertyType: Int
+        propertyType: Int,
     )
 
     external override fun cppSetImageProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        imageHandle: Long
+        imageHandle: Long,
     )
 
     external override fun cppSetArtboardProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        artboardHandle: Long
+        artboardHandle: Long,
     )
 
     external override fun cppSetViewModelInstanceProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        valueHandle: Long
+        valueHandle: Long,
     )
 
     external override fun cppGetListSize(
         pointer: Long,
         requestID: Long,
         viewModelInstanceHandle: Long,
-        propertyPath: String
+        propertyPath: String,
     )
 
     external override fun cppInsertToListAtIndex(
@@ -972,28 +856,28 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         index: Int,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     external override fun cppAppendToList(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     external override fun cppRemoveFromListAtIndex(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        index: Int
+        index: Int,
     )
 
     external override fun cppRemoveFromList(
         pointer: Long,
         viewModelInstanceHandle: Long,
         propertyPath: String,
-        itemHandle: Long
+        itemHandle: Long,
     )
 
     external override fun cppSwapListItems(
@@ -1001,34 +885,22 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         indexA: Int,
-        indexB: Int
+        indexB: Int,
     )
 
     external override fun cppDecodeImage(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteImage(pointer: Long, imageHandle: Long)
-    external override fun cppRegisterImage(
-        pointer: Long,
-        name: String,
-        imageHandle: Long
-    )
+    external override fun cppRegisterImage(pointer: Long, name: String, imageHandle: Long)
 
     external override fun cppUnregisterImage(pointer: Long, name: String)
     external override fun cppDecodeAudio(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteAudio(pointer: Long, audioHandle: Long)
-    external override fun cppRegisterAudio(
-        pointer: Long,
-        name: String,
-        audioHandle: Long
-    )
+    external override fun cppRegisterAudio(pointer: Long, name: String, audioHandle: Long)
 
     external override fun cppUnregisterAudio(pointer: Long, name: String)
     external override fun cppDecodeFont(pointer: Long, requestID: Long, bytes: ByteArray): Long
     external override fun cppDeleteFont(pointer: Long, fontHandle: Long)
-    external override fun cppRegisterFont(
-        pointer: Long,
-        name: String,
-        fontHandle: Long
-    )
+    external override fun cppRegisterFont(pointer: Long, name: String, fontHandle: Long)
 
     external override fun cppUnregisterFont(pointer: Long, name: String)
     external override fun cppPointerMove(
@@ -1041,7 +913,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     external override fun cppPointerDown(
@@ -1054,7 +926,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     external override fun cppPointerUp(
@@ -1067,7 +939,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     external override fun cppPointerExit(
@@ -1080,7 +952,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         surfaceHeight: Float,
         pointerID: Int,
         x: Float,
-        y: Float
+        y: Float,
     )
 
     external override fun cppResizeArtboard(
@@ -1088,19 +960,16 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         artboardHandle: Long,
         width: Int,
         height: Int,
-        scaleFactor: Float
+        scaleFactor: Float,
     )
 
-    external override fun cppResetArtboardSize(
-        pointer: Long,
-        artboardHandle: Long
-    )
+    external override fun cppResetArtboardSize(pointer: Long, artboardHandle: Long)
 
     external override fun cppSetArtboardVolume(
         pointer: Long,
         requestID: Long,
         artboardHandle: Long,
-        volume: Float
+        volume: Float,
     )
 
     external override fun cppCreateDrawKey(pointer: Long): Long
@@ -1116,7 +985,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         fit: Byte,
         alignment: Byte,
         scaleFactor: Float,
-        clearColor: Int
+        clearColor: Int,
     )
 
     external override fun cppCancelDraw(pointer: Long, drawKey: Long)
@@ -1134,7 +1003,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         alignment: Byte,
         scaleFactor: Float,
         clearColor: Int,
-        buffer: ByteArray
+        buffer: ByteArray,
     )
 
     external override fun cppRunOnCommandServer(pointer: Long, work: () -> Unit)

@@ -40,14 +40,16 @@ import app.rive.core.traceSection
  * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
  * @throws RiveRenderException If the software render surface cannot be created.
  */
-class SoftwareRenderBuffer @Throws(
+class SoftwareRenderBuffer
+@Throws(
     IllegalArgumentException::class,
     RiveResourceClosedException::class,
     RiveRenderException::class
-) constructor(
+)
+constructor(
     val width: Int,
     val height: Int,
-    private val riveWorker: RiveWorker
+    private val riveWorker: RiveWorker,
 ) : CheckableAutoCloseable {
     init {
         require(width > 0 && height > 0) { "SoftwareRenderBuffer width/height must be > 0" }
@@ -98,7 +100,7 @@ class SoftwareRenderBuffer @Throws(
         artboard: Artboard,
         stateMachine: StateMachine,
         fit: Fit = RenderingDefaults.defaultFit(),
-        clearColor: Int = RenderingDefaults.CLEAR_COLOR
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR,
     ): Bitmap {
         closer.checkOpen()
         surface.checkOpen()
@@ -108,8 +110,8 @@ class SoftwareRenderBuffer @Throws(
         stateMachine.requireFromArtboard(artboard)
         require(
             bitmap.width == width &&
-                    bitmap.height == height &&
-                    bitmap.config == Bitmap.Config.ARGB_8888
+                bitmap.height == height &&
+                bitmap.config == Bitmap.Config.ARGB_8888
         ) { "Bitmap must be ${width}x$height ARGB_8888" }
 
         traceSection("Rive/RenderBuffer/Render") {

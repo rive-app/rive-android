@@ -2,6 +2,7 @@
 
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -37,7 +38,6 @@ import app.rive.rememberArtboard
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstance
-import android.graphics.Color as AndroidColor
 
 class SemanticsTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +58,9 @@ class SemanticsTestActivity : ComponentActivity() {
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 when (riveFile) {
                     is Result.Loading -> LoadingIndicator()
+
                     is Result.Error -> ErrorMessage(riveFile.throwable)
+
                     is Result.Success -> {
                         val file = riveFile.value
                         val artboardNames by produceState(emptyList<String>(), file) {
@@ -93,7 +95,6 @@ class SemanticsTestActivity : ComponentActivity() {
                                         .align(Alignment.CenterHorizontally)
                                         .background(Color.Red)
                                 ) {
-
                                     Rive(
                                         file = file,
                                         artboard = selectedArtboard,

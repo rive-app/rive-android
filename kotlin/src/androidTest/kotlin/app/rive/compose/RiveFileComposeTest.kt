@@ -11,10 +11,10 @@ import app.rive.core.CommandQueuePoller
 import app.rive.core.assertDisposed
 import app.rive.rememberRiveFile
 import app.rive.runtime.kotlin.test.R
-import org.junit.Rule
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import org.junit.Rule
+import org.junit.runner.RunWith
 
 /** Compose tests for remembered Rive files. */
 @RunWith(AndroidJUnit4::class)

@@ -26,7 +26,7 @@ internal data class AndroidAccessibilityBounds(
  * @return Normalized integer bounds relative to [parent] or the host view.
  */
 internal fun SemanticNodeData.toAndroidAccessibilityBounds(
-    parent: SemanticNodeData?
+    parent: SemanticNodeData?,
 ): AndroidAccessibilityBounds {
     val normalizedLeft = minOf(minX, maxX)
     val normalizedTop = minOf(minY, maxY)
@@ -50,7 +50,7 @@ internal fun SemanticNodeData.toAndroidAccessibilityBounds(
  */
 @Suppress("DEPRECATION") // ExploreByTouchHelper requires parent-local bounds.
 internal fun AccessibilityNodeInfoCompat.applySemanticNodeBounds(
-    bounds: AndroidAccessibilityBounds
+    bounds: AndroidAccessibilityBounds,
 ) {
     setBoundsInParent(Rect(bounds.left, bounds.top, bounds.right, bounds.bottom))
 }

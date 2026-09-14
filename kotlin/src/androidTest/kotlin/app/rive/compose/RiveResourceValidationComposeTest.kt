@@ -13,11 +13,11 @@ import app.rive.core.FileHandle
 import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveResourceValidationComposeTest : RiveAndroidTest() {

@@ -29,6 +29,13 @@ import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticState
 import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.hitTest
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.ZERO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -41,14 +48,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.ZERO
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(
@@ -677,11 +676,10 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
      * @param region Destination render region supplied to the Canvas session.
      * @return Normalized render-region-local bounds for [SEMANTIC_NODE_LABEL].
      */
-    private suspend fun semanticBoundsForRegion(region: Rect): RectF {
-        return withSemanticTreeForRegion(region) { tree ->
+    private suspend fun semanticBoundsForRegion(region: Rect): RectF =
+        withSemanticTreeForRegion(region) { tree ->
             tree.boundsForLabel(SEMANTIC_NODE_LABEL)
         }
-    }
 
     /**
      * Publishes a real-asset semantic tree for [region] and evaluates [block] on the main thread.
@@ -753,10 +751,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
      * @param renderRegion Rive destination rectangle in host-view coordinates.
      */
     @MainThread
-    private class TestCanvasSemanticHost(
-        private val tree: SemanticTreeModel,
-        renderRegion: Rect,
-    ) {
+    private class TestCanvasSemanticHost(private val tree: SemanticTreeModel, renderRegion: Rect) {
         private val region = Rect(renderRegion)
         private val hierarchy = ProjectedSemanticHierarchy.from(tree)
 
@@ -840,10 +835,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
          * This is the main assertion hook for tests that expect a user-visible frame to become
          * available after lifecycle, resize, or input changes.
          */
-        suspend fun awaitFrameCountGreaterThan(
-            count: Int,
-            timeoutMs: Long = 5_000L
-        ) {
+        suspend fun awaitFrameCountGreaterThan(count: Int, timeoutMs: Long = 5_000L) {
             withTimeout(timeoutMs) {
                 while (frameCount.get() <= count) {
                     delay(16)
@@ -857,10 +849,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
          * This observes settled-skip behavior through the session's public frame signal rather than
          * reading worker internals directly.
          */
-        suspend fun awaitFrameCountSettled(
-            quietMs: Long = 250L,
-            timeoutMs: Long = 5_000L
-        ): Int {
+        suspend fun awaitFrameCountSettled(quietMs: Long = 250L, timeoutMs: Long = 5_000L): Int {
             var lastCount = frameCount.get()
             var lastChangedAt = SystemClock.uptimeMillis()
             withTimeout(timeoutMs) {

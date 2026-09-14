@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -37,7 +38,6 @@ import app.rive.RivePointerInputMode
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
 import app.rive.rememberViewModelInstanceResult
-import android.graphics.Color as AndroidColor
 
 class ComposeTouchPassThroughActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,7 +79,9 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
 
                         when (contentResult) {
                             is Result.Loading -> LoadingIndicator()
+
                             is Result.Error -> ErrorMessage(contentResult.throwable)
+
                             is Result.Success -> {
                                 val (file, vmi) = contentResult.value
                                 Rive(
@@ -110,8 +112,12 @@ class ComposeTouchPassThroughActivity : ComponentActivity() {
                             checked = inputMode == RivePointerInputMode.PassThrough,
                             onCheckedChange = {
                                 inputMode =
-                                    if (it) RivePointerInputMode.PassThrough else RivePointerInputMode.Consume
-                            }
+                                    if (it) {
+                                        RivePointerInputMode.PassThrough
+                                    } else {
+                                        RivePointerInputMode.Consume
+                                    }
+                            },
                         )
                     }
                 }

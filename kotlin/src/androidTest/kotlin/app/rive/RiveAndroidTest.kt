@@ -20,9 +20,7 @@ import org.junit.rules.ExternalResource
  *
  * @param autoPoll Whether to continuously poll the shared worker after it is first accessed.
  */
-abstract class RiveAndroidTest(
-    private val autoPoll: Boolean = true
-) {
+abstract class RiveAndroidTest(private val autoPoll: Boolean = true) {
     protected val context: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -64,10 +62,9 @@ abstract class RiveAndroidTest(
      * @throws IllegalStateException If automatic polling is disabled or [riveWorker] has not been
      *    accessed yet.
      */
-    protected fun <T> withRiveWorkerPollingPaused(block: () -> T): T =
-        checkNotNull(poller) {
-            "Automatic Rive worker polling is not active"
-        }.withPollingPaused(block)
+    protected fun <T> withRiveWorkerPollingPaused(block: () -> T): T = checkNotNull(poller) {
+        "Automatic Rive worker polling is not active"
+    }.withPollingPaused(block)
 
     /**
      * Loads selected Rive resources owned by this test's shared worker.

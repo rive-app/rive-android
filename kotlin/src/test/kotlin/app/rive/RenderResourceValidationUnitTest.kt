@@ -150,7 +150,9 @@ class RenderResourceValidationUnitTest : FunSpec({
         }
     }
 
-    test("Canvas session rejects a closed global view model instance before platform validation") {
+    test(
+        "Canvas session rejects a closed global view model instance before platform validation"
+    ) {
         val subject = RenderValidationSubject()
         subject.viewModelInstance.close()
 
@@ -179,7 +181,8 @@ class RenderResourceValidationUnitTest : FunSpec({
             artboard.artboardHandle,
             "State Machine",
         )
-        every { worker.checkOpen() } throws RiveResourceClosedException("RiveWorker is disposed")
+        every { worker.checkOpen() } throws
+            RiveResourceClosedException("RiveWorker is disposed")
 
         shouldThrow<RiveResourceClosedException> {
             RiveCanvasSession(canvasContext, worker, artboard, stateMachine)
@@ -255,7 +258,12 @@ class RenderResourceValidationUnitTest : FunSpec({
         val subject = RenderValidationSubject()
 
         shouldThrow<IllegalStateException> {
-            RiveCanvasSession(canvasContext, subject.worker, subject.artboard, subject.stateMachine)
+            RiveCanvasSession(
+                canvasContext,
+                subject.worker,
+                subject.artboard,
+                subject.stateMachine
+            )
         }
     }
 })

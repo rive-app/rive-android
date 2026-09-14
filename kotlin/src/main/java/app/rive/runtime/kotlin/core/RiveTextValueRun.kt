@@ -29,7 +29,5 @@ open class RiveTextValueRun internal constructor(
             }
         }
 
-    override fun toString(): String {
-        return "TextValueRun: $text\n"
-    }
+    override fun toString(): String = "TextValueRun: $text\n"
 }

@@ -211,7 +211,9 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
             premultiplied: Boolean = true,
         ): RiveRenderImage {
             require(width > 0 && height > 0) { "Width and height must be > 0" }
-            require(pixelBytes.size == width * height * 4) { "Bytes must have size = width * height * 4" }
+            require(pixelBytes.size == width * height * 4) {
+                "Bytes must have size = width * height * 4"
+            }
             val address =
                 cppFromRGBABytes(pixelBytes, width, height, rendererType.value, premultiplied)
             return RiveRenderImage(address)
@@ -282,7 +284,8 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
         ): RiveRenderImage {
             require(!bitmap.isRecycled) { "Bitmap must not be recycled" }
             val isHardware =
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.config == Bitmap.Config.HARDWARE
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    bitmap.config == Bitmap.Config.HARDWARE
             val safeBitmap = if (bitmap.config == Bitmap.Config.ARGB_8888 && !isHardware) {
                 bitmap
             } else {

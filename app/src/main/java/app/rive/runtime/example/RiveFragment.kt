@@ -31,11 +31,10 @@ open class RiveFragment(private val name: String? = "Fragment") : Fragment() {
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_rive, container, false)
-    }
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? = inflater.inflate(R.layout.fragment_rive, container, false)
 
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
         super.onViewStateRestored(savedInstanceState)
@@ -52,11 +51,10 @@ open class RiveFragment(private val name: String? = "Fragment") : Fragment() {
          * @return A new instance of RiveFragment.
          */
         @JvmStatic
-        fun newInstance(resId: Int, name: String? = null) =
-            RiveFragment(name).apply {
-                arguments = Bundle().apply {
-                    putInt(RIVE_FRAGMENT_ARG_RES_ID, resId)
-                }
+        fun newInstance(resId: Int, name: String? = null) = RiveFragment(name).apply {
+            arguments = Bundle().apply {
+                putInt(RIVE_FRAGMENT_ARG_RES_ID, resId)
             }
+        }
     }
 }

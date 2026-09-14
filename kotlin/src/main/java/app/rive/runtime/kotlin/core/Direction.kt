@@ -11,7 +11,8 @@ package app.rive.runtime.kotlin.core
 enum class Direction(val value: Int) {
     BACKWARDS(-1),
     FORWARDS(1),
-    AUTO(0);
+    AUTO(0),
+    ;
 
     companion object {
         private val map = entries.associateBy(Direction::value)

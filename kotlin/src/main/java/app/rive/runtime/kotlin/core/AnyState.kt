@@ -7,7 +7,5 @@ package app.rive.runtime.kotlin.core
  */
 class AnyState(unsafeCppPointer: Long) : LayerState(unsafeCppPointer) {
 
-    override fun toString(): String {
-        return "AnyState"
-    }
+    override fun toString(): String = "AnyState"
 }

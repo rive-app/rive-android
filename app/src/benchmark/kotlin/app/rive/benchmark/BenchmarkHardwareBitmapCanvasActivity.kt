@@ -24,12 +24,12 @@ import app.rive.core.RiveWorker
 import app.rive.core.traceSection
 import app.rive.core.withFrameNanosChoreographer
 import app.rive.runtime.example.R
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.nanoseconds
 
 private const val BENCHMARK_CANVAS_TAG = "BenchmarkHardwareBitmapCanvasActivity"
 
@@ -143,13 +143,15 @@ class BenchmarkHardwareBitmapCanvasActivity : ComponentActivity() {
 private class BenchmarkRenderSession(
     private val file: RiveFile,
     val artboard: Artboard,
-    val stateMachine: StateMachine
+    val stateMachine: StateMachine,
 ) : AutoCloseable {
     private var buffer: HardwareRenderBuffer? = null
 
     fun ensureBufferSize(width: Int, height: Int) {
         val currentBuffer = buffer
-        if (currentBuffer != null && currentBuffer.width == width && currentBuffer.height == height) {
+        if (currentBuffer != null && currentBuffer.width == width &&
+            currentBuffer.height == height
+        ) {
             return
         }
 
@@ -157,10 +159,7 @@ private class BenchmarkRenderSession(
         buffer = HardwareRenderBuffer(width, height, file.riveWorker)
     }
 
-    fun snapshotToBitmap(
-        fit: Fit = Fit.Contain(),
-        clearColor: Int = Color.TRANSPARENT
-    ): Bitmap? {
+    fun snapshotToBitmap(fit: Fit = Fit.Contain(), clearColor: Int = Color.TRANSPARENT): Bitmap? {
         val currentBuffer = buffer ?: return null
         currentBuffer.render(
             artboard = artboard,

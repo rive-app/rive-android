@@ -8,8 +8,8 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
 import androidx.core.view.accessibility.AccessibilityEventCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
@@ -17,13 +17,13 @@ import androidx.core.view.accessibility.AccessibilityNodeProviderCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.RiveTextureView
-import org.junit.Test
-import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /** Exercises the production virtual-node helper against Android framework node objects. */
 @RunWith(AndroidJUnit4::class)
@@ -178,152 +178,150 @@ class RiveExploreByTouchHelperTest {
 
     /** Verifies focus gain, direct transition, and exit are reported as atomic Rive-ID changes. */
     @Test
-    fun accessibilityFocusActions_reportAtomicRiveNodeTransitions() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = PARENT_RIVE_NODE_ID,
-                        siblingIndex = 0,
-                        role = SemanticRole.Button,
-                        label = "First",
-                        traitFlags = SemanticTrait.Focusable,
-                        maxX = 50f,
-                        maxY = 100f,
-                    ),
-                    node(
-                        id = CHILD_RIVE_NODE_ID,
-                        siblingIndex = 1,
-                        role = SemanticRole.Button,
-                        label = "Second",
-                        traitFlags = SemanticTrait.Focusable,
-                        minX = 50f,
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                )
-                val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
-                val semanticFocusRequests = mutableListOf<Int>()
-                var semanticFocusClearCount = 0
-                val host = laidOutHost()
-                val helper = RiveExploreByTouchHelper(
-                    host = host,
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                    onAccessibilityFocusChanged = transitions::add,
-                    onSemanticFocusRequested = semanticFocusRequests::add,
-                    onSemanticFocusCleared = { semanticFocusClearCount++ },
-                )
-                val provider = helper.getAccessibilityNodeProvider(host)
+    fun accessibilityFocusActions_reportAtomicRiveNodeTransitions() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = PARENT_RIVE_NODE_ID,
+                    siblingIndex = 0,
+                    role = SemanticRole.Button,
+                    label = "First",
+                    traitFlags = SemanticTrait.Focusable,
+                    maxX = 50f,
+                    maxY = 100f,
+                ),
+                node(
+                    id = CHILD_RIVE_NODE_ID,
+                    siblingIndex = 1,
+                    role = SemanticRole.Button,
+                    label = "Second",
+                    traitFlags = SemanticTrait.Focusable,
+                    minX = 50f,
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+            )
+            val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
+            val semanticFocusRequests = mutableListOf<Int>()
+            var semanticFocusClearCount = 0
+            val host = laidOutHost()
+            val helper = RiveExploreByTouchHelper(
+                host = host,
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+                onAccessibilityFocusChanged = transitions::add,
+                onSemanticFocusRequested = semanticFocusRequests::add,
+                onSemanticFocusCleared = { semanticFocusClearCount++ },
+            )
+            val provider = helper.getAccessibilityNodeProvider(host)
 
-                assertTrue(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            assertTrue(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertTrue(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_CLICK,
-                        null,
-                    )
+            )
+            assertTrue(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_CLICK,
+                    null,
                 )
-                assertTrue(
-                    provider.performAction(
-                        CHILD_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            )
+            assertTrue(
+                provider.performAction(
+                    CHILD_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertTrue(
-                    provider.performAction(
-                        CHILD_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            )
+            assertTrue(
+                provider.performAction(
+                    CHILD_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
+                    null,
                 )
+            )
 
-                assertEquals(
-                    listOf(
-                        SemanticAccessibilityFocusTransition(null, PARENT_RIVE_NODE_ID),
-                        SemanticAccessibilityFocusTransition(
-                            PARENT_RIVE_NODE_ID,
-                            CHILD_RIVE_NODE_ID,
-                        ),
-                        SemanticAccessibilityFocusTransition(CHILD_RIVE_NODE_ID, null),
+            assertEquals(
+                listOf(
+                    SemanticAccessibilityFocusTransition(null, PARENT_RIVE_NODE_ID),
+                    SemanticAccessibilityFocusTransition(
+                        PARENT_RIVE_NODE_ID,
+                        CHILD_RIVE_NODE_ID,
                     ),
-                    transitions,
-                )
-                assertEquals(
-                    listOf(PARENT_RIVE_NODE_ID, CHILD_RIVE_NODE_ID),
-                    semanticFocusRequests,
-                )
-                assertEquals(1, semanticFocusClearCount)
+                    SemanticAccessibilityFocusTransition(CHILD_RIVE_NODE_ID, null),
+                ),
+                transitions,
+            )
+            assertEquals(
+                listOf(PARENT_RIVE_NODE_ID, CHILD_RIVE_NODE_ID),
+                semanticFocusRequests,
+            )
+            assertEquals(1, semanticFocusClearCount)
 
-                tree.applyDiff(diff(removed = intArrayOf(CHILD_RIVE_NODE_ID)))
-                assertTrue(helper.synchronizeWithTree())
-                assertFalse(
-                    provider.performAction(
-                        CHILD_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            tree.applyDiff(diff(removed = intArrayOf(CHILD_RIVE_NODE_ID)))
+            assertTrue(helper.synchronizeWithTree())
+            assertFalse(
+                provider.performAction(
+                    CHILD_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertEquals(3, transitions.size)
-                assertEquals(2, semanticFocusRequests.size)
-                assertEquals(1, semanticFocusClearCount)
-            }
+            )
+            assertEquals(3, transitions.size)
+            assertEquals(2, semanticFocusRequests.size)
+            assertEquals(1, semanticFocusClearCount)
         }
+    }
 
     /** Verifies accessibility focus on a node without the Focusable trait stays Android-only. */
     @Test
-    fun nonFocusableNode_doesNotRequestRiveSemanticFocus() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = PARENT_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = "Android-only focus",
-                        maxX = 100f,
-                        maxY = 100f,
-                    )
+    fun nonFocusableNode_doesNotRequestRiveSemanticFocus() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = PARENT_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = "Android-only focus",
+                    maxX = 100f,
+                    maxY = 100f,
                 )
-                val semanticFocusRequests = mutableListOf<Int>()
-                var semanticFocusClearCount = 0
-                val host = laidOutHost()
-                val helper = RiveExploreByTouchHelper(
-                    host = host,
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                    onSemanticFocusRequested = semanticFocusRequests::add,
-                    onSemanticFocusCleared = { semanticFocusClearCount++ },
-                )
-                val provider = helper.getAccessibilityNodeProvider(host)
+            )
+            val semanticFocusRequests = mutableListOf<Int>()
+            var semanticFocusClearCount = 0
+            val host = laidOutHost()
+            val helper = RiveExploreByTouchHelper(
+                host = host,
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+                onSemanticFocusRequested = semanticFocusRequests::add,
+                onSemanticFocusCleared = { semanticFocusClearCount++ },
+            )
+            val provider = helper.getAccessibilityNodeProvider(host)
 
-                assertTrue(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            assertTrue(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertTrue(semanticFocusRequests.isEmpty())
-                assertEquals(0, semanticFocusClearCount)
+            )
+            assertTrue(semanticFocusRequests.isEmpty())
+            assertEquals(0, semanticFocusClearCount)
 
-                assertTrue(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
+            assertTrue(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertTrue(semanticFocusRequests.isEmpty())
-                assertEquals(1, semanticFocusClearCount)
-            }
+            )
+            assertTrue(semanticFocusRequests.isEmpty())
+            assertEquals(1, semanticFocusClearCount)
         }
+    }
 
     /** Verifies a parented host can retire a focused node while constructing its clear event. */
     @Test
@@ -404,409 +402,404 @@ class RiveExploreByTouchHelperTest {
 
     /** Verifies initial host installation focuses the first exported modal descendant. */
     @Test
-    fun initiallyActiveModal_focusesFirstDescendantWhenInstalled() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = MODAL_RIVE_NODE_ID,
-                        role = SemanticRole.Dialog,
-                        label = MODAL_LABEL,
-                        stateFlags = SemanticState.Modal,
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                    node(
-                        id = MODAL_CONTENT_RIVE_NODE_ID,
-                        parentId = MODAL_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = MODAL_CONTENT_LABEL,
-                        traitFlags = SemanticTrait.Focusable,
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                )
-                val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
-                val semanticFocusRequests = mutableListOf<Int>()
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val parent = RecordingAccessibilityParent(context)
-                val host = RiveTextureView(context)
-                parent.addView(host)
-                parent.layout(0, 0, HOST_SIZE, HOST_SIZE)
-                host.layout(0, 0, HOST_SIZE, HOST_SIZE)
+    fun initiallyActiveModal_focusesFirstDescendantWhenInstalled() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = MODAL_RIVE_NODE_ID,
+                    role = SemanticRole.Dialog,
+                    label = MODAL_LABEL,
+                    stateFlags = SemanticState.Modal,
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+                node(
+                    id = MODAL_CONTENT_RIVE_NODE_ID,
+                    parentId = MODAL_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = MODAL_CONTENT_LABEL,
+                    traitFlags = SemanticTrait.Focusable,
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+            )
+            val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
+            val semanticFocusRequests = mutableListOf<Int>()
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val parent = RecordingAccessibilityParent(context)
+            val host = RiveTextureView(context)
+            parent.addView(host)
+            parent.layout(0, 0, HOST_SIZE, HOST_SIZE)
+            host.layout(0, 0, HOST_SIZE, HOST_SIZE)
 
-                host.installSemantics(
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                    onAccessibilityFocusChanged = transitions::add,
-                    onSemanticFocusRequested = semanticFocusRequests::add,
-                )
+            host.installSemantics(
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+                onAccessibilityFocusChanged = transitions::add,
+                onSemanticFocusRequested = semanticFocusRequests::add,
+            )
 
-                assertEquals(
-                    listOf(
-                        SemanticAccessibilityFocusTransition(
-                            previousNodeId = null,
-                            currentNodeId = MODAL_CONTENT_RIVE_NODE_ID,
-                        )
-                    ),
-                    transitions,
-                )
-                assertEquals(listOf(MODAL_CONTENT_RIVE_NODE_ID), semanticFocusRequests)
+            assertEquals(
+                listOf(
+                    SemanticAccessibilityFocusTransition(
+                        previousNodeId = null,
+                        currentNodeId = MODAL_CONTENT_RIVE_NODE_ID,
+                    )
+                ),
+                transitions,
+            )
+            assertEquals(listOf(MODAL_CONTENT_RIVE_NODE_ID), semanticFocusRequests)
 
-                host.clearSemantics()
-                assertEquals(
-                    listOf(
-                        AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_APPEARED,
-                        AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED,
-                    ),
-                    parent.windowStateContentChanges,
-                )
-            }
+            host.clearSemantics()
+            assertEquals(
+                listOf(
+                    AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_APPEARED,
+                    AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED,
+                ),
+                parent.windowStateContentChanges,
+            )
         }
+    }
 
     /** Verifies modal entry traps the provider and dismissal restores prior Rive focus. */
     @Test
-    fun dynamicModal_restrictsProviderAndRestoresPreviousFocus() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = PARENT_RIVE_NODE_ID,
-                        role = SemanticRole.Group,
-                        label = "Screen",
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                    node(
-                        id = CHILD_RIVE_NODE_ID,
-                        parentId = PARENT_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = CHILD_LABEL,
-                        traitFlags = SemanticTrait.Focusable,
-                        maxX = 40f,
-                        maxY = 40f,
-                    ),
-                    node(
-                        id = MODAL_RIVE_NODE_ID,
-                        parentId = PARENT_RIVE_NODE_ID,
-                        siblingIndex = 1,
-                        role = SemanticRole.Dialog,
-                        label = MODAL_LABEL,
-                        minX = 10f,
-                        minY = 10f,
-                        maxX = 90f,
-                        maxY = 90f,
-                    ),
-                    node(
-                        id = MODAL_CONTENT_RIVE_NODE_ID,
-                        parentId = MODAL_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = MODAL_CONTENT_LABEL,
-                        traitFlags = SemanticTrait.Focusable,
-                        minX = 20f,
-                        minY = 20f,
-                        maxX = 80f,
-                        maxY = 80f,
-                    ),
+    fun dynamicModal_restrictsProviderAndRestoresPreviousFocus() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = PARENT_RIVE_NODE_ID,
+                    role = SemanticRole.Group,
+                    label = "Screen",
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+                node(
+                    id = CHILD_RIVE_NODE_ID,
+                    parentId = PARENT_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = CHILD_LABEL,
+                    traitFlags = SemanticTrait.Focusable,
+                    maxX = 40f,
+                    maxY = 40f,
+                ),
+                node(
+                    id = MODAL_RIVE_NODE_ID,
+                    parentId = PARENT_RIVE_NODE_ID,
+                    siblingIndex = 1,
+                    role = SemanticRole.Dialog,
+                    label = MODAL_LABEL,
+                    minX = 10f,
+                    minY = 10f,
+                    maxX = 90f,
+                    maxY = 90f,
+                ),
+                node(
+                    id = MODAL_CONTENT_RIVE_NODE_ID,
+                    parentId = MODAL_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = MODAL_CONTENT_LABEL,
+                    traitFlags = SemanticTrait.Focusable,
+                    minX = 20f,
+                    minY = 20f,
+                    maxX = 80f,
+                    maxY = 80f,
+                ),
+            )
+            val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
+            val semanticFocusRequests = mutableListOf<Int>()
+            var semanticFocusClearCount = 0
+            val host = laidOutHost()
+            val helper = RiveExploreByTouchHelper(
+                host = host,
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+                onAccessibilityFocusChanged = transitions::add,
+                onSemanticFocusRequested = semanticFocusRequests::add,
+                onSemanticFocusCleared = { semanticFocusClearCount++ },
+            )
+            val provider = helper.getAccessibilityNodeProvider(host)
+            val backgroundVirtualNodeId = assertNotNull(
+                provider.virtualIdWithAccessibleLabel(CHILD_LABEL)
+            )
+            assertTrue(
+                provider.performAction(
+                    backgroundVirtualNodeId,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
-                val semanticFocusRequests = mutableListOf<Int>()
-                var semanticFocusClearCount = 0
-                val host = laidOutHost()
-                val helper = RiveExploreByTouchHelper(
-                    host = host,
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                    onAccessibilityFocusChanged = transitions::add,
-                    onSemanticFocusRequested = semanticFocusRequests::add,
-                    onSemanticFocusCleared = { semanticFocusClearCount++ },
-                )
-                val provider = helper.getAccessibilityNodeProvider(host)
-                val backgroundVirtualNodeId = assertNotNull(
-                    provider.virtualIdWithAccessibleLabel(CHILD_LABEL)
-                )
-                assertTrue(
-                    provider.performAction(
-                        backgroundVirtualNodeId,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
-                )
+            )
 
-                tree.applyDiff(
-                    diff(
-                        updatedSemantic = arrayOf(
-                            node(
-                                id = MODAL_RIVE_NODE_ID,
-                                parentId = PARENT_RIVE_NODE_ID,
-                                siblingIndex = 1,
-                                role = SemanticRole.Dialog,
-                                label = MODAL_LABEL,
-                                stateFlags = SemanticState.Modal,
-                                minX = 10f,
-                                minY = 10f,
-                                maxX = 90f,
-                                maxY = 90f,
-                            )
+            tree.applyDiff(
+                diff(
+                    updatedSemantic = arrayOf(
+                        node(
+                            id = MODAL_RIVE_NODE_ID,
+                            parentId = PARENT_RIVE_NODE_ID,
+                            siblingIndex = 1,
+                            role = SemanticRole.Dialog,
+                            label = MODAL_LABEL,
+                            stateFlags = SemanticState.Modal,
+                            minX = 10f,
+                            minY = 10f,
+                            maxX = 90f,
+                            maxY = 90f,
                         )
                     )
                 )
-                assertTrue(helper.synchronizeWithTree())
+            )
+            assertTrue(helper.synchronizeWithTree())
 
-                assertNull(provider.virtualIdWithAccessibleLabel(CHILD_LABEL))
-                val modalVirtualNodeId = assertNotNull(
-                    provider.virtualIdWithAccessibleLabel(MODAL_LABEL)
-                )
-                val modalNode = assertNotNull(
-                    provider.createAccessibilityNodeInfo(modalVirtualNodeId)
-                )
-                assertEquals(MODAL_LABEL, modalNode.paneTitle)
-                val modalFocus = assertNotNull(
-                    provider.findFocus(AccessibilityNodeInfoCompat.FOCUS_ACCESSIBILITY)
-                )
-                assertEquals(MODAL_CONTENT_LABEL, modalFocus.contentDescription)
+            assertNull(provider.virtualIdWithAccessibleLabel(CHILD_LABEL))
+            val modalVirtualNodeId = assertNotNull(
+                provider.virtualIdWithAccessibleLabel(MODAL_LABEL)
+            )
+            val modalNode = assertNotNull(
+                provider.createAccessibilityNodeInfo(modalVirtualNodeId)
+            )
+            assertEquals(MODAL_LABEL, modalNode.paneTitle)
+            val modalFocus = assertNotNull(
+                provider.findFocus(AccessibilityNodeInfoCompat.FOCUS_ACCESSIBILITY)
+            )
+            assertEquals(MODAL_CONTENT_LABEL, modalFocus.contentDescription)
 
-                tree.applyDiff(
-                    diff(
-                        updatedSemantic = arrayOf(
-                            node(
-                                id = MODAL_RIVE_NODE_ID,
-                                parentId = PARENT_RIVE_NODE_ID,
-                                siblingIndex = 1,
-                                role = SemanticRole.Dialog,
-                                label = MODAL_LABEL,
-                                minX = 10f,
-                                minY = 10f,
-                                maxX = 90f,
-                                maxY = 90f,
-                            )
+            tree.applyDiff(
+                diff(
+                    updatedSemantic = arrayOf(
+                        node(
+                            id = MODAL_RIVE_NODE_ID,
+                            parentId = PARENT_RIVE_NODE_ID,
+                            siblingIndex = 1,
+                            role = SemanticRole.Dialog,
+                            label = MODAL_LABEL,
+                            minX = 10f,
+                            minY = 10f,
+                            maxX = 90f,
+                            maxY = 90f,
                         )
                     )
                 )
-                assertTrue(helper.synchronizeWithTree())
+            )
+            assertTrue(helper.synchronizeWithTree())
 
-                val restoredBackgroundId = assertNotNull(
-                    provider.virtualIdWithAccessibleLabel(CHILD_LABEL)
-                )
-                val restoredFocus = assertNotNull(
-                    provider.findFocus(AccessibilityNodeInfoCompat.FOCUS_ACCESSIBILITY)
-                )
-                assertEquals(CHILD_LABEL, restoredFocus.contentDescription)
-                assertNotNull(provider.createAccessibilityNodeInfo(restoredBackgroundId))
-                assertEquals(
-                    listOf(
-                        SemanticAccessibilityFocusTransition(null, CHILD_RIVE_NODE_ID),
-                        SemanticAccessibilityFocusTransition(
-                            CHILD_RIVE_NODE_ID,
-                            MODAL_CONTENT_RIVE_NODE_ID,
-                        ),
-                        SemanticAccessibilityFocusTransition(
-                            MODAL_CONTENT_RIVE_NODE_ID,
-                            CHILD_RIVE_NODE_ID,
-                        ),
-                    ),
-                    transitions,
-                )
-                assertEquals(
-                    listOf(
+            val restoredBackgroundId = assertNotNull(
+                provider.virtualIdWithAccessibleLabel(CHILD_LABEL)
+            )
+            val restoredFocus = assertNotNull(
+                provider.findFocus(AccessibilityNodeInfoCompat.FOCUS_ACCESSIBILITY)
+            )
+            assertEquals(CHILD_LABEL, restoredFocus.contentDescription)
+            assertNotNull(provider.createAccessibilityNodeInfo(restoredBackgroundId))
+            assertEquals(
+                listOf(
+                    SemanticAccessibilityFocusTransition(null, CHILD_RIVE_NODE_ID),
+                    SemanticAccessibilityFocusTransition(
                         CHILD_RIVE_NODE_ID,
+                        MODAL_CONTENT_RIVE_NODE_ID,
+                    ),
+                    SemanticAccessibilityFocusTransition(
                         MODAL_CONTENT_RIVE_NODE_ID,
                         CHILD_RIVE_NODE_ID,
                     ),
-                    semanticFocusRequests,
-                )
-                assertEquals(0, semanticFocusClearCount)
-            }
+                ),
+                transitions,
+            )
+            assertEquals(
+                listOf(
+                    CHILD_RIVE_NODE_ID,
+                    MODAL_CONTENT_RIVE_NODE_ID,
+                    CHILD_RIVE_NODE_ID,
+                ),
+                semanticFocusRequests,
+            )
+            assertEquals(0, semanticFocusClearCount)
         }
+    }
 
     /** Verifies modal entry, title changes, and dismissal emit window-like pane events. */
     @Test
-    fun dynamicModal_emitsAccessibilityPaneEvents() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = MODAL_RIVE_NODE_ID,
-                        role = SemanticRole.Dialog,
-                        label = MODAL_LABEL,
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                    node(
-                        id = MODAL_CONTENT_RIVE_NODE_ID,
-                        parentId = MODAL_RIVE_NODE_ID,
-                        role = SemanticRole.Text,
-                        label = MODAL_CONTENT_LABEL,
-                        maxX = 100f,
-                        maxY = 100f,
-                    ),
-                )
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val parent = RecordingAccessibilityParent(context)
-                val host = laidOutHost()
-                parent.addView(host)
-                parent.layout(0, 0, HOST_SIZE, HOST_SIZE)
-                host.layout(0, 0, HOST_SIZE, HOST_SIZE)
-                val helper = RiveExploreByTouchHelper(
-                    host = host,
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                )
+    fun dynamicModal_emitsAccessibilityPaneEvents() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = MODAL_RIVE_NODE_ID,
+                    role = SemanticRole.Dialog,
+                    label = MODAL_LABEL,
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+                node(
+                    id = MODAL_CONTENT_RIVE_NODE_ID,
+                    parentId = MODAL_RIVE_NODE_ID,
+                    role = SemanticRole.Text,
+                    label = MODAL_CONTENT_LABEL,
+                    maxX = 100f,
+                    maxY = 100f,
+                ),
+            )
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val parent = RecordingAccessibilityParent(context)
+            val host = laidOutHost()
+            parent.addView(host)
+            parent.layout(0, 0, HOST_SIZE, HOST_SIZE)
+            host.layout(0, 0, HOST_SIZE, HOST_SIZE)
+            val helper = RiveExploreByTouchHelper(
+                host = host,
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+            )
 
-                tree.applyDiff(
-                    diff(
-                        updatedSemantic = arrayOf(
-                            node(
-                                id = MODAL_RIVE_NODE_ID,
-                                role = SemanticRole.Dialog,
-                                label = MODAL_LABEL,
-                                stateFlags = SemanticState.Modal,
-                                maxX = 100f,
-                                maxY = 100f,
-                            )
+            tree.applyDiff(
+                diff(
+                    updatedSemantic = arrayOf(
+                        node(
+                            id = MODAL_RIVE_NODE_ID,
+                            role = SemanticRole.Dialog,
+                            label = MODAL_LABEL,
+                            stateFlags = SemanticState.Modal,
+                            maxX = 100f,
+                            maxY = 100f,
                         )
                     )
                 )
-                assertTrue(helper.synchronizeWithTree())
+            )
+            assertTrue(helper.synchronizeWithTree())
 
-                tree.applyDiff(
-                    diff(
-                        updatedSemantic = arrayOf(
-                            node(
-                                id = MODAL_RIVE_NODE_ID,
-                                role = SemanticRole.Dialog,
-                                label = UPDATED_MODAL_LABEL,
-                                stateFlags = SemanticState.Modal,
-                                maxX = 100f,
-                                maxY = 100f,
-                            )
+            tree.applyDiff(
+                diff(
+                    updatedSemantic = arrayOf(
+                        node(
+                            id = MODAL_RIVE_NODE_ID,
+                            role = SemanticRole.Dialog,
+                            label = UPDATED_MODAL_LABEL,
+                            stateFlags = SemanticState.Modal,
+                            maxX = 100f,
+                            maxY = 100f,
                         )
                     )
                 )
-                assertTrue(helper.synchronizeWithTree())
+            )
+            assertTrue(helper.synchronizeWithTree())
 
-                tree.applyDiff(
-                    diff(
-                        updatedSemantic = arrayOf(
-                            node(
-                                id = MODAL_RIVE_NODE_ID,
-                                role = SemanticRole.Dialog,
-                                label = UPDATED_MODAL_LABEL,
-                                maxX = 100f,
-                                maxY = 100f,
-                            )
+            tree.applyDiff(
+                diff(
+                    updatedSemantic = arrayOf(
+                        node(
+                            id = MODAL_RIVE_NODE_ID,
+                            role = SemanticRole.Dialog,
+                            label = UPDATED_MODAL_LABEL,
+                            maxX = 100f,
+                            maxY = 100f,
                         )
                     )
                 )
-                assertTrue(helper.synchronizeWithTree())
+            )
+            assertTrue(helper.synchronizeWithTree())
 
-                assertEquals(
-                    listOf(
-                        AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_APPEARED,
-                        AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_TITLE,
-                        AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED,
-                    ),
-                    parent.windowStateContentChanges,
-                )
-                assertEquals(
-                    listOf<String?>(MODAL_LABEL, UPDATED_MODAL_LABEL, UPDATED_MODAL_LABEL),
-                    parent.windowStateDescriptions,
-                )
-            }
+            assertEquals(
+                listOf(
+                    AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_APPEARED,
+                    AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_TITLE,
+                    AccessibilityEventCompat.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED,
+                ),
+                parent.windowStateContentChanges,
+            )
+            assertEquals(
+                listOf<String?>(MODAL_LABEL, UPDATED_MODAL_LABEL, UPDATED_MODAL_LABEL),
+                parent.windowStateDescriptions,
+            )
         }
+    }
 
     /** Verifies disposal clears focus once and makes a retained provider reject every node. */
     @Test
-    fun dispose_clearsFocusOnceAndRetiresProvider() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = PARENT_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = "Dispose focused provider",
-                        maxX = 100f,
-                        maxY = 100f,
-                    )
+    fun dispose_clearsFocusOnceAndRetiresProvider() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = PARENT_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = "Dispose focused provider",
+                    maxX = 100f,
+                    maxY = 100f,
                 )
-                val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
-                val host = laidOutHost()
-                val helper = RiveExploreByTouchHelper(
-                    host = host,
-                    tree = tree,
-                    onSemanticAction = { _, _ -> },
-                    onAccessibilityFocusChanged = transitions::add,
+            )
+            val transitions = mutableListOf<SemanticAccessibilityFocusTransition>()
+            val host = laidOutHost()
+            val helper = RiveExploreByTouchHelper(
+                host = host,
+                tree = tree,
+                onSemanticAction = { _, _ -> },
+                onAccessibilityFocusChanged = transitions::add,
+            )
+            val provider = helper.getAccessibilityNodeProvider(host)
+            assertTrue(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                val provider = helper.getAccessibilityNodeProvider(host)
-                assertTrue(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
-                )
+            )
 
-                helper.dispose()
-                helper.dispose()
+            helper.dispose()
+            helper.dispose()
 
-                assertEquals(
-                    listOf(
-                        SemanticAccessibilityFocusTransition(null, PARENT_RIVE_NODE_ID),
-                        SemanticAccessibilityFocusTransition(PARENT_RIVE_NODE_ID, null),
-                    ),
-                    transitions,
+            assertEquals(
+                listOf(
+                    SemanticAccessibilityFocusTransition(null, PARENT_RIVE_NODE_ID),
+                    SemanticAccessibilityFocusTransition(PARENT_RIVE_NODE_ID, null),
+                ),
+                transitions,
+            )
+            assertFalse(
+                provider.performAction(
+                    PARENT_VIRTUAL_NODE_ID,
+                    AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
                 )
-                assertFalse(
-                    provider.performAction(
-                        PARENT_VIRTUAL_NODE_ID,
-                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
-                        null,
-                    )
-                )
-                assertNull(provider.createAccessibilityNodeInfo(PARENT_VIRTUAL_NODE_ID))
-            }
+            )
+            assertNull(provider.createAccessibilityNodeInfo(PARENT_VIRTUAL_NODE_ID))
         }
+    }
 
     /** Verifies the texture host installs the provider and forwards touch-exploration hover. */
     @Test
-    fun textureHost_installsProviderAndForwardsSemanticHover() =
-        withTouchExplorationEnabled {
-            onMainThread {
-                val tree = semanticTreeOf(
-                    node(
-                        id = PARENT_RIVE_NODE_ID,
-                        role = SemanticRole.Button,
-                        label = "Hovered",
-                        maxX = 100f,
-                        maxY = 100f,
-                    )
+    fun textureHost_installsProviderAndForwardsSemanticHover() = withTouchExplorationEnabled {
+        onMainThread {
+            val tree = semanticTreeOf(
+                node(
+                    id = PARENT_RIVE_NODE_ID,
+                    role = SemanticRole.Button,
+                    label = "Hovered",
+                    maxX = 100f,
+                    maxY = 100f,
                 )
-                val host = RiveTextureView(
-                    InstrumentationRegistry.getInstrumentation().targetContext
-                ).apply {
-                    layout(0, 0, HOST_SIZE, HOST_SIZE)
-                    installSemantics(
-                        tree = tree,
-                        onSemanticAction = { _, _ -> },
-                        onAccessibilityFocusChanged = {},
-                    )
-                }
-                val now = SystemClock.uptimeMillis()
-                val hoverEvent = MotionEvent.obtain(
-                    now,
-                    now,
-                    MotionEvent.ACTION_HOVER_ENTER,
-                    50f,
-                    50f,
-                    0,
+            )
+            val host = RiveTextureView(
+                InstrumentationRegistry.getInstrumentation().targetContext
+            ).apply {
+                layout(0, 0, HOST_SIZE, HOST_SIZE)
+                installSemantics(
+                    tree = tree,
+                    onSemanticAction = { _, _ -> },
+                    onAccessibilityFocusChanged = {},
                 )
-                try {
-                    assertTrue(host.dispatchSemanticHoverEvent(hoverEvent))
-                } finally {
-                    hoverEvent.recycle()
-                }
+            }
+            val now = SystemClock.uptimeMillis()
+            val hoverEvent = MotionEvent.obtain(
+                now,
+                now,
+                MotionEvent.ACTION_HOVER_ENTER,
+                50f,
+                50f,
+                0,
+            )
+            try {
+                assertTrue(host.dispatchSemanticHoverEvent(hoverEvent))
+            } finally {
+                hoverEvent.recycle()
             }
         }
+    }
 
     /** Verifies refresh preserves surviving IDs while publishing semantic and structural changes. */
     @Suppress("DEPRECATION") // ExploreByTouchHelper still consumes parent-local bounds.
@@ -902,7 +895,8 @@ class RiveExploreByTouchHelperTest {
         )
         assertTrue(helper.synchronizeWithTree())
 
-        val retainedNode = assertNotNull(provider.createAccessibilityNodeInfo(retainedVirtualNodeId))
+        val retainedNode =
+            assertNotNull(provider.createAccessibilityNodeInfo(retainedVirtualNodeId))
         val movedNode = assertNotNull(provider.createAccessibilityNodeInfo(movedVirtualNodeId))
         val retainedBounds = Rect()
         val movedBounds = Rect()
@@ -912,7 +906,10 @@ class RiveExploreByTouchHelperTest {
         assertEquals(Rect(20, 30, 70, 80), retainedBounds)
         assertEquals(Rect(10, 20, 50, 60), movedBounds)
         assertEquals(1, provider.createAccessibilityNodeInfo(PARENT_VIRTUAL_NODE_ID)?.childCount)
-        assertEquals(1, provider.createAccessibilityNodeInfo(SECOND_PARENT_VIRTUAL_NODE_ID)?.childCount)
+        assertEquals(
+            1,
+            provider.createAccessibilityNodeInfo(SECOND_PARENT_VIRTUAL_NODE_ID)?.childCount
+        )
 
         tree.applyDiff(diff(removed = intArrayOf(CHILD_RIVE_NODE_ID)))
         assertTrue(helper.synchronizeWithTree())
@@ -1138,7 +1135,9 @@ class RiveExploreByTouchHelperTest {
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             uiAutomation.serviceInfo = serviceInfo
             val deadline = System.nanoTime() + ACCESSIBILITY_TIMEOUT_MILLIS * 1_000_000
-            while (!accessibilityManager.isTouchExplorationEnabled && System.nanoTime() < deadline) {
+            while (!accessibilityManager.isTouchExplorationEnabled &&
+                System.nanoTime() < deadline
+            ) {
                 Thread.sleep(10)
             }
             assertTrue(accessibilityManager.isTouchExplorationEnabled)
@@ -1241,10 +1240,7 @@ private class RecordingAccessibilityParent(context: Context) : ViewGroup(context
     val windowStateDescriptions = mutableListOf<String?>()
 
     /** Records modal window-state events and accepts every child accessibility event. */
-    override fun requestSendAccessibilityEvent(
-        child: View,
-        event: AccessibilityEvent,
-    ): Boolean {
+    override fun requestSendAccessibilityEvent(child: View, event: AccessibilityEvent): Boolean {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             windowStateContentChanges += event.contentChangeTypes
             windowStateDescriptions += event.contentDescription?.toString()

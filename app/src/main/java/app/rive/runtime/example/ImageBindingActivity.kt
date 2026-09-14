@@ -112,7 +112,8 @@ private sealed interface RenderImageMethod {
     }
 
     /** From user supplied ARGB ints. */
-    class FromARGB(private val pixels: IntArray, private val width: Int, private val height: Int) : RenderImageMethod {
+    class FromARGB(private val pixels: IntArray, private val width: Int, private val height: Int) :
+        RenderImageMethod {
         override suspend fun make(
             ctx: Context,
             rendererType: RendererType,
@@ -188,7 +189,8 @@ class DecodeAssetLoader(ctx: Context) : ContextAssetLoader(ctx) {
 }
 
 /** AssetLoader that creates a RiveRenderImage and sets it on an ImageAsset. */
-class ImageAssetLoader(ctx: Context, private val rendererType: RendererType) : ContextAssetLoader(ctx) {
+class ImageAssetLoader(ctx: Context, private val rendererType: RendererType) :
+    ContextAssetLoader(ctx) {
     override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean {
         if (asset.name != ALPHA_TEST_ASSET_NAME) return false
         require(asset is ImageAsset)
@@ -287,7 +289,9 @@ class ImageBindingActivity : ComponentActivity() {
 
             // Maintain references to the interior views for binding
             val riveViews = remember {
-                mutableStateListOf<RiveAnimationView?>().apply { repeat(configs.size) { add(null) } }
+                mutableStateListOf<RiveAnimationView?>().apply {
+                    repeat(configs.size) { add(null) }
+                }
             }
 
             val bound = remember { mutableStateOf(false) }

@@ -49,12 +49,19 @@ internal enum class ComposeSemanticNodeContainer {
  */
 internal fun SemanticRole.toComposeRole(): Role? = when (this) {
     SemanticRole.Button -> Role.Button
+
     SemanticRole.Checkbox -> Role.Checkbox
+
     SemanticRole.SwitchControl -> Role.Switch
+
     SemanticRole.Slider -> Role.ValuePicker
+
     SemanticRole.Image -> Role.Image
+
     SemanticRole.Tab -> Role.Tab
+
     SemanticRole.RadioButton -> Role.RadioButton
+
     SemanticRole.None,
     SemanticRole.Link,
     SemanticRole.TextField,
@@ -65,7 +72,8 @@ internal fun SemanticRole.toComposeRole(): Role? = when (this) {
     SemanticRole.TabList,
     SemanticRole.Dialog,
     SemanticRole.AlertDialog,
-    SemanticRole.RadioGroup -> null
+    SemanticRole.RadioGroup,
+    -> null
 }
 
 /**
@@ -76,11 +84,17 @@ internal fun SemanticRole.toComposeRole(): Role? = when (this) {
 internal fun SemanticRole.toComposeSemanticNodeContainer(): ComposeSemanticNodeContainer =
     when (this) {
         SemanticRole.Group -> ComposeSemanticNodeContainer.Group
+
         SemanticRole.List -> ComposeSemanticNodeContainer.Collection
+
         SemanticRole.TabList,
-        SemanticRole.RadioGroup -> ComposeSemanticNodeContainer.SelectableGroup
+        SemanticRole.RadioGroup,
+        -> ComposeSemanticNodeContainer.SelectableGroup
+
         SemanticRole.Dialog,
-        SemanticRole.AlertDialog -> ComposeSemanticNodeContainer.Dialog
+        SemanticRole.AlertDialog,
+        -> ComposeSemanticNodeContainer.Dialog
+
         SemanticRole.None,
         SemanticRole.Button,
         SemanticRole.Link,
@@ -92,7 +106,8 @@ internal fun SemanticRole.toComposeSemanticNodeContainer(): ComposeSemanticNodeC
         SemanticRole.Image,
         SemanticRole.ListItem,
         SemanticRole.Tab,
-        SemanticRole.RadioButton -> ComposeSemanticNodeContainer.None
+        SemanticRole.RadioButton,
+        -> ComposeSemanticNodeContainer.None
     }
 
 /**
@@ -115,6 +130,7 @@ internal fun SemanticsPropertyReceiver.applySemanticNodeContent(content: Semanti
                 stateDescription = description
             }
         }
+
         SemanticNodeContentKind.Text -> {
             content.label?.let { staticText ->
                 text = AnnotatedString(staticText)
@@ -123,6 +139,7 @@ internal fun SemanticsPropertyReceiver.applySemanticNodeContent(content: Semanti
                 stateDescription = description
             }
         }
+
         SemanticNodeContentKind.TextField -> {
             content.label?.let { description ->
                 contentDescription = description
@@ -173,21 +190,25 @@ internal fun SemanticsPropertyReceiver.applySemanticNodeState(state: SemanticNod
  * @param container Container behavior classified by [toComposeSemanticNodeContainer].
  */
 internal fun SemanticsPropertyReceiver.applySemanticNodeContainer(
-    container: ComposeSemanticNodeContainer
+    container: ComposeSemanticNodeContainer,
 ) {
     when (container) {
         ComposeSemanticNodeContainer.None -> Unit
+
         ComposeSemanticNodeContainer.Group -> {
             isTraversalGroup = true
         }
+
         ComposeSemanticNodeContainer.Collection -> {
             isTraversalGroup = true
             collectionInfo = CollectionInfo(rowCount = -1, columnCount = -1)
         }
+
         ComposeSemanticNodeContainer.SelectableGroup -> {
             isTraversalGroup = true
             selectableGroup()
         }
+
         ComposeSemanticNodeContainer.Dialog -> {
             isTraversalGroup = true
             dialog()

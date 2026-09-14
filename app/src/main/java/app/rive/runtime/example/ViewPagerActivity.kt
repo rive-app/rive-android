@@ -56,13 +56,10 @@ class ViewPagerActivity : ComponentActivity() {
 
     private class RiveViewPagerAdapter :
         ListAdapter<Int, RiveTestViewHolder>(object : DiffUtil.ItemCallback<Int>() {
-            override fun areItemsTheSame(oldItem: Int, newItem: Int): Boolean {
-                return oldItem == newItem
-            }
+            override fun areItemsTheSame(oldItem: Int, newItem: Int): Boolean = oldItem == newItem
 
-            override fun areContentsTheSame(oldItem: Int, newItem: Int): Boolean {
-                return oldItem == newItem
-            }
+            override fun areContentsTheSame(oldItem: Int, newItem: Int): Boolean =
+                oldItem == newItem
         }) {
 
         // Keep ControllerStates around.

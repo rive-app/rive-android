@@ -19,6 +19,7 @@ class RenderPathMacrobenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
     // benchmark-macro 1.2.4 does not expose CompilationMode.SpeedProfile().
     // This is the equivalent setup: collect profile during warmup, no baseline profile.
     private val speedProfileCompilationMode = CompilationMode.Partial(
@@ -80,7 +81,8 @@ class RenderPathMacrobenchmark {
 
     private enum class Path(val activityClassName: String) {
         Compose("app.rive.benchmark.BenchmarkComposeActivity"),
-        HardwareCanvas("app.rive.benchmark.BenchmarkHardwareBitmapCanvasActivity");
+        HardwareCanvas("app.rive.benchmark.BenchmarkHardwareBitmapCanvasActivity"),
+        ;
 
         fun launchCommand(): String = buildString {
             append("am start -W")

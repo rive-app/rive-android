@@ -3,6 +3,9 @@ max_line_length = 100
 ktlint_code_style = android_studio
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
+# Allow call-site commas without forcing them on wrapped single arguments or nested calls.
+# Keep declaration-site commas enforced for consistent parameter lists.
+ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_function_naming_ignore_when_annotated_with = Composable
 
 # Spotless uses ktlint for canonical formatting. Keep non-autocorrectable lint policy separate.
@@ -10,7 +13,12 @@ ktlint_standard_comment-wrapping = enabled
 ktlint_standard_filename = enabled
 ktlint_standard_function-naming = enabled
 ktlint_standard_kdoc = enabled
-# Enable this when the follow-up full-formatting change removes the Spotless ratchet.
-ktlint_standard_max-line-length = disabled
+ktlint_standard_max-line-length = enabled
 ktlint_standard_mixed-condition-operators = enabled
 ktlint_standard_property-naming = disabled
+
+[**/src/test/**/*.kt]
+# Keep Kotest declarations such as `class ExampleTest : FunSpec({` on one line.
+# Wrapping the superclass call adds an indentation level to the entire test suite,
+# reducing readability and creating noisy diffs. Other formatting rules still apply.
+ktlint_standard_class-signature = disabled

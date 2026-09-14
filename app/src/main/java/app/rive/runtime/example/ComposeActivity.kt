@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.rive.Alignment as RiveAlignment
 import app.rive.Fit
 import app.rive.Result
 import app.rive.Rive
@@ -53,10 +54,9 @@ import app.rive.rememberRegisteredFont
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorkerOrNull
 import app.rive.rememberViewModelInstanceResult
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
-import app.rive.Alignment as RiveAlignment
 
 class ComposeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,7 +117,9 @@ class ComposeActivity : ComponentActivity() {
                     // Switch on the status of the loading Rive file
                     when (riveFileResult) {
                         is Result.Loading -> LoadingIndicator()
+
                         is Result.Error -> ErrorMessage(riveFileResult.throwable)
+
                         is Result.Success -> {
                             // On success, we can use the Rive file
                             val riveFile = riveFileResult.value
@@ -137,7 +139,9 @@ class ComposeActivity : ComponentActivity() {
 
                             when (resourcesResult) {
                                 is Result.Loading -> LoadingIndicator()
+
                                 is Result.Error -> ErrorMessage(resourcesResult.throwable)
+
                                 is Result.Success -> {
                                     val (artboard, vmi) = resourcesResult.value
 
@@ -185,7 +189,8 @@ class ComposeActivity : ComponentActivity() {
                                         selectedOption = artboardName ?: "Default",
                                         onOptionSelected = { selectedArtboard ->
                                             artboardName = selectedArtboard
-                                        })
+                                        }
+                                    )
 
                                     LabelledDropdown(
                                         label = "Fit",
@@ -193,7 +198,8 @@ class ComposeActivity : ComponentActivity() {
                                         selectedOption = fitString,
                                         onOptionSelected = { selectedFit ->
                                             fitString = selectedFit
-                                        })
+                                        }
+                                    )
 
                                     LabelledDropdown(
                                         label = "Alignment",
@@ -201,7 +207,8 @@ class ComposeActivity : ComponentActivity() {
                                         selectedOption = alignmentString,
                                         onOptionSelected = { selectedAlignment ->
                                             alignmentString = selectedAlignment
-                                        })
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -223,18 +230,16 @@ class ComposeActivity : ComponentActivity() {
         "None"
     )
 
-    private fun fitFrom(name: String, alignment: RiveAlignment): Fit {
-        return when (name) {
-            "Layout" -> Fit.Layout()
-            "Contain" -> Fit.Contain(alignment)
-            "Scale Down" -> Fit.ScaleDown(alignment)
-            "Cover" -> Fit.Cover(alignment)
-            "Fit Width" -> Fit.FitWidth(alignment)
-            "Fit Height" -> Fit.FitHeight(alignment)
-            "Fill" -> Fit.Fill
-            "None" -> Fit.None(alignment)
-            else -> throw IllegalArgumentException("Unknown fit type: $name")
-        }
+    private fun fitFrom(name: String, alignment: RiveAlignment): Fit = when (name) {
+        "Layout" -> Fit.Layout()
+        "Contain" -> Fit.Contain(alignment)
+        "Scale Down" -> Fit.ScaleDown(alignment)
+        "Cover" -> Fit.Cover(alignment)
+        "Fit Width" -> Fit.FitWidth(alignment)
+        "Fit Height" -> Fit.FitHeight(alignment)
+        "Fill" -> Fit.Fill
+        "None" -> Fit.None(alignment)
+        else -> throw IllegalArgumentException("Unknown fit type: $name")
     }
 
     private val alignmentMap = mapOf<String, RiveAlignment>(
@@ -251,9 +256,7 @@ class ComposeActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoadingIndicator(
-    modifier: Modifier = Modifier
-) {
+fun LoadingIndicator(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -273,10 +276,7 @@ fun LoadingIndicator(
 }
 
 @Composable
-fun ErrorMessage(
-    throwable: Throwable,
-    modifier: Modifier = Modifier
-) {
+fun ErrorMessage(throwable: Throwable, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -318,7 +318,7 @@ fun LabelledDropdown(
     label: String,
     options: List<String>,
     selectedOption: String,
-    onOptionSelected: (String) -> Unit = {}
+    onOptionSelected: (String) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -346,7 +346,8 @@ fun LabelledDropdown(
 
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }) {
+                onDismissRequest = { expanded = false }
+            ) {
                 options.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option) },

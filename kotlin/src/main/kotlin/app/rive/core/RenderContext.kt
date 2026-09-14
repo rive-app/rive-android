@@ -1,10 +1,10 @@
 package app.rive.core
 
-import android.os.Build
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
+import android.os.Build
 import android.view.Surface
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
@@ -55,7 +55,7 @@ internal abstract class RenderContext : CheckableAutoCloseable {
     internal abstract fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
-        commandQueue: CommandQueue
+        commandQueue: CommandQueue,
     ): RiveSurface
 
     /**
@@ -84,7 +84,7 @@ internal abstract class RenderContext : CheckableAutoCloseable {
         width: Int,
         height: Int,
         drawKey: DrawKey,
-        commandQueue: CommandQueue
+        commandQueue: CommandQueue,
     ): RiveSurface
 }
 
@@ -106,8 +106,9 @@ internal abstract class RenderContext : CheckableAutoCloseable {
 internal data class RenderContextGL(
     val display: EGLDisplay = createDisplay(),
     val config: EGLConfig = createConfig(display),
-    val context: EGLContext = createContext(display, config)
-) : RenderContext(), CheckableAutoCloseable {
+    val context: EGLContext = createContext(display, config),
+) : RenderContext(),
+    CheckableAutoCloseable {
     private external fun cppConstructor(display: Long, context: Long): Long
     private external fun cppDelete(pointer: Long)
 
@@ -202,12 +203,12 @@ internal data class RenderContextGL(
 
                 RiveLog.d(TAG) {
                     "EGL config chosen successfully:\n" +
-                            "  R=${attr(EGL14.EGL_RED_SIZE)}\n" +
-                            "  G=${attr(EGL14.EGL_GREEN_SIZE)}\n" +
-                            "  B=${attr(EGL14.EGL_BLUE_SIZE)}\n" +
-                            "  A=${attr(EGL14.EGL_ALPHA_SIZE)}\n" +
-                            "  Depth=${attr(EGL14.EGL_DEPTH_SIZE)}\n" +
-                            "  Stencil=${attr(EGL14.EGL_STENCIL_SIZE)}"
+                        "  R=${attr(EGL14.EGL_RED_SIZE)}\n" +
+                        "  G=${attr(EGL14.EGL_GREEN_SIZE)}\n" +
+                        "  B=${attr(EGL14.EGL_BLUE_SIZE)}\n" +
+                        "  A=${attr(EGL14.EGL_ALPHA_SIZE)}\n" +
+                        "  Depth=${attr(EGL14.EGL_DEPTH_SIZE)}\n" +
+                        "  Stencil=${attr(EGL14.EGL_STENCIL_SIZE)}"
                 }
 
                 return chosenConfig
@@ -223,7 +224,8 @@ internal data class RenderContextGL(
          */
         private fun createContext(display: EGLDisplay, config: EGLConfig): EGLContext {
             val contextAttributes = intArrayOf(
-                EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
+                EGL14.EGL_CONTEXT_CLIENT_VERSION,
+                2,
                 EGL14.EGL_NONE
             )
             RiveLog.d(TAG) { "Creating EGL context" }
@@ -300,7 +302,7 @@ internal data class RenderContextGL(
     override fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
-        commandQueue: CommandQueue
+        commandQueue: CommandQueue,
     ): RiveSurface {
         if (!surface.surface.isValid) {
             throw RiveRenderException("Unable to create Android Surface")
@@ -381,8 +383,10 @@ internal data class RenderContextGL(
         require(width > 0 && height > 0) { "Image surfaces require a positive width and height." }
         RiveLog.d(TAG) { "Creating EGL PBuffer surface ($width x $height)" }
         val attrs = intArrayOf(
-            EGL14.EGL_WIDTH, width,
-            EGL14.EGL_HEIGHT, height,
+            EGL14.EGL_WIDTH,
+            width,
+            EGL14.EGL_HEIGHT,
+            height,
             EGL14.EGL_NONE
         )
         val eglSurface = EGL14.eglCreatePbufferSurface(display, config, attrs, 0)
@@ -425,7 +429,9 @@ internal data class RenderContextGL(
  *
  * @throws RiveInitializationException If native Vulkan resources cannot be initialized.
  */
-internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
+internal class RenderContextVulkan :
+    RenderContext(),
+    CheckableAutoCloseable {
     private external fun cppConstructor(enableDebugNames: Boolean): Long
     private external fun cppDelete(pointer: Long)
 
@@ -451,7 +457,7 @@ internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
     override fun createSurface(
         surface: CloseableSurface,
         drawKey: DrawKey,
-        commandQueue: CommandQueue
+        commandQueue: CommandQueue,
     ): RiveSurface = RiveSurfaceVulkan.create(this, surface, commandQueue, drawKey)
 
     @Throws(
@@ -465,7 +471,6 @@ internal class RenderContextVulkan : RenderContext(), CheckableAutoCloseable {
         drawKey: DrawKey,
         commandQueue: CommandQueue,
     ): RiveSurface = RiveSurfaceVulkanImage.create(this, width, height, commandQueue, drawKey)
-
 }
 
 /**

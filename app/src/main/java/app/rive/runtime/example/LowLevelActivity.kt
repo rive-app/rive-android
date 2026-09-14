@@ -51,16 +51,14 @@ class LowLevelRiveView(context: Context) : RiveTextureView(context) {
         renderer.dependencies.add(file)
     }
 
-    override fun createObserver(): LifecycleObserver {
-        return object : DefaultLifecycleObserver {
-            /* Optionally override lifecycle methods. */
-            // override fun onCreate(owner: LifecycleOwner) {
-            //     super.onCreate(owner)
-            // }
-            // override fun onDestroy(owner: LifecycleOwner) {
-            //     super.onDestroy(owner)
-            // }
-        }
+    override fun createObserver(): LifecycleObserver = object : DefaultLifecycleObserver {
+        /* Optionally override lifecycle methods. */
+        // override fun onCreate(owner: LifecycleOwner) {
+        //     super.onCreate(owner)
+        // }
+        // override fun onDestroy(owner: LifecycleOwner) {
+        //     super.onDestroy(owner)
+        // }
     }
 
     override fun createRenderer(): Renderer {

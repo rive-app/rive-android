@@ -44,7 +44,5 @@ open class LayerState(unsafeCppPointer: Long) : NativeObject(unsafeCppPointer) {
     val isBlendStateDirect: Boolean
         get() = cppIsBlendStateDirect(cppPointer)
 
-    override fun toString(): String {
-        return "LayerState"
-    }
+    override fun toString(): String = "LayerState"
 }

@@ -12,9 +12,11 @@ class InteractiveSamplesActivity : ComponentActivity() {
     private var keepGoing = true
     fun setTime() {
         val hours =
-            (Calendar.getInstance().get(Calendar.HOUR) % 12f + Calendar.getInstance()
-                .get(Calendar.MINUTE) / 60f + Calendar.getInstance()
-                .get(Calendar.SECOND) / 3600f)
+            (
+                Calendar.getInstance().get(Calendar.HOUR) % 12f + Calendar.getInstance()
+                    .get(Calendar.MINUTE) / 60f + Calendar.getInstance()
+                    .get(Calendar.SECOND) / 3600f
+                )
         clockView.setNumberState("Time", "isTime", hours)
     }
 
@@ -24,17 +26,19 @@ class InteractiveSamplesActivity : ComponentActivity() {
 
         setTime()
         val h = Handler(Looper.getMainLooper())
-        h.postDelayed(object : Runnable {
-            override fun run() {
-                // do stuff then
-                // can call h again after work!
-                if (keepGoing) {
-                    setTime()
-                    h.postDelayed(this, 360)
+        h.postDelayed(
+            object : Runnable {
+                override fun run() {
+                    // do stuff then
+                    // can call h again after work!
+                    if (keepGoing) {
+                        setTime()
+                        h.postDelayed(this, 360)
+                    }
                 }
-            }
-        }, 360) // 1 second dela
-
+            },
+            360
+        ) // 1 second dela
     }
 
     override fun onDetachedFromWindow() {

@@ -19,11 +19,11 @@ import app.rive.SoftwareRenderBuffer
 import app.rive.StateMachine
 import app.rive.core.RiveWorker
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
+import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "RiveSnapshotActivity"
 
@@ -106,37 +106,36 @@ private class SnapshotCanvasView(context: Context) : View(context) {
     }
 }
 
-private suspend fun View.awaitSize(): Pair<Int, Int> =
-    suspendCancellableCoroutine { continuation ->
-        val availableImmediately = width > 0 && height > 0
-        if (availableImmediately) {
-            continuation.resume(width to height)
-            return@suspendCancellableCoroutine
-        }
+private suspend fun View.awaitSize(): Pair<Int, Int> = suspendCancellableCoroutine { continuation ->
+    val availableImmediately = width > 0 && height > 0
+    if (availableImmediately) {
+        continuation.resume(width to height)
+        return@suspendCancellableCoroutine
+    }
 
-        val listener = object : View.OnLayoutChangeListener {
-            override fun onLayoutChange(
-                v: View,
-                left: Int,
-                top: Int,
-                right: Int,
-                bottom: Int,
-                oldLeft: Int,
-                oldTop: Int,
-                oldRight: Int,
-                oldBottom: Int
-            ) {
-                if (width > 0 && height > 0) {
-                    removeOnLayoutChangeListener(this)
-                    if (!continuation.isCancelled) {
-                        continuation.resume(width to height)
-                    }
+    val listener = object : View.OnLayoutChangeListener {
+        override fun onLayoutChange(
+            v: View,
+            left: Int,
+            top: Int,
+            right: Int,
+            bottom: Int,
+            oldLeft: Int,
+            oldTop: Int,
+            oldRight: Int,
+            oldBottom: Int,
+        ) {
+            if (width > 0 && height > 0) {
+                removeOnLayoutChangeListener(this)
+                if (!continuation.isCancelled) {
+                    continuation.resume(width to height)
                 }
             }
         }
-
-        addOnLayoutChangeListener(listener)
-        continuation.invokeOnCancellation {
-            removeOnLayoutChangeListener(listener)
-        }
     }
+
+    addOnLayoutChangeListener(listener)
+    continuation.invokeOnCancellation {
+        removeOnLayoutChangeListener(listener)
+    }
+}

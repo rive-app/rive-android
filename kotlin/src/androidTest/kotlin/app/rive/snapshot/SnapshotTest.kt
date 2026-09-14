@@ -5,13 +5,13 @@ import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.RiveLog
 import com.dropbox.dropshots.Dropshots
+import java.util.concurrent.TimeUnit
+import kotlin.test.Ignore
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import java.util.concurrent.TimeUnit
-import kotlin.test.Ignore
-import kotlin.test.assertTrue
 
 /**
  * ℹ️ Currently disabled until these tests can be integrated with the existing golden script system.
@@ -39,12 +39,10 @@ import kotlin.test.assertTrue
  */
 @RunWith(Parameterized::class)
 @Ignore
-class SnapshotTest(
-    private val activityType: ActivityType
-) {
+class SnapshotTest(private val activityType: ActivityType) {
     enum class ActivityType {
         BITMAP,
-        COMPOSE
+        COMPOSE,
     }
 
     companion object {
@@ -52,9 +50,7 @@ class SnapshotTest(
 
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun data(): Collection<Array<Any>> {
-            return ActivityType.entries.map { arrayOf(it) }
-        }
+        fun data(): Collection<Array<Any>> = ActivityType.entries.map { arrayOf(it) }
 
         const val NO_BINDING = "NO_BIND"
     }
@@ -145,7 +141,7 @@ class SnapshotTest(
     private fun runSnapshotTest(
         context: Context,
         config: SnapshotActivityConfig,
-        testName: String
+        testName: String,
     ) {
         val scenario = when (activityType) {
             ActivityType.BITMAP -> {

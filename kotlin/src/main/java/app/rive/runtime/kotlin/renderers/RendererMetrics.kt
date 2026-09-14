@@ -43,7 +43,7 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
     override fun onFrameMetricsAvailable(
         window: Window?,
         frameMetrics: FrameMetrics?,
-        dropCountSinceLastInvocation: Int
+        dropCountSinceLastInvocation: Int,
     ) {
         if (window == null) {
             RiveLog.w(TAG) { "Invalid Window reference." }
@@ -83,7 +83,8 @@ class RendererMetrics(activity: Activity) : Window.OnFrameMetricsAvailableListen
 === Swap Buffers Duration:  %.2fms ===
 === GPU commands sent in:   %.2fms ===
 ======================================
-=== Overall average:        %.2fms ===""".trimIndent(),
+=== Overall average:        %.2fms ===
+                """.trimIndent(),
                 totalDurationMs,
                 drawMs,
                 swapBuffersMs,

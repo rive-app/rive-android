@@ -76,15 +76,13 @@ internal class AndroidVirtualNodeIdRegistry(
      * @param virtualNodeId Android virtual accessibility node ID.
      * @return Active Rive semantic node ID, or `null` for reserved, retired, or unknown IDs.
      */
-    fun riveNodeIdForVirtualNode(virtualNodeId: Int): Int? =
-        riveIdsByVirtualId[virtualNodeId]
+    fun riveNodeIdForVirtualNode(virtualNodeId: Int): Int? = riveIdsByVirtualId[virtualNodeId]
 
     /** Retires every active mapping without making their virtual IDs reusable. */
     fun clear() {
         virtualIdsByRiveId.clear()
         riveIdsByVirtualId.clear()
     }
-
 }
 
 /** Allocates monotonic virtual IDs across every helper generation owned by one host view. */

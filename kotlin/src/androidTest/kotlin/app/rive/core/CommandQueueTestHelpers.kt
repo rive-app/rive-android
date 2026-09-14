@@ -22,9 +22,7 @@ import kotlin.test.assertTrue
  *
  * @param commandQueues The command queues whose callbacks should be delivered.
  */
-internal class CommandQueuePoller(
-    private val commandQueues: List<CommandQueue>
-) : AutoCloseable {
+internal class CommandQueuePoller(private val commandQueues: List<CommandQueue>) : AutoCloseable {
     /**
      * Creates a poller for a single command queue.
      *

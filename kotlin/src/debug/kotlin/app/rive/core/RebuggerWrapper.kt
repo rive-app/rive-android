@@ -9,8 +9,6 @@ import com.theapache64.rebugger.Rebugger
  * @suppress
  */
 @Composable
-fun RebuggerWrapper(
-    trackMap: Map<String, Any?>
-) {
+fun RebuggerWrapper(trackMap: Map<String, Any?>) {
     Rebugger(trackMap = trackMap)
 }

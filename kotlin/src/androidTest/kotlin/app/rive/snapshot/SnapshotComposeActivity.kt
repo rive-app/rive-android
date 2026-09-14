@@ -20,10 +20,10 @@ import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
-import app.rive.rememberRiveWorker
-import app.rive.rememberViewModelInstanceResult
 import app.rive.compose.TestRiveResources
 import app.rive.compose.rememberTestRiveResources
+import app.rive.rememberRiveWorker
+import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.test.R
 import java.util.concurrent.CountDownLatch
@@ -36,7 +36,9 @@ import kotlin.time.Duration.Companion.nanoseconds
  * The rendered bitmap is returned through [resultBitmap] so that tests can assert on the output.
  * The [resultLatch] is used to signal when the bitmap is ready.
  */
-class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
+class SnapshotComposeActivity :
+    ComponentActivity(),
+    SnapshotActivityResult {
     companion object {
         /**
          * Creates an Intent to launch this activity with the specified configuration.
@@ -44,12 +46,10 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
          * @param context The context to use for creating the Intent.
          * @param config The configuration for the snapshot activity.
          */
-        fun createIntent(
-            context: android.content.Context,
-            config: SnapshotActivityConfig
-        ): Intent = Intent(context, SnapshotComposeActivity::class.java).apply {
-            config.applyToIntent(this)
-        }
+        fun createIntent(context: android.content.Context, config: SnapshotActivityConfig): Intent =
+            Intent(context, SnapshotComposeActivity::class.java).apply {
+                config.applyToIntent(this)
+            }
     }
 
     override lateinit var resultBitmap: Bitmap
@@ -83,7 +83,9 @@ class SnapshotComposeActivity : ComponentActivity(), SnapshotActivityResult {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 when (contentResult) {
                     is Result.Loading -> {}
+
                     is Result.Error -> {}
+
                     is Result.Success -> {
                         val (resources, vmi) = contentResult.value
                         val (riveFile, artboard, stateMachine) = resources

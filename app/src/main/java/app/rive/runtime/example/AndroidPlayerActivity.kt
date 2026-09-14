@@ -242,7 +242,6 @@ class AndroidPlayerActivity : ComponentActivity() {
                         val value = editText.text.toString().toFloat()
                         animationView.setNumberState(stateMachineName, it.name, value)
                     } catch (e: Error) {
-
                     }
                 }
 
@@ -279,7 +278,6 @@ class AndroidPlayerActivity : ComponentActivity() {
                 }
             }
         }
-
     }
 
     fun setSpinner() {
@@ -296,7 +294,7 @@ class AndroidPlayerActivity : ComponentActivity() {
                     arg0: AdapterView<*>?,
                     arg1: View?,
                     arg2: Int,
-                    arg3: Long
+                    arg3: Long,
                 ) {
                     val item = dropdown.selectedItem.toString()
 
@@ -323,7 +321,7 @@ class AndroidPlayerActivity : ComponentActivity() {
                     arg0: AdapterView<*>?,
                     arg1: View?,
                     arg2: Int,
-                    arg3: Long
+                    arg3: Long,
                 ) {
                     loadResource(arg2)
                 }

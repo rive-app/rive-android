@@ -16,15 +16,25 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
  */
 internal fun SemanticRole.toAndroidAccessibilityClassName(): String? = when (this) {
     SemanticRole.Button -> "android.widget.Button"
+
     SemanticRole.Checkbox -> "android.widget.CheckBox"
+
     SemanticRole.SwitchControl -> "android.widget.Switch"
+
     SemanticRole.Slider -> "android.widget.SeekBar"
+
     SemanticRole.TextField -> "android.widget.EditText"
+
     SemanticRole.Text -> "android.widget.TextView"
+
     SemanticRole.Image -> "android.widget.ImageView"
+
     SemanticRole.List -> "android.widget.ListView"
+
     SemanticRole.RadioGroup -> "android.widget.RadioGroup"
+
     SemanticRole.RadioButton -> "android.widget.RadioButton"
+
     SemanticRole.None,
     SemanticRole.Link,
     SemanticRole.Group,
@@ -32,7 +42,8 @@ internal fun SemanticRole.toAndroidAccessibilityClassName(): String? = when (thi
     SemanticRole.Tab,
     SemanticRole.TabList,
     SemanticRole.Dialog,
-    SemanticRole.AlertDialog -> null
+    SemanticRole.AlertDialog,
+    -> null
 }
 
 /**
@@ -180,10 +191,12 @@ internal fun AccessibilityNodeInfoCompat.applySemanticNodeContent(content: Seman
             contentDescription = content.label
             stateDescription = content.value
         }
+
         SemanticNodeContentKind.Text -> {
             text = content.label
             stateDescription = content.value
         }
+
         SemanticNodeContentKind.TextField -> {
             contentDescription = content.label
             text = content.value

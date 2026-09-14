@@ -191,11 +191,10 @@ class BytesRequest(
 ) : Request<ByteArray>(Method.GET, url, errorListener) {
     override fun deliverResponse(response: ByteArray) = onResponse(response)
 
-    override fun parseNetworkResponse(response: NetworkResponse?): Response<ByteArray> =
-        try {
-            val bytes = response?.data ?: ByteArray(0)
-            Response.success(bytes, HttpHeaderParser.parseCacheHeaders(response))
-        } catch (e: Exception) {
-            Response.error(ParseError(e))
-        }
+    override fun parseNetworkResponse(response: NetworkResponse?): Response<ByteArray> = try {
+        val bytes = response?.data ?: ByteArray(0)
+        Response.success(bytes, HttpHeaderParser.parseCacheHeaders(response))
+    } catch (e: Exception) {
+        Response.error(ParseError(e))
+    }
 }

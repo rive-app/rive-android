@@ -15,6 +15,8 @@ import app.rive.core.RiveWorker
 import app.rive.rememberArtboardResult
 import app.rive.rememberRiveFile
 import app.rive.rememberStateMachineResult
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.assertIs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -22,8 +24,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.assertIs
 
 private const val DEFAULT_COMPOSE_TIMEOUT_MILLIS = 10_000L
 

@@ -7,16 +7,16 @@ import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
 import app.rive.runtime.kotlin.test.R
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.Duration.Companion.seconds
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
@@ -150,7 +150,7 @@ class RiveArtboardRendererTest {
                 rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
-                scaleFactor: Float
+                scaleFactor: Float,
             ) {
             }
         }
@@ -220,7 +220,7 @@ class RiveArtboardRendererTest {
                 rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
-                scaleFactor: Float
+                scaleFactor: Float,
             ) {
                 synchronized(artboardLock) {
                     readyForRelease.countDown()
@@ -291,7 +291,7 @@ class RiveArtboardRendererTest {
                 rendererAddress: Long,
                 fit: Fit,
                 alignment: Alignment,
-                scaleFactor: Float
+                scaleFactor: Float,
             ) {
                 readyForRelease.countDown()
                 afterRelease.await()
@@ -300,9 +300,11 @@ class RiveArtboardRendererTest {
 
             // Do nothing, avoiding the thread affinity checks in the real draw().
             override fun cppDrawAligned(
-                cppPointer: Long, rendererPointer: Long,
-                fit: Fit, alignment: Alignment,
-                scaleFactor: Float
+                cppPointer: Long,
+                rendererPointer: Long,
+                fit: Fit,
+                alignment: Alignment,
+                scaleFactor: Float,
             ) {
             }
 
@@ -407,7 +409,7 @@ class RiveArtboardRendererTest {
         val exception = exceptionRef.get()
         assert(exception == null) {
             "Expected no exception when renderer is deleted during resizeArtboard(). " +
-                    "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
+                "Got: ${exception?.javaClass?.simpleName}: ${exception?.message}"
         }
     }
 
@@ -465,7 +467,7 @@ class RiveArtboardRendererTest {
         val exception = exceptionRef.get()
         assertTrue(
             "Expected no exception when deleting renderer during resize race, " +
-                    "but got: ${exception?.javaClass?.simpleName}: ${exception?.message}",
+                "but got: ${exception?.javaClass?.simpleName}: ${exception?.message}",
             exception == null
         )
     }

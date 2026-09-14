@@ -80,7 +80,8 @@ import kotlin.math.min
     level = DeprecationLevel.WARNING
 )
 open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
-    RiveTextureView(context, attrs), Observable<RiveFileController.Listener> {
+    RiveTextureView(context, attrs),
+    Observable<RiveFileController.Listener> {
     companion object {
         const val TAG = "RiveL/RiveAnimationView"
 
@@ -89,6 +90,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         // Default attribute values.
         val alignmentIndexDefault = Alignment.CENTER.ordinal
         val fitIndexDefault = Fit.CONTAIN.ordinal
+
         @Deprecated(
             "Linear animations are deprecated. Use a state machine to control playback instead."
         )
@@ -312,10 +314,14 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                         if (it is FileAssetLoader) return it
                     }
 
-                    RiveLog.e(TAG) { "Failed to initialize AssetLoader: No suitable constructor in $name" }
+                    RiveLog.e(TAG) {
+                        "Failed to initialize AssetLoader: No suitable constructor in $name"
+                    }
                     null
                 } catch (e: Exception) {
-                    RiveLog.e(TAG) { "Failed to initialize AssetLoader from name: $name (exception: ${e.message})" }
+                    RiveLog.e(TAG) {
+                        "Failed to initialize AssetLoader from name: $name (exception: ${e.message})"
+                    }
                     null
                 }
             }
@@ -323,6 +329,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
         var alignment: Alignment = Alignment.fromIndex(alignmentIndex)
         var fit: Fit = Fit.fromIndex(fitIndex)
+
         /**
          * The playback behavior for linear animations.
          *
@@ -395,16 +402,17 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         fun setTouchPassThrough(value: Boolean) = apply { touchPassThrough = value }
         fun setMultiTouchEnabled(value: Boolean) = apply { multiTouchEnabled = value }
 
-        fun build(): RiveAnimationView {
-            return RiveAnimationView(this)
-        }
+        fun build(): RiveAnimationView = RiveAnimationView(this)
     }
 
     init {
         RiveLog.d(TAG) { "Creating RiveAnimationView." }
 
         context.theme.obtainStyledAttributes(
-            attrs, R.styleable.RiveAnimationView, 0, 0
+            attrs,
+            R.styleable.RiveAnimationView,
+            0,
+            0
         ).apply {
             try {
                 val resId = getResourceId(R.styleable.RiveAnimationView_riveResource, -1)
@@ -435,28 +443,33 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
 
                 rendererAttributes = RendererAttributes(
                     alignmentIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveAlignment, alignmentIndexDefault
+                        R.styleable.RiveAnimationView_riveAlignment,
+                        alignmentIndexDefault
                     ),
                     fitIndex = getInteger(R.styleable.RiveAnimationView_riveFit, fitIndexDefault),
                     loopIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveLoop, loopIndexDefault
+                        R.styleable.RiveAnimationView_riveLoop,
+                        loopIndexDefault
                     ),
                     autoplay = getBoolean(
                         R.styleable.RiveAnimationView_riveAutoPlay,
                         defaultAutoplay
                     ),
                     autoBind = getBoolean(
-                        R.styleable.RiveAnimationView_riveAutoBind, false
+                        R.styleable.RiveAnimationView_riveAutoBind,
+                        false
                     ),
                     riveTraceAnimations = getBoolean(
-                        R.styleable.RiveAnimationView_riveTraceAnimations, traceAnimationsDefault
+                        R.styleable.RiveAnimationView_riveTraceAnimations,
+                        traceAnimationsDefault
                     ),
                     artboardName = getString(R.styleable.RiveAnimationView_riveArtboard),
                     animationName = getString(R.styleable.RiveAnimationView_riveAnimation),
                     stateMachineName = getString(R.styleable.RiveAnimationView_riveStateMachine),
                     resource = resourceFromValue,
                     rendererIndex = getInteger(
-                        R.styleable.RiveAnimationView_riveRenderer, rendererIndexDefault
+                        R.styleable.RiveAnimationView_riveRenderer,
+                        rendererIndexDefault
                     ),
                     assetLoader = FallbackAssetLoader(
                         context = context.applicationContext,
@@ -469,7 +482,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     loop = rendererAttributes.loop,
                     autoplay = rendererAttributes.autoplay,
                 )
-                /**
+                /*
                  * Attach the observer to give us lifecycle hooks.
                  *
                  * N.B.: We're attaching in the constructor because the View can be created without
@@ -523,7 +536,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     }
 
     override fun onSurfaceTextureAvailable(
-        surfaceTexture: SurfaceTexture, width: Int, height: Int,
+        surfaceTexture: SurfaceTexture,
+        width: Int,
+        height: Int,
     ) {
         super.onSurfaceTextureAvailable(surfaceTexture, width, height)
         controller.targetBounds = RectF(0.0f, 0.0f, width.toFloat(), height.toFloat())
@@ -533,15 +548,22 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     private fun loadFileFromResource(onComplete: (File) -> Unit) {
         when (val resource = rendererAttributes.resource) {
             null -> RiveLog.w(TAG) { "loadResource: no resource to load" }
+
             // Passes the resource through: ownership is coming from elsewhere.
             is ResourceType.ResourceRiveFile -> {
-                RiveLog.d(TAG) { "Loading Rive file from existing Rive File. No extra work required." }
+                RiveLog.d(TAG) {
+                    "Loading Rive file from existing Rive File. No extra work required."
+                }
                 onComplete(resource.file)
             }
+
             // loadFromNetwork() releases after onComplete() is called.
             is ResourceType.ResourceUrl -> loadFromNetwork(resource.url, onComplete)
+
             is ResourceType.ResourceBytes -> {
-                RiveLog.d(TAG) { "Loading Rive file from bytes with length: ${resource.bytes.size}" }
+                RiveLog.d(TAG) {
+                    "Loading Rive file from bytes with length: ${resource.bytes.size}"
+                }
                 val file = File(
                     bytes = resource.bytes,
                     rendererType = rendererAttributes.rendererType,
@@ -634,7 +656,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      */
     fun stop(animationNames: List<String>, areStateMachines: Boolean = false) {
         controller.stopAnimations(
-            animationNames = animationNames, areStateMachines = areStateMachines
+            animationNames = animationNames,
+            areStateMachines = areStateMachines
         )
     }
 
@@ -760,7 +783,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setBooleanState(stateMachineName: String, inputName: String, value: Boolean) {
         controller.setBooleanState(
-            stateMachineName = stateMachineName, inputName = inputName, value = value
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value
         )
     }
 
@@ -775,7 +800,9 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     @Deprecated("State machine inputs are deprecated. Use data binding properties instead.")
     fun setNumberState(stateMachineName: String, inputName: String, value: Float) {
         controller.setNumberState(
-            stateMachineName = stateMachineName, inputName = inputName, value = value
+            stateMachineName = stateMachineName,
+            inputName = inputName,
+            value = value
         )
     }
 
@@ -833,9 +860,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @deprecated Text runs are deprecated. Use data binding instead.
      */
     @Deprecated("Text runs are deprecated. Use data binding instead.")
-    fun getTextRunValue(textRunName: String): String? {
-        return controller.getTextRunValue(textRunName = textRunName)
-    }
+    fun getTextRunValue(textRunName: String): String? =
+        controller.getTextRunValue(textRunName = textRunName)
 
     /**
      * Get the text value for a text run named [textRunName] on the nested artboard represented at
@@ -844,9 +870,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
      * @deprecated Text runs are deprecated. Use data binding instead.
      */
     @Deprecated("Text runs are deprecated. Use data binding instead.")
-    fun getTextRunValue(textRunName: String, path: String): String? {
-        return controller.getTextRunValue(textRunName = textRunName, path = path)
-    }
+    fun getTextRunValue(textRunName: String, path: String): String? =
+        controller.getTextRunValue(textRunName = textRunName, path = path)
 
     /**
      * Set the text value for a text run named [textRunName] to [textValue] on the active artboard.
@@ -988,7 +1013,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     ) {
         if (file.rendererType != rendererAttributes.rendererType) {
             throw RiveException(
-                "Incompatible Renderer types: file initialized with ${file.rendererType.name}" + " but View is set up for ${rendererAttributes.rendererType.name}"
+                "Incompatible Renderer types: file initialized with ${file.rendererType.name}" +
+                    " but View is set up for ${rendererAttributes.rendererType.name}"
             )
         }
         RiveLog.d(TAG) { "setRiveFile with file: $file" }
@@ -1048,7 +1074,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
     override fun createObserver(): LifecycleObserver {
         RiveLog.d(TAG) { "Creating lifecycle observer." }
         return RiveViewLifecycleObserver(
-            dependencies = listOfNotNull(controller, rendererAttributes.assetLoader).toMutableList()
+            dependencies = listOfNotNull(controller, rendererAttributes.assetLoader)
+                .toMutableList()
         )
     }
 
@@ -1069,7 +1096,6 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 lifecycleOwner?.lifecycle?.addObserver(lifecycleObserver)
             }
         }
-
     }
 
     override fun onAttachedToWindow() {
@@ -1115,7 +1141,8 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             frameMetricsListener = RendererMetrics(activity).also {
                 activity.window.addOnFrameMetricsAvailableListener(
-                    it, Handler(Looper.getMainLooper())
+                    it,
+                    Handler(Looper.getMainLooper())
                 )
             }
         } else {
@@ -1164,7 +1191,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
             controller.layoutScaleFactorActive
         )
 
-        //Measure Width
+        // Measure Width
         val width: Int = when (widthMode) {
             MeasureSpec.EXACTLY -> providedWidth
             MeasureSpec.AT_MOST -> min(usedBounds.width().toInt(), providedWidth)
@@ -1248,6 +1275,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 pointersInsideView.put(id, inBounds(x, y))
                 controller.pointerEvent(PointerEvents.POINTER_DOWN, id, x, y)
             }
+
             // Subsequent pointers
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (!multiTouchEnabled) return returnVal // Ignored
@@ -1270,6 +1298,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     controller.pointerEvent(PointerEvents.POINTER_MOVE, id, x, y)
                 }
             }
+
             // Non-final pointer up.
             MotionEvent.ACTION_POINTER_UP -> {
                 if (!multiTouchEnabled) return returnVal // Ignored
@@ -1284,6 +1313,7 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                 if (pointersInsideView.get(id)) performClick()
                 pointersInsideView.delete(id)
             }
+
             // The last pointer up. Not necessarily the initiating pointer.
             MotionEvent.ACTION_UP -> {
                 val (id, x, y) = pointerInfoAt(event.actionIndex)
@@ -1302,10 +1332,16 @@ open class RiveAnimationView(context: Context, attrs: AttributeSet? = null) :
                     val remainingId = keyIterator.next()
                     // We don't have coordinates for these pointers, so we send -1,-1
                     controller.pointerEvent(
-                        PointerEvents.POINTER_UP, remainingId, -1f, -1f
+                        PointerEvents.POINTER_UP,
+                        remainingId,
+                        -1f,
+                        -1f
                     )
                     controller.pointerEvent(
-                        PointerEvents.POINTER_EXIT, remainingId, -1f, -1f
+                        PointerEvents.POINTER_EXIT,
+                        remainingId,
+                        -1f,
+                        -1f
                     )
                 }
                 // Reset state
@@ -1343,9 +1379,7 @@ open class RiveViewLifecycleObserver(protected val dependencies: MutableList<Ref
         owner.lifecycle.removeObserver(this)
     }
 
-    fun remove(dependency: RefCount): Boolean {
-        return dependencies.remove(dependency)
-    }
+    fun remove(dependency: RefCount): Boolean = dependencies.remove(dependency)
 
     fun insert(dependency: RefCount) {
         dependencies.add(dependency)
@@ -1363,18 +1397,16 @@ class RiveFileRequest(
 
     override fun deliverResponse(response: File) = listener.onResponse(response)
 
-    override fun parseNetworkResponse(response: NetworkResponse?): Response<File> {
-        return try {
-            val bytes = response?.data ?: ByteArray(0)
-            val file = File(
-                bytes = bytes,
-                rendererType = rendererType,
-                fileAssetLoader = assetLoader,
-            )
-            Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
-        } catch (e: UnsupportedEncodingException) {
-            Response.error(ParseError(e))
-        }
+    override fun parseNetworkResponse(response: NetworkResponse?): Response<File> = try {
+        val bytes = response?.data ?: ByteArray(0)
+        val file = File(
+            bytes = bytes,
+            rendererType = rendererType,
+            fileAssetLoader = assetLoader,
+        )
+        Response.success(file, HttpHeaderParser.parseCacheHeaders(response))
+    } catch (e: UnsupportedEncodingException) {
+        Response.error(ParseError(e))
     }
 }
 
@@ -1395,17 +1427,20 @@ sealed class ResourceType {
          *
          * @throws IllegalArgumentException If [value] is an unknown type.
          */
-        fun makeMaybeResource(value: Any?): ResourceType? {
-            return when (value) {
-                null -> null
-                is Int -> ResourceId(value)
-                is String -> ResourceUrl(value)
-                is ByteArray -> ResourceBytes(value)
-                is File -> ResourceRiveFile(value)
-                else -> throw IllegalArgumentException(
-                    "Incompatible type ${value.javaClass.simpleName}."
-                )
-            }
+        fun makeMaybeResource(value: Any?): ResourceType? = when (value) {
+            null -> null
+
+            is Int -> ResourceId(value)
+
+            is String -> ResourceUrl(value)
+
+            is ByteArray -> ResourceBytes(value)
+
+            is File -> ResourceRiveFile(value)
+
+            else -> throw IllegalArgumentException(
+                "Incompatible type ${value.javaClass.simpleName}."
+            )
         }
     }
 }

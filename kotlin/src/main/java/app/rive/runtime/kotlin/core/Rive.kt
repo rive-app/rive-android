@@ -16,11 +16,12 @@ object Rive {
     private const val TAG = "Rive"
     private external fun cppInitialize()
     private external fun cppCalculateRequiredBounds(
-        fit: Fit, alignment: Alignment,
+        fit: Fit,
+        alignment: Alignment,
         availableBounds: RectF,
         artboardBounds: RectF,
         requiredBounds: RectF,
-        scaleFactor: Float
+        scaleFactor: Float,
     )
 
     private const val CXX_SHARED = "c++_shared"
@@ -30,7 +31,7 @@ object Rive {
         fun loadLibrary(
             context: Context,
             libraryName: String,
-            allowLegacyReLinkerFallback: Boolean
+            allowLegacyReLinkerFallback: Boolean,
         ) {
             // We assume Marshmallow+ has stable native loading behavior; avoid ReLinker there.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -52,13 +53,12 @@ object Rive {
             }
         }
 
-        private fun loadWithSystemLoader(libraryName: String) =
-            try {
-                System.loadLibrary(libraryName)
-            } catch (error: UnsatisfiedLinkError) {
-                logLoadFailure(libraryName, "System.loadLibrary", error)
-                throw error
-            }
+        private fun loadWithSystemLoader(libraryName: String) = try {
+            System.loadLibrary(libraryName)
+        } catch (error: UnsatisfiedLinkError) {
+            logLoadFailure(libraryName, "System.loadLibrary", error)
+            throw error
+        }
 
         private fun loadWithReLinker(context: Context, libraryName: String) {
             /* We previously used ReLinker.recursively() to resolve libc++_shared.so when
@@ -86,7 +86,7 @@ object Rive {
         private fun logLoadFailure(
             libraryName: String,
             loader: String,
-            error: UnsatisfiedLinkError
+            error: UnsatisfiedLinkError,
         ) {
             val supportedABIs = Build.SUPPORTED_ABIS.joinToString(prefix = "[", postfix = "]")
             val is64BitDevice =
@@ -97,11 +97,11 @@ object Rive {
                 }
             RiveLog.e(TAG, error) {
                 "Failed to load lib$libraryName.so using $loader. " +
-                        "Supported ABIs: $supportedABIs. " +
-                        "Device bitness: ${if (is64BitDevice) "64-bit" else "32-bit"}. " +
-                        "Check your APK/AAB contains lib/<abi>/lib$libraryName.so and verify ABI " +
-                        "filters, split APK/dynamic feature delivery, and 32-bit support " +
-                        "(for example armeabi-v7a) are not stripped."
+                    "Supported ABIs: $supportedABIs. " +
+                    "Device bitness: ${if (is64BitDevice) "64-bit" else "32-bit"}. " +
+                    "Check your APK/AAB contains lib/<abi>/lib$libraryName.so and verify ABI " +
+                    "filters, split APK/dynamic feature delivery, and 32-bit support " +
+                    "(for example armeabi-v7a) are not stripped."
             }
         }
     }
@@ -154,13 +154,14 @@ object Rive {
             )
         } catch (error: UnsatisfiedLinkError) {
             RiveLog.e(TAG) {
-                "Native loading failed for librive-android.so. If your app loads native libraries " +
-                        "manually, load libc++_shared.so before librive-android.so, then call " +
-                        "Rive.initializeCppEnvironment(). For split APK/dynamic feature delivery, " +
-                        "load both libraries from the split context with " +
-                        "SplitInstallHelper.loadLibrary(...) before calling " +
-                        "initializeCppEnvironment(). See " +
-                        "https://developer.android.com/guide/playcore/feature-delivery/on-demand#native-code"
+                "Native loading failed for librive-android.so. " +
+                    "If your app loads native libraries " +
+                    "manually, load libc++_shared.so before librive-android.so, then call " +
+                    "Rive.initializeCppEnvironment(). For split APK/dynamic feature delivery, " +
+                    "load both libraries from the split context with " +
+                    "SplitInstallHelper.loadLibrary(...) before calling " +
+                    "initializeCppEnvironment(). See " +
+                    "https://developer.android.com/guide/playcore/feature-delivery/on-demand#native-code"
             }
             throw error
         }

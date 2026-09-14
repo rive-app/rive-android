@@ -25,7 +25,7 @@ class RiveStateMachineTouchEventTest {
 
     StateMachine name: main
 
-    two squares of 25x25 one starting at x=25 and one at x=75 
+    two squares of 25x25 one starting at x=25 and one at x=75
     both squares have touchUp events bound to them.
      */
 

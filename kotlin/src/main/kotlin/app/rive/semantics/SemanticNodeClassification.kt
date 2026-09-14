@@ -105,12 +105,15 @@ internal data class SemanticNodeContent(
  */
 internal fun SemanticRole.toSemanticNodeTopology(): SemanticNodeTopology = when (this) {
     SemanticRole.None -> SemanticNodeTopology.Structural
+
     SemanticRole.Group,
     SemanticRole.List,
     SemanticRole.TabList,
     SemanticRole.Dialog,
     SemanticRole.AlertDialog,
-    SemanticRole.RadioGroup -> SemanticNodeTopology.ExplicitContainer
+    SemanticRole.RadioGroup,
+    -> SemanticNodeTopology.ExplicitContainer
+
     SemanticRole.Button,
     SemanticRole.Link,
     SemanticRole.Checkbox,
@@ -121,7 +124,8 @@ internal fun SemanticRole.toSemanticNodeTopology(): SemanticNodeTopology = when 
     SemanticRole.Image,
     SemanticRole.ListItem,
     SemanticRole.Tab,
-    SemanticRole.RadioButton -> SemanticNodeTopology.AbsorbingLeaf
+    SemanticRole.RadioButton,
+    -> SemanticNodeTopology.AbsorbingLeaf
 }
 
 /**
@@ -176,7 +180,9 @@ internal fun classifySemanticNodeProjection(
         } else {
             SemanticNodeProjection.PromoteChildren
         }
+
         SemanticNodeTopology.ExplicitContainer -> SemanticNodeProjection.ExportContainer
+
         SemanticNodeTopology.AbsorbingLeaf -> SemanticNodeProjection.ExportLeaf
     }
 }
@@ -199,6 +205,7 @@ internal fun mapSemanticNodeState(traitFlags: Int, stateFlags: Int): SemanticNod
             SemanticCheckState.Checked -> SemanticToggleState.On
             SemanticCheckState.Mixed -> SemanticToggleState.Mixed
         }
+
         SemanticTrait.has(traitFlags, SemanticTrait.Toggleable) -> {
             if (SemanticState.has(stateFlags, SemanticState.Toggled)) {
                 SemanticToggleState.On
@@ -206,6 +213,7 @@ internal fun mapSemanticNodeState(traitFlags: Int, stateFlags: Int): SemanticNod
                 SemanticToggleState.Off
             }
         }
+
         else -> null
     }
 
@@ -266,11 +274,14 @@ internal fun mapSemanticNodeActions(
 ): SemanticNodeActions {
     val semanticActions = when {
         state.enabled == false -> emptySet()
+
         role in tapRoles -> setOf(SemanticActionType.Tap)
+
         role == SemanticRole.Slider -> setOf(
             SemanticActionType.Increase,
             SemanticActionType.Decrease
         )
+
         else -> emptySet()
     }
 
@@ -329,29 +340,21 @@ internal fun mapSemanticNodeContent(
  * @param state State whose value should be read.
  * @return The state value, or `null` when the trait is absent.
  */
-private fun gatedState(
-    traitFlags: Int,
-    trait: Int,
-    stateFlags: Int,
-    state: Int,
-): Boolean? = if (SemanticTrait.has(traitFlags, trait)) {
-    SemanticState.has(stateFlags, state)
-} else {
-    null
-}
+private fun gatedState(traitFlags: Int, trait: Int, stateFlags: Int, state: Int): Boolean? =
+    if (SemanticTrait.has(traitFlags, trait)) {
+        SemanticState.has(stateFlags, state)
+    } else {
+        null
+    }
 
 /** Returns whether this content contributes anything an accessibility service can announce. */
 private fun SemanticNodeContent.hasAccessibleContent(): Boolean =
     !label.isNullOrEmpty() || !value.isNullOrEmpty() || !hint.isNullOrEmpty()
 
 /** Returns whether the supplied edges describe finite bounds with positive width and height. */
-private fun hasFinitePositiveArea(
-    minX: Float,
-    minY: Float,
-    maxX: Float,
-    maxY: Float,
-): Boolean = minX.isFinite() && minY.isFinite() && maxX.isFinite() && maxY.isFinite() &&
-    minX != maxX && minY != maxY
+private fun hasFinitePositiveArea(minX: Float, minY: Float, maxX: Float, maxY: Float): Boolean =
+    minX.isFinite() && minY.isFinite() && maxX.isFinite() && maxY.isFinite() &&
+        minX != maxX && minY != maxY
 
 /** Rive roles whose primary accessibility action dispatches a semantic tap. */
 private val tapRoles = setOf(

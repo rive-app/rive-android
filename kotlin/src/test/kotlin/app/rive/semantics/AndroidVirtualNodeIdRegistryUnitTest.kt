@@ -83,7 +83,9 @@ class AndroidVirtualNodeIdRegistryUnitTest : FunSpec({
     test("Clear retires all active mappings without resetting allocation") {
         val registry = AndroidVirtualNodeIdRegistry()
         registry.reconcile(listOf(10, 20))
-        val retiredIds = listOf(10, 20).map { requireNotNull(registry.virtualIdForRiveNode(it)) }
+        val retiredIds = listOf(10, 20).map {
+            requireNotNull(registry.virtualIdForRiveNode(it))
+        }
 
         registry.clear()
 

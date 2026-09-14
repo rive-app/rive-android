@@ -48,7 +48,7 @@ interface RefCounted {
 class RCPointer(
     private val cppPointer: Long,
     val label: String,
-    private val onDispose: (Long) -> Unit
+    private val onDispose: (Long) -> Unit,
 ) : RefCounted {
     companion object {
         private const val TAG = "Rive/RCPointer"
@@ -110,10 +110,12 @@ class RCPointer(
         val reasonLog = if (reason.isEmpty()) "" else "; reason: $reason"
         RiveLog.v(TAG) {
             "Releasing $label (source: $source$reasonLog; " +
-                    "ref count before release: ${referenceCount.get()})"
+                "ref count before release: ${referenceCount.get()})"
         }
         val count = referenceCount.decrementAndGet()
-        check(count >= 0) { "RCPointer $label (source: $source$reasonLog) released too many times." }
+        check(count >= 0) {
+            "RCPointer $label (source: $source$reasonLog) released too many times."
+        }
         // Dispose
         if (count == 0) {
             RiveLog.d(TAG) { "Disposing $label" }

@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -41,7 +42,6 @@ import app.rive.RiveLog
 import app.rive.RivePointerInputMode
 import app.rive.rememberRiveFile
 import app.rive.rememberRiveWorker
-import android.graphics.Color as AndroidColor
 
 /**
  * Demonstrates the difference between [RivePointerInputMode.Consume] and
@@ -82,7 +82,9 @@ class ComposeScrollActivity : ComponentActivity() {
                     ) {
                         when (riveFile) {
                             is Result.Loading -> LoadingIndicator()
+
                             is Result.Error -> ErrorMessage(riveFile.throwable)
+
                             is Result.Success -> {
                                 RiveScroll(riveFile.value, consumePointerEvents)
                                 RiveScroll(riveFile.value, consumePointerEvents)

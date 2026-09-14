@@ -24,6 +24,8 @@ import app.rive.core.StateMachineHandle
 import app.rive.core.traceSection
 import app.rive.semantics.AndroidAccessibilityStateProvider
 import app.rive.semantics.RiveSemanticsModeController
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
@@ -34,8 +36,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration.Companion.nanoseconds
 
 private typealias PointerFn = (StateMachineHandle, Fit, Float, Float, Int, Float, Float) -> Unit
 
@@ -278,7 +278,7 @@ class RiveCanvasSession private constructor(
         }
         RiveLog.d(TAG) {
             "Creating RiveCanvasSession with artboard '${artboard.name}'" +
-                    " and state machine '${stateMachine.name}'"
+                " and state machine '${stateMachine.name}'"
         }
     }
 
@@ -403,6 +403,7 @@ class RiveCanvasSession private constructor(
     @set:MainThread
     var semantics: RiveSemanticsMode
         get() = semanticsModeController.mode
+
         @Throws(RiveResourceClosedException::class, IllegalStateException::class)
         set(value) {
             closer.checkOpen()
@@ -540,10 +541,7 @@ class RiveCanvasSession private constructor(
         RiveRenderException::class,
         CancellationException::class
     )
-    suspend fun beginPlaying(
-        lifecycle: Lifecycle,
-        ticker: FrameTicker = ChoreographerFrameTicker
-    ) {
+    suspend fun beginPlaying(lifecycle: Lifecycle, ticker: FrameTicker = ChoreographerFrameTicker) {
         closer.checkOpen()
         check(!isPlaying) {
             "beginPlaying() is already running for this RiveCanvasSession"
@@ -566,7 +564,7 @@ class RiveCanvasSession private constructor(
                         instance.dirtyFlow.collect {
                             RiveLog.v(TAG) {
                                 "View model instance ${instance.instanceHandle} dirty, " +
-                                        "unsettling ${stateMachine.stateMachineHandle}"
+                                    "unsettling ${stateMachine.stateMachineHandle}"
                             }
                             stateMachine.unsettle()
                         }
@@ -599,7 +597,7 @@ class RiveCanvasSession private constructor(
                     lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                         RiveLog.d(TAG) {
                             "Starting drawing with ${artboard.artboardHandle} and " +
-                                    "${stateMachine.stateMachineHandle}"
+                                "${stateMachine.stateMachineHandle}"
                         }
                         var lastFrameTimeNs = 0L
                         var loggedNoBuffer = false
@@ -623,7 +621,7 @@ class RiveCanvasSession private constructor(
                                         if (!loggedNoBuffer) {
                                             RiveLog.w(TAG) {
                                                 "No render buffer available; call setRegion(...) " +
-                                                        "with a valid size before beginPlaying."
+                                                    "with a valid size before beginPlaying."
                                             }
                                             loggedNoBuffer = true
                                         }
@@ -661,7 +659,7 @@ class RiveCanvasSession private constructor(
 
                         RiveLog.d(TAG) {
                             "Ending drawing with ${artboard.artboardHandle} and " +
-                                    "${stateMachine.stateMachineHandle}"
+                                "${stateMachine.stateMachineHandle}"
                         }
                     }
                 }
@@ -751,7 +749,7 @@ class RiveCanvasSession private constructor(
 
         fun containsInRegion(x: Float, y: Float): Boolean =
             x >= renderRegion.left && x < renderRegion.right &&
-                    y >= renderRegion.top && y < renderRegion.bottom
+                y >= renderRegion.top && y < renderRegion.bottom
 
         fun dispatchPointer(index: Int, pointerFn: PointerFn) {
             val xInRegion = event.getX(index) - renderRegion.left
@@ -771,7 +769,8 @@ class RiveCanvasSession private constructor(
         val handled = traceSection("Rive/PointerInput") {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN,
-                MotionEvent.ACTION_POINTER_DOWN -> {
+                MotionEvent.ACTION_POINTER_DOWN,
+                -> {
                     val actionX = event.getX(event.actionIndex)
                     val actionY = event.getY(event.actionIndex)
                     if (!containsInRegion(actionX, actionY)) {
@@ -795,14 +794,16 @@ class RiveCanvasSession private constructor(
                 }
 
                 MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_POINTER_UP -> {
+                MotionEvent.ACTION_POINTER_UP,
+                -> {
                     dispatchPointer(event.actionIndex, pointerUpFn)
                     dispatchPointer(event.actionIndex, pointerExitFn)
                     true
                 }
 
                 MotionEvent.ACTION_CANCEL,
-                MotionEvent.ACTION_OUTSIDE -> {
+                MotionEvent.ACTION_OUTSIDE,
+                -> {
                     repeat(event.pointerCount) { index ->
                         dispatchPointer(index, pointerExitFn)
                     }

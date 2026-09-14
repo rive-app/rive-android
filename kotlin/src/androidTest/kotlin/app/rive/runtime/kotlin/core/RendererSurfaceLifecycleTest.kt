@@ -298,9 +298,8 @@ class RendererSurfaceLifecycleTest {
      *
      * @param rendererType Backend to instantiate.
      */
-    private class TestSurfaceRenderer(
-        rendererType: RendererType = RendererType.Canvas,
-    ) : Renderer(rendererType) {
+    private class TestSurfaceRenderer(rendererType: RendererType = RendererType.Canvas) :
+        Renderer(rendererType) {
         @Volatile
         var drawAction: () -> Unit = {}
 

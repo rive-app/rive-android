@@ -85,11 +85,7 @@ internal class AndroidHardwareFrameSource private constructor(
          * @throws RiveRenderException If the reader or render surface cannot be created.
          * @throws RiveResourceClosedException If [riveWorker] has been disposed.
          */
-        override fun create(
-            width: Int,
-            height: Int,
-            riveWorker: RiveWorker,
-        ): HardwareFrameSource {
+        override fun create(width: Int, height: Int, riveWorker: RiveWorker): HardwareFrameSource {
             val thread = HandlerThread("Rive/ImageReader").apply { start() }
             var reader: ImageReader? = null
             var readerSurface: ImageReaderSurface? = null
@@ -101,7 +97,7 @@ internal class AndroidHardwareFrameSource private constructor(
                     PixelFormat.RGBA_8888,
                     2,
                     HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or
-                            HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE,
+                        HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE,
                 )
                 reader = createdReader
                 val closeableSurface = ImageReaderSurface(createdReader)
@@ -150,7 +146,13 @@ internal class AndroidHardwareFrameSource private constructor(
     override fun setListener(listener: HardwareFrameSource.Listener?) {
         this.listener = listener
         imageReader.setOnImageAvailableListener(
-            if (listener == null) null else ImageReader.OnImageAvailableListener(::onImageAvailable),
+            if (listener ==
+                null
+            ) {
+                null
+            } else {
+                ImageReader.OnImageAvailableListener(::onImageAvailable)
+            },
             if (listener == null) null else imageReaderHandler,
         )
     }

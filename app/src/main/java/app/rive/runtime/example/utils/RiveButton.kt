@@ -14,7 +14,10 @@ class RiveButton(context: Context, attrs: AttributeSet? = null) :
 
     init {
         context.theme.obtainStyledAttributes(
-            attrs, R.styleable.RiveButton, 0, 0
+            attrs,
+            R.styleable.RiveButton,
+            0,
+            0
         ).apply {
             try {
                 pressAnimation = getString(R.styleable.RiveButton_rivePressAnimation)

@@ -25,9 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * @param reserveNextRequestID Atomically reserves the next ID from the owning worker's shared,
  *    monotonically increasing request sequence.
  */
-internal class StateMachineSettlingStore(
-    private val reserveNextRequestID: () -> Long
-) {
+internal class StateMachineSettlingStore(private val reserveNextRequestID: () -> Long) {
     /**
      * Durable settled state for one registered state machine.
      *
@@ -125,10 +123,9 @@ internal class StateMachineSettlingStore(
      * @return A flow containing the latest accepted settled state.
      * @throws IllegalStateException If the handle is not registered.
      */
-    fun settled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
-        synchronized(lock) {
-            requireSlot(stateMachineHandle).settled
-        }
+    fun settled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> = synchronized(lock) {
+        requireSlot(stateMachineHandle).settled
+    }
 
     /**
      * Begins a new unsettled generation for a state machine.

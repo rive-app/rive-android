@@ -13,6 +13,7 @@ import app.rive.core.RivePropertyUpdate
 import app.rive.core.RiveWorker
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -31,7 +32,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 internal const val VM_INSTANCE_TAG = "Rive/VMI"
 
@@ -93,10 +93,7 @@ internal fun ViewModelInstanceSource.requireCompatibleWith(
  * @throws RiveIncompatibleResourceException If a referenced artboard has different ownership.
  */
 @Throws(RiveIncompatibleResourceException::class)
-internal fun ViewModelSource.requireCompatibleWith(
-    worker: RiveWorker,
-    fileHandle: FileHandle,
-) {
+internal fun ViewModelSource.requireCompatibleWith(worker: RiveWorker, fileHandle: FileHandle) {
     if (this is ViewModelSource.DefaultForArtboard) {
         artboard.requireFromFile(worker, fileHandle)
     }
@@ -243,7 +240,7 @@ class ViewModelInstance internal constructor(
         try {
             propertySubscriptions.closeAll()
         } finally {
-            RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle (${fileHandle})" }
+            RiveLog.d(VM_INSTANCE_TAG) { "Deleting $instanceHandle ($fileHandle)" }
             riveWorker.deleteViewModelInstance(instanceHandle)
         }
     }
@@ -299,10 +296,7 @@ class ViewModelInstance internal constructor(
             RiveResourceClosedException::class,
             CancellationException::class
         )
-        suspend fun create(
-            file: RiveFile,
-            source: ViewModelInstanceSource
-        ): ViewModelInstance {
+        suspend fun create(file: RiveFile, source: ViewModelInstanceSource): ViewModelInstance {
             RiveLog.d(VM_INSTANCE_TAG) {
                 "Creating view model instance from source: $source (${file.fileHandle})"
             }
@@ -354,13 +348,12 @@ class ViewModelInstance internal constructor(
                 "will be renamed to fromFile as a suspending API."
         )
         @Suppress("DEPRECATION")
-        fun fromFile(
-            file: RiveFile,
-            source: ViewModelInstanceSource
-        ): ViewModelInstance {
+        fun fromFile(file: RiveFile, source: ViewModelInstanceSource): ViewModelInstance {
             file.checkOpen()
             val handle = file.riveWorker.createViewModelInstance(file.fileHandle, source)
-            RiveLog.d(VM_INSTANCE_TAG) { "Created $handle from source: $source (${file.fileHandle})" }
+            RiveLog.d(VM_INSTANCE_TAG) {
+                "Created $handle from source: $source (${file.fileHandle})"
+            }
             return ViewModelInstance(handle, file.riveWorker, file.fileHandle)
         }
     }
@@ -490,7 +483,7 @@ class ViewModelInstance internal constructor(
         cache: MutableMap<String, Flow<T>>,
         getter: suspend (ViewModelInstanceHandle, String) -> T,
         updateFlow: SharedFlow<RivePropertyUpdate<T>>,
-        propertyType: PropertyDataType
+        propertyType: PropertyDataType,
     ): Flow<T> {
         closer.checkOpen()
         return cache.getOrPut(propertyPath) {
@@ -714,7 +707,7 @@ class ViewModelInstance internal constructor(
     private fun <T> setProperty(
         propertyPath: String,
         value: T,
-        setter: (ViewModelInstanceHandle, String, T) -> Unit
+        setter: (ViewModelInstanceHandle, String, T) -> Unit,
     ) {
         closer.checkOpen()
         setter(instanceHandle, propertyPath, value)
@@ -833,7 +826,7 @@ class ViewModelInstance internal constructor(
         image?.checkOpen()
         image?.requireOwnedBy(riveWorker)
         val message = image?.let { "Assigning $it" } ?: "Clearing image"
-        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
+        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath ($fileHandle)" }
         setProperty(propertyPath, image?.handle, riveWorker::setImageProperty)
     }
 
@@ -856,7 +849,7 @@ class ViewModelInstance internal constructor(
         artboard?.checkOpen()
         artboard?.requireOwnedBy(riveWorker)
         val message = artboard?.let { "Assigning $it" } ?: "Clearing artboard"
-        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath (${fileHandle})" }
+        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath ($fileHandle)" }
         setProperty(propertyPath, artboard?.artboardHandle, riveWorker::setArtboardProperty)
     }
 
@@ -865,7 +858,7 @@ class ViewModelInstance internal constructor(
      * instance.
      *
      * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
-     * 
+     *
      * Once the nested view model instance is added to the view model property, you do not need to
      * keep your reference to it. The parent view model instance maintains its own native reference
      * to the nested instance.
@@ -889,7 +882,7 @@ class ViewModelInstance internal constructor(
         closer.checkOpen()
         instance.checkOpen()
         instance.requireOwnedBy(riveWorker)
-        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $instance to $propertyPath (${fileHandle})" }
+        RiveLog.d(VM_INSTANCE_TAG) { "Assigning $instance to $propertyPath ($fileHandle)" }
         setProperty(propertyPath, instance.instanceHandle, riveWorker::setViewModelInstanceProperty)
     }
 
@@ -1122,7 +1115,7 @@ sealed interface ViewModelInstanceSource {
     data class ReferenceListItem(
         val parentInstance: ViewModelInstance,
         val pathToList: String,
-        val index: Int
+        val index: Int,
     ) : ViewModelInstanceSource
 }
 
@@ -1208,7 +1201,9 @@ fun rememberViewModelInstanceResult(
 
     return when (val artboardResult = rememberArtboardResult(file)) {
         is Result.Loading -> Result.Loading
+
         is Result.Error -> Result.Error(artboardResult.throwable)
+
         is Result.Success -> {
             val defaultSource = remember(artboardResult.value) {
                 ViewModelSource.DefaultForArtboard(artboardResult.value).defaultInstance()

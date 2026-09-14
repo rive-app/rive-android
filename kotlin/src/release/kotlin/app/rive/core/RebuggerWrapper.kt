@@ -11,6 +11,6 @@ import androidx.compose.runtime.Composable
 @Composable
 fun RebuggerWrapper(
     @Suppress("UNUSED_PARAMETER")
-    trackMap: Map<String, Any?>
+    trackMap: Map<String, Any?>,
 ) {
 }

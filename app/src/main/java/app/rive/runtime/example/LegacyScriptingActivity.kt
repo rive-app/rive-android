@@ -1,11 +1,11 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import app.rive.runtime.kotlin.RiveAnimationView
-import android.graphics.Color as AndroidColor
 
 class LegacyScriptingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

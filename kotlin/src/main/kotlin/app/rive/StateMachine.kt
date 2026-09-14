@@ -14,9 +14,9 @@ import app.rive.core.StateMachineHandle
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticTreeModel
-import kotlinx.coroutines.flow.StateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
+import kotlinx.coroutines.flow.StateFlow
 
 private const val STATE_MACHINE_TAG = "Rive/StateMachine"
 
@@ -89,10 +89,7 @@ class StateMachine internal constructor(
          */
         @Throws(RiveResourceClosedException::class, RiveIncompatibleResourceException::class)
         @Synchronized
-        fun apply(
-            main: ViewModelInstance?,
-            globals: Map<String, ViewModelInstance>,
-        ): Boolean {
+        fun apply(main: ViewModelInstance?, globals: Map<String, ViewModelInstance>): Boolean {
             val globalSnapshot = globals.toMap()
             main?.checkOpen()
             main?.requireOwnedBy(riveWorker)
@@ -208,10 +205,7 @@ class StateMachine internal constructor(
             RiveResourceClosedException::class,
             CancellationException::class
         )
-        suspend fun create(
-            artboard: Artboard,
-            stateMachineName: String? = null
-        ): StateMachine {
+        suspend fun create(artboard: Artboard, stateMachineName: String? = null): StateMachine {
             val nameLog = stateMachineName?.let { "with name $it" } ?: "(default)"
             RiveLog.d(STATE_MACHINE_TAG) {
                 "Creating state machine $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})"
@@ -271,16 +265,15 @@ class StateMachine internal constructor(
                 "will be renamed to fromArtboard as a suspending API."
         )
         @Suppress("DEPRECATION")
-        fun fromArtboard(
-            artboard: Artboard,
-            stateMachineName: String? = null
-        ): StateMachine {
+        fun fromArtboard(artboard: Artboard, stateMachineName: String? = null): StateMachine {
             artboard.checkOpen()
             val handle = stateMachineName?.let { name ->
                 artboard.riveWorker.createStateMachineByName(artboard.artboardHandle, name)
             } ?: artboard.riveWorker.createDefaultStateMachine(artboard.artboardHandle)
             val nameLog = stateMachineName?.let { "with name $it" } ?: "(default)"
-            RiveLog.d(STATE_MACHINE_TAG) { "Created $handle $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})" }
+            RiveLog.d(STATE_MACHINE_TAG) {
+                "Created $handle $nameLog (${artboard.artboardHandle}; ${artboard.fileHandle})"
+            }
             return StateMachine(
                 handle,
                 artboard.riveWorker,
@@ -323,7 +316,7 @@ class StateMachine internal constructor(
         if (riveWorker !== artboard.riveWorker || artboardHandle != artboard.artboardHandle) {
             throw RiveIncompatibleResourceException(
                 "StateMachine $stateMachineHandle was not created from " +
-                        "Artboard ${artboard.artboardHandle}"
+                    "Artboard ${artboard.artboardHandle}"
             )
         }
     }
@@ -438,11 +431,7 @@ class StateMachine internal constructor(
      */
     @ExperimentalRiveSemantics
     @Throws(RiveResourceClosedException::class)
-    fun drainSemanticsDiff(
-        fit: Fit,
-        surfaceWidth: Float,
-        surfaceHeight: Float
-    ) {
+    fun drainSemanticsDiff(fit: Fit, surfaceWidth: Float, surfaceHeight: Float) {
         closer.checkOpen()
         riveWorker.drainSemanticsDiff(stateMachineHandle, fit, surfaceWidth, surfaceHeight)
     }
@@ -562,10 +551,7 @@ class StateMachine internal constructor(
 )
 @Suppress("DEPRECATION")
 @Composable
-fun rememberStateMachine(
-    artboard: Artboard,
-    stateMachineName: String? = null,
-): StateMachine {
+fun rememberStateMachine(artboard: Artboard, stateMachineName: String? = null): StateMachine {
     val stateMachine = remember(artboard, stateMachineName) {
         StateMachine.fromArtboard(artboard, stateMachineName)
     }

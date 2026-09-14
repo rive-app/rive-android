@@ -74,7 +74,8 @@ abstract class RiveTextureView(context: Context, attrs: AttributeSet? = null) :
         return null
     }
 
-    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {} // called every time when swapBuffers is called
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+    } // called every time when swapBuffers is called
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
         RiveLog.d(TAG) { "onSurfaceTextureSizeChanged: $width x $height" }
         onSurfaceTextureAvailable(surface, width, height)

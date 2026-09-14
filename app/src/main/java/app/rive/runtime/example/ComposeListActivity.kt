@@ -83,7 +83,10 @@ class ComposeListActivity : ComponentActivity() {
                     ViewModelSource.Named("listItem").blankInstance(),
                 )
 
-                mainVmiResult.zip(itemVmisResult).zip(customItemVmiResult) { (mainVmi, itemVmis), customItemVmi ->
+                mainVmiResult.zip(itemVmisResult).zip(customItemVmiResult) {
+                        (mainVmi, itemVmis),
+                        customItemVmi,
+                    ->
                     ListContent(file, mainVmi, itemVmis, customItemVmi)
                 }
             }

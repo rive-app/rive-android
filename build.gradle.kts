@@ -8,13 +8,10 @@ plugins {
 }
 
 spotless {
-    // Keep the rollout incremental from the commit immediately before Spotless was introduced.
-    // Remove this in the follow-up full-formatting change that enables max-line-length enforcement.
-    ratchetFrom("882c10136621e07d7992b2e4e7817e870a0169fa")
-
     kotlin {
         target("**/src/**/*.kt")
-        targetExclude("**/build/**", "**/generated/**")
+        // Native dependencies can include their own Android Kotlin sources after a local build.
+        targetExclude("**/build/**", "**/generated/**", "**/dependencies/**")
         ktlint(libs.versions.ktlint.get())
     }
 }

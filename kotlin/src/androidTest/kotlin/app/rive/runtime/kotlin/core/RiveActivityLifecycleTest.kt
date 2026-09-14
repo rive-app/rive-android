@@ -66,7 +66,8 @@ class RiveActivityLifecycleTest {
                 assertTrue(originalAssetLoader.hasCppObject)
 
                 replacementAssetLoader = object : ContextAssetLoader(activity) {
-                    override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean = true
+                    override fun loadContents(asset: FileAsset, inBandBytes: ByteArray): Boolean =
+                        true
                 }
                 assertEquals(2, originalAssetLoader.refCount)
                 riveView.setAssetLoader(replacementAssetLoader)

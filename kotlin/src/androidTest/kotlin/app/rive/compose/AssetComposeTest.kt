@@ -16,10 +16,10 @@ import app.rive.rememberRegisteredAudio
 import app.rive.rememberRegisteredFont
 import app.rive.rememberRegisteredImage
 import app.rive.runtime.kotlin.test.R
-import org.junit.Rule
-import org.junit.runner.RunWith
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import org.junit.Rule
+import org.junit.runner.RunWith
 
 /** Compose tests for remembered assets. */
 @RunWith(AndroidJUnit4::class)

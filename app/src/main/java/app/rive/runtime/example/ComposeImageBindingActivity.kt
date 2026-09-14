@@ -1,5 +1,6 @@
 package app.rive.runtime.example
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -29,7 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.withContext
-import android.graphics.Color as AndroidColor
 
 class ComposeImageBindingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,15 +77,19 @@ class ComposeImageBindingActivity : ComponentActivity() {
             Scaffold(containerColor = Color.Black) { innerPadding ->
                 when (contentResult) {
                     is Result.Loading -> LoadingIndicator()
+
                     is Result.Error -> ErrorMessage(contentResult.throwable)
+
                     is Result.Success -> {
                         val (riveFile, images, vmi) = contentResult.value
 
                         // Convert updates to wrapped incrementing indices
                         val imageIndex by remember(vmi, images.size) {
                             vmi.getBooleanFlow("Update")
-                                .filter { it } // Only respond when it's true (i.e. card is face down)
-                                .runningFold(0) { idx, _ -> if (images.isEmpty()) 0 else (idx + 1) % images.size }
+                                .filter { it } // Only respond when the card is face down.
+                                .runningFold(0) { idx, _ ->
+                                    if (images.isEmpty()) 0 else (idx + 1) % images.size
+                                }
                         }.collectAsStateWithLifecycle(initialValue = 0)
 
                         // Update the image when the index changes

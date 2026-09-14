@@ -10,11 +10,11 @@ import app.rive.RiveResourceClosedException
 import app.rive.ViewModelSource
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
 
 /** Compose tests for remembered view model instances. */
 @RunWith(AndroidJUnit4::class)

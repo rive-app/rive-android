@@ -28,10 +28,7 @@ class Fonts {
         }
     }
 
-    data class Axis(
-        val tag: String,
-        val styleValue: String,
-    )
+    data class Axis(val tag: String, val styleValue: String)
 
     data class Family(
         val name: String? = null, // Optional for unnamed family groups
@@ -40,11 +37,7 @@ class Fonts {
         val fonts: Map<Weight, List<Font>>,
     )
 
-    data class Alias(
-        val name: String,
-        val original: String,
-        val weight: Weight? = Weight.NORMAL,
-    )
+    data class Alias(val name: String, val original: String, val weight: Weight? = Weight.NORMAL)
 
     data class Weight(val weight: Int = 400) : Comparable<Weight> {
         companion object {
@@ -85,11 +78,7 @@ class Fonts {
         }
     }
 
-    data class FileFont(
-        val name: String,
-        val variant: String? = null,
-        val lang: String? = null,
-    )
+    data class FileFont(val name: String, val variant: String? = null, val lang: String? = null)
 }
 
 class FontHelper {
@@ -247,7 +236,8 @@ class FontHelper {
          * @return The [Fonts.Font] matching the specified options, or `null` if no suitable font is
          *    found.
          */
-        fun getFallbackFont(opts: Fonts.FontOpts? = null): Fonts.Font? = getFallbackFonts(opts ?: Fonts.FontOpts.DEFAULT).firstOrNull()
+        fun getFallbackFont(opts: Fonts.FontOpts? = null): Fonts.Font? =
+            getFallbackFonts(opts ?: Fonts.FontOpts.DEFAULT).firstOrNull()
 
         /**
          * Retrieves a list of fallback fonts based on optional font preferences.
@@ -483,9 +473,10 @@ class FontHelper {
          * @return A [ByteArray] containing the font's data, or `null` if no suitable font is found
          *    or if there is an error accessing the font file.
          */
-        fun getFallbackFontBytes(opts: Fonts.FontOpts? = null): ByteArray? = getFallbackFont(opts ?: Fonts.FontOpts.DEFAULT)?.let {
-            return getFontBytes(it)
-        }
+        fun getFallbackFontBytes(opts: Fonts.FontOpts? = null): ByteArray? =
+            getFallbackFont(opts ?: Fonts.FontOpts.DEFAULT)?.let {
+                return getFontBytes(it)
+            }
 
         @VisibleForTesting
         fun resetForTesting() {
@@ -534,7 +525,9 @@ class SystemFontsParser {
             val rootTagName = parser.name
 
             // Check if it's a known root tag, otherwise log a warning but proceed
-            if (rootTagName != "familyset" && rootTagName != "fonts-modification" && rootTagName != "config") {
+            if (rootTagName != "familyset" && rootTagName != "fonts-modification" &&
+                rootTagName != "config"
+            ) {
                 RiveLog.w(TAG) { "Unexpected root tag '$rootTagName' in font XML" }
             }
 
@@ -572,10 +565,14 @@ class SystemFontsParser {
                         remapAlias(alias, ogFamily)?.let {
                             familiesMap[alias.name] = it
                         }
-                            ?: RiveLog.w(TAG) { "Could not remap alias '${alias.name}' because target '${alias.original}' not found." }
+                            ?: RiveLog.w(TAG) {
+                                "Could not remap alias '${alias.name}' because target '${alias.original}' not found."
+                            }
                     }
                 } else {
-                    RiveLog.w(TAG) { "Skipping alias '${alias.name}' because a family with that name already exists." }
+                    RiveLog.w(TAG) {
+                        "Skipping alias '${alias.name}' because a family with that name already exists."
+                    }
                 }
             }
 
@@ -609,7 +606,9 @@ class SystemFontsParser {
             val rootTagName = parser.name
 
             // Check if it's a known root tag, otherwise log a warning but proceed
-            if (rootTagName != "familyset" && rootTagName != "fonts-modification" && rootTagName != "config") {
+            if (rootTagName != "familyset" && rootTagName != "fonts-modification" &&
+                rootTagName != "config"
+            ) {
                 RiveLog.w(TAG) { "Unexpected root tag '$rootTagName' in font XML" }
             }
 
@@ -643,7 +642,9 @@ class SystemFontsParser {
                             familyNames.add(alias.name)
                             familiesList.add(it)
                         }
-                            ?: RiveLog.w(TAG) { "Could not remap alias '${alias.name}' because target '${alias.original}' not found." }
+                            ?: RiveLog.w(TAG) {
+                                "Could not remap alias '${alias.name}' because target '${alias.original}' not found."
+                            }
                     }
                 }
             }
@@ -738,7 +739,9 @@ class SystemFontsParser {
                         // The current structure adds them globally later.
                         // For now, we just return the family part.
                         // Consider if legacy aliases need special handling.
-                        RiveLog.w(TAG) { "Legacy family generated aliases - these will be processed globally." }
+                        RiveLog.w(TAG) {
+                            "Legacy family generated aliases - these will be processed globally."
+                        }
                         aliases.addAll(legacyAliases)
                     }
                     // Only return the family here.
@@ -770,10 +773,7 @@ class SystemFontsParser {
             }
         }
 
-        private fun remapAlias(
-            alias: Fonts.Alias,
-            ogFamily: Fonts.Family,
-        ): Fonts.Family? {
+        private fun remapAlias(alias: Fonts.Alias, ogFamily: Fonts.Family): Fonts.Family? {
             val weight = alias.weight
             if (weight == null) {
                 return Fonts.Family(
@@ -787,7 +787,9 @@ class SystemFontsParser {
             val weightedFonts = ogFamily.fonts[weight]
 
             if (weightedFonts == null || weightedFonts.isEmpty()) {
-                RiveLog.w(TAG) { "Alias '${alias.name}' targets weight ${weight.weight} in family '${alias.original}', but that doesn't exist" }
+                RiveLog.w(TAG) {
+                    "Alias '${alias.name}' targets weight ${weight.weight} in family '${alias.original}', but that doesn't exist"
+                }
                 return null // Failed to create an alias for a weight that doesn't exist
             }
 
@@ -823,7 +825,9 @@ class SystemFontsParser {
                             fonts.getOrPut(font.weight) { mutableListOf() }.add(font)
                         }
                     } catch (e: Exception) {
-                        RiveLog.e(TAG) { "Failed to read <font> in family '$familyName': ${e.message}" }
+                        RiveLog.e(TAG) {
+                            "Failed to read <font> in family '$familyName': ${e.message}"
+                        }
                     }
 
                     else -> skip(parser)
@@ -843,7 +847,9 @@ class SystemFontsParser {
             )
         }
 
-        private fun readLegacyFamily(parser: XmlPullParser): Pair<Fonts.Family, List<Fonts.Alias>>? {
+        private fun readLegacyFamily(
+            parser: XmlPullParser,
+        ): Pair<Fonts.Family, List<Fonts.Alias>>? {
             val namesList = mutableListOf<String>()
             val filesList = mutableListOf<Fonts.FileFont>()
             val fontList = mutableListOf<Fonts.Font>()
@@ -871,7 +877,9 @@ class SystemFontsParser {
                         else -> skip(parser)
                     }
                 } catch (e: Exception) {
-                    RiveLog.e(TAG) { "Error reading tag '${parser.name}' inside legacy family - Skipping tag - ${e.message}" }
+                    RiveLog.e(TAG) {
+                        "Error reading tag '${parser.name}' inside legacy family - Skipping tag - ${e.message}"
+                    }
                 }
             }
 
@@ -924,14 +932,18 @@ class SystemFontsParser {
 
             filesList.forEachIndexed { index, filefont ->
                 if (index >= fontFilesOrder.size) {
-                    RiveLog.w(TAG) { "Legacy family '$familyName' has more than ${fontFilesOrder.size} files in <fileset>. Ignoring extra file: '${filefont.name}'" }
+                    RiveLog.w(TAG) {
+                        "Legacy family '$familyName' has more than ${fontFilesOrder.size} files in <fileset>. Ignoring extra file: '${filefont.name}'"
+                    }
                     return@forEachIndexed // continue to next iteration
                 }
 
                 val (weight, style) = fontFilesOrder[index]
                 val filename = filefont.name.trim()
                 if (filename.isEmpty()) {
-                    RiveLog.w(TAG) { "Skipping empty filename in <fileset> for family '$familyName'." }
+                    RiveLog.w(TAG) {
+                        "Skipping empty filename in <fileset> for family '$familyName'."
+                    }
                     return@forEachIndexed
                 }
 
@@ -941,7 +953,9 @@ class SystemFontsParser {
             }
 
             if (fontsMap.isEmpty()) {
-                RiveLog.e(TAG) { "Could not extract any valid fonts from <fileset> for legacy family '$familyName'" }
+                RiveLog.e(TAG) {
+                    "Could not extract any valid fonts from <fileset> for legacy family '$familyName'"
+                }
 
                 // The caller readLegacyFamily expects a non-null Pair if the filesList isn't empty
                 // We just return an empty family and empty list to satisfy the type, but it'll be
@@ -994,7 +1008,9 @@ class SystemFontsParser {
             }
 
             if (fontsMap.isEmpty()) {
-                RiveLog.w(TAG) { "Family '$familyName' from <font> list resulted in no valid fonts. Creating empty family." }
+                RiveLog.w(TAG) {
+                    "Family '$familyName' from <font> list resulted in no valid fonts. Creating empty family."
+                }
                 return Pair(
                     Fonts.Family(familyName, variant, lang, emptyMap()),
                     emptyList(),
@@ -1093,7 +1109,9 @@ class SystemFontsParser {
                     if (parser.eventType != XmlPullParser.END_TAG || parser.name.trim() != "name") {
                         // Defensive: If not at </name>, log error or try to recover/skip.
                         // For simplicity here, we assume correct structure or rely on outer loop.
-                        RiveLog.w(TAG) { "Expected </name> tag after reading text, but found ${parser.eventType} ${parser.name}" }
+                        RiveLog.w(TAG) {
+                            "Expected </name> tag after reading text, but found ${parser.eventType} ${parser.name}"
+                        }
                     }
 
                     // Add the name if it's not blank
@@ -1131,15 +1149,21 @@ class SystemFontsParser {
                         }
 
                         // Validate parser state
-                        if (parser.eventType != XmlPullParser.END_TAG || parser.name.trim() != "file") {
-                            RiveLog.w(TAG) { "Expected </file> tag after reading text, found ${parser.eventType} ${parser.name}" }
+                        if (parser.eventType != XmlPullParser.END_TAG ||
+                            parser.name.trim() != "file"
+                        ) {
+                            RiveLog.w(TAG) {
+                                "Expected </file> tag after reading text, found ${parser.eventType} ${parser.name}"
+                            }
                         }
 
                         // Add file if valid
                         fileName.takeUnless { it.isEmpty() }?.let { name ->
                             add(Fonts.FileFont(name = name, variant = variant, lang = lang))
                         }
-                            ?: RiveLog.w(TAG) { "Skipping <file> tag with empty content within <fileset>" }
+                            ?: RiveLog.w(TAG) {
+                                "Skipping <file> tag with empty content within <fileset>"
+                            }
                     }
 
                     else -> skip(parser)
@@ -1147,8 +1171,9 @@ class SystemFontsParser {
             }
         }
 
-        private fun getRequiredAttribute(parser: XmlPullParser, name: String): String = parser.getAttributeValue(null, name)
-            ?: throw IllegalArgumentException("Missing required attribute: $name")
+        private fun getRequiredAttribute(parser: XmlPullParser, name: String): String =
+            parser.getAttributeValue(null, name)
+                ?: throw IllegalArgumentException("Missing required attribute: $name")
 
         private fun getOptionalAttribute(
             parser: XmlPullParser,

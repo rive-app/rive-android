@@ -36,14 +36,16 @@ import app.rive.core.traceSection
     replaceWith = ReplaceWith("SoftwareRenderBuffer(width, height, riveWorker)"),
     level = DeprecationLevel.WARNING
 )
-class RenderBuffer @Throws(
+class RenderBuffer
+@Throws(
     IllegalArgumentException::class,
     RiveResourceClosedException::class,
     RiveRenderException::class
-) constructor(
+)
+constructor(
     val width: Int,
     val height: Int,
-    private val riveWorker: RiveWorker
+    private val riveWorker: RiveWorker,
 ) : CheckableAutoCloseable {
     init {
         require(width > 0 && height > 0) { "RenderBuffer width/height must be > 0" }
@@ -85,7 +87,7 @@ class RenderBuffer @Throws(
         artboard: Artboard,
         stateMachine: StateMachine,
         fit: Fit = RenderingDefaults.defaultFit(),
-        clearColor: Int = RenderingDefaults.CLEAR_COLOR
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR,
     ): RenderBuffer {
         closer.checkOpen()
         surface.checkOpen()
@@ -135,7 +137,7 @@ class RenderBuffer @Throws(
         artboard: Artboard,
         stateMachine: StateMachine,
         fit: Fit = RenderingDefaults.defaultFit(),
-        clearColor: Int = RenderingDefaults.CLEAR_COLOR
+        clearColor: Int = RenderingDefaults.CLEAR_COLOR,
     ): RenderBuffer = render(artboard, stateMachine, fit, clearColor)
 
     /**
@@ -152,8 +154,8 @@ class RenderBuffer @Throws(
         return traceSection("Rive/RenderBuffer/CopyInto") {
             require(
                 bitmap.width == width &&
-                        bitmap.height == height &&
-                        bitmap.config == Bitmap.Config.ARGB_8888
+                    bitmap.height == height &&
+                    bitmap.config == Bitmap.Config.ARGB_8888
             ) { "Bitmap must be ${width}x$height ARGB_8888" }
 
             val argb = argbScratch

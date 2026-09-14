@@ -31,10 +31,10 @@ import app.rive.ViewModelSource
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
 import app.rive.sequence
-import org.junit.Rule
-import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
+import org.junit.Rule
+import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalRiveGlobalViewModels::class)
@@ -77,7 +77,13 @@ class GlobalViewModelComposeTest : RiveAndroidTest() {
                 )
                 listOf(mainResult, originalResult, replacementResult, removedResult)
                     .sequence()
-                    .map { (rememberedMain, rememberedOriginal, rememberedReplacement, rememberedRemoved) ->
+                    .map { (
+                        rememberedMain,
+                        rememberedOriginal,
+                        rememberedReplacement,
+                        rememberedRemoved,
+                    ),
+                        ->
                         GlobalComposeContent(
                             resources,
                             rememberedMain,

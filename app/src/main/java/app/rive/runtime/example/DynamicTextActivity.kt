@@ -15,7 +15,9 @@ import app.rive.runtime.kotlin.RiveAnimationView
  *
  * See: https://rive.app/community/doc/text/docn2E6y1lXo
  */
-class DynamicTextActivity : ComponentActivity(), TextWatcher {
+class DynamicTextActivity :
+    ComponentActivity(),
+    TextWatcher {
     private val animationView by lazy(LazyThreadSafetyMode.NONE) {
         findViewById<RiveAnimationView>(R.id.dynamic_text)
     }

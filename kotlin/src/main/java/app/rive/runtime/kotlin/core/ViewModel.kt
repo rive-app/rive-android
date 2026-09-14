@@ -16,9 +16,8 @@ import java.util.concurrent.locks.ReentrantLock
 @OpenForTesting
 class ViewModel internal constructor(
     unsafeCppPointer: Long,
-    protected val fileLock: ReentrantLock
-) :
-    NativeObject(unsafeCppPointer) {
+    protected val fileLock: ReentrantLock,
+) : NativeObject(unsafeCppPointer) {
     private external fun cppName(cppPointer: Long): String
     private external fun cppInstanceCount(cppPointer: Long): Int
     private external fun cppPropertyCount(cppPointer: Long): Int
@@ -98,7 +97,8 @@ class ViewModel internal constructor(
      * @throws ViewModelException If the instance is not found.
      */
     fun createInstanceFromIndex(index: Int): ViewModelInstance {
-        val instancePointer = synchronized(fileLock) { cppCreateInstanceFromIndex(cppPointer, index) }
+        val instancePointer =
+            synchronized(fileLock) { cppCreateInstanceFromIndex(cppPointer, index) }
         if (instancePointer == NULL_POINTER) {
             throw ViewModelException("ViewModel instance not found: $index")
         }
@@ -129,10 +129,7 @@ class ViewModel internal constructor(
      * These can't be used to get or set the value of the property. For that, you will need a
      * ViewModelInstance and use its methods.
      */
-    data class Property(
-        val type: PropertyDataType,
-        val name: String,
-    )
+    data class Property(val type: PropertyDataType, val name: String)
 
     // Enum values mirror those in rive::DataType
     enum class PropertyDataType(val value: Int) {
@@ -148,7 +145,8 @@ class ViewModel internal constructor(
         INTEGER(9),
         SYMBOL_LIST_INDEX(10),
         ASSET_IMAGE(11),
-        ARTBOARD(12);
+        ARTBOARD(12),
+        ;
 
         companion object {
             private val map = entries.associateBy(PropertyDataType::value)

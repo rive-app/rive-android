@@ -28,9 +28,8 @@ enum class RenderBackend {
 internal fun effectiveRenderBackend(
     renderBackend: RenderBackend,
     sdkInt: Int = Build.VERSION.SDK_INT,
-): RenderBackend =
-    if (renderBackend == RenderBackend.Vulkan && sdkInt >= Build.VERSION_CODES.Q) {
-        RenderBackend.Vulkan
-    } else {
-        RenderBackend.OpenGL
-    }
+): RenderBackend = if (renderBackend == RenderBackend.Vulkan && sdkInt >= Build.VERSION_CODES.Q) {
+    RenderBackend.Vulkan
+} else {
+    RenderBackend.OpenGL
+}
