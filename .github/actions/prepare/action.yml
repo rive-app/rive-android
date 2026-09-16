@@ -42,7 +42,10 @@ runs:
         java-version: "17"
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
+      with:
+        # Avoid the obsolete default `tools` package; install required packages below.
+        packages: ""
 
     - name: Install NDK & tools
       shell: bash

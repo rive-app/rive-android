@@ -63,7 +63,10 @@ jobs:
           java-version: "17"
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # Avoid the obsolete default `tools` package; install required packages below.
+          packages: ""
 
       # Mirrors release.yml: Dokka configures the kotlin module's externalNativeBuild,
       # so the NDK + CMake must be present even though we don't build the native libs.
