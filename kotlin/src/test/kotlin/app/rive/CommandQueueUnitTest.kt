@@ -34,6 +34,7 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineStart
@@ -320,6 +321,50 @@ class CommandQueueUnitTest : FunSpec({
             }
             commandQueue.awaitShutdown(1000) shouldBe true
         }
+    }
+
+    test(
+        "Cleanup reference holds the worker through submission despite background owner release"
+    ) {
+        val worker = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val events = mutableListOf<String>()
+        every { fixture.commandQueueBridgeMock.cppDeleteArtboard(any(), any(), any()) } answers
+            {
+                val released = CountDownLatch(1)
+                val releaser = thread {
+                    try {
+                        worker.release("Test owner")
+                    } finally {
+                        released.countDown()
+                    }
+                }
+                check(released.await(5, TimeUnit.SECONDS))
+                releaser.join()
+                worker.refCount shouldBe 1
+                worker.isDisposed shouldBe false
+                events.add("delete submitted")
+            }
+        every { fixture.commandQueueBridgeMock.cppDelete(any()) } answers {
+            events.add("shutdown")
+        }
+
+        worker.deleteArtboard(ArtboardHandle(1))
+
+        worker.awaitShutdown(5_000) shouldBe true
+        events shouldBe listOf("delete submitted", "shutdown")
+        worker.refCount shouldBe 0
+    }
+
+    test("Cleanup releases its temporary reference when submission throws") {
+        val worker = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val failure = IllegalArgumentException("Submission failed")
+        shouldThrow<IllegalArgumentException> {
+            worker.withCleanupReference { throw failure }
+        } shouldBe failure
+        worker.refCount shouldBe 1
+        worker.release("Test owner")
+        worker.awaitShutdown(5_000) shouldBe true
+        worker.withCleanupReference { error("Disposed worker must skip cleanup") }
     }
 
     test("Operations on disposed worker throw resource closed") {
@@ -812,17 +857,15 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
-    test("Unsubscribe from property rejects a disposed worker") {
+    test("Unsubscribe from property skips native work after disposal") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
 
-        shouldThrow<RiveResourceClosedException> {
-            commandQueue.unsubscribeFromProperty(
-                ViewModelInstanceHandle(HANDLE_NUM),
-                "number/path",
-                PropertyDataType.NUMBER,
-            )
-        }
+        commandQueue.unsubscribeFromProperty(
+            ViewModelInstanceHandle(HANDLE_NUM),
+            "number/path",
+            PropertyDataType.NUMBER,
+        )
 
         commandQueue.awaitShutdown(1000) shouldBe true
         verify(exactly = 0) {

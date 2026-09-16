@@ -80,22 +80,30 @@ class RCPointer(
 
     @Throws(RiveResourceClosedException::class)
     override fun acquire(source: String) {
-        // This loop prevents a Time of Check/Time of Use (TOCTOU) race by checking the first
-        // retrieved value again in the CAS operation. If another thread has modified the value in
-        // the meantime, the CAS will fail and we retry.
+        if (!tryAcquire(source)) {
+            throw RiveResourceClosedException("RCPointer $label is closed")
+        }
+    }
+
+    /**
+     * Atomically acquires a reference only while this pointer still has an owner.
+     *
+     * The compare-and-set competes with final release, so a zero count is never resurrected,
+     * including while the disposal callback is running and [isDisposed] is still false.
+     *
+     * @param source The owner acquiring the temporary reference, for logging.
+     * @return true if acquired and requiring a matching [release], false after final release.
+     */
+    internal fun tryAcquire(source: String): Boolean {
         while (true) {
             val current = referenceCount.get()
-            if (current <= 0) {
-                throw RiveResourceClosedException("RCPointer $label is closed")
-            }
-
+            if (current <= 0) return false
             if (referenceCount.compareAndSet(current, current + 1)) {
                 RiveLog.v(TAG) {
                     "Acquiring $label (source: $source; ref count before acquire: $current)"
                 }
-                return
+                return true
             }
-            // If we're here, some other thread changed the count. Retry.
         }
     }
 

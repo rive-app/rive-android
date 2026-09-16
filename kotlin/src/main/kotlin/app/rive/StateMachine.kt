@@ -159,9 +159,9 @@ class StateMachine internal constructor(
     /**
      * Deletes this state machine and releases its resources.
      *
-     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * This function is safe to call after worker shutdown. Local cleanup still runs, and worker
+     * shutdown releases the native resources.
      */
-    @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
 
     /** Whether this state machine has been closed. */

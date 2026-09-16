@@ -51,6 +51,31 @@ class StateMachineUnitTest : FunSpec({
         verify(exactly = 1) { worker.deleteStateMachine(handle) }
     }
 
+    test("Close after worker shutdown skips native deletion and keeps settled tracking terminal") {
+        val worker = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        every {
+            fixture.commandQueueBridgeMock.cppCreateDefaultStateMachine(any(), any(), any())
+        } answers {
+            worker.onStateMachineInstantiated(secondArg(), StateMachineHandle(1))
+            1L
+        }
+        val handle = worker.createDefaultStateMachineConfirmed(ArtboardHandle(1))
+        val machine = StateMachine(handle, worker, ArtboardHandle(1), null)
+        val settled = machine.settled
+        worker.release("Test owner")
+        worker.awaitShutdown(5_000) shouldBe true
+
+        repeat(2) { machine.close() }
+
+        machine.closed shouldBe true
+        settled.value shouldBe true
+        shouldThrow<RiveResourceClosedException> { machine.checkOpen() }
+        shouldThrow<RiveResourceClosedException> { worker.checkOpen() }
+        verify(exactly = 0) {
+            fixture.commandQueueBridgeMock.cppDeleteStateMachine(any(), any(), any())
+        }
+    }
+
     test("Factory returns the default state machine") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val artboard = Artboard(

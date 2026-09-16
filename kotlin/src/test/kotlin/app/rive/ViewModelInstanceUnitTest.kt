@@ -21,6 +21,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.spyk
 import io.mockk.verify
 import io.mockk.verifyOrder
 import java.util.concurrent.CountDownLatch
@@ -30,6 +31,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -40,6 +42,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 
 private const val DIRTY_TIMEOUT_MS = 1_000L
@@ -49,6 +53,7 @@ private const val TEST_NESTED_INSTANCE_HANDLE = 3L
 private const val TEST_IMAGE_HANDLE = 4L
 private const val TEST_ARTBOARD_HANDLE = 5L
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ViewModelInstanceUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
     val renderContext = fixture.renderContextMock
@@ -175,6 +180,21 @@ class ViewModelInstanceUnitTest : FunSpec({
             bridge.cppDefaultVMCreateNamedVMI(any(), any(), any(), any(), any())
             bridge.cppReferenceNestedVMI(any(), any(), any(), any())
             bridge.cppReferenceListItemVMI(any(), any(), any(), any(), any())
+        }
+    }
+
+    test("Close after worker shutdown skips native deletion and remains idempotent") {
+        val worker = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val instance = ViewModelInstance(ViewModelInstanceHandle(1), worker, FileHandle(1))
+        worker.release("Test owner")
+        worker.awaitShutdown(5_000) shouldBe true
+
+        repeat(2) { instance.close() }
+
+        instance.closed shouldBe true
+        shouldThrow<RiveResourceClosedException> { instance.checkOpen() }
+        verify(exactly = 0) {
+            fixture.commandQueueBridgeMock.cppDeleteViewModelInstance(any(), any(), any())
         }
     }
 
@@ -442,42 +462,6 @@ class ViewModelInstanceUnitTest : FunSpec({
         }
     }
 
-    test("Cancelling a collector ignores a disposed worker during unsubscribe") {
-        val subject = ViewModelInstanceFlowSubject()
-        val subscribed = CompletableDeferred<Unit>()
-        every {
-            subject.worker.subscribeToProperty(
-                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
-                "number",
-                PropertyDataType.NUMBER,
-            )
-        } answers { subscribed.complete(Unit) }
-        every {
-            subject.worker.unsubscribeFromProperty(
-                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
-                "number",
-                PropertyDataType.NUMBER,
-            )
-        } throws RiveResourceClosedException("RiveWorker is disposed")
-
-        coroutineScope {
-            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-                subject.instance.getNumberFlow("number").collect()
-            }
-            withTimeout(DIRTY_TIMEOUT_MS) { subscribed.await() }
-
-            collector.cancelAndJoin()
-        }
-
-        verify(exactly = 1) {
-            subject.worker.unsubscribeFromProperty(
-                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
-                "number",
-                PropertyDataType.NUMBER,
-            )
-        }
-    }
-
     test("Cancelling the initial property request releases the native subscription") {
         val subject = ViewModelInstanceFlowSubject()
         val getterStarted = CompletableDeferred<Unit>()
@@ -653,6 +637,61 @@ class ViewModelInstanceUnitTest : FunSpec({
             subject.worker.deleteViewModelInstance(
                 ViewModelInstanceHandle(TEST_INSTANCE_HANDLE)
             )
+        }
+    }
+
+    for (closeInstance in listOf(false, true)) {
+        test(
+            "Active VMI subscription cleans up after shutdown with closeInstance=$closeInstance"
+        ) {
+            runTest {
+                val worker =
+                    spyk(
+                        CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+                    )
+                every {
+                    fixture.commandQueueBridgeMock.cppSubscribeToProperty(
+                        any(),
+                        any(),
+                        any(),
+                        any()
+                    )
+                } just runs
+                coEvery { worker.getNumberProperty(any(), any()) } returns 1f
+                val instance =
+                    ViewModelInstance(ViewModelInstanceHandle(1), worker, FileHandle(1))
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    instance.getNumberFlow("number").collect {}
+                }
+                runCurrent()
+                verify(exactly = 1) {
+                    fixture.commandQueueBridgeMock.cppSubscribeToProperty(
+                        any(),
+                        any(),
+                        "number",
+                        PropertyDataType.NUMBER.value
+                    )
+                }
+                worker.release("Test owner")
+                worker.awaitShutdown(5_000) shouldBe true
+                if (closeInstance) {
+                    instance.close()
+                    runCurrent()
+                    collector.isCompleted shouldBe true
+                } else {
+                    collector.cancelAndJoin()
+                    instance.close()
+                }
+                verify(exactly = 0) {
+                    fixture.commandQueueBridgeMock.cppUnsubscribeFromProperty(
+                        any(),
+                        any(),
+                        any(),
+                        any()
+                    )
+                }
+                instance.closed shouldBe true
+            }
         }
     }
 

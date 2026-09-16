@@ -138,6 +138,21 @@ class RCPointerUnitTest : FunSpec({
             rcPointer.isDisposed shouldBe true
         }
 
+        test("Acquisition cannot resurrect zero count while disposal is still running") {
+            lateinit var pointer: RCPointer
+            pointer = RCPointer(1, "Test") {
+                pointer.isDisposed shouldBe false
+                pointer.tryAcquire("Late cleanup") shouldBe false
+                pointer.refCount shouldBe 0
+            }
+            pointer.tryAcquire("Cleanup") shouldBe true
+            pointer.refCount shouldBe 2
+            pointer.release("Cleanup", "Submitted")
+            pointer.release("Owner", "Finished")
+            pointer.tryAcquire("After shutdown") shouldBe false
+            pointer.refCount shouldBe 0
+        }
+
         test("Release does not call onDelete when ref count is greater than 1") {
             rcPointer.acquire("Source1")
             rcPointer.acquire("Source2")

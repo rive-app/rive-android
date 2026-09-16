@@ -19,6 +19,8 @@ private const val TEST_FILE_HANDLE = 123L
 private const val TEST_ARTBOARD_HANDLE = 456L
 
 class ArtboardUnitTest : FunSpec({
+    val fixture = installCommandQueueTestFixture()
+
     test("Close deletes once and reports closed") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)
@@ -35,6 +37,21 @@ class ArtboardUnitTest : FunSpec({
         artboard.close()
 
         verify(exactly = 1) { worker.deleteArtboard(handle) }
+    }
+
+    test("Close after worker shutdown skips native deletion and remains idempotent") {
+        val worker = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val artboard = Artboard(ArtboardHandle(1), worker, FileHandle(1), null)
+        worker.release("Test owner")
+        worker.awaitShutdown(5_000) shouldBe true
+
+        repeat(2) { artboard.close() }
+
+        artboard.closed shouldBe true
+        shouldThrow<RiveResourceClosedException> { artboard.getStateMachineNames() }
+        verify(exactly = 0) {
+            fixture.commandQueueBridgeMock.cppDeleteArtboard(any(), any(), any())
+        }
     }
 
     test("Factory returns the default artboard") {

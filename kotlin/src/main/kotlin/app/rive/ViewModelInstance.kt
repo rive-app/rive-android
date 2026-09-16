@@ -167,19 +167,11 @@ private class PropertySubscriptions(
 
         val collectorCount = collectorCounts[key] ?: return
         if (collectorCount == 1) {
-            try {
-                riveWorker.unsubscribeFromProperty(
-                    instanceHandle,
-                    key.propertyPath,
-                    key.propertyType,
-                )
-            } catch (_: RiveResourceClosedException) {
-                // Worker disposal already releases the native subscription.
-                RiveLog.d(VM_INSTANCE_TAG) {
-                    "Skipping property unsubscribe for $instanceHandle because its worker is " +
-                        "disposed"
-                }
-            }
+            riveWorker.unsubscribeFromProperty(
+                instanceHandle,
+                key.propertyPath,
+                key.propertyType,
+            )
             collectorCounts.remove(key)
         } else {
             collectorCounts[key] = collectorCount - 1
@@ -191,10 +183,9 @@ private class PropertySubscriptions(
      *
      * All unsubscribe attempts are made before the first failure is rethrown.
      *
-     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * Native unsubscribe is skipped after worker shutdown.
      */
     @Synchronized
-    @Throws(RiveResourceClosedException::class)
     fun closeAll() {
         if (closed) return
         closed = true
@@ -251,9 +242,9 @@ class ViewModelInstance internal constructor(
      * Active property flows complete normally. Their native property subscriptions are removed
      * before the instance is deleted.
      *
-     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * This function is safe to call after worker shutdown. Local cleanup still runs, and worker
+     * shutdown releases the native resources.
      */
-    @Throws(RiveResourceClosedException::class)
     override fun close() = closer.close()
 
     /** Whether this view model instance has been closed. */

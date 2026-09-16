@@ -514,6 +514,34 @@ class CommandQueue internal constructor(
         cppPointer.release(source, reason)
     }
 
+    /**
+     * Submits cleanup while holding a temporary owning reference, or skips it after final release.
+     *
+     * Compose recomposer cancellation can close files before dependent artboards, state machines,
+     * and VMIs. Once the last worker reference is released, native shutdown owns their remaining
+     * server resources, so late cleanup must not submit commands to the disconnected worker.
+     *
+     * Checking whether the worker is disposed before submitting is insufficient: final release
+     * may happen on another thread between the check and JNI submission. Atomic acquisition either
+     * prevents final release until [cleanup] returns, or observes that shutdown already won.
+     * The reference protects submission, not native completion; queued deletion precedes the
+     * disconnect command triggered by the matching release. It is also released if [cleanup] throws.
+     *
+     * Only native cleanup belongs in [cleanup]. Kotlin-side cleanup must still run when skipped.
+     * This does not relax checks on operational calls or unbalanced owning-reference releases.
+     * Like [release], this must not be called from the command-server thread.
+     *
+     * @param cleanup Synchronous cleanup submission; must not retain work for later execution.
+     */
+    internal fun withCleanupReference(cleanup: () -> Unit) {
+        if (!cppPointer.tryAcquire("Resource cleanup")) return
+        try {
+            cleanup()
+        } finally {
+            release("Resource cleanup", "Cleanup submitted")
+        }
+    }
+
     override val refCount: Int
         get() = cppPointer.refCount
     override val isDisposed: Boolean
@@ -1497,15 +1525,17 @@ class CommandQueue internal constructor(
      * the artboard and want to free up memory. Counterpart to [createDefaultArtboardConfirmed] or
      * [createArtboardByNameConfirmed].
      *
+     * Native cleanup is skipped after final worker release; shutdown releases remaining resources.
+     *
      * @param artboardHandle The handle of the artboard to delete.
-     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RiveResourceClosedException::class)
-    fun deleteArtboard(artboardHandle: ArtboardHandle) = bridge.cppDeleteArtboard(
-        requireNativePointer(),
-        nextRequestID.getAndIncrement(),
-        artboardHandle.handle
-    )
+    fun deleteArtboard(artboardHandle: ArtboardHandle) = withCleanupReference {
+        bridge.cppDeleteArtboard(
+            requireNativePointer(),
+            nextRequestID.getAndIncrement(),
+            artboardHandle.handle,
+        )
+    }
 
     /**
      * Creates the default state machine and suspends until the command server confirms creation.
@@ -1687,16 +1717,18 @@ class CommandQueue internal constructor(
      * state machine and want to free up memory. Counterpart to [createDefaultStateMachineConfirmed]
      * or [createStateMachineByNameConfirmed].
      *
+     * Native cleanup is skipped after final worker release; shutdown releases remaining resources.
+     *
      * @param stateMachineHandle The handle of the state machine to delete.
-     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RiveResourceClosedException::class)
     fun deleteStateMachine(stateMachineHandle: StateMachineHandle) {
-        bridge.cppDeleteStateMachine(
-            requireNativePointer(),
-            nextRequestID.getAndIncrement(),
-            stateMachineHandle.handle
-        )
+        withCleanupReference {
+            bridge.cppDeleteStateMachine(
+                requireNativePointer(),
+                nextRequestID.getAndIncrement(),
+                stateMachineHandle.handle,
+            )
+        }
         stateMachineSettlingStore.unregister(stateMachineHandle)
     }
 
@@ -2185,16 +2217,18 @@ class CommandQueue internal constructor(
      * the view model instance and want to free up memory. Counterpart to
      * [createViewModelInstanceConfirmed].
      *
+     * Native cleanup is skipped after final worker release; shutdown releases remaining resources.
+     *
      * @param viewModelInstanceHandle The handle of the view model instance to delete.
-     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RiveResourceClosedException::class)
     fun deleteViewModelInstance(viewModelInstanceHandle: ViewModelInstanceHandle) =
-        bridge.cppDeleteViewModelInstance(
-            requireNativePointer(),
-            nextRequestID.getAndIncrement(),
-            viewModelInstanceHandle.handle
-        )
+        withCleanupReference {
+            bridge.cppDeleteViewModelInstance(
+                requireNativePointer(),
+                nextRequestID.getAndIncrement(),
+                viewModelInstanceHandle.handle,
+            )
+        }
 
     /**
      * Set and bind the main view model instance on a state machine.
@@ -2840,23 +2874,25 @@ class CommandQueue internal constructor(
      * the handle, path, or property type does not match, this is a no-op and no error callback is
      * emitted.
      *
+     * Native cleanup is skipped after final worker release; shutdown releases remaining resources.
+     *
      * @param viewModelInstanceHandle The handle of the view model instance that the property
      *    belongs to.
      * @param propertyPath The path to the subscribed property. Slash delimited.
      * @param propertyType The type of the subscribed property.
-     * @throws RiveResourceClosedException If this command queue has been disposed.
      */
-    @Throws(RiveResourceClosedException::class)
     fun unsubscribeFromProperty(
         viewModelInstanceHandle: ViewModelInstanceHandle,
         propertyPath: String,
         propertyType: ViewModel.PropertyDataType,
-    ) = bridge.cppUnsubscribeFromProperty(
-        requireNativePointer(),
-        viewModelInstanceHandle.handle,
-        propertyPath,
-        propertyType.value
-    )
+    ) = withCleanupReference {
+        bridge.cppUnsubscribeFromProperty(
+            requireNativePointer(),
+            viewModelInstanceHandle.handle,
+            propertyPath,
+            propertyType.value,
+        )
+    }
 
     /**
      * Assign an image to an image property on the view model instance, or clear the property if
