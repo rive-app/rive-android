@@ -2706,6 +2706,27 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppSetFontProperty(
+        JNIEnv* env,
+        jobject,
+        jlong ref,
+        jlong jViewModelInstanceHandle,
+        jstring jPropertyPath,
+        jlong jFontHandle)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto viewModelInstanceHandle =
+            handleFromLong<rive::ViewModelInstanceHandle>(
+                jViewModelInstanceHandle);
+        auto propertyPath = JStringToString(env, jPropertyPath);
+        auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
+
+        commandQueue->setViewModelInstanceFont(viewModelInstanceHandle,
+                                               propertyPath,
+                                               fontHandle);
+    }
+
+    JNIEXPORT void JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppSetArtboardProperty(
         JNIEnv* env,
         jobject,

@@ -5,6 +5,7 @@ package app.rive
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
+import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
 import app.rive.core.RivePropertyUpdate
 import app.rive.core.ViewModelInstanceHandle
@@ -52,6 +53,7 @@ private const val TEST_INSTANCE_HANDLE = 2L
 private const val TEST_NESTED_INSTANCE_HANDLE = 3L
 private const val TEST_IMAGE_HANDLE = 4L
 private const val TEST_ARTBOARD_HANDLE = 5L
+private const val TEST_FONT_HANDLE = 6L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViewModelInstanceUnitTest : FunSpec({
@@ -227,6 +229,7 @@ class ViewModelInstanceUnitTest : FunSpec({
         expectClosed { subject.instance.setColor("color", 0xFF00FF00.toInt()) }
         expectClosed { subject.instance.fireTrigger("trigger") }
         expectClosed { subject.instance.setImage("image", subject.image) }
+        expectClosed { subject.instance.setFont("font", subject.font) }
         expectClosed { subject.instance.setArtboard("artboard", subject.artboard) }
         expectClosed {
             subject.instance.setViewModelInstance("nested", subject.nestedInstance)
@@ -743,6 +746,7 @@ class ViewModelInstanceUnitTest : FunSpec({
     test("Resource arguments are checked before property mutations") {
         val subject = ViewModelInstanceDirtySubject()
         subject.image.close()
+        subject.font.close()
         subject.artboard.close()
         subject.nestedInstance.close()
         clearMocks(subject.worker, answers = false, recordedCalls = true)
@@ -750,6 +754,9 @@ class ViewModelInstanceUnitTest : FunSpec({
         shouldThrow<RiveResourceClosedException> {
             subject.instance.setImage("image", subject.image)
         }.message shouldContain TEST_IMAGE_HANDLE.toString()
+        shouldThrow<RiveResourceClosedException> {
+            subject.instance.setFont("font", subject.font)
+        }.message shouldContain TEST_FONT_HANDLE.toString()
         shouldThrow<RiveResourceClosedException> {
             subject.instance.setArtboard("artboard", subject.artboard)
         }.message shouldContain TEST_ARTBOARD_HANDLE.toString()
@@ -771,6 +778,7 @@ class ViewModelInstanceUnitTest : FunSpec({
         val subject = ViewModelInstanceDirtySubject()
         val foreignWorker = mockk<CommandQueue>(relaxed = true)
         val foreignImage = ImageAsset(ImageHandle(TEST_IMAGE_HANDLE + 10), foreignWorker)
+        val foreignFont = FontAsset(FontHandle(TEST_FONT_HANDLE + 10), foreignWorker)
         val foreignArtboard = Artboard(
             ArtboardHandle(TEST_ARTBOARD_HANDLE + 10),
             foreignWorker,
@@ -787,6 +795,9 @@ class ViewModelInstanceUnitTest : FunSpec({
         shouldThrow<RiveIncompatibleResourceException> {
             subject.instance.setImage("image", foreignImage)
         }.message shouldContain (TEST_IMAGE_HANDLE + 10).toString()
+        shouldThrow<RiveIncompatibleResourceException> {
+            subject.instance.setFont("font", foreignFont)
+        }.message shouldContain (TEST_FONT_HANDLE + 10).toString()
         shouldThrow<RiveIncompatibleResourceException> {
             subject.instance.setArtboard("artboard", foreignArtboard)
         }.message shouldContain (TEST_ARTBOARD_HANDLE + 10).toString()
@@ -839,6 +850,54 @@ class ViewModelInstanceUnitTest : FunSpec({
             subject.worker.setImageProperty(ViewModelInstanceHandle(2L), "image", null)
         }
     }
+
+    test("setFont forwards the font handle to the worker") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setFont("font", subject.font)
+
+        verify(exactly = 1) {
+            subject.worker.setFontProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "font",
+                FontHandle(TEST_FONT_HANDLE),
+            )
+        }
+    }
+
+    test("setFont with null clears the font property") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setFont("font", null)
+
+        verify(exactly = 1) {
+            subject.worker.setFontProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "font",
+                null,
+            )
+        }
+    }
+
+    test("setFont accepts a font that was closed after assignment") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setFont("font", subject.font)
+        subject.font.close()
+
+        // The worker is mocked, so this only checks that the assignment was submitted before the
+        // asset was closed, and that reusing the closed asset is rejected afterwards.
+        verify(exactly = 1) {
+            subject.worker.setFontProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "font",
+                FontHandle(TEST_FONT_HANDLE),
+            )
+        }
+        shouldThrow<RiveResourceClosedException> {
+            subject.instance.setFont("font", subject.font)
+        }
+    }
 })
 
 private data class ViewModelInstanceDirtyMutation(
@@ -864,6 +923,12 @@ private val viewModelInstanceDirtyMutations = listOf(
     },
     ViewModelInstanceDirtyMutation("fireTrigger") { subject ->
         subject.instance.fireTrigger("trigger")
+    },
+    ViewModelInstanceDirtyMutation("setFont") { subject ->
+        subject.instance.setFont("font", subject.font)
+    },
+    ViewModelInstanceDirtyMutation("clearFont") { subject ->
+        subject.instance.setFont("font", null)
     },
     ViewModelInstanceDirtyMutation("setImage") { subject ->
         subject.instance.setImage("image", subject.image)
@@ -912,6 +977,7 @@ private class ViewModelInstanceDirtySubject {
         fileHandle,
     )
     val image = ImageAsset(ImageHandle(TEST_IMAGE_HANDLE), worker)
+    val font = FontAsset(FontHandle(TEST_FONT_HANDLE), worker)
     val artboard = Artboard(
         ArtboardHandle(TEST_ARTBOARD_HANDLE),
         worker,

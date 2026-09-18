@@ -333,6 +333,13 @@ interface CommandQueueBridge {
         imageHandle: Long,
     )
 
+    fun cppSetFontProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        fontHandle: Long,
+    )
+
     fun cppSetArtboardProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
@@ -828,6 +835,13 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         viewModelInstanceHandle: Long,
         propertyPath: String,
         imageHandle: Long,
+    )
+
+    external override fun cppSetFontProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        fontHandle: Long,
     )
 
     external override fun cppSetArtboardProperty(

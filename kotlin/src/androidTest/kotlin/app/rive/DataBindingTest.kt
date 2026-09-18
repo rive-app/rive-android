@@ -1,6 +1,8 @@
 package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.runtime.kotlin.core.ViewModel.Property
+import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -33,6 +35,9 @@ private const val ENUM_PROPERTY = "Test Enum"
 private const val COLOR_PROPERTY = "Test Color"
 private const val TRIGGER_PROPERTY = "Test Trigger"
 private const val NESTED_NUMBER_PROPERTY = "Test Nested/Nested Number"
+private const val FONT_VIEW_MODEL = "FontDemo"
+private const val FONT_PROPERTY = "headingFont"
+private const val FONT_PROBE_PROPERTY = "probe"
 
 @RunWith(AndroidJUnit4::class)
 class DataBindingTest : RiveAndroidTest() {
@@ -260,6 +265,214 @@ class DataBindingTest : RiveAndroidTest() {
                             }
                             assertEquals(expectedLabel, actualLabel)
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifies that listing properties survives a font property.
+     */
+    @Test
+    fun propertyDefinitions_reportFontPropertiesAsAssetFont() = runBlocking {
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.font_binding, context.resources),
+            riveWorker,
+        ).use { file ->
+            val properties = file.getViewModelProperties(FONT_VIEW_MODEL)
+
+            assertContains(
+                properties,
+                Property(PropertyDataType.ASSET_FONT, FONT_PROPERTY),
+                "Font properties must be reported as ASSET_FONT",
+            )
+        }
+    }
+
+    /**
+     * Exercises assigning a decoded font to a font property and then clearing it.
+     *
+     * Dirty-flow notification is covered by the unit tests, so this only checks that both
+     * mutations go through and leave the instance usable.
+     */
+    @Test
+    fun propertyMutations_assignsAndClearsFontAsset() = runBlocking {
+        val fontBytes = context.resources.openRawResource(R.raw.font).use { it.readBytes() }
+
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.font_binding, context.resources),
+            riveWorker,
+        ).use { file ->
+            ViewModelInstance.create(
+                file,
+                ViewModelSource.Named(FONT_VIEW_MODEL).defaultInstance(),
+            ).use { viewModelInstance ->
+                FontAsset.create(riveWorker, fontBytes).use { font ->
+                    viewModelInstance.setFont(FONT_PROPERTY, font)
+                    viewModelInstance.setFont(FONT_PROPERTY, null)
+
+                    viewModelInstance.setNumber(FONT_PROBE_PROPERTY, 1f)
+                    assertEquals(
+                        1f,
+                        withTimeout(PROPERTY_TIMEOUT_MILLIS) {
+                            viewModelInstance.getNumberFlow(FONT_PROBE_PROPERTY).first()
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifies that a font may be closed once it has been assigned.
+     */
+    @Test
+    fun propertyMutations_survivesClosingAnAssignedFont() = runBlocking {
+        val fontBytes = context.resources.openRawResource(R.raw.font).use { it.readBytes() }
+
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.font_binding, context.resources),
+            riveWorker,
+        ).use { file ->
+            ViewModelInstance.create(
+                file,
+                ViewModelSource.Named(FONT_VIEW_MODEL).defaultInstance(),
+            ).use { viewModelInstance ->
+                Artboard.create(file).use { artboard ->
+                    StateMachine.create(artboard).use { stateMachine ->
+                        val font = FontAsset.create(riveWorker, fontBytes)
+                        viewModelInstance.setFont(FONT_PROPERTY, font)
+                        stateMachine.bindViewModels(viewModelInstance, emptyMap())
+                        stateMachine.advance(0.milliseconds)
+
+                        font.close()
+
+                        // Advancing after the asset is gone is what would surface a premature
+                        // release of the underlying font.
+                        viewModelInstance.setNumber(FONT_PROBE_PROPERTY, 1f)
+                        stateMachine.advance(0.milliseconds)
+                        assertEquals(
+                            1f,
+                            withTimeout(PROPERTY_TIMEOUT_MILLIS) {
+                                viewModelInstance.getNumberFlow(FONT_PROBE_PROPERTY).first()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifies that replacing an assigned font leaves neither font dangling.
+     *
+     * Replacing drops the property's reference to the previous font, so closing both handles
+     * afterwards must neither double-free the replaced one nor invalidate the current one.
+     */
+    @Test
+    fun propertyMutations_survivesReplacingAnAssignedFont() = runBlocking {
+        val firstBytes = context.resources.openRawResource(R.raw.font).use { it.readBytes() }
+        val secondBytes = context.resources
+            .openRawResource(R.raw.inter_24pt_regular_abcdef)
+            .use { it.readBytes() }
+
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.font_binding, context.resources),
+            riveWorker,
+        ).use { file ->
+            ViewModelInstance.create(
+                file,
+                ViewModelSource.Named(FONT_VIEW_MODEL).defaultInstance(),
+            ).use { viewModelInstance ->
+                Artboard.create(file).use { artboard ->
+                    StateMachine.create(artboard).use { stateMachine ->
+                        val first = FontAsset.create(riveWorker, firstBytes)
+                        val second = FontAsset.create(riveWorker, secondBytes)
+                        stateMachine.bindViewModels(viewModelInstance, emptyMap())
+
+                        viewModelInstance.setFont(FONT_PROPERTY, first)
+                        stateMachine.advance(0.milliseconds)
+
+                        viewModelInstance.setFont(FONT_PROPERTY, second)
+                        stateMachine.advance(0.milliseconds)
+
+                        // Close the replaced font first: if replacement did not hand ownership
+                        // over cleanly, advancing past this point is where it would show.
+                        first.close()
+                        stateMachine.advance(0.milliseconds)
+
+                        second.close()
+                        viewModelInstance.setNumber(FONT_PROBE_PROPERTY, 1f)
+                        stateMachine.advance(0.milliseconds)
+                        assertEquals(
+                            1f,
+                            withTimeout(PROPERTY_TIMEOUT_MILLIS) {
+                                viewModelInstance.getNumberFlow(FONT_PROBE_PROPERTY).first()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Exercises destroying a view model instance before closing its assigned font.
+     *
+     * Binding owners are closed first so they no longer retain the instance. Destroying the
+     * instance should release the property's font reference while the font handle keeps the font
+     * alive until its own close.
+     *
+     * This is a cleanup-order smoke test; it does not verify reference counts or detect leaked
+     * references.
+     */
+    @Test
+    fun propertyMutations_survivesClosingTheInstanceBeforeTheFont() = runBlocking {
+        val fontBytes = context.resources.openRawResource(R.raw.font).use { it.readBytes() }
+
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.font_binding, context.resources),
+            riveWorker,
+        ).use { file ->
+            val font = FontAsset.create(riveWorker, fontBytes)
+            val artboard = Artboard.create(file)
+            val stateMachine = StateMachine.create(artboard)
+            val viewModelInstance = ViewModelInstance.create(
+                file,
+                ViewModelSource.Named(FONT_VIEW_MODEL).defaultInstance(),
+            )
+
+            viewModelInstance.setFont(FONT_PROPERTY, font)
+            stateMachine.bindViewModels(viewModelInstance, emptyMap())
+            stateMachine.advance(0.milliseconds)
+
+            // The state machine and artboard retain the instance natively, so they have to give
+            // up their references before closing the instance destroys it. No `use` here because
+            // the close order is what this test is about.
+            stateMachine.close()
+            artboard.close()
+
+            // Instance before font: the reverse of the usual close order.
+            viewModelInstance.close()
+            font.close()
+
+            // A fresh pipeline over the same file is what would surface a premature release.
+            Artboard.create(file).use { replacementArtboard ->
+                StateMachine.create(replacementArtboard).use { replacementStateMachine ->
+                    ViewModelInstance.create(
+                        file,
+                        ViewModelSource.Named(FONT_VIEW_MODEL).defaultInstance(),
+                    ).use { replacement ->
+                        replacement.setNumber(FONT_PROBE_PROPERTY, 1f)
+                        replacementStateMachine.bindViewModels(replacement, emptyMap())
+                        replacementStateMachine.advance(0.milliseconds)
+                        assertEquals(
+                            1f,
+                            withTimeout(PROPERTY_TIMEOUT_MILLIS) {
+                                replacement.getNumberFlow(FONT_PROBE_PROPERTY).first()
+                            },
+                        )
                     }
                 }
             }

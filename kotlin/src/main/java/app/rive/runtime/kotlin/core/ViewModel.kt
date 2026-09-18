@@ -146,6 +146,7 @@ class ViewModel internal constructor(
         SYMBOL_LIST_INDEX(10),
         ASSET_IMAGE(11),
         ARTBOARD(12),
+        ASSET_FONT(13),
         ;
 
         companion object {

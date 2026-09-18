@@ -2917,6 +2917,28 @@ class CommandQueue internal constructor(
     )
 
     /**
+     * Assign a font to a font property on the view model instance, or clear the property if
+     * [fontHandle] is null.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param fontHandle The handle of the font to assign, or null to clear the property.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun setFontProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        fontHandle: FontHandle?,
+    ) = bridge.cppSetFontProperty(
+        requireNativePointer(),
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        fontHandle?.handle ?: 0L
+    )
+
+    /**
      * Assign an artboard to a bindable artboard property on the view model instance, or clear the
      * property if [artboardHandle] is null.
      *
