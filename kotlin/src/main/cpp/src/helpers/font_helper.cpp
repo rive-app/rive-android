@@ -12,6 +12,7 @@ constexpr auto* TAG = "RiveN/FontHelper";
 /* static */ std::vector<rive::rcp<rive::Font>> FontHelper::s_fallbackFonts;
 /* static */ std::unordered_map<uint16_t, std::vector<rive::rcp<rive::Font>>>
     FontHelper::s_pickFontCache;
+/* static */ rive::rcp<rive::Font> FontHelper::s_systemFont;
 /* static */ std::mutex FontHelper::s_fallbackFontsMutex;
 
 /* static */ bool FontHelper::RegisterFallbackFont(jbyteArray byteArray)
@@ -274,8 +275,9 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  *
  * 3.  **System Font Fallback:** If no registered fallback contains the
  * glyph, attempts to load a default system font as a last resort using
- * `GetSystemFontBytes()`. If the system font is successfully decoded and
- * contains the `missing` glyph, it is returned.
+ * `GetSystemFontBytes()`. A successful decode is cached for the process
+ * lifetime, even if the font lacks the requested glyph. Failed loads can be
+ * retried. If the cached font contains the `missing` glyph, it is returned.
  *
  * Thread Safety: Access to shared fallback resources and internal state is
  * protected by a mutex (`s_fallbackFontsMutex`). State Preservation: The
@@ -322,22 +324,28 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
         }
     }
 
-    // Nothing in the registered fallbacks? Grab one from the system
-    std::vector<uint8_t> fontBytes = FontHelper::GetSystemFontBytes();
-    if (fontBytes.empty())
+    // Cache the decoded font even when it lacks this glyph (e.g. a newline).
+    // The surrounding mutex also serializes first-use loading across workers.
+    if (!s_systemFont)
     {
-        RiveLogW(TAG, "FindFontFallback - No system font found");
-        return nullptr;
+        std::vector<uint8_t> fontBytes = FontHelper::GetSystemFontBytes();
+        if (fontBytes.empty())
+        {
+            RiveLogW(TAG, "FindFontFallback - No system font found");
+            return nullptr;
+        }
+
+        s_systemFont = HBFont::Decode(fontBytes);
+        if (!s_systemFont)
+        {
+            // Leave failures retryable; only successful decodes are cached.
+            RiveLogE(TAG,
+                     "FindFontFallback - failed to decode system font bytes");
+            return nullptr;
+        }
     }
 
-    rive::rcp<rive::Font> systemFont = HBFont::Decode(fontBytes);
-    if (!systemFont)
-    {
-        RiveLogE(TAG, "FindFontFallback - failed to decode system font bytes");
-        return nullptr;
-    }
-
-    if (!systemFont->hasGlyph(missing))
+    if (!s_systemFont->hasGlyph(missing))
     {
         RiveLogE(TAG, "FindFontFallback - no fallback found");
         return nullptr;
@@ -349,7 +357,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
         "FindFontFallback - found a system fallback for missing glyph: U+%04X '%s'",
         missing,
         glyph.c_str());
-    return systemFont;
+    return s_systemFont;
 }
 
 } // namespace rive_android

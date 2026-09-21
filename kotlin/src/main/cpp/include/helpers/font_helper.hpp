@@ -14,6 +14,10 @@ class FontHelper
 private:
     static std::unordered_map<uint16_t, std::vector<rive::rcp<rive::Font>>>
         s_pickFontCache;
+    // Lazily decoded default system fallback font, retained for process
+    // lifetime. Independent of the custom strategy; protected by
+    // s_fallbackFontsMutex.
+    static rive::rcp<rive::Font> s_systemFont;
     static std::mutex s_fallbackFontsMutex;
 
     static const std::vector<rive::rcp<rive::Font>>& PickFonts(uint16_t weight);
@@ -24,6 +28,11 @@ private:
 public:
     static std::vector<rive::rcp<rive::Font>> s_fallbackFonts;
 
+    /**
+     * Clears decoded custom-strategy fonts after a strategy change.
+     * The default system font is independent of the strategy and remains
+     * cached.
+     */
     static void resetCache()
     {
         // Make sure we're not using the cache by locking on that same mutex.

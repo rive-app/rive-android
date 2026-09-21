@@ -258,6 +258,14 @@ class TestUtils {
 object NativeFontTestHelper {
     external fun cppGetSystemFontBytes(): ByteArray
     external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Int
+
+    /**
+     * Checks reuse across characters, missing glyphs, and custom-strategy cache resets.
+     *
+     * @param fontBytes A valid source font for the fallback requests.
+     * @return Whether the same system font is retained and unsupported glyphs are rejected.
+     */
+    external fun cppSystemFontIsReused(fontBytes: FontBytes): Boolean
     external fun cppCleanupFallbacks()
 }
 

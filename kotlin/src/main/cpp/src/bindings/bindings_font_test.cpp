@@ -53,6 +53,36 @@ extern "C"
         return byteArray;
     }
 
+    JNIEXPORT jboolean JNICALL
+    Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppSystemFontIsReused(
+        JNIEnv* env,
+        jobject,
+        jbyteArray fontBytes)
+    {
+        auto bytes = ByteArrayToUint8Vec(env, fontBytes);
+        auto original = HBFont::Decode(bytes);
+        if (!original)
+        {
+            return JNI_FALSE;
+        }
+
+        auto first = FontHelper::FindFontFallback('u', 0, original.get());
+        if (!first)
+        {
+            return JNI_FALSE;
+        }
+        // Retain first so allocator address reuse cannot hide repeated
+        // decoding.
+        FontHelper::FindFontFallback('\n', 0, original.get());
+        auto unsupported =
+            FontHelper::FindFontFallback(0x10FFFF, 0, original.get());
+        auto second = FontHelper::FindFontFallback('v', 0, original.get());
+        // Strategy changes must preserve the system font.
+        FontHelper::resetCache();
+        auto afterReset = FontHelper::FindFontFallback('w', 0, original.get());
+        return !unsupported && first == second && first == afterReset;
+    }
+
     JNIEXPORT jint JNICALL
     Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppFindFontFallback(
         JNIEnv*,

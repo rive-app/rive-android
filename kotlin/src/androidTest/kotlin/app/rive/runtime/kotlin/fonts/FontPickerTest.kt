@@ -7,6 +7,7 @@ import app.rive.runtime.kotlin.core.NativeFontTestHelper
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,16 +20,24 @@ class FontPickerTest {
 
     private lateinit var context: Context
 
+    /** Loads native bindings and clears fallback state before each test. */
     @Before
     fun setup() {
-        context = TestUtils().context // Load library.
+        context = TestUtils().context // Load library before resetting the native cache.
+        FontFallbackStrategy.stylePicker = null
         NativeFontTestHelper.cppCleanupFallbacks() // Reset the fallback state.
+    }
+
+    /** Clears Kotlin and native fallback state so subsequent tests cannot inherit it. */
+    @After
+    fun tearDown() {
+        FontFallbackStrategy.stylePicker = null
+        NativeFontTestHelper.cppCleanupFallbacks()
     }
 
     @Test
     @Suppress("DEPRECATION")
     fun noStylePicker() {
-        FontFallbackStrategy.stylePicker = null
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
             val fontBytes = it.readBytes()
@@ -56,6 +65,34 @@ class FontPickerTest {
                 assert(NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0)
             }
         }
+    }
+
+    /** Verifies system fallback reuse without weakening per-character coverage checks. */
+    @Test
+    fun systemFontIsCachedAcrossCharactersAndStrategyResets() {
+        context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            assertTrue(NativeFontTestHelper.cppSystemFontIsReused(it.readBytes()))
+        }
+    }
+
+    /** Verifies that warming the system cache does not bypass a subsequently installed strategy. */
+    @Test
+    fun customStrategyTakesPriorityOverCachedSystemFont() {
+        val fontBytes = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        assertTrue(NativeFontTestHelper.cppSystemFontIsReused(fontBytes))
+        var pickerCalls = 0
+        val picker = object : FontFallbackStrategy {
+            /** Supplies two candidates to distinguish custom fallback from system fallback. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                pickerCalls++
+                return listOf(fontBytes, NativeFontTestHelper.cppGetSystemFontBytes())
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, fontBytes))
+        assertEquals(1, pickerCalls)
     }
 
     @Test
