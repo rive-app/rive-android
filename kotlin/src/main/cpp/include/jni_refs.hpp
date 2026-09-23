@@ -89,6 +89,7 @@ extern jmethodID GetSetStrokeCapMethodId();
 extern jclass GetBlendModeClass();
 
 extern jfieldID GetSrcOver();
+extern jfieldID GetPlus();
 extern jfieldID GetScreen();
 extern jfieldID GetOverlay();
 extern jfieldID GetDarken();
@@ -149,6 +150,7 @@ extern jmethodID GetSetXfermodeMethodId();
 
 extern jfieldID GetPdClear();
 extern jfieldID GetPdSrcOver();
+extern jfieldID GetPdAdd();
 extern jfieldID GetPdDarken();
 extern jfieldID GetPdLighten();
 extern jfieldID GetPdMultiply();

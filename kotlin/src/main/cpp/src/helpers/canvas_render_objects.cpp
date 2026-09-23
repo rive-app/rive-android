@@ -454,6 +454,9 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
         case rive::BlendMode::srcOver:
             modeId = GetPdSrcOver();
             break;
+        case rive::BlendMode::additive:
+            modeId = GetPdAdd();
+            break;
         case rive::BlendMode::screen:
             modeId = GetPdScreen();
             break;
@@ -519,6 +522,9 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
     {
         case rive::BlendMode::srcOver:
             modeId = GetSrcOver();
+            break;
+        case rive::BlendMode::additive:
+            modeId = GetPlus();
             break;
         case rive::BlendMode::screen:
             modeId = GetScreen();

@@ -548,6 +548,12 @@ jfieldID GetSrcOver()
                             "SRC_OVER",
                             "Landroid/graphics/BlendMode;");
 }
+jfieldID GetPlus()
+{
+    return GetStaticFieldId(GetBlendModeClass(),
+                            "PLUS",
+                            "Landroid/graphics/BlendMode;");
+}
 jfieldID GetScreen()
 {
     return GetStaticFieldId(GetBlendModeClass(),
@@ -649,6 +655,12 @@ jfieldID GetPdSrcOver()
 {
     return GetStaticFieldId(GetPorterDuffClass(),
                             "SRC_OVER",
+                            "Landroid/graphics/PorterDuff$Mode;");
+}
+jfieldID GetPdAdd()
+{
+    return GetStaticFieldId(GetPorterDuffClass(),
+                            "ADD",
                             "Landroid/graphics/PorterDuff$Mode;");
 }
 jfieldID GetPdDarken()
