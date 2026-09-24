@@ -100,11 +100,14 @@ StartupResult RenderContextGL::initialize()
 
 void RenderContextGL::destroy()
 {
+    RiveLogD(TAG_RC, "Destroying Rive render context and its GL resources");
+    // Resetting this unique_ptr destroys the Rive render context and its GL
+    // resources. Their destructors issue GL calls, so the worker's EGL context
+    // must remain current until reset() returns.
+    riveContext.reset();
+
     RiveLogD(TAG_RC, "Releasing EGL context and surface bindings");
-
     eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-    riveContext = nullptr;
 
     if (pBuffer != EGL_NO_SURFACE)
     {
