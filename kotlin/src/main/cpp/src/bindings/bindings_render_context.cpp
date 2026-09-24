@@ -49,6 +49,17 @@ extern "C"
         delete renderContextGl;
     }
 
+    JNIEXPORT jint JNICALL
+    Java_app_rive_core_RenderContextGL_cppDestroySurface(JNIEnv*,
+                                                         jobject,
+                                                         jlong contextRef,
+                                                         jlong surfaceRef)
+    {
+        auto* context = reinterpret_cast<RenderContextGL*>(contextRef);
+        return context->destroySurface(
+            reinterpret_cast<EGLSurface>(surfaceRef));
+    }
+
     JNIEXPORT jlong JNICALL
     Java_app_rive_core_RenderContextGL_cppCreateSurface(JNIEnv*,
                                                         jobject,

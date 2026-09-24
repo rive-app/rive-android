@@ -176,6 +176,15 @@ struct RenderContextGL : RenderContext
     StartupResult initialize() override;
     void destroy() override;
 
+    /**
+     * Destroys a surface on the owning worker thread, first switching to the
+     * background pbuffer if the surface is current for drawing or reading.
+     * Keeps the EGL context current for subsequent GL resource cleanup.
+     * @param surface The window or capture pbuffer surface to destroy.
+     * @return EGL_SUCCESS, or the EGL error from switching or destruction.
+     */
+    EGLint destroySurface(EGLSurface surface);
+
     rive::rcp<rive::RenderImage> createRenderImage(
         uint32_t width,
         uint32_t height,

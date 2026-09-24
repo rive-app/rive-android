@@ -1,7 +1,5 @@
 package app.rive.core
 
-import android.opengl.EGL14
-import android.opengl.EGLDisplay
 import android.opengl.EGLSurface
 import android.view.Surface
 import androidx.annotation.CallSuper
@@ -263,7 +261,7 @@ abstract class RiveSurface internal constructor(
  * no longer needed.
  *
  * @param eglSurface The EGLSurface created from the Android Surface.
- * @param display The EGLDisplay used to create the EGLSurface, used for destroying it.
+ * @param renderContext Owning GL context used to switch away before surface destruction.
  * @param closeableSurface Android surface source closed after the EGL surface is destroyed.
  * @param commandQueue Command queue that owns this surface and performs ordered disposal.
  * @param nativeSurfacePointer Opaque native GL surface resource owned by this surface.
@@ -274,7 +272,7 @@ abstract class RiveSurface internal constructor(
  */
 internal class RiveSurfaceGL(
     private val eglSurface: EGLSurface,
-    private val display: EGLDisplay,
+    private val renderContext: RenderContextGL,
     private val closeableSurface: CloseableSurface,
     commandQueue: CommandQueue,
     nativeSurfacePointer: Long,
@@ -306,10 +304,7 @@ internal class RiveSurfaceGL(
     override fun dispose() {
         // Destroy the EGL surface first...
         RiveLog.d(TAG) { "Destroying EGL surface" }
-        val destroyed = EGL14.eglDestroySurface(display, eglSurface)
-        if (!destroyed) {
-            throw RiveShutdownException("Unable to destroy EGL surface")
-        }
+        renderContext.destroySurface(eglSurface)
 
         // ... Then release the Android surface source that backed the EGL surface ...
         closeableSurface.close()
@@ -329,7 +324,7 @@ internal class RiveSurfaceGL(
  */
 internal class RiveSurfaceGLPBuffer(
     private val eglSurface: EGLSurface,
-    private val display: EGLDisplay,
+    private val renderContext: RenderContextGL,
     commandQueue: CommandQueue,
     nativeSurfacePointer: Long,
     drawKey: DrawKey,
@@ -359,10 +354,7 @@ internal class RiveSurfaceGLPBuffer(
     override fun dispose() {
         // Destroy the EGL PBuffer surface first...
         RiveLog.d(TAG) { "Destroying EGL PBuffer surface" }
-        val destroyed = EGL14.eglDestroySurface(display, eglSurface)
-        if (!destroyed) {
-            throw RiveShutdownException("Unable to destroy EGL PBuffer surface")
-        }
+        renderContext.destroySurface(eglSurface)
 
         // ... Then dispose of other resources
         super.dispose()

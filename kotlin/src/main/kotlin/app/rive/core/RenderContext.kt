@@ -4,8 +4,10 @@ import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
+import android.opengl.EGLSurface
 import android.os.Build
 import android.view.Surface
+import androidx.annotation.WorkerThread
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
@@ -111,6 +113,26 @@ internal data class RenderContextGL(
     CheckableAutoCloseable {
     private external fun cppConstructor(display: Long, context: Long): Long
     private external fun cppDelete(pointer: Long)
+
+    /** Destroys an EGL surface after switching away from it when current. */
+    private external fun cppDestroySurface(contextPointer: Long, surface: Long): Int
+
+    /**
+     * Releases an EGL surface while preserving the worker's current EGL context.
+     *
+     * Call on the command-server thread, before releasing the Android backing surface.
+     * @param surface Window or capture pbuffer surface owned by this context.
+     * @throws RiveShutdownException If switching surfaces or destroying the surface fails.
+     */
+    @WorkerThread
+    fun destroySurface(surface: EGLSurface) {
+        val error = cppDestroySurface(nativeObjectPointer, surface.nativeHandle)
+        if (error != EGL14.EGL_SUCCESS) {
+            throw RiveShutdownException(
+                "Unable to destroy EGL surface: ${EGLError.errorString(error)}"
+            )
+        }
+    }
 
     /** Creates a native GL surface wrapper for an EGL surface. */
     private external fun cppCreateSurface(eglSurface: Long, width: Int, height: Int): Long
@@ -332,7 +354,7 @@ internal data class RenderContextGL(
 
             val riveSurface = RiveSurfaceGL(
                 eglSurface,
-                display,
+                this,
                 surface,
                 commandQueue,
                 nativeSurface,
@@ -401,7 +423,7 @@ internal data class RenderContextGL(
             nativeSurface = cppCreateSurface(eglSurface.nativeHandle, width, height)
             val riveSurface = RiveSurfaceGLPBuffer(
                 eglSurface,
-                display,
+                this,
                 commandQueue,
                 nativeSurface,
                 drawKey,

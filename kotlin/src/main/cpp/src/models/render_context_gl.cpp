@@ -4,6 +4,7 @@
 
 #include "helpers/egl_error.hpp"
 #include "helpers/rive_log.hpp"
+#include "models/egl_result.hpp"
 #include "models/render_context.hpp"
 #include "models/render_surface_gl.hpp"
 #include "rive/gpu_texture_format.hpp"
@@ -121,6 +122,61 @@ void RenderContextGL::destroy()
                      errorString(error).c_str());
         }
     }
+}
+
+EGLint RenderContextGL::destroySurface(EGLSurface surface)
+{
+    if (surface == EGL_NO_SURFACE)
+    {
+        RiveLogE(TAG_RC, "Cannot destroy EGL_NO_SURFACE");
+        return EGL_BAD_SURFACE;
+    }
+    if (surface == pBuffer)
+    {
+        RiveLogE(TAG_RC,
+                 "Cannot destroy the worker's background PBuffer through "
+                 "destroySurface");
+        return EGL_BAD_SURFACE;
+    }
+    if (eglGetCurrentSurface(EGL_DRAW) == surface ||
+        eglGetCurrentSurface(EGL_READ) == surface)
+    {
+        if (eglGetCurrentContext() != eglContext)
+        {
+            RiveLogE(TAG_RC,
+                     "Cannot destroy EGL surface: surface is current on a "
+                     "different EGL context");
+            return EGL_BAD_CONTEXT;
+        }
+        RiveLogD(
+            TAG_RC,
+            "Switching to background PBuffer before destroying EGL surface");
+        // EGL defers destruction while a surface is current. Bind the
+        // background pbuffer for both drawing and reading, keeping the same EGL
+        // context. For window surfaces, this lets EGL clean up before the
+        // Kotlin caller releases the Surface and SurfaceTexture (or closes the
+        // ImageReader).
+        if (!eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext))
+        {
+            const EGLint error =
+                consume_egl_error_or_default(EGL_BAD_CONTEXT, TAG_RC);
+            RiveLogE(TAG_RC,
+                     "Failed to make background PBuffer current before "
+                     "destroying EGL surface. Error: %s",
+                     errorString(error).c_str());
+            return error;
+        }
+    }
+    if (!eglDestroySurface(eglDisplay, surface))
+    {
+        const EGLint error =
+            consume_egl_error_or_default(EGL_BAD_SURFACE, TAG_RC);
+        RiveLogE(TAG_RC,
+                 "eglDestroySurface failed. Error: %s",
+                 errorString(error).c_str());
+        return error;
+    }
+    return EGL_SUCCESS;
 }
 
 rive::rcp<rive::RenderImage> RenderContextGL::createRenderImage(
