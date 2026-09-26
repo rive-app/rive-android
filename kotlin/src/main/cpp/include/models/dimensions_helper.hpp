@@ -42,6 +42,17 @@ private:
                        float opacity) override
     {}
 
+    void drawImageMeshInstanced(
+        const rive::RenderImage* image,
+        const rive::ImageSampler options,
+        rive::rcp<rive::RenderBuffer> vertices_f32,
+        rive::rcp<rive::RenderBuffer> uvCoords_f32,
+        rive::rcp<rive::RenderBuffer> indices_u16,
+        uint32_t vertexCount,
+        uint32_t indexCount,
+        rive::rcp<rive::ImageMeshInstances> instances) override
+    {}
+
     void modulateOpacity(float opacity) override {}
 
 public:
