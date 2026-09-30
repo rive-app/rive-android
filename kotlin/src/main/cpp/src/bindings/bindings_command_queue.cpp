@@ -1301,6 +1301,12 @@ public:
 
     void beginOreFrame() override { m_renderContext->beginOreFrame(m_surface); }
 
+    // beginFrame bound the surface's image before recording.
+    rive::gpu::RenderTarget* targetRenderTarget() override
+    {
+        return m_renderTarget;
+    }
+
 private:
     RenderContext* const m_renderContext;
     RenderSurface* const m_surface;
@@ -1497,7 +1503,9 @@ static void executeDrawWork(const TracerType* tracer,
     {
         auto* session = commandQueue->ensureDeferredSession(riveContext);
         auto& host = commandQueue->deferredHost();
-        host.beginRecord(true, clearColor);
+        host.beginRecord(true,
+                         clearColor,
+                         renderContext->oreTarget(concreteRenderTarget));
         {
             [[maybe_unused]] TraceScope<TracerType> recordTrace(
                 *tracer,
@@ -3563,7 +3571,10 @@ extern "C"
                 auto* session =
                     commandQueue->ensureDeferredSession(riveContext);
                 auto& host = commandQueue->deferredHost();
-                host.beginRecord(true, clearColor);
+                host.beginRecord(
+                    true,
+                    clearColor,
+                    renderContext->oreTarget(concreteRenderTarget));
                 recordDeferredDraw(session,
                                    artboard,
                                    concreteRenderTarget->width(),

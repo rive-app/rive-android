@@ -16,6 +16,9 @@
 #include "helpers/rive_log.hpp"
 #include "rive/gpu_texture_format.hpp"
 #include "rive/renderer/ore/ore_context.hpp"
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+#include "rive/renderer/ore/ore_context_vulkan.hpp"
+#endif
 #include "rive/renderer/vulkan/render_context_vulkan_impl.hpp"
 #include "rive/renderer/vulkan/render_target_vulkan.hpp"
 #include "rive_vk_bootstrap/vulkan_device.hpp"
@@ -657,6 +660,15 @@ rive::gpu::RenderTarget* RenderContextVulkan::beginFrame(
 
     return renderTarget;
 }
+
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+rive::ore::Context::TargetDesc RenderContextVulkan::oreTarget(
+    rive::gpu::RenderTarget* renderTarget) const
+{
+    return rive::ore::targetDescFor(
+        *static_cast<rive::gpu::RenderTargetVulkan*>(renderTarget));
+}
+#endif
 
 void RenderContextVulkan::beginOreFrame(RenderSurface* nativeSurface)
 {

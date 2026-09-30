@@ -8,6 +8,9 @@
 #include "models/render_surface.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/render_target.hpp"
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+#include "rive/renderer/ore/ore_context.hpp"
+#endif
 #include "rive/renderer/rive_render_image.hpp"
 
 #ifdef RIVE_VULKAN
@@ -135,6 +138,19 @@ public:
      * @param surface Backend-specific surface whose frame is active.
      */
     virtual void beginOreFrame(RenderSurface* surface) = 0;
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    /**
+     * What scripts see of the frame's render target, which they may draw
+     * into under Rive's content. Zero width where the backend cannot wrap it.
+     *
+     * @param renderTarget The target beginFrame() returned.
+     */
+    virtual rive::ore::Context::TargetDesc oreTarget(
+        rive::gpu::RenderTarget* renderTarget) const
+    {
+        return {};
+    }
+#endif
     /**
      * Flush backend-specific render commands to the surface's current target.
      *
@@ -246,6 +262,10 @@ struct RenderContextVulkan : RenderContext
 
     rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
     void beginOreFrame(RenderSurface* nativeSurface) override;
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+    rive::ore::Context::TargetDesc oreTarget(
+        rive::gpu::RenderTarget* renderTarget) const override;
+#endif
     bool flush(RenderSurface* nativeSurface) override;
     bool present(RenderSurface* nativeSurface) override;
 
