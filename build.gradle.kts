@@ -22,7 +22,8 @@ val clangFormatExecutable = providers.environmentVariable("RIVE_CLANG_FORMAT")
 val androidNativeSources = fileTree("kotlin/src/main/cpp") {
     include("**/*.c", "**/*.cc", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.m", "**/*.mm")
     include("**/*.glsl", "**/*.vert", "**/*.frag")
-    exclude("**/build/**", "**/dependencies/**")
+    // Premake writes generated headers and minified shaders under out during native builds.
+    exclude("**/build/**", "**/out/**", "**/dependencies/**")
 }
 
 val verifyClangFormatVersion = {

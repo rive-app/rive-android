@@ -1,5 +1,10 @@
+import app.rive.gradle.ExtractNativeSymbolsTask
+import app.rive.gradle.VerifyNativeReleaseTask
+import com.android.build.api.artifact.SingleArtifact
 import com.palantir.gradle.gitversion.VersionDetails
 import groovy.lang.Closure
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
 import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
@@ -109,6 +114,67 @@ android {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        val aar = variant.artifacts.get(SingleArtifact.AAR)
+        val ndkDirectory = sdkComponents.ndkDirectory
+        val nativeTools = ndkDirectory.map { ndk ->
+            ndk.asFile.resolve("toolchains/llvm/prebuilt").listFiles().orEmpty()
+                .map { it.resolve("bin") }
+                .single { it.resolve("llvm-readelf").isFile || it.resolve("llvm-readelf.exe").isFile }
+        }
+        val readelfFile = nativeTools.map { bin ->
+            bin.resolve("llvm-readelf").takeIf { it.isFile } ?: bin.resolve("llvm-readelf.exe")
+        }
+        val releaseAbis =
+            providers.gradleProperty("abiFilters")
+                .map { value -> value.split(',').map { it.trim() } }
+                .orElse(listOf("x86", "x86_64", "armeabi-v7a", "arm64-v8a"))
+        val verifyNativeRelease = tasks.register<VerifyNativeReleaseTask>("verifyReleaseNativeLibraries") {
+            group = "verification"
+            description =
+                "Rejects unstripped native libraries and unintended Rive exports in the release AAR."
+            this.aar.set(aar)
+            abis.set(releaseAbis.map { it.toSet() })
+            readelf.fileProvider(readelfFile)
+        }
+        val extractNativeSymbols = tasks.register<ExtractNativeSymbolsTask>("extractReleaseNativeSymbols") {
+            group = "build"
+            description = "Extracts debug companions matching the packaged release native libraries."
+            dependsOn(verifyNativeRelease)
+            mergedLibraries.set(variant.artifacts.get(SingleArtifact.MERGED_NATIVE_LIBS))
+            this.aar.set(aar)
+            readelf.fileProvider(readelfFile)
+            objcopy.fileProvider(nativeTools.map { bin ->
+                bin.resolve("llvm-objcopy").takeIf { it.isFile } ?: bin.resolve("llvm-objcopy.exe")
+            })
+            abis.set(releaseAbis.map { it.toSet() })
+            releaseVersion.set(publishVersion)
+            ndkVersion.set(android.ndkVersion)
+            outputDirectory.set(layout.buildDirectory.dir("intermediates/native-symbols/${variant.name}"))
+        }
+        val nativeSymbolsZip = tasks.register<Zip>("nativeSymbolsZip") {
+            group = "build"
+            description = "Packages matching Rive and libc++ debug companions for release."
+            from(extractNativeSymbols.flatMap { it.outputDirectory })
+            destinationDirectory.set(layout.buildDirectory.dir("outputs/native-symbols"))
+            archiveBaseName.set(publishArtifactId)
+            archiveVersion.set(publishVersion)
+            archiveClassifier.set("native-symbols")
+            isPreserveFileTimestamps = false
+            isReproducibleFileOrder = true
+        }
+        // Attach a classifier artifact so ordinary AAR consumers do not download the symbols.
+        publishing.publications.withType<MavenPublication>().configureEach {
+            artifact(nativeSymbolsZip)
+        }
+        // Guard the actual publication tasks, including Vanniktech's Central staging repository.
+        tasks.withType<AbstractPublishToMaven>().configureEach {
+            dependsOn(verifyNativeRelease)
         }
     }
 }

@@ -44,6 +44,7 @@ set(static_libs
 target_compile_features(rive-android PUBLIC cxx_std_17)
 target_compile_options(rive-android PRIVATE
         -Wall # Enable all warnings
+        -g # Retain debug information for extraction before AGP strips the packaged copy.
         -fno-exceptions # Disable C++ exceptions
         -fno-rtti # Disable C++ RTTI
         $<$<CONFIG:Release>:-Oz>) # Optimize for size with -Oz in release
@@ -56,10 +57,17 @@ target_compile_definitions(rive-android PRIVATE
 if (EXISTS "${PROJECT_SOURCE_DIR}/../../../../submodules/rive-runtime")
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../")
     set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/submodules/rive-runtime")
+    set(RIVE_SOURCE_ROOT "${PACKAGES_DIR}")
 else ()
     set(PACKAGES_DIR "${PROJECT_SOURCE_DIR}/../../../../..")
     set(RIVE_RUNTIME_DIR "${PACKAGES_DIR}/runtime")
+    set(RIVE_SOURCE_ROOT "${PACKAGES_DIR}/..")
 endif ()
+get_filename_component(RIVE_SOURCE_ROOT "${RIVE_SOURCE_ROOT}" REALPATH)
+# Use repository-relative source paths in published debug information and __FILE__.
+target_compile_options(rive-android PRIVATE
+        "-ffile-prefix-map=${RIVE_SOURCE_ROOT}=.")
+set(ENV{RIVE_SOURCE_ROOT} "${RIVE_SOURCE_ROOT}")
 # Pass the resolved runtime directory to the environment for Premake
 set(ENV{RIVE_RUNTIME_DIR} "${RIVE_RUNTIME_DIR}")
 
@@ -162,6 +170,9 @@ set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
 set(RIVE_ANDROID_PREMAKE_ARGS "--with_rive_text --with_rive_layout --with_rive_canvas")
 
 # Build the Rive C++ runtime and its dependencies as static .a libs
+# Reconfigure when Premake's release debug-information settings change.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/premake5_cpp_runtime.lua")
 execute_process(
         COMMAND ${CMAKE_COMMAND} -E env "RIVE_PREMAKE_ARGS=${RIVE_ANDROID_PREMAKE_ARGS}" bash ${RIVE_RUNTIME_DIR}/build/build_rive.sh --file=premake5_cpp_runtime.lua android ninja ${CONFIG} ${RIVE_ARCH} --with_vulkan --no-rive-decoders --with_rive_audio=${RIVE_AUDIO_ARG} ${RIVE_SCRIPTING_ARG} ${RIVE_ASAN_FLAG} -- rive_cpp_runtime
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
