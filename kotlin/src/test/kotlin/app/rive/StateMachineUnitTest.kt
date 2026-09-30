@@ -36,6 +36,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val handle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        every { worker.focusState(handle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(handle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             handle,
             worker,
@@ -89,6 +91,8 @@ class StateMachineUnitTest : FunSpec({
             worker.createDefaultStateMachineConfirmed(artboard.artboardHandle)
         } returns handle
         every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        every { worker.focusState(handle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(handle) } returns MutableStateFlow(false)
 
         val stateMachine = StateMachine.create(artboard)
 
@@ -115,6 +119,8 @@ class StateMachineUnitTest : FunSpec({
             )
         } returns handle
         every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        every { worker.focusState(handle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(handle) } returns MutableStateFlow(false)
 
         val stateMachine = StateMachine.create(artboard, "Named State Machine")
 
@@ -237,6 +243,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             stateMachineHandle,
             worker,
@@ -260,6 +268,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             stateMachineHandle,
             worker,
@@ -357,6 +367,8 @@ class StateMachineUnitTest : FunSpec({
         val foreignWorker = mockk<CommandQueue>(relaxed = true)
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             stateMachineHandle,
             worker,
@@ -389,6 +401,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(false)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             stateMachineHandle,
             worker,
@@ -426,6 +440,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val handle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(handle) } returns MutableStateFlow(false)
+        every { worker.focusState(handle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(handle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             handle,
             worker,
@@ -481,6 +497,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.enableSemantics(stateMachineHandle) } just runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = StateMachine(
@@ -502,6 +520,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.fireSemanticAction(stateMachineHandle, 17, SemanticActionType.Tap) } just
             runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
@@ -524,6 +544,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.requestSemanticFocus(stateMachineHandle, 42) } just runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = StateMachine(
@@ -545,6 +567,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.clearSemanticFocus(stateMachineHandle) } just runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = StateMachine(
@@ -566,6 +590,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>(relaxed = true)
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         val stateMachine = StateMachine(
             stateMachineHandle = stateMachineHandle,
             riveWorker = worker,
@@ -583,6 +609,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.clearSemanticFocus(stateMachineHandle) } throws
             RiveResourceClosedException("RiveWorker is disposed")
         val stateMachine = StateMachine(
@@ -601,6 +629,8 @@ class StateMachineUnitTest : FunSpec({
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
+        every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
+        every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
         every { worker.clearSemanticFocus(stateMachineHandle) } throws
             IllegalStateException("State machine is not registered")
         val stateMachine = StateMachine(

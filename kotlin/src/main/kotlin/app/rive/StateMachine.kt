@@ -178,6 +178,27 @@ class StateMachine internal constructor(
     internal val settled: StateFlow<Boolean> =
         riveWorker.stateMachineSettled(stateMachineHandle)
 
+    /**
+     * The latest known focus state for this state machine.
+     *
+     * Resolved once at construction, like [settled], so a retained observer keeps reading after
+     * this state machine closes or its worker is disposed. In that terminal state the flow reports
+     * no focus and receives no further updates, because a deleted state machine cannot hold focus.
+     */
+    @ExperimentalRiveFocus
+    val focusState: StateFlow<RiveFocusState> = riveWorker.focusState(stateMachineHandle)
+
+    /**
+     * Whether this graphic contains any focusable content.
+     *
+     * Updated by [requestHasFocusNodes]. A host should attach focus handling only while this is
+     * true, so a graphic with no focusable content never becomes a focus stop.
+     *
+     * Resolved once at construction, like [settled]; after teardown it reports `false`.
+     */
+    @ExperimentalRiveFocus
+    val hasFocusNodes: StateFlow<Boolean> = riveWorker.hasFocusNodes(stateMachineHandle)
+
     companion object {
         /**
          * Creates a new [StateMachine] and suspends until its Rive worker confirms creation.
@@ -511,6 +532,117 @@ class StateMachine internal constructor(
         closer.checkOpen()
         riveWorker.clearSemanticFocus(stateMachineHandle)
         unsettle()
+    }
+
+    /**
+     * Move Rive focus to the next focusable element in this graphic's traversal order.
+     *
+     * Traversal order follows the artboard structure. The move happens on the command server, so
+     * this does not report whether focus moved; observe [focusState] instead. Running off the end
+     * of the tree clears focus, which the next poll reports as no focus: the host's cue to release
+     * focus to the surrounding native UI. A scope authored to stop at its edge keeps focus.
+     *
+     * The state machine is marked unsettled so an active renderer advances and publishes the result.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun focusNext() {
+        closer.checkOpen()
+        riveWorker.focusNext(stateMachineHandle)
+        unsettle()
+    }
+
+    /**
+     * Move Rive focus to the previous focusable element in this graphic's traversal order.
+     *
+     * Behaves like [focusNext] in the opposite direction.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun focusPrevious() {
+        closer.checkOpen()
+        riveWorker.focusPrevious(stateMachineHandle)
+        unsettle()
+    }
+
+    /**
+     * Drop focus from this state machine's Rive focus tree.
+     *
+     * This clears focus held inside the graphic. It does not clear Android view focus, Compose
+     * focus, or TalkBack accessibility focus. It also fires the blur notifications that drive
+     * authored blur behavior in the file, so call it only when focus genuinely leaves the graphic.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun clearFocus() {
+        closer.checkOpen()
+        riveWorker.clearFocus(stateMachineHandle)
+        unsettle()
+    }
+
+    /**
+     * Ask the command server for this state machine's current focus state.
+     *
+     * The answer arrives asynchronously and is published to [focusState]. Call this once per frame
+     * after advancing, so focus the graphic changed on its own (an authored focus action, a state
+     * transition) is observed.
+     *
+     * This does not unsettle the state machine: a settled graphic cannot change focus on its own,
+     * and unsettling here would keep the frame loop awake forever.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class)
+    fun requestFocusState() {
+        closer.checkOpen()
+        riveWorker.requestFocusState(stateMachineHandle)
+    }
+
+    /**
+     * Ask the command server whether this graphic contains any focusable content.
+     *
+     * The answer arrives asynchronously and is published to [hasFocusNodes]. Re-request it after
+     * load when appropriate: nested and data-bound artboards can contribute focus nodes later.
+     *
+     * Like [requestFocusState], this does not unsettle the state machine.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class)
+    fun requestHasFocusNodes() {
+        closer.checkOpen()
+        riveWorker.requestHasFocusNodes(stateMachineHandle)
+    }
+
+    /**
+     * Refresh focus state for one frame. Call after advancing.
+     *
+     * Refreshes both [hasFocusNodes] and [focusState] on every call.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class)
+    fun pollFocus() {
+        closer.checkOpen()
+        riveWorker.pollFocus(stateMachineHandle)
     }
 
     /**

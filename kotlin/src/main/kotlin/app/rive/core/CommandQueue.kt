@@ -23,6 +23,7 @@ import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
 import app.rive.RiveFileAsset
 import app.rive.RiveFileException
+import app.rive.RiveFocusState
 import app.rive.RiveFontException
 import app.rive.RiveImageException
 import app.rive.RiveIncompatibleResourceException
@@ -404,6 +405,7 @@ class CommandQueue internal constructor(
     private fun dispose(cppPointer: Long) {
         cancelPendingContinuations()
         stateMachineSettlingStore.clear()
+        focusStateStore.clear()
         // Final release may occur from any thread. Serialize semantic-tree cleanup with
         // main-thread diff application and access without blocking asynchronous worker shutdown.
         val mainDispatcher = Dispatchers.Main.immediate
@@ -647,6 +649,11 @@ class CommandQueue internal constructor(
 
     /** Durable settled state for state machines owned by this command queue. */
     private val stateMachineSettlingStore = settlingStore ?: StateMachineSettlingStore {
+        nextRequestID.getAndIncrement()
+    }
+
+    /** Durable focus state for state machines owned by this command queue. */
+    private val focusStateStore = FocusStateStore {
         nextRequestID.getAndIncrement()
     }
 
@@ -1635,6 +1642,7 @@ class CommandQueue internal constructor(
             )
         )
         stateMachineSettlingStore.register(stateMachineHandle)
+        focusStateStore.register(stateMachineHandle)
         return stateMachineHandle
     }
 
@@ -1671,15 +1679,16 @@ class CommandQueue internal constructor(
             )
         )
         stateMachineSettlingStore.register(stateMachineHandle)
+        focusStateStore.register(stateMachineHandle)
         return stateMachineHandle
     }
 
     /**
      * Callback when a state machine is instantiated successfully.
      *
-     * Confirmed creation requests defer settled-state registration until this callback. The
-     * fire-and-forget APIs scheduled for removal in 12.0 register their provisional handles when
-     * submitting the request instead.
+     * Confirmed creation requests defer settled-state and focus-state registration until this
+     * callback. The fire-and-forget APIs scheduled for removal in 12.0 register their provisional
+     * handles when submitting the request instead.
      *
      * @param requestID The request ID used to create the state machine.
      * @param stateMachineHandle The confirmed state machine handle.
@@ -1691,24 +1700,25 @@ class CommandQueue internal constructor(
         requestID: Long,
         stateMachineHandle: StateMachineHandle,
     ) {
-        val trackSettling = pendingContinuations.containsKey(requestID)
-        if (trackSettling) {
+        val requiresRegistration = pendingContinuations.containsKey(requestID)
+        if (requiresRegistration) {
             // Cancellation can occur after we remove the continuation from pendingContinuations
             // but before the resumed value reaches the awaiting coroutine. Register first so that
             // cancellation cleanup, which deletes and unregisters the state machine, cannot run
             // before the entry exists.
             stateMachineSettlingStore.register(stateMachineHandle)
+            focusStateStore.register(stateMachineHandle)
         }
         val continuationRemovedBeforeResume =
             !resumeResourceRequest(requestID, stateMachineHandle)
-        val registrationIsStale =
-            trackSettling && continuationRemovedBeforeResume
+        val registrationIsStale = requiresRegistration && continuationRemovedBeforeResume
 
         if (registrationIsStale) {
             // Cancellation can remove the continuation after the check above but before
             // registration. If so, cleanup ran before registration, so remove the entry that
             // registration just added.
             stateMachineSettlingStore.unregister(stateMachineHandle)
+            focusStateStore.unregister(stateMachineHandle)
         }
     }
 
@@ -1730,6 +1740,7 @@ class CommandQueue internal constructor(
             )
         }
         stateMachineSettlingStore.unregister(stateMachineHandle)
+        focusStateStore.unregister(stateMachineHandle)
     }
 
     /**
@@ -1904,6 +1915,182 @@ class CommandQueue internal constructor(
         requireNativePointer(),
         stateMachineHandle.handle
     )
+
+    /**
+     * Move Rive focus to the next focusable element in traversal order.
+     *
+     * Focus moves on the command server, so this does not report whether it moved. Observe
+     * [focusState] for the outcome: when traversal runs off the end of the tree the Rive runtime
+     * clears focus, which the next focus-state poll reports as no focus.
+     *
+     * Submitting this invalidates any focus-state poll already in flight, so a stale answer cannot
+     * be mistaken for the result of this move.
+     *
+     * @param stateMachineHandle The state machine whose focus should advance.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun focusNext(stateMachineHandle: StateMachineHandle) {
+        val pointer = requireNativePointer()
+        bridge.cppFocusNext(pointer, stateMachineHandle.handle, nextRequestID.getAndIncrement())
+        // Invalidate only after enqueueing the command; see FocusStateStore.invalidate.
+        focusStateStore.invalidate(stateMachineHandle)
+        requestFocusState(stateMachineHandle)
+    }
+
+    /**
+     * Move Rive focus to the previous focusable element in traversal order.
+     *
+     * Behaves like [focusNext] in the opposite direction; see it for how the outcome is observed.
+     *
+     * @param stateMachineHandle The state machine whose focus should move back.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun focusPrevious(stateMachineHandle: StateMachineHandle) {
+        val pointer = requireNativePointer()
+        bridge.cppFocusPrevious(pointer, stateMachineHandle.handle, nextRequestID.getAndIncrement())
+        focusStateStore.invalidate(stateMachineHandle)
+        requestFocusState(stateMachineHandle)
+    }
+
+    /**
+     * Drop focus from this state machine's Rive focus tree.
+     *
+     * This clears focus held inside the graphic. It does not clear Android view focus, Compose
+     * focus, or TalkBack accessibility focus. It also fires the blur notifications that drive
+     * authored blur behavior in the file.
+     *
+     * @param stateMachineHandle The state machine whose focus should be dropped.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun clearFocus(stateMachineHandle: StateMachineHandle) {
+        val pointer = requireNativePointer()
+        bridge.cppClearFocus(pointer, stateMachineHandle.handle, nextRequestID.getAndIncrement())
+        focusStateStore.invalidate(stateMachineHandle)
+        requestFocusState(stateMachineHandle)
+    }
+
+    /**
+     * Ask the command server for this state machine's current focus state.
+     *
+     * The answer arrives asynchronously in [onFocusStateReceived] when the queue is polled, and is
+     * published to the flow returned by [focusState]. Call it once per frame after advancing. It
+     * does not unsettle the state machine: a settled graphic cannot change focus on its own, and
+     * unsettling here would keep the frame loop awake forever.
+     *
+     * @param stateMachineHandle The state machine to query.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun requestFocusState(stateMachineHandle: StateMachineHandle) = bridge.cppRequestFocusState(
+        requireNativePointer(),
+        stateMachineHandle.handle,
+        nextRequestID.getAndIncrement()
+    )
+
+    /**
+     * Ask the command server whether this state machine's graphic has focusable content.
+     *
+     * The answer arrives asynchronously in [onHasFocusNodesReceived] and is published to the flow
+     * returned by [hasFocusNodes]. The value can change after load, because nested and data-bound
+     * artboards can contribute focus nodes later.
+     *
+     * @param stateMachineHandle The state machine to query.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun requestHasFocusNodes(stateMachineHandle: StateMachineHandle) =
+        bridge.cppRequestHasFocusNodes(
+            requireNativePointer(),
+            stateMachineHandle.handle,
+            nextRequestID.getAndIncrement()
+        )
+
+    /**
+     * Returns the latest known focus state for a state machine owned by this queue.
+     *
+     * @param stateMachineHandle The state machine to observe.
+     * @return A flow carrying the most recent accepted focus state.
+     * @throws IllegalStateException If the state machine is not registered with this queue.
+     */
+    fun focusState(stateMachineHandle: StateMachineHandle): StateFlow<RiveFocusState> =
+        focusStateStore.focusState(stateMachineHandle)
+
+    /**
+     * Returns whether a state machine owned by this queue has any focusable content.
+     *
+     * @param stateMachineHandle The state machine to observe.
+     * @return A flow carrying the most recently reported value.
+     * @throws IllegalStateException If the state machine is not registered with this queue.
+     */
+    fun hasFocusNodes(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
+        focusStateStore.hasFocusNodes(stateMachineHandle)
+
+    /**
+     * Refresh focus state for one frame. Call after advancing.
+     *
+     * Re-checks focusable content, because nested and data-bound artboards can contribute focus
+     * nodes after load, and asks for focus state unconditionally. Gating the second request on the
+     * last known content answer would skip it on the advance that first adds focusable content,
+     * and that advance can also settle the state machine and end the frame loop.
+     *
+     * Does not throw for a state machine this queue no longer tracks, so a per-frame caller racing
+     * deletion cannot crash. The command server still logs an error for each request naming a
+     * deleted state machine, so stop polling once the state machine closes.
+     *
+     * @param stateMachineHandle The state machine to refresh.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun pollFocus(stateMachineHandle: StateMachineHandle) {
+        requestHasFocusNodes(stateMachineHandle)
+        requestFocusState(stateMachineHandle)
+    }
+
+    /**
+     * Callback when the command server reports a state machine's focus state.
+     *
+     * Triggered by [requestFocusState]. Answers to polls that were already in flight when a
+     * focus-changing command was submitted are discarded, so an observer never reads pre-command
+     * focus state as though it reflected the command.
+     *
+     * @param requestID The request that produced this answer.
+     * @param stateMachineHandle The state machine the answer describes.
+     * @param hasFocus Whether Rive holds focus on an element inside the graphic.
+     * @param expectsKeyboardInput Whether the focused element accepts key and text input.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onFocusStateReceived")
+    internal fun onFocusStateReceived(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle,
+        hasFocus: Boolean,
+        expectsKeyboardInput: Boolean,
+    ) = focusStateStore.applyFocusState(
+        requestID,
+        stateMachineHandle,
+        hasFocus,
+        expectsKeyboardInput
+    )
+
+    /**
+     * Callback when the command server reports whether a state machine has focusable content.
+     *
+     * Triggered by [requestHasFocusNodes].
+     *
+     * @param stateMachineHandle The state machine the answer describes.
+     * @param hasFocusNodes Whether the unified focus tree holds any focusable node.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onHasFocusNodesReceived")
+    internal fun onHasFocusNodesReceived(
+        stateMachineHandle: StateMachineHandle,
+        hasFocusNodes: Boolean,
+    ) = focusStateStore.applyHasFocusNodes(stateMachineHandle, hasFocusNodes)
 
     /**
      * Callback when the state machine settles. This is called when the state machine has determined

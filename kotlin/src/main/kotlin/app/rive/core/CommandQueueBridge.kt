@@ -106,6 +106,16 @@ interface CommandQueueBridge {
 
     fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
 
+    fun cppFocusNext(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    fun cppFocusPrevious(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    fun cppClearFocus(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    fun cppRequestFocusState(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    fun cppRequestHasFocusNodes(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
     fun cppNamedVMCreateBlankVMI(
         pointer: Long,
         requestID: Long,
@@ -632,6 +642,28 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     )
 
     external override fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
+
+    external override fun cppFocusNext(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    external override fun cppFocusPrevious(
+        pointer: Long,
+        stateMachineHandle: Long,
+        requestID: Long,
+    )
+
+    external override fun cppClearFocus(pointer: Long, stateMachineHandle: Long, requestID: Long)
+
+    external override fun cppRequestFocusState(
+        pointer: Long,
+        stateMachineHandle: Long,
+        requestID: Long,
+    )
+
+    external override fun cppRequestHasFocusNodes(
+        pointer: Long,
+        stateMachineHandle: Long,
+        requestID: Long,
+    )
 
     external override fun cppNamedVMCreateBlankVMI(
         pointer: Long,

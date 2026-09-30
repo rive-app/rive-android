@@ -448,6 +448,29 @@ public:
                      jDiff.get());
     }
 
+    void onFocusStateReceived(
+        const rive::StateMachineHandle smHandle,
+        uint64_t requestID,
+        rive::CommandQueue::FocusState focusState) override
+    {
+        m_queue.call("onFocusStateReceived",
+                     "(JJZZ)V",
+                     requestID,
+                     longFromHandle(smHandle),
+                     static_cast<jboolean>(focusState.hasFocus),
+                     static_cast<jboolean>(focusState.expectsKeyboardInput));
+    }
+
+    void onHasFocusNodesReceived(const rive::StateMachineHandle smHandle,
+                                 uint64_t,
+                                 bool hasFocusNodes) override
+    {
+        m_queue.call("onHasFocusNodesReceived",
+                     "(JZ)V",
+                     longFromHandle(smHandle),
+                     static_cast<jboolean>(hasFocusNodes));
+    }
+
 private:
     JCommandQueue m_queue;
 };
@@ -2125,6 +2148,86 @@ extern "C"
             handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
 
         commandQueue->clearSemanticFocus(stateMachineHandle);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppFocusNext(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jlong requestID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->focusNext(stateMachineHandle,
+                                static_cast<uint64_t>(requestID));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppFocusPrevious(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jlong requestID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->focusPrevious(stateMachineHandle,
+                                    static_cast<uint64_t>(requestID));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppClearFocus(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jlong requestID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->clearFocus(stateMachineHandle,
+                                 static_cast<uint64_t>(requestID));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppRequestFocusState(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jlong requestID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->requestFocusState(stateMachineHandle,
+                                        static_cast<uint64_t>(requestID));
+    }
+
+    JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppRequestHasFocusNodes(
+        JNIEnv*,
+        jobject,
+        jlong ref,
+        jlong jStateMachineHandle,
+        jlong requestID)
+    {
+        auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+        auto stateMachineHandle =
+            handleFromLong<rive::StateMachineHandle>(jStateMachineHandle);
+
+        commandQueue->requestHasFocusNodes(stateMachineHandle,
+                                           static_cast<uint64_t>(requestID));
     }
 
     JNIEXPORT jlong JNICALL

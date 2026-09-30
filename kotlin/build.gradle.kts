@@ -97,9 +97,12 @@ android {
     }
     kotlinOptions {
         jvmTarget = javaVersion.toString()
-        // This module implements its own experimental semantics API. The marker remains on the
-        // published declarations and is still enforced for downstream consumers.
-        freeCompilerArgs += listOf("-opt-in=app.rive.ExperimentalRiveSemantics")
+        // This module implements its own experimental semantics and focus APIs. The markers
+        // remain on the published declarations and are still enforced for downstream consumers.
+        freeCompilerArgs += listOf(
+            "-opt-in=app.rive.ExperimentalRiveSemantics",
+            "-opt-in=app.rive.ExperimentalRiveFocus",
+        )
     }
 
     externalNativeBuild {

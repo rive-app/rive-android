@@ -1,5 +1,5 @@
 [![Build Status](https://github.com/rive-app/rive-android/actions/workflows/release.yml/badge.svg?style=flat-square)](https://github.com/rive-app/rive-android/releases)
-[![Discord Badge](https://img.shields.io/discord/532365473602600965)](https://discord.gg/dpRpR7jH)
+[![Discord Badge](https://img.shields.io/discord/532365473602600965)](https://discord.com/invite/FGjmaTr)
 [![Twitter Handle](https://img.shields.io/twitter/follow/rive_app.svg?style=social&label=Follow)](https://x.com/rive_app)
 
 # Rive Android
