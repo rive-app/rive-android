@@ -22,6 +22,14 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
+    Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppInvalidateSystemFallbacks(
+        JNIEnv*,
+        jobject)
+    {
+        FontHelper::InvalidateSystemFallbacks();
+    }
+
+    JNIEXPORT void JNICALL
     Java_app_rive_runtime_kotlin_fonts_FontFallbackStrategy_00024Companion_cppResetFontCache(
         JNIEnv*,
         jobject)

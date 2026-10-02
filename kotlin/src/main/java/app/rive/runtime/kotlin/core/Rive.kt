@@ -130,7 +130,7 @@ object Rive {
      * // or if you're using split APKs / dynamic feature delivery:
      * SplitInstallHelper.loadLibrary(context, "c++_shared")
      * SplitInstallHelper.loadLibrary(context, "rive-android")
-     * Rive.initializeCppEnvironment()
+     * Rive.initializeCppEnvironment(context)
      * ```
      *
      * For split APK / on-demand feature delivery, native libraries can live outside
@@ -157,15 +157,16 @@ object Rive {
                 "Native loading failed for librive-android.so. " +
                     "If your app loads native libraries " +
                     "manually, load libc++_shared.so before librive-android.so, then call " +
-                    "Rive.initializeCppEnvironment(). For split APK/dynamic feature delivery, " +
+                    "Rive.initializeCppEnvironment(context). " +
+                    "For split APK/dynamic feature delivery, " +
                     "load both libraries from the split context with " +
                     "SplitInstallHelper.loadLibrary(...) before calling " +
-                    "initializeCppEnvironment(). See " +
+                    "initializeCppEnvironment(context). See " +
                     "https://developer.android.com/guide/playcore/feature-delivery/on-demand#native-code"
             }
             throw error
         }
-        initializeCppEnvironment()
+        initializeCppEnvironment(context)
     }
 
     /**
@@ -175,9 +176,28 @@ object Rive {
      * objects.
      *
      * Normally done as part of init, and only required if you are avoiding calling [init].
+     * Prefer the overload accepting a [Context] to also observe locale configuration changes.
+     * This context-free overload does not register an observer, so callers must invoke
+     * [FontHelper.invalidateSystemFallbacks] themselves after changing the locale.
      */
     @JvmStatic
     fun initializeCppEnvironment() = cppInitialize()
+
+    /**
+     * Initializes JNI bindings and locale monitoring after native libraries have been loaded.
+     *
+     * Use this overload when loading the native libraries manually, including through a dynamic
+     * feature's split context. It does not load libraries or change the default renderer.
+     * Repeated calls register only one application-level locale observer.
+     *
+     * @param context A context whose application receives configuration changes.
+     * @throws UnsatisfiedLinkError If the native libraries have not been loaded.
+     */
+    @JvmStatic
+    fun initializeCppEnvironment(context: Context) {
+        initializeCppEnvironment()
+        FontHelper.watchLocaleChanges(context)
+    }
 
     fun calculateRequiredBounds(
         fit: Fit,
@@ -218,10 +238,11 @@ object Rive {
      * @param opts The [Fonts.FontOpts] specifying the desired font characteristics. If not
      *    provided, default options are used.
      * @return Whether the font was successfully registered.
-     * @deprecated Define a [FontFallbackStrategy] instead. This method will be removed in 12.0.
+     * @deprecated System fonts are used for fallback automatically, so this only copies one that
+     *    would otherwise be mapped. This method will be removed in 12.0.
      */
     @Deprecated(
-        "Prefer defining a FontFallbackStrategy instead. This method will be removed in 12.0.",
+        "System fonts are used for fallback automatically. This method will be removed in 12.0.",
         level = DeprecationLevel.WARNING
     )
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean =

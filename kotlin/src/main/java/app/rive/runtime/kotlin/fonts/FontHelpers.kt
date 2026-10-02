@@ -1,5 +1,8 @@
 package app.rive.runtime.kotlin.fonts
 
+import android.content.ComponentCallbacks
+import android.content.Context
+import android.content.res.Configuration
 import android.util.Xml
 import androidx.annotation.VisibleForTesting
 import app.rive.RiveLog
@@ -9,6 +12,7 @@ import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFontList
 import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFonts
 import java.io.File
 import java.io.InputStream
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 import org.xmlpull.v1.XmlPullParser
 
@@ -79,6 +83,9 @@ class Fonts {
     }
 
     data class FileFont(val name: String, val variant: String? = null, val lang: String? = null)
+
+    /** A font file on disk and the face to open within it when it is a collection (.ttc). */
+    data class FontFile(val path: String, val ttcIndex: Int = 0)
 }
 
 class FontHelper {
@@ -88,6 +95,9 @@ class FontHelper {
         // Thread-safe atomic reference for the font cache
         private val familiesMapCache = AtomicReference<Map<String, Fonts.Family>>(null)
         private val familiesListCache = AtomicReference<List<Fonts.Family>>(null)
+
+        // Accessed under the companion monitor, retaining only the application context.
+        private var localeWatcher: Pair<Context, ComponentCallbacks>? = null
 
         /**
          * Retrieves a map of all system fonts available.
@@ -478,6 +488,127 @@ class FontHelper {
                 return getFontBytes(it)
             }
 
+        /**
+         * Lists system font files in the order to try them for a missing character, with families
+         * for [locale] first so shared Han characters get the user's regional forms.
+         *
+         * @param locale The locale whose families are preferred. Defaults to the device locale.
+         * @return The font files in fallback order, without duplicates.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun getSystemFallbackChain(locale: Locale = Locale.getDefault()): List<Fonts.FontFile> {
+            // Elegant variants are taller duplicates of the compact ones Android uses by default.
+            val fallbackFamilies = getSystemFontList()
+                .filter { it.name.isNullOrBlank() && it.variant != "elegant" }
+            val (preferred, others) = fallbackFamilies.partition { langMatches(it.lang, locale) }
+            val fonts = listOfNotNull(getFallbackFont()) +
+                (preferred + others).mapNotNull { regularFont(it) }
+            return fonts
+                .mapNotNull { font ->
+                    getFontFile(font)?.let { Fonts.FontFile(it.absolutePath, font.ttcIndex) }
+                }
+                .distinct()
+        }
+
+        /**
+         * Invalidates system font selection after a locale change without an application-level
+         * configuration notification, such as [Locale.setDefault] or some AppCompat language changes.
+         *
+         * [Locale.setDefault] changes the process's default Java locale. It does not change the
+         * device language or dispatch an Android configuration callback. Rive does not poll this
+         * value on each fallback lookup, so call this method after applying the new default:
+         *
+         * ```kotlin
+         * // After Rive.init(context), or manual library loading and initializeCppEnvironment(context).
+         * Locale.setDefault(newLocale)
+         * FontHelper.invalidateSystemFallbacks()
+         * ```
+         *
+         * Locale configuration notifications are observed automatically after
+         * [app.rive.runtime.kotlin.core.Rive.init] or its context-aware
+         * [app.rive.runtime.kotlin.core.Rive.initializeCppEnvironment] overload runs. The no-argument
+         * initialization overload does not install an observer. For application-specific language
+         * handling, invalidate after the locale used by fallback selection has actually changed.
+         *
+         * This marks caches stale for the next system fallback lookup. It does not automatically
+         * reshape displayed text or change the fonts already retained by shaped runs.
+         *
+         * @throws UnsatisfiedLinkError If called before the Rive native libraries are loaded.
+         */
+        @JvmStatic
+        fun invalidateSystemFallbacks() = NativeFontHelper.cppInvalidateSystemFallbacks()
+
+        /**
+         * Observes changes to the default locale, registering once per process.
+         * Native libraries must already be initialized.
+         * @param context A context whose application receives configuration changes.
+         */
+        @Synchronized
+        internal fun watchLocaleChanges(context: Context) {
+            if (localeWatcher != null) return
+            val application = context.applicationContext
+            val callback = object : ComponentCallbacks {
+                private var lastLocale = Locale.getDefault()
+
+                /** Ignores configuration changes that leave fallback ordering unchanged. */
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    // Use the same source as getSystemFallbackChain, including its region/script.
+                    val locale = Locale.getDefault()
+                    if (locale != lastLocale) {
+                        lastLocale = locale
+                        invalidateSystemFallbacks()
+                    }
+                }
+
+                /** Required legacy callback, with no locale work to perform. */
+                @Deprecated("Deprecated in Java")
+                override fun onLowMemory() = Unit
+            }
+            application.registerComponentCallbacks(callback)
+            localeWatcher = application to callback
+            // A context-free initialization may already have cached fonts for an older locale.
+            invalidateSystemFallbacks()
+        }
+
+        /** Removes the registered observer so instrumentation can exercise initialization in isolation. */
+        @VisibleForTesting
+        @Synchronized
+        internal fun stopWatchingLocaleChangesForTesting() {
+            localeWatcher?.let { (application, callback) ->
+                application.unregisterComponentCallbacks(callback)
+            }
+            localeWatcher = null
+        }
+
+        /** Picks the family's upright font closest to regular weight, skipping serif variants. */
+        private fun regularFont(family: Fonts.Family): Fonts.Font? = family.fonts.values
+            .flatten()
+            .filter { it.style == Fonts.Font.STYLE_NORMAL && it.fallbackFor == null }
+            .minByOrNull { kotlin.math.abs(it.weight.weight - Fonts.Weight.NORMAL.weight) }
+
+        /**
+         * Whether a fonts.xml lang list such as "zh-Hant,zh-Bopo" covers [locale].
+         *
+         * Chinese locales often omit the script, so it is inferred from the region.
+         */
+        internal fun langMatches(familyLang: String?, locale: Locale): Boolean {
+            if (familyLang == null) return false
+            val script = locale.script.ifEmpty {
+                when {
+                    locale.language != "zh" -> ""
+                    locale.country in setOf("TW", "HK", "MO") -> "Hant"
+                    else -> "Hans"
+                }
+            }
+            return familyLang.split(',').any { tag ->
+                val parts = tag.trim().split('-')
+                val tagScript = parts.getOrNull(1)?.takeIf { it.length == 4 }
+                parts[0] == locale.language &&
+                    (tagScript == null || tagScript.equals(script, ignoreCase = true))
+            }
+        }
+
         @VisibleForTesting
         fun resetForTesting() {
             familiesMapCache.set(null)
@@ -495,9 +626,10 @@ class SystemFontsParser {
 
         internal val SYSTEM_FONTS_PATHS = listOf(
             "/system/fonts/",
-            "/system/font/",
-            "/data/fonts/",
+            "/product/fonts/",
             "/system/product/fonts/",
+            "/data/fonts/",
+            "/system/font/",
         )
 
         internal fun parseFontsXMLMap(xmlFileStream: InputStream): Map<String, Fonts.Family> {
@@ -1196,4 +1328,5 @@ class SystemFontsParser {
 
 object NativeFontHelper {
     external fun cppRegisterFallbackFont(fontBytes: ByteArray): Boolean
+    external fun cppInvalidateSystemFallbacks()
 }

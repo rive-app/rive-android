@@ -38,6 +38,38 @@ For more information, see the [Runtime](https://rive.app/docs/runtimes/getting-s
 - [Data Binding](https://rive.app/docs/runtimes/data-binding)
 - [Loading Assets](https://rive.app/docs/runtimes/loading-assets)
 
+### System font fallback and locale changes
+
+System font fallback uses the process's default Java locale to prefer regional font faces, including
+CJK variants. This behavior is shared by the legacy and new Android APIs. `Rive.init(context)` installs
+an application-level configuration observer so locale changes take effect on subsequent fallback
+lookups. Other configuration changes, such as rotation and dark mode, leave the font caches intact.
+
+If you load native libraries yourself, call
+`app.rive.runtime.kotlin.core.Rive.initializeCppEnvironment(context)` afterward. This initializes the
+native bindings and installs the same observer without loading the libraries again. The existing
+no-argument overload initializes the bindings only, so its callers must explicitly invalidate fallback
+selection when the locale changes.
+
+Calling `Locale.setDefault(...)` changes the default Java locale for the current process. It does not
+change the device language or send an Android configuration notification. Rive does not poll for such
+changes during fallback lookups. After initialization, apply the locale and then invalidate:
+
+```kotlin
+import app.rive.runtime.kotlin.fonts.FontHelper
+import java.util.Locale
+
+Locale.setDefault(Locale.forLanguageTag("ja-JP"))
+FontHelper.invalidateSystemFallbacks()
+```
+
+For per-app language handling that does not notify the application-level observer, including some
+AppCompat configurations before Android 13, call invalidation after the default locale used by font
+selection has actually been updated. Invalidation does not itself set the locale.
+
+Invalidation affects subsequent system fallback lookups. It does not automatically reshape text that
+is already displayed, and existing shaped text keeps its font references.
+
 ## Supported Versions
 
 Currently, this runtime library supports a minimum SDK version of **21**, and the target SDK version is **35**.

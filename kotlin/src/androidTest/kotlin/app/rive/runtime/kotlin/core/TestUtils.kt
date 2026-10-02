@@ -256,7 +256,6 @@ class TestUtils {
 }
 
 object NativeFontTestHelper {
-    external fun cppGetSystemFontBytes(): ByteArray
     external fun cppFindFontFallback(missingCodePoint: Int, fontBytes: FontBytes): Int
 
     /**
@@ -266,6 +265,58 @@ object NativeFontTestHelper {
      * @return Whether the same system font is retained and unsupported glyphs are rejected.
      */
     external fun cppSystemFontIsReused(fontBytes: FontBytes): Boolean
+
+    /**
+     * Searches a cold chain for a missing character, then one present in a system font.
+     * @return Whether rejected candidates remain reusable probes and only the match becomes a font.
+     */
+    external fun cppSystemFallbackProbesBeforePromotion(): Boolean
+
+    /** @return The invalidation generation without refreshing native fallback caches. */
+    external fun cppSystemFallbackGeneration(): Long
+
+    /**
+     * Looks up the same Han character across locale changes while retaining old font references.
+     *
+     * @param fontBytes A regular source font for the fallback requests.
+     * @param changeLocale Switches to another locale with a distinct CJK face.
+     * @param restoreLocale Restores the initial locale.
+     * @param invalidate Tells Rive the locale changed.
+     * @return Whether selection holds until invalidated, then changes, cached selections remain
+     *    stable, and the old face is reused.
+     */
+    external fun cppSystemFallbackChangesWithLocale(
+        fontBytes: FontBytes,
+        changeLocale: Runnable,
+        restoreLocale: Runnable,
+        invalidate: Runnable,
+    ): Boolean
+
+    /**
+     * Requests the first strategy fallback for two fonts of different weights.
+     *
+     * @return Whether both weights received the same decoded font.
+     */
+    external fun cppStrategyFontIsShared(regularBytes: FontBytes, lightBytes: FontBytes): Boolean
+
+    /**
+     * Forces a cache collision between equally sized fonts with different coverage.
+     *
+     * @param regularBytes A valid font containing 'b'.
+     * @param lightBytes A valid font without 'b', padded to the same length.
+     * @return Whether both fonts stay distinct and repeated bytes reuse the correct font.
+     */
+    external fun cppStrategyHashCollisionPreservesCoverage(
+        regularBytes: FontBytes,
+        lightBytes: FontBytes,
+    ): Boolean
+
+    /**
+     * Finds the system fallback for [codePoint] in text set in [fontBytes].
+     *
+     * @return Whether one was found at the font's weight, or one without a weight axis.
+     */
+    external fun cppSystemFallbackMatchesWeight(codePoint: Int, fontBytes: FontBytes): Boolean
     external fun cppCleanupFallbacks()
 }
 

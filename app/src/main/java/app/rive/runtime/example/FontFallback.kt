@@ -6,7 +6,6 @@ import app.rive.runtime.example.databinding.ActivityFontFallbackBinding
 import app.rive.runtime.example.utils.setEdgeToEdgeContent
 import app.rive.runtime.kotlin.fonts.FontBytes
 import app.rive.runtime.kotlin.fonts.FontFallbackStrategy
-import app.rive.runtime.kotlin.fonts.FontHelper
 import app.rive.runtime.kotlin.fonts.Fonts
 
 class FontFallback :
@@ -27,28 +26,17 @@ class FontFallback :
         FontFallbackStrategy.stylePicker = this
     }
 
-    // This class is a `FontFallbackStrategy` and this override picks fonts based on weight.
-    override fun getFont(weight: Fonts.Weight): List<FontBytes> {
-        var fontMatch = Fonts.FontOpts(
-            familyName = "serif",
-        )
-        when {
-            // 'Invert' the weights to make the fallback chars more prominent.
-            weight.weight < 400 ->
-                fontMatch =
-                    Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(900))
-
-            weight.weight > 400 ->
-                fontMatch =
-                    Fonts.FontOpts(familyName = "sans-serif", weight = Fonts.Weight(100))
+    // Read once: identical bytes are decoded once however many weights return them.
+    private val appFonts by lazy {
+        listOf(R.raw.opensans, R.raw.montserrat).map { id ->
+            resources.openRawResource(id).use { it.readBytes() }
         }
-        val fonts = listOf(
-            fontMatch,
-            // Tag a Thai font along so our second view can draw the glyphs
-            Fonts.FontOpts("NotoSansThai-Regular.ttf")
-        )
-        return fonts.mapNotNull { FontHelper.getFallbackFontBytes(it) }
     }
+
+    // Draws missing Latin characters in the app's own fonts so they stand out. The Thai view needs
+    // no strategy, its glyphs come from the system fonts.
+    override fun getFont(weight: Fonts.Weight): List<FontBytes> =
+        listOf(if (weight.weight > 400) appFonts[1] else appFonts[0])
 
     /**
      * The Rive file displayed here contains four blocks of text each with three different runs
