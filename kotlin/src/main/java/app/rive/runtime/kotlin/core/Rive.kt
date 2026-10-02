@@ -218,11 +218,10 @@ object Rive {
      * @param opts The [Fonts.FontOpts] specifying the desired font characteristics. If not
      *    provided, default options are used.
      * @return Whether the font was successfully registered.
-     * @deprecated System fonts are used for fallback automatically, so this only copies one that
-     *    would otherwise be mapped. This method will be removed in 12.0.
+     * @deprecated Define a [FontFallbackStrategy] instead. This method will be removed in 12.0.
      */
     @Deprecated(
-        "System fonts are used for fallback automatically. This method will be removed in 12.0.",
+        "Prefer defining a FontFallbackStrategy instead. This method will be removed in 12.0.",
         level = DeprecationLevel.WARNING
     )
     fun setFallbackFont(opts: Fonts.FontOpts? = null): Boolean =

@@ -7,12 +7,10 @@ import app.rive.runtime.kotlin.core.NativeFontTestHelper
 import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
-import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,10 +41,15 @@ class FontPickerTest {
         // The font only contains glyphs 'abcdef'
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
             val fontBytes = it.readBytes()
-            // System fallbacks cover Latin, Thai and Han without any setup.
-            "uโ你".forEach { char ->
-                assertTrue(NativeFontTestHelper.cppFindFontFallback(char.code, fontBytes) >= 0)
-            }
+            assert(
+                // System default has 'u' glyph...
+                NativeFontTestHelper.cppFindFontFallback("u".codePointAt(0), fontBytes) >= 0,
+            )
+
+            assert(
+                // ...but not other Unicode (e.g. Thai) characters
+                NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) < 0,
+            )
 
             // Find a Thai font and configure fallback system
             val thaiFont = FontHelper.getFallbackFonts(Fonts.FontOpts(lang = "th"))
@@ -59,9 +62,7 @@ class FontPickerTest {
                 assertTrue(
                     Rive.setFallbackFont(Fonts.FontOpts(familyName = font.name)),
                 )
-                assertTrue(
-                    NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0,
-                )
+                assert(NativeFontTestHelper.cppFindFontFallback("โ".codePointAt(0), fontBytes) >= 0)
             }
         }
     }
@@ -71,41 +72,6 @@ class FontPickerTest {
     fun systemFontIsCachedAcrossCharactersAndStrategyResets() {
         context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
             assertTrue(NativeFontTestHelper.cppSystemFontIsReused(it.readBytes()))
-        }
-    }
-
-    /** Verifies that rejected candidates retain only coverage probes and matches are promoted once. */
-    @Test
-    fun systemFallbackOnlyInitializesMatchingFont() {
-        assertTrue(NativeFontTestHelper.cppSystemFallbackProbesBeforePromotion())
-    }
-
-    /** Verifies that cached Han selection follows locale changes without invalidating old fonts. */
-    @Test
-    fun systemFallbackFollowsLocaleChanges() {
-        val japanese = FontHelper.getSystemFallbackChain(Locale.JAPAN)
-            .firstOrNull { it.path.contains("CJK", ignoreCase = true) }
-        val chinese = FontHelper.getSystemFallbackChain(Locale.CHINA)
-            .firstOrNull { it.path.contains("CJK", ignoreCase = true) }
-        assumeTrue(
-            "Requires distinct regional CJK faces",
-            japanese != null && chinese != null && japanese != chinese
-        )
-        val regular = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
-            it.readBytes()
-        }
-        val originalLocale = Locale.getDefault()
-        try {
-            Locale.setDefault(Locale.JAPAN)
-            assertTrue(
-                NativeFontTestHelper.cppSystemFallbackChangesWithLocale(
-                    regular,
-                    Runnable { Locale.setDefault(Locale.CHINA) },
-                    Runnable { Locale.setDefault(Locale.JAPAN) },
-                ),
-            )
-        } finally {
-            Locale.setDefault(originalLocale)
         }
     }
 
@@ -121,80 +87,12 @@ class FontPickerTest {
             /** Supplies two candidates to distinguish custom fallback from system fallback. */
             override fun getFont(weight: Fonts.Weight): List<FontBytes> {
                 pickerCalls++
-                return listOf(fontBytes, FontHelper.getFallbackFontBytes()!!)
+                return listOf(fontBytes, NativeFontTestHelper.cppGetSystemFontBytes())
             }
         }
         FontFallbackStrategy.stylePicker = picker
         assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, fontBytes))
         assertEquals(1, pickerCalls)
-    }
-
-    /** Verifies that a repeated strategy font is listed once, so later fonts stay reachable. */
-    @Test
-    fun repeatedStrategyFontIsListedOnce() {
-        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
-            it.readBytes()
-        }
-        val picker = object : FontFallbackStrategy {
-            /** Repeats the font that lacks 'u' ahead of one that has it. */
-            override fun getFont(weight: Fonts.Weight): List<FontBytes> =
-                listOf(limited, limited.copyOf(), FontHelper.getFallbackFontBytes()!!)
-        }
-        FontFallbackStrategy.stylePicker = picker
-        assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
-        assertEquals(picker, FontFallbackStrategy.stylePicker)
-    }
-
-    /** Verifies that variable system fallbacks are instanced at the requested weight. */
-    @Test
-    fun systemFallbackFollowsWeight() {
-        val light = context.resources.openRawResource(R.raw.inter_extralight_onlya).use {
-            it.readBytes()
-        }
-        assertTrue(NativeFontTestHelper.cppSystemFallbackMatchesWeight('你'.code, light))
-    }
-
-    /** Verifies that weights served the same bytes share one decoded font. */
-    @Test
-    fun strategyFontIsDecodedOncePerContent() {
-        val regular = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
-            it.readBytes()
-        }
-        val light = context.resources.openRawResource(R.raw.inter_extralight_onlya).use {
-            it.readBytes()
-        }
-        val requestedWeights = mutableSetOf<Int>()
-        val picker = object : FontFallbackStrategy {
-            /** Returns a fresh copy each call so sharing can only come from the content. */
-            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
-                requestedWeights.add(weight.weight)
-                return listOf(regular.copyOf())
-            }
-        }
-        FontFallbackStrategy.stylePicker = picker
-        assertTrue(NativeFontTestHelper.cppStrategyFontIsShared(regular, light))
-        assertEquals(2, requestedWeights.size)
-        // The strategy is held weakly, so keep it reachable through the native calls.
-        assertEquals(picker, FontFallbackStrategy.stylePicker)
-    }
-
-    /** Verifies that equal-length hash collisions preserve each font's glyph coverage. */
-    @Test
-    fun strategyHashCollisionPreservesCoverage() {
-        val regular = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
-            it.readBytes()
-        }
-        val light = context.resources.openRawResource(R.raw.inter_extralight_onlya).use {
-            it.readBytes()
-        }
-        // Trailing padding preserves the font tables while making the length keys identical.
-        val size = maxOf(regular.size, light.size)
-        assertTrue(
-            NativeFontTestHelper.cppStrategyHashCollisionPreservesCoverage(
-                regular.copyOf(size),
-                light.copyOf(size),
-            ),
-        )
     }
 
     @Test

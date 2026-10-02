@@ -9,8 +9,6 @@ import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFontList
 import app.rive.runtime.kotlin.fonts.FontHelper.Companion.getSystemFonts
 import java.io.File
 import java.io.InputStream
-import java.util.Collections
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 import org.xmlpull.v1.XmlPullParser
 
@@ -81,9 +79,6 @@ class Fonts {
     }
 
     data class FileFont(val name: String, val variant: String? = null, val lang: String? = null)
-
-    /** A font file on disk and the face to open within it when it is a collection (.ttc). */
-    data class FontFile(val path: String, val ttcIndex: Int = 0)
 }
 
 class FontHelper {
@@ -93,10 +88,6 @@ class FontHelper {
         // Thread-safe atomic reference for the font cache
         private val familiesMapCache = AtomicReference<Map<String, Fonts.Family>>(null)
         private val familiesListCache = AtomicReference<List<Fonts.Family>>(null)
-
-        private data class SystemFallbackChain(val locale: Locale, val files: List<Fonts.FontFile>)
-
-        private val systemFallbackChainCache = AtomicReference<SystemFallbackChain>(null)
 
         /**
          * Retrieves a map of all system fonts available.
@@ -487,72 +478,10 @@ class FontHelper {
                 return getFontBytes(it)
             }
 
-        /**
-         * Lists system font files in the order to try them for a missing character, with families
-         * for [locale] first so shared Han characters get the user's regional forms.
-         *
-         * @param locale The locale whose families are preferred. Defaults to the device locale.
-         * @return The font files in fallback order, without duplicates. Repeated calls for the
-         *   same locale reuse the list so native code can detect changes by object identity.
-         */
-        @JvmStatic
-        @JvmOverloads
-        fun getSystemFallbackChain(locale: Locale = Locale.getDefault()): List<Fonts.FontFile> {
-            systemFallbackChainCache.get()?.let { cached ->
-                if (cached.locale == locale) return cached.files
-            }
-            // Elegant variants are taller duplicates of the compact ones Android uses by default.
-            val fallbackFamilies = getSystemFontList()
-                .filter { it.name.isNullOrBlank() && it.variant != "elegant" }
-            val (preferred, others) = fallbackFamilies.partition { langMatches(it.lang, locale) }
-            val fonts = listOfNotNull(getFallbackFont()) +
-                (preferred + others).mapNotNull { regularFont(it) }
-            val files = fonts
-                .mapNotNull { font ->
-                    getFontFile(font)?.let { Fonts.FontFile(it.absolutePath, font.ttcIndex) }
-                }
-                .distinct()
-                .let { Collections.unmodifiableList(it) }
-            // Keep failures retryable. The list's identity represents one locale snapshot.
-            if (files.isNotEmpty()) {
-                systemFallbackChainCache.set(SystemFallbackChain(locale, files))
-            }
-            return files
-        }
-
-        /** Picks the family's upright font closest to regular weight, skipping serif variants. */
-        private fun regularFont(family: Fonts.Family): Fonts.Font? = family.fonts.values
-            .flatten()
-            .filter { it.style == Fonts.Font.STYLE_NORMAL && it.fallbackFor == null }
-            .minByOrNull { kotlin.math.abs(it.weight.weight - Fonts.Weight.NORMAL.weight) }
-
-        /**
-         * Whether a fonts.xml lang list such as "zh-Hant,zh-Bopo" covers [locale].
-         *
-         * Chinese locales often omit the script, so it is inferred from the region.
-         */
-        internal fun langMatches(familyLang: String?, locale: Locale): Boolean {
-            if (familyLang == null) return false
-            val script = locale.script.ifEmpty {
-                when {
-                    locale.language != "zh" -> ""
-                    locale.country in setOf("TW", "HK", "MO") -> "Hant"
-                    else -> "Hans"
-                }
-            }
-            return familyLang.split(',').any { tag ->
-                val parts = tag.trim().split('-')
-                val tagScript = parts.getOrNull(1)?.takeIf { it.length == 4 }
-                parts[0] == locale.language &&
-                    (tagScript == null || tagScript.equals(script, ignoreCase = true))
-            }
-        }
-
         @VisibleForTesting
         fun resetForTesting() {
             familiesMapCache.set(null)
             familiesListCache.set(null)
-            systemFallbackChainCache.set(null)
         }
     }
 }
@@ -566,10 +495,9 @@ class SystemFontsParser {
 
         internal val SYSTEM_FONTS_PATHS = listOf(
             "/system/fonts/",
-            "/product/fonts/",
-            "/system/product/fonts/",
-            "/data/fonts/",
             "/system/font/",
+            "/data/fonts/",
+            "/system/product/fonts/",
         )
 
         internal fun parseFontsXMLMap(xmlFileStream: InputStream): Map<String, Fonts.Family> {
