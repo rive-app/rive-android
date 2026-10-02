@@ -12,16 +12,31 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerInputFilter
 import androidx.compose.ui.input.pointer.PointerInputModifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -39,6 +54,7 @@ import app.rive.core.traceSection
 import app.rive.semantics.rememberRiveSemanticsEnabled
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -181,6 +197,8 @@ internal fun validateRiveResourceArguments(
  *    [RiveSemanticsMode.Automatic] is generally preferred when displaying a file with authored
  *    semantics because it follows Android's accessibility-enabled state. Enabling semantics is
  *    experimental and requires opting into [ExperimentalRiveSemantics].
+ * @param focus Controls whether Rive can receive Android input focus. Defaults to
+ *    [RiveFocusMode.Off].
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
@@ -204,6 +222,7 @@ fun Rive(
     pointerInputMode: RivePointerInputMode = Consume,
     frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
     semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+    focus: RiveFocusMode = RiveFocusMode.Off,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
 ) = RiveImpl(
     file = file,
@@ -217,6 +236,7 @@ fun Rive(
     pointerInputMode = pointerInputMode,
     frameRate = frameRate,
     semantics = semantics,
+    focus = focus,
     onBitmapAvailable = onBitmapAvailable,
     globalViewModelInstances = emptyMap(),
 )
@@ -239,6 +259,7 @@ fun Rive(
  * @param pointerInputMode Controls how pointer events are handled and consumed by Rive.
  * @param frameRate Controls how often Rive advances and draws while [playing] is true.
  * @param semantics Controls whether Rive-authored Android accessibility semantics are exposed.
+ * @param focus Controls whether Rive can receive Android input focus.
  * @param onBitmapAvailable Optional callback invoked when the first bitmap frame is available.
  * @param globalViewModelInstances Explicit global [ViewModelInstance] bindings keyed by global
  *    view model name. Omitted globals are created from their authored defaults. Removing an entry
@@ -270,6 +291,7 @@ fun Rive(
     pointerInputMode: RivePointerInputMode = Consume,
     frameRate: RiveFrameRate = RiveFrameRate.Unbounded,
     semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+    focus: RiveFocusMode = RiveFocusMode.Off,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)? = null,
     globalViewModelInstances: Map<String, ViewModelInstance>,
 ) = RiveImpl(
@@ -284,6 +306,7 @@ fun Rive(
     pointerInputMode = pointerInputMode,
     frameRate = frameRate,
     semantics = semantics,
+    focus = focus,
     onBitmapAvailable = onBitmapAvailable,
     globalViewModelInstances = globalViewModelInstances,
 )
@@ -318,6 +341,7 @@ private fun RiveImpl(
     pointerInputMode: RivePointerInputMode,
     frameRate: RiveFrameRate,
     semantics: RiveSemanticsMode,
+    focus: RiveFocusMode,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
     globalViewModelInstances: Map<String, ViewModelInstance>,
 ) {
@@ -335,6 +359,7 @@ private fun RiveImpl(
     RiveLog.v(GENERAL_TAG) { "Rive Recomposing" }
     val lifecycleOwner = LocalLifecycleOwner.current
     val semanticsEnabled = rememberRiveSemanticsEnabled(semantics)
+    val focusEnabled = rememberRiveFocusEnabled(focus)
 
     val riveWorker = file.riveWorker
     val readyResources = rememberReadyResources(file, artboard, stateMachine)
@@ -379,6 +404,7 @@ private fun RiveImpl(
             pointerInputMode = pointerInputMode,
             frameRate = frameRate,
             playing = playing,
+            focusEnabled = focusEnabled,
             onBitmapAvailable = onBitmapAvailable,
             requestPausedFrame = requestPausedFrame,
         )
@@ -399,6 +425,7 @@ private fun RiveImpl(
                 surfaceHeight = surfaceState.height,
                 pausedFrameGeneration = pausedFrameGeneration,
                 requestPausedFrame = requestPausedFrame,
+                focusEnabled = focusEnabled,
                 textureView = surfaceState.textureView,
                 semanticsEnabled = semanticsEnabled,
             )
@@ -444,6 +471,19 @@ private class RiveSurfaceState {
     var width by mutableIntStateOf(0)
     var height by mutableIntStateOf(0)
     var textureView by mutableStateOf<RiveTextureView?>(null)
+
+    /**
+     * Whether the surface holds host focus.
+     *
+     * Outlives any one focus session, so a session that replaces another can start from it.
+     */
+    var focused by mutableStateOf(false)
+
+    /** Gives the surface host focus when it is tapped. */
+    val focusRequester = FocusRequester()
+
+    /** The direction focus is entering the surface in, consumed when the surface gains focus. */
+    var entryDirection: FocusDirection? = null
 }
 
 /**
@@ -453,6 +493,71 @@ private class RiveSurfaceState {
  */
 @Composable
 private fun rememberRiveSurfaceState(): RiveSurfaceState = remember { RiveSurfaceState() }
+
+/**
+ * Makes the Rive surface a focus stop and routes traversal keys into the Rive instance.
+ *
+ * `onEnter` never fires for a focusable leaf, so an unfocusable group around the surface catches
+ * the direction focus arrives in. A tap focuses the surface without entering the instance.
+ *
+ * @param session The session deciding whether a traversal key belongs to Rive, or null while the
+ *    Rive instance has no state machine yet.
+ * @param enabled Whether Rive can receive Android input focus.
+ * @param surfaceState Shared mutable surface state. This modifier updates its
+ *    [RiveSurfaceState.focused] and [RiveSurfaceState.entryDirection] properties when Android
+ *    input focus changes, so replacement focus sessions can inherit the surface's current focus.
+ * @return This modifier with focus handling attached, or unchanged when focus is disabled.
+ */
+private fun Modifier.riveFocus(
+    session: RiveFocusSession?,
+    enabled: Boolean,
+    surfaceState: RiveSurfaceState,
+): Modifier {
+    val activeSession = session?.takeIf { enabled } ?: return this
+    return this
+        .focusProperties {
+            canFocus = false
+            onEnter = { surfaceState.entryDirection = requestedFocusDirection }
+        }
+        .focusTarget()
+        .onFocusChanged { state ->
+            val entryDirection = surfaceState.entryDirection
+            surfaceState.entryDirection = null
+            surfaceState.focused = state.isFocused
+            activeSession.onSurfaceFocusChanged(
+                focused = state.isFocused,
+                entryDirection = when (entryDirection) {
+                    FocusDirection.Next -> RiveFocusDirection.Next
+                    FocusDirection.Previous -> RiveFocusDirection.Previous
+                    else -> null
+                },
+            )
+        }
+        .onPreviewKeyEvent { event ->
+            if (event.type != KeyEventType.KeyDown || event.key != Key.Tab) {
+                false
+            } else {
+                val direction = when {
+                    event.isShiftPressed -> RiveFocusDirection.Previous
+                    else -> RiveFocusDirection.Next
+                }
+                activeSession.onTraversalKey(direction)
+            }
+        }
+        // Observes without consuming, so Rive still receives the press.
+        .pointerInput(surfaceState.focusRequester) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.type == PointerEventType.Press) {
+                        surfaceState.focusRequester.requestFocus()
+                    }
+                }
+            }
+        }
+        .focusRequester(surfaceState.focusRequester)
+        .focusTarget()
+}
 
 /**
  * Adds Rive pointer dispatch for one confirmed state machine generation.
@@ -555,6 +660,8 @@ private fun Modifier.rivePointerInput(
  * @param pointerInputMode The pointer dispatch and consumption behavior.
  * @param frameRate The requested rendering rate used for the Android view hint.
  * @param playing Whether the state machine should advance continuously.
+ * @param focusEnabled Whether the Rive surface can receive Android input focus. A Rive instance
+ *    without focusable content stays out regardless.
  * @param onBitmapAvailable The optional callback for the first bitmap on each surface.
  * @param requestPausedFrame Requests a zero-delta frame after pointer input while paused.
  */
@@ -568,6 +675,7 @@ private fun RiveSurfaceHost(
     pointerInputMode: RivePointerInputMode,
     frameRate: RiveFrameRate,
     playing: Boolean,
+    focusEnabled: Boolean,
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
     requestPausedFrame: () -> Unit,
 ) {
@@ -595,15 +703,76 @@ private fun RiveSurfaceHost(
         }
     }
 
-    val surfaceModifier = modifier.rivePointerInput(
-        riveWorker = riveWorker,
-        stateMachine = resources?.stateMachine,
-        fit = fit,
-        surfaceWidth = surfaceWidth,
-        surfaceHeight = surfaceHeight,
-        pointerInputMode = pointerInputMode,
-        requestPausedFrame = requestPausedFrame,
-    )
+    val currentRequestPausedFrame by rememberUpdatedState(requestPausedFrame)
+    // Immediate, so a traversal result is applied where it lands instead of a frame later.
+    val focusScope = rememberCoroutineScope { Dispatchers.Main.immediate }
+    val focusManager = LocalFocusManager.current
+    val stateMachine = resources?.stateMachine
+    val focusSession = remember(stateMachine, focusScope, focusManager) {
+        if (stateMachine == null) return@remember null
+        RiveFocusSession(
+            scope = focusScope,
+            traverse = stateMachine::moveFocus,
+            // The key that left the tree was consumed, so move focus as the key would have.
+            handOff = { direction ->
+                focusManager.moveFocus(
+                    when (direction) {
+                        RiveFocusDirection.Next -> FocusDirection.Next
+                        RiveFocusDirection.Previous -> FocusDirection.Previous
+                    }
+                )
+            },
+            clearFocus = {
+                try {
+                    stateMachine.clearFocus()
+                } catch (_: RiveResourceClosedException) {
+                    // Focus loss can coincide with teardown; a closed state machine holds no focus.
+                }
+            },
+            requestFrame = { currentRequestPausedFrame() },
+        )
+    }
+
+    // Unanswered counts as focusable, so a replacement state machine keeps the surface focused
+    // until its first poll. Polling follows focusEnabled alone, or content added later would never
+    // be seen.
+    val reportedHasFocusNodes = remember(stateMachine) {
+        stateMachine?.let { riveWorker.reportedHasFocusNodes(it.stateMachineHandle) }
+    }?.collectAsState()?.value
+    val focusAttached = focusEnabled && reportedHasFocusNodes != false
+
+    // The scope outlives a replaced session, and turning focus off removes the handler, so end the
+    // old session here.
+    DisposableEffect(focusSession, focusAttached) {
+        if (focusAttached) {
+            // onFocusChanged doesn't report again when its callback changes, so seed the session.
+            focusSession?.onSurfaceFocusChanged(surfaceState.focused)
+        } else {
+            // Nothing reports focus once the modifier is gone.
+            surfaceState.focused = false
+        }
+        onDispose { focusSession?.dispose() }
+    }
+
+    // Only the poll can report focus the Rive instance moved on its own.
+    val polledFocus = stateMachine?.focusState?.collectAsState()?.value
+    LaunchedEffect(focusSession, focusAttached, polledFocus) {
+        if (focusAttached && polledFocus != null) {
+            focusSession?.onRiveFocusChanged(polledFocus is RiveFocusState.Focused)
+        }
+    }
+
+    val surfaceModifier = modifier
+        .riveFocus(session = focusSession, enabled = focusAttached, surfaceState = surfaceState)
+        .rivePointerInput(
+            riveWorker = riveWorker,
+            stateMachine = resources?.stateMachine,
+            fit = fit,
+            surfaceWidth = surfaceWidth,
+            surfaceHeight = surfaceHeight,
+            pointerInputMode = pointerInputMode,
+            requestPausedFrame = requestPausedFrame,
+        )
 
     // Layout provides a standard Compose pointer-input parent for the pass-through AndroidView.
     Layout(
@@ -719,6 +888,7 @@ private fun RiveSurfaceHost(
  * @param requestPausedFrame Requests a zero-delta frame after external input while paused.
  * @param textureView The current Android host for virtual accessibility nodes, or null.
  * @param semanticsEnabled Whether Rive-authored accessibility semantics should be exposed.
+ * @param focusEnabled Whether focus should be polled after each advance.
  */
 @Composable
 private fun RiveResourceEffects(
@@ -738,6 +908,7 @@ private fun RiveResourceEffects(
     requestPausedFrame: () -> Unit,
     textureView: RiveTextureView?,
     semanticsEnabled: Boolean,
+    focusEnabled: Boolean,
 ) {
     val artboard = resources.artboard
     val stateMachine = resources.stateMachine
@@ -791,6 +962,7 @@ private fun RiveResourceEffects(
         surfaceWidth = surfaceWidth,
         surfaceHeight = surfaceHeight,
         semanticsEnabled = semanticsEnabled,
+        focusEnabled = focusEnabled,
     )
 }
 
@@ -1009,6 +1181,7 @@ private fun UpdateArtboardLayoutEffect(
  * @param surfaceWidth The current surface width in pixels.
  * @param surfaceHeight The current surface height in pixels.
  * @param semanticsEnabled Whether semantic diffs should be drained after each advance.
+ * @param focusEnabled Whether focus should be polled after each advance.
  */
 @Composable
 private fun DrawRiveFramesEffect(
@@ -1027,6 +1200,7 @@ private fun DrawRiveFramesEffect(
     surfaceWidth: Int,
     surfaceHeight: Int,
     semanticsEnabled: Boolean,
+    focusEnabled: Boolean,
 ) {
     val artboardHandle = artboard.artboardHandle
     val stateMachineHandle = stateMachine.stateMachineHandle
@@ -1046,6 +1220,7 @@ private fun DrawRiveFramesEffect(
         surfaceWidth,
         surfaceHeight,
         semanticsEnabled,
+        focusEnabled,
     ) {
         val activeSurface = surface ?: run {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
@@ -1065,6 +1240,9 @@ private fun DrawRiveFramesEffect(
                     // Advance once to exit the Entry state and apply initial values, including any
                     // pending artboard resize from the fit mode.
                     stateMachine.advance(0.nanoseconds)
+                }
+                if (focusEnabled) {
+                    riveWorker.pollFocus(stateMachineHandle)
                 }
                 if (semanticsEnabled && surfaceWidth > 0 && surfaceHeight > 0) {
                     stateMachine.drainSemanticsDiff(
@@ -1137,6 +1315,9 @@ private fun DrawRiveFramesEffect(
                 traceSection("Rive/Frame") {
                     traceSection("Rive/Frame/Advance") {
                         riveWorker.advanceStateMachine(stateMachineHandle, deltaTime)
+                    }
+                    if (focusEnabled) {
+                        riveWorker.pollFocus(stateMachineHandle)
                     }
                     if (semanticsEnabled && surfaceWidth > 0 && surfaceHeight > 0) {
                         riveWorker.drainSemanticsDiff(

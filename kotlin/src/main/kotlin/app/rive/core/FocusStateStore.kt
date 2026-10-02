@@ -27,15 +27,18 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
      * @param requestIDBoundary The request ID before which focus callbacks are stale.
      */
     private class Slot(var requestIDBoundary: Long) {
-        val mutableFocusState = MutableStateFlow(RiveFocusState())
+        val mutableFocusState = MutableStateFlow<RiveFocusState>(RiveFocusState.Unfocused)
         val focusState = mutableFocusState.asStateFlow()
         val mutableHasFocusNodes = MutableStateFlow(false)
         val hasFocusNodes = mutableHasFocusNodes.asStateFlow()
+        val mutableReportedHasFocusNodes = MutableStateFlow<Boolean?>(null)
+        val reportedHasFocusNodes = mutableReportedHasFocusNodes.asStateFlow()
 
         /** Leaves retained flows in the state a deleted state machine must report. */
         fun publishTerminalState() {
-            mutableFocusState.value = RiveFocusState()
+            mutableFocusState.value = RiveFocusState.Unfocused
             mutableHasFocusNodes.value = false
+            mutableReportedHasFocusNodes.value = false
         }
     }
 
@@ -102,7 +105,7 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
         synchronized(lock) { requireSlot(stateMachineHandle).focusState }
 
     /**
-     * Returns whether a registered state machine's graphic contains any focusable content.
+     * Returns whether a registered state machine's Rive instance contains any focusable content.
      *
      * @param stateMachineHandle The state machine whose content should be observed.
      * @return A flow containing the latest reported value.
@@ -112,10 +115,20 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
         synchronized(lock) { requireSlot(stateMachineHandle).hasFocusNodes }
 
     /**
+     * Like [hasFocusNodes], but null until the first answer arrives.
+     *
+     * @param stateMachineHandle The state machine whose content should be observed.
+     * @return A flow containing the latest reported value, or null before the first report.
+     * @throws IllegalStateException If the handle is not registered.
+     */
+    fun reportedHasFocusNodes(stateMachineHandle: StateMachineHandle): StateFlow<Boolean?> =
+        synchronized(lock) { requireSlot(stateMachineHandle).reportedHasFocusNodes }
+
+    /**
      * Applies a native has-focus-nodes callback.
      *
      * This value is not subject to the [invalidate] boundary: a focus move does not change whether
-     * the graphic contains focusable content, and the command queue's single message stream
+     * the Rive instance contains focusable content, and the command queue's single message stream
      * delivers these answers in submission order, so a later answer is always the newer one.
      *
      * @param stateMachineHandle The state machine reported by native code.
@@ -125,6 +138,7 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
         synchronized(lock) {
             val slot = slots[stateMachineHandle] ?: return@synchronized
             slot.mutableHasFocusNodes.value = hasFocusNodes
+            slot.mutableReportedHasFocusNodes.value = hasFocusNodes
         }
 
     /**
@@ -160,20 +174,18 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
      *
      * @param requestID The worker request that produced this callback.
      * @param stateMachineHandle The state machine reported by native code.
-     * @param hasFocus Whether Rive holds focus on an element inside the graphic.
-     * @param expectsKeyboardInput Whether the focused element accepts key and text input.
+     * @param focusState The reported focus state.
      */
     fun applyFocusState(
         requestID: Long,
         stateMachineHandle: StateMachineHandle,
-        hasFocus: Boolean,
-        expectsKeyboardInput: Boolean,
+        focusState: RiveFocusState,
     ) = synchronized(lock) {
         val slot = slots[stateMachineHandle] ?: return@synchronized
         if (requestID <= slot.requestIDBoundary) {
             return@synchronized
         }
-        slot.mutableFocusState.value = RiveFocusState(hasFocus, expectsKeyboardInput)
+        slot.mutableFocusState.value = focusState
     }
 
     /**
