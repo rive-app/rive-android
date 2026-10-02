@@ -7,13 +7,16 @@ import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.nio.charset.Charset
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1195,26 +1198,9 @@ class FontHelpersTest {
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
 
-        // Noto Thai doesn't have Korean glyphs...
-        "우호관계의".forEach { char ->
-            val codePoint = char.code
-            assert(
-                NativeFontTestHelper.cppFindFontFallback(
-                    codePoint,
-                    limitedFontBytes // just a placeholder...
-                ) < 0
-            )
-        }
-
-        // ...but has Thai glyphs
-        "ทุกคนมีสิทธิที่จะได้".forEach { char ->
-            val codePoint = char.code
-            assert(
-                NativeFontTestHelper.cppFindFontFallback(
-                    codePoint,
-                    limitedFontBytes // just a placeholder...
-                ) >= 0
-            )
+        // The registered font covers Thai, and system fallbacks cover the Korean it lacks.
+        "ทุกคนมีสิทธิที่จะได้우호관계의".forEach { char ->
+            assertTrue(NativeFontTestHelper.cppFindFontFallback(char.code, limitedFontBytes) >= 0)
         }
     }
 
@@ -1235,33 +1221,41 @@ class FontHelpersTest {
         val limitedFontBytes =
             context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).readBytes()
 
-        // Noto Thai doesn't have Korean glyphs...
-        "우호관계의".forEach { char ->
-            val codePoint = char.code
-            assert(
-                NativeFontTestHelper.cppFindFontFallback(
-                    codePoint,
-                    limitedFontBytes // just a placeholder...
-                ) < 0
-            )
-        }
-
-        // ...but has Thai glyphs
-        "ทุกคนมีสิทธิที่จะได้".forEach { char ->
-            val codePoint = char.code
-            assert(
-                NativeFontTestHelper.cppFindFontFallback(
-                    codePoint,
-                    limitedFontBytes // just a placeholder...
-                ) >= 0
-            )
+        // The registered font covers Thai, and system fallbacks cover the Korean it lacks.
+        "ทุกคนมีสิทธิที่จะได้우호관계의".forEach { char ->
+            assertTrue(NativeFontTestHelper.cppFindFontFallback(char.code, limitedFontBytes) >= 0)
         }
     }
 
     @Test
-    fun nativeSystemsFontHelper() {
-        val fontByteArray = NativeFontTestHelper.cppGetSystemFontBytes()
-        assertTrue(fontByteArray.isNotEmpty())
+    fun systemFallbackChainPrefersLocaleFace() {
+        val chain = FontHelper.getSystemFallbackChain()
+        assertTrue(chain.isNotEmpty())
+        assertTrue(chain.all { File(it.path).isFile })
+
+        val cjkFace = { locale: Locale ->
+            FontHelper.getSystemFallbackChain(locale)
+                .firstOrNull { it.path.endsWith("NotoSansCJK-Regular.ttc") }
+                ?.ttcIndex
+        }
+        assumeTrue(cjkFace(Locale.US) != null)
+        // Face order of the AOSP CJK collection: JP, KR, SC, TC.
+        assertEquals(2, cjkFace(Locale.SIMPLIFIED_CHINESE))
+        assertEquals(3, cjkFace(Locale.TRADITIONAL_CHINESE))
+        assertEquals(3, cjkFace(Locale("zh", "HK")))
+        assertEquals(0, cjkFace(Locale.JAPAN))
+        assertEquals(1, cjkFace(Locale.KOREA))
+    }
+
+    @Test
+    fun langMatchesInfersChineseScript() {
+        assertTrue(FontHelper.langMatches("zh-Hans", Locale.SIMPLIFIED_CHINESE))
+        assertTrue(FontHelper.langMatches("zh-Hant,zh-Bopo", Locale.TRADITIONAL_CHINESE))
+        assertTrue(FontHelper.langMatches("zh-Hant", Locale.forLanguageTag("zh-Hant-CN")))
+        assertFalse(FontHelper.langMatches("zh-Hans", Locale.TRADITIONAL_CHINESE))
+        assertTrue(FontHelper.langMatches("ja", Locale.JAPAN))
+        assertFalse(FontHelper.langMatches("ko", Locale.US))
+        assertFalse(FontHelper.langMatches(null, Locale.US))
     }
 
     @Test

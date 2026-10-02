@@ -5,8 +5,6 @@ import app.rive.core.CommandQueue
 import app.rive.core.StateMachineHandle
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.mockk.coEvery
-import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -28,8 +26,7 @@ private fun focusTestStateMachine(
     stateMachineHandle: StateMachineHandle,
 ): StateMachine {
     every { worker.stateMachineSettled(stateMachineHandle) } returns MutableStateFlow(true)
-    every { worker.focusState(stateMachineHandle) } returns
-        MutableStateFlow(RiveFocusState.Unfocused)
+    every { worker.focusState(stateMachineHandle) } returns MutableStateFlow(RiveFocusState())
     every { worker.hasFocusNodes(stateMachineHandle) } returns MutableStateFlow(false)
     return StateMachine(
         stateMachineHandle = stateMachineHandle,
@@ -42,23 +39,33 @@ private fun focusTestStateMachine(
 class StateMachineFocusUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
 
-    test("Move focus unsettles, delegates, and returns the resulting state") {
+    test("Focus next delegates and unsettles in order") {
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.focusNext(stateMachineHandle) } just runs
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
 
-        for (direction in RiveFocusDirection.entries) {
-            val resulting = RiveFocusState.Focused(expectsKeyboardInput = false)
-            coEvery { worker.moveFocus(stateMachineHandle, direction) } returns resulting
+        stateMachine.focusNext()
 
-            stateMachine.moveFocus(direction) shouldBe resulting
+        verifyOrder {
+            worker.focusNext(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
+        }
+    }
 
-            // Unsettled before the call suspends, so the renderer draws the move as it lands.
-            coVerifyOrder {
-                worker.unsettleStateMachine(stateMachineHandle)
-                worker.moveFocus(stateMachineHandle, direction)
-            }
+    test("Focus previous delegates and unsettles in order") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.focusPrevious(stateMachineHandle) } just runs
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+
+        stateMachine.focusPrevious()
+
+        verifyOrder {
+            worker.focusPrevious(stateMachineHandle)
+            worker.unsettleStateMachine(stateMachineHandle)
         }
     }
 
@@ -140,13 +147,13 @@ class StateMachineFocusUnitTest : FunSpec({
             expectsKeyboardInput = true,
         )
         commandQueue.onHasFocusNodesReceived(stateMachineHandle, hasFocusNodes = true)
-        stateMachine.focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = true)
+        stateMachine.focusState.value shouldBe RiveFocusState(true, true)
         stateMachine.hasFocusNodes.value shouldBe true
 
         commandQueue.release("Test owner")
         commandQueue.awaitShutdown(5_000) shouldBe true
 
-        stateMachine.focusState.value shouldBe RiveFocusState.Unfocused
+        stateMachine.focusState.value shouldBe RiveFocusState()
         stateMachine.hasFocusNodes.value shouldBe false
 
         // Answers still in flight at disposal must not revive the retained flows.
@@ -158,7 +165,7 @@ class StateMachineFocusUnitTest : FunSpec({
         )
         commandQueue.onHasFocusNodesReceived(stateMachineHandle, hasFocusNodes = true)
 
-        stateMachine.focusState.value shouldBe RiveFocusState.Unfocused
+        stateMachine.focusState.value shouldBe RiveFocusState()
         stateMachine.hasFocusNodes.value shouldBe false
     }
 })

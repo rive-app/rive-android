@@ -189,10 +189,10 @@ class StateMachine internal constructor(
     val focusState: StateFlow<RiveFocusState> = riveWorker.focusState(stateMachineHandle)
 
     /**
-     * Whether this Rive instance contains any focusable content.
+     * Whether this graphic contains any focusable content.
      *
-     * Updated by [requestHasFocusNodes]. [Rive] uses it to keep a Rive instance without focusable
-     * content out of Android focus navigation; custom integrations can do the same.
+     * Updated by [requestHasFocusNodes]. A host should attach focus handling only while this is
+     * true, so a graphic with no focusable content never becomes a focus stop.
      *
      * Resolved once at construction, like [settled]; after teardown it reports `false`.
      */
@@ -535,44 +535,50 @@ class StateMachine internal constructor(
     }
 
     /**
-     * Move Rive focus one step and suspend until the resulting focus state arrives, without
-     * blocking the calling thread.
+     * Move Rive focus to the next focusable element in this graphic's traversal order.
      *
-     * Traversal order follows the artboard structure. Running off the end of the tree clears
-     * focus, so the result is [RiveFocusState.Unfocused]: the host's cue to move focus to the
-     * surrounding UI. A scope authored to stop at its edge keeps focus.
+     * Traversal order follows the artboard structure. The move happens on the command server, so
+     * this does not report whether focus moved; observe [focusState] instead. Running off the end
+     * of the tree clears focus, which the next poll reports as no focus: the host's cue to release
+     * focus to the surrounding native UI. A scope authored to stop at its edge keeps focus.
      *
-     * The state machine is marked unsettled so an active renderer advances and draws the result.
-     * The move is submitted before this suspends, so cancelling only stops waiting for the result;
-     * focus still moves.
+     * The state machine is marked unsettled so an active renderer advances and publishes the result.
      *
-     * @param direction The direction to move focus in.
-     * @return The focus state the traversal left behind.
      * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
      *    has been disposed.
      * @throws IllegalStateException If this state machine is no longer registered with its worker.
-     * @throws CancellationException If the coroutine is cancelled before the answer arrives.
      */
     @ExperimentalRiveFocus
-    @Throws(
-        RiveResourceClosedException::class,
-        IllegalStateException::class,
-        CancellationException::class,
-    )
-    suspend fun moveFocus(direction: RiveFocusDirection): RiveFocusState {
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun focusNext() {
         closer.checkOpen()
-        // Unsettle first, since the call suspends once it submits.
+        riveWorker.focusNext(stateMachineHandle)
         unsettle()
-        return riveWorker.moveFocus(stateMachineHandle, direction)
+    }
+
+    /**
+     * Move Rive focus to the previous focusable element in this graphic's traversal order.
+     *
+     * Behaves like [focusNext] in the opposite direction.
+     *
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun focusPrevious() {
+        closer.checkOpen()
+        riveWorker.focusPrevious(stateMachineHandle)
+        unsettle()
     }
 
     /**
      * Drop focus from this state machine's Rive focus tree.
      *
-     * This clears focus held inside the Rive instance. It does not clear Android view focus,
-     * Compose focus, or TalkBack accessibility focus. It also fires the blur notifications that
-     * drive authored blur behavior in the file, so call it only when focus genuinely leaves the
-     * instance.
+     * This clears focus held inside the graphic. It does not clear Android view focus, Compose
+     * focus, or TalkBack accessibility focus. It also fires the blur notifications that drive
+     * authored blur behavior in the file, so call it only when focus genuinely leaves the graphic.
      *
      * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
      *    has been disposed.
@@ -590,10 +596,10 @@ class StateMachine internal constructor(
      * Ask the command server for this state machine's current focus state.
      *
      * The answer arrives asynchronously and is published to [focusState]. Call this once per frame
-     * after advancing, so focus the Rive instance changed on its own (an authored focus action, a
-     * state transition) is observed.
+     * after advancing, so focus the graphic changed on its own (an authored focus action, a state
+     * transition) is observed.
      *
-     * This does not unsettle the state machine: a settled instance cannot change focus on its own,
+     * This does not unsettle the state machine: a settled graphic cannot change focus on its own,
      * and unsettling here would keep the frame loop awake forever.
      *
      * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
@@ -607,7 +613,7 @@ class StateMachine internal constructor(
     }
 
     /**
-     * Ask the command server whether this Rive instance contains any focusable content.
+     * Ask the command server whether this graphic contains any focusable content.
      *
      * The answer arrives asynchronously and is published to [hasFocusNodes]. Re-request it after
      * load when appropriate: nested and data-bound artboards can contribute focus nodes later.

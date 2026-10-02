@@ -18,15 +18,16 @@ class FocusStateStoreTest : FunSpec({
 
         store.register(stateMachineHandle)
         val focusState = store.focusState(stateMachineHandle)
-        focusState.value shouldBe RiveFocusState.Unfocused
+        focusState.value shouldBe RiveFocusState()
 
         store.applyFocusState(
             requestID = nextRequestID.getAndIncrement(),
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = true),
+            hasFocus = true,
+            expectsKeyboardInput = true,
         )
 
-        focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = true)
+        focusState.value shouldBe RiveFocusState(hasFocus = true, expectsKeyboardInput = true)
     }
 
     test("A focus-state callback at or before the registration boundary is rejected") {
@@ -40,10 +41,11 @@ class FocusStateStoreTest : FunSpec({
         store.applyFocusState(
             requestID = 0L,
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+            hasFocus = true,
+            expectsKeyboardInput = false,
         )
 
-        focusState.value shouldBe RiveFocusState.Unfocused
+        focusState.value shouldBe RiveFocusState()
     }
 
     test("Invalidating rejects callbacks at or before the new request ID boundary") {
@@ -58,18 +60,20 @@ class FocusStateStoreTest : FunSpec({
         store.applyFocusState(
             requestID = pollRequestID,
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+            hasFocus = true,
+            expectsKeyboardInput = false,
         )
 
-        focusState.value shouldBe RiveFocusState.Unfocused
+        focusState.value shouldBe RiveFocusState()
 
         store.applyFocusState(
             requestID = nextRequestID.getAndIncrement(),
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+            hasFocus = true,
+            expectsKeyboardInput = false,
         )
 
-        focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = false)
+        focusState.value shouldBe RiveFocusState(hasFocus = true)
     }
 
     test("A registered state machine reports no focus nodes until a callback says otherwise") {
@@ -84,24 +88,6 @@ class FocusStateStoreTest : FunSpec({
         store.applyHasFocusNodes(stateMachineHandle, hasFocusNodes = true)
 
         hasFocusNodes.value shouldBe true
-    }
-
-    test("Reported has-focus-nodes state is null until the first callback, then tracks it") {
-        val nextRequestID = AtomicLong()
-        val store = FocusStateStore(nextRequestID::getAndIncrement)
-
-        store.register(stateMachineHandle)
-        val reportedHasFocusNodes = store.reportedHasFocusNodes(stateMachineHandle)
-
-        reportedHasFocusNodes.value shouldBe null
-
-        store.applyHasFocusNodes(stateMachineHandle, hasFocusNodes = false)
-
-        reportedHasFocusNodes.value shouldBe false
-
-        store.applyHasFocusNodes(stateMachineHandle, hasFocusNodes = true)
-
-        reportedHasFocusNodes.value shouldBe true
     }
 
     test("A focus-changing command does not invalidate has-focus-nodes state") {
@@ -121,28 +107,28 @@ class FocusStateStoreTest : FunSpec({
         store.register(stateMachineHandle)
         val focusState = store.focusState(stateMachineHandle)
         val hasFocusNodes = store.hasFocusNodes(stateMachineHandle)
-        val reportedHasFocusNodes = store.reportedHasFocusNodes(stateMachineHandle)
         store.applyFocusState(
             requestID = nextRequestID.getAndIncrement(),
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = true),
+            hasFocus = true,
+            expectsKeyboardInput = true,
         )
         store.applyHasFocusNodes(stateMachineHandle, hasFocusNodes = true)
 
         store.unregister(stateMachineHandle)
 
         // A deleted state machine cannot hold focus, so observers retaining the flow see that.
-        focusState.value shouldBe RiveFocusState.Unfocused
+        focusState.value shouldBe RiveFocusState()
         hasFocusNodes.value shouldBe false
-        reportedHasFocusNodes.value shouldBe false
 
         store.applyFocusState(
             requestID = Long.MAX_VALUE,
             stateMachineHandle = stateMachineHandle,
-            focusState = RiveFocusState.Focused(expectsKeyboardInput = true),
+            hasFocus = true,
+            expectsKeyboardInput = true,
         )
 
-        focusState.value shouldBe RiveFocusState.Unfocused
+        focusState.value shouldBe RiveFocusState()
     }
 
     test("Clearing publishes the terminal state for every registered state machine") {

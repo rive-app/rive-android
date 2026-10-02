@@ -3138,7 +3138,7 @@ extern "C"
         auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
         return longFromHandle(
-            commandQueue->decodeFont(byteVec, nullptr, requestID));
+            commandQueue->decodeFont(std::move(byteVec), nullptr, requestID));
     }
 
     JNIEXPORT void JNICALL

@@ -2,12 +2,8 @@ package app.rive.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.RiveAndroidTest
-import app.rive.RiveFocusDirection
-import app.rive.RiveFocusState
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.seconds
@@ -34,24 +30,24 @@ class FocusCommandsTest : RiveAndroidTest() {
     }
 
     @Test
-    fun moveFocus_takesFocusAndClearFocusReleasesIt(): Unit = runBlocking {
+    fun focusNext_takesFocusAndClearFocusReleasesIt() = runBlocking {
         val resources = loadDefaultRiveResources(R.raw.focus_nodes_list_order)
         val stateMachine = resources.stateMachine
-        // Traversal drops focus targets that are still hidden, so settle the instance's visibility
+        // Traversal drops focus targets that are still hidden, so settle the graphic's visibility
         // before moving focus.
         stateMachine.advance(ZERO)
 
-        val moved =
-            withTimeout(RESPONSE_TIMEOUT) { stateMachine.moveFocus(RiveFocusDirection.Next) }
-
-        assertIs<RiveFocusState.Focused>(moved)
-        assertEquals(moved, stateMachine.focusState.value)
-
         // No explicit focus-state poll: a focus-changing command requests the state it produces.
+        stateMachine.focusNext()
+
+        withTimeout(RESPONSE_TIMEOUT) {
+            assertTrue(stateMachine.focusState.first { it.hasFocus }.hasFocus)
+        }
+
         stateMachine.clearFocus()
 
         withTimeout(RESPONSE_TIMEOUT) {
-            stateMachine.focusState.first { it == RiveFocusState.Unfocused }
+            assertTrue(!stateMachine.focusState.first { !it.hasFocus }.hasFocus)
         }
     }
 
