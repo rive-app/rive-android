@@ -87,6 +87,10 @@ class CanvasRenderPaint : public rive::RenderPaint
 {
 private:
     jobject m_ktPaint;
+    rive::rcp<rive::RenderShader> m_shader;
+    rive::Mat2D m_shaderTransform;
+
+    void applyShader();
 
     static void porterDuffBlendMode(jobject, rive::BlendMode);
 
@@ -108,6 +112,8 @@ public:
     void blendMode(rive::BlendMode) override;
 
     void shader(rive::rcp<rive::RenderShader>) override;
+
+    void shaderTransform(const rive::Mat2D& transform) override;
 
     void invalidateStroke() override {}
 

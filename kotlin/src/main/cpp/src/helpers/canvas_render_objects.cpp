@@ -330,10 +330,62 @@ void CanvasRenderPaint::cap(rive::StrokeCap cap) { SetCap(m_ktPaint, cap); }
 void CanvasRenderPaint::shader(rive::rcp<rive::RenderShader> shader)
 {
     // `shader` can also be a `nullptr`.
+    m_shader = std::move(shader);
+    applyShader();
+}
+
+void CanvasRenderPaint::shaderTransform(const rive::Mat2D& transform)
+{
+    if (m_shaderTransform == transform)
+    {
+        return;
+    }
+    m_shaderTransform = transform;
+    applyShader();
+}
+
+// Android reads the shader's local matrix when it is attached, so the paint
+// has to be handed the shader again whenever the matrix changes.
+void CanvasRenderPaint::applyShader()
+{
     jobject shaderObject =
-        shader == nullptr
+        m_shader == nullptr
             ? nullptr
-            : reinterpret_cast<CanvasShader*>(shader.get())->ktShader();
+            : reinterpret_cast<CanvasShader*>(m_shader.get())->ktShader();
+
+    if (shaderObject != nullptr)
+    {
+        JNIEnv* env = GetJNIEnv();
+        jclass matrixClass = GetMatrixClass();
+        jobject matrix = env->NewObject(matrixClass, GetMatrixInitMethodId());
+
+        float squareMatrix[9] = {m_shaderTransform.xx(),
+                                 m_shaderTransform.yx(),
+                                 m_shaderTransform.tx(),
+                                 m_shaderTransform.xy(),
+                                 m_shaderTransform.yy(),
+                                 m_shaderTransform.ty(),
+                                 0,
+                                 0,
+                                 1};
+
+        jfloatArray matrixArray = env->NewFloatArray(9);
+        env->SetFloatArrayRegion(matrixArray, 0, 9, squareMatrix);
+
+        JNIExceptionHandler::CallVoidMethod(env,
+                                            matrix,
+                                            GetMatrixSetValuesMethodId(),
+                                            matrixArray);
+        JNIExceptionHandler::CallVoidMethod(env,
+                                            shaderObject,
+                                            GetShaderSetLocalMatrixMethodId(),
+                                            matrix);
+
+        env->DeleteLocalRef(matrixClass);
+        env->DeleteLocalRef(matrix);
+        env->DeleteLocalRef(matrixArray);
+    }
+
     SetShader(m_ktPaint, shaderObject);
 }
 

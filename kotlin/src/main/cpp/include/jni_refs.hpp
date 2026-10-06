@@ -157,6 +157,9 @@ extern jfieldID GetPdMultiply();
 extern jfieldID GetPdScreen();
 extern jfieldID GetPdOverlay();
 
+extern jclass GetShaderClass();
+extern jmethodID GetShaderSetLocalMatrixMethodId();
+
 extern jclass GetBitmapShaderClass();
 extern jmethodID GetBitmapShaderConstructor();
 

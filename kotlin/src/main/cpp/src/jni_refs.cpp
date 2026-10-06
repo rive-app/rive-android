@@ -694,6 +694,14 @@ jfieldID GetPdOverlay()
                             "Landroid/graphics/PorterDuff$Mode;");
 }
 
+jclass GetShaderClass() { return GetClass("android/graphics/Shader"); }
+jmethodID GetShaderSetLocalMatrixMethodId()
+{
+    return GetMethodId(GetShaderClass(),
+                       "setLocalMatrix",
+                       "(Landroid/graphics/Matrix;)V");
+}
+
 jclass GetBitmapShaderClass()
 {
     return GetClass("android/graphics/BitmapShader");
