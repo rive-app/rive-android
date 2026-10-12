@@ -97,6 +97,9 @@ class AudioAsset(address: Long, rendererTypeIdx: Int) : FileAsset(address, rende
  *
  * Use the companion object methods to create one from encoded bytes, pixel bytes, ARGB integers, or
  * an [Android Bitmap][Bitmap].
+ *
+ * On devices that don't support the Rive renderer, an image requested for [RendererType.Rive] is
+ * created for the Canvas renderer, which those devices draw with instead.
  */
 class RiveRenderImage internal constructor(address: Long) : NativeObject(address) {
     external override fun cppDelete(pointer: Long)
@@ -262,14 +265,15 @@ class RiveRenderImage internal constructor(address: Long) : NativeObject(address
         }
 
         /**
-         * Create a [RiveRenderImage] from a [Bitmap]. Ensures ARGB_8888 software bitmap, copying if
-         * not, and forwards to [fromARGBInts].
+         * Create a [RiveRenderImage] from a [Bitmap]. Copies the bitmap first if it is not an
+         * ARGB_8888 software bitmap.
          *
          * The caller is in charge of the ownership of this [NativeObject]. It must be freed by
          * calling [release].
          *
          * The bitmap supplied is given directly to the canvas when using the Canvas renderer, so
-         * ensure that it is not recycled while in use by Rive.
+         * ensure that it is not recycled while in use by Rive. With [RendererType.Rive], the image
+         * copies the pixels and does not keep the bitmap, even on devices that draw with Canvas.
          *
          * @param bitmap The source bitmap. Must not be recycled.
          * @param rendererType The renderer for this image. This must match the renderer for the

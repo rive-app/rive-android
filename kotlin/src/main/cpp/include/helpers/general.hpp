@@ -48,6 +48,9 @@ rive::Fit GetFit(uint8_t ordinal);
 rive::Fit GetFit(JNIEnv*, jobject);
 rive::Alignment GetAlignment(uint8_t ordinal);
 rive::Alignment GetAlignment(JNIEnv*, jobject);
+// Returns the renderer that draws content requested for `RendererType`: Canvas
+// when the Rive renderer is requested but not supported on this device.
+RendererType ResolveRendererType(RendererType);
 rive::Factory* GetFactory(RendererType);
 JNIEnv* GetJNIEnv();
 

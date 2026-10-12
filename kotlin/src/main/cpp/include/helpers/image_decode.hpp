@@ -30,7 +30,8 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     bool isPremultiplied,
     RenderContext* context = nullptr);
 
-/** Rive (GL) path: From RGBA bytes -> AndroidImage */
+/** Rive (GL) path: From RGBA bytes -> AndroidImage. Uses the Canvas path where
+ * the Rive renderer is unsupported. */
 rive::rcp<rive::RenderImage> renderImageFromRGBABytesRive(
     uint32_t width,
     uint32_t height,
@@ -45,7 +46,8 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesCanvas(
     const uint8_t* pixelBytes,
     bool isPremultiplied);
 
-/** Rive (GL) path: from ARGB ints -> RGBA bytes -> AndroidImage */
+/** Rive (GL) path: from ARGB ints -> RGBA bytes -> AndroidImage. Uses the
+ * Canvas path where the Rive renderer is unsupported. */
 rive::rcp<rive::RenderImage> renderImageFromARGBIntsRive(uint32_t width,
                                                          uint32_t height,
                                                          const uint32_t* pixels,
@@ -59,7 +61,8 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
     bool isPremultiplied);
 
 /** Rive (GL) path: Android Bitmap -> internal buffer -> RGBA bytes ->
- * AndroidImage */
+ * AndroidImage. Uses the Canvas RGBA path, which copies the pixels, where the
+ * Rive renderer is unsupported. */
 rive::rcp<rive::RenderImage> renderImageFromBitmapRive(jobject jBitmap,
                                                        bool isPremultiplied);
 

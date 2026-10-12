@@ -19,6 +19,14 @@ public:
     // Returns the current Canvas renderer worker.
     static rive::rcp<RefWorker> CanvasWorker();
 
+#ifdef DEBUG
+    // Testing: makes RiveWorker() return null, as on devices without Rive
+    // renderer support, until called again with false. This is process-wide:
+    // objects created for the Rive renderer must not create GPU resources
+    // while it is on.
+    static void SimulateUnsupportedRiveRenderer(bool simulate);
+#endif
+
     ~RefWorker() override;
 
     // These methods work with rive::rcp<> for tracking _external_ references.

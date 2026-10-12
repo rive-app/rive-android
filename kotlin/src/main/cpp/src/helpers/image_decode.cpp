@@ -135,6 +135,15 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesRive(
         RiveLogE(TAG, "renderImageFromRGBABytesRive() - Invalid args.");
         return nullptr;
     }
+    // Devices without Rive renderer support draw with Canvas. Like the Rive
+    // image, the Canvas image copies the pixels.
+    if (ResolveRendererType(RendererType::Rive) == RendererType::Canvas)
+    {
+        return renderImageFromRGBABytesCanvas(width,
+                                              height,
+                                              pixelBytes,
+                                              isPremultiplied);
+    }
 
     const auto pixelCount = static_cast<size_t>(width) * height;
     std::unique_ptr<uint8_t[]> out(new uint8_t[pixelCount * 4]);
@@ -244,6 +253,14 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsRive(uint32_t width,
     {
         RiveLogE(TAG, "renderImageFromARGBIntsRive() - Invalid args.");
         return nullptr;
+    }
+    // Devices without Rive renderer support draw with Canvas.
+    if (ResolveRendererType(RendererType::Rive) == RendererType::Canvas)
+    {
+        return renderImageFromARGBIntsCanvas(width,
+                                             height,
+                                             pixels,
+                                             isPremultiplied);
     }
     const auto pixelCount = static_cast<size_t>(width) * height;
     std::unique_ptr<uint8_t[]> out(new uint8_t[pixelCount * 4]);

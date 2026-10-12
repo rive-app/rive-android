@@ -1,6 +1,7 @@
 package app.rive.runtime.kotlin.core
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.RectF
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
@@ -329,4 +330,25 @@ object NativeStringTestHelper {
 
     /** Converts a Java string to native standard UTF-8 and back to a Java string. */
     external fun cppRoundTripString(value: String): String
+}
+
+object NativeRendererTestHelper {
+    /**
+     * Makes the Rive renderer report as unsupported, as on devices where it fails to initialize.
+     *
+     * @param simulate Whether to simulate the unsupported renderer. Pass false to restore it.
+     */
+    external fun cppSimulateUnsupportedRiveRenderer(simulate: Boolean)
+
+    /** @return Whether this device supports the Rive renderer, or false while it is simulated. */
+    external fun cppIsRiveRendererSupported(): Boolean
+
+    /** @return Whether [address] is a Rive renderer image rather than a Canvas renderer image. */
+    external fun cppIsRiveRenderImage(address: Long): Boolean
+
+    /**
+     * @return Whether the image at [address] is a Canvas renderer image that draws [bitmap] itself,
+     *    not a copy.
+     */
+    external fun cppCanvasImageWrapsBitmap(address: Long, bitmap: Bitmap): Boolean
 }

@@ -204,14 +204,23 @@ rive::Alignment GetAlignment(JNIEnv* env, jobject jAlignment)
     return alignment;
 }
 
-rive::Factory* GetFactory(RendererType rendererType)
+RendererType ResolveRendererType(RendererType rendererType)
 {
     if (rendererType == RendererType::Rive &&
-        RefWorker::RiveWorker() != nullptr)
+        RefWorker::RiveWorker() == nullptr)
+    {
+        // Current fallback is Canvas.
+        return RendererType::Canvas;
+    }
+    return rendererType;
+}
+
+rive::Factory* GetFactory(RendererType rendererType)
+{
+    if (ResolveRendererType(rendererType) == RendererType::Rive)
     {
         return static_cast<rive::Factory*>(&g_RiveFactory);
     }
-    // Current fallback is Canvas.
     return static_cast<rive::Factory*>(&g_CanvasFactory);
 }
 

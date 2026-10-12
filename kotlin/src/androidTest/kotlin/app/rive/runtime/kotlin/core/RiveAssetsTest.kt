@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -59,6 +60,28 @@ class RiveAssetsTest {
         // Clean up & validate
         renderImage.release()
         assertFalse(renderImage.hasCppObject)
+    }
+
+    /** Verifies the default renderer makes a Rive renderer image where it is supported. */
+    @Test
+    fun fromEncoded_riveSupported() {
+        assumeTrue(
+            "Requires Rive renderer support",
+            NativeRendererTestHelper.cppIsRiveRendererSupported(),
+        )
+        val image = RiveRenderImage.fromEncoded(imageBytes)
+        assertTrue(NativeRendererTestHelper.cppIsRiveRenderImage(image.cppPointer))
+        image.release()
+    }
+
+    /** Verifies the default renderer makes a Canvas image where Rive is unsupported. */
+    @Test
+    fun fromEncoded_riveUnsupported() {
+        val make = { RiveRenderImage.fromEncoded(imageBytes) }
+        withUnsupportedRiveRendererImage(make) { image ->
+            assertTrue(image.hasCppObject)
+            assertFalse(NativeRendererTestHelper.cppIsRiveRenderImage(image.cppPointer))
+        }
     }
 
     @Test
@@ -304,6 +327,24 @@ class RiveAssetsTest {
         RiveRenderImage.fromRGBABytes(ByteArray(0), 0, 1)
     }
 
+    /** Verifies RGBA bytes for the Rive renderer make a Canvas image where Rive is unsupported. */
+    @Test
+    fun fromRGBABytes_riveUnsupported() {
+        val make = {
+            RiveRenderImage.fromRGBABytes(
+                testStraightByteImage(),
+                2,
+                2,
+                RendererType.Rive,
+                premultiplied = false
+            )
+        }
+        withUnsupportedRiveRendererImage(make) { image ->
+            assertTrue(image.hasCppObject)
+            assertFalse(NativeRendererTestHelper.cppIsRiveRenderImage(image.cppPointer))
+        }
+    }
+
     /** Straight 2x2 RGBA image with semi-transparent pixels. */
     fun testStraightIntsImage(): IntArray = intArrayOf(
         Color.argb(255, 255, 0, 0), // Opaque red
@@ -394,6 +435,24 @@ class RiveAssetsTest {
         RiveRenderImage.fromARGBInts(IntArray(0), 0, 1)
     }
 
+    /** Verifies ARGB ints for the Rive renderer make a Canvas image where Rive is unsupported. */
+    @Test
+    fun fromARGBInts_riveUnsupported() {
+        val make = {
+            RiveRenderImage.fromARGBInts(
+                testStraightIntsImage(),
+                2,
+                2,
+                RendererType.Rive,
+                premultiplied = false
+            )
+        }
+        withUnsupportedRiveRendererImage(make) { image ->
+            assertTrue(image.hasCppObject)
+            assertFalse(NativeRendererTestHelper.cppIsRiveRenderImage(image.cppPointer))
+        }
+    }
+
     @Test
     fun fromBitmap_rive() {
         val width = 2
@@ -414,6 +473,7 @@ class RiveAssetsTest {
         bitmap.setPixels(testStraightIntsImage(), 0, width, 0, 0, width, height)
         val image = RiveRenderImage.fromBitmap(bitmap, RendererType.Canvas)
         assertTrue(image.hasCppObject)
+        assertTrue(NativeRendererTestHelper.cppCanvasImageWrapsBitmap(image.cppPointer, bitmap))
         image.release()
         assertFalse(image.hasCppObject)
     }
@@ -424,5 +484,51 @@ class RiveAssetsTest {
         bitmap.recycle()
         // Should throw due to require(!isRecycled)
         RiveRenderImage.fromBitmap(bitmap)
+    }
+
+    /**
+     * Verifies a bitmap for the Rive renderer makes a Canvas image from a copy where Rive is
+     * unsupported, so the image does not keep the caller's bitmap.
+     */
+    @Test
+    fun fromBitmap_riveUnsupported() {
+        val width = 2
+        val height = 2
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.setPixels(testStraightIntsImage(), 0, width, 0, 0, width, height)
+        val make = { RiveRenderImage.fromBitmap(bitmap, RendererType.Rive) }
+        withUnsupportedRiveRendererImage(make) { image ->
+            assertTrue(image.hasCppObject)
+            assertFalse(NativeRendererTestHelper.cppIsRiveRenderImage(image.cppPointer))
+            assertFalse(
+                NativeRendererTestHelper.cppCanvasImageWrapsBitmap(image.cppPointer, bitmap)
+            )
+        }
+    }
+
+    /**
+     * Makes an image while the Rive renderer reports as unsupported, then runs [check] on it and
+     * releases it.
+     *
+     * @param make Creates the image under test.
+     * @param check Assertions on the created image.
+     */
+    private fun withUnsupportedRiveRendererImage(
+        make: () -> RiveRenderImage,
+        check: (RiveRenderImage) -> Unit,
+    ) {
+        NativeRendererTestHelper.cppSimulateUnsupportedRiveRenderer(true)
+        val image = try {
+            make()
+        } finally {
+            NativeRendererTestHelper.cppSimulateUnsupportedRiveRenderer(false)
+        }
+        try {
+            check(image)
+        } finally {
+            if (image.hasCppObject) {
+                image.release()
+            }
+        }
     }
 }

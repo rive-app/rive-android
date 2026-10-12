@@ -14,6 +14,10 @@ static std::mutex s_refWorkerMutex;
 
 static std::unique_ptr<RefWorker> s_canvasWorker;
 
+#ifdef DEBUG
+static bool s_simulateUnsupportedRiveRenderer = false;
+#endif
+
 constexpr auto* REF_TAG = "RiveLN/RefWorker";
 
 rcp<RefWorker> RefWorker::RiveWorker()
@@ -24,6 +28,13 @@ rcp<RefWorker> RefWorker::RiveWorker()
     RiveLogD(REF_TAG, "Creating Rive RefWorker.");
 
     std::lock_guard lock(s_refWorkerMutex);
+
+#ifdef DEBUG
+    if (s_simulateUnsupportedRiveRenderer)
+    {
+        return nullptr;
+    }
+#endif
 
     if (s_isSupported == RiveRendererSupport::unknown)
     {
@@ -87,9 +98,17 @@ rcp<RefWorker> RefWorker::CanvasWorker()
     return rcp(s_canvasWorker.get());
 }
 
+#ifdef DEBUG
+void RefWorker::SimulateUnsupportedRiveRenderer(bool simulate)
+{
+    std::lock_guard lock(s_refWorkerMutex);
+    s_simulateUnsupportedRiveRenderer = simulate;
+}
+#endif
+
 rcp<RefWorker> RefWorker::CurrentOrFallback(RendererType rendererType)
 {
-    // N.B. if fallback changes, `GetFactory()` also needs to change.
+    // N.B. if fallback changes, `ResolveRendererType()` also needs to change.
     rcp<RefWorker> currentOrFallback;
     switch (rendererType)
     {
