@@ -204,6 +204,12 @@ class RiveFileController internal constructor(
                 field?.let {
                     RiveLog.d(TAG) { "File set; releasing old file: $it" }
                     reset()
+                    // A File shared between views would otherwise keep these alive until the File
+                    // itself is released, which may be never.
+                    instancedArtboards.forEach(it::releaseArtboard)
+                    instancedArtboards.clear()
+                    restoredArtboards.forEach(Artboard::release)
+                    restoredArtboards.clear()
                     it.release()
                 }
                 field = value
@@ -233,6 +239,21 @@ class RiveFileController internal constructor(
                 }
             }
         }
+
+    /**
+     * Artboards this controller instanced from [file], as opposed to ones it was given. They are
+     * handed back to the File when this controller lets go of it. Only mutated under the File's
+     * lock.
+     */
+    private val instancedArtboards = mutableListOf<Artboard>()
+
+    /**
+     * Artboards restored from a saved state, one entry per reference taken over from that state.
+     * The controller it was saved from may hand the artboard back to the File at any time, so this
+     * reference keeps it alive until this controller lets go of the File. Only mutated under the
+     * File's lock.
+     */
+    private val restoredArtboards = mutableListOf<Artboard>()
 
     // Warning: `toList()` access is not thread-safe, use animations instead
     private var animationList =
@@ -393,13 +414,23 @@ class RiveFileController internal constructor(
             // Restore all the previous values.
             file = state.file
             activeArtboard = state.activeArtboard
+            // Take over the state's artboard reference instead of releasing it, unless this
+            // controller already keeps the artboard alive until it lets go of the File.
+            synchronized(state.file.fileLock) {
+                val artboard = state.activeArtboard
+                if (artboard in instancedArtboards || artboard in restoredArtboards) {
+                    artboard.release()
+                } else {
+                    restoredArtboards.add(artboard)
+                }
+            }
             state.animations.forEach { animationList.add(it) }
             state.stateMachines.forEach { stateMachineList.add(it) }
             state.playingAnimations.forEach { play(it, it.loop, it.direction) }
             state.playingStateMachines.forEach { play(it) }
             isActive = state.isActive
-            // Release the state we had acquired previously to even things out.
-            state.dispose()
+            // Release the File reference the state had acquired to even things out.
+            state.file.release()
         }
     }
 
@@ -524,6 +555,7 @@ class RiveFileController internal constructor(
                 RiveLog.d(TAG) { "Selecting null artboard - choosing first." }
                 it.firstArtboard
             }
+            synchronized(it.fileLock) { instancedArtboards.add(artboard) }
             setArtboard(artboard)
         } ?: run {
             RiveLog.w(TAG) { "selectArtboard: cannot select an Artboard without a valid File." }
@@ -571,7 +603,8 @@ class RiveFileController internal constructor(
 
         val abName = rendererAttributes.artboardName
 
-        activeArtboard = if (abName != null) mFile.artboard(abName) else mFile.firstArtboard
+        activeArtboard = (if (abName != null) mFile.artboard(abName) else mFile.firstArtboard)
+            .also { synchronized(mFile.fileLock) { instancedArtboards.add(it) } }
 
         if (rendererAttributes.autoBind && activeArtboard != null) {
             RiveLog.d(TAG) { "Auto-binding to the artboard and all state machines." }

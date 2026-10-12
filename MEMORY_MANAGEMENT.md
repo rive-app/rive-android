@@ -74,6 +74,8 @@ When a Native object calls `release()`, it will first release its reference on a
 then it will decrease its own reference counter - if the counter reaches 0 then it can be disposed of
 and it'll call its JNI destructor.
 
+A `RiveFileController` hands the artboards it instanced back to the `File` when it lets go of that `File`, which happens when its view is destroyed or switches to another `File`. Artboards created by calling `File.artboard()` directly stay in the `File`'s `dependencies` until the `File` is released.
+
 The diagram below illustrates the internal class hierarchy for the `Renderer`, as well as its `NativeObject` dependencies. 
 That is, a `RiveArtboardRenderer` only "owns" a `File`. When `RiveArtboardRenderer` calls `release()`, it'll release of the `File` only,
 which in turn will cascade the `release()` call on its own dependents.

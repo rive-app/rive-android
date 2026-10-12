@@ -260,6 +260,16 @@ class File(
         return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
     }
 
+    /**
+     * Releases this File's reference to [artboard], an instance it created, and stops tracking it.
+     * The artboard is disposed if nothing else holds a reference to it.
+     */
+    internal fun releaseArtboard(artboard: Artboard) = synchronized(fileLock) {
+        if (dependencies.remove(artboard)) {
+            artboard.release()
+        }
+    }
+
     override fun release(): Int {
         // `super.release()` is already @Synchronized, but wrap this in the file lock.
         synchronized(fileLock) { return super.release() }
