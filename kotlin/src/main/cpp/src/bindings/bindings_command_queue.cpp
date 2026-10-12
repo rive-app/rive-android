@@ -1170,6 +1170,9 @@ public:
             m_deferredSession = std::make_unique<rive::cmd::DeferredSession>(
                 ore != nullptr ? rive::ore::ReplayCaps::from(*ore)
                                : rive::ore::ReplayCaps{});
+            // Sized GPU canvases, layer masks, and cached rasters get their
+            // textures from the bound context. Unbound, they fall back.
+            m_deferredSession->bindRenderContext(riveContext);
             // Record and replay run inside one draw call, one surface at a
             // time, so every surface can share target 0; a threaded replay
             // must acquireScreenTarget per surface instead.

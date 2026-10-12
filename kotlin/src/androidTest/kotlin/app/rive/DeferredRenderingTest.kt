@@ -1,5 +1,7 @@
 package app.rive
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Rect
 import android.os.Build
 import androidx.annotation.RawRes
@@ -12,6 +14,8 @@ import app.rive.core.RenderContextVulkan
 import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +64,38 @@ open class DeferredRenderingTest : RiveAndroidTest() {
         repeat(10) { switchIndex ->
             val nextFile = if (switchIndex % 2 == 0) R.raw.multi_stage else R.raw.ore
             renderFirstFrame(nextFile)
+        }
+    }
+
+    /**
+     * Verifies that scripted GPU canvases get a backing and draw their content.
+     *
+     * `ore.riv` renders colored meshes into three GPU canvases over a grey UI. Without a backing
+     * every canvas stays black, so the frame has no saturated pixels.
+     */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun ore_rendersGpuCanvasContent() = runBlocking {
+        val resources = loadDefaultRiveResources(R.raw.ore)
+        SoftwareRenderBuffer(256, 256, riveWorker).use { buffer ->
+            val bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+            try {
+                // Canvases are sized and drawn by the script over its first frames.
+                repeat(3) {
+                    resources.stateMachine.advance(16.milliseconds)
+                    buffer.renderInto(bitmap, resources.artboard, resources.stateMachine)
+                }
+                val pixels = IntArray(bitmap.width * bitmap.height)
+                bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                val hsv = FloatArray(3)
+                val saturated = pixels.count { pixel ->
+                    Color.colorToHSV(pixel, hsv)
+                    hsv[1] > 0.5f && hsv[2] > 0.3f
+                }
+                assertTrue(saturated > 0, "GPU canvases rendered no colored content")
+            } finally {
+                bitmap.recycle()
+            }
         }
     }
 
