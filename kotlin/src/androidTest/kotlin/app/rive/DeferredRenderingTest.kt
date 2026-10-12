@@ -31,7 +31,7 @@ import org.junit.runner.RunWith
 @OptIn(ExperimentalHardwareBitmapRendering::class)
 open class DeferredRenderingTest : RiveAndroidTest() {
     /** @return A worker whose rendering commands record through a deferred session. */
-    override fun createTestRiveWorker(): RiveWorker = RiveWorker.createDeferred()
+    override fun createTestRiveWorker(): RiveWorker = RiveWorker(enableGPUCanvas = true)
 
     /**
      * Verifies that a GPU Canvas file imports and produces its first deferred frame.

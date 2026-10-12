@@ -99,12 +99,17 @@ fun rememberRiveWorkerOrNull(
 )
 
 /**
- * A [rememberRiveWorker] whose draws record into a deferred session and replay synchronously,
- * enabling GPU canvas (ore) content.
+ * A [rememberRiveWorker] that can render GPU Canvas content. Outside of composition, use
+ * `RiveWorker(enableGPUCanvas = true)`.
  *
- * Temporary scaffolding: deferred is on track to become the only mode, and this entry point
- * disappears when it does.
+ * GPU Canvas content draws through a deferred renderer, which does not improve rendering
+ * performance yet. This function will be removed once every Rive worker can render GPU Canvas
+ * content.
  *
+ * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
+ * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
+ * @param renderBackend Preferred render backend, with the same fallback as [rememberRiveWorker].
+ * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  */
 @ExperimentalDeferredRendering
@@ -141,7 +146,13 @@ private fun rememberRiveWorkerImpl(
     // Deferred is fixed per queue because files import through the mode's factory, so a change
     // rebuilds the worker.
     val worker = remember(renderBackend, deferred) {
-        runCatching { createRiveWorker(renderBackend, tracingEnabled, deferred) }
+        runCatching {
+            RiveWorker(
+                renderBackend = renderBackend,
+                tracingEnabled = tracingEnabled,
+                enableGPUCanvas = deferred,
+            )
+        }
             .onFailure {
                 if (errorState.value == null) {
                     errorState.value = it
@@ -197,17 +208,4 @@ private fun rememberRiveWorkerImpl(
     }
 
     return worker
-}
-
-private fun createRiveWorker(
-    renderBackend: RenderBackend,
-    tracingEnabled: Boolean,
-    deferred: Boolean,
-): RiveWorker = if (deferred) {
-    RiveWorker.createDeferred(
-        renderBackend = renderBackend,
-        tracingEnabled = tracingEnabled,
-    )
-} else {
-    RiveWorker(renderBackend = renderBackend, tracingEnabled = tracingEnabled)
 }

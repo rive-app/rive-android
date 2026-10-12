@@ -1,16 +1,14 @@
 package app.rive
 
 /**
- * Marks entry points for deferred rendering, which records draws into a session and replays them
- * synchronously, enabling GPU canvas (ore) content.
+ * Marks entry points that enable GPU Canvas content, which draws through a deferred renderer.
  *
- * Deferred rendering is on track to become the only rendering mode, at which point these entry
- * points disappear and the stable API defers implicitly. Consumers must opt in explicitly to
- * acknowledge the temporary API before using these declarations.
+ * The deferred renderer does not improve rendering performance yet. These entry points will be
+ * removed once every Rive worker can render GPU Canvas content. Consumers must opt in explicitly
+ * to acknowledge the temporary API before using these declarations.
  */
 @RequiresOptIn(
-    message = "Deferred rendering is experimental scaffolding and will become the default; " +
-        "these entry points are temporary.",
+    message = "GPU Canvas support is experimental, and these entry points are temporary.",
     level = RequiresOptIn.Level.ERROR
 )
 @Retention(AnnotationRetention.BINARY)

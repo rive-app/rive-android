@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
+import app.rive.ExperimentalDeferredRendering
 import app.rive.ExperimentalRiveGlobalViewModels
 import app.rive.Fit
 import app.rive.RenderBackend
@@ -175,6 +176,36 @@ class CommandQueue internal constructor(
     )
 
     /**
+     * Creates a command queue using the requested render backend, which can render GPU Canvas
+     * content when [enableGPUCanvas] is true.
+     *
+     * GPU Canvas content draws through a deferred renderer, which does not improve rendering
+     * performance yet. This constructor will be removed once every command queue can render GPU
+     * Canvas content. Using this constructor requires opting into [ExperimentalDeferredRendering].
+     *
+     * @param renderBackend Preferred render backend. If Vulkan is requested below the minimum
+     *    supported Android API level, or Vulkan native initialization fails, OpenGL is used
+     *    instead.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @param enableGPUCanvas Whether this command queue can render GPU Canvas content.
+     * @throws RiveInitializationException If the command queue cannot be created.
+     */
+    @ExperimentalDeferredRendering
+    @Throws(RiveInitializationException::class)
+    constructor(
+        renderBackend: RenderBackend = RenderBackend.OpenGL,
+        tracingEnabled: Boolean = false,
+        enableGPUCanvas: Boolean,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = CommandQueueJNIBridge(),
+        ),
+        tracingEnabled = tracingEnabled,
+        deferredEnabled = enableGPUCanvas,
+    )
+
+    /**
      * Creates a command queue with injectable backend construction for unit tests.
      *
      * @param renderBackend Preferred backend for the command queue.
@@ -206,13 +237,13 @@ class CommandQueue internal constructor(
      * Completes construction from resources that already passed native startup.
      *
      * Kotlin delegated constructors cannot wrap a `this(...)` call in fallback logic. The public
-     * backend constructor therefore creates the render context and native command queue first, then
-     * delegates through this constructor so ownership transfers only after a backend succeeds.
+     * backend constructors therefore create the render context and native command queue first,
+     * then delegate through this constructor so ownership transfers only after a backend succeeds.
      *
      * @param resources Render context, bridge, and native pointer produced by backend startup.
      * @param tracingEnabled Whether native draw/advance tracing should start enabled.
      */
-    // Used by the public renderBackend constructor's delegated this(...) call.
+    // Used by the public renderBackend constructors' delegated this(...) calls.
     // Flagged as "unused" by the linter for an unknown reason.
     @Suppress("unused")
     private constructor(
@@ -245,30 +276,6 @@ class CommandQueue internal constructor(
     )
 
     companion object {
-        /**
-         * Creates a deferred command queue using the requested render backend.
-         *
-         * Deferred is on track to become the only mode, so until then it stays off the stable
-         * API and is reached through [app.rive.rememberDeferredRiveWorker].
-         *
-         * @param renderBackend Preferred render backend, with the same fallback behavior as the
-         *    public constructor.
-         * @param tracingEnabled Whether native command server tracing should start enabled.
-         * @throws RiveInitializationException If the command queue cannot be created.
-         */
-        @Throws(RiveInitializationException::class)
-        internal fun createDeferred(
-            renderBackend: RenderBackend = RenderBackend.OpenGL,
-            tracingEnabled: Boolean = false,
-        ): CommandQueue = CommandQueue(
-            resources = createNativeCommandQueueResources(
-                renderBackend = renderBackend,
-                bridge = CommandQueueJNIBridge(),
-            ),
-            tracingEnabled = tracingEnabled,
-            deferredEnabled = true,
-        )
-
         /**
          * Maximum number of Rive components that can safely use this command queue instance
          * concurrently.
