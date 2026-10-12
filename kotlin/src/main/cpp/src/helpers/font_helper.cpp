@@ -309,6 +309,22 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
     JniResource<jobject> fontListObj =
         GetObjectFromMethod(env, companionObject.get(), pickFontMid, weight);
 
+    // A strategy that throws or returns null (possible from Java) gets the
+    // same result as an empty list. Caching it means the strategy is not
+    // called again for this weight.
+    if (JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "FontFallbackStrategy.getFont() threw.") ||
+        fontListObj.get() == nullptr)
+    {
+        RiveLogE(TAG, "No strategy fonts for weight %d.", weight);
+        auto [iter, _] =
+            s_pickFontCache.emplace(weight,
+                                    std::vector<rive::rcp<rive::Font>>());
+        return iter->second;
+    }
+
     // Convert Java List<ByteArray> to std::vector<_>
     // Get the List class and methods
     JniResource<jclass> listClass = GetObjectClass(env, fontListObj.get());
@@ -316,9 +332,15 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
     jmethodID listGetMethod =
         env->GetMethodID(listClass.get(), "get", "(I)Ljava/lang/Object;");
 
-    jint listSize = JNIExceptionHandler::CallIntMethod(env,
-                                                       fontListObj.get(),
-                                                       listSizeMethod);
+    jint listSize = env->CallIntMethod(fontListObj.get(), listSizeMethod);
+    // A list that throws is treated like the strategy throwing.
+    if (JNIExceptionHandler::ClearAndLogErrors(
+            env,
+            TAG,
+            "FontFallbackStrategy list size() threw."))
+    {
+        listSize = 0;
+    }
 
     std::vector<rive::rcp<rive::Font>> decodedFonts;
     decodedFonts.reserve(listSize);
@@ -327,6 +349,18 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
     {
         JniResource<jobject> byteArrayObj =
             GetObjectFromMethod(env, fontListObj.get(), listGetMethod, i);
+        if (JNIExceptionHandler::ClearAndLogErrors(
+                env,
+                TAG,
+                "FontFallbackStrategy list get() threw.") ||
+            byteArrayObj.get() == nullptr)
+        {
+            RiveLogE(TAG,
+                     "Skipping fallback font at index %d for weight %d",
+                     i,
+                     weight);
+            continue;
+        }
 
         rive::rcp<rive::Font> decodedFont = DecodeShared(ByteArrayToUint8Vec(
             env,

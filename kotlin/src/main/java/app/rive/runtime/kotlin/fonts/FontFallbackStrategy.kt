@@ -58,6 +58,10 @@ interface FontFallbackStrategy {
      * represents the definitive set for that weight category while this strategy
      * instance is active.
      *
+     * If this function throws, the runtime reports the exception to [app.rive.RiveLog] and treats
+     * the result as an empty list, so fallback continues as it does without a strategy. This
+     * function is not called again for that weight.
+     *
      * @param weight The weight of the font for which fallbacks are needed.
      * @return A list of font byte arrays to be used for character fallback, ordered by preference.
      */

@@ -283,6 +283,123 @@ class FontPickerTest {
         assertEquals(picker, FontFallbackStrategy.stylePicker)
     }
 
+    /** Verifies that text shaping continues when the strategy throws, and the failure is cached. */
+    @Test
+    fun throwingStrategyIsCalledOnceAndShapingContinues() {
+        var pickerCalls = 0
+        val picker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                pickerCalls++
+                throw IllegalStateException("Strategy failure")
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        val file = context.resources.openRawResource(R.raw.style_fallback_fonts).use {
+            File(it.readBytes())
+        }
+        file.firstArtboard.let { artboard ->
+            artboard.setTextRunValue("ultralight_start", "abc") // Not in the file's font.
+            artboard.advance(0f) // Shapes text and asks the strategy for fallbacks.
+            artboard.setTextRunValue("ultralight_start", "cba")
+            artboard.advance(0f) // Reshapes text with the cached result.
+        }
+        assertEquals(1, pickerCalls)
+        // The strategy is a weak reference, so keep it reachable until the end.
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+        file.release()
+    }
+
+    /** Verifies that a null list, which a Java strategy can return, is treated as empty. */
+    @Test
+    fun nullStrategyListIsTreatedAsEmpty() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        var pickerCalls = 0
+        val picker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                pickerCalls++
+                return uncheckedCast(null)
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        // Index 0 past an empty strategy list is a non-strategy fallback.
+        assertEquals(0, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(1, pickerCalls)
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** Verifies that a null strategy font is skipped, so later fonts stay reachable. */
+    @Test
+    fun nullStrategyFontIsSkipped() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val picker = object : FontFallbackStrategy {
+            /** Places a null between the font that lacks 'u' and one that has it. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> =
+                uncheckedCast(listOf(limited, null, FontHelper.getFallbackFontBytes()!!))
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** Verifies that a list entry that throws is skipped, so later fonts stay reachable. */
+    @Test
+    fun throwingStrategyFontIsSkipped() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fonts = listOf(limited, null, FontHelper.getFallbackFontBytes()!!)
+        val picker = object : FontFallbackStrategy {
+            /** Throws for the entry between the font that lacks 'u' and one that has it. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> =
+                object : AbstractList<FontBytes>() {
+                    override val size = fonts.size
+
+                    override fun get(index: Int): FontBytes =
+                        fonts[index] ?: throw IllegalStateException("Entry failure")
+                }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** Verifies that a list whose size throws is treated as empty. */
+    @Test
+    fun throwingStrategyListSizeIsTreatedAsEmpty() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        var sizeCalls = 0
+        val picker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> =
+                object : AbstractList<FontBytes>() {
+                    override val size: Int
+                        get() {
+                            sizeCalls++
+                            throw IllegalStateException("Size failure")
+                        }
+
+                    override fun get(index: Int): FontBytes = limited
+                }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        // Index 0 past an empty strategy list is a non-strategy fallback.
+        assertEquals(0, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(1, sizeCalls)
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /**
+     * Returns [value] as [T] without a runtime check, to model a Java strategy that ignores Kotlin
+     * nullability.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> uncheckedCast(value: Any?): T = value as T
+
     /** Verifies that variable system fallbacks are instanced at the requested weight. */
     @Test
     fun systemFallbackFollowsWeight() {

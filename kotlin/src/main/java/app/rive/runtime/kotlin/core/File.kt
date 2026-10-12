@@ -106,7 +106,12 @@ class File(
 
     external override fun cppDelete(pointer: Long)
 
-    /** Get the first (i.e. the default) artboard in the file. */
+    /**
+     * Get the first (i.e. the default) artboard in the file.
+     *
+     * Each access creates a new artboard instance that stays alive until this [File] is released.
+     * Reuse the returned [Artboard] instead of reading this repeatedly.
+     */
     val firstArtboard: Artboard
         @Throws(RiveException::class)
         get() = artboard(0)
@@ -115,6 +120,9 @@ class File(
      * Get the artboard called [name] in the file.
      *
      * If multiple [Artboard]s have the same [name] it will return the first match.
+     *
+     * Each call creates a new artboard instance that stays alive until this [File] is released.
+     * Reuse the returned [Artboard] instead of calling this repeatedly.
      */
     @Throws(RiveException::class)
     fun artboard(name: String): Artboard {
@@ -136,6 +144,9 @@ class File(
      * Get the artboard at a given [index] in the [File].
      *
      * This starts at 0.
+     *
+     * Each call creates a new artboard instance that stays alive until this [File] is released.
+     * Reuse the returned [Artboard] instead of calling this repeatedly.
      */
     @Throws(RiveException::class)
     fun artboard(index: Int): Artboard {
