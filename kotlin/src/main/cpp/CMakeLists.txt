@@ -27,6 +27,12 @@ set(RIVE_ANDROID_VERSION_SCRIPT
 target_link_options(rive-android PRIVATE
         "-Wl,--version-script=${RIVE_ANDROID_VERSION_SCRIPT}"
         -Wl,--no-undefined-version)
+# Android 9 and older can't load native thread_local variables, so
+# tell this step to use the compatible "emulated" kind
+target_compile_options(rive-android PRIVATE -femulated-tls)
+target_link_options(rive-android PRIVATE
+        -femulated-tls
+        -Wl,-plugin-opt=-emulated-tls)
 # Relink when only the version script changes.
 set_property(TARGET rive-android APPEND PROPERTY
         LINK_DEPENDS "${RIVE_ANDROID_VERSION_SCRIPT}")
