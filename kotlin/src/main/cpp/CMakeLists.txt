@@ -241,6 +241,9 @@ foreach (X IN LISTS static_libs)
     # Link
     target_link_libraries(rive-android ${LIB_TARGET})
 endforeach ()
+# Android below API 29 cannot load ELF TLS, and LTO code generation here does
+# not inherit the emulated TLS default the static libs were built with.
+target_link_options(rive-android PRIVATE -Wl,--plugin-opt=-emulated-tls)
 
 # Find additional libraries
 find_library(log-lib log)
