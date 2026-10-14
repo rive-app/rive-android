@@ -302,12 +302,10 @@ class RiveFocusComposeTest : RiveAndroidTest() {
      * Drives idleness until the asynchronous file load publishes its state machine.
      */
     private fun awaitStateMachine(): StateMachine {
-        // waitUntil starves the load continuation, so this polls instead.
-        repeat(AWAIT_ATTEMPTS) {
-            published?.let { return it }
-            Thread.sleep(AWAIT_STEP_MS)
-        }
-        fail("the state machine was never published")
+        // The Compose test clock recomposes only while the test waits for idle, and each loading
+        // step needs a recomposition to publish its result.
+        awaitCondition { published != null }
+        return published ?: fail("the state machine was never published")
     }
 
     /**
