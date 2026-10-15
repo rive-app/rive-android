@@ -1750,6 +1750,22 @@ extern "C"
     }
 
     JNIEXPORT void JNICALL
+    Java_app_rive_core_CommandQueueJNIBridge_cppPrecompileShaders(JNIEnv*,
+                                                                  jobject,
+                                                                  jlong ref)
+    {
+        auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
+        // Submission belongs to the context's owning thread. Queueing it
+        // after startup also keeps warmup out of the constructor's main-thread
+        // wait. The command runs before subsequent file and draw commands.
+        commandQueue->runOnce([](rive::CommandServer* server) {
+            serverImmediateFactory(server)
+                ->getRenderContext()
+                ->precompileShaders();
+        });
+    }
+
+    JNIEXPORT void JNICALL
     Java_app_rive_core_CommandQueueJNIBridge_cppSetDeferredEnabled(
         JNIEnv*,
         jobject,

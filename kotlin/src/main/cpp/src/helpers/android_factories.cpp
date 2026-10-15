@@ -167,37 +167,39 @@ AndroidImage::AndroidImage(int width,
     RiveRenderImage(width, height), m_glWorker(RefWorker::RiveWorker())
 {
     // Create the texture on the worker thread where the GL context is
-    // current.
+    // current. The job holds a reference to this image until it has run, so
+    // the destructor never waits for it. Waiting could deadlock: the thread
+    // releasing the image may hold a lock that a frame queued ahead of this
+    // job needs.
     const auto* imageDataRGBA = imageDataRGBAPtr.release();
-    m_textureCreationWorkID = m_glWorker->run(
-        [this, imageDataRGBA](DrawableThreadState* threadState) {
-            auto plsState = reinterpret_cast<PLSThreadState*>(threadState);
-            auto mipLevelCount = math::msb(m_Height | m_Width);
-            auto* renderContextImpl =
-                plsState->renderContext()
-                    ->static_impl_cast<RenderContextGLImpl>();
-            resetTexture(renderContextImpl->makeImageTexture(
-                m_Width,
-                m_Height,
-                mipLevelCount,
-                rive::GPUTextureFormat::rgba32,
-                imageDataRGBA,
-                /*blockWidth=*/1,
-                /*blockHeight=*/1,
-                /*srgb=*/false,
-                /*generateRemainingMips=*/true));
-            delete[] imageDataRGBA;
-        });
+    m_glWorker->run([image = ref_rcp(this),
+                     imageDataRGBA](DrawableThreadState* threadState) mutable {
+        auto plsState = reinterpret_cast<PLSThreadState*>(threadState);
+        auto mipLevelCount = math::msb(image->m_Height | image->m_Width);
+        auto* renderContextImpl =
+            plsState->renderContext()->static_impl_cast<RenderContextGLImpl>();
+        image->resetTexture(renderContextImpl->makeImageTexture(
+            image->m_Width,
+            image->m_Height,
+            mipLevelCount,
+            rive::GPUTextureFormat::rgba32,
+            imageDataRGBA,
+            /*blockWidth=*/1,
+            /*blockHeight=*/1,
+            /*srgb=*/false,
+            /*generateRemainingMips=*/true));
+        delete[] imageDataRGBA;
+        // Drop the reference inside the job. WorkerThread destroys finished
+        // jobs while holding its queue mutex, and if this is the last
+        // reference, ~AndroidImage queues more work, which takes that mutex.
+        image.reset();
+    });
 }
 
 AndroidImage::~AndroidImage()
 {
-    // Ensure we are done initializing the texture before we turn around and
-    // delete it.
-    m_glWorker->waitUntilComplete(m_textureCreationWorkID);
-    // Since this is the destructor, we know nobody else is using this
-    // object anymore and there is not a race condition from accessing the
-    // texture from any thread.
+    // The creation job holds a reference until it has run, so the texture is
+    // already set.
     auto* texture = releaseTexture();
     if (texture != nullptr)
     {

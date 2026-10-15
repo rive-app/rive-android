@@ -79,6 +79,25 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Constructor leaves shader compilation lazy by default") {
+        CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        verify(exactly = 0) { commandQueueBridgeMock.cppPrecompileShaders(any()) }
+    }
+
+    test("Constructor queues shader warmup after native startup when requested") {
+        every { commandQueueBridgeMock.cppPrecompileShaders(any()) } just runs
+
+        CommandQueue(renderContextMock, commandQueueBridgeMock, precompileShaders = true)
+
+        verifyOrder {
+            commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR)
+            commandQueueBridgeMock.cppCreateListeners(COMMAND_QUEUE_ADDR, any())
+            commandQueueBridgeMock.cppPrecompileShaders(COMMAND_QUEUE_ADDR)
+        }
+        verify(exactly = 1) { commandQueueBridgeMock.cppPrecompileShaders(COMMAND_QUEUE_ADDR) }
+    }
+
     test("Constructor closes render context when native startup fails") {
         val expectedError = RiveInitializationException("Command server failed to start")
         every {
@@ -114,6 +133,7 @@ class CommandQueueUnitTest : FunSpec({
     }
 
     test("Render backend constructor retries OpenGL when Vulkan startup fails") {
+        every { commandQueueBridgeMock.cppPrecompileShaders(any()) } just runs
         val vulkanRenderContextMock = mockk<RenderContext>()
         val openGLRenderContextMock = mockk<RenderContext>()
         every { vulkanRenderContextMock.nativeObjectPointer } returns VULKAN_RENDER_CONTEXT_ADDR
@@ -131,6 +151,7 @@ class CommandQueueUnitTest : FunSpec({
             renderBackend = RenderBackend.Vulkan,
             bridge = commandQueueBridgeMock,
             sdkInt = Build.VERSION_CODES.Q,
+            precompileShaders = true,
             renderContextFactory = { backend ->
                 when (backend) {
                     RenderBackend.Vulkan -> vulkanRenderContextMock
@@ -139,6 +160,12 @@ class CommandQueueUnitTest : FunSpec({
             }
         )
 
+        verifyOrder {
+            commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)
+            commandQueueBridgeMock.cppConstructor(OPENGL_RENDER_CONTEXT_ADDR)
+            commandQueueBridgeMock.cppPrecompileShaders(COMMAND_QUEUE_ADDR)
+        }
+        verify(exactly = 1) { commandQueueBridgeMock.cppPrecompileShaders(COMMAND_QUEUE_ADDR) }
         commandQueue.refCount shouldBe 1
         verify(exactly = 1) {
             commandQueueBridgeMock.cppConstructor(VULKAN_RENDER_CONTEXT_ADDR)

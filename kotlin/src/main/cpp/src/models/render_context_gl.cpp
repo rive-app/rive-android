@@ -99,6 +99,14 @@ StartupResult RenderContextGL::initialize()
     return {true, EGL_SUCCESS, "RenderContextGL initialized successfully"};
 }
 
+void RenderContextGL::precompileShaders()
+{
+    // The worker keeps this EGL context current, including before any window
+    // exists. Match the default frame options used by Android's draw path.
+    riveContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()
+        ->tryStartAsyncUbershaderCreation(riveContext->selectInterlockMode({}));
+}
+
 void RenderContextGL::destroy()
 {
     RiveLogD(TAG_RC, "Destroying Rive render context and its GL resources");

@@ -73,6 +73,36 @@ class RiveWorkerComposeTest : RiveAndroidTest() {
         assertTrue(worker.isDisposed)
     }
 
+    /** Verifies warmup is fixed per worker and changing the option releases the old worker. */
+    @Test
+    fun precompileShadersChange_recreatesWorker() {
+        lateinit var worker: RiveWorker
+        lateinit var precompileShaders: MutableState<Boolean>
+        lateinit var showWorker: MutableState<Boolean>
+
+        composeRule.setContent {
+            precompileShaders = remember { mutableStateOf(false) }
+            showWorker = remember { mutableStateOf(true) }
+            if (showWorker.value) {
+                worker = rememberRiveWorker(
+                    autoPoll = false,
+                    precompileShaders = precompileShaders.value,
+                )
+            }
+        }
+        val original = worker
+        composeRule.runOnUiThread { precompileShaders.value = true }
+        composeRule.waitForIdle()
+        val replacement = worker
+        assertNotSame(original, replacement)
+        assertTrue(original.isDisposed)
+        assertFalse(replacement.isDisposed)
+
+        composeRule.runOnUiThread { showWorker.value = false }
+        composeRule.waitForIdle()
+        assertTrue(replacement.isDisposed)
+    }
+
     /** Verifies backend changes replace the worker and recreate its complete resource tree. */
     @Test
     @OptIn(ExperimentalDeferredRendering::class)

@@ -79,6 +79,12 @@ public:
     virtual StartupResult initialize() = 0;
 
     /**
+     * Starts best-effort compilation of common draw shaders on the owning
+     * worker thread. Does not wait for background compilation to complete.
+     */
+    virtual void precompileShaders() = 0;
+
+    /**
      * Destroy backend resources owned by this RenderContext.
      *
      * Must be called on the render thread. Implementations must tolerate being
@@ -190,6 +196,8 @@ struct RenderContextGL : RenderContext
     ~RenderContextGL() override = default;
 
     StartupResult initialize() override;
+    /** Starts common shader warmup on the owning worker thread. */
+    void precompileShaders() override;
     void destroy() override;
 
     /**
@@ -243,6 +251,8 @@ struct RenderContextVulkan : RenderContext
     ~RenderContextVulkan() override;
 
     StartupResult initialize() override;
+    /** Starts common shader warmup on the owning worker thread. */
+    void precompileShaders() override;
     void destroy() override;
 
     RenderSurfaceVulkan* createWindowSurface(ANativeWindow* nativeWindow,
@@ -288,6 +298,7 @@ private:
     std::unique_ptr<rive_vkb::VulkanFrameSyncCoordinator>
         m_frameSyncCoordinator;
     const bool m_enableDebugNames;
+    bool m_precompileShaders = false;
 };
 
 #endif

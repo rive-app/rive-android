@@ -41,6 +41,10 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  *    compatibility. Vulkan is available for higher performance and may become the default in a
  *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
  *    initialization fails, the worker falls back to OpenGL.
+ * @param precompileShaders Whether to start background warmup of common Rive draw shaders.
+ *    Create the worker ahead of drawing to give compilation time to finish. Requires parallel
+ *    compilation support on OpenGL and does not precompile GPU Canvas shaders. Changing this
+ *    option recreates the worker.
  * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  * @see RiveWorker
@@ -52,6 +56,7 @@ fun rememberRiveWorker(
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
 ): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val riveWorker = rememberRiveWorkerOrNull(
@@ -59,6 +64,7 @@ fun rememberRiveWorker(
         autoPoll,
         tracingEnabled,
         renderBackend,
+        precompileShaders,
     )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
@@ -81,6 +87,8 @@ fun rememberRiveWorker(
  *    compatibility. Vulkan is available for higher performance and may become the default in a
  *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
  *    initialization fails, the worker falls back to OpenGL.
+ * @param precompileShaders Whether to start shader warmup, as in [rememberRiveWorker].
+ *    Changing this option recreates the worker.
  * @return The created [RiveWorker], or null if creation failed.
  * @see rememberRiveWorker
  */
@@ -90,12 +98,14 @@ fun rememberRiveWorkerOrNull(
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
 ): RiveWorker? = rememberRiveWorkerImpl(
     errorState,
     autoPoll,
     tracingEnabled,
     deferred = false,
     renderBackend,
+    precompileShaders,
 )
 
 /**
@@ -109,6 +119,10 @@ fun rememberRiveWorkerOrNull(
  * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @param renderBackend Preferred render backend, with the same fallback as [rememberRiveWorker].
+ * @param precompileShaders Whether to start background warmup of common Rive draw shaders.
+ *    Create the worker ahead of drawing to give compilation time to finish. Requires parallel
+ *    compilation support on OpenGL and does not precompile GPU Canvas shaders. Changing this
+ *    option recreates the worker.
  * @return The created [RiveWorker].
  * @throws RiveInitializationException If the Rive worker cannot be created for any reason.
  */
@@ -119,6 +133,7 @@ fun rememberDeferredRiveWorker(
     autoPoll: Boolean = true,
     tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
 ): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val riveWorker = rememberRiveWorkerImpl(
@@ -127,6 +142,7 @@ fun rememberDeferredRiveWorker(
         tracingEnabled,
         deferred = true,
         renderBackend,
+        precompileShaders,
     )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
@@ -141,16 +157,18 @@ private fun rememberRiveWorkerImpl(
     tracingEnabled: Boolean,
     deferred: Boolean,
     renderBackend: RenderBackend,
+    precompileShaders: Boolean,
 ): RiveWorker? {
     val lifecycleOwner = LocalLifecycleOwner.current
     // Deferred is fixed per queue because files import through the mode's factory, so a change
     // rebuilds the worker.
-    val worker = remember(renderBackend, deferred) {
+    val worker = remember(renderBackend, deferred, precompileShaders) {
         runCatching {
             RiveWorker(
                 renderBackend = renderBackend,
                 tracingEnabled = tracingEnabled,
                 enableGPUCanvas = deferred,
+                precompileShaders = precompileShaders,
             )
         }
             .onFailure {

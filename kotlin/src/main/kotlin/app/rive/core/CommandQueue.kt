@@ -144,6 +144,7 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  *    `createNativeCommandQueueResources`. Supplying it lets backend fallback finish native startup
  *    before ownership is transferred to this instance.
  * @param settlingStore Settled-state store override used by unit tests without native code.
+ * @param precompileShaders Whether to queue shader warmup after native startup.
  */
 class CommandQueue internal constructor(
     private val renderContext: RenderContext,
@@ -152,6 +153,7 @@ class CommandQueue internal constructor(
     deferredEnabled: Boolean = false,
     nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
     settlingStore: StateMachineSettlingStore? = null,
+    precompileShaders: Boolean = false,
 ) : RefCounted {
     /**
      * Creates a command queue using the requested render backend.
@@ -176,6 +178,50 @@ class CommandQueue internal constructor(
     )
 
     /**
+     * Creates a worker with optional background shader warmup.
+     *
+     * Warmup starts on the worker without waiting for compilation to finish. Creating the worker
+     * ahead of its first draw gives compilation more time to complete. OpenGL requires driver
+     * support for parallel shader compilation. Vulkan warms common target configurations and
+     * supplements them as surfaces are created. This does not guarantee a stall-free first frame
+     * or precompile GPU Canvas shaders.
+     *
+     * @param precompileShaders Whether to start shader warmup. False preserves lazy compilation.
+     * @param renderBackend Preferred backend, falling back to OpenGL if Vulkan cannot start.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @throws RiveInitializationException If the worker cannot be created.
+     */
+    @Throws(RiveInitializationException::class)
+    constructor(
+        precompileShaders: Boolean,
+        renderBackend: RenderBackend = RenderBackend.OpenGL,
+        tracingEnabled: Boolean = false,
+    ) : this(
+        resources = createNativeCommandQueueResources(
+            renderBackend = renderBackend,
+            bridge = CommandQueueJNIBridge(),
+        ),
+        tracingEnabled = tracingEnabled,
+        precompileShaders = precompileShaders,
+    )
+
+    /**
+     * Creates a worker with optional GPU Canvas rendering and lazy shader compilation.
+     *
+     * @param renderBackend Preferred backend, falling back to OpenGL if Vulkan cannot start.
+     * @param tracingEnabled Whether native command server tracing should start enabled.
+     * @param enableGPUCanvas Whether this worker can render GPU Canvas content.
+     * @throws RiveInitializationException If the worker cannot be created.
+     */
+    @ExperimentalDeferredRendering
+    @Throws(RiveInitializationException::class)
+    constructor(
+        renderBackend: RenderBackend = RenderBackend.OpenGL,
+        tracingEnabled: Boolean = false,
+        enableGPUCanvas: Boolean,
+    ) : this(renderBackend, tracingEnabled, enableGPUCanvas, precompileShaders = false)
+
+    /**
      * Creates a command queue using the requested render backend, which can render GPU Canvas
      * content when [enableGPUCanvas] is true.
      *
@@ -188,6 +234,8 @@ class CommandQueue internal constructor(
      *    instead.
      * @param tracingEnabled Whether native command server tracing should start enabled.
      * @param enableGPUCanvas Whether this command queue can render GPU Canvas content.
+     * @param precompileShaders Whether to queue background warmup of common Rive draw shaders.
+     *    Requires parallel compilation support on OpenGL and does not warm GPU Canvas shaders.
      * @throws RiveInitializationException If the command queue cannot be created.
      */
     @ExperimentalDeferredRendering
@@ -196,6 +244,7 @@ class CommandQueue internal constructor(
         renderBackend: RenderBackend = RenderBackend.OpenGL,
         tracingEnabled: Boolean = false,
         enableGPUCanvas: Boolean,
+        precompileShaders: Boolean,
     ) : this(
         resources = createNativeCommandQueueResources(
             renderBackend = renderBackend,
@@ -203,6 +252,7 @@ class CommandQueue internal constructor(
         ),
         tracingEnabled = tracingEnabled,
         deferredEnabled = enableGPUCanvas,
+        precompileShaders = precompileShaders,
     )
 
     /**
@@ -213,6 +263,7 @@ class CommandQueue internal constructor(
      * @param bridge Native bridge mock used to start the command server without loading JNI.
      * @param sdkInt Android API level to use for backend selection.
      * @param renderContextFactory Factory that creates the requested concrete render context.
+     * @param precompileShaders Whether to queue shader warmup after successful backend startup.
      * @throws RiveInitializationException If no backend can start.
      */
     @VisibleForTesting
@@ -222,6 +273,7 @@ class CommandQueue internal constructor(
         bridge: CommandQueueBridge,
         sdkInt: Int = Build.VERSION.SDK_INT,
         renderContextFactory: (RenderBackend) -> RenderContext,
+        precompileShaders: Boolean = false,
     ) : this(
         resources = createNativeCommandQueueResources(
             renderBackend = renderBackend,
@@ -231,6 +283,7 @@ class CommandQueue internal constructor(
         ),
         tracingEnabled = tracingEnabled,
         deferredEnabled = false,
+        precompileShaders = precompileShaders,
     )
 
     /**
@@ -242,6 +295,8 @@ class CommandQueue internal constructor(
      *
      * @param resources Render context, bridge, and native pointer produced by backend startup.
      * @param tracingEnabled Whether native draw/advance tracing should start enabled.
+     * @param deferredEnabled Whether GPU Canvas rendering should be enabled.
+     * @param precompileShaders Whether to queue shader warmup after startup.
      */
     // Used by the public renderBackend constructors' delegated this(...) calls.
     // Flagged as "unused" by the linter for an unknown reason.
@@ -250,12 +305,14 @@ class CommandQueue internal constructor(
         resources: NativeCommandQueueResources,
         tracingEnabled: Boolean,
         deferredEnabled: Boolean = false,
+        precompileShaders: Boolean = false,
     ) : this(
         renderContext = resources.renderContext,
         bridge = resources.bridge,
         tracingEnabled = tracingEnabled,
         deferredEnabled = deferredEnabled,
         nativePointer = resources.nativePointer,
+        precompileShaders = precompileShaders,
     )
 
     /**
@@ -394,6 +451,9 @@ class CommandQueue internal constructor(
     init {
         setTracingEnabled(tracingEnabled)
         setDeferredEnabled(deferredEnabled)
+        if (precompileShaders) {
+            bridge.cppPrecompileShaders(cppPointer.pointer)
+        }
     }
 
     /**

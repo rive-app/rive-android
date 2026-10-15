@@ -352,3 +352,12 @@ object NativeRendererTestHelper {
      */
     external fun cppCanvasImageWrapsBitmap(address: Long, bitmap: Bitmap): Boolean
 }
+
+object NativeWorkerTestHelper {
+    /**
+     * Queues [runnable] as a job on the Rive renderer's worker thread and returns immediately.
+     *
+     * @return `false` without queuing anything if the Rive renderer isn't supported.
+     */
+    external fun cppRunOnRiveWorker(runnable: Runnable): Boolean
+}

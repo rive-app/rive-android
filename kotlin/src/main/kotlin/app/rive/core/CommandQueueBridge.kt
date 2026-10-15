@@ -16,6 +16,9 @@ interface CommandQueueBridge {
     fun cppPollMessages(pointer: Long)
     fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
     fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
+
+    /** Queues shader warmup on the worker identified by [pointer], without awaiting completion. */
+    fun cppPrecompileShaders(pointer: Long)
     fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
     fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
@@ -527,6 +530,9 @@ interface CommandQueueBridge {
 /** Concrete JNI bridge implementation of [CommandQueueBridge]. */
 internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppConstructor(renderContextPointer: Long): Long
+
+    /** Queues shader warmup on the worker identified by [pointer]. */
+    external override fun cppPrecompileShaders(pointer: Long)
     external override fun cppDelete(pointer: Long)
     external override fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
 

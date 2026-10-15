@@ -485,6 +485,26 @@ StartupResult RenderContextVulkan::initialize()
     return {true, VK_SUCCESS, "RenderContextVulkan initialized successfully"};
 }
 
+void RenderContextVulkan::precompileShaders()
+{
+    m_precompileShaders = true;
+    const auto interlockMode = riveContext->selectInterlockMode({});
+    // RGBA8 is our preferred window format and fixed headless format. Warm
+    // both usage profiles before a surface exists. Pipeline keys deduplicate
+    // permutations shared between these profiles and later surfaces. Prefer
+    // input-attachment windows so headless-only atomic resolve pipelines do
+    // not consume their compilation head start.
+    for (auto usage :
+         {HEADLESS_IMAGE_USAGE_FLAGS | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+          HEADLESS_IMAGE_USAGE_FLAGS})
+    {
+        impl()->startAsyncPipelineCreation(interlockMode,
+                                           HEADLESS_IMAGE_FORMAT,
+                                           usage,
+                                           rive::gpu::LoadAction::clear);
+    }
+}
+
 void RenderContextVulkan::destroy()
 {
     if (m_device != nullptr)
@@ -619,6 +639,14 @@ rive::gpu::RenderTarget* RenderContextVulkan::createRenderTarget(
                                  synchronizer->height(),
                                  synchronizer->imageFormat(),
                                  synchronizer->imageUsageFlags());
+    if (m_precompileShaders && renderTarget != nullptr)
+    {
+        // A window can negotiate a different format or usage from our early
+        // warmup. Only missing pipelines are queued, shared by all surfaces.
+        impl()->startAsyncPipelineCreation(riveContext->selectInterlockMode({}),
+                                           *renderTarget,
+                                           rive::gpu::LoadAction::clear);
+    }
     return renderTarget.release();
 }
 

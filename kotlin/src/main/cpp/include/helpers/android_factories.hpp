@@ -58,7 +58,6 @@ public:
 
 private:
     const rive::rcp<RefWorker> m_glWorker;
-    RefWorker::WorkID m_textureCreationWorkID;
 };
 
 class AndroidCanvasFactory : public rive::Factory
