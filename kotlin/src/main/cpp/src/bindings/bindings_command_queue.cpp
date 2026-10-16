@@ -1302,7 +1302,20 @@ public:
         return m_renderer.get();
     }
 
-    void beginOreFrame() override { m_renderContext->beginOreFrame(m_surface); }
+    rive::ore::Context::FrameDescriptor oreFrame() override
+    {
+        const auto frame = canvasFlushResources();
+        return {
+            .externalCommandBuffer = frame.externalCommandBuffer,
+            .safeFrameNumber = frame.safeFrameNumber,
+            .currentFrameNumber = frame.currentFrameNumber,
+        };
+    }
+
+    rive::gpu::RenderContext::FlushResources canvasFlushResources() override
+    {
+        return m_renderContext->frameFlushResources(m_surface);
+    }
 
     // beginFrame bound the surface's image before recording.
     rive::gpu::RenderTarget* targetRenderTarget() override

@@ -135,15 +135,12 @@ public:
      * cannot proceed.
      */
     virtual rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) = 0;
-    /**
-     * Begin the ORE portion of the current surface frame.
-     *
-     * This must be called after beginFrame() because explicit graphics APIs
-     * need the surface's active command buffer and frame numbers.
-     *
-     * @param surface Backend-specific surface whose frame is active.
-     */
-    virtual void beginOreFrame(RenderSurface* surface) = 0;
+    /** Command buffer and frame numbers of the frame beginFrame() opened. */
+    virtual rive::gpu::RenderContext::FlushResources frameFlushResources(
+        RenderSurface* surface)
+    {
+        return {};
+    }
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
     /**
      * What scripts see of the frame's render target, which they may draw
@@ -219,7 +216,6 @@ struct RenderContextGL : RenderContext
                                                 uint32_t height) override;
 
     rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) override;
-    void beginOreFrame(RenderSurface* surface) override;
     bool flush(RenderSurface* surface) override;
     bool present(RenderSurface* surface) override;
 
@@ -271,7 +267,8 @@ struct RenderContextVulkan : RenderContext
                                                 uint32_t height) override;
 
     rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
-    void beginOreFrame(RenderSurface* nativeSurface) override;
+    rive::gpu::RenderContext::FlushResources frameFlushResources(
+        RenderSurface* nativeSurface) override;
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
     rive::ore::Context::TargetDesc oreTarget(
         rive::gpu::RenderTarget* renderTarget) const override;

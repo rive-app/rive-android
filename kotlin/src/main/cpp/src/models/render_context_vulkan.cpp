@@ -698,20 +698,22 @@ rive::ore::Context::TargetDesc RenderContextVulkan::oreTarget(
 }
 #endif
 
-void RenderContextVulkan::beginOreFrame(RenderSurface* nativeSurface)
+rive::gpu::RenderContext::FlushResources RenderContextVulkan::
+    frameFlushResources(RenderSurface* nativeSurface)
 {
     auto* synchronizer =
         static_cast<RenderSurfaceVulkan*>(nativeSurface)->synchronizer();
     if (synchronizer == nullptr)
     {
-        missingPreparedFrameResource("beginOreFrame", "frame synchronizer");
-        return;
+        missingPreparedFrameResource("frameFlushResources",
+                                     "frame synchronizer");
+        return {};
     }
-    riveContext->ore()->beginFrame({
+    return {
         .externalCommandBuffer = synchronizer->currentCommandBuffer(),
-        .safeFrameNumber = m_frameSyncCoordinator->safeFrameNumber(),
         .currentFrameNumber = m_frameSyncCoordinator->currentFrameNumber(),
-    });
+        .safeFrameNumber = m_frameSyncCoordinator->safeFrameNumber(),
+    };
 }
 
 bool RenderContextVulkan::flush(RenderSurface* nativeSurface)

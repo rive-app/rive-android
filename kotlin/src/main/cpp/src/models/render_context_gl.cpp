@@ -257,11 +257,6 @@ rive::gpu::RenderTarget* RenderContextGL::beginFrame(RenderSurface* surface)
     return glSurface->getOrCreateRenderTarget(this);
 }
 
-void RenderContextGL::beginOreFrame(RenderSurface*)
-{
-    riveContext->ore()->beginFrame({});
-}
-
 bool RenderContextGL::flush(RenderSurface* surface)
 {
     auto* renderTarget = surface->renderTarget();
