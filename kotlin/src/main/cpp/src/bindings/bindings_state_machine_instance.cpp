@@ -16,200 +16,202 @@
 extern "C"
 {
 #endif
-    using namespace rive_android;
+  using namespace rive_android;
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppAdvance(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jfloat elapsedTime)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return stateMachineInstance->advanceAndApply(elapsedTime);
-    }
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppAdvance(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jfloat elapsedTime)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return stateMachineInstance->advanceAndApply(elapsedTime);
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedCount(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTToInt(stateMachineInstance->stateChangedCount());
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedCount(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return SizeTToInt(stateMachineInstance->stateChangedCount());
+  }
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedByIndex(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint index)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return (jlong)stateMachineInstance->stateChangedByIndex(index);
-    }
+  JNIEXPORT jlong JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppStateChangedByIndex(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint index)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return (jlong)stateMachineInstance->stateChangedByIndex(index);
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventCount(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTToInt(stateMachineInstance->reportedEventCount());
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventCount(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return SizeTToInt(stateMachineInstance->reportedEventCount());
+  }
 
-    JNIEXPORT jobject JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventAt(
-        JNIEnv* env,
-        jobject,
-        jlong ref,
-        jint index)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        const rive::EventReport eventReport =
-            stateMachineInstance->reportedEventAt(index);
+  JNIEXPORT jobject JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppReportedEventAt(
+      JNIEnv* env,
+      jobject,
+      jlong ref,
+      jint index)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    const rive::EventReport eventReport = stateMachineInstance->reportedEventAt(
+        index);
 
-        return env->NewObject(GetRiveEventReportClass(),
-                              GetRiveEventReportConstructorId(),
-                              (jlong)eventReport.event(),
-                              eventReport.secondsDelay());
-    }
+    return env->NewObject(
+        GetRiveEventReportClass(),
+        GetRiveEventReportConstructorId(),
+        (jlong)eventReport.event(),
+        eventReport.secondsDelay());
+  }
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSMIInputByIndex(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint index)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
+  JNIEXPORT jlong JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSMIInputByIndex(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint index)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
 
-        return (jlong)stateMachineInstance->input(index);
-    }
+    return (jlong)stateMachineInstance->input(index);
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppInputCount(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return SizeTToInt(stateMachineInstance->inputCount());
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppInputCount(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return SizeTToInt(stateMachineInstance->inputCount());
+  }
 
-    // ANIMATION
-    JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppName(JNIEnv* env,
-                                                                   jobject,
-                                                                   jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return MakeJString(env, stateMachineInstance->stateMachine()->name())
-            .release();
-    }
+  // ANIMATION
+  JNIEXPORT jstring JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppName(
+      JNIEnv* env,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return MakeJString(env, stateMachineInstance->stateMachine()->name())
+        .release();
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppLayerCount(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return (jint)stateMachineInstance->stateMachine()->layerCount();
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppLayerCount(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return (jint)stateMachineInstance->stateMachine()->layerCount();
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerDown(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint pointerID,
-        jfloat x,
-        jfloat y)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return stateMachineInstance->pointerDown(rive::Vec2D(x, y),
-                                                 pointerID) !=
-               rive::HitResult::none;
-    }
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerDown(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint pointerID,
+      jfloat x,
+      jfloat y)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return stateMachineInstance->pointerDown(rive::Vec2D(x, y), pointerID) !=
+           rive::HitResult::none;
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerMove(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint pointerID,
-        jfloat x,
-        jfloat y)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerMove(rive::Vec2D(x, y), 0.0f, pointerID);
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerMove(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint pointerID,
+      jfloat x,
+      jfloat y)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    stateMachineInstance->pointerMove(rive::Vec2D(x, y), 0.0f, pointerID);
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerUp(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint pointerID,
-        jfloat x,
-        jfloat y)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        return stateMachineInstance->pointerUp(rive::Vec2D(x, y), pointerID) !=
-               rive::HitResult::none;
-    }
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerUp(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint pointerID,
+      jfloat x,
+      jfloat y)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    return stateMachineInstance->pointerUp(rive::Vec2D(x, y), pointerID) !=
+           rive::HitResult::none;
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerExit(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint pointerID,
-        jfloat x,
-        jfloat y)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        stateMachineInstance->pointerExit(rive::Vec2D(x, y), pointerID);
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppPointerExit(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint pointerID,
+      jfloat x,
+      jfloat y)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    stateMachineInstance->pointerExit(rive::Vec2D(x, y), pointerID);
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSetViewModelInstance(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jlong viewModelInstanceRef)
-    {
-        auto stateMachine = reinterpret_cast<rive::StateMachineInstance*>(ref);
-        auto instance = reinterpret_cast<rive::ViewModelInstanceRuntime*>(
-            viewModelInstanceRef);
-        stateMachine->bindViewModelInstance(instance->instance());
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppSetViewModelInstance(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jlong viewModelInstanceRef)
+  {
+    auto stateMachine = reinterpret_cast<rive::StateMachineInstance*>(ref);
+    auto instance = reinterpret_cast<rive::ViewModelInstanceRuntime*>(
+        viewModelInstanceRef);
+    stateMachine->bindViewModelInstance(instance->instance());
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppDelete(JNIEnv*,
-                                                                     jobject,
-                                                                     jlong ref)
-    {
-        auto stateMachineInstance =
-            reinterpret_cast<rive::StateMachineInstance*>(ref);
-        delete stateMachineInstance;
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_StateMachineInstance_cppDelete(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto stateMachineInstance = reinterpret_cast<rive::StateMachineInstance*>(
+        ref);
+    delete stateMachineInstance;
+  }
 
 #ifdef __cplusplus
 }

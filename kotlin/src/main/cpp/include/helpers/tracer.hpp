@@ -14,11 +14,11 @@ namespace rive_android
 class ITracer
 {
 public:
-    virtual ~ITracer() = default;
-    /** Begin a named trace section. */
-    virtual void beginSection(const char* sectionName) const = 0;
-    /** End the most recently opened trace section. */
-    virtual void endSection() const = 0;
+  virtual ~ITracer() = default;
+  /** Begin a named trace section. */
+  virtual void beginSection(const char* sectionName) const = 0;
+  /** End the most recently opened trace section. */
+  virtual void endSection() const = 0;
 };
 
 /**
@@ -27,8 +27,8 @@ public:
 class NoopTracer : public ITracer
 {
 public:
-    void beginSection(const char* sectionName) const override {};
-    void endSection() const override {};
+  void beginSection(const char* sectionName) const override {};
+  void endSection() const override {};
 };
 
 /**
@@ -36,8 +36,8 @@ public:
  */
 inline const NoopTracer& noopTracer()
 {
-    static const NoopTracer tracer;
-    return tracer;
+  static const NoopTracer tracer;
+  return tracer;
 }
 
 /**
@@ -54,76 +54,75 @@ inline const NoopTracer& noopTracer()
 class Tracer : public ITracer
 {
 public:
-    void beginSection(const char* sectionName) const override
+  void beginSection(const char* sectionName) const override
+  {
+    static constexpr auto* kInvalidSectionName = "Rive/InvalidTraceSectionName";
+    if (sectionName == nullptr)
     {
-        static constexpr auto* kInvalidSectionName =
-            "Rive/InvalidTraceSectionName";
-        if (sectionName == nullptr)
-        {
-            RiveLogE("Tracer", "beginSection called with null section name");
-            sectionName = kInvalidSectionName;
-        }
-        const auto& traceApi = api();
-        if (traceApi.beginSection != nullptr)
-        {
-            traceApi.beginSection(sectionName);
-        }
+      RiveLogE("Tracer", "beginSection called with null section name");
+      sectionName = kInvalidSectionName;
     }
-    void endSection() const override
+    const auto& traceApi = api();
+    if (traceApi.beginSection != nullptr)
     {
-        const auto& traceApi = api();
-        if (traceApi.endSection != nullptr)
-        {
-            traceApi.endSection();
-        }
+      traceApi.beginSection(sectionName);
     }
+  }
+  void endSection() const override
+  {
+    const auto& traceApi = api();
+    if (traceApi.endSection != nullptr)
+    {
+      traceApi.endSection();
+    }
+  }
 
 private:
-    using fp_ATrace_beginSection = void (*)(const char* sectionName);
-    using fp_ATrace_endSection = void (*)();
+  using fp_ATrace_beginSection = void (*)(const char* sectionName);
+  using fp_ATrace_endSection = void (*)();
 
-    struct TraceAPI
+  struct TraceAPI
+  {
+    fp_ATrace_beginSection beginSection = nullptr;
+    fp_ATrace_endSection endSection = nullptr;
+  };
+
+  static TraceAPI loadAPI()
+  {
+    TraceAPI result;
+    if (android_get_device_api_level() < 23)
     {
-        fp_ATrace_beginSection beginSection = nullptr;
-        fp_ATrace_endSection endSection = nullptr;
-    };
-
-    static TraceAPI loadAPI()
-    {
-        TraceAPI result;
-        if (android_get_device_api_level() < 23)
-        {
-            // ATrace APIs are not guaranteed for our current minSdk 21.
-            return result;
-        }
-
-        // Keep this handle alive for process lifetime so resolved symbols stay
-        // valid.
-        void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-        if (lib == nullptr)
-        {
-            RiveLogE("Tracer", "Tracer cannot load libandroid.so!");
-            return result;
-        }
-
-        result.beginSection = reinterpret_cast<fp_ATrace_beginSection>(
-            dlsym(lib, "ATrace_beginSection"));
-        result.endSection = reinterpret_cast<fp_ATrace_endSection>(
-            dlsym(lib, "ATrace_endSection"));
-        if (result.beginSection == nullptr || result.endSection == nullptr)
-        {
-            RiveLogE("Tracer", "Tracer cannot resolve ATrace symbols.");
-            result.beginSection = nullptr;
-            result.endSection = nullptr;
-        }
-        return result;
+      // ATrace APIs are not guaranteed for our current minSdk 21.
+      return result;
     }
 
-    static const TraceAPI& api()
+    // Keep this handle alive for process lifetime so resolved symbols stay
+    // valid.
+    void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
+    if (lib == nullptr)
     {
-        static const TraceAPI traceApi = loadAPI();
-        return traceApi;
+      RiveLogE("Tracer", "Tracer cannot load libandroid.so!");
+      return result;
     }
+
+    result.beginSection = reinterpret_cast<fp_ATrace_beginSection>(
+        dlsym(lib, "ATrace_beginSection"));
+    result.endSection = reinterpret_cast<fp_ATrace_endSection>(
+        dlsym(lib, "ATrace_endSection"));
+    if (result.beginSection == nullptr || result.endSection == nullptr)
+    {
+      RiveLogE("Tracer", "Tracer cannot resolve ATrace symbols.");
+      result.beginSection = nullptr;
+      result.endSection = nullptr;
+    }
+    return result;
+  }
+
+  static const TraceAPI& api()
+  {
+    static const TraceAPI traceApi = loadAPI();
+    return traceApi;
+  }
 };
 
 /**
@@ -134,8 +133,8 @@ private:
  */
 inline const Tracer& defaultTracer()
 {
-    static const Tracer tracer;
-    return tracer;
+  static const Tracer tracer;
+  return tracer;
 }
 
 /**
@@ -149,24 +148,23 @@ inline const Tracer& defaultTracer()
 class VTraceScope
 {
 public:
-    /**
-     * @param tracer Tracer used to emit begin/end calls.
-     * @param sectionName Name of the section to begin.
-     */
-    VTraceScope(const ITracer& tracer, const char* sectionName) :
-        m_tracer(tracer)
-    {
-        m_tracer.beginSection(sectionName);
-    }
+  /**
+   * @param tracer Tracer used to emit begin/end calls.
+   * @param sectionName Name of the section to begin.
+   */
+  VTraceScope(const ITracer& tracer, const char* sectionName) : m_tracer(tracer)
+  {
+    m_tracer.beginSection(sectionName);
+  }
 
-    ~VTraceScope() { m_tracer.endSection(); }
+  ~VTraceScope() { m_tracer.endSection(); }
 
-    // Non-copyable to avoid duplicate endSection calls for the same scope.
-    VTraceScope(const VTraceScope&) = delete;
-    VTraceScope& operator=(const VTraceScope&) = delete;
+  // Non-copyable to avoid duplicate endSection calls for the same scope.
+  VTraceScope(const VTraceScope&) = delete;
+  VTraceScope& operator=(const VTraceScope&) = delete;
 
 private:
-    const ITracer& m_tracer;
+  const ITracer& m_tracer;
 };
 
 /**
@@ -186,19 +184,19 @@ private:
 template <typename TracerType> class TraceScope
 {
 public:
-    TraceScope(const TracerType& tracer, const char* sectionName) :
-        m_tracer(tracer)
-    {
-        m_tracer.beginSection(sectionName);
-    }
+  TraceScope(const TracerType& tracer, const char* sectionName)
+      : m_tracer(tracer)
+  {
+    m_tracer.beginSection(sectionName);
+  }
 
-    ~TraceScope() { m_tracer.endSection(); }
+  ~TraceScope() { m_tracer.endSection(); }
 
-    TraceScope(const TraceScope&) = delete;
-    TraceScope& operator=(const TraceScope&) = delete;
+  TraceScope(const TraceScope&) = delete;
+  TraceScope& operator=(const TraceScope&) = delete;
 
 private:
-    const TracerType& m_tracer;
+  const TracerType& m_tracer;
 };
 
 } // namespace rive_android

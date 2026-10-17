@@ -18,173 +18,187 @@ namespace
 {
 std::string errorString(int32_t errorCode)
 {
-    return EGLErrorString(static_cast<EGLint>(errorCode));
+  return EGLErrorString(static_cast<EGLint>(errorCode));
 }
 
 EGLSurface createPBufferSurface(EGLDisplay eglDisplay, EGLContext eglContext)
 {
-    RiveLogD(TAG_RC, "Creating 1x1 PBuffer surface for EGL context");
+  RiveLogD(TAG_RC, "Creating 1x1 PBuffer surface for EGL context");
 
-    EGLint configID = 0;
-    eglQueryContext(eglDisplay, eglContext, EGL_CONFIG_ID, &configID);
+  EGLint configID = 0;
+  eglQueryContext(eglDisplay, eglContext, EGL_CONFIG_ID, &configID);
 
-    EGLConfig config;
-    EGLint configCount = 0;
-    EGLint configAttributes[] = {EGL_CONFIG_ID, configID, EGL_NONE};
-    eglChooseConfig(eglDisplay, configAttributes, &config, 1, &configCount);
+  EGLConfig config;
+  EGLint configCount = 0;
+  EGLint configAttributes[] = {EGL_CONFIG_ID, configID, EGL_NONE};
+  eglChooseConfig(eglDisplay, configAttributes, &config, 1, &configCount);
 
-    if (configCount == 1)
+  if (configCount == 1)
+  {
+    EGLint pBufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+    auto surface = eglCreatePbufferSurface(
+        eglDisplay,
+        config,
+        pBufferAttributes);
+    if (surface != EGL_NO_SURFACE)
     {
-        EGLint pBufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-        auto surface =
-            eglCreatePbufferSurface(eglDisplay, config, pBufferAttributes);
-        if (surface != EGL_NO_SURFACE)
-        {
-            RiveLogD(TAG_RC, "Successfully created PBuffer surface");
-            return surface;
-        }
-
-        RiveLogE(TAG_RC,
-                 "Failed to create PBuffer surface. Error: %s",
-                 errorString(eglGetError()).c_str());
-        return EGL_NO_SURFACE;
+      RiveLogD(TAG_RC, "Successfully created PBuffer surface");
+      return surface;
     }
 
-    RiveLogE(TAG_RC, "Failed to choose EGL config for PBuffer surface");
+    RiveLogE(
+        TAG_RC,
+        "Failed to create PBuffer surface. Error: %s",
+        errorString(eglGetError()).c_str());
     return EGL_NO_SURFACE;
+  }
+
+  RiveLogE(TAG_RC, "Failed to choose EGL config for PBuffer surface");
+  return EGL_NO_SURFACE;
 }
 } // namespace
 
-RenderContextGL::RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext) :
-    RenderContext(),
-    eglDisplay(eglDisplay),
-    eglContext(eglContext),
-    pBuffer(createPBufferSurface(eglDisplay, eglContext))
+RenderContextGL::RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext)
+    : RenderContext()
+    , eglDisplay(eglDisplay)
+    , eglContext(eglContext)
+    , pBuffer(createPBufferSurface(eglDisplay, eglContext))
 {}
 
 StartupResult RenderContextGL::initialize()
 {
-    if (pBuffer == EGL_NO_SURFACE)
-    {
-        auto error = eglGetError();
-        RiveLogE(TAG_RC,
-                 "Failed to create PBuffer surface. Error: %s",
-                 errorString(eglGetError()).c_str());
-        return {false, error, "Failed to create PBuffer surface"};
-    }
+  if (pBuffer == EGL_NO_SURFACE)
+  {
+    auto error = eglGetError();
+    RiveLogE(
+        TAG_RC,
+        "Failed to create PBuffer surface. Error: %s",
+        errorString(eglGetError()).c_str());
+    return {false, error, "Failed to create PBuffer surface"};
+  }
 
-    RiveLogD(TAG_RC, "Making EGL context current with PBuffer surface");
-    auto contextCurrentSuccess =
-        eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext);
-    if (!contextCurrentSuccess)
-    {
-        auto error = eglGetError();
-        RiveLogE(TAG_RC,
-                 "Failed to make EGL context current. Error: %s",
-                 errorString(eglGetError()).c_str());
-        return {false, error, "Failed to make EGL context current"};
-    }
+  RiveLogD(TAG_RC, "Making EGL context current with PBuffer surface");
+  auto contextCurrentSuccess = eglMakeCurrent(
+      eglDisplay,
+      pBuffer,
+      pBuffer,
+      eglContext);
+  if (!contextCurrentSuccess)
+  {
+    auto error = eglGetError();
+    RiveLogE(
+        TAG_RC,
+        "Failed to make EGL context current. Error: %s",
+        errorString(eglGetError()).c_str());
+    return {false, error, "Failed to make EGL context current"};
+  }
 
-    RiveLogD(TAG_RC, "Creating Rive RenderContextGL");
-    riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
-    if (!riveContext)
-    {
-        auto error = eglGetError();
-        RiveLogE(TAG_RC,
-                 "Failed to create Rive RenderContextGL. Error: %s",
-                 errorString(eglGetError()).c_str());
-        return {false, error, "Failed to create Rive RenderContextGL"};
-    }
+  RiveLogD(TAG_RC, "Creating Rive RenderContextGL");
+  riveContext = rive::gpu::RenderContextGLImpl::MakeContext();
+  if (!riveContext)
+  {
+    auto error = eglGetError();
+    RiveLogE(
+        TAG_RC,
+        "Failed to create Rive RenderContextGL. Error: %s",
+        errorString(eglGetError()).c_str());
+    return {false, error, "Failed to create Rive RenderContextGL"};
+  }
 
-    return {true, EGL_SUCCESS, "RenderContextGL initialized successfully"};
+  return {true, EGL_SUCCESS, "RenderContextGL initialized successfully"};
 }
 
 void RenderContextGL::precompileShaders()
 {
-    // The worker keeps this EGL context current, including before any window
-    // exists. Match the default frame options used by Android's draw path.
-    riveContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()
-        ->tryStartAsyncUbershaderCreation(riveContext->selectInterlockMode({}));
+  // The worker keeps this EGL context current, including before any window
+  // exists. Match the default frame options used by Android's draw path.
+  riveContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()
+      ->tryStartAsyncUbershaderCreation(riveContext->selectInterlockMode({}));
 }
 
 void RenderContextGL::destroy()
 {
-    RiveLogD(TAG_RC, "Destroying Rive render context and its GL resources");
-    // Resetting this unique_ptr destroys the Rive render context and its GL
-    // resources. Their destructors issue GL calls, so the worker's EGL context
-    // must remain current until reset() returns.
-    riveContext.reset();
+  RiveLogD(TAG_RC, "Destroying Rive render context and its GL resources");
+  // Resetting this unique_ptr destroys the Rive render context and its GL
+  // resources. Their destructors issue GL calls, so the worker's EGL context
+  // must remain current until reset() returns.
+  riveContext.reset();
 
-    RiveLogD(TAG_RC, "Releasing EGL context and surface bindings");
-    eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  RiveLogD(TAG_RC, "Releasing EGL context and surface bindings");
+  eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-    if (pBuffer != EGL_NO_SURFACE)
+  if (pBuffer != EGL_NO_SURFACE)
+  {
+    RiveLogD(TAG_RC, "Destroying PBuffer surface");
+    eglDestroySurface(eglDisplay, pBuffer);
+    pBuffer = EGL_NO_SURFACE;
+    if (auto error = eglGetError(); error != EGL_SUCCESS)
     {
-        RiveLogD(TAG_RC, "Destroying PBuffer surface");
-        eglDestroySurface(eglDisplay, pBuffer);
-        pBuffer = EGL_NO_SURFACE;
-        if (auto error = eglGetError(); error != EGL_SUCCESS)
-        {
-            RiveLogE(TAG_RC,
-                     "Failed to destroy PBuffer surface. Error: %s",
-                     errorString(error).c_str());
-        }
+      RiveLogE(
+          TAG_RC,
+          "Failed to destroy PBuffer surface. Error: %s",
+          errorString(error).c_str());
     }
+  }
 }
 
 EGLint RenderContextGL::destroySurface(EGLSurface surface)
 {
-    if (surface == EGL_NO_SURFACE)
+  if (surface == EGL_NO_SURFACE)
+  {
+    RiveLogE(TAG_RC, "Cannot destroy EGL_NO_SURFACE");
+    return EGL_BAD_SURFACE;
+  }
+  if (surface == pBuffer)
+  {
+    RiveLogE(
+        TAG_RC,
+        "Cannot destroy the worker's background PBuffer through "
+        "destroySurface");
+    return EGL_BAD_SURFACE;
+  }
+  if (eglGetCurrentSurface(EGL_DRAW) == surface ||
+      eglGetCurrentSurface(EGL_READ) == surface)
+  {
+    if (eglGetCurrentContext() != eglContext)
     {
-        RiveLogE(TAG_RC, "Cannot destroy EGL_NO_SURFACE");
-        return EGL_BAD_SURFACE;
+      RiveLogE(
+          TAG_RC,
+          "Cannot destroy EGL surface: surface is current on a "
+          "different EGL context");
+      return EGL_BAD_CONTEXT;
     }
-    if (surface == pBuffer)
+    RiveLogD(
+        TAG_RC,
+        "Switching to background PBuffer before destroying EGL surface");
+    // EGL defers destruction while a surface is current. Bind the
+    // background pbuffer for both drawing and reading, keeping the same EGL
+    // context. For window surfaces, this lets EGL clean up before the
+    // Kotlin caller releases the Surface and SurfaceTexture (or closes the
+    // ImageReader).
+    if (!eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext))
     {
-        RiveLogE(TAG_RC,
-                 "Cannot destroy the worker's background PBuffer through "
-                 "destroySurface");
-        return EGL_BAD_SURFACE;
+      const EGLint error = consume_egl_error_or_default(
+          EGL_BAD_CONTEXT,
+          TAG_RC);
+      RiveLogE(
+          TAG_RC,
+          "Failed to make background PBuffer current before "
+          "destroying EGL surface. Error: %s",
+          errorString(error).c_str());
+      return error;
     }
-    if (eglGetCurrentSurface(EGL_DRAW) == surface ||
-        eglGetCurrentSurface(EGL_READ) == surface)
-    {
-        if (eglGetCurrentContext() != eglContext)
-        {
-            RiveLogE(TAG_RC,
-                     "Cannot destroy EGL surface: surface is current on a "
-                     "different EGL context");
-            return EGL_BAD_CONTEXT;
-        }
-        RiveLogD(
-            TAG_RC,
-            "Switching to background PBuffer before destroying EGL surface");
-        // EGL defers destruction while a surface is current. Bind the
-        // background pbuffer for both drawing and reading, keeping the same EGL
-        // context. For window surfaces, this lets EGL clean up before the
-        // Kotlin caller releases the Surface and SurfaceTexture (or closes the
-        // ImageReader).
-        if (!eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext))
-        {
-            const EGLint error =
-                consume_egl_error_or_default(EGL_BAD_CONTEXT, TAG_RC);
-            RiveLogE(TAG_RC,
-                     "Failed to make background PBuffer current before "
-                     "destroying EGL surface. Error: %s",
-                     errorString(error).c_str());
-            return error;
-        }
-    }
-    if (!eglDestroySurface(eglDisplay, surface))
-    {
-        const EGLint error =
-            consume_egl_error_or_default(EGL_BAD_SURFACE, TAG_RC);
-        RiveLogE(TAG_RC,
-                 "eglDestroySurface failed. Error: %s",
-                 errorString(error).c_str());
-        return error;
-    }
-    return EGL_SUCCESS;
+  }
+  if (!eglDestroySurface(eglDisplay, surface))
+  {
+    const EGLint error = consume_egl_error_or_default(EGL_BAD_SURFACE, TAG_RC);
+    RiveLogE(
+        TAG_RC,
+        "eglDestroySurface failed. Error: %s",
+        errorString(error).c_str());
+    return error;
+  }
+  return EGL_SUCCESS;
 }
 
 rive::rcp<rive::RenderImage> RenderContextGL::createRenderImage(
@@ -192,126 +206,131 @@ rive::rcp<rive::RenderImage> RenderContextGL::createRenderImage(
     uint32_t height,
     std::unique_ptr<const uint8_t[]> imageDataRGBA)
 {
-    auto mipLevelCount = rive::math::msb(height | width);
-    RiveLogD(TAG_RC, "Creating RiveRenderImage");
-    // Android ImageDecoder gives us only the base RGBA level; the renderer must
-    // generate the remaining mips instead of reading a full mip chain.
-    auto texture =
-        riveContext->impl()->makeImageTexture(width,
-                                              height,
-                                              mipLevelCount,
-                                              rive::GPUTextureFormat::rgba32,
-                                              imageDataRGBA.get(),
-                                              /*blockWidth=*/1,
-                                              /*blockHeight=*/1,
-                                              /*srgb=*/false,
-                                              /*generateRemainingMips=*/true);
-    return rive::make_rcp<rive::RiveRenderImage>(texture);
+  auto mipLevelCount = rive::math::msb(height | width);
+  RiveLogD(TAG_RC, "Creating RiveRenderImage");
+  // Android ImageDecoder gives us only the base RGBA level; the renderer must
+  // generate the remaining mips instead of reading a full mip chain.
+  auto texture = riveContext->impl()->makeImageTexture(
+      width,
+      height,
+      mipLevelCount,
+      rive::GPUTextureFormat::rgba32,
+      imageDataRGBA.get(),
+      /*blockWidth=*/1,
+      /*blockHeight=*/1,
+      /*srgb=*/false,
+      /*generateRemainingMips=*/true);
+  return rive::make_rcp<rive::RiveRenderImage>(texture);
 }
 
-rive::gpu::RenderTarget* RenderContextGL::createRenderTarget(RenderSurface*,
-                                                             uint32_t width,
-                                                             uint32_t height)
+rive::gpu::RenderTarget* RenderContextGL::createRenderTarget(
+    RenderSurface*,
+    uint32_t width,
+    uint32_t height)
 {
-    // GL render target creation only needs the requested dimensions. The
-    // surface parameter is present for the shared RenderContext interface,
-    // where Vulkan needs it to read prepared frame metadata.
-    GLint actualSampleCount = 1;
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glGetIntegerv(GL_SAMPLES, &actualSampleCount);
-    RiveLogD(TAG_RC,
-             "Creating GL render target (sample count: %d)",
-             actualSampleCount);
-    return new rive::gpu::FramebufferRenderTargetGL(width,
-                                                    height,
-                                                    0,
-                                                    actualSampleCount);
+  // GL render target creation only needs the requested dimensions. The
+  // surface parameter is present for the shared RenderContext interface,
+  // where Vulkan needs it to read prepared frame metadata.
+  GLint actualSampleCount = 1;
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glGetIntegerv(GL_SAMPLES, &actualSampleCount);
+  RiveLogD(
+      TAG_RC,
+      "Creating GL render target (sample count: %d)",
+      actualSampleCount);
+  return new rive::gpu::FramebufferRenderTargetGL(
+      width,
+      height,
+      0,
+      actualSampleCount);
 }
 
 rive::gpu::RenderTarget* RenderContextGL::beginFrame(RenderSurface* surface)
 {
-    auto* glSurface = static_cast<RenderSurfaceGL*>(surface);
-    auto eglSurface = glSurface->eglSurface();
+  auto* glSurface = static_cast<RenderSurfaceGL*>(surface);
+  auto eglSurface = glSurface->eglSurface();
 
-    // Capture the old drawable before eglMakeCurrent(), after which querying
-    // EGL_DRAW would necessarily return eglSurface. Although FBOs belong to
-    // the EGLContext rather than its drawable, Android emulator drivers can
-    // report GL_FRAMEBUFFER_UNSUPPORTED when an Ore scratch FBO survives an
-    // ImageReader EGLSurface replacement. Comparing the opaque EGLSurface IDs
-    // lets stable surfaces retain the cache while transitions discard it.
-    const EGLSurface previousEglSurface = eglGetCurrentSurface(EGL_DRAW);
-    if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
-    {
-        RiveLogE(
-            TAG_RC,
-            "Failed to make EGL context current for render target. Error: %s",
-            errorString(eglGetError()).c_str());
-        return nullptr;
-    }
-    if (previousEglSurface != eglSurface)
-    {
-        auto* oreContext =
-            static_cast<rive::ore::ContextGL*>(riveContext->ore());
-        oreContext->invalidateScratchFramebuffers();
-    }
-    return glSurface->getOrCreateRenderTarget(this);
+  // Capture the old drawable before eglMakeCurrent(), after which querying
+  // EGL_DRAW would necessarily return eglSurface. Although FBOs belong to
+  // the EGLContext rather than its drawable, Android emulator drivers can
+  // report GL_FRAMEBUFFER_UNSUPPORTED when an Ore scratch FBO survives an
+  // ImageReader EGLSurface replacement. Comparing the opaque EGLSurface IDs
+  // lets stable surfaces retain the cache while transitions discard it.
+  const EGLSurface previousEglSurface = eglGetCurrentSurface(EGL_DRAW);
+  if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
+  {
+    RiveLogE(
+        TAG_RC,
+        "Failed to make EGL context current for render target. Error: %s",
+        errorString(eglGetError()).c_str());
+    return nullptr;
+  }
+  if (previousEglSurface != eglSurface)
+  {
+    auto* oreContext = static_cast<rive::ore::ContextGL*>(riveContext->ore());
+    oreContext->invalidateScratchFramebuffers();
+  }
+  return glSurface->getOrCreateRenderTarget(this);
 }
 
 bool RenderContextGL::flush(RenderSurface* surface)
 {
-    auto* renderTarget = surface->renderTarget();
-    if (renderTarget == nullptr)
-    {
-        return false;
-    }
-    riveContext->flush({
-        .renderTarget = renderTarget,
-    });
-    return true;
+  auto* renderTarget = surface->renderTarget();
+  if (renderTarget == nullptr)
+  {
+    return false;
+  }
+  riveContext->flush({
+      .renderTarget = renderTarget,
+  });
+  return true;
 }
 
 bool RenderContextGL::present(RenderSurface* surface)
 {
-    auto* glSurface = static_cast<RenderSurfaceGL*>(surface);
-    auto eglSurface = glSurface->eglSurface();
-    if (!eglSwapBuffers(eglDisplay, eglSurface))
-    {
-        RiveLogE(TAG_RC,
-                 "Failed to swap EGL buffers in present. Error: %s",
-                 errorString(eglGetError()).c_str());
-        return false;
-    }
-    return true;
+  auto* glSurface = static_cast<RenderSurfaceGL*>(surface);
+  auto eglSurface = glSurface->eglSurface();
+  if (!eglSwapBuffers(eglDisplay, eglSurface))
+  {
+    RiveLogE(
+        TAG_RC,
+        "Failed to swap EGL buffers in present. Error: %s",
+        errorString(eglGetError()).c_str());
+    return false;
+  }
+  return true;
 }
 
-bool RenderContextGL::readPixels(RenderSurface*,
-                                 uint32_t width,
-                                 uint32_t height,
-                                 uint8_t* pixels)
+bool RenderContextGL::readPixels(
+    RenderSurface*,
+    uint32_t width,
+    uint32_t height,
+    uint8_t* pixels)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glFinish();
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0,
-                 0,
-                 static_cast<GLsizei>(width),
-                 static_cast<GLsizei>(height),
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
-                 pixels);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glFinish();
+  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  glReadPixels(
+      0,
+      0,
+      static_cast<GLsizei>(width),
+      static_cast<GLsizei>(height),
+      GL_RGBA,
+      GL_UNSIGNED_BYTE,
+      pixels);
 
-    auto rowBytes = static_cast<size_t>(width) * 4;
-    std::vector<uint8_t> row(rowBytes);
-    auto* data = pixels;
-    for (uint32_t y = 0; y < height / 2; ++y)
-    {
-        auto* top = data + (static_cast<size_t>(y) * rowBytes);
-        auto* bottom = data + (static_cast<size_t>(height - 1 - y) * rowBytes);
-        std::memcpy(row.data(), top, rowBytes);
-        std::memcpy(top, bottom, rowBytes);
-        std::memcpy(bottom, row.data(), rowBytes);
-    }
-    return true;
+  auto rowBytes = static_cast<size_t>(width) * 4;
+  std::vector<uint8_t> row(rowBytes);
+  auto* data = pixels;
+  for (uint32_t y = 0; y < height / 2; ++y)
+  {
+    auto* top = data + (static_cast<size_t>(y) * rowBytes);
+    auto* bottom = data + (static_cast<size_t>(height - 1 - y) * rowBytes);
+    std::memcpy(row.data(), top, rowBytes);
+    std::memcpy(top, bottom, rowBytes);
+    std::memcpy(bottom, row.data(), rowBytes);
+  }
+  return true;
 }
 
 } // namespace rive_android

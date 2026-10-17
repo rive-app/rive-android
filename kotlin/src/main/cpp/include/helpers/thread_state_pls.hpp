@@ -10,28 +10,28 @@ namespace rive_android
 class PLSThreadState : public EGLThreadState
 {
 public:
-    PLSThreadState();
-    ~PLSThreadState() override;
+  PLSThreadState();
+  ~PLSThreadState() override;
 
-    [[nodiscard]] rive::gpu::RenderContext* renderContext() const
-    {
-        return m_renderContext.get();
-    }
+  [[nodiscard]] rive::gpu::RenderContext* renderContext() const
+  {
+    return m_renderContext.get();
+  }
 
-    void destroySurface(EGLSurface eglSurface) override;
+  void destroySurface(EGLSurface eglSurface) override;
 
-    EGLResult makeCurrent(EGLSurface eglSurface) override;
+  EGLResult makeCurrent(EGLSurface eglSurface) override;
 
-    EGLResult recoverAfterContextLoss() override;
+  EGLResult recoverAfterContextLoss() override;
 
 private:
-    EGLResult initializePLSResources();
-    void teardownPLSResources();
+  EGLResult initializePLSResources();
+  void teardownPLSResources();
 
-    std::unique_ptr<rive::gpu::RenderContext> m_renderContext;
+  std::unique_ptr<rive::gpu::RenderContext> m_renderContext;
 
-    // 1x1 Pbuffer surface that allows us to make the GL context current without
-    // a window surface.
-    EGLSurface m_backgroundSurface = EGL_NO_SURFACE;
+  // 1x1 Pbuffer surface that allows us to make the GL context current without
+  // a window surface.
+  EGLSurface m_backgroundSurface = EGL_NO_SURFACE;
 };
 } // namespace rive_android

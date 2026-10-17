@@ -48,10 +48,11 @@ rive::rcp<rive::RenderImage> renderImageFromRGBABytesCanvas(
 
 /** Rive (GL) path: from ARGB ints -> RGBA bytes -> AndroidImage. Uses the
  * Canvas path where the Rive renderer is unsupported. */
-rive::rcp<rive::RenderImage> renderImageFromARGBIntsRive(uint32_t width,
-                                                         uint32_t height,
-                                                         const uint32_t* pixels,
-                                                         bool isPremultiplied);
+rive::rcp<rive::RenderImage> renderImageFromARGBIntsRive(
+    uint32_t width,
+    uint32_t height,
+    const uint32_t* pixels,
+    bool isPremultiplied);
 
 /** Canvas path: from ARGB ints -> Bitmap::setPixels -> CanvasRenderImage */
 rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
@@ -63,8 +64,9 @@ rive::rcp<rive::RenderImage> renderImageFromARGBIntsCanvas(
 /** Rive (GL) path: Android Bitmap -> internal buffer -> RGBA bytes ->
  * AndroidImage. Uses the Canvas RGBA path, which copies the pixels, where the
  * Rive renderer is unsupported. */
-rive::rcp<rive::RenderImage> renderImageFromBitmapRive(jobject jBitmap,
-                                                       bool isPremultiplied);
+rive::rcp<rive::RenderImage> renderImageFromBitmapRive(
+    jobject jBitmap,
+    bool isPremultiplied);
 
 /** Canvas path: Android Bitmap -> wrap -> CanvasRenderImage */
 rive::rcp<rive::RenderImage> renderImageFromBitmapCanvas(jobject jBitmap);
@@ -75,9 +77,10 @@ uint32_t unpremultiply(uint8_t c, uint8_t a);
 
 /** Lock an Android Bitmap to access its buffer and ensure it's RGBA_8888
  * format. */
-bool lockBitmapRGBA8888(JNIEnv* env,
-                        jobject jBitmap,
-                        AndroidBitmapInfo* info,
-                        const uint32_t** pixels);
+bool lockBitmapRGBA8888(
+    JNIEnv* env,
+    jobject jBitmap,
+    AndroidBitmapInfo* info,
+    const uint32_t** pixels);
 
 } // namespace rive_android

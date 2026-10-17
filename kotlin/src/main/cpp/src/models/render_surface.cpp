@@ -8,50 +8,51 @@ namespace rive_android
 
 constexpr static auto* TAG_SURFACE = "RiveN/RenderSurface";
 
-RenderSurface::RenderSurface(uint32_t requestedWidth,
-                             uint32_t requestedHeight) :
-    m_requestedWidth(requestedWidth), m_requestedHeight(requestedHeight)
+RenderSurface::RenderSurface(uint32_t requestedWidth, uint32_t requestedHeight)
+    : m_requestedWidth(requestedWidth)
+    , m_requestedHeight(requestedHeight)
 {}
 
 rive::gpu::RenderTarget* RenderSurface::getOrCreateRenderTarget(
     RenderContext* renderContext)
 {
-    if (m_renderTarget == nullptr)
+  if (m_renderTarget == nullptr)
+  {
+    if (m_requestedWidth == 0 || m_requestedHeight == 0)
     {
-        if (m_requestedWidth == 0 || m_requestedHeight == 0)
-        {
-            RiveLogE(TAG_SURFACE,
-                     "Cannot create render target with invalid requested "
-                     "size: %u x %u",
-                     m_requestedWidth,
-                     m_requestedHeight);
-            return nullptr;
-        }
-        m_renderTarget.reset(
-            renderContext->createRenderTarget(this,
-                                              m_requestedWidth,
-                                              m_requestedHeight));
+      RiveLogE(
+          TAG_SURFACE,
+          "Cannot create render target with invalid requested "
+          "size: %u x %u",
+          m_requestedWidth,
+          m_requestedHeight);
+      return nullptr;
     }
-    return m_renderTarget.get();
+    m_renderTarget.reset(renderContext->createRenderTarget(
+        this,
+        m_requestedWidth,
+        m_requestedHeight));
+  }
+  return m_renderTarget.get();
 }
 
 rive::gpu::RenderTarget* RenderSurface::renderTarget() const
 {
-    return m_renderTarget.get();
+  return m_renderTarget.get();
 }
 
 void RenderSurface::resize(uint32_t requestedWidth, uint32_t requestedHeight)
 {
-    if (m_requestedWidth == requestedWidth &&
-        m_requestedHeight == requestedHeight)
-    {
-        return;
-    }
+  if (m_requestedWidth == requestedWidth &&
+      m_requestedHeight == requestedHeight)
+  {
+    return;
+  }
 
-    onResize();
-    m_requestedWidth = requestedWidth;
-    m_requestedHeight = requestedHeight;
-    resetRenderTarget();
+  onResize();
+  m_requestedWidth = requestedWidth;
+  m_requestedHeight = requestedHeight;
+  resetRenderTarget();
 }
 
 void RenderSurface::resetRenderTarget() { m_renderTarget.reset(); }
@@ -59,10 +60,10 @@ void RenderSurface::resetRenderTarget() { m_renderTarget.reset(); }
 void RenderSurface::RenderTargetUnref::operator()(
     rive::gpu::RenderTarget* renderTarget) const
 {
-    if (renderTarget != nullptr)
-    {
-        renderTarget->unref();
-    }
+  if (renderTarget != nullptr)
+  {
+    renderTarget->unref();
+  }
 }
 
 } // namespace rive_android

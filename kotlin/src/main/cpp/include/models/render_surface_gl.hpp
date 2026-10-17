@@ -17,15 +17,16 @@ namespace rive_android
 class RenderSurfaceGL : public RenderSurface
 {
 public:
-    RenderSurfaceGL(EGLSurface surface,
-                    uint32_t requestedWidth,
-                    uint32_t requestedHeight);
+  RenderSurfaceGL(
+      EGLSurface surface,
+      uint32_t requestedWidth,
+      uint32_t requestedHeight);
 
-    /** @return The borrowed EGL surface handle. */
-    EGLSurface eglSurface() const;
+  /** @return The borrowed EGL surface handle. */
+  EGLSurface eglSurface() const;
 
 private:
-    EGLSurface m_surface;
+  EGLSurface m_surface;
 };
 
 } // namespace rive_android

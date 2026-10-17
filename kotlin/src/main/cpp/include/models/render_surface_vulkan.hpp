@@ -32,10 +32,10 @@ namespace rive_android
  */
 struct VulkanPendingWindowSurface
 {
-    explicit VulkanPendingWindowSurface(uint64_t initialFrameNumber = 0);
+  explicit VulkanPendingWindowSurface(uint64_t initialFrameNumber = 0);
 
-    // Frame number to resume from when the swapchain is recreated.
-    uint64_t initialFrameNumber = 0;
+  // Frame number to resume from when the swapchain is recreated.
+  uint64_t initialFrameNumber = 0;
 };
 
 /**
@@ -46,10 +46,10 @@ struct VulkanPendingWindowSurface
  */
 struct VulkanPreparedWindowSurface
 {
-    explicit VulkanPreparedWindowSurface(
-        std::unique_ptr<rive_vkb::VulkanSwapchain>&& swapchain);
+  explicit VulkanPreparedWindowSurface(
+      std::unique_ptr<rive_vkb::VulkanSwapchain>&& swapchain);
 
-    std::unique_ptr<rive_vkb::VulkanSwapchain> swapchain;
+  std::unique_ptr<rive_vkb::VulkanSwapchain> swapchain;
 };
 
 /**
@@ -60,31 +60,32 @@ struct VulkanPreparedWindowSurface
  */
 struct VulkanWindowSurface
 {
-    VulkanWindowSurface(ANativeWindow* nativeWindow,
-                        VkInstance instance,
-                        PFN_vkDestroySurfaceKHR destroySurfaceKHR);
-    ~VulkanWindowSurface();
+  VulkanWindowSurface(
+      ANativeWindow* nativeWindow,
+      VkInstance instance,
+      PFN_vkDestroySurfaceKHR destroySurfaceKHR);
+  ~VulkanWindowSurface();
 
-    /**
-     * @return The prepared swapchain synchronizer, or nullptr before
-     * resources have been created.
-     */
-    [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
-    /** @return The prepared swapchain, or nullptr while creation is pending. */
-    [[nodiscard]] rive_vkb::VulkanSwapchain* swapchain();
-    /** @return Pending creation state, or nullptr when a swapchain is prepared.
-     */
-    [[nodiscard]] VulkanPendingWindowSurface* pending();
-    /** Move this window surface into the prepared state. */
-    void prepare(std::unique_ptr<rive_vkb::VulkanSwapchain>&& swapchain);
-    /** Drop the prepared swapchain and mark it for lazy recreation. */
-    void invalidate();
+  /**
+   * @return The prepared swapchain synchronizer, or nullptr before
+   * resources have been created.
+   */
+  [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
+  /** @return The prepared swapchain, or nullptr while creation is pending. */
+  [[nodiscard]] rive_vkb::VulkanSwapchain* swapchain();
+  /** @return Pending creation state, or nullptr when a swapchain is prepared.
+   */
+  [[nodiscard]] VulkanPendingWindowSurface* pending();
+  /** Move this window surface into the prepared state. */
+  void prepare(std::unique_ptr<rive_vkb::VulkanSwapchain>&& swapchain);
+  /** Drop the prepared swapchain and mark it for lazy recreation. */
+  void invalidate();
 
-    ANativeWindow* nativeWindow = nullptr;
-    VkInstance instance = VK_NULL_HANDLE;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    PFN_vkDestroySurfaceKHR destroySurfaceKHR = nullptr;
-    std::variant<VulkanPendingWindowSurface, VulkanPreparedWindowSurface> state;
+  ANativeWindow* nativeWindow = nullptr;
+  VkInstance instance = VK_NULL_HANDLE;
+  VkSurfaceKHR surface = VK_NULL_HANDLE;
+  PFN_vkDestroySurfaceKHR destroySurfaceKHR = nullptr;
+  std::variant<VulkanPendingWindowSurface, VulkanPreparedWindowSurface> state;
 };
 
 /**
@@ -96,14 +97,15 @@ struct VulkanWindowSurface
  */
 struct VulkanPendingImageSurface
 {
-    VulkanPendingImageSurface(uint32_t width,
-                              uint32_t height,
-                              uint64_t initialFrameNumber = 0);
+  VulkanPendingImageSurface(
+      uint32_t width,
+      uint32_t height,
+      uint64_t initialFrameNumber = 0);
 
-    uint32_t width = 0;
-    uint32_t height = 0;
-    // Frame number to resume from when the synchronizer is recreated.
-    uint64_t initialFrameNumber = 0;
+  uint32_t width = 0;
+  uint32_t height = 0;
+  // Frame number to resume from when the synchronizer is recreated.
+  uint64_t initialFrameNumber = 0;
 };
 
 /**
@@ -114,11 +116,11 @@ struct VulkanPendingImageSurface
  */
 struct VulkanPreparedImageSurface
 {
-    explicit VulkanPreparedImageSurface(
-        std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer>&&
-            synchronizer);
+  explicit VulkanPreparedImageSurface(
+      std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer>&&
+          synchronizer);
 
-    std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer> synchronizer;
+  std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer> synchronizer;
 };
 
 /**
@@ -129,30 +131,30 @@ struct VulkanPreparedImageSurface
  */
 struct VulkanImageSurface
 {
-    VulkanImageSurface(uint32_t width, uint32_t height);
-    ~VulkanImageSurface();
+  VulkanImageSurface(uint32_t width, uint32_t height);
+  ~VulkanImageSurface();
 
-    /**
-     * @return The prepared headless synchronizer, or nullptr before resources
-     * have been created.
-     */
-    [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
-    /**
-     * @return The prepared headless synchronizer, or nullptr while creation is
-     * pending.
-     */
-    [[nodiscard]] rive_vkb::VulkanHeadlessFrameSynchronizer*
-    headlessFrameSynchronizer();
-    /**
-     * @return Pending creation state, or nullptr when a synchronizer is
-     * prepared.
-     */
-    [[nodiscard]] VulkanPendingImageSurface* pending();
-    /** Move this image surface into the prepared state. */
-    void prepare(std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer>&&
-                     synchronizer);
+  /**
+   * @return The prepared headless synchronizer, or nullptr before resources
+   * have been created.
+   */
+  [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
+  /**
+   * @return The prepared headless synchronizer, or nullptr while creation is
+   * pending.
+   */
+  [[nodiscard]] rive_vkb::VulkanHeadlessFrameSynchronizer*
+  headlessFrameSynchronizer();
+  /**
+   * @return Pending creation state, or nullptr when a synchronizer is
+   * prepared.
+   */
+  [[nodiscard]] VulkanPendingImageSurface* pending();
+  /** Move this image surface into the prepared state. */
+  void prepare(std::unique_ptr<rive_vkb::VulkanHeadlessFrameSynchronizer>&&
+                   synchronizer);
 
-    std::variant<VulkanPendingImageSurface, VulkanPreparedImageSurface> state;
+  std::variant<VulkanPendingImageSurface, VulkanPreparedImageSurface> state;
 };
 
 /**
@@ -168,63 +170,63 @@ struct VulkanImageSurface
  */
 struct RenderSurfaceVulkan : RenderSurface
 {
-    static std::unique_ptr<RenderSurfaceVulkan> MakeWindow(
-        rive_vkb::VulkanDevice* device,
-        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
-        ANativeWindow* nativeWindow,
-        VkInstance instance,
-        PFN_vkDestroySurfaceKHR destroySurfaceKHR,
-        int width,
-        int height);
+  static std::unique_ptr<RenderSurfaceVulkan> MakeWindow(
+      rive_vkb::VulkanDevice* device,
+      rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+      ANativeWindow* nativeWindow,
+      VkInstance instance,
+      PFN_vkDestroySurfaceKHR destroySurfaceKHR,
+      int width,
+      int height);
 
-    static std::unique_ptr<RenderSurfaceVulkan> MakeImage(
-        rive_vkb::VulkanDevice* device,
-        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
-        int width,
-        int height);
+  static std::unique_ptr<RenderSurfaceVulkan> MakeImage(
+      rive_vkb::VulkanDevice* device,
+      rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+      int width,
+      int height);
 
-    ~RenderSurfaceVulkan();
+  ~RenderSurfaceVulkan();
 
-    [[nodiscard]] VulkanWindowSurface* window();
-    [[nodiscard]] VulkanImageSurface* image();
-    /**
-     * @return The prepared synchronizer for the active backend variant, or
-     * nullptr before resources have been created.
-     */
-    [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
+  [[nodiscard]] VulkanWindowSurface* window();
+  [[nodiscard]] VulkanImageSurface* image();
+  /**
+   * @return The prepared synchronizer for the active backend variant, or
+   * nullptr before resources have been created.
+   */
+  [[nodiscard]] rive_vkb::VulkanFrameSynchronizer* synchronizer();
 
-    /** Register the prepared synchronizer with the context-wide coordinator. */
-    void registerFrameSynchronizer();
-    /** Unregister the prepared synchronizer before replacing or destroying it.
-     */
-    void unregisterFrameSynchronizer();
+  /** Register the prepared synchronizer with the context-wide coordinator. */
+  void registerFrameSynchronizer();
+  /** Unregister the prepared synchronizer before replacing or destroying it.
+   */
+  void unregisterFrameSynchronizer();
 
-    std::variant<VulkanWindowSurface, VulkanImageSurface> backend;
-    // Borrowed from RenderContextVulkan so destruction can wait for idle before
-    // releasing per-surface Vulkan resources. RenderContextVulkan must outlive
-    // every RenderSurfaceVulkan created from it.
-    rive_vkb::VulkanDevice* device = nullptr;
-    // Borrowed from RenderContextVulkan. Synchronizers must be removed before
-    // their owning surface state is invalidated or destroyed.
-    rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator = nullptr;
+  std::variant<VulkanWindowSurface, VulkanImageSurface> backend;
+  // Borrowed from RenderContextVulkan so destruction can wait for idle before
+  // releasing per-surface Vulkan resources. RenderContextVulkan must outlive
+  // every RenderSurfaceVulkan created from it.
+  rive_vkb::VulkanDevice* device = nullptr;
+  // Borrowed from RenderContextVulkan. Synchronizers must be removed before
+  // their owning surface state is invalidated or destroyed.
+  rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator = nullptr;
 
 private:
-    void onResize() override;
+  void onResize() override;
 
-    RenderSurfaceVulkan(
-        rive_vkb::VulkanDevice* device,
-        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
-        ANativeWindow* nativeWindow,
-        VkInstance instance,
-        PFN_vkDestroySurfaceKHR destroySurfaceKHR,
-        uint32_t width,
-        uint32_t height);
+  RenderSurfaceVulkan(
+      rive_vkb::VulkanDevice* device,
+      rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+      ANativeWindow* nativeWindow,
+      VkInstance instance,
+      PFN_vkDestroySurfaceKHR destroySurfaceKHR,
+      uint32_t width,
+      uint32_t height);
 
-    RenderSurfaceVulkan(
-        rive_vkb::VulkanDevice* device,
-        rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
-        uint32_t width,
-        uint32_t height);
+  RenderSurfaceVulkan(
+      rive_vkb::VulkanDevice* device,
+      rive_vkb::VulkanFrameSyncCoordinator* frameSyncCoordinator,
+      uint32_t width,
+      uint32_t height);
 };
 
 } // namespace rive_android

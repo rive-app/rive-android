@@ -48,9 +48,9 @@ constexpr const char* TAG_RC = "RiveN/RenderContext";
  */
 struct StartupResult
 {
-    bool success;
-    int32_t errorCode;
-    std::string message;
+  bool success;
+  int32_t errorCode;
+  std::string message;
 };
 
 /**
@@ -70,168 +70,172 @@ struct StartupResult
 class RenderContext
 {
 public:
-    virtual ~RenderContext() = default;
+  virtual ~RenderContext() = default;
 
-    /**
-     * Initialize the RenderContext and its resources. Call on the render
-     * thread.
-     */
-    virtual StartupResult initialize() = 0;
+  /**
+   * Initialize the RenderContext and its resources. Call on the render
+   * thread.
+   */
+  virtual StartupResult initialize() = 0;
 
-    /**
-     * Starts best-effort compilation of common draw shaders on the owning
-     * worker thread. Does not wait for background compilation to complete.
-     */
-    virtual void precompileShaders() = 0;
+  /**
+   * Starts best-effort compilation of common draw shaders on the owning
+   * worker thread. Does not wait for background compilation to complete.
+   */
+  virtual void precompileShaders() = 0;
 
-    /**
-     * Destroy backend resources owned by this RenderContext.
-     *
-     * Must be called on the render thread. Implementations must tolerate being
-     * called after failed or partial initialization, and must be idempotent.
-     */
-    virtual void destroy() = 0;
+  /**
+   * Destroy backend resources owned by this RenderContext.
+   *
+   * Must be called on the render thread. Implementations must tolerate being
+   * called after failed or partial initialization, and must be idempotent.
+   */
+  virtual void destroy() = 0;
 
-    /**
-     * Make a renderable Rive image from decoded image data.
-     *
-     * @param width The width of the image.
-     * @param height The height of the image.
-     * @param imageDataRGBA The decoded image data in RGBA format.
-     * @return A renderable rive::RenderImage backed by the underlying
-     *   renderer's texture type.
-     */
-    virtual rive::rcp<rive::RenderImage> createRenderImage(
-        uint32_t width,
-        uint32_t height,
-        std::unique_ptr<const uint8_t[]> imageDataRGBA) = 0;
+  /**
+   * Make a renderable Rive image from decoded image data.
+   *
+   * @param width The width of the image.
+   * @param height The height of the image.
+   * @param imageDataRGBA The decoded image data in RGBA format.
+   * @return A renderable rive::RenderImage backed by the underlying
+   *   renderer's texture type.
+   */
+  virtual rive::rcp<rive::RenderImage> createRenderImage(
+      uint32_t width,
+      uint32_t height,
+      std::unique_ptr<const uint8_t[]> imageDataRGBA) = 0;
 
-    /**
-     * Create a render target for a backend-specific surface.
-     *
-     * Width and height are requested dimensions supplied by the runtime.
-     * Backends may adjust or ignore them when the final drawable extent is
-     * defined by prepared surface resources.
-     *
-     * @param surface Backend-specific surface pointer.
-     * @param width Requested render target width in pixels.
-     * @param height Requested render target height in pixels.
-     * @return The created render target, or nullptr if the backend cannot
-     * create a compatible target.
-     */
-    virtual rive::gpu::RenderTarget* createRenderTarget(RenderSurface* surface,
-                                                        uint32_t width,
-                                                        uint32_t height) = 0;
+  /**
+   * Create a render target for a backend-specific surface.
+   *
+   * Width and height are requested dimensions supplied by the runtime.
+   * Backends may adjust or ignore them when the final drawable extent is
+   * defined by prepared surface resources.
+   *
+   * @param surface Backend-specific surface pointer.
+   * @param width Requested render target width in pixels.
+   * @param height Requested render target height in pixels.
+   * @return The created render target, or nullptr if the backend cannot
+   * create a compatible target.
+   */
+  virtual rive::gpu::RenderTarget* createRenderTarget(
+      RenderSurface* surface,
+      uint32_t width,
+      uint32_t height) = 0;
 
-    // Frame rendering calls these in sequence:
-    // beginFrame(), flush(), present().
+  // Frame rendering calls these in sequence:
+  // beginFrame(), flush(), present().
 
-    /**
-     * Prepare a backend surface for drawing and return its concrete render
-     * target.
-     *
-     * @param surface Backend-specific surface pointer.
-     * @return The concrete render target for this frame, or nullptr if drawing
-     * cannot proceed.
-     */
-    virtual rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) = 0;
-    /** Command buffer and frame numbers of the frame beginFrame() opened. */
-    virtual rive::gpu::RenderContext::FlushResources frameFlushResources(
-        RenderSurface* surface)
-    {
-        return {};
-    }
+  /**
+   * Prepare a backend surface for drawing and return its concrete render
+   * target.
+   *
+   * @param surface Backend-specific surface pointer.
+   * @return The concrete render target for this frame, or nullptr if drawing
+   * cannot proceed.
+   */
+  virtual rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) = 0;
+  /** Command buffer and frame numbers of the frame beginFrame() opened. */
+  virtual rive::gpu::RenderContext::FlushResources frameFlushResources(
+      RenderSurface* surface)
+  {
+    return {};
+  }
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
-    /**
-     * What scripts see of the frame's render target, which they may draw
-     * into under Rive's content. Zero width where the backend cannot wrap it.
-     *
-     * @param renderTarget The target beginFrame() returned.
-     */
-    virtual rive::ore::Context::TargetDesc oreTarget(
-        rive::gpu::RenderTarget* renderTarget) const
-    {
-        return {};
-    }
+  /**
+   * What scripts see of the frame's render target, which they may draw
+   * into under Rive's content. Zero width where the backend cannot wrap it.
+   *
+   * @param renderTarget The target beginFrame() returned.
+   */
+  virtual rive::ore::Context::TargetDesc oreTarget(
+      rive::gpu::RenderTarget* renderTarget) const
+  {
+    return {};
+  }
 #endif
-    /**
-     * Flush backend-specific render commands to the surface's current target.
-     *
-     * @param surface Backend-specific surface pointer.
-     * @return true if the frame was flushed.
-     */
-    virtual bool flush(RenderSurface* surface) = 0;
-    /**
-     * Present the frame by swapping buffers on the provided surface.
-     *
-     * @param surface Backend-specific surface pointer.
-     * @return true if the frame was presented.
-     */
-    virtual bool present(RenderSurface* surface) = 0;
+  /**
+   * Flush backend-specific render commands to the surface's current target.
+   *
+   * @param surface Backend-specific surface pointer.
+   * @return true if the frame was flushed.
+   */
+  virtual bool flush(RenderSurface* surface) = 0;
+  /**
+   * Present the frame by swapping buffers on the provided surface.
+   *
+   * @param surface Backend-specific surface pointer.
+   * @return true if the frame was presented.
+   */
+  virtual bool present(RenderSurface* surface) = 0;
 
-    /**
-     * Read pixels from the current render target into an RGBA buffer.
-     *
-     * @param surface Backend-specific surface pointer.
-     * @param width Width to read in pixels.
-     * @param height Height to read in pixels.
-     * @param pixels Destination RGBA buffer.
-     * @return true if pixels were read into the destination buffer.
-     */
-    virtual bool readPixels(RenderSurface* surface,
-                            uint32_t width,
-                            uint32_t height,
-                            uint8_t* pixels) = 0;
+  /**
+   * Read pixels from the current render target into an RGBA buffer.
+   *
+   * @param surface Backend-specific surface pointer.
+   * @param width Width to read in pixels.
+   * @param height Height to read in pixels.
+   * @param pixels Destination RGBA buffer.
+   * @return true if pixels were read into the destination buffer.
+   */
+  virtual bool readPixels(
+      RenderSurface* surface,
+      uint32_t width,
+      uint32_t height,
+      uint8_t* pixels) = 0;
 
-    std::unique_ptr<rive::gpu::RenderContext> riveContext;
+  std::unique_ptr<rive::gpu::RenderContext> riveContext;
 };
 
 /** Native RenderContext implementation for EGL/OpenGL ES. */
 struct RenderContextGL : RenderContext
 {
-    RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext);
-    ~RenderContextGL() override = default;
+  RenderContextGL(EGLDisplay eglDisplay, EGLContext eglContext);
+  ~RenderContextGL() override = default;
 
-    StartupResult initialize() override;
-    /** Starts common shader warmup on the owning worker thread. */
-    void precompileShaders() override;
-    void destroy() override;
+  StartupResult initialize() override;
+  /** Starts common shader warmup on the owning worker thread. */
+  void precompileShaders() override;
+  void destroy() override;
 
-    /**
-     * Destroys a surface on the owning worker thread, first switching to the
-     * background pbuffer if the surface is current for drawing or reading.
-     * Keeps the EGL context current for subsequent GL resource cleanup.
-     * @param surface The window or capture pbuffer surface to destroy.
-     * @return EGL_SUCCESS, or the EGL error from switching or destruction.
-     */
-    EGLint destroySurface(EGLSurface surface);
+  /**
+   * Destroys a surface on the owning worker thread, first switching to the
+   * background pbuffer if the surface is current for drawing or reading.
+   * Keeps the EGL context current for subsequent GL resource cleanup.
+   * @param surface The window or capture pbuffer surface to destroy.
+   * @return EGL_SUCCESS, or the EGL error from switching or destruction.
+   */
+  EGLint destroySurface(EGLSurface surface);
 
-    rive::rcp<rive::RenderImage> createRenderImage(
-        uint32_t width,
-        uint32_t height,
-        std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
+  rive::rcp<rive::RenderImage> createRenderImage(
+      uint32_t width,
+      uint32_t height,
+      std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
 
-    rive::gpu::RenderTarget* createRenderTarget(RenderSurface*,
-                                                uint32_t width,
-                                                uint32_t height) override;
+  rive::gpu::RenderTarget* createRenderTarget(
+      RenderSurface*,
+      uint32_t width,
+      uint32_t height) override;
 
-    rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) override;
-    bool flush(RenderSurface* surface) override;
-    bool present(RenderSurface* surface) override;
+  rive::gpu::RenderTarget* beginFrame(RenderSurface* surface) override;
+  bool flush(RenderSurface* surface) override;
+  bool present(RenderSurface* surface) override;
 
-    bool readPixels(RenderSurface* surface,
-                    uint32_t width,
-                    uint32_t height,
-                    uint8_t* pixels) override;
+  bool readPixels(
+      RenderSurface* surface,
+      uint32_t width,
+      uint32_t height,
+      uint8_t* pixels) override;
 
-    EGLDisplay eglDisplay;
-    EGLContext eglContext;
+  EGLDisplay eglDisplay;
+  EGLContext eglContext;
 
 private:
-    /** A 1x1 PBuffer to bind to the context (some devices do not support
-     * surface-less bindings).
-     * We must have a valid binding for `MakeContext` to succeed. */
-    EGLSurface pBuffer;
+  /** A 1x1 PBuffer to bind to the context (some devices do not support
+   * surface-less bindings).
+   * We must have a valid binding for `MakeContext` to succeed. */
+  EGLSurface pBuffer;
 };
 
 #ifdef RIVE_VULKAN
@@ -239,63 +243,67 @@ private:
 /** Native RenderContext implementation for Vulkan. */
 struct RenderContextVulkan : RenderContext
 {
-    /**
-     * @param enableDebugNames Whether optional Vulkan object names may be
-     * assigned by the shared renderer.
-     */
-    explicit RenderContextVulkan(bool enableDebugNames);
-    ~RenderContextVulkan() override;
+  /**
+   * @param enableDebugNames Whether optional Vulkan object names may be
+   * assigned by the shared renderer.
+   */
+  explicit RenderContextVulkan(bool enableDebugNames);
+  ~RenderContextVulkan() override;
 
-    StartupResult initialize() override;
-    /** Starts common shader warmup on the owning worker thread. */
-    void precompileShaders() override;
-    void destroy() override;
+  StartupResult initialize() override;
+  /** Starts common shader warmup on the owning worker thread. */
+  void precompileShaders() override;
+  void destroy() override;
 
-    RenderSurfaceVulkan* createWindowSurface(ANativeWindow* nativeWindow,
-                                             int width,
-                                             int height);
+  RenderSurfaceVulkan* createWindowSurface(
+      ANativeWindow* nativeWindow,
+      int width,
+      int height);
 
-    RenderSurfaceVulkan* createImageSurface(int width, int height);
+  RenderSurfaceVulkan* createImageSurface(int width, int height);
 
-    rive::rcp<rive::RenderImage> createRenderImage(
-        uint32_t width,
-        uint32_t height,
-        std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
+  rive::rcp<rive::RenderImage> createRenderImage(
+      uint32_t width,
+      uint32_t height,
+      std::unique_ptr<const uint8_t[]> imageDataRGBA) override;
 
-    rive::gpu::RenderTarget* createRenderTarget(RenderSurface* nativeSurface,
-                                                uint32_t width,
-                                                uint32_t height) override;
+  rive::gpu::RenderTarget* createRenderTarget(
+      RenderSurface* nativeSurface,
+      uint32_t width,
+      uint32_t height) override;
 
-    rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
-    rive::gpu::RenderContext::FlushResources frameFlushResources(
-        RenderSurface* nativeSurface) override;
+  rive::gpu::RenderTarget* beginFrame(RenderSurface* nativeSurface) override;
+  rive::gpu::RenderContext::FlushResources frameFlushResources(
+      RenderSurface* nativeSurface) override;
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
-    rive::ore::Context::TargetDesc oreTarget(
-        rive::gpu::RenderTarget* renderTarget) const override;
+  rive::ore::Context::TargetDesc oreTarget(
+      rive::gpu::RenderTarget* renderTarget) const override;
 #endif
-    bool flush(RenderSurface* nativeSurface) override;
-    bool present(RenderSurface* nativeSurface) override;
+  bool flush(RenderSurface* nativeSurface) override;
+  bool present(RenderSurface* nativeSurface) override;
 
-    bool readPixels(RenderSurface* nativeSurface,
-                    uint32_t width,
-                    uint32_t height,
-                    uint8_t* pixels) override;
+  bool readPixels(
+      RenderSurface* nativeSurface,
+      uint32_t width,
+      uint32_t height,
+      uint8_t* pixels) override;
 
 private:
-    [[nodiscard]] rive::gpu::RenderContextVulkanImpl* impl() const;
-    [[nodiscard]] rive::gpu::VulkanContext* vk() const;
-    bool ensureFrameSurface(RenderSurfaceVulkan* surface);
-    bool ensureSwapchain(RenderSurfaceVulkan* surface,
-                         VulkanWindowSurface& window);
-    bool ensureHeadlessFrameSynchronizer(RenderSurfaceVulkan* surface,
-                                         VulkanImageSurface& image);
+  [[nodiscard]] rive::gpu::RenderContextVulkanImpl* impl() const;
+  [[nodiscard]] rive::gpu::VulkanContext* vk() const;
+  bool ensureFrameSurface(RenderSurfaceVulkan* surface);
+  bool ensureSwapchain(
+      RenderSurfaceVulkan* surface,
+      VulkanWindowSurface& window);
+  bool ensureHeadlessFrameSynchronizer(
+      RenderSurfaceVulkan* surface,
+      VulkanImageSurface& image);
 
-    std::unique_ptr<rive_vkb::VulkanInstance> m_instance;
-    std::unique_ptr<rive_vkb::VulkanDevice> m_device;
-    std::unique_ptr<rive_vkb::VulkanFrameSyncCoordinator>
-        m_frameSyncCoordinator;
-    const bool m_enableDebugNames;
-    bool m_precompileShaders = false;
+  std::unique_ptr<rive_vkb::VulkanInstance> m_instance;
+  std::unique_ptr<rive_vkb::VulkanDevice> m_device;
+  std::unique_ptr<rive_vkb::VulkanFrameSyncCoordinator> m_frameSyncCoordinator;
+  const bool m_enableDebugNames;
+  bool m_precompileShaders = false;
 };
 
 #endif

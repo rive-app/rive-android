@@ -10,46 +10,48 @@ extern "C"
 {
 #endif
 
-    using namespace rive_android;
+  using namespace rive_android;
 
-    JNIEXPORT jlong JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_constructor(
-        JNIEnv* env,
-        jobject ktObject)
-    {
-        // FileAssetLoader is now a RefCnt. Upon creation its count is 1.
-        auto* fileAssetLoader = new JNIFileAssetLoader(ktObject, env);
-        return (jlong)fileAssetLoader;
-    }
+  JNIEXPORT jlong JNICALL
+  Java_app_rive_runtime_kotlin_core_FileAssetLoader_constructor(
+      JNIEnv* env,
+      jobject ktObject)
+  {
+    // FileAssetLoader is now a RefCnt. Upon creation its count is 1.
+    auto* fileAssetLoader = new JNIFileAssetLoader(ktObject, env);
+    return (jlong)fileAssetLoader;
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppDelete(JNIEnv*,
-                                                                jobject,
-                                                                jlong ref)
-    {
-        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
-        fileAssetLoader->unref();
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppDelete(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
+    fileAssetLoader->unref();
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppRef(JNIEnv*,
-                                                             jobject,
-                                                             jlong ref)
-    {
-        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
-        fileAssetLoader->ref();
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppRef(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
+    fileAssetLoader->ref();
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppSetRendererType(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint type)
-    {
-        auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
-        fileAssetLoader->setRendererType(static_cast<RendererType>(type));
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_FileAssetLoader_cppSetRendererType(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint type)
+  {
+    auto* fileAssetLoader = reinterpret_cast<JNIFileAssetLoader*>(ref);
+    fileAssetLoader->setRendererType(static_cast<RendererType>(type));
+  }
 #ifdef __cplusplus
 }
 #endif

@@ -24,8 +24,8 @@ namespace rive_android
  */
 struct WorkerFrameResult
 {
-    bool didDraw = false;
-    EGLResult eglResult = EGLResult::Ok();
+  bool didDraw = false;
+  EGLResult eglResult = EGLResult::Ok();
 };
 
 /**
@@ -37,171 +37,174 @@ struct WorkerFrameResult
  */
 struct WorkerStageResult
 {
-    bool shouldContinue = true;
-    EGLResult eglResult = EGLResult::Ok();
+  bool shouldContinue = true;
+  EGLResult eglResult = EGLResult::Ok();
 };
 
 class WorkerImpl
 {
 public:
-    static std::unique_ptr<WorkerImpl> Make(SurfaceVariant,
-                                            DrawableThreadState*,
-                                            RendererType);
+  static std::unique_ptr<WorkerImpl> Make(
+      SurfaceVariant,
+      DrawableThreadState*,
+      RendererType);
 
-    virtual ~WorkerImpl()
-    {
-        // Call destroy() first!
-        assert(!m_isStarted);
-        RiveLogD("RiveLN/WorkerImpl", "Deleting WorkerImpl.");
-    }
+  virtual ~WorkerImpl()
+  {
+    // Call destroy() first!
+    assert(!m_isStarted);
+    RiveLogD("RiveLN/WorkerImpl", "Deleting WorkerImpl.");
+  }
 
-    void start(jobject ktRenderer, std::chrono::steady_clock::time_point);
+  void start(jobject ktRenderer, std::chrono::steady_clock::time_point);
 
-    void stop();
+  void stop();
 
-    WorkerFrameResult doFrame(ITracer*,
-                              DrawableThreadState*,
-                              jobject ktRenderer,
-                              std::chrono::steady_clock::time_point);
+  WorkerFrameResult doFrame(
+      ITracer*,
+      DrawableThreadState*,
+      jobject ktRenderer,
+      std::chrono::steady_clock::time_point);
 
-    virtual WorkerStageResult prepareForDraw(DrawableThreadState*) const = 0;
+  virtual WorkerStageResult prepareForDraw(DrawableThreadState*) const = 0;
 
-    virtual void destroy(DrawableThreadState*) = 0;
+  virtual void destroy(DrawableThreadState*) = 0;
 
-    virtual WorkerStageResult flush(DrawableThreadState*) const = 0;
+  virtual WorkerStageResult flush(DrawableThreadState*) const = 0;
 
-    [[nodiscard]] virtual rive::Renderer* renderer() const = 0;
+  [[nodiscard]] virtual rive::Renderer* renderer() const = 0;
 
 protected:
-    jclass m_ktRendererClass = nullptr;
-    jmethodID m_ktDrawCallback = nullptr;
-    jmethodID m_ktAdvanceCallback = nullptr;
-    std::chrono::steady_clock::time_point m_lastFrameTime;
-    bool m_isStarted = false;
+  jclass m_ktRendererClass = nullptr;
+  jmethodID m_ktDrawCallback = nullptr;
+  jmethodID m_ktAdvanceCallback = nullptr;
+  std::chrono::steady_clock::time_point m_lastFrameTime;
+  bool m_isStarted = false;
 };
 
 class EGLWorkerImpl : public WorkerImpl
 {
 public:
-    ~EGLWorkerImpl() override
-    {
-        // Call destroy() first!
-        assert(m_eglSurface == EGL_NO_SURFACE);
-        RiveLogD(TAG, "Deleting EGLWorkerImpl.");
-    }
+  ~EGLWorkerImpl() override
+  {
+    // Call destroy() first!
+    assert(m_eglSurface == EGL_NO_SURFACE);
+    RiveLogD(TAG, "Deleting EGLWorkerImpl.");
+  }
 
-    void destroy(DrawableThreadState* threadState) override
+  void destroy(DrawableThreadState* threadState) override
+  {
+    if (m_eglSurface != EGL_NO_SURFACE)
     {
-        if (m_eglSurface != EGL_NO_SURFACE)
-        {
-            RiveLogD(TAG, "Destroying EGL surface.");
-            auto eglThreadState = static_cast<EGLThreadState*>(threadState);
-            eglThreadState->destroySurface(m_eglSurface);
-            m_eglSurface = EGL_NO_SURFACE;
-        }
-        else
-        {
-            RiveLogW(TAG, "Surface already destroyed.");
-        }
+      RiveLogD(TAG, "Destroying EGL surface.");
+      auto eglThreadState = static_cast<EGLThreadState*>(threadState);
+      eglThreadState->destroySurface(m_eglSurface);
+      m_eglSurface = EGL_NO_SURFACE;
     }
-
-    WorkerStageResult prepareForDraw(
-        DrawableThreadState* threadState) const override
+    else
     {
-        auto eglThreadState = static_cast<EGLThreadState*>(threadState);
-        // Bind context to this thread.
-        EGLResult makeCurrentResult = eglThreadState->makeCurrent(m_eglSurface);
-        if (!makeCurrentResult.isSuccess())
-        {
-            return {.shouldContinue = false, .eglResult = makeCurrentResult};
-        }
-        clear(threadState);
-        return {};
+      RiveLogW(TAG, "Surface already destroyed.");
     }
+  }
 
-    virtual void clear(DrawableThreadState*) const = 0;
+  WorkerStageResult prepareForDraw(
+      DrawableThreadState* threadState) const override
+  {
+    auto eglThreadState = static_cast<EGLThreadState*>(threadState);
+    // Bind context to this thread.
+    EGLResult makeCurrentResult = eglThreadState->makeCurrent(m_eglSurface);
+    if (!makeCurrentResult.isSuccess())
+    {
+      return {.shouldContinue = false, .eglResult = makeCurrentResult};
+    }
+    clear(threadState);
+    return {};
+  }
+
+  virtual void clear(DrawableThreadState*) const = 0;
 
 protected:
-    EGLWorkerImpl(struct ANativeWindow* window,
-                  DrawableThreadState* threadState,
-                  bool* success)
+  EGLWorkerImpl(
+      struct ANativeWindow* window,
+      DrawableThreadState* threadState,
+      bool* success)
+  {
+    RiveLogD(TAG, "Creating EGLWorkerImpl.");
+    *success = false;
+    auto eglThreadState = static_cast<EGLThreadState*>(threadState);
+    m_eglSurface = eglThreadState->createEGLSurface(window);
+    if (m_eglSurface == EGL_NO_SURFACE)
     {
-        RiveLogD(TAG, "Creating EGLWorkerImpl.");
-        *success = false;
-        auto eglThreadState = static_cast<EGLThreadState*>(threadState);
-        m_eglSurface = eglThreadState->createEGLSurface(window);
-        if (m_eglSurface == EGL_NO_SURFACE)
-        {
-            RiveLogE(TAG, "Failed to create EGL surface.");
-            return;
-        }
-        *success = true;
+      RiveLogE(TAG, "Failed to create EGL surface.");
+      return;
     }
+    *success = true;
+  }
 
-    void* m_eglSurface = EGL_NO_SURFACE;
+  void* m_eglSurface = EGL_NO_SURFACE;
 
 private:
-    static constexpr auto* TAG = "RiveLN/EGLWorkerImpl";
+  static constexpr auto* TAG = "RiveLN/EGLWorkerImpl";
 };
 
 class PLSWorkerImpl : public EGLWorkerImpl
 {
 public:
-    PLSWorkerImpl(struct ANativeWindow*, DrawableThreadState*, bool* success);
+  PLSWorkerImpl(struct ANativeWindow*, DrawableThreadState*, bool* success);
 
-    void destroy(DrawableThreadState* threadState) override;
+  void destroy(DrawableThreadState* threadState) override;
 
-    void clear(DrawableThreadState* threadState) const override;
+  void clear(DrawableThreadState* threadState) const override;
 
-    WorkerStageResult flush(DrawableThreadState* threadState) const override;
+  WorkerStageResult flush(DrawableThreadState* threadState) const override;
 
-    [[nodiscard]] rive::Renderer* renderer() const override;
+  [[nodiscard]] rive::Renderer* renderer() const override;
 
 private:
-    rive::rcp<rive::gpu::RenderTargetGL> m_renderTarget;
+  rive::rcp<rive::gpu::RenderTargetGL> m_renderTarget;
 
-    std::unique_ptr<rive::RiveRenderer> m_plsRenderer;
+  std::unique_ptr<rive::RiveRenderer> m_plsRenderer;
 
-    // Cast away [threadState] to the the thread state expected by this
-    // implementation.
-    static PLSThreadState* PlsThreadState(DrawableThreadState* threadState)
-    {
-        // Quite hacky, but this is a way to sort this out in C++ without
-        // RTTI...
-        return static_cast<PLSThreadState*>(threadState);
-    }
+  // Cast away [threadState] to the the thread state expected by this
+  // implementation.
+  static PLSThreadState* PlsThreadState(DrawableThreadState* threadState)
+  {
+    // Quite hacky, but this is a way to sort this out in C++ without
+    // RTTI...
+    return static_cast<PLSThreadState*>(threadState);
+  }
 };
 
 class CanvasWorkerImpl : public WorkerImpl
 {
 public:
-    CanvasWorkerImpl(jobject ktSurface, bool* success) :
-        m_canvasRenderer{std::make_unique<CanvasRenderer>()}
-    {
-        m_ktSurface = GetJNIEnv()->NewGlobalRef(ktSurface);
-        *success = true;
-    }
+  CanvasWorkerImpl(jobject ktSurface, bool* success)
+      : m_canvasRenderer{std::make_unique<CanvasRenderer>()}
+  {
+    m_ktSurface = GetJNIEnv()->NewGlobalRef(ktSurface);
+    *success = true;
+  }
 
-    ~CanvasWorkerImpl() override
-    {
-        // Call destroy() first!
-        assert(m_ktSurface == nullptr);
-    }
+  ~CanvasWorkerImpl() override
+  {
+    // Call destroy() first!
+    assert(m_ktSurface == nullptr);
+  }
 
-    [[nodiscard]] rive::Renderer* renderer() const override
-    {
-        return m_canvasRenderer.get();
-    }
+  [[nodiscard]] rive::Renderer* renderer() const override
+  {
+    return m_canvasRenderer.get();
+  }
 
-    WorkerStageResult flush(DrawableThreadState*) const override;
+  WorkerStageResult flush(DrawableThreadState*) const override;
 
-    WorkerStageResult prepareForDraw(DrawableThreadState*) const override;
+  WorkerStageResult prepareForDraw(DrawableThreadState*) const override;
 
-    void destroy(DrawableThreadState*) override;
+  void destroy(DrawableThreadState*) override;
 
 private:
-    std::unique_ptr<CanvasRenderer> m_canvasRenderer;
-    jobject m_ktSurface = nullptr;
+  std::unique_ptr<CanvasRenderer> m_canvasRenderer;
+  jobject m_ktSurface = nullptr;
 };
 
 } // namespace rive_android

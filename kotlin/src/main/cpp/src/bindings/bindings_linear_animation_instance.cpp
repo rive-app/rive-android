@@ -10,255 +10,255 @@
 extern "C"
 {
 #endif
-    using namespace rive_android;
+  using namespace rive_android;
 
-    JNIEXPORT jobject JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvance(
-        JNIEnv* env,
-        jobject,
-        jlong ref,
-        jfloat elapsedTime)
+  JNIEXPORT jobject JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvance(
+      JNIEnv* env,
+      jobject,
+      jlong ref,
+      jfloat elapsedTime)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    animationInstance->advance(elapsedTime);
+    bool didLoop = animationInstance->didLoop();
+
+    jfieldID enumField;
+    jobject loopValue = nullptr;
+
+    if (didLoop)
     {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        animationInstance->advance(elapsedTime);
-        bool didLoop = animationInstance->didLoop();
-
-        jfieldID enumField;
-        jobject loopValue = nullptr;
-
-        if (didLoop)
-        {
-            rive::Loop loopType = animationInstance->loop();
-            switch (loopType)
-            {
-                case rive::Loop::oneShot:
-                    enumField = GetOneShotLoopField();
-                    break;
-                case rive::Loop::loop:
-                    enumField = GetLoopLoopField();
-                    break;
-                case rive::Loop::pingPong:
-                    enumField = GetPingPongLoopField();
-                    break;
-                default:
-                    enumField = GetNoneLoopField();
-                    break;
-            }
-            jclass jClass = GetLoopClass();
-            loopValue = env->GetStaticObjectField(jClass, enumField);
-            env->DeleteLocalRef(jClass);
-        }
-
-        return loopValue;
+      rive::Loop loopType = animationInstance->loop();
+      switch (loopType)
+      {
+        case rive::Loop::oneShot:
+          enumField = GetOneShotLoopField();
+          break;
+        case rive::Loop::loop:
+          enumField = GetLoopLoopField();
+          break;
+        case rive::Loop::pingPong:
+          enumField = GetPingPongLoopField();
+          break;
+        default:
+          enumField = GetNoneLoopField();
+          break;
+      }
+      jclass jClass = GetLoopClass();
+      loopValue = env->GetStaticObjectField(jClass, enumField);
+      env->DeleteLocalRef(jClass);
     }
 
-    JNIEXPORT jobject JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvanceAndGetResult(
-        JNIEnv* env,
-        jobject,
-        jlong ref,
-        jfloat elapsedTime)
+    return loopValue;
+  }
+
+  JNIEXPORT jobject JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppAdvanceAndGetResult(
+      JNIEnv* env,
+      jobject,
+      jlong ref,
+      jfloat elapsedTime)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+
+    bool keepGoing = animationInstance->advance(elapsedTime);
+    bool didLoop = animationInstance->didLoop();
+
+    jfieldID resultFieldId = nullptr;
+
+    if (didLoop)
     {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-
-        bool keepGoing = animationInstance->advance(elapsedTime);
-        bool didLoop = animationInstance->didLoop();
-
-        jfieldID resultFieldId = nullptr;
-
-        if (didLoop)
-        {
-            rive::Loop loopType = animationInstance->loop();
-            switch (loopType)
-            {
-                case rive::Loop::oneShot:
-                    resultFieldId = GetAdvanceResultOneShotField();
-                    break;
-                case rive::Loop::loop:
-                    resultFieldId = GetAdvanceResultLoopField();
-                    break;
-                case rive::Loop::pingPong:
-                    resultFieldId = GetAdvanceResultPingPongField();
-                    break;
-                default:
-                    // This should not happen: if we looped, we should get a
-                    // loop result.
-                    assert(
-                        false); // N.B. asserts are compiled out in release mode
-                    resultFieldId = GetAdvanceResultNoneField();
-                    break;
-            }
-        }
-        else if (keepGoing)
-        {
-            resultFieldId = GetAdvanceResultAdvancedField();
-        }
-        else
-        {
-            resultFieldId = GetAdvanceResultNoneField();
-        }
-
-        jclass jAdvanceResultClass = GetAdvanceResultClass();
-
-        jobject advanceResultValue =
-            env->GetStaticObjectField(jAdvanceResultClass, resultFieldId);
-        env->DeleteLocalRef(jAdvanceResultClass);
-
-        return advanceResultValue;
+      rive::Loop loopType = animationInstance->loop();
+      switch (loopType)
+      {
+        case rive::Loop::oneShot:
+          resultFieldId = GetAdvanceResultOneShotField();
+          break;
+        case rive::Loop::loop:
+          resultFieldId = GetAdvanceResultLoopField();
+          break;
+        case rive::Loop::pingPong:
+          resultFieldId = GetAdvanceResultPingPongField();
+          break;
+        default:
+          // This should not happen: if we looped, we should get a
+          // loop result.
+          assert(false); // N.B. asserts are compiled out in release mode
+          resultFieldId = GetAdvanceResultNoneField();
+          break;
+      }
+    }
+    else if (keepGoing)
+    {
+      resultFieldId = GetAdvanceResultAdvancedField();
+    }
+    else
+    {
+      resultFieldId = GetAdvanceResultNoneField();
     }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppApply(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jfloat mix)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        animationInstance->apply(mix);
-    }
+    jclass jAdvanceResultClass = GetAdvanceResultClass();
 
-    JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetTime(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
+    jobject advanceResultValue = env->GetStaticObjectField(
+        jAdvanceResultClass,
+        resultFieldId);
+    env->DeleteLocalRef(jAdvanceResultClass);
 
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        return animationInstance->time();
-    }
+    return advanceResultValue;
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetTime(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jfloat time)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        animationInstance->time(time);
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppApply(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jfloat mix)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    animationInstance->apply(mix);
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetDirection(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint direction)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        animationInstance->direction(direction);
-    }
+  JNIEXPORT jfloat JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetTime(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetDirection(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        return static_cast<int>(animationInstance->direction());
-    }
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    return animationInstance->time();
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetLoop(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        return (jint)animationInstance->loop();
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetTime(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jfloat time)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    animationInstance->time(time);
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetLoop(
-        JNIEnv*,
-        jobject,
-        jlong ref,
-        jint loopType)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetDirection(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint direction)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    animationInstance->direction(direction);
+  }
 
-        animationInstance->loopValue(loopType);
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetDirection(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    return static_cast<int>(animationInstance->direction());
+  }
 
-    // ANIMATION
-    JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppName(
-        JNIEnv* env,
-        jobject,
-        jlong ref)
-    {
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppGetLoop(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    return (jint)animationInstance->loop();
+  }
 
-        auto animationInstance =
-            reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return MakeJString(env, animationInstance->animation()->name())
-            .release();
-    }
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppSetLoop(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jint loopType)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDuration(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return (jint)animationInstance->animation()->duration();
-    }
+    animationInstance->loopValue(loopType);
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppFps(JNIEnv*,
-                                                                     jobject,
-                                                                     jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return (jint)animationInstance->animation()->fps();
-    }
+  // ANIMATION
+  JNIEXPORT jstring JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppName(
+      JNIEnv* env,
+      jobject,
+      jlong ref)
+  {
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkStart(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return (jint)animationInstance->animation()->workStart();
-    }
+    auto animationInstance = reinterpret_cast<
+        const rive::LinearAnimationInstance*>(ref);
+    return MakeJString(env, animationInstance->animation()->name()).release();
+  }
 
-    JNIEXPORT jint JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkEnd(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<const rive::LinearAnimationInstance*>(ref);
-        return (jint)animationInstance->animation()->workEnd();
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDuration(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<
+        const rive::LinearAnimationInstance*>(ref);
+    return (jint)animationInstance->animation()->duration();
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDelete(
-        JNIEnv*,
-        jobject,
-        jlong ref)
-    {
-        auto animationInstance =
-            reinterpret_cast<rive::LinearAnimationInstance*>(ref);
-        delete animationInstance;
-    }
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppFps(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<
+        const rive::LinearAnimationInstance*>(ref);
+    return (jint)animationInstance->animation()->fps();
+  }
+
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkStart(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<
+        const rive::LinearAnimationInstance*>(ref);
+    return (jint)animationInstance->animation()->workStart();
+  }
+
+  JNIEXPORT jint JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppWorkEnd(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<
+        const rive::LinearAnimationInstance*>(ref);
+    return (jint)animationInstance->animation()->workEnd();
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_LinearAnimationInstance_cppDelete(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    auto animationInstance = reinterpret_cast<rive::LinearAnimationInstance*>(
+        ref);
+    delete animationInstance;
+  }
 
 #ifdef __cplusplus
 }

@@ -30,19 +30,20 @@ namespace rive_android
 {
 enum class RendererType
 {
-    None = -1,
-    Rive = 0,
-    Canvas = 1
+  None = -1,
+  Rive = 0,
+  Canvas = 1
 };
 
 extern JavaVM* g_JVM;
 extern long g_sdkVersion;
 void SetSDKVersion();
 void LogReferenceTables();
-jlong Import(uint8_t*,
-             jint,
-             RendererType = RendererType::Rive,
-             rive::FileAssetLoader* = nullptr);
+jlong Import(
+    uint8_t*,
+    jint,
+    RendererType = RendererType::Rive,
+    rive::FileAssetLoader* = nullptr);
 
 rive::Fit GetFit(uint8_t ordinal);
 rive::Fit GetFit(JNIEnv*, jobject);

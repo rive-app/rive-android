@@ -15,8 +15,9 @@ namespace rive_android
  * @param diff Native semantics diff payload to marshal.
  * @return Managed JNI local reference wrapping the created SemanticsDiff.
  */
-JniResource<jobject> semanticsDiffToJObject(JNIEnv* env,
-                                            const rive::SemanticsDiff& diff);
+JniResource<jobject> semanticsDiffToJObject(
+    JNIEnv* env,
+    const rive::SemanticsDiff& diff);
 
 /**
  * Converts native semantics node diffs into Kotlin SemanticsDiffNode[].

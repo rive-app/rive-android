@@ -17,67 +17,68 @@
 extern "C"
 {
 #endif
-    using namespace rive_android;
+  using namespace rive_android;
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
-        JNIEnv* env,
-        jobject,
-        jobject jFit,
-        jobject jAlignment,
-        jobject availableBoundsRectF,
-        jobject artboardBoundsRectF,
-        jobject requiredBoundsRectF,
-        jfloat scaleFactor)
-    {
-        auto fit = ::GetFit(env, jFit);
-        auto alignment = ::GetAlignment(env, jAlignment);
-        auto availableBounds = RectFToAABB(env, availableBoundsRectF);
-        auto artboardBounds = RectFToAABB(env, artboardBoundsRectF);
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_Rive_cppCalculateRequiredBounds(
+      JNIEnv* env,
+      jobject,
+      jobject jFit,
+      jobject jAlignment,
+      jobject availableBoundsRectF,
+      jobject artboardBoundsRectF,
+      jobject requiredBoundsRectF,
+      jfloat scaleFactor)
+  {
+    auto fit = ::GetFit(env, jFit);
+    auto alignment = ::GetAlignment(env, jAlignment);
+    auto availableBounds = RectFToAABB(env, availableBoundsRectF);
+    auto artboardBounds = RectFToAABB(env, artboardBoundsRectF);
 
-        DimensionsHelper helper;
+    DimensionsHelper helper;
 
-        auto required = helper.computeDimensions(fit,
-                                                 alignment,
-                                                 availableBounds,
-                                                 artboardBounds,
-                                                 scaleFactor);
-        AABBToRectF(env, required, requiredBoundsRectF);
-    }
+    auto required = helper.computeDimensions(
+        fit,
+        alignment,
+        availableBounds,
+        artboardBounds,
+        scaleFactor);
+    AABBToRectF(env, required, requiredBoundsRectF);
+  }
 
-    jint JNI_OnLoad(JavaVM* jvm, void*)
-    {
-        // Assign the global JVM
-        g_JVM = jvm;
-        // Standard JNI version to return on Android
-        return JNI_VERSION_1_6;
-    }
+  jint JNI_OnLoad(JavaVM* jvm, void*)
+  {
+    // Assign the global JVM
+    g_JVM = jvm;
+    // Standard JNI version to return on Android
+    return JNI_VERSION_1_6;
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(JNIEnv* env,
-                                                         jobject jObj)
-    {
-        const auto TAG = "RiveN/Init";
+  JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(
+      JNIEnv* env,
+      jobject jObj)
+  {
+    const auto TAG = "RiveN/Init";
 #if defined(DEBUG) || defined(LOG)
-        // luigi: again ifdef this out for release (or murder completely, but
-        // it's nice to catch all fprintf to stderr).
-        std::thread t(LogThread);
-        // detach so it outlives the ref
-        t.detach();
+    // luigi: again ifdef this out for release (or murder completely, but
+    // it's nice to catch all fprintf to stderr).
+    std::thread t(LogThread);
+    // detach so it outlives the ref
+    t.detach();
 #endif
-        // pretty much considered the entrypoint.
-        SetSDKVersion();
-        // Initialize RiveLog helper for logging from C++
-        InitializeRiveLog();
+    // pretty much considered the entrypoint.
+    SetSDKVersion();
+    // Initialize RiveLog helper for logging from C++
+    InitializeRiveLog();
 
-        // Use the calling Rive jobject as the "anchor" to initialize the global
-        // class loader.
-        RiveLogD(TAG, "Initializing global class loader");
-        InitJNIClassLoader(env, jObj);
+    // Use the calling Rive jobject as the "anchor" to initialize the global
+    // class loader.
+    RiveLogD(TAG, "Initializing global class loader");
+    InitJNIClassLoader(env, jObj);
 
-        RiveLogD(TAG, "Initializing fallback font global callback");
-        rive::Font::gFallbackProc = FontHelper::FindFontFallback;
-    }
+    RiveLogD(TAG, "Initializing fallback font global callback");
+    rive::Font::gFallbackProc = FontHelper::FindFontFallback;
+  }
 
 #ifdef __cplusplus
 }

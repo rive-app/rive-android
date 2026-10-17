@@ -10,167 +10,169 @@ namespace rive_android
 class CanvasRenderPath : public rive::RenderPath
 {
 private:
-    rive::FillRule m_FillRule;
-    jobject m_ktPath = nullptr;
+  rive::FillRule m_FillRule;
+  jobject m_ktPath = nullptr;
 
-    static jobject CreatePath();
+  static jobject CreatePath();
 
 public:
-    CanvasRenderPath();
+  CanvasRenderPath();
 
-    CanvasRenderPath(rive::RawPath&, rive::FillRule);
+  CanvasRenderPath(rive::RawPath&, rive::FillRule);
 
-    ~CanvasRenderPath() override;
+  ~CanvasRenderPath() override;
 
-    jobject ktPath() const { return m_ktPath; }
+  jobject ktPath() const { return m_ktPath; }
 
-    void rewind() override;
+  void rewind() override;
 
-    void addRenderPath(const rive::RenderPath*, const rive::Mat2D&) override;
-    void addRawPath(const rive::RawPath& path) override;
+  void addRenderPath(const rive::RenderPath*, const rive::Mat2D&) override;
+  void addRawPath(const rive::RawPath& path) override;
 
-    void moveTo(float x, float y) override;
+  void moveTo(float x, float y) override;
 
-    void lineTo(float x, float y) override;
+  void lineTo(float x, float y) override;
 
-    void cubicTo(float ox, float oy, float ix, float iy, float x, float y)
-        override;
+  void cubicTo(float ox, float oy, float ix, float iy, float x, float y)
+      override;
 
-    void close() override;
+  void close() override;
 
-    void fillRule(rive::FillRule value) override;
+  void fillRule(rive::FillRule value) override;
 };
 
 class CanvasShader : public rive::RenderShader
 {
 protected:
-    jobject m_KtShader = nullptr;
+  jobject m_KtShader = nullptr;
 
 public:
-    CanvasShader() = default;
+  CanvasShader() = default;
 
-    ~CanvasShader() override
+  ~CanvasShader() override
+  {
+    if (m_KtShader != nullptr)
     {
-        if (m_KtShader != nullptr)
-        {
-            GetJNIEnv()->DeleteGlobalRef(m_KtShader);
-        }
+      GetJNIEnv()->DeleteGlobalRef(m_KtShader);
     }
+  }
 
-    jobject ktShader() const { return m_KtShader; }
+  jobject ktShader() const { return m_KtShader; }
 };
 
 class LinearGradientCanvasShader : public CanvasShader
 {
 public:
-    LinearGradientCanvasShader(float sx,
-                               float sy,
-                               float ex,
-                               float ey,
-                               const rive::ColorInt colors[], // [count]
-                               const float stops[],           // [count]
-                               size_t count);
+  LinearGradientCanvasShader(
+      float sx,
+      float sy,
+      float ex,
+      float ey,
+      const rive::ColorInt colors[], // [count]
+      const float stops[],           // [count]
+      size_t count);
 };
 
 class RadialGradientCanvasShader : public CanvasShader
 {
 public:
-    RadialGradientCanvasShader(float cx,
-                               float cy,
-                               float radius,
-                               const rive::ColorInt colors[], // [count]
-                               const float stops[],           // [count]
-                               size_t count);
+  RadialGradientCanvasShader(
+      float cx,
+      float cy,
+      float radius,
+      const rive::ColorInt colors[], // [count]
+      const float stops[],           // [count]
+      size_t count);
 };
 
 class CanvasRenderPaint : public rive::RenderPaint
 {
 private:
-    jobject m_ktPaint;
-    rive::rcp<rive::RenderShader> m_shader;
-    rive::Mat2D m_shaderTransform;
+  jobject m_ktPaint;
+  rive::rcp<rive::RenderShader> m_shader;
+  rive::Mat2D m_shaderTransform;
 
-    void applyShader();
+  void applyShader();
 
-    static void porterDuffBlendMode(jobject, rive::BlendMode);
+  static void porterDuffBlendMode(jobject, rive::BlendMode);
 
 public:
-    CanvasRenderPaint();
+  CanvasRenderPaint();
 
-    ~CanvasRenderPaint() override;
+  ~CanvasRenderPaint() override;
 
-    void style(rive::RenderPaintStyle) override;
+  void style(rive::RenderPaintStyle) override;
 
-    void thickness(float) override;
+  void thickness(float) override;
 
-    void join(rive::StrokeJoin) override;
+  void join(rive::StrokeJoin) override;
 
-    void color(rive::ColorInt) override;
+  void color(rive::ColorInt) override;
 
-    void cap(rive::StrokeCap) override;
+  void cap(rive::StrokeCap) override;
 
-    void blendMode(rive::BlendMode) override;
+  void blendMode(rive::BlendMode) override;
 
-    void shader(rive::rcp<rive::RenderShader>) override;
+  void shader(rive::rcp<rive::RenderShader>) override;
 
-    void shaderTransform(const rive::Mat2D& transform) override;
+  void shaderTransform(const rive::Mat2D& transform) override;
 
-    void invalidateStroke() override {}
+  void invalidateStroke() override {}
 
-    jobject ktPaint() const { return m_ktPaint; }
+  jobject ktPaint() const { return m_ktPaint; }
 
-    static jobject CreateKtPaint();
+  static jobject CreateKtPaint();
 
-    static void SetStyle(jobject, rive::RenderPaintStyle);
+  static void SetStyle(jobject, rive::RenderPaintStyle);
 
-    static void SetThickness(jobject, float);
+  static void SetThickness(jobject, float);
 
-    static void SetJoin(jobject, rive::StrokeJoin);
+  static void SetJoin(jobject, rive::StrokeJoin);
 
-    static void SetColor(jobject, rive::ColorInt);
+  static void SetColor(jobject, rive::ColorInt);
 
-    static void SetCap(jobject, rive::StrokeCap);
+  static void SetCap(jobject, rive::StrokeCap);
 
-    static void SetBlendMode(jobject, rive::BlendMode);
+  static void SetBlendMode(jobject, rive::BlendMode);
 
-    static void SetShader(jobject, jobject);
+  static void SetShader(jobject, jobject);
 
-    static void SetPaintAlpha(jobject, int);
+  static void SetPaintAlpha(jobject, int);
 };
 
 class CanvasRenderImage : public rive::RenderImage
 {
 private:
-    jobject m_ktBitmap = nullptr;
-    jobject m_ktPaint = nullptr;
+  jobject m_ktBitmap = nullptr;
+  jobject m_ktPaint = nullptr;
 
-    static jobject CreateKtBitmapFrom(JNIEnv*, rive::Span<const uint8_t>&);
+  static jobject CreateKtBitmapFrom(JNIEnv*, rive::Span<const uint8_t>&);
 
 public:
-    explicit CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);
-    explicit CanvasRenderImage(jobject jBitmap);
+  explicit CanvasRenderImage(rive::Span<const uint8_t> encodedBytes);
+  explicit CanvasRenderImage(jobject jBitmap);
 
-    ~CanvasRenderImage() override;
+  ~CanvasRenderImage() override;
 
-    jobject ktBitmap() const { return m_ktBitmap; }
+  jobject ktBitmap() const { return m_ktBitmap; }
 
-    jobject ktPaint() const { return m_ktPaint; }
+  jobject ktPaint() const { return m_ktPaint; }
 
-    static jobject CreateKtBitmapShader(jobject ktBitmap)
-    {
-        JNIEnv* env = GetJNIEnv();
-        jclass bitmapShaderClass = GetBitmapShaderClass();
-        jclass tileModeClass = GetTileModeClass();
-        jobject clampEnum =
-            env->GetStaticObjectField(tileModeClass, GetClampId());
-        jobject ktShader = env->NewObject(bitmapShaderClass,
-                                          GetBitmapShaderConstructor(),
-                                          ktBitmap,
-                                          clampEnum,
-                                          clampEnum);
-        env->DeleteLocalRef(tileModeClass);
-        env->DeleteLocalRef(bitmapShaderClass);
-        return ktShader;
-    }
+  static jobject CreateKtBitmapShader(jobject ktBitmap)
+  {
+    JNIEnv* env = GetJNIEnv();
+    jclass bitmapShaderClass = GetBitmapShaderClass();
+    jclass tileModeClass = GetTileModeClass();
+    jobject clampEnum = env->GetStaticObjectField(tileModeClass, GetClampId());
+    jobject ktShader = env->NewObject(
+        bitmapShaderClass,
+        GetBitmapShaderConstructor(),
+        ktBitmap,
+        clampEnum,
+        clampEnum);
+    env->DeleteLocalRef(tileModeClass);
+    env->DeleteLocalRef(bitmapShaderClass);
+    return ktShader;
+  }
 };
 } // namespace rive_android

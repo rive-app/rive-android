@@ -28,58 +28,58 @@ EGLint consume_egl_error_or_default(EGLint fallback, const char* logTag);
  */
 struct EGLResult
 {
-    /// Identifies which EGL operation failed when building an EGLResult.
-    enum class FailureOperation
-    {
-        none,
-        makeCurrent,
-        swapBuffers,
-        recover,
-    };
+  /// Identifies which EGL operation failed when building an EGLResult.
+  enum class FailureOperation
+  {
+    none,
+    makeCurrent,
+    swapBuffers,
+    recover,
+  };
 
-    FailureOperation operation = FailureOperation::none;
-    EGLint error = EGL_SUCCESS;
+  FailureOperation operation = FailureOperation::none;
+  EGLint error = EGL_SUCCESS;
 
-    /// Creates a successful result with no EGL error.
-    static EGLResult Ok() { return EGLResult{}; }
+  /// Creates a successful result with no EGL error.
+  static EGLResult Ok() { return EGLResult{}; }
 
-    /// Creates a successful recovery result for render-context lifecycle
-    /// events.
-    static EGLResult Recovered()
-    {
-        EGLResult result;
-        result.operation = FailureOperation::recover;
-        return result;
-    }
+  /// Creates a successful recovery result for render-context lifecycle
+  /// events.
+  static EGLResult Recovered()
+  {
+    EGLResult result;
+    result.operation = FailureOperation::recover;
+    return result;
+  }
 
-    /// Creates a failed result for an operation using the supplied EGL error.
-    static EGLResult Failure(FailureOperation failureOp, EGLint errorCode)
-    {
-        assert(failureOp != FailureOperation::none);
-        EGLResult result;
-        result.operation = failureOp;
-        result.error = errorCode;
-        return result;
-    }
+  /// Creates a failed result for an operation using the supplied EGL error.
+  static EGLResult Failure(FailureOperation failureOp, EGLint errorCode)
+  {
+    assert(failureOp != FailureOperation::none);
+    EGLResult result;
+    result.operation = failureOp;
+    result.error = errorCode;
+    return result;
+  }
 
-    /// Returns true when this result contains EGL_SUCCESS.
-    [[nodiscard]] bool isSuccess() const { return error == EGL_SUCCESS; }
+  /// Returns true when this result contains EGL_SUCCESS.
+  [[nodiscard]] bool isSuccess() const { return error == EGL_SUCCESS; }
 
-    /// Returns true when the EGL error should be treated as context-fatal.
-    [[nodiscard]] bool isFatal() const
-    {
-        return !isSuccess() && IsFatalEGLError(error);
-    }
+  /// Returns true when the EGL error should be treated as context-fatal.
+  [[nodiscard]] bool isFatal() const
+  {
+    return !isSuccess() && IsFatalEGLError(error);
+  }
 
-    /// Returns a compact, human-readable summary of this result.
-    [[nodiscard]] std::string summary() const;
+  /// Returns a compact, human-readable summary of this result.
+  [[nodiscard]] std::string summary() const;
 
-    /// Returns a stable string label for logging a failure operation.
-    static const char* FailureOperationName(FailureOperation operation);
+  /// Returns a stable string label for logging a failure operation.
+  static const char* FailureOperationName(FailureOperation operation);
 
 private:
-    /// Classifies EGL errors into fatal vs transient for recovery decisions.
-    static bool IsFatalEGLError(EGLint error);
+  /// Classifies EGL errors into fatal vs transient for recovery decisions.
+  static bool IsFatalEGLError(EGLint error);
 };
 
 } // namespace rive_android

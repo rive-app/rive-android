@@ -12,99 +12,105 @@ extern "C"
 {
 #endif
 
-    using namespace rive_android;
+  using namespace rive_android;
 
-    JNIEXPORT jstring JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppName(JNIEnv* env,
-                                                       jobject,
-                                                       jlong ref)
-    {
+  JNIEXPORT jstring JNICALL Java_app_rive_runtime_kotlin_core_SMIInput_cppName(
+      JNIEnv* env,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
-        return MakeJString(env, input->name()).release();
-    }
+    auto* input = reinterpret_cast<rive::SMIInput*>(ref);
+    return MakeJString(env, input->name()).release();
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(JNIEnv*,
-                                                            jobject,
-                                                            jlong ref)
-    {
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_SMIInput_cppIsBoolean(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
-        return input->input()->is<rive::StateMachineBool>();
-    }
+    auto* input = reinterpret_cast<rive::SMIInput*>(ref);
+    return input->input()->is<rive::StateMachineBool>();
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(JNIEnv*,
-                                                           jobject,
-                                                           jlong ref)
-    {
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_SMIInput_cppIsNumber(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
-        return input->input()->is<rive::StateMachineNumber>();
-    }
+    auto* input = reinterpret_cast<rive::SMIInput*>(ref);
+    return input->input()->is<rive::StateMachineNumber>();
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(JNIEnv*,
-                                                            jobject,
-                                                            jlong ref)
-    {
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_SMIInput_cppIsTrigger(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIInput*>(ref);
-        return input->input()->is<rive::StateMachineTrigger>();
-    }
+    auto* input = reinterpret_cast<rive::SMIInput*>(ref);
+    return input->input()->is<rive::StateMachineTrigger>();
+  }
 
-    JNIEXPORT jboolean JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(JNIEnv*,
-                                                          jobject,
-                                                          jlong ref)
-    {
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_SMIBoolean_cppValue(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIBool*>(ref);
-        return input->value();
-    }
+    auto* input = reinterpret_cast<rive::SMIBool*>(ref);
+    return input->value();
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMIBoolean_cppSetValue(JNIEnv*,
-                                                             jobject,
-                                                             jlong ref,
-                                                             jboolean newValue)
-    {
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_SMIBoolean_cppSetValue(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jboolean newValue)
+  {
 
-        auto* input = reinterpret_cast<rive::SMIBool*>(ref);
-        input->value(newValue);
-    }
+    auto* input = reinterpret_cast<rive::SMIBool*>(ref);
+    input->value(newValue);
+  }
 
-    JNIEXPORT jfloat JNICALL
-    Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(JNIEnv*,
-                                                         jobject,
-                                                         jlong ref)
-    {
+  JNIEXPORT jfloat JNICALL Java_app_rive_runtime_kotlin_core_SMINumber_cppValue(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMINumber*>(ref);
-        return input->value();
-    }
+    auto* input = reinterpret_cast<rive::SMINumber*>(ref);
+    return input->value();
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(JNIEnv*,
-                                                            jobject,
-                                                            jlong ref,
-                                                            jfloat newValue)
-    {
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_SMINumber_cppSetValue(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jfloat newValue)
+  {
 
-        auto* input = reinterpret_cast<rive::SMINumber*>(ref);
-        input->value(newValue);
-    }
+    auto* input = reinterpret_cast<rive::SMINumber*>(ref);
+    input->value(newValue);
+  }
 
-    JNIEXPORT void JNICALL
-    Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(JNIEnv*,
-                                                         jobject,
-                                                         jlong ref)
-    {
+  JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_SMITrigger_cppFire(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
 
-        auto* input = reinterpret_cast<rive::SMITrigger*>(ref);
-        input->fire();
-    }
+    auto* input = reinterpret_cast<rive::SMITrigger*>(ref);
+    input->fire();
+  }
 
 #ifdef __cplusplus
 }

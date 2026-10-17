@@ -13,72 +13,76 @@ namespace rive_android
 {
 JNIFileAssetLoader::JNIFileAssetLoader(jobject ktObject, JNIEnv* env)
 {
-    m_ktFileAssetLoader = env->NewGlobalRef(ktObject);
-    jclass ktClass = env->GetObjectClass(ktObject);
-    m_ktLoadContentsFn =
-        env->GetMethodID(ktClass,
-                         "loadContents",
-                         "(Lapp/rive/runtime/kotlin/core/FileAsset;[B)Z");
+  m_ktFileAssetLoader = env->NewGlobalRef(ktObject);
+  jclass ktClass = env->GetObjectClass(ktObject);
+  m_ktLoadContentsFn = env->GetMethodID(
+      ktClass,
+      "loadContents",
+      "(Lapp/rive/runtime/kotlin/core/FileAsset;[B)Z");
 }
 
 JNIFileAssetLoader::~JNIFileAssetLoader()
 {
-    JNIEnv* env = GetJNIEnv();
-    if (m_ktFileAssetLoader)
-    {
-        env->DeleteGlobalRef(m_ktFileAssetLoader);
-    }
-    m_ktLoadContentsFn = nullptr;
+  JNIEnv* env = GetJNIEnv();
+  if (m_ktFileAssetLoader)
+  {
+    env->DeleteGlobalRef(m_ktFileAssetLoader);
+  }
+  m_ktLoadContentsFn = nullptr;
 }
 
-bool JNIFileAssetLoader::loadContents(rive::FileAsset& asset,
-                                      rive::Span<const uint8_t> inBandBytes,
-                                      rive::Factory* /* unused atm */)
+bool JNIFileAssetLoader::loadContents(
+    rive::FileAsset& asset,
+    rive::Span<const uint8_t> inBandBytes,
+    rive::Factory* /* unused atm */)
 {
-    JNIEnv* env = GetJNIEnv();
-    // Renderer type must be set.
-    // If not set, FileAsset constructor will throw on RendererType::None value
-    // being -1
-    assert(m_rendererType != RendererType::None);
+  JNIEnv* env = GetJNIEnv();
+  // Renderer type must be set.
+  // If not set, FileAsset constructor will throw on RendererType::None value
+  // being -1
+  assert(m_rendererType != RendererType::None);
 
-    if (asset.is<rive::TextAsset>() || asset.is<rive::BlobAsset>() ||
-        asset.is<rive::ManifestAsset>())
-    {
-        // These assets have no Kotlin counterpart. Returning false lets the
-        // importer decode their in-band contents. TextAsset includes its
-        // concrete ScriptAsset and ShaderAsset subclasses.
-        return false;
-    }
+  if (asset.is<rive::TextAsset>() || asset.is<rive::BlobAsset>() ||
+      asset.is<rive::ManifestAsset>())
+  {
+    // These assets have no Kotlin counterpart. Returning false lets the
+    // importer decode their in-band contents. TextAsset includes its
+    // concrete ScriptAsset and ShaderAsset subclasses.
+    return false;
+  }
 
-    jobject ktFileAsset =
-        JNIFileAssetLoader::MakeKtAsset(env, asset, m_rendererType);
-    if (!ktFileAsset)
-    {
-        RiveLogE(TAG, "loadContents() failed to create FileAsset");
-        return false;
-    }
+  jobject ktFileAsset = JNIFileAssetLoader::MakeKtAsset(
+      env,
+      asset,
+      m_rendererType);
+  if (!ktFileAsset)
+  {
+    RiveLogE(TAG, "loadContents() failed to create FileAsset");
+    return false;
+  }
 
-    // Is inBandBytes always defined? Can it ever be a nullptr?
-    jbyteArray byteArray =
-        env->NewByteArray(rive_android::SizeTToInt(inBandBytes.size()));
-    if (!byteArray)
-    {
-        RiveLogE(TAG, "loadContents() failed to allocate NewByteArray");
-        return false;
-    }
-    env->SetByteArrayRegion(byteArray,
-                            0,
-                            rive_android::SizeTToInt(inBandBytes.size()),
-                            (jbyte*)inBandBytes.data());
-    jboolean result =
-        JNIExceptionHandler::CallBooleanMethod(env,
-                                               m_ktFileAssetLoader,
-                                               m_ktLoadContentsFn,
-                                               ktFileAsset,
-                                               byteArray);
+  // Is inBandBytes always defined? Can it ever be a nullptr?
+  jbyteArray byteArray = env->NewByteArray(
+      rive_android::SizeTToInt(inBandBytes.size()));
+  if (!byteArray)
+  {
+    RiveLogE(TAG, "loadContents() failed to allocate NewByteArray");
+    return false;
+  }
+  env->SetByteArrayRegion(
+      byteArray,
+      0,
+      rive_android::SizeTToInt(inBandBytes.size()),
+      (jbyte*)inBandBytes.data());
+  jboolean result = JNIExceptionHandler::CallBooleanMethod(
+      env,
+      m_ktFileAssetLoader,
+      m_ktLoadContentsFn,
+      ktFileAsset,
+      byteArray);
 
-    env->DeleteLocalRef(byteArray);
-    env->DeleteLocalRef(ktFileAsset);
-    return result;
+  env->DeleteLocalRef(byteArray);
+  env->DeleteLocalRef(ktFileAsset);
+  return result;
 }
 } // namespace rive_android

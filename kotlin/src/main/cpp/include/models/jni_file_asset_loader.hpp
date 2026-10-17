@@ -16,85 +16,83 @@ namespace rive_android
 class JNIFileAssetLoader : public rive::FileAssetLoader
 {
 public:
-    JNIFileAssetLoader(jobject, JNIEnv*);
-    ~JNIFileAssetLoader() override;
+  JNIFileAssetLoader(jobject, JNIEnv*);
+  ~JNIFileAssetLoader() override;
 
-    bool loadContents(rive::FileAsset&,
-                      rive::Span<const uint8_t>,
-                      rive::Factory*) override;
+  bool loadContents(rive::FileAsset&, rive::Span<const uint8_t>, rive::Factory*)
+      override;
 
-    void setRendererType(RendererType type)
+  void setRendererType(RendererType type)
+  {
+    if (type != m_rendererType)
     {
-        if (type != m_rendererType)
-        {
-            m_rendererType = type;
-        }
+      m_rendererType = type;
+    }
+  }
+
+  static jobject MakeKtAsset(
+      JNIEnv* env,
+      rive::FileAsset& asset,
+      RendererType rendererType)
+  {
+    jclass assetClass = nullptr;
+    if (asset.is<rive::ImageAsset>())
+    {
+      assetClass = env->FindClass("app/rive/runtime/kotlin/core/ImageAsset");
+    }
+    else if (asset.is<rive::FontAsset>())
+    {
+      assetClass = env->FindClass("app/rive/runtime/kotlin/core/FontAsset");
+    }
+    else if (asset.is<rive::AudioAsset>())
+    {
+      assetClass = env->FindClass("app/rive/runtime/kotlin/core/AudioAsset");
+    }
+    else
+    {
+      RiveLogW(TAG, "Trying to make unknown file asset type %d", asset.typeKey);
     }
 
-    static jobject MakeKtAsset(JNIEnv* env,
-                               rive::FileAsset& asset,
-                               RendererType rendererType)
+    if (!assetClass)
     {
-        jclass assetClass = nullptr;
-        if (asset.is<rive::ImageAsset>())
-        {
-            assetClass =
-                env->FindClass("app/rive/runtime/kotlin/core/ImageAsset");
-        }
-        else if (asset.is<rive::FontAsset>())
-        {
-            assetClass =
-                env->FindClass("app/rive/runtime/kotlin/core/FontAsset");
-        }
-        else if (asset.is<rive::AudioAsset>())
-        {
-            assetClass =
-                env->FindClass("app/rive/runtime/kotlin/core/AudioAsset");
-        }
-        else
-        {
-            RiveLogW(TAG,
-                     "Trying to make unknown file asset type %d",
-                     asset.typeKey);
-        }
-
-        if (!assetClass)
-        {
-            RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset class");
-            return nullptr;
-        }
-
-        jmethodID fileAssetConstructor =
-            env->GetMethodID(assetClass, "<init>", "(JI)V");
-        if (!fileAssetConstructor)
-        {
-            RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset constructor");
-            env->DeleteLocalRef(assetClass);
-            return nullptr;
-        }
-
-        // Renderer type must be set.
-        // If not set, FileAsset constructor will throw on RendererType::None
-        // value being -1
-        jobject ktFileAsset = env->NewObject(assetClass,
-                                             fileAssetConstructor,
-                                             reinterpret_cast<jlong>(&asset),
-                                             static_cast<int>(rendererType));
-        if (!ktFileAsset)
-        {
-            RiveLogE(TAG, "MakeKtAsset() failed to create FileAsset");
-            env->DeleteLocalRef(assetClass);
-            return nullptr;
-        }
-        return ktFileAsset;
+      RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset class");
+      return nullptr;
     }
+
+    jmethodID fileAssetConstructor = env->GetMethodID(
+        assetClass,
+        "<init>",
+        "(JI)V");
+    if (!fileAssetConstructor)
+    {
+      RiveLogE(TAG, "MakeKtAsset() failed to find FileAsset constructor");
+      env->DeleteLocalRef(assetClass);
+      return nullptr;
+    }
+
+    // Renderer type must be set.
+    // If not set, FileAsset constructor will throw on RendererType::None
+    // value being -1
+    jobject ktFileAsset = env->NewObject(
+        assetClass,
+        fileAssetConstructor,
+        reinterpret_cast<jlong>(&asset),
+        static_cast<int>(rendererType));
+    if (!ktFileAsset)
+    {
+      RiveLogE(TAG, "MakeKtAsset() failed to create FileAsset");
+      env->DeleteLocalRef(assetClass);
+      return nullptr;
+    }
+    return ktFileAsset;
+  }
 
 private:
-    static constexpr auto* TAG = "RiveLN/JNIFileAssetLoader";
+  static constexpr auto* TAG = "RiveLN/JNIFileAssetLoader";
 
-    jobject m_ktFileAssetLoader = nullptr;
-    jmethodID m_ktLoadContentsFn;
+  jobject m_ktFileAssetLoader = nullptr;
+  jmethodID m_ktLoadContentsFn;
 
-    RendererType m_rendererType = RendererType::None;
+  RendererType m_rendererType = RendererType::None;
 };
 } // namespace rive_android
