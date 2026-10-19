@@ -166,7 +166,18 @@ std::unique_ptr<RenderSurfaceVulkan> RenderSurfaceVulkan::MakeImage(
 
 RenderSurfaceVulkan::~RenderSurfaceVulkan()
 {
-  if (device != nullptr)
+  // Cleanup after a failure to create a surface can reach this destructor
+  // on the caller thread.
+  // In that case synchronizer() is null: the surface is still pending and
+  // has no GPU work to wait for. Waiting would instead risk overlapping the
+  // command server thread's queue operations on the shared device.
+  // A non-null synchronizer means the surface was prepared, so its disposal
+  // follows the command server thread's ordered cleanup path. Running the
+  // wait on that same thread serializes it with the worker's queue
+  // operations. Pending surfaces can also be destroyed on the command server
+  // thread. If a window became pending again after invalidation, destroying
+  // its old swapchain already waited for idle.
+  if (device != nullptr && synchronizer() != nullptr)
   {
     device->waitUntilIdle();
   }

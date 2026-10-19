@@ -202,9 +202,10 @@ struct RenderSurfaceVulkan : RenderSurface
   void unregisterFrameSynchronizer();
 
   std::variant<VulkanWindowSurface, VulkanImageSurface> backend;
-  // Borrowed from RenderContextVulkan so destruction can wait for idle before
-  // releasing per-surface Vulkan resources. RenderContextVulkan must outlive
-  // every RenderSurfaceVulkan created from it.
+  // Borrowed from RenderContextVulkan so destruction of a prepared surface
+  // can wait for idle on the command server thread before releasing GPU
+  // resources. RenderContextVulkan must outlive every RenderSurfaceVulkan
+  // created from it.
   rive_vkb::VulkanDevice* device = nullptr;
   // Borrowed from RenderContextVulkan. Synchronizers must be removed before
   // their owning surface state is invalidated or destroyed.
