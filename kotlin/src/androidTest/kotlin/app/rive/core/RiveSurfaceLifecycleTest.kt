@@ -103,26 +103,38 @@ class RiveSurfaceLifecycleTest : RiveAndroidTest() {
     fun draw_beforeSurfaceClose_isCanceledBeforeSurfaceDisposal() = runBlocking {
         val res = loadRiveResources(R.raw.empty)
         val gate = CountDownLatch(1)
+        val gateEntered = CountDownLatch(1)
+        val gateTimedOut = AtomicBoolean(false)
         val closeableSurface = LatchingImageReaderSurface()
         val surface = riveWorker.createRiveSurface(closeableSurface)
 
-        // Block command processing so draw and close queue behind this gate. Once released,
-        // the server observes draw -> cancelDraw -> dispose in one processing pass.
+        // Wait until the server has inserted this batch's commandLoopBreak and entered the
+        // callback. Draw and cancel then both land after that marker, in the next batch.
+        // Without this handshake the marker can split draw from cancel while the gate is queued.
         riveWorker.runOnCommandServer {
-            gate.await(2, TimeUnit.SECONDS)
+            gateEntered.countDown()
+            gateTimedOut.set(!gate.await(TEST_TIMEOUT, TimeUnit.MILLISECONDS))
         }
-        riveWorker.draw(
-            res.artboard.artboardHandle,
-            res.stateMachine.stateMachineHandle,
-            surface,
-            Fit.Contain(),
-            Color.TRANSPARENT
-        )
-
-        surface.close()
-        gate.countDown()
+        try {
+            assertTrue(
+                gateEntered.await(TEST_TIMEOUT, TimeUnit.MILLISECONDS),
+                "Command server did not enter the draw-cancellation gate"
+            )
+            riveWorker.draw(
+                res.artboard.artboardHandle,
+                res.stateMachine.stateMachineHandle,
+                surface,
+                Fit.Contain(),
+                Color.TRANSPARENT
+            )
+            surface.close()
+        } finally {
+            gate.countDown()
+            if (!surface.closed) surface.close()
+        }
 
         assertClosed(closeableSurface)
+        assertFalse(gateTimedOut.get(), "Draw-cancellation gate expired before close was queued")
         assertFalse(
             closeableSurface.awaitFrameAvailable(timeoutMillis = 200),
             "Expected draw queued before surface close to be canceled before producing a frame"
