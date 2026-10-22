@@ -28,7 +28,13 @@ public:
    */
   void scheduleDispose();
 
-  void setSurface(SurfaceVariant);
+  /**
+   * Queues surface replacement, stopping the old implementation before
+   * teardown.
+   *
+   * @param surface New surface, or monostate to detach the current surface.
+   */
+  void setSurface(SurfaceVariant surface);
 
   rive::Renderer* getRendererOnWorkerThread() const;
 

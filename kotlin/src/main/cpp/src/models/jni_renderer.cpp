@@ -135,6 +135,10 @@ void JNIRenderer::setSurface(SurfaceVariant surface)
         oldSurface);
     if (m_workerImpl)
     {
+      // Surface replacement must stop the implementation in this same work
+      // item. Kotlin's playback flag can already be false while a stop from
+      // the frame callback is still waiting to be enqueued on this worker.
+      m_workerImpl->stop();
       m_workerImpl->destroy(threadState);
       m_workerImpl.reset();
     }

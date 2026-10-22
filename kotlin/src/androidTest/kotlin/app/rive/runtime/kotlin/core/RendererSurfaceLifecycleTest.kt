@@ -34,6 +34,22 @@ class RendererSurfaceLifecycleTest {
         }
     }
 
+    /** Verifies replacing a started Canvas surface completes teardown and releases the old surface. */
+    @Test
+    fun replacingStartedCanvasSurfaceReleasesOldSurface() {
+        assertSurfaceRetainedUntilTeardown { renderer, replacement ->
+            renderer.setSurface(replacement)
+        }
+    }
+
+    /** Verifies replacing a started Rive surface completes teardown and releases the old surface. */
+    @Test
+    fun replacingStartedRiveSurfaceReleasesOldSurface() {
+        assertSurfaceRetainedUntilTeardown(RendererType.Rive) { renderer, replacement ->
+            renderer.setSurface(replacement)
+        }
+    }
+
     /** Verifies the TextureView destruction path retains a surface through an in-flight frame. */
     @Test
     fun destroyedSurfaceIsRetainedUntilNativeTeardownCompletes() {
