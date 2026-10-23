@@ -10,12 +10,15 @@ import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import app.rive.Fit
 import app.rive.RiveAndroidTest
+import app.rive.RiveFile
+import app.rive.RiveFileSource
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.runtime.kotlin.test.R
 import app.rive.semantics.SemanticTreeModel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
@@ -25,6 +28,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -293,6 +297,53 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
             "CommandQueueLifecycleTest",
             "Final release after off-main poll",
         )
+        assertDisposed(commandQueue)
+    }
+
+    /**
+     * A callback delivered by [CommandQueue.pollMessages] can resume a coroutine before the poll
+     * returns. If that coroutine releases the last owning reference, as an app does to recover from
+     * a lost render context, disposal waits until the poll returns.
+     */
+    @Test
+    fun pollMessages_lastReleaseFromCallback_disposesAfterPoll() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val bytes = context.resources.openRawResource(R.raw.multipleartboards).use {
+            it.readBytes()
+        }
+        val commandQueue = CommandQueue()
+        val polling = AtomicBoolean(false)
+        val releasedDuringPoll = AtomicReference<Boolean?>(null)
+        val disposedAtRelease = AtomicReference<Boolean?>(null)
+        instrumentation.runOnMainSync {
+            // The polls below run outside any coroutine, so Main.immediate resumes this coroutine
+            // inside the poll that delivers the file callback.
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                RiveFile.load(RiveFileSource.Bytes(bytes), commandQueue).close()
+                commandQueue.release(
+                    "CommandQueueLifecycleTest",
+                    "Last release from a polled callback",
+                )
+                disposedAtRelease.set(commandQueue.isDisposed)
+                releasedDuringPoll.set(polling.get())
+            }
+        }
+
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (releasedDuringPoll.get() == null && System.nanoTime() < deadline) {
+            instrumentation.runOnMainSync {
+                polling.set(true)
+                try {
+                    commandQueue.pollMessages()
+                } finally {
+                    polling.set(false)
+                }
+            }
+            Thread.sleep(16)
+        }
+
+        assertTrue(releasedDuringPoll.get() == true, "The last release should run during a poll")
+        assertFalse(disposedAtRelease.get() == true, "Disposal should wait for the poll to return")
         assertDisposed(commandQueue)
     }
 

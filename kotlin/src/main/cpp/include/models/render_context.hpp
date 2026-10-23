@@ -1,10 +1,12 @@
 #pragma once
 
 #include <EGL/egl.h>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
 
+#include "helpers/rive_log.hpp"
 #include "models/render_surface.hpp"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/render_target.hpp"
@@ -91,6 +93,50 @@ public:
    * called after failed or partial initialization, and must be idempotent.
    */
   virtual void destroy() = 0;
+
+  /**
+   * Whether the GPU device or context behind this RenderContext was lost.
+   * Once true, it stays true.
+   */
+  bool isContextLost() const
+  {
+    return m_contextLossPhase.load(std::memory_order_acquire) !=
+           ContextLossPhase::Ready;
+  }
+
+  /**
+   * Record that the GPU device or context was lost, logging once. Called on
+   * the command server thread when a backend call reports the loss.
+   *
+   * @param operation The frame operation that reported the loss.
+   */
+  void markContextLost(const char* operation)
+  {
+    auto expected = ContextLossPhase::Ready;
+    if (m_contextLossPhase.compare_exchange_strong(
+            expected,
+            ContextLossPhase::Lost,
+            std::memory_order_acq_rel))
+    {
+      RiveLogE(
+          TAG_RC,
+          "Render context lost during %s; skipping further draws",
+          operation);
+    }
+  }
+
+  /**
+   * Returns true exactly once after the context was lost, so the loss is
+   * reported to Kotlin once.
+   */
+  bool takeContextLostNotice()
+  {
+    auto expected = ContextLossPhase::Lost;
+    return m_contextLossPhase.compare_exchange_strong(
+        expected,
+        ContextLossPhase::Reported,
+        std::memory_order_acq_rel);
+  }
 
   /**
    * Make a renderable Rive image from decoded image data.
@@ -186,6 +232,17 @@ public:
       uint8_t* pixels) = 0;
 
   std::unique_ptr<rive::gpu::RenderContext> riveContext;
+
+private:
+  /** Whether the context is lost, and whether Kotlin was told. */
+  enum class ContextLossPhase : uint8_t
+  {
+    Ready,
+    Lost,
+    Reported,
+  };
+
+  std::atomic<ContextLossPhase> m_contextLossPhase{ContextLossPhase::Ready};
 };
 
 /** Native RenderContext implementation for EGL/OpenGL ES. */
@@ -202,9 +259,12 @@ struct RenderContextGL : RenderContext
   /**
    * Destroys a surface on the owning worker thread, first switching to the
    * background pbuffer if the surface is current for drawing or reading.
-   * Keeps the EGL context current for subsequent GL resource cleanup.
+   * Keeps the EGL context current for subsequent GL resource cleanup. If the
+   * switch fails, unbinds the context, destroys the surface anyway, and makes
+   * the pbuffer current again if the context still works. If that also fails,
+   * marks the context lost.
    * @param surface The window or capture pbuffer surface to destroy.
-   * @return EGL_SUCCESS, or the EGL error from switching or destruction.
+   * @return EGL_SUCCESS, or the EGL error from destruction.
    */
   EGLint destroySurface(EGLSurface surface);
 

@@ -118,11 +118,15 @@ internal data class RenderContextGL(
     private external fun cppDestroySurface(contextPointer: Long, surface: Long): Int
 
     /**
-     * Releases an EGL surface while preserving the worker's current EGL context.
+     * Releases an EGL surface, keeping the worker's EGL context current when possible.
+     *
+     * If the worker cannot switch to its background pbuffer first, it unbinds the EGL context,
+     * still destroys the surface so it is not leaked, and makes the pbuffer current again if the
+     * context still works. If that also fails, the render context is marked as lost.
      *
      * Call on the command-server thread, before releasing the Android backing surface.
      * @param surface Window or capture pbuffer surface owned by this context.
-     * @throws RiveShutdownException If switching surfaces or destroying the surface fails.
+     * @throws RiveShutdownException If destroying the surface fails.
      */
     @WorkerThread
     fun destroySurface(surface: EGLSurface) {
@@ -283,27 +287,33 @@ internal data class RenderContextGL(
     /**
      * Disposes of the EGL context and display, and deletes the native RenderContextGL object.
      *
+     * Each step runs even if an earlier one fails, so one failure does not leak the remaining
+     * resources.
+     *
      * @throws RiveShutdownException If unable to destroy the EGL context or terminate the EGL
-     *    display.
+     *    display. When both fail, the first failure is thrown.
      */
     override fun dispose() {
         RiveLog.d(TAG) { "Destroying EGL context" }
-        val destroyed = EGL14.eglDestroyContext(display, context)
-        if (!destroyed) {
+        val destroyFailure = if (EGL14.eglDestroyContext(display, context)) {
+            null
+        } else {
             val error = EGLError.errorString(EGL14.eglGetError())
             RiveLog.e(TAG) { "eglDestroyContext failed with error: $error" }
-            throw RiveShutdownException("Unable to destroy EGL context", Throwable(error))
+            RiveShutdownException("Unable to destroy EGL context", Throwable(error))
         }
 
         RiveLog.d(TAG) { "Terminating EGL display" }
-        val terminated = EGL14.eglTerminate(display)
-        if (!terminated) {
+        val terminateFailure = if (EGL14.eglTerminate(display)) {
+            null
+        } else {
             val error = EGLError.errorString(EGL14.eglGetError())
             RiveLog.e(TAG) { "eglTerminate failed with error: $error" }
-            throw RiveShutdownException("Unable to terminate EGL display", Throwable(error))
+            RiveShutdownException("Unable to terminate EGL display", Throwable(error))
         }
 
         cppPointer.close()
+        (destroyFailure ?: terminateFailure)?.let { throw it }
     }
 
     /**

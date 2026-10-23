@@ -16,6 +16,7 @@ import app.rive.ExperimentalDeferredRendering
 import app.rive.ExperimentalRiveGlobalViewModels
 import app.rive.Fit
 import app.rive.RenderBackend
+import app.rive.RenderContextStatus
 import app.rive.Rive
 import app.rive.RiveArtboardException
 import app.rive.RiveAudioException
@@ -66,8 +67,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -504,8 +507,13 @@ class CommandQueue internal constructor(
 
             try {
                 listeners.close()
-                // May throw RiveShutdownException - still need to count down the latch.
                 renderContext.close()
+            } catch (e: RiveShutdownException) {
+                // This is a plain thread, so an uncaught exception would crash the app. A lost
+                // render context can make EGL teardown fail, so log the failure instead.
+                RiveLog.e(COMMAND_QUEUE_TAG, e) {
+                    "Render context cleanup failed during command queue shutdown"
+                }
             } finally {
                 shutdownComplete.countDown()
             }
@@ -841,6 +849,24 @@ class CommandQueue internal constructor(
     /** Hot flow that emits when any trigger property is fired. */
     val triggerPropertyFlow: SharedFlow<PropertyUpdate<Unit>> = _triggerPropertyFlow
 
+    private val _renderContextStatus = MutableStateFlow(RenderContextStatus.Ready)
+
+    /**
+     * Whether this worker can render, or has lost the GPU device or context it renders with.
+     *
+     * A render context can be lost when the GPU driver resets or fails. After that, this worker
+     * skips every draw to a surface, so its Rive instances stop updating, and [drawToBuffer] throws
+     * [RiveDrawToBufferException]. The `Rive` composable and `RiveCanvasSession` stop their frame
+     * loops on their own. Release this worker, then create a new one and load your files again.
+     *
+     * Currently the status only changes from [RenderContextStatus.Ready] to
+     * [RenderContextStatus.Lost], and never changes back. Rive detects the loss when this worker
+     * next draws, and updates the status while this worker is being polled. Rive can miss a loss in
+     * two cases: when the loss first shows up while Rive prepares a new or resized surface, and on
+     * OpenGL, when the driver reports the loss in a way Rive does not recognize.
+     */
+    val renderContextStatus: StateFlow<RenderContextStatus> = _renderContextStatus.asStateFlow()
+
     init {
         RiveLog.d(COMMAND_QUEUE_TAG) { "Creating command queue" }
     }
@@ -913,9 +939,32 @@ class CommandQueue internal constructor(
         check(Looper.myLooper() == Looper.getMainLooper()) {
             "CommandQueue.pollMessages must be called on the main thread."
         }
-        traceSection("Rive/PollMessages") {
-            bridge.cppPollMessages(requireNativePointer())
+        // A callback can release this worker's last owning reference, for example to recover from a
+        // lost render context. Native shutdown would then delete the queue and its listeners while
+        // they are still delivering messages, so hold a reference until the poll returns. Polling
+        // runs every frame, so this reference is not logged.
+        if (!cppPointer.tryAcquire("Poll messages", logged = false)) {
+            throw RiveResourceClosedException("RiveWorker is disposed")
         }
+        try {
+            traceSection("Rive/PollMessages") {
+                bridge.cppPollMessages(cppPointer.pointer)
+            }
+        } finally {
+            cppPointer.release("Poll messages", reason = "", logged = false)
+        }
+    }
+
+    /**
+     * Callback when the command server reports that the render context was lost. Delivered by
+     * [pollMessages] on the main thread. Does nothing after this command queue is disposed.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onRenderContextLost")
+    internal fun onRenderContextLost() {
+        if (isDisposed) return
+        _renderContextStatus.value = RenderContextStatus.Lost
     }
 
     /**
@@ -4441,6 +4490,7 @@ data class Listeners(
     val imageListener: Long,
     val audioListener: Long,
     val fontListener: Long,
+    val runtimeMessageListener: Long,
 ) : AutoCloseable {
     private external fun cppDelete(
         fileListener: Long,
@@ -4450,6 +4500,7 @@ data class Listeners(
         imageListener: Long,
         audioListener: Long,
         fontListener: Long,
+        runtimeMessageListener: Long,
     )
 
     /**
@@ -4464,5 +4515,6 @@ data class Listeners(
         imageListener,
         audioListener,
         fontListener,
+        runtimeMessageListener,
     )
 }

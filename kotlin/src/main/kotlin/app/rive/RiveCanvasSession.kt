@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -523,6 +524,10 @@ class RiveCanvasSession private constructor(
      * If the session is closed while this is running, the loop will exit, the function will return,
      * and the session will stop advancing and rendering frames.
      *
+     * The loop also stops advancing and rendering while the worker's
+     * [renderContextStatus][app.rive.core.CommandQueue.renderContextStatus] is not
+     * [RenderContextStatus.Ready], for example after the render context is lost.
+     *
      * Ensure [setRegion] has been called with a valid region before calling this. Without a valid
      * region, the state machine will not be advanced and no frames will be rendered.
      *
@@ -603,8 +608,26 @@ class RiveCanvasSession private constructor(
                         var loggedNoBuffer = false
 
                         while (isActive && !closer.closed) {
+                            if (riveWorker.renderContextStatus.value != RenderContextStatus.Ready) {
+                                // Rive cannot render without a render context, so wait here
+                                // instead of attempting frames.
+                                traceSection("Rive/Frame/RenderContextSuspend") {
+                                    riveWorker.renderContextStatus.first { status ->
+                                        status == RenderContextStatus.Ready
+                                    }
+                                }
+                                lastFrameTimeNs = 0L
+                                continue
+                            }
                             ticker.withFrame { frameTimeNs ->
                                 if (closer.closed) {
+                                    return@withFrame
+                                }
+                                // The render context can be lost while this loop waits for a
+                                // frame. The check at the top of the loop then suspends it.
+                                if (riveWorker.renderContextStatus.value !=
+                                    RenderContextStatus.Ready
+                                ) {
                                     return@withFrame
                                 }
 

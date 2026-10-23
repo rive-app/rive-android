@@ -294,7 +294,11 @@ internal class RiveSurfaceGL(
     }
 
     /**
-     * Destroys the EGLSurface and calls the super class to dispose of its resources.
+     * Destroys the EGLSurface, releases the Android surface source, and calls the super class to
+     * dispose of its resources.
+     *
+     * Each step runs even if an earlier one fails, so one failure does not leak the remaining
+     * resources.
      *
      * Runs on the command server thread. See the note in [close].
      *
@@ -302,15 +306,16 @@ internal class RiveSurfaceGL(
      */
     @WorkerThread
     override fun dispose() {
-        // Destroy the EGL surface first...
-        RiveLog.d(TAG) { "Destroying EGL surface" }
-        renderContext.destroySurface(eglSurface)
-
-        // ... Then release the Android surface source that backed the EGL surface ...
-        closeableSurface.close()
-
-        // ... Then dispose of base class resources
-        super.dispose()
+        try {
+            // Destroy the EGL surface, then release the Android surface source that backed it...
+            closeableSurface.use {
+                RiveLog.d(TAG) { "Destroying EGL surface" }
+                renderContext.destroySurface(eglSurface)
+            }
+        } finally {
+            // ... Then dispose of base class resources
+            super.dispose()
+        }
     }
 }
 
@@ -346,18 +351,22 @@ internal class RiveSurfaceGLPBuffer(
     /**
      * Destroys the EGLSurface and calls the super class to dispose of other resources.
      *
+     * The super class disposes of its resources even if destroying the EGL surface fails.
+     *
      * Runs on the command server thread. See the note in [RiveSurface.close].
      *
      * @throws RiveShutdownException If unable to destroy the EGL surface.
      */
     @WorkerThread
     override fun dispose() {
-        // Destroy the EGL PBuffer surface first...
-        RiveLog.d(TAG) { "Destroying EGL PBuffer surface" }
-        renderContext.destroySurface(eglSurface)
-
-        // ... Then dispose of other resources
-        super.dispose()
+        try {
+            // Destroy the EGL PBuffer surface first...
+            RiveLog.d(TAG) { "Destroying EGL PBuffer surface" }
+            renderContext.destroySurface(eglSurface)
+        } finally {
+            // ... Then dispose of other resources
+            super.dispose()
+        }
     }
 }
 

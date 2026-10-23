@@ -101,6 +101,7 @@ bool invalidateSwapchainIfRecoverable(
 }
 
 bool beginWindowFrame(
+    RenderContext& context,
     RenderSurfaceVulkan* surface,
     VulkanWindowSurface& window,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
@@ -125,6 +126,10 @@ bool beginWindowFrame(
       {
         return false;
       }
+      if (result == VK_ERROR_DEVICE_LOST)
+      {
+        context.markContextLost("Vulkan beginFrame");
+      }
       RiveLogE(TAG_RC, "Failed to begin Vulkan swapchain frame: %d", result);
       return false;
     }
@@ -138,6 +143,7 @@ bool beginWindowFrame(
 }
 
 bool beginImageFrame(
+    RenderContext& context,
     VulkanImageSurface& image,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
     rive_vkb::VulkanFrameSyncCoordinator& coordinator)
@@ -161,6 +167,10 @@ bool beginImageFrame(
     auto result = frameSynchronizer->beginFrame();
     if (result != VK_SUCCESS)
     {
+      if (result == VK_ERROR_DEVICE_LOST)
+      {
+        context.markContextLost("Vulkan beginFrame");
+      }
       RiveLogE(TAG_RC, "Failed to begin Vulkan image frame: %d", result);
       return false;
     }
@@ -216,6 +226,7 @@ bool flushImageFrame(
 }
 
 bool presentWindowFrame(
+    RenderContext& context,
     RenderSurfaceVulkan* surface,
     VulkanWindowSurface& window,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget)
@@ -238,6 +249,10 @@ bool presentWindowFrame(
     {
       return false;
     }
+    if (result == VK_ERROR_DEVICE_LOST)
+    {
+      context.markContextLost("Vulkan present");
+    }
     RiveLogE(TAG_RC, "Failed to present Vulkan frame: %d", result);
     return false;
   }
@@ -245,6 +260,7 @@ bool presentWindowFrame(
 }
 
 bool presentImageFrame(
+    RenderContext& context,
     VulkanImageSurface& image,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget)
 {
@@ -266,6 +282,10 @@ bool presentImageFrame(
   auto result = frameSynchronizer->endFrame(lastAccess);
   if (result != VK_SUCCESS)
   {
+    if (result == VK_ERROR_DEVICE_LOST)
+    {
+      context.markContextLost("Vulkan present");
+    }
     RiveLogE(TAG_RC, "Failed to present Vulkan frame: %d", result);
     return false;
   }
@@ -322,6 +342,7 @@ void copyMappedPixelReadToRGBA(
 }
 
 bool readWindowPixels(
+    RenderContext& context,
     VulkanWindowSurface& window,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
     uint32_t width,
@@ -355,6 +376,10 @@ bool readWindowPixels(
   }
   if (result != VK_SUCCESS)
   {
+    if (result == VK_ERROR_DEVICE_LOST)
+    {
+      context.markContextLost("Vulkan readPixels");
+    }
     RiveLogE(TAG_RC, "Failed to read pixels from Vulkan swapchain: %d", result);
     return false;
   }
@@ -362,6 +387,7 @@ bool readWindowPixels(
 }
 
 bool readImagePixels(
+    RenderContext& context,
     VulkanImageSurface& image,
     rive::gpu::RenderTargetVulkanImpl& vulkanTarget,
     uint32_t width,
@@ -399,6 +425,10 @@ bool readImagePixels(
   }
   if (result != VK_SUCCESS)
   {
+    if (result == VK_ERROR_DEVICE_LOST)
+    {
+      context.markContextLost("Vulkan readPixels");
+    }
     RiveLogE(
         TAG_RC,
         "Failed to read pixels from Vulkan image surface: %d",
@@ -698,6 +728,7 @@ rive::gpu::RenderTarget* RenderContextVulkan::beginFrame(
       Overloaded{
           [&](VulkanWindowSurface& window) {
             return beginWindowFrame(
+                *this,
                 surface,
                 window,
                 *vulkanTarget,
@@ -705,6 +736,7 @@ rive::gpu::RenderTarget* RenderContextVulkan::beginFrame(
           },
           [&](VulkanImageSurface& image) {
             return beginImageFrame(
+                *this,
                 image,
                 *vulkanTarget,
                 *m_frameSyncCoordinator);
@@ -788,10 +820,10 @@ bool RenderContextVulkan::present(RenderSurface* nativeSurface)
   return std::visit(
       Overloaded{
           [&](VulkanWindowSurface& window) {
-            return presentWindowFrame(surface, window, *vulkanTarget);
+            return presentWindowFrame(*this, surface, window, *vulkanTarget);
           },
           [&](VulkanImageSurface& image) {
-            return presentImageFrame(image, *vulkanTarget);
+            return presentImageFrame(*this, image, *vulkanTarget);
           },
       },
       surface->backend);
@@ -815,6 +847,7 @@ bool RenderContextVulkan::readPixels(
       Overloaded{
           [&](VulkanWindowSurface& window) {
             return readWindowPixels(
+                *this,
                 window,
                 *vulkanTarget,
                 width,
@@ -822,7 +855,13 @@ bool RenderContextVulkan::readPixels(
                 pixels);
           },
           [&](VulkanImageSurface& image) {
-            return readImagePixels(image, *vulkanTarget, width, height, pixels);
+            return readImagePixels(
+                *this,
+                image,
+                *vulkanTarget,
+                width,
+                height,
+                pixels);
           },
       },
       surface->backend);

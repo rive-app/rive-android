@@ -1,6 +1,8 @@
 package app.rive
 
 import android.os.Build
+import android.os.Looper
+import android.os.Trace
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import app.rive.core.ArtboardHandle
@@ -23,18 +25,24 @@ import app.rive.semantics.SemanticsDiff
 import app.rive.semantics.SemanticsDiffNode
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.runs
 import io.mockk.slot
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import io.mockk.verifyOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
@@ -299,6 +307,30 @@ class CommandQueueUnitTest : FunSpec({
         verify(exactly = 1) { renderContextMock.close() }
     }
 
+    test("Final release does not crash when closing the render context fails") {
+        val shutdownThread = AtomicReference<Thread?>(null)
+        val uncaught = AtomicReference<Throwable?>(null)
+        every { renderContextMock.close() } answers {
+            // close() runs on the shutdown thread. Record what would reach Android's crash
+            // handler on that thread only, so no global handler is replaced.
+            Thread.currentThread().also { thread ->
+                shutdownThread.set(thread)
+                thread.uncaughtExceptionHandler =
+                    Thread.UncaughtExceptionHandler { _, error -> uncaught.set(error) }
+            }
+            throw RiveShutdownException("Render context close failed")
+        }
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+
+        commandQueue.awaitShutdown(1000) shouldBe true
+        // An escaping exception reaches the handler after the latch counts down, so wait for the
+        // shutdown thread itself to finish.
+        shutdownThread.get().shouldNotBeNull().join(1000)
+        uncaught.get() shouldBe null
+    }
+
     test("Release returns before native shutdown completes") {
         val shutdownEntered = CountDownLatch(1)
         val shutdownMayFinish = CountDownLatch(1)
@@ -496,6 +528,83 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.beginPolling(lifecycle, ticker)
         }.message shouldContain "disposed"
         verify(exactly = 0) { commandQueueBridgeMock.cppPollMessages(any()) }
+    }
+
+    test("Polling holds a reference until the poll returns without logging it") {
+        asMainThread {
+            val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+            val refCountDuringPoll = AtomicInteger()
+            every { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) } answers {
+                refCountDuringPoll.set(commandQueue.refCount)
+            }
+            val verboseLogs = mutableListOf<String>()
+            val previousLogger = RiveLog.logger
+            RiveLog.logger = object : RiveLog.Logger {
+                override fun v(tag: String, msg: () -> String) {
+                    verboseLogs.add(msg())
+                }
+            }
+
+            try {
+                commandQueue.pollMessages()
+            } finally {
+                RiveLog.logger = previousLogger
+            }
+
+            refCountDuringPoll.get() shouldBe 2
+            commandQueue.refCount shouldBe 1
+            verboseLogs.shouldBeEmpty()
+        }
+    }
+
+    test("Releasing the last reference while polling disposes the worker after the poll returns") {
+        asMainThread {
+            val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+            val disposedDuringPoll = AtomicReference<Boolean?>(null)
+            every { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) } answers {
+                // A callback can resume a collector that releases the last owning reference, as
+                // an app does to recover from a lost render context.
+                commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+                disposedDuringPoll.set(commandQueue.isDisposed)
+            }
+
+            commandQueue.pollMessages()
+
+            disposedDuringPoll.get() shouldBe false
+            commandQueue.isDisposed shouldBe true
+            commandQueue.awaitShutdown(1_000) shouldBe true
+            verify(exactly = 1) { commandQueueBridgeMock.cppDelete(COMMAND_QUEUE_ADDR) }
+        }
+    }
+
+    test("Constructor initializes renderContextStatus to Ready") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        commandQueue.renderContextStatus.value shouldBe RenderContextStatus.Ready
+    }
+
+    test("Render context lost callback sets renderContextStatus to Lost") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        commandQueue.onRenderContextLost()
+
+        commandQueue.renderContextStatus.value shouldBe RenderContextStatus.Lost
+    }
+
+    test("Render context lost callback after final release is ignored") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+        commandQueue.awaitShutdown(1_000) shouldBe true
+
+        commandQueue.onRenderContextLost()
+
+        commandQueue.renderContextStatus.value shouldBe RenderContextStatus.Ready
+    }
+
+    test("Native code can find the render context lost callback") {
+        val callback = CommandQueue::class.java.getDeclaredMethod("onRenderContextLost")
+
+        callback.returnType shouldBe Void.TYPE
     }
 
     test("File query failure throws file error") {
@@ -1598,5 +1707,23 @@ internal class TestRiveSurface(
 ) {
     override fun resizeNativeResources(width: Int, height: Int) {
         onResizeNativeResources.invoke(width, height)
+    }
+}
+
+/**
+ * Runs [block] as if on the Android main thread, which [CommandQueue.pollMessages] requires, with
+ * trace sections stubbed out.
+ */
+private inline fun <T> asMainThread(block: () -> T): T {
+    val mainLooper = mockk<Looper>()
+    mockkStatic(Looper::class, Trace::class)
+    try {
+        every { Looper.getMainLooper() } returns mainLooper
+        every { Looper.myLooper() } returns mainLooper
+        every { Trace.beginSection(any()) } just runs
+        every { Trace.endSection() } just runs
+        return block()
+    } finally {
+        unmockkStatic(Looper::class, Trace::class)
     }
 }

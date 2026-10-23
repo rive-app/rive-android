@@ -1163,7 +1163,8 @@ private fun UpdateArtboardLayoutEffect(
 }
 
 /**
- * Draws one confirmed resource generation while its lifecycle is resumed.
+ * Draws one confirmed resource generation while its lifecycle is resumed and the worker's render
+ * context is ready.
  *
  * @param riveWorker The worker that owns [artboard], [stateMachine], and [surface].
  * @param lifecycleOwner The lifecycle that controls continuous drawing.
@@ -1204,8 +1205,10 @@ private fun DrawRiveFramesEffect(
 ) {
     val artboardHandle = artboard.artboardHandle
     val stateMachineHandle = stateMachine.stateMachineHandle
+    val renderContextStatus by riveWorker.renderContextStatus.collectAsState()
     LaunchedEffect(
         riveWorker,
+        renderContextStatus,
         lifecycleOwner,
         surface,
         artboard,
@@ -1222,6 +1225,10 @@ private fun DrawRiveFramesEffect(
         semanticsEnabled,
         focusEnabled,
     ) {
+        if (renderContextStatus != RenderContextStatus.Ready) {
+            RiveLog.d(DRAW_TAG) { "Render context is $renderContextStatus, skipping drawing" }
+            return@LaunchedEffect
+        }
         val activeSurface = surface ?: run {
             RiveLog.d(DRAW_TAG) { "Surface is null, skipping drawing" }
             return@LaunchedEffect
@@ -1293,6 +1300,11 @@ private fun DrawRiveFramesEffect(
                 // Settled events can arrive while withFrameNanos is suspended.
                 if (stateMachine.settled.value) {
                     continue
+                }
+                // The render context can be lost while withFrameNanos is suspended, before the
+                // status change restarts this effect.
+                if (riveWorker.renderContextStatus.value != RenderContextStatus.Ready) {
+                    return@repeatOnLifecycle
                 }
                 // FPS cap gate: skip platform frames that arrive before the next Rive frame is due.
                 if (!framePacer.tryScheduleFrame(frameTimeNs)) {

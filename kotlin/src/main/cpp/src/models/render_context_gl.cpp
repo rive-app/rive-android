@@ -1,4 +1,6 @@
 #include <GLES3/gl3.h>
+// gl2ext.h needs the GL types from gl3.h.
+#include <GLES2/gl2ext.h>
 #include <cstring>
 #include <vector>
 
@@ -55,6 +57,29 @@ EGLSurface createPBufferSurface(EGLDisplay eglDisplay, EGLContext eglContext)
 
   RiveLogE(TAG_RC, "Failed to choose EGL config for PBuffer surface");
   return EGL_NO_SURFACE;
+}
+
+/**
+ * GL ES reports eight error codes (five core, plus the KHR_debug stack errors
+ * and KHR_robustness context loss), and glGetError() clears one recorded
+ * error per call. A driver that keeps one flag per code has at most this many
+ * pending.
+ */
+constexpr static int GL_ES_ERROR_CODE_COUNT = 8;
+
+/** Whether an EGL error means this context can no longer be used. */
+bool isContextLostEGLError(EGLint error)
+{
+  switch (error)
+  {
+    case EGL_CONTEXT_LOST:
+    case EGL_BAD_CONTEXT:
+    case EGL_BAD_DISPLAY:
+    case EGL_NOT_INITIALIZED:
+      return true;
+    default:
+      return false;
+  }
 }
 } // namespace
 
@@ -157,6 +182,7 @@ EGLint RenderContextGL::destroySurface(EGLSurface surface)
         "destroySurface");
     return EGL_BAD_SURFACE;
   }
+  bool unboundContext = false;
   if (eglGetCurrentSurface(EGL_DRAW) == surface ||
       eglGetCurrentSurface(EGL_READ) == surface)
   {
@@ -186,19 +212,57 @@ EGLint RenderContextGL::destroySurface(EGLSurface surface)
           "Failed to make background PBuffer current before "
           "destroying EGL surface. Error: %s",
           errorString(error).c_str());
-      return error;
+      if (isContextLostEGLError(error))
+      {
+        markContextLost("eglMakeCurrent before destroying a surface");
+      }
+      // Destroy the surface anyway, so a failed switch does not leak it and
+      // the Android window behind it. Unbinding lets EGL destroy it now.
+      unboundContext = eglMakeCurrent(
+          eglDisplay,
+          EGL_NO_SURFACE,
+          EGL_NO_SURFACE,
+          EGL_NO_CONTEXT);
+      if (!unboundContext)
+      {
+        const EGLint unbindError = consume_egl_error_or_default(
+            EGL_BAD_CONTEXT,
+            TAG_RC);
+        RiveLogE(
+            TAG_RC,
+            "Failed to unbind EGL context before destroying EGL surface. "
+            "Error: %s",
+            errorString(unbindError).c_str());
+      }
     }
   }
-  if (!eglDestroySurface(eglDisplay, surface))
+  const bool destroyed = eglDestroySurface(eglDisplay, surface);
+  const EGLint destroyError = destroyed ? EGL_SUCCESS
+                                        : consume_egl_error_or_default(
+                                              EGL_BAD_SURFACE,
+                                              TAG_RC);
+  if (!destroyed)
   {
-    const EGLint error = consume_egl_error_or_default(EGL_BAD_SURFACE, TAG_RC);
     RiveLogE(
         TAG_RC,
         "eglDestroySurface failed. Error: %s",
-        errorString(error).c_str());
-    return error;
+        errorString(destroyError).c_str());
   }
-  return EGL_SUCCESS;
+  // A context that is still usable needs to be current again, so later GL
+  // cleanup on this thread still has a context. Nothing retries a failed
+  // switch, so any error here marks the context lost.
+  if (unboundContext && !isContextLost() &&
+      !eglMakeCurrent(eglDisplay, pBuffer, pBuffer, eglContext))
+  {
+    RiveLogE(
+        TAG_RC,
+        "Failed to make background PBuffer current after destroying EGL "
+        "surface. Error: %s",
+        errorString(consume_egl_error_or_default(EGL_BAD_CONTEXT, TAG_RC))
+            .c_str());
+    markContextLost("eglMakeCurrent after destroying a surface");
+  }
+  return destroyError;
 }
 
 rive::rcp<rive::RenderImage> RenderContextGL::createRenderImage(
@@ -259,10 +323,15 @@ rive::gpu::RenderTarget* RenderContextGL::beginFrame(RenderSurface* surface)
   const EGLSurface previousEglSurface = eglGetCurrentSurface(EGL_DRAW);
   if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
   {
+    const EGLint error = eglGetError();
     RiveLogE(
         TAG_RC,
         "Failed to make EGL context current for render target. Error: %s",
-        errorString(eglGetError()).c_str());
+        errorString(error).c_str());
+    if (isContextLostEGLError(error))
+    {
+      markContextLost("eglMakeCurrent");
+    }
     return nullptr;
   }
   if (previousEglSurface != eglSurface)
@@ -292,10 +361,15 @@ bool RenderContextGL::present(RenderSurface* surface)
   auto eglSurface = glSurface->eglSurface();
   if (!eglSwapBuffers(eglDisplay, eglSurface))
   {
+    const EGLint error = eglGetError();
     RiveLogE(
         TAG_RC,
         "Failed to swap EGL buffers in present. Error: %s",
-        errorString(eglGetError()).c_str());
+        errorString(error).c_str());
+    if (isContextLostEGLError(error))
+    {
+      markContextLost("eglSwapBuffers");
+    }
     return false;
   }
   return true;
@@ -309,6 +383,23 @@ bool RenderContextGL::readPixels(
 {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glFinish();
+  // Clear errors left by earlier GL calls, so the check below only covers this
+  // readback, but still catch a lost context they report. If errors remain
+  // after GL_ES_ERROR_CODE_COUNT calls, the check below reports the readback
+  // as failed rather than returning pixels that may be wrong.
+  for (int i = 0; i < GL_ES_ERROR_CODE_COUNT; ++i)
+  {
+    const GLenum earlierError = glGetError();
+    if (earlierError == GL_NO_ERROR)
+    {
+      break;
+    }
+    if (earlierError == GL_CONTEXT_LOST_KHR)
+    {
+      markContextLost("GL work before glReadPixels");
+      return false;
+    }
+  }
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   glReadPixels(
       0,
@@ -318,6 +409,16 @@ bool RenderContextGL::readPixels(
       GL_RGBA,
       GL_UNSIGNED_BYTE,
       pixels);
+  const GLenum readError = glGetError();
+  if (readError != GL_NO_ERROR)
+  {
+    if (readError == GL_CONTEXT_LOST_KHR)
+    {
+      markContextLost("glReadPixels");
+    }
+    RiveLogE(TAG_RC, "Failed to read GL pixels. Error: 0x%04x", readError);
+    return false;
+  }
 
   auto rowBytes = static_cast<size_t>(width) * 4;
   std::vector<uint8_t> row(rowBytes);

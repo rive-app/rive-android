@@ -757,6 +757,44 @@ private:
   JCommandQueue m_queue;
 };
 
+/**
+ * Runtime message tag for a lost render context. Tag 1 is reserved for
+ * focus moves.
+ */
+constexpr static uint32_t CONTEXT_LOST_MESSAGE_TAG = 2;
+
+/** Forwards Android-defined runtime messages to the Kotlin CommandQueue. */
+class RuntimeMessageListener : public rive::CommandQueue::RuntimeMessageListener
+{
+public:
+  RuntimeMessageListener(JNIEnv* env, jobject jQueue) : m_queue(env, jQueue) {}
+
+  void onRuntimeMessage(uint32_t tag, std::vector<uint8_t>) override
+  {
+    if (tag == CONTEXT_LOST_MESSAGE_TAG)
+    {
+      m_queue.call("onRenderContextLost", "()V");
+    }
+  }
+
+private:
+  JCommandQueue m_queue;
+};
+
+/**
+ * Posts the context-lost message the first time it is called after the loss
+ * was recorded. Runs on the command server thread.
+ */
+static void postContextLostNotice(
+    RenderContext* renderContext,
+    rive::CommandServer* server)
+{
+  if (renderContext->takeContextLostNotice())
+  {
+    server->postRuntimeMessage(CONTEXT_LOST_MESSAGE_TAG, {});
+  }
+}
+
 /** Typedef for the below setProperty function. */
 template <typename T>
 using PropertySetter = void (rive::CommandQueue::*)(
@@ -1512,6 +1550,14 @@ static void executeDrawWork(
     rive::DrawKey drawKey,
     rive::CommandServer* server)
 {
+  // After a loss every frame fails the same way, and a Vulkan frame whose
+  // submit failed stays started, so it must not be reused. Skip without
+  // logging.
+  if (renderContext->isContextLost())
+  {
+    return;
+  }
+
   auto artboard = server->getArtboardInstance(artboardHandle);
   if (artboard == nullptr)
   {
@@ -1779,7 +1825,7 @@ extern "C"
     auto listenersConstructor = env->GetMethodID(
         listenersClass.get(),
         "<init>",
-        "(JJJJJJJ)V");
+        "(JJJJJJJJ)V");
 
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
@@ -1792,6 +1838,7 @@ extern "C"
     auto imageListener = new ImageListener(env, jReceiver);
     auto audioListener = new AudioListener(env, jReceiver);
     auto fontListener = new FontListener(env, jReceiver);
+    auto runtimeMessageListener = new RuntimeMessageListener(env, jReceiver);
 
     commandQueue->setGlobalFileListener(fileListener);
     commandQueue->setGlobalArtboardListener(artboardListener);
@@ -1800,6 +1847,7 @@ extern "C"
     commandQueue->setGlobalRenderImageListener(imageListener);
     commandQueue->setGlobalAudioSourceListener(audioListener);
     commandQueue->setGlobalFontListener(fontListener);
+    commandQueue->setGlobalRuntimeMessageListener(runtimeMessageListener);
 
     auto listeners = MakeObject(
         env,
@@ -1811,7 +1859,8 @@ extern "C"
         reinterpret_cast<jlong>(viewModelInstanceListener),
         reinterpret_cast<jlong>(imageListener),
         reinterpret_cast<jlong>(audioListener),
-        reinterpret_cast<jlong>(fontListener));
+        reinterpret_cast<jlong>(fontListener),
+        reinterpret_cast<jlong>(runtimeMessageListener));
     return listeners.release();
   }
 
@@ -3548,6 +3597,7 @@ extern "C"
                 scaleFactor,
                 drawKey,
                 server);
+            postContextLostNotice(renderContext, server);
           };
       commandQueue->draw(handleFromLong<rive::DrawKey>(drawKey), drawWork);
     };
@@ -3626,6 +3676,7 @@ extern "C"
       ArtboardNull,
       StateMachineNull,
       RenderTargetUnavailable,
+      ContextLost,
     };
 
     // Be sure all pathways signal completion with `set_value` before
@@ -3646,6 +3697,15 @@ extern "C"
                      completionPromise](
                         rive::DrawKey drawKey,
                         rive::CommandServer* server) {
+      if (renderContext->isContextLost())
+      {
+        // The loss may have been found outside a draw, such as while
+        // destroying a surface, so this can be the first chance to report it.
+        postContextLostNotice(renderContext, server);
+        completionPromise->set_value(DrawResult::ContextLost);
+        return;
+      }
+
       auto artboard = server->getArtboardInstance(
           handleFromLong<rive::ArtboardHandle>(artboardHandleRef));
       if (artboard == nullptr)
@@ -3683,7 +3743,11 @@ extern "C"
           concreteRenderTarget->width() == 0 ||
           concreteRenderTarget->height() == 0)
       {
-        completionPromise->set_value(DrawResult::RenderTargetUnavailable);
+        postContextLostNotice(renderContext, server);
+        completionPromise->set_value(
+            renderContext->isContextLost()
+                ? DrawResult::ContextLost
+                : DrawResult::RenderTargetUnavailable);
         return;
       }
 
@@ -3719,6 +3783,11 @@ extern "C"
                 result = DrawResult::Success;
               }
             });
+        postContextLostNotice(renderContext, server);
+        if (result != DrawResult::Success && renderContext->isContextLost())
+        {
+          result = DrawResult::ContextLost;
+        }
         completionPromise->set_value(result);
         return;
       }
@@ -3748,7 +3817,11 @@ extern "C"
       if (!renderContext->flush(nativeSurface) ||
           !renderContext->readPixels(nativeSurface, width, height, pixels))
       {
-        completionPromise->set_value(DrawResult::RenderTargetUnavailable);
+        postContextLostNotice(renderContext, server);
+        completionPromise->set_value(
+            renderContext->isContextLost()
+                ? DrawResult::ContextLost
+                : DrawResult::RenderTargetUnavailable);
         return;
       }
       completionPromise->set_value(DrawResult::Success);
@@ -3776,6 +3849,11 @@ extern "C"
         env->ThrowNew(
             jExceptionClass.get(),
             "Failed to draw into buffer: render target is unavailable");
+        break;
+      case DrawResult::ContextLost:
+        env->ThrowNew(
+            jExceptionClass.get(),
+            "Failed to draw into buffer: the render context was lost");
         break;
     }
   }
@@ -3835,7 +3913,8 @@ extern "C"
       jlong viewModelInstanceListenerRef,
       jlong imageListenerRef,
       jlong audioListenerRef,
-      jlong fontListenerRef)
+      jlong fontListenerRef,
+      jlong runtimeMessageListenerRef)
   {
     auto fileListener = reinterpret_cast<FileListener*>(fileListenerRef);
     auto artboardListener = reinterpret_cast<ArtboardListener*>(
@@ -3847,6 +3926,8 @@ extern "C"
     auto imageListener = reinterpret_cast<ImageListener*>(imageListenerRef);
     auto audioListener = reinterpret_cast<AudioListener*>(audioListenerRef);
     auto fontListener = reinterpret_cast<FontListener*>(fontListenerRef);
+    auto runtimeMessageListener = reinterpret_cast<RuntimeMessageListener*>(
+        runtimeMessageListenerRef);
 
     delete fileListener;
     delete artboardListener;
@@ -3855,5 +3936,6 @@ extern "C"
     delete imageListener;
     delete audioListener;
     delete fontListener;
+    delete runtimeMessageListener;
   }
 }

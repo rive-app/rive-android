@@ -3,6 +3,8 @@ package app.rive
 import app.rive.core.RCPointer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlin.concurrent.thread
@@ -341,6 +343,20 @@ class RCPointerUnitTest : FunSpec({
         test("Dispose produces log") {
             rcPointer.release(TEST_SRC)
 
+            logs[0] shouldContain TEST_LABEL
+        }
+
+        test("Unlogged acquire and release produce no logs") {
+            rcPointer.tryAcquire(TEST_SRC, logged = false) shouldBe true
+            rcPointer.release(TEST_SRC, TEST_REASON, logged = false)
+
+            logs.shouldBeEmpty()
+        }
+
+        test("Unlogged release still logs disposal") {
+            rcPointer.release(TEST_SRC, TEST_REASON, logged = false)
+
+            logs shouldHaveSize 1
             logs[0] shouldContain TEST_LABEL
         }
     }

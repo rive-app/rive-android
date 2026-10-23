@@ -92,15 +92,18 @@ class RCPointer(
      * including while the disposal callback is running and [isDisposed] is still false.
      *
      * @param source The owner acquiring the temporary reference, for logging.
+     * @param logged Whether to log the acquisition. Callers that run every frame pass false.
      * @return true if acquired and requiring a matching [release], false after final release.
      */
-    internal fun tryAcquire(source: String): Boolean {
+    internal fun tryAcquire(source: String, logged: Boolean = true): Boolean {
         while (true) {
             val current = referenceCount.get()
             if (current <= 0) return false
             if (referenceCount.compareAndSet(current, current + 1)) {
-                RiveLog.v(TAG) {
-                    "Acquiring $label (source: $source; ref count before acquire: $current)"
+                if (logged) {
+                    RiveLog.v(TAG) {
+                        "Acquiring $label (source: $source; ref count before acquire: $current)"
+                    }
                 }
                 return true
             }
@@ -114,11 +117,24 @@ class RCPointer(
      * @see [RefCounted.acquire]
      */
     @Throws(IllegalStateException::class)
-    override fun release(source: String, reason: String) {
+    override fun release(source: String, reason: String) = release(source, reason, logged = true)
+
+    /**
+     * Releases a reference, optionally without the verbose log. Disposal is always logged.
+     *
+     * @param source The owner releasing the reference, for logging and errors.
+     * @param reason An optional explanation for the release, for logging and errors.
+     * @param logged Whether to log the release. Callers that run every frame pass false.
+     * @throws IllegalStateException If released more times than acquired.
+     */
+    @Throws(IllegalStateException::class)
+    internal fun release(source: String, reason: String, logged: Boolean) {
         val reasonLog = if (reason.isEmpty()) "" else "; reason: $reason"
-        RiveLog.v(TAG) {
-            "Releasing $label (source: $source$reasonLog; " +
-                "ref count before release: ${referenceCount.get()})"
+        if (logged) {
+            RiveLog.v(TAG) {
+                "Releasing $label (source: $source$reasonLog; " +
+                    "ref count before release: ${referenceCount.get()})"
+            }
         }
         val count = referenceCount.decrementAndGet()
         check(count >= 0) {

@@ -196,6 +196,28 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
 
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_afterRenderContextLost_stopsEmittingFrames() = runBlocking {
+        withPlayingSession {
+            resume()
+            awaitFrameCountGreaterThan(0)
+            val settledFrameCount = awaitFrameCountSettled()
+
+            withContext(Dispatchers.Main.immediate) { riveWorker.onRenderContextLost() }
+            // A touch would wake a settled session, so frames after it come only from a loop that
+            // ignored the lost render context.
+            touchDownUp(24f, 24f)
+
+            delay(250)
+            assertEquals(
+                settledFrameCount,
+                currentFrameCount(),
+                "No frames should render after the render context is lost"
+            )
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun onTouchEvent_afterSettled_emitsFrame() = runBlocking {
         withPlayingSession {
             resume()
