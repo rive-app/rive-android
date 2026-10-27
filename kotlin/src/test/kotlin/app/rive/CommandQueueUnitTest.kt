@@ -140,6 +140,48 @@ class CommandQueueUnitTest : FunSpec({
         verify(exactly = 0) { commandQueueBridgeMock.cppCreateListeners(any(), any()) }
     }
 
+    test("Affected firmware overrides OpenGL without creating an OpenGL context") {
+        val attempts = mutableListOf<RenderBackend>()
+        CommandQueue(
+            renderBackend = RenderBackend.OpenGL,
+            bridge = commandQueueBridgeMock,
+            sdkInt = 36,
+            requiresVulkan = true,
+            renderContextFactory = { backend ->
+                attempts.add(backend)
+                renderContextMock
+            }
+        )
+        attempts shouldBe listOf(RenderBackend.Vulkan)
+    }
+
+    listOf(false, true).forEach { failDuringStartup ->
+        test("Affected firmware prohibits fallback when Vulkan fails, startup=$failDuringStartup") {
+            val attempts = mutableListOf<RenderBackend>()
+            val failure = RiveInitializationException("Vulkan failed")
+            if (failDuringStartup) {
+                every { commandQueueBridgeMock.cppConstructor(RENDER_CONTEXT_ADDR) } throws failure
+            }
+            val error = shouldThrow<RiveInitializationException> {
+                CommandQueue(
+                    renderBackend = RenderBackend.OpenGL,
+                    bridge = commandQueueBridgeMock,
+                    sdkInt = 36,
+                    requiresVulkan = true,
+                    renderContextFactory = { backend ->
+                        attempts.add(backend)
+                        if (!failDuringStartup) throw failure
+                        renderContextMock
+                    }
+                )
+            }
+            error shouldBe failure
+            attempts shouldBe listOf(RenderBackend.Vulkan)
+            verify(exactly = if (failDuringStartup) 1 else 0) { renderContextMock.close() }
+            verify(exactly = 0) { commandQueueBridgeMock.cppCreateListeners(any(), any()) }
+        }
+    }
+
     test("Render backend constructor retries OpenGL when Vulkan startup fails") {
         every { commandQueueBridgeMock.cppPrecompileShaders(any()) } just runs
         val vulkanRenderContextMock = mockk<RenderContext>()

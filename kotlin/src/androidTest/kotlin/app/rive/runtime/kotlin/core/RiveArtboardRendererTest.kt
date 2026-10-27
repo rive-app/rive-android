@@ -3,6 +3,7 @@ package app.rive.runtime.kotlin.core
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.core.hasKnownOpenGLDriverIssue
 import app.rive.runtime.kotlin.SharedSurface
 import app.rive.runtime.kotlin.controllers.RiveFileController
 import app.rive.runtime.kotlin.renderers.RiveArtboardRenderer
@@ -15,12 +16,37 @@ import kotlin.time.Duration.Companion.seconds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RiveArtboardRendererTest {
     private val testUtils = TestUtils()
+
+    /** Verifies affected firmware imports files and constructs a Canvas worker for Rive requests. */
+    @Test
+    fun affectedFirmwareFallsBackToCanvas() {
+        assumeTrue(hasKnownOpenGLDriverIssue())
+        val file = testUtils.context.resources.openRawResource(R.raw.off_road_car_blog).use {
+            File(it.readBytes(), RendererType.Rive)
+        }
+        val controller = RiveFileController()
+        val renderer = RiveArtboardRenderer(
+            rendererType = RendererType.Rive,
+            controller = controller
+        )
+        try {
+            renderer.make()
+            assertEquals(RendererType.Canvas, renderer.type)
+            controller.setRiveFile(file)
+            assertTrue(controller.activeArtboard != null)
+        } finally {
+            renderer.delete()
+            controller.release()
+            file.release()
+        }
+    }
 
     /**
      * Verifies that resizing a layout-fit artboard reevaluates its settled state machine without

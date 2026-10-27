@@ -162,8 +162,8 @@ class CommandQueue internal constructor(
      * Creates a command queue using the requested render backend.
      *
      * @param renderBackend Preferred render backend. If Vulkan is requested below the minimum
-     *    supported Android API level, or Vulkan native initialization fails, OpenGL is used
-     *    instead.
+     *    supported Android API level, or Vulkan native initialization fails, OpenGL may be used
+     *    instead. Known compatibility issues can override this preference or restrict fallback.
      * @param tracingEnabled Whether native command server tracing should start enabled.
      * @throws RiveInitializationException If the command queue cannot be created.
      */
@@ -265,6 +265,7 @@ class CommandQueue internal constructor(
      * @param tracingEnabled Whether native command server tracing should start enabled.
      * @param bridge Native bridge mock used to start the command server without loading JNI.
      * @param sdkInt Android API level to use for backend selection.
+     * @param requiresVulkan Whether a known driver defect prohibits OpenGL.
      * @param renderContextFactory Factory that creates the requested concrete render context.
      * @param precompileShaders Whether to queue shader warmup after successful backend startup.
      * @throws RiveInitializationException If no backend can start.
@@ -275,6 +276,7 @@ class CommandQueue internal constructor(
         tracingEnabled: Boolean = false,
         bridge: CommandQueueBridge,
         sdkInt: Int = Build.VERSION.SDK_INT,
+        requiresVulkan: Boolean = hasKnownOpenGLDriverIssue(),
         renderContextFactory: (RenderBackend) -> RenderContext,
         precompileShaders: Boolean = false,
     ) : this(
@@ -282,6 +284,7 @@ class CommandQueue internal constructor(
             renderBackend = renderBackend,
             bridge = bridge,
             sdkInt = sdkInt,
+            requiresVulkan = requiresVulkan,
             renderContextFactory = renderContextFactory,
         ),
         tracingEnabled = tracingEnabled,
@@ -355,9 +358,11 @@ class CommandQueue internal constructor(
          * Creates command queue resources for a requested render backend.
          *
          * This method owns public backend fallback policy: Vulkan is attempted only on supported
-         * Android API levels, and OpenGL is retried if Vulkan native startup fails.
+         * Android API levels, and OpenGL is retried if Vulkan native startup fails. Known compatibility
+         * issues can override backend preferences and prohibit fallback.
          *
          * @param renderBackend Preferred backend for the command queue.
+         * @param requiresVulkan Whether a known driver defect prohibits OpenGL.
          * @return Resources for the backend that successfully started.
          * @throws RiveInitializationException If no backend can start.
          */
@@ -365,8 +370,19 @@ class CommandQueue internal constructor(
             renderBackend: RenderBackend,
             bridge: CommandQueueBridge,
             sdkInt: Int = Build.VERSION.SDK_INT,
+            requiresVulkan: Boolean = hasKnownOpenGLDriverIssue(),
             renderContextFactory: (RenderBackend) -> RenderContext = ::createRenderContext,
         ): NativeCommandQueueResources {
+            if (requiresVulkan) {
+                RiveLog.w(COMMAND_QUEUE_TAG) {
+                    "Known driver compatibility issue requires Vulkan. OpenGL is disabled."
+                }
+                // Keep this outside the retry path: falling back would enter the crashing driver.
+                return NativeCommandQueueResources(
+                    renderContextFactory(RenderBackend.Vulkan),
+                    bridge
+                )
+            }
             if (effectiveRenderBackend(renderBackend, sdkInt) == RenderBackend.OpenGL) {
                 return NativeCommandQueueResources(
                     renderContextFactory(RenderBackend.OpenGL),

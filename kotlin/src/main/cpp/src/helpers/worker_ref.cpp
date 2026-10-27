@@ -13,12 +13,20 @@ namespace rive_android
 static std::mutex s_refWorkerMutex;
 
 static std::unique_ptr<RefWorker> s_canvasWorker;
+// Guarded by s_refWorkerMutex, including repeated runtime initialization.
+static bool s_openGLDisabled = false;
 
 #ifdef DEBUG
 static bool s_simulateUnsupportedRiveRenderer = false;
 #endif
 
 constexpr auto* REF_TAG = "RiveLN/RefWorker";
+
+void RefWorker::SetOpenGLDisabled(bool disabled)
+{
+  std::lock_guard lock(s_refWorkerMutex);
+  s_openGLDisabled = disabled;
+}
 
 rcp<RefWorker> RefWorker::RiveWorker()
 {
@@ -28,6 +36,13 @@ rcp<RefWorker> RefWorker::RiveWorker()
   RiveLogD(REF_TAG, "Creating Rive RefWorker.");
 
   std::lock_guard lock(s_refWorkerMutex);
+
+  // File factories also consult this method, keeping imported assets and
+  // workers on the same backend without constructing an EGL context first.
+  if (s_openGLDisabled)
+  {
+    return nullptr;
+  }
 
 #ifdef DEBUG
   if (s_simulateUnsupportedRiveRenderer)

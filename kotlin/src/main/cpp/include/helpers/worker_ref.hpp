@@ -13,7 +13,18 @@ public:
   // Canvas worker if the requested type is not supported.
   static rive::rcp<RefWorker> CurrentOrFallback(RendererType);
 
-  // Returns the Rive renderer worker, or null if it is not supported.
+  /**
+   * Sets the legacy OpenGL restriction before any files or renderers are
+   * created. Repeated runtime initialization must supply the same device
+   * policy.
+   * @param disabled Whether a known driver issue requires Canvas fallback.
+   */
+  static void SetOpenGLDisabled(bool disabled);
+
+  /**
+   * Returns the Rive renderer worker without probing GL on restricted devices.
+   * @return The shared Rive worker, or null when unsupported or prohibited.
+   */
   static rive::rcp<RefWorker> RiveWorker();
 
   // Returns the current Canvas renderer worker.

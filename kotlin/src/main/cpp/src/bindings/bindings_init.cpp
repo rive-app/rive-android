@@ -4,6 +4,7 @@
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
 #include "helpers/rive_log.hpp"
+#include "helpers/worker_ref.hpp"
 #include "jni_refs.hpp"
 #include "models/dimensions_helper.hpp"
 
@@ -56,7 +57,8 @@ extern "C"
 
   JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(
       JNIEnv* env,
-      jobject jObj)
+      jobject jObj,
+      jboolean disableOpenGL)
   {
     const auto TAG = "RiveN/Init";
 #if defined(DEBUG) || defined(LOG)
@@ -67,6 +69,7 @@ extern "C"
     t.detach();
 #endif
     // pretty much considered the entrypoint.
+    RefWorker::SetOpenGLDisabled(disableOpenGL == JNI_TRUE);
     SetSDKVersion();
     // Initialize RiveLog helper for logging from C++
     InitializeRiveLog();

@@ -9,11 +9,11 @@ enum class RenderBackend {
      *
      * Vulkan is only considered on Android API 29 / Android 10 and newer. API level alone
      * does not guarantee a usable Vulkan driver, so worker creation may fall back to [OpenGL]
-     * when Vulkan native initialization fails.
+     * when Vulkan native initialization fails, unless restricted by known compatibility issues.
      */
     Vulkan,
 
-    /** Use the OpenGL ES renderer. */
+    /** Prefer OpenGL ES unless restricted by known compatibility issues. */
     OpenGL,
 }
 

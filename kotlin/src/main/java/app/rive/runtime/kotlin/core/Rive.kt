@@ -5,6 +5,7 @@ import android.graphics.RectF
 import android.os.Build
 import android.os.Process
 import app.rive.RiveLog
+import app.rive.core.hasKnownOpenGLDriverIssue
 import app.rive.runtime.kotlin.core.Rive.init
 import app.rive.runtime.kotlin.core.Rive.initializeCppEnvironment
 import app.rive.runtime.kotlin.fonts.FontHelper
@@ -14,7 +15,9 @@ import com.getkeepsafe.relinker.ReLinker
 
 object Rive {
     private const val TAG = "Rive"
-    private external fun cppInitialize()
+
+    /** Initializes native services and the legacy renderer compatibility policy. */
+    private external fun cppInitialize(disableOpenGL: Boolean)
     private external fun cppCalculateRequiredBounds(
         fit: Fit,
         alignment: Alignment,
@@ -181,7 +184,7 @@ object Rive {
      * [FontHelper.invalidateSystemFallbacks] themselves after changing the locale.
      */
     @JvmStatic
-    fun initializeCppEnvironment() = cppInitialize()
+    fun initializeCppEnvironment() = cppInitialize(disableOpenGL = hasKnownOpenGLDriverIssue())
 
     /**
      * Initializes JNI bindings and locale monitoring after native libraries have been loaded.

@@ -40,7 +40,8 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
  *    compatibility. Vulkan is available for higher performance and may become the default in a
  *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
- *    initialization fails, the worker falls back to OpenGL.
+ *    initialization fails, the worker may fall back to OpenGL. Known compatibility issues can
+ *    override this preference or restrict fallback.
  * @param precompileShaders Whether to start background warmup of common Rive draw shaders.
  *    Create the worker ahead of drawing to give compilation time to finish. Requires parallel
  *    compilation support on OpenGL and does not precompile GPU Canvas shaders. Changing this
@@ -86,7 +87,8 @@ fun rememberRiveWorker(
  * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
  *    compatibility. Vulkan is available for higher performance and may become the default in a
  *    future release. If Vulkan is requested below Android API 29 / Android 10, or Vulkan native
- *    initialization fails, the worker falls back to OpenGL.
+ *    initialization fails, the worker may fall back to OpenGL. Known compatibility issues can
+ *    override this preference or restrict fallback.
  * @param precompileShaders Whether to start shader warmup, as in [rememberRiveWorker].
  *    Changing this option recreates the worker.
  * @return The created [RiveWorker], or null if creation failed.
