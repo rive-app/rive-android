@@ -679,16 +679,9 @@ private fun RiveSurfaceHost(
     onBitmapAvailable: ((getBitmap: GetBitmapFun) -> Unit)?,
     requestPausedFrame: () -> Unit,
 ) {
-    val activeSurface = surfaceState.surface
     val surfaceWidth = surfaceState.width
     val surfaceHeight = surfaceState.height
     val isSettled = resources?.stateMachine?.settled?.collectAsState()?.value ?: true
-
-    // Close the worker-owned surface when it is replaced or this host leaves composition.
-    DisposableEffect(activeSurface) {
-        val surfaceToClose = activeSurface ?: return@DisposableEffect onDispose {}
-        onDispose { surfaceToClose.close() }
-    }
 
     val currentOnBitmapAvailable by rememberUpdatedState(onBitmapAvailable)
     var bitmapCallbackSent by remember { mutableStateOf(false) }
@@ -793,24 +786,33 @@ private fun RiveSurfaceHost(
                                 }
                                 surfaceState.width = width
                                 surfaceState.height = height
-                                surfaceState.surface = riveWorker.createRiveSurface(
-                                    SurfaceTextureSurface(newSurfaceTexture, width, height)
-                                )
+                                // Android can announce a texture before it has usable dimensions.
+                                // Leave ownership with Android until onSurfaceTextureSizeChanged
+                                // reports a valid size.
+                                if (width > 0 && height > 0) {
+                                    surfaceState.surface = riveWorker.createRiveSurface(
+                                        SurfaceTextureSurface(newSurfaceTexture, width, height)
+                                    )
+                                }
                                 bitmapCallbackSent = false
                             }
 
                             override fun onSurfaceTextureDestroyed(
                                 destroyedSurfaceTexture: SurfaceTexture,
                             ): Boolean {
+                                val surfaceToClose = surfaceState.surface
+                                val releaseByAndroid = surfaceToClose == null
                                 RiveLog.d(GENERAL_TAG) {
-                                    "Surface texture destroyed (final release deferred to " +
-                                        "RenderContext disposal)"
+                                    val owner = if (releaseByAndroid) "Android" else "Rive"
+                                    "Surface texture destroyed (release by $owner)"
                                 }
                                 surfaceState.surface = null
                                 bitmapCallbackSent = false
-                                // RiveSurface remains responsible for destroying the
-                                // SurfaceTexture when the render context releases it.
-                                return false
+                                // Disposal is queued on the Rive worker.
+                                surfaceToClose?.close()
+                                // Android releases textures that never acquired a RiveSurface.
+                                // Otherwise Rive releases the texture after queued work completes.
+                                return releaseByAndroid
                             }
 
                             override fun onSurfaceTextureSizeChanged(
@@ -823,7 +825,18 @@ private fun RiveSurfaceHost(
                                 }
                                 surfaceState.width = width
                                 surfaceState.height = height
-                                surfaceState.surface?.resize(width, height)
+                                if (width > 0 && height > 0) {
+                                    val surface = surfaceState.surface
+                                    if (surface == null) {
+                                        // Creation was deferred because onSurfaceTextureAvailable
+                                        // reported invalid dimensions. This size is now usable.
+                                        surfaceState.surface = riveWorker.createRiveSurface(
+                                            SurfaceTextureSurface(surfaceTexture, width, height)
+                                        )
+                                    } else {
+                                        surface.resize(width, height)
+                                    }
+                                }
                                 bitmapCallbackSent = false
                             }
 

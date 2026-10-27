@@ -2,6 +2,7 @@ package app.rive.compose
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -21,11 +22,16 @@ import app.rive.RiveFileSource
 import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
+import app.rive.core.DefaultRiveResources
+import app.rive.core.loadDefaultRiveResources
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
 
@@ -181,6 +187,78 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
             composeRule.mainClock.autoAdvance = true
         }
     }
+
+    /** Verifies a new resource generation reruns effects when presentation settings are unchanged. */
+    @Test
+    fun rive_unsettlesReplacementStateMachine_whenEffectParametersAreUnchanged() =
+        runBlocking<Unit> {
+            val firstResources = loadDefaultRiveResources(R.raw.empty)
+            val secondResources = loadDefaultRiveResources(R.raw.empty)
+            lateinit var activeResources: MutableState<DefaultRiveResources>
+            var showContent: MutableState<Boolean>? = null
+            val renderedFrameCount = AtomicInteger()
+
+            try {
+                composeRule.setContent {
+                    activeResources = remember { mutableStateOf(firstResources) }
+                    val activeShowContent = remember { mutableStateOf(true) }
+                    showContent = activeShowContent
+                    if (activeShowContent.value) {
+                        val resources = activeResources.value
+                        Rive(
+                            file = resources.file,
+                            modifier = Modifier.size(100.dp),
+                            artboard = resources.artboard,
+                            stateMachine = resources.stateMachine,
+                            onBitmapAvailable = { renderedFrameCount.incrementAndGet() },
+                        )
+                    }
+                }
+
+                composeRule.awaitWithWallClock(
+                    timeoutMessage = { "The initial state machine did not render and settle" },
+                ) {
+                    renderedFrameCount.get() >= 1 && firstResources.stateMachine.settled.value
+                }
+
+                composeRule.runOnUiThread {
+                    riveWorker.onStateMachineSettled(
+                        Long.MAX_VALUE,
+                        secondResources.stateMachine.stateMachineHandle,
+                    )
+                    assertTrue(secondResources.stateMachine.settled.value)
+                }
+
+                // Launch the replacement effects in a controlled frame, and pause polling so a
+                // native callback cannot settle the replacement before its newly keyed effects
+                // are observed.
+                composeRule.mainClock.autoAdvance = false
+                withRiveWorkerPollingPaused {
+                    composeRule.runOnUiThread {
+                        activeResources.value = secondResources
+                    }
+                    // Commit the replacement and launch its resource-keyed effects.
+                    composeRule.mainClock.advanceTimeByFrame()
+                    composeRule.waitForIdle()
+
+                    assertFalse(secondResources.stateMachine.settled.value)
+                }
+            } finally {
+                try {
+                    showContent?.let { activeShowContent ->
+                        composeRule.runOnUiThread { activeShowContent.value = false }
+                        // Commit removal before restoring automatic frames so a suspended draw
+                        // cannot resume against the surface while that surface is being disposed.
+                        if (!composeRule.mainClock.autoAdvance) {
+                            composeRule.mainClock.advanceTimeByFrame()
+                        }
+                        composeRule.waitForIdle()
+                    }
+                } finally {
+                    composeRule.mainClock.autoAdvance = true
+                }
+            }
+        }
 
     private companion object {
         private const val VIEW_WIDTH_DP = 250
