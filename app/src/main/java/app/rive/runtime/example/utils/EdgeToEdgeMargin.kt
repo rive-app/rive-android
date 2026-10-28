@@ -1,8 +1,10 @@
 package app.rive.runtime.example.utils
 
+import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.LayoutRes
 import androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener
@@ -49,7 +51,7 @@ fun ComponentActivity.applyEdgeToEdgeMarginToRoot() {
  * @param layoutResID The layout to set as the content.
  */
 fun ComponentActivity.setEdgeToEdgeContent(@LayoutRes layoutResID: Int) {
-    enableEdgeToEdge()
+    enableEdgeToEdgeForLightTheme()
     setContentView(layoutResID)
     applyEdgeToEdgeMarginToRoot()
 }
@@ -61,7 +63,11 @@ fun ComponentActivity.setEdgeToEdgeContent(@LayoutRes layoutResID: Int) {
  * @param view The view to set as the content.
  */
 fun ComponentActivity.setEdgeToEdgeContent(view: View) {
-    enableEdgeToEdge()
+    enableEdgeToEdgeForLightTheme()
     setContentView(view)
     applyEdgeToEdgeMarginToRoot()
 }
+
+/** Keeps status bar icons dark, since the app's theme stays light in dark mode. */
+private fun ComponentActivity.enableEdgeToEdgeForLightTheme() =
+    enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT))
