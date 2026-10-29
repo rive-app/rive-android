@@ -32,7 +32,11 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
         val resources = loadRiveResources(R.raw.empty)
         val threadsBeforeConstruction = liveImageReaderThreads()
         HardwareRenderBuffer(64, 64, riveWorker).use { buffer ->
+            val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(2_000L) { buffer.frameAvailable.first() }
+            }
             buffer.render(resources.artboard, resources.stateMachine)
+            frameAvailable.await()
             assertEquals(Bitmap.Config.HARDWARE, buffer.consumeLatestBitmap()?.config)
 
             buffer.close()
@@ -94,8 +98,9 @@ class HardwareRenderBufferTest : RiveAndroidTest() {
 
             buffer.render(resources.artboard, resources.stateMachine)
 
+            // The first frame can take a while, so only close() is held to the short limit.
+            val imageReaderThread = withTimeout(5_000L) { callbackThread.await() }
             withTimeout(750L) { closeResult.await() }.getOrThrow()
-            val imageReaderThread = callbackThread.await()
             assertEquals("Rive/ImageReader", imageReaderThread.name)
             collector.join()
             withTimeout(2_000L) {

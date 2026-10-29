@@ -584,7 +584,9 @@ class RiveCanvasSession private constructor(
                                 traceSection("$TAG/PublishLatestBitmap") {
                                     /* Hardware publication is async, so consume the latest buffer
                                      * snapshot when signaled rather than assuming render->read
-                                     * synchrony. */
+                                     * synchrony. The buffer also emits frameAvailable when image
+                                     * acquisition fails. consumeLatestBitmap then throws
+                                     * RiveRenderException, which ends beginPlaying. */
                                     val bitmap = traceSection("$TAG/ToBitmap") {
                                         activeBuffer.consumeLatestBitmap()
                                     }
@@ -676,6 +678,9 @@ class RiveCanvasSession private constructor(
                                             )
                                         }
                                     }
+                                    // render() also runs this check, but this loop skips
+                                    // render() while the state machine is settled.
+                                    activeBuffer.checkFrameProduction()
                                 }
                             }
                         }

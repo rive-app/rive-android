@@ -12,7 +12,6 @@ import app.rive.core.RenderingDefaults
 import app.rive.core.RiveSurface
 import app.rive.core.RiveWorker
 import app.rive.core.traceSection
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -57,8 +56,9 @@ class HardwareRenderBuffer private constructor(
     companion object {
         private const val TAG = "Rive/RenderBuffer/Hardware"
 
-        // Deferred Vulkan can compile pipelines before ImageReader publishes its first frame.
-        private const val FIRST_FRAME_TIMEOUT_MILLIS = 2_000L
+        // Vulkan can compile pipelines before ImageReader publishes the first frame, and sessions
+        // that start together share the worker. Nothing blocks on this timeout, so it's generous.
+        private const val FIRST_FRAME_TIMEOUT_MILLIS = 5_000L
 
         /** @return true when hardware bitmap rendering is supported on this API level. */
         @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.Q)
@@ -72,7 +72,8 @@ class HardwareRenderBuffer private constructor(
          * @param riveWorker Worker used for draw submission.
          * @param frameSourceFactory Factory for the test frame source and surface.
          * @param sdkInt Android API level used for the hardware support check.
-         * @param firstFrameTimeoutMillis Timeout used while waiting for the first frame.
+         * @param firstFrameTimeoutMillis Time allowed between the first [render] call and the first
+         *    published frame.
          * @return The created hardware render buffer.
          * @throws IllegalArgumentException If dimensions or timeout are invalid.
          * @throws IllegalStateException If [sdkInt] does not support hardware rendering.
@@ -135,7 +136,7 @@ class HardwareRenderBuffer private constructor(
         }
     }
 
-    /** Emits a signal whenever a new frame is published by the callback path. */
+    /** Emits when the callback path publishes a frame or image acquisition fails. */
     private val _frameAvailable = MutableSharedFlow<Unit>(
         replay = 0,
         extraBufferCapacity = 1,
@@ -145,7 +146,9 @@ class HardwareRenderBuffer private constructor(
     /**
      * Signal stream for newly published frames.
      *
-     * Collect this flow to know when [consumeLatestBitmap] should be called.
+     * Collect this flow to know when [consumeLatestBitmap] should be called. It also emits when
+     * hardware image acquisition fails, so the next [consumeLatestBitmap] call throws
+     * [RiveRenderException].
      */
     val frameAvailable: SharedFlow<Unit> = _frameAvailable
 
@@ -159,14 +162,14 @@ class HardwareRenderBuffer private constructor(
     /** Protects [pendingBitmap]/[currentBitmap] handoff. */
     private val bitmapLock = Any()
 
-    /** First-frame readiness gate used by [render]. */
-    private val firstFrameLatch = CountDownLatch(1)
-
     @Volatile
     private var isClosedFlag = false
 
     @Volatile
     private var firstFramePublished = false
+
+    /** When [render] was first called, from [System.nanoTime], or 0 before that. */
+    private var firstRenderTimeNs = 0L
 
     @Volatile
     private var imageReaderFailure: Throwable? = null
@@ -179,7 +182,6 @@ class HardwareRenderBuffer private constructor(
 
     private val closer = CloseOnce("HardwareRenderBuffer") {
         isClosedFlag = true
-        firstFrameLatch.countDown()
         var cleanupFailure = runCleanupStep(null) { frameSource.stop() }
         val bitmapsToRecycle = synchronized(bitmapLock) {
             val pending = pendingBitmap
@@ -240,16 +242,18 @@ class HardwareRenderBuffer private constructor(
         }
 
     /**
-     * Enqueues rendering into this hardware surface.
+     * Enqueues rendering into this hardware surface and returns without waiting for the frame.
      *
-     * The first call waits (bounded) for initial frame publication to keep startup deterministic.
+     * Collect [frameAvailable] to know when [consumeLatestBitmap] has a new frame.
      *
      * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
      *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.
      * @throws RiveIncompatibleResourceException If [artboard] or [stateMachine] are not owned by
      *    this buffer's worker, or if [stateMachine] was not created from [artboard].
-     * @throws RiveRenderException If first-frame publication times out or hardware image
-     *    acquisition fails.
+     * @throws RiveRenderException If hardware image acquisition has failed, or if no frame has been
+     *    published within 5 seconds of the first call. After a timeout, later calls keep throwing
+     *    until a frame is published. A caller that stops calling [render] before the first frame
+     *    isn't notified of a missing frame, so it should apply its own timeout to [frameAvailable].
      */
     @Throws(
         RiveIncompatibleResourceException::class,
@@ -268,6 +272,7 @@ class HardwareRenderBuffer private constructor(
         stateMachine.checkOpen()
         artboard.requireOwnedBy(riveWorker)
         stateMachine.requireFromArtboard(artboard)
+        checkFrameProduction()
 
         traceSection("Rive/RenderBuffer/Render") {
             traceSection("Rive/RenderBuffer/Hardware/Draw") {
@@ -279,11 +284,32 @@ class HardwareRenderBuffer private constructor(
                     clearColor
                 )
             }
-            if (!firstFramePublished) {
-                traceSection("Rive/RenderBuffer/Hardware/WaitFirstFrame") {
-                    waitForFirstFrame()
-                }
+            if (firstRenderTimeNs == 0L) {
+                firstRenderTimeNs = System.nanoTime()
             }
+        }
+    }
+
+    /**
+     * Throws if hardware image acquisition has failed, or if no frame has been published within
+     * [firstFrameTimeoutMillis] of the first [render] call. Does nothing otherwise.
+     *
+     * [render] runs this check too. Callers that stop calling [render], as a [RiveCanvasSession]
+     * does once its state machine settles, call this on each frame instead.
+     *
+     * @throws RiveRenderException If image acquisition has failed or the first frame is overdue.
+     */
+    internal fun checkFrameProduction() {
+        throwIfImageAcquisitionFailed()
+        val renderTimeNs = firstRenderTimeNs
+        if (renderTimeNs == 0L || firstFramePublished) {
+            return
+        }
+        val timeoutNs = TimeUnit.MILLISECONDS.toNanos(firstFrameTimeoutMillis)
+        if (System.nanoTime() - renderTimeNs >= timeoutNs) {
+            throw RiveRenderException(
+                "First hardware frame timed out after $firstFrameTimeoutMillis ms"
+            )
         }
     }
 
@@ -300,13 +326,7 @@ class HardwareRenderBuffer private constructor(
     @Throws(RiveResourceClosedException::class, RiveRenderException::class)
     fun consumeLatestBitmap(): Bitmap? {
         closer.checkOpen()
-        val failure = imageReaderFailure
-        if (failure != null) {
-            throw RiveRenderException(
-                "Hardware ImageReader failed while acquiring a frame; recreate HardwareRenderBuffer",
-                failure
-            )
-        }
+        throwIfImageAcquisitionFailed()
         return traceSection("Rive/RenderBuffer/ToBitmap") {
             synchronized(bitmapLock) {
                 val pending = pendingBitmap
@@ -326,23 +346,12 @@ class HardwareRenderBuffer private constructor(
         }
     }
 
-    private fun waitForFirstFrame() {
-        if (firstFramePublished) {
-            return
-        }
-        val success = firstFrameLatch.await(firstFrameTimeoutMillis, TimeUnit.MILLISECONDS)
-        val failure = imageReaderFailure
-        if (failure != null) {
-            throw RiveRenderException(
-                "Hardware ImageReader failed while acquiring a frame; recreate HardwareRenderBuffer",
-                failure
-            )
-        }
-        if (success && firstFramePublished) {
-            return
-        }
+    /** Throws [RiveRenderException] wrapping the recorded image acquisition failure, if any. */
+    private fun throwIfImageAcquisitionFailed() {
+        val failure = imageReaderFailure ?: return
         throw RiveRenderException(
-            "No hardware image available after render (timed out waiting for ImageReader frame)"
+            "Hardware ImageReader failed while acquiring a frame; recreate HardwareRenderBuffer",
+            failure
         )
     }
 
@@ -371,13 +380,12 @@ class HardwareRenderBuffer private constructor(
                     previousPending.recycle()
                 }
                 firstFramePublished = true
-                firstFrameLatch.countDown()
             }
             _frameAvailable.tryEmit(Unit)
         }
     }
 
-    /** Records [failure] and releases a caller waiting for first-frame publication. */
+    /** Records [failure] and emits [frameAvailable] so the next [consumeLatestBitmap] reports it. */
     private fun reportFrameFailure(failure: Throwable) {
         if (isClosedFlag) {
             return
@@ -390,6 +398,6 @@ class HardwareRenderBuffer private constructor(
             }
         }
         imageReaderFailure = failure
-        firstFrameLatch.countDown()
+        _frameAvailable.tryEmit(Unit)
     }
 }

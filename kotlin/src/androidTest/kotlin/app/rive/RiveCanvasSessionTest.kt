@@ -23,18 +23,22 @@ import app.rive.GlobalViewModelTestFixture.MAIN_VIEW_MODEL
 import app.rive.GlobalViewModelTestFixture.withInstances
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
+import app.rive.core.withFrameNanosChoreographer
 import app.rive.runtime.kotlin.test.R
 import app.rive.semantics.ProjectedSemanticHierarchy
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticState
 import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.hitTest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import kotlin.time.Duration.Companion.ZERO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -138,9 +142,130 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
 
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun close_whileFirstFrameIsPending_endsPlaybackCleanly() = runBlocking {
+        withPlayingSession {
+            val releaseWorker = holdWorker()
+            try {
+                resume()
+                // Let the render loop submit the first draw.
+                withContext(Dispatchers.Main) { repeat(2) { withFrameNanosChoreographer { } } }
+                withContext(Dispatchers.Main.immediate) { session.close() }
+
+                awaitPlaybackEnd()
+            } finally {
+                releaseWorker.countDown()
+            }
+
+            // Let the worker process everything queued before teardown checks that it's disposed.
+            drainWorker()
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
     fun beginPlaying_whenResumed_emitsFrame() = runBlocking {
         withPlayingSession {
             resume()
+
+            awaitFrameCountGreaterThan(0)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_beforeFirstFrame_doesNotBlockMainThread() = runBlocking {
+        withPlayingSession {
+            val releaseWorker = holdWorker()
+            try {
+                resume()
+
+                // A render that waited for the first frame would hold the main thread until the
+                // worker is released.
+                withTimeout(1_000L) {
+                    withContext(Dispatchers.Main) {
+                        repeat(3) { withFrameNanosChoreographer { } }
+                    }
+                }
+                assertEquals(0, currentFrameCount())
+            } finally {
+                releaseWorker.countDown()
+            }
+
+            awaitFrameCountGreaterThan(0)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_whenFirstFrameNeverArrives_throws() = runBlocking {
+        val res = loadRiveResources(R.raw.empty)
+        val lifecycleOwner = withContext(Dispatchers.Main.immediate) { TestLifecycleOwner() }
+        val session = withContext(Dispatchers.Main.immediate) {
+            RiveCanvasSession(
+                context = context,
+                riveWorker = riveWorker,
+                artboard = res.artboard,
+                stateMachine = res.stateMachine,
+            ).apply { setRegion(Rect(0, 0, 96, 96)) }
+        }
+        // Hold the worker past the 5 s first-frame timeout.
+        val releaseWorker = holdWorker()
+        try {
+            val failure = withContext(Dispatchers.Main.immediate) {
+                lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+                withTimeout(WORKER_HOLD_TIMEOUT_MILLIS) {
+                    assertFailsWith<RiveRenderException> {
+                        session.beginPlaying(lifecycleOwner.lifecycle)
+                    }
+                }
+            }
+
+            assertTrue(failure.message.orEmpty().contains("timed out"))
+        } finally {
+            releaseWorker.countDown()
+            withContext(Dispatchers.Main.immediate) { session.close() }
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_restartedWhileFirstFrameIsPending_emitsFrame() = runBlocking {
+        withPlayingSession {
+            val releaseWorker = holdWorker()
+            try {
+                resume()
+                // Let the render loop submit the first draw.
+                withContext(Dispatchers.Main) { repeat(2) { withFrameNanosChoreographer { } } }
+                restartPlaying()
+            } finally {
+                releaseWorker.countDown()
+            }
+
+            awaitFrameCountGreaterThan(0)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_whenFirstFrameArrivesWhileStopped_emitsFrameAfterRestart() = runBlocking {
+        withPlayingSession {
+            val releaseWorker = holdWorker()
+            try {
+                resume()
+                // Let the render loop submit the first draw.
+                withContext(Dispatchers.Main) { repeat(2) { withFrameNanosChoreographer { } } }
+                restartPlaying(
+                    whileStopped = {
+                        // Run the first draw while no playback observes the buffer, and give
+                        // ImageReader time to publish it.
+                        releaseWorker.countDown()
+                        drainWorker()
+                        delay(250L)
+                    }
+                )
+            } finally {
+                releaseWorker.countDown()
+            }
 
             awaitFrameCountGreaterThan(0)
         }
@@ -157,6 +282,25 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             setRegion(Rect(0, 0, 128, 128))
 
             awaitFrameCountGreaterThan(beforeResize)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun setRegion_whileFirstFrameIsPending_givesNewBufferItsOwnTimeout() = runBlocking {
+        withPlayingSession {
+            val releaseWorker = holdWorker()
+            try {
+                resume()
+                delay(3_500L)
+                setRegion(Rect(0, 0, 128, 128))
+                // Past the 5 s timeout of the first buffer, but not of the new one.
+                delay(2_500L)
+            } finally {
+                releaseWorker.countDown()
+            }
+
+            awaitFrameCountGreaterThan(0)
         }
     }
 
@@ -629,6 +773,40 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    /**
+     * Holds the worker so no frame can be published until the returned latch is counted down. The
+     * worker releases itself after [WORKER_HOLD_TIMEOUT_MILLIS] if the test doesn't.
+     *
+     * @return The latch that releases the worker.
+     */
+    private fun holdWorker(): CountDownLatch {
+        val workerHeld = CountDownLatch(1)
+        val releaseWorker = CountDownLatch(1)
+        riveWorker.runOnCommandServer {
+            workerHeld.countDown()
+            releaseWorker.await(WORKER_HOLD_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+        }
+        if (!workerHeld.await(WORKER_HOLD_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+            releaseWorker.countDown()
+            fail("The worker didn't start holding")
+        }
+        return releaseWorker
+    }
+
+    /**
+     * Waits until the worker has run everything queued so far, including draws.
+     *
+     * The worker runs a batch's draws after its commands, so the second probe lands in a later batch
+     * than any draw queued before this call.
+     */
+    private fun drainWorker() {
+        repeat(2) {
+            val probed = CountDownLatch(1)
+            riveWorker.runOnCommandServer { probed.countDown() }
+            assertTrue(probed.await(WORKER_HOLD_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS))
+        }
+    }
+
     private suspend fun withPlayingSession(block: suspend PlayingSession.() -> Unit) {
         val res = loadRiveResources(R.raw.empty)
         val session = withContext(Dispatchers.Main.immediate) {
@@ -901,11 +1079,20 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             }
         }
 
+        /** Waits for playback to end on its own and checks that it wasn't cancelled. */
+        suspend fun awaitPlaybackEnd() {
+            withTimeout(1_000L) { playJob.join() }
+            assertFalse(playJob.isCancelled, "Playback should end without being cancelled")
+        }
+
         /**
          * Cancels the active playback invocation and starts another one for the same session.
+         *
+         * @param whileStopped Runs after playback is cancelled and before it starts again.
          */
-        suspend fun restartPlaying() {
+        suspend fun restartPlaying(whileStopped: suspend () -> Unit = {}) {
             playJob.cancelAndJoin()
+            whileStopped()
             withContext(Dispatchers.Main.immediate) {
                 playJob = startPlaying()
             }
@@ -962,7 +1149,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
-    /** Constants for real semantic-tree session integration. */
+    /** Constants for session integration tests. */
     private companion object {
         val INITIAL_SEMANTICS_REGION = Rect(0, 0, 96, 96)
         val RESIZED_SEMANTICS_REGION = Rect(0, 0, 192, 96)
@@ -970,6 +1157,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         const val SEMANTIC_NODE_LABEL = "All"
         const val FOCUS_NODE_LABEL = "Element 1"
         const val SEMANTICS_TIMEOUT_MILLIS = 5_000L
+        const val WORKER_HOLD_TIMEOUT_MILLIS = 10_000L
     }
 }
 

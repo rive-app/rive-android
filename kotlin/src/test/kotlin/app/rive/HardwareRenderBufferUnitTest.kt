@@ -230,28 +230,14 @@ class HardwareRenderBufferUnitTest : FunSpec({
         verify(exactly = 0) { subject.worker.draw(any(), any(), any(), any(), any()) }
     }
 
-    test("Render waits for an asynchronous first frame and skips later waits") {
-        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 1_000L)
-        val bitmap = testBitmap()
-        lateinit var publisher: Thread
-        every {
-            Trace.beginSection("Rive/RenderBuffer/Hardware/WaitFirstFrame")
-        } answers {
-            // This trace begins after draw returns and immediately before the bounded wait.
-            publisher = Thread {
-                subject.source.emitFrame(bitmap)
-            }.apply { start() }
-        }
-
-        subject.buffer.render(subject.artboard, subject.stateMachine)
-        publisher.join(1_000L)
-
-        subject.buffer.consumeLatestBitmap() shouldBe bitmap
-        publisher.isAlive shouldBe false
+    test("Render returns before a frame is published") {
+        // A zero timeout would make a render that waits for the frame throw.
+        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 0L)
 
         subject.buffer.render(subject.artboard, subject.stateMachine)
 
-        verify(exactly = 2) {
+        subject.buffer.consumeLatestBitmap() shouldBe null
+        verify(exactly = 1) {
             subject.worker.draw(
                 subject.artboard.artboardHandle,
                 subject.stateMachine.stateMachineHandle,
@@ -260,33 +246,74 @@ class HardwareRenderBufferUnitTest : FunSpec({
                 any(),
             )
         }
-        verify(exactly = 1) {
-            Trace.beginSection("Rive/RenderBuffer/Hardware/WaitFirstFrame")
-        }
     }
 
-    test("Render reports first-frame acquisition failures") {
+    test("Render reports a first frame still missing after the timeout") {
+        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 0L)
+        subject.buffer.render(subject.artboard, subject.stateMachine)
+
+        shouldThrow<RiveRenderException> {
+            subject.buffer.render(subject.artboard, subject.stateMachine)
+        }
+        verify(exactly = 1) { subject.worker.draw(any(), any(), any(), any(), any()) }
+    }
+
+    test("Render reports an image acquisition failure without drawing") {
         val subject = HardwareRenderBufferSubject()
         val failure = IllegalStateException("Frame acquisition failed")
-        every {
-            subject.worker.draw(any(), any(), any(), any(), any())
-        } answers {
-            subject.source.emitFailure(failure)
-        }
+        subject.source.emitFailure(failure)
 
         val error = shouldThrow<RiveRenderException> {
             subject.buffer.render(subject.artboard, subject.stateMachine)
         }
 
         error.cause shouldBe failure
+        verify(exactly = 0) { subject.worker.draw(any(), any(), any(), any(), any()) }
     }
 
-    test("Render reports a first-frame timeout without sleeping") {
+    test("Frame production check reports a first frame still missing after the timeout") {
         val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 0L)
+        subject.buffer.render(subject.artboard, subject.stateMachine)
 
         shouldThrow<RiveRenderException> {
-            subject.buffer.render(subject.artboard, subject.stateMachine)
+            subject.buffer.checkFrameProduction()
         }
+    }
+
+    test("Frame production check does nothing before the first render") {
+        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 0L)
+
+        subject.buffer.checkFrameProduction()
+    }
+
+    test("Frame production check does nothing once a frame is published") {
+        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 0L)
+        subject.buffer.render(subject.artboard, subject.stateMachine)
+        subject.source.emitFrame(testBitmap())
+
+        subject.buffer.checkFrameProduction()
+    }
+
+    test("Frame production check reports an image acquisition failure") {
+        val subject = HardwareRenderBufferSubject()
+        val failure = IllegalStateException("Frame acquisition failed")
+        subject.source.emitFailure(failure)
+
+        val error = shouldThrow<RiveRenderException> {
+            subject.buffer.checkFrameProduction()
+        }
+
+        error.cause shouldBe failure
+    }
+
+    test("Render and the frame production check don't throw before the timeout") {
+        val subject = HardwareRenderBufferSubject(firstFrameTimeoutMillis = 60_000L)
+
+        subject.buffer.render(subject.artboard, subject.stateMachine)
+        subject.buffer.render(subject.artboard, subject.stateMachine)
+        subject.buffer.checkFrameProduction()
+
+        verify(exactly = 2) { subject.worker.draw(any(), any(), any(), any(), any()) }
     }
 
     test("Consume returns null before a frame is published") {
@@ -335,6 +362,24 @@ class HardwareRenderBufferUnitTest : FunSpec({
             subject.source.emitFrame(testBitmap())
             frameAvailable.await()
         }
+    }
+
+    test("Image acquisition failures emit frame availability") {
+        val subject = HardwareRenderBufferSubject()
+        val failure = IllegalStateException("Frame acquisition failed")
+
+        coroutineScope {
+            val frameAvailable = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(1_000L) { subject.buffer.frameAvailable.first() }
+            }
+            subject.source.emitFailure(failure)
+            frameAvailable.await()
+        }
+
+        val error = shouldThrow<RiveRenderException> {
+            subject.buffer.consumeLatestBitmap()
+        }
+        error.cause shouldBe failure
     }
 })
 
