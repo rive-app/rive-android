@@ -126,6 +126,12 @@
             android:name=".HardwareBitmapCanvasActivity"
             android:exported="true" />
         <activity
+            android:name=".CanvasRenderContextRecoveryActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ComposeRenderContextRecoveryActivity"
+            android:exported="true" />
+        <activity
             android:name=".SimpleStateMachineActivity"
             android:exported="true" />
         <activity
