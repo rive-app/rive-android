@@ -179,4 +179,5 @@ extern jmethodID GetBitmapWidthMethodId();
 extern jmethodID GetBitmapHeightMethodId();
 extern jfieldID GetARGB8888Field();
 extern jmethodID GetBitmapSetPixelsMethodId();
+extern jmethodID GetBitmapRecycleMethodId();
 } // namespace rive_android

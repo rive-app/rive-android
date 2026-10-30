@@ -6,6 +6,8 @@
 #include <jni.h>
 #include <memory>
 #include <string>
+#include <sys/eventfd.h>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -878,7 +880,7 @@ public:
       rive::Span<const uint8_t> encodedBytes) override
   {
     RiveLogD("RiveN/CQFactory", "Decoding encoded image");
-    return renderImageFromAndroidDecode(encodedBytes, false, m_renderContext);
+    return renderImageFromAndroidDecode(encodedBytes, m_renderContext);
   }
 
   rive::rcp<rive::RenderBuffer> makeRenderBuffer(
@@ -1071,6 +1073,29 @@ public:
   CommandQueueWithThread() : rive::CommandQueue() {}
 
   /**
+   * Readable once messages arrive after requestWake(), for the main looper.
+   * -1 once the server thread has exited.
+   */
+  int wakeFd() const { return m_wakeFd; }
+
+  /**
+   * Signals wakeFd() when the server next posts messages, so a reply reaches
+   * the main thread without waiting for its next frame.
+   */
+  void requestWake()
+  {
+    m_wakeRequested = true;
+    // The server may have posted the reply before the flag was set.
+    wakeIfRequested();
+  }
+
+  /**
+   * ~CommandQueue is not virtual, so the fd is closed here and on failed
+   * startup. Kotlin polls through its own duplicate.
+   */
+  void closeWakeFd() { close(m_wakeFd.exchange(-1)); }
+
+  /**
    * Starts the command server thread.
    *
    * @param renderContext The render context to use in the command server
@@ -1188,7 +1213,10 @@ public:
         // Begin the serving loop. This will "block" the thread until
         // the server receives the disconnect command.
         RiveLogD(TAG_CQ, "Beginning command server processing loop");
-        commandServer.serveUntilDisconnect();
+        while (commandServer.waitCommands())
+        {
+          self->wakeIfRequested();
+        }
 
         RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
 
@@ -1230,6 +1258,7 @@ public:
     {
       m_commandServerThread.join();
     }
+    closeWakeFd();
   }
 
   void setTracingEnabled(bool enabled) { m_tracingEnabled = enabled; }
@@ -1320,8 +1349,19 @@ public:
   }
 
 private:
+  void wakeIfRequested()
+  {
+    if (m_wakeRequested && hasMessages() && m_wakeRequested.exchange(false))
+    {
+      uint64_t one = 1;
+      write(m_wakeFd, &one, sizeof(one));
+    }
+  }
+
   std::thread m_commandServerThread;
   std::thread::id m_commandServerThreadId;
+  std::atomic<int> m_wakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+  std::atomic<bool> m_wakeRequested = false;
   // CommandQueue JNI calls are currently required to run on the main
   // thread, so this remains a plain bool. If it changes to accept commands
   // from other threads, this should become atomic.
@@ -1747,6 +1787,7 @@ extern "C"
     auto result = resultFuture.get();
     if (!result.success)
     {
+      commandQueue->closeWakeFd();
       // Surface error to Java
       auto jRiveInitializationExceptionClass = FindClass(
           env,
@@ -1872,6 +1913,23 @@ extern "C"
   {
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     commandQueue->processMessages();
+  }
+
+  JNIEXPORT jint JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppWakeFd(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    return reinterpret_cast<CommandQueueWithThread*>(ref)->wakeFd();
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_core_CommandQueueJNIBridge_cppRequestWake(
+      JNIEnv*,
+      jobject,
+      jlong ref)
+  {
+    reinterpret_cast<CommandQueueWithThread*>(ref)->requestWake();
   }
 
   JNIEXPORT void JNICALL

@@ -17,7 +17,7 @@ object Rive {
     private const val TAG = "Rive"
 
     /** Initializes native services and the legacy renderer compatibility policy. */
-    private external fun cppInitialize(disableOpenGL: Boolean)
+    private external fun cppInitialize(disableOpenGL: Boolean, pipelineCacheDir: String?)
     private external fun cppCalculateRequiredBounds(
         fit: Fit,
         alignment: Alignment,
@@ -184,7 +184,8 @@ object Rive {
      * [FontHelper.invalidateSystemFallbacks] themselves after changing the locale.
      */
     @JvmStatic
-    fun initializeCppEnvironment() = cppInitialize(disableOpenGL = hasKnownOpenGLDriverIssue())
+    fun initializeCppEnvironment() =
+        cppInitialize(disableOpenGL = hasKnownOpenGLDriverIssue(), pipelineCacheDir = null)
 
     /**
      * Initializes JNI bindings and locale monitoring after native libraries have been loaded.
@@ -198,7 +199,12 @@ object Rive {
      */
     @JvmStatic
     fun initializeCppEnvironment(context: Context) {
-        initializeCppEnvironment()
+        // Android clears the code cache when the app or system updates, which is when the cached
+        // pipelines go stale.
+        cppInitialize(
+            disableOpenGL = hasKnownOpenGLDriverIssue(),
+            pipelineCacheDir = context.codeCacheDir.path,
+        )
         FontHelper.watchLocaleChanges(context)
     }
 

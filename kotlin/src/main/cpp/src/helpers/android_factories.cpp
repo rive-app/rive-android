@@ -214,7 +214,7 @@ AndroidImage::~AndroidImage()
 rcp<RenderImage> AndroidRiveRenderFactory::decodeImage(
     Span<const uint8_t> encodedBytes)
 {
-  return renderImageFromAndroidDecode(encodedBytes, false);
+  return renderImageFromAndroidDecode(encodedBytes);
 }
 
 /** AndroidCanvasFactory */

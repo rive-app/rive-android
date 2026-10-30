@@ -3,6 +3,7 @@
 #include <android/bitmap.h>
 #include <cstdint>
 #include <jni.h>
+#include <memory>
 #include <vector>
 
 #include "models/render_context.hpp"
@@ -13,22 +14,31 @@
 namespace rive_android
 {
 /**
- * Decode path: Use Android BitmapFactory through JNI to decode into RGBA bytes.
+ * Decode path: Use Android BitmapFactory through JNI to decode into
+ * premultiplied sRGB RGBA bytes.
  *
  * ⚠️ When the context parameter is supplied, i.e. when running with the command
  * queue, this function should only be called from the command server thread as
  * only it has the necessary thread-local rendering context.
  *
  * @param encodedBytes The encoded bytes of the image, e.g. .png file
- * @param isPremultiplied Whether the pixels are already premultiplied.
  * @param context The RenderContext (command queue path) to generate
  *   rive::RenderImage. If null, will instead use the legacy pathway,
  *   constructing an AndroidImage.
  */
 rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
     rive::Span<const uint8_t> encodedBytes,
-    bool isPremultiplied,
     RenderContext* context = nullptr);
+
+/**
+ * Decodes with Android's BitmapFactory into premultiplied sRGB RGBA bytes.
+ *
+ * @return The pixels, or null if decoding failed.
+ */
+std::unique_ptr<uint8_t[]> decodeToPremultipliedRGBA(
+    rive::Span<const uint8_t> encodedBytes,
+    uint32_t* width,
+    uint32_t* height);
 
 /** Rive (GL) path: From RGBA bytes -> AndroidImage. Uses the Canvas path where
  * the Rive renderer is unsupported. */
@@ -74,6 +84,11 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapCanvas(jobject jBitmap);
 /** Premultiply/unpremultiply helpers for a given channel */
 uint32_t premultiply(uint8_t c, uint8_t a);
 uint32_t unpremultiply(uint8_t c, uint8_t a);
+
+/** Copies locked RGBA_8888 pixels into a tightly packed buffer. */
+std::unique_ptr<uint8_t[]> copyRGBA8888(
+    const AndroidBitmapInfo& info,
+    const uint32_t* pixels);
 
 /** Lock an Android Bitmap to access its buffer and ensure it's RGBA_8888
  * format. */

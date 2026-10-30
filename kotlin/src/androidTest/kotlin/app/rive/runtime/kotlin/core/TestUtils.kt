@@ -351,6 +351,14 @@ object NativeRendererTestHelper {
      *    not a copy.
      */
     external fun cppCanvasImageWrapsBitmap(address: Long, bitmap: Bitmap): Boolean
+
+    /**
+     * Decodes [encoded] the way Rive decodes images on Android.
+     *
+     * @param size Receives the width and height.
+     * @return The premultiplied sRGB RGBA bytes native code receives, or null if decoding failed.
+     */
+    external fun cppDecodeImage(encoded: ByteArray, size: IntArray): ByteArray?
 }
 
 object NativeWorkerTestHelper {

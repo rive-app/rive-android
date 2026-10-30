@@ -66,6 +66,37 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         }
     }
 
+    test("An awaited reply arms the reply wake") {
+        val queue = CommandQueue(renderContext, bridge)
+        val requestID = slot<Long>()
+        val expected = FileHandle(CONFIRMED_FILE_HANDLE)
+        every {
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+        } returns expected.handle
+
+        coroutineScope {
+            val load = async(start = CoroutineStart.UNDISPATCHED) { queue.loadFile(FILE_BYTES) }
+            verify(exactly = 1) { bridge.cppRequestWake(COMMAND_QUEUE_ADDR) }
+            queue.onFileLoaded(requestID.captured, expected)
+            load.await() shouldBe expected
+        }
+    }
+
+    test("A reply delivered during submission leaves the reply wake unarmed") {
+        val queue = CommandQueue(renderContext, bridge)
+        val requestID = slot<Long>()
+        val expected = FileHandle(CONFIRMED_FILE_HANDLE)
+        every {
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+        } answers {
+            queue.onFileLoaded(requestID.captured, expected)
+            expected.handle
+        }
+
+        queue.loadFile(FILE_BYTES) shouldBe expected
+        verify(exactly = 0) { bridge.cppRequestWake(any()) }
+    }
+
     test("File creation reports native failure") {
         val queue = CommandQueue(renderContext, bridge)
         val requestID = slot<Long>()

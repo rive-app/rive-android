@@ -3,6 +3,10 @@ package app.rive.core
 import android.graphics.Color
 import android.os.Build
 import android.os.Looper
+import android.os.MessageQueue.OnFileDescriptorEventListener
+import android.os.ParcelFileDescriptor
+import android.system.ErrnoException
+import android.system.Os
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
 import androidx.annotation.MainThread
@@ -51,6 +55,7 @@ import app.rive.runtime.kotlin.core.ViewModel
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.SemanticsDiff
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -656,6 +661,10 @@ class CommandQueue internal constructor(
     internal fun awaitShutdown(timeoutMillis: Long): Boolean =
         shutdownComplete.await(timeoutMillis, TimeUnit.MILLISECONDS)
 
+    /** @return The descriptor the command server signals replies on, or -1 where it has none. */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun wakeFd(): Int = bridge.cppWakeFd(cppPointer.pointer)
+
     /**
      * Enables or disables native command server tracing for draw and advance work.
      *
@@ -907,29 +916,103 @@ class CommandQueue internal constructor(
             checkOpen()
             lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-                while (isActive && !isDisposed) {
-                    var disposedDuringPoll = false
-                    ticker.withFrame { }
-                    try {
-                        // Poll after the frame wait returns so coroutine context restoration guarantees
-                        // main-thread delivery even when an injected ticker waits on another thread.
-                        pollMessages()
-                    } catch (e: RiveResourceClosedException) {
-                        // Disposal can happen after the checks above but before pollMessages() reads
-                        // the native pointer. Only swallow that expected disposal race; preserve a
-                        // resource-closed error from another source rather than hiding it.
-                        if (refCount > 0) {
-                            throw e
+                val replyListener = listenForReplies()
+                try {
+                    while (isActive && !isDisposed) {
+                        ticker.withFrame { }
+                        // Poll after the frame wait returns so coroutine context restoration
+                        // guarantees main-thread delivery even when an injected ticker waits on
+                        // another thread.
+                        if (!pollMessagesUnlessDisposed()) {
+                            break
                         }
-                        disposedDuringPoll = true
                     }
-                    if (disposedDuringPoll) {
-                        break
-                    }
+                } finally {
+                    replyListener?.close()
                 }
                 RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
             }
         }
+
+    /**
+     * While a reply is awaited, has the command server wake the main thread as soon as it posts
+     * one, so the reply lands before the next frame instead of a frame or two later.
+     */
+    private fun wakeOnReply() {
+        // Never throws, since a submission that native accepted must keep its continuation.
+        if (pendingContinuations.isEmpty() ||
+            !cppPointer.tryAcquire("Wake on reply", logged = false)
+        ) {
+            return
+        }
+        try {
+            bridge.cppRequestWake(cppPointer.pointer)
+        } finally {
+            cppPointer.release("Wake on reply", reason = "", logged = false)
+        }
+    }
+
+    /**
+     * Polls whenever the command server signals a reply the poll loop is waiting on.
+     *
+     * @return Closes the listener, or null where the main looper cannot watch the signal.
+     */
+    private fun listenForReplies(): AutoCloseable? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+        // The queue may have been released while polling waited to resume.
+        if (!cppPointer.tryAcquire("Listen for replies", logged = false)) return null
+        // A duplicate keeps the signal valid after native shutdown closes its own.
+        val wakeFd = try {
+            bridge.cppWakeFd(cppPointer.pointer).takeIf {
+                it >= 0
+            }?.let(ParcelFileDescriptor::fromFd)
+        } catch (_: IOException) {
+            // Out of descriptors; frame polling still delivers replies.
+            null
+        } finally {
+            cppPointer.release("Listen for replies", reason = "", logged = false)
+        } ?: return null
+        val queue = Looper.getMainLooper().queue
+        val signal = ByteArray(Long.SIZE_BYTES)
+        val listener = AutoCloseable {
+            queue.removeOnFileDescriptorEventListener(wakeFd.fileDescriptor)
+            wakeFd.close()
+        }
+        try {
+            queue.addOnFileDescriptorEventListener(
+                wakeFd.fileDescriptor,
+                OnFileDescriptorEventListener.EVENT_INPUT,
+            ) { descriptor, _ ->
+                try {
+                    Os.read(descriptor, signal, 0, signal.size)
+                } catch (_: ErrnoException) {
+                    // Already drained.
+                }
+                if (!isDisposed) {
+                    pollMessagesUnlessDisposed()
+                }
+                OnFileDescriptorEventListener.EVENT_INPUT
+            }
+        } catch (e: Throwable) {
+            runCatching { listener.close() }
+            throw e
+        }
+        return listener
+    }
+
+    /** @return False if this queue was disposed before the poll could read it. */
+    private fun pollMessagesUnlessDisposed(): Boolean = try {
+        pollMessages()
+        true
+    } catch (e: RiveResourceClosedException) {
+        // Disposal can happen after the loop's checks but before pollMessages() reads the native
+        // pointer. Only swallow that expected disposal race; preserve a resource-closed error from
+        // another source rather than hiding it.
+        if (refCount > 0) {
+            throw e
+        }
+        false
+    }
 
     /**
      * Poll messages from the CommandServer to this command queue. This is the channel that all
@@ -966,6 +1049,7 @@ class CommandQueue internal constructor(
             traceSection("Rive/PollMessages") {
                 bridge.cppPollMessages(cppPointer.pointer)
             }
+            wakeOnReply()
         } finally {
             cppPointer.release("Poll messages", reason = "", logged = false)
         }
@@ -4346,6 +4430,7 @@ class CommandQueue internal constructor(
             pendingResourceCleanups[requestID] = cleanupOnce
 
             provisionalResource = nativeFn(requestID)
+            wakeOnReply()
         }
     }
 
@@ -4387,6 +4472,7 @@ class CommandQueue internal constructor(
 
             try {
                 nativeFn(requestID)
+                wakeOnReply()
             } catch (t: Throwable) {
                 // Bridge calls can fail before native work is accepted, for example if JNI raises
                 // an exception. Do not leave a continuation waiting for a callback that cannot come.

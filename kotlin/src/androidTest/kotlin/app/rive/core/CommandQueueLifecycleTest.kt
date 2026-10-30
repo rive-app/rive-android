@@ -1,7 +1,9 @@
 package app.rive.core
 
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
+import android.system.Os
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -16,12 +18,14 @@ import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
 import app.rive.runtime.kotlin.test.R
 import app.rive.semantics.SemanticTreeModel
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
@@ -30,14 +34,19 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -445,6 +454,224 @@ class CommandQueueLifecycleTest : RiveAndroidTest() {
             assertDisposed(commandQueue)
         }
     }
+
+    @Test
+    fun beginPolling_withFramesWithheld_deliversRepliesOnWake() = runBlocking {
+        val commandQueue = CommandQueue()
+        val lifecycleOwner = TestLifecycleOwner()
+        val listening = CompletableDeferred<Unit>()
+        val polling = beginWakeOnlyPolling(commandQueue, lifecycleOwner) {
+            listening.complete(Unit)
+        }
+        withTimeout(2_000) { listening.await() }
+
+        withContext(Dispatchers.Main.immediate) {
+            withTimeout(2_000) { loadFile(commandQueue).close() }
+        }
+
+        stopPolling(commandQueue, lifecycleOwner, polling)
+    }
+
+    @Test
+    fun beginPolling_replyQueuedWhilePaused_deliversOnResume() = runBlocking {
+        val commandQueue = CommandQueue()
+        val lifecycleOwner = TestLifecycleOwner()
+        val starts = AtomicInteger()
+        val resumedTwice = CompletableDeferred<Unit>()
+        val firstStart = CompletableDeferred<Unit>()
+        val polling = beginWakeOnlyPolling(commandQueue, lifecycleOwner) {
+            when (starts.incrementAndGet()) {
+                1 -> firstStart.complete(Unit)
+                else -> resumedTwice.complete(Unit)
+            }
+        }
+        withTimeout(2_000) { firstStart.await() }
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.STARTED
+        }
+
+        val file = async(Dispatchers.Main.immediate) { loadFile(commandQueue) }
+        delay(300)
+        assertFalse(file.isCompleted, "A reply arrived while polling was paused")
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.RESUMED
+        }
+        withTimeout(2_000) { resumedTwice.await() }
+        withTimeout(2_000) { file.await() }.close()
+
+        stopPolling(commandQueue, lifecycleOwner, polling)
+    }
+
+    @Test
+    fun beginPolling_repeatedCycles_closeTheirDescriptors() = runBlocking {
+        // The first cycle opens driver files that stay open for the process.
+        pollingCycle()
+        val before = openDescriptorCount()
+        repeat(10) { pollingCycle() }
+
+        // Leaks would add at least one per cycle; the margin absorbs unrelated descriptors.
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+        while (openDescriptorCount() - before >= 5 && System.nanoTime() < deadline) {
+            delay(50)
+        }
+        val growth = openDescriptorCount() - before
+        assertTrue(growth < 5, "Open descriptors grew by $growth over 10 polling cycles")
+    }
+
+    /**
+     * Releases the worker after the command server signaled a reply but before the main thread
+     * consumed it, so the listener must skip polling the released queue.
+     */
+    @Test
+    fun release_withWakePending_skipsPollAndClosesDescriptors() = runBlocking {
+        // The first cycle opens driver files that stay open for the process.
+        pollingCycle()
+        val eventfdsBefore = openEventfdCount()
+        val commandQueue = CommandQueue()
+        val lifecycleOwner = TestLifecycleOwner()
+        val listening = CompletableDeferred<Unit>()
+        val polling = beginWakeOnlyPolling(commandQueue, lifecycleOwner) {
+            listening.complete(Unit)
+        }
+        withTimeout(2_000) { listening.await() }
+        val wakeFd = commandQueue.wakeFd()
+
+        val bytes = context.resources.openRawResource(R.raw.multipleartboards).use {
+            it.readBytes()
+        }
+        val file = CompletableDeferred<Result<FileHandle>>()
+        val mainHeld = CountDownLatch(1)
+        val releaseMain = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post {
+            // Submits the load, then holds the main thread before its reply can be polled. Unlike
+            // RiveFile.load, the request holds no reference, so the release below is the last.
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                file.complete(runCatching { commandQueue.loadFile(bytes) })
+            }
+            mainHeld.countDown()
+            releaseMain.await()
+        }
+        try {
+            assertTrue(mainHeld.await(2, TimeUnit.SECONDS), "The main thread was not held")
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+            while (eventfdCount(wakeFd) == 0L && System.nanoTime() < deadline) {
+                delay(5)
+            }
+            assertTrue(eventfdCount(wakeFd) > 0L, "The command server did not signal the reply")
+            commandQueue.release("CommandQueueLifecycleTest", "Released with a wake pending")
+            assertTrue(commandQueue.awaitShutdown(2_000), "Native shutdown did not finish")
+        } finally {
+            releaseMain.countDown()
+        }
+
+        assertTrue(withTimeout(2_000) { file.await() }.isFailure, "The load was not cancelled")
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.DESTROYED
+        }
+        withTimeout(2_000) { polling.await() }
+        assertDisposed(commandQueue)
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+        while (openEventfdCount() > eventfdsBefore && System.nanoTime() < deadline) {
+            delay(50)
+        }
+        assertTrue(openEventfdCount() <= eventfdsBefore, "The wake descriptors stayed open")
+    }
+
+    @Test
+    fun beginPolling_releasedWhilePaused_staysStoppedOnResume() = runBlocking {
+        val commandQueue = CommandQueue()
+        val lifecycleOwner = TestLifecycleOwner()
+        val starts = AtomicInteger()
+        val firstStart = CompletableDeferred<Unit>()
+        val polling = beginWakeOnlyPolling(commandQueue, lifecycleOwner) {
+            starts.incrementAndGet()
+            firstStart.complete(Unit)
+        }
+        withTimeout(2_000) { firstStart.await() }
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.STARTED
+        }
+
+        commandQueue.release("CommandQueueLifecycleTest", "Released while paused")
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.RESUMED
+        }
+        // Lets the resumed polling block run to its end on the main thread.
+        withContext(Dispatchers.Main) {}
+        assertEquals(1, starts.get(), "Polling restarted on a released queue")
+
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.DESTROYED
+        }
+        withTimeout(2_000) { polling.await() }
+        assertDisposed(commandQueue)
+    }
+
+    private suspend fun pollingCycle() = coroutineScope {
+        val commandQueue = CommandQueue()
+        val lifecycleOwner = TestLifecycleOwner()
+        val listening = CompletableDeferred<Unit>()
+        val polling = beginWakeOnlyPolling(commandQueue, lifecycleOwner) {
+            listening.complete(Unit)
+        }
+        withTimeout(2_000) { listening.await() }
+        stopPolling(commandQueue, lifecycleOwner, polling)
+    }
+
+    /**
+     * Polls with a ticker that never delivers a frame, so only the reply wake can poll.
+     *
+     * @param onListening Runs each time polling starts, after its reply listener is registered.
+     */
+    private suspend fun CoroutineScope.beginWakeOnlyPolling(
+        commandQueue: CommandQueue,
+        lifecycleOwner: TestLifecycleOwner,
+        onListening: () -> Unit,
+    ): Deferred<Unit> {
+        // Older versions cannot watch the wake, so only frames poll there.
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        val ticker = FrameTicker {
+            onListening()
+            awaitCancellation()
+        }
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.RESUMED
+        }
+        return async(Dispatchers.Main.immediate) {
+            commandQueue.beginPolling(lifecycleOwner.lifecycle, ticker)
+        }
+    }
+
+    private suspend fun stopPolling(
+        commandQueue: CommandQueue,
+        lifecycleOwner: TestLifecycleOwner,
+        polling: Deferred<Unit>,
+    ) {
+        withContext(Dispatchers.Main.immediate) {
+            lifecycleOwner.currentState = Lifecycle.State.DESTROYED
+        }
+        withTimeout(2_000) { polling.await() }
+        commandQueue.release("CommandQueueLifecycleTest", "Final release after wake polling")
+        assertDisposed(commandQueue)
+    }
+
+    private suspend fun loadFile(commandQueue: CommandQueue): RiveFile {
+        val bytes = context.resources.openRawResource(R.raw.multipleartboards).use {
+            it.readBytes()
+        }
+        return RiveFile.load(RiveFileSource.Bytes(bytes), commandQueue)
+    }
+
+    private fun openDescriptorCount() = File("/proc/self/fd").list()?.size ?: 0
+
+    private fun openEventfdCount() = File("/proc/self/fd").list()?.count {
+        runCatching { Os.readlink("/proc/self/fd/$it") }.getOrNull() == "anon_inode:[eventfd]"
+    } ?: 0
+
+    /** @return The signal count pending on the eventfd [fd], read without consuming it. */
+    private fun eventfdCount(fd: Int): Long = File("/proc/self/fdinfo/$fd").readLines()
+        .first { it.startsWith("eventfd-count:") }
+        .substringAfter(':').trim().toLong(16)
 
     /**
      * Minimal lifecycle owner for tests that need to drive [Lifecycle.State] transitions directly.

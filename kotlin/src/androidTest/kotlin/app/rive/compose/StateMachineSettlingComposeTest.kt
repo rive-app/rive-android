@@ -19,6 +19,7 @@ import app.rive.Result
 import app.rive.Rive
 import app.rive.RiveAndroidTest
 import app.rive.RiveFileSource
+import app.rive.RiveFrameRate
 import app.rive.StateMachine
 import app.rive.ViewModelInstance
 import app.rive.ViewModelSource
@@ -259,6 +260,31 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
                 }
             }
         }
+
+    /**
+     * Verifies a capped frame rate keeps advancing animation time on Compose's test clock, whose
+     * time base differs from the system clock's.
+     */
+    @Test
+    fun rive_cappedFrameRate_settlesOnComposeTestClock() = runBlocking<Unit> {
+        // Its nested artboard settles after about a second of animation time.
+        val resources = loadRiveResources(R.raw.nested_settle, stateMachineName = "State Machine 1")
+        composeRule.setContent {
+            Rive(
+                file = resources.file,
+                modifier = Modifier.size(100.dp),
+                artboard = resources.artboard,
+                stateMachine = resources.stateMachine,
+                frameRate = RiveFrameRate.Capped(30f),
+            )
+        }
+
+        composeRule.awaitWithWallClock(
+            timeoutMessage = { "Animation time did not advance to settle the state machine" },
+        ) {
+            resources.stateMachine.settled.value
+        }
+    }
 
     private companion object {
         private const val VIEW_WIDTH_DP = 250

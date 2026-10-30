@@ -3,10 +3,12 @@
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "helpers/rive_log.hpp"
 #include "helpers/worker_ref.hpp"
 #include "jni_refs.hpp"
 #include "models/dimensions_helper.hpp"
+#include "models/render_context.hpp"
 
 #if defined(DEBUG) || defined(LOG)
 
@@ -58,7 +60,8 @@ extern "C"
   JNIEXPORT void JNICALL Java_app_rive_runtime_kotlin_core_Rive_cppInitialize(
       JNIEnv* env,
       jobject jObj,
-      jboolean disableOpenGL)
+      jboolean disableOpenGL,
+      jstring pipelineCacheDir)
   {
     const auto TAG = "RiveN/Init";
 #if defined(DEBUG) || defined(LOG)
@@ -81,6 +84,15 @@ extern "C"
 
     RiveLogD(TAG, "Initializing fallback font global callback");
     rive::Font::gFallbackProc = FontHelper::FindFontFallback;
+
+#ifdef RIVE_VULKAN
+    // Initializing again without a context keeps the directory set earlier.
+    if (pipelineCacheDir != nullptr)
+    {
+      RenderContextVulkan::SetPipelineCacheDir(
+          JStringToString(env, pipelineCacheDir));
+    }
+#endif
   }
 
 #ifdef __cplusplus

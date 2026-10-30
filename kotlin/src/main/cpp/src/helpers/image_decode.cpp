@@ -15,10 +15,10 @@ namespace rive_android
 constexpr auto* TAG = "RiveLN/ImageDecode";
 const uint32_t LSB_MASK = 0xFFu;
 
-rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
+std::unique_ptr<uint8_t[]> decodeToPremultipliedRGBA(
     Span<const uint8_t> encodedBytes,
-    bool isPremultiplied,
-    RenderContext* renderContext)
+    uint32_t* width,
+    uint32_t* height)
 {
   auto env = GetJNIEnv();
 
@@ -26,10 +26,10 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
       env,
       "app/rive/runtime/kotlin/core/ImageDecoder");
 
-  auto decodeToBitmap = env->GetStaticMethodID(
+  auto decodeToRGBA = env->GetStaticMethodID(
       imageDecoderClass.get(),
-      "decodeToBitmap",
-      "([B)[I");
+      "decodeToRGBA",
+      "([B)Landroid/graphics/Bitmap;");
 
   auto encoded = env->NewByteArray(SizeTToInt(encodedBytes.size()));
   if (!encoded)
@@ -43,87 +43,58 @@ rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
       0,
       SizeTToInt(encodedBytes.size()),
       (jbyte*)encodedBytes.data());
-  auto jPixels = (jintArray)JNIExceptionHandler::CallStaticObjectMethod(
+  auto jBitmap = JNIExceptionHandler::CallStaticObjectMethod(
       env,
       imageDecoderClass.get(),
-      decodeToBitmap,
+      decodeToRGBA,
       encoded);
   env->DeleteLocalRef(encoded); // No longer need encoded
 
-  if (jPixels == nullptr)
+  if (jBitmap == nullptr)
   {
-    RiveLogE("RiveN/ImageDecode", "ImageDecoder.decodeToBitmap returned null");
+    RiveLogE("RiveN/ImageDecode", "ImageDecoder.decodeToRGBA returned null");
     return nullptr;
   }
 
-  // At this point, we have the decoded results. Now convert into premul RGBA
-  // bytes and wrap in an AndroidImage.
-
-  jsize arrayCount = env->GetArrayLength(jPixels);
-  if (arrayCount < 2)
+  AndroidBitmapInfo info;
+  const uint32_t* pixels = nullptr;
+  std::unique_ptr<uint8_t[]> out;
+  if (lockBitmapRGBA8888(env, jBitmap, &info, &pixels))
   {
-    RiveLogE("RiveN/ImageDecode", "Bad array length (unexpected)");
-    env->DeleteLocalRef(jPixels);
+    out = copyRGBA8888(info, pixels);
+    AndroidBitmap_unlockPixels(env, jBitmap);
+    *width = info.width;
+    *height = info.height;
+  }
+  // Frees the pixels now rather than at the next GC.
+  env->CallVoidMethod(jBitmap, GetBitmapRecycleMethodId());
+  env->DeleteLocalRef(jBitmap);
+  return out;
+}
+
+rive::rcp<rive::RenderImage> renderImageFromAndroidDecode(
+    Span<const uint8_t> encodedBytes,
+    RenderContext* renderContext)
+{
+  uint32_t width;
+  uint32_t height;
+  auto out = decodeToPremultipliedRGBA(encodedBytes, &width, &height);
+  if (out == nullptr)
+  {
     return nullptr;
   }
-
-  auto rawPixels = env->GetIntArrayElements(jPixels, nullptr);
-  const auto rawWidth = static_cast<uint32_t>(rawPixels[0]);
-  const auto rawHeight = static_cast<uint32_t>(rawPixels[1]);
-  const size_t pixelCount = static_cast<size_t>(rawWidth) * rawHeight;
-  if (pixelCount == 0)
-  {
-    RiveLogE("RiveN/ImageDecode", "Unsupported empty image (zero dimension)");
-    env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
-    env->DeleteLocalRef(jPixels);
-    return nullptr;
-  }
-  if (static_cast<size_t>(arrayCount) < 2u + pixelCount)
-  {
-    RiveLogE("RiveN/ImageDecode", "Not enough elements in pixel array");
-    env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
-    env->DeleteLocalRef(jPixels);
-    return nullptr;
-  }
-
-  std::unique_ptr<uint8_t[]> out(new uint8_t[pixelCount * 4]);
-  auto* bytes = out.get();
-  for (size_t i = 0; i < pixelCount; ++i)
-  {
-    auto p = static_cast<uint32_t>(rawPixels[2 + i]);
-    uint32_t a = (p >> 24) & LSB_MASK;
-    uint32_t r = (p >> 16) & LSB_MASK;
-    uint32_t g = (p >> 8) & LSB_MASK;
-    uint32_t b = (p >> 0) & LSB_MASK;
-    if (!isPremultiplied)
-    {
-      r = premultiply(r, a);
-      g = premultiply(g, a);
-      b = premultiply(b, a);
-    }
-    bytes[0] = static_cast<uint8_t>(r);
-    bytes[1] = static_cast<uint8_t>(g);
-    bytes[2] = static_cast<uint8_t>(b);
-    bytes[3] = static_cast<uint8_t>(a);
-    bytes += 4;
-  }
-  env->ReleaseIntArrayElements(jPixels, rawPixels, JNI_ABORT);
-  env->DeleteLocalRef(jPixels);
 
   // New runtime: create backend-specific render images through the active
   // render context.
   // Legacy falls through to AndroidImage below.
   if (renderContext != nullptr)
   {
-    return renderContext->createRenderImage(
-        rawWidth,
-        rawHeight,
-        std::move(out));
+    return renderContext->createRenderImage(width, height, std::move(out));
   }
 
   return make_rcp<AndroidImage>(
-      static_cast<int>(rawWidth),
-      static_cast<int>(rawHeight),
+      static_cast<int>(width),
+      static_cast<int>(height),
       std::move(out));
 }
 
@@ -398,34 +369,7 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapRive(
     return nullptr;
   }
 
-  const auto width = info.width;
-  const auto height = info.height;
-
-  // Pack bitmap data in RGBA8888 format into a contiguous RGBA buffer
-  const size_t byteCount = static_cast<size_t>(width) * height * 4;
-  std::unique_ptr<uint8_t[]> dstBytes(new uint8_t[byteCount]);
-
-  const auto srcStrideBytes = static_cast<size_t>(info.stride);
-  const auto rowBytes = static_cast<size_t>(width) * 4;
-
-  // Reinterpret RGBA ints as bytes
-  const auto* srcBytes = reinterpret_cast<const uint8_t*>(srcPixels);
-
-  // Contiguous case: direct memcpy
-  if (srcStrideBytes == rowBytes)
-  {
-    memcpy(dstBytes.get(), srcBytes, rowBytes * height);
-  }
-  // Strided case: copy row by row
-  else
-  {
-    for (uint32_t y = 0; y < height; ++y)
-    {
-      const uint8_t* srcRow = srcBytes + y * srcStrideBytes;
-      uint8_t* dstRow = dstBytes.get() + static_cast<size_t>(y) * rowBytes;
-      memcpy(dstRow, srcRow, rowBytes);
-    }
-  }
+  auto dstBytes = copyRGBA8888(info, srcPixels);
 
   // Always unlock srcPixels
   AndroidBitmap_unlockPixels(env, jBitmap);
@@ -433,8 +377,8 @@ rive::rcp<rive::RenderImage> renderImageFromBitmapRive(
   // The packed buffer is RGBA. Route through the RGBA path that handles
   // isPremultiplied/straight alpha
   return renderImageFromRGBABytesRive(
-      width,
-      height,
+      info.width,
+      info.height,
       dstBytes.get(),
       isPremultiplied);
 }
@@ -469,6 +413,27 @@ uint32_t unpremultiply(uint8_t c, uint8_t a)
     return 0;
   auto out = (c * 255u + (a / 2u)) / a;
   return out > 255u ? 255u : out;
+}
+
+std::unique_ptr<uint8_t[]> copyRGBA8888(
+    const AndroidBitmapInfo& info,
+    const uint32_t* pixels)
+{
+  const auto rowBytes = static_cast<size_t>(info.width) * 4;
+  std::unique_ptr<uint8_t[]> dst(new uint8_t[rowBytes * info.height]);
+  const auto* src = reinterpret_cast<const uint8_t*>(pixels);
+  if (info.stride == rowBytes)
+  {
+    memcpy(dst.get(), src, rowBytes * info.height);
+  }
+  else
+  {
+    for (size_t y = 0; y < info.height; ++y)
+    {
+      memcpy(dst.get() + y * rowBytes, src + y * info.stride, rowBytes);
+    }
+  }
+  return dst;
 }
 
 bool lockBitmapRGBA8888(

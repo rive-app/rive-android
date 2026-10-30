@@ -2,7 +2,9 @@
 
 #include <EGL/egl.h>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <string>
 
@@ -310,6 +312,12 @@ struct RenderContextVulkan : RenderContext
   explicit RenderContextVulkan(bool enableDebugNames);
   ~RenderContextVulkan() override;
 
+  /**
+   * Sets the directory that persists compiled pipelines across launches, so
+   * later contexts skip most shader compilation. Empty disables it.
+   */
+  static void SetPipelineCacheDir(std::string dir);
+
   StartupResult initialize() override;
   /** Starts common shader warmup on the owning worker thread. */
   void precompileShaders() override;
@@ -358,12 +366,24 @@ private:
   bool ensureHeadlessFrameSynchronizer(
       RenderSurfaceVulkan* surface,
       VulkanImageSurface& image);
+  bool pipelineCacheGrew() const;
+  bool pipelineCacheSaveRunning() const;
+  /**
+   * Merges the pipeline cache into its file. Runs off the worker too, so it
+   * must not log through RiveLog, which attaches the thread to the JVM and
+   * aborts when the thread exits.
+   */
+  void savePipelineCache();
 
   std::unique_ptr<rive_vkb::VulkanInstance> m_instance;
   std::unique_ptr<rive_vkb::VulkanDevice> m_device;
   std::unique_ptr<rive_vkb::VulkanFrameSyncCoordinator> m_frameSyncCoordinator;
   const bool m_enableDebugNames;
   bool m_precompileShaders = false;
+  std::string m_pipelineCachePath;
+  size_t m_savedPipelineCacheSize = 0;
+  std::chrono::steady_clock::time_point m_nextPipelineCacheSave;
+  std::future<void> m_pipelineCacheSave;
 };
 
 #endif

@@ -1,32 +1,44 @@
 package app.rive.runtime.kotlin.core
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorSpace
+import android.os.Build
 
 @Suppress("unused") // Called from JNI
 object ImageDecoder {
     /**
-     * Decodes a byte array into a bitmap and returns an integer array containing the pixel data.
+     * Decodes encoded image bytes into a premultiplied sRGB RGBA_8888 bitmap.
      *
-     * Used by C++ over JNI to decode images, specifically `RiveRenderFactory::decodeImage`.
+     * Used by C++ over JNI to decode images, specifically `RiveRenderFactory::decodeImage`, which
+     * copies the pixels out and recycles the bitmap. Decoding straight to sRGB keeps the
+     * conversion inside the codec instead of a second pass over the pixels.
      *
      * @param encoded The byte array containing the encoded image data.
-     * @return An array of integers where the first two elements are the width and height of the
-     *    bitmap, followed by the pixel data in ARGB, non-premultiplied format.
+     * @return The bitmap, or null if decoding failed.
      */
     @JvmStatic
-    fun decodeToBitmap(encoded: ByteArray): IntArray = try {
-        val bitmap =
-            BitmapFactory.decodeByteArray(encoded, 0, encoded.size, BitmapFactory.Options())
-
-        val width = bitmap.width
-        val height = bitmap.height
-        val offset = 2 // Space for width and height
-        val pixels = IntArray(offset + width * height)
-        pixels[0] = width
-        pixels[1] = height
-        bitmap.getPixels(pixels, offset, width, 0, 0, width, height)
-        pixels
+    fun decodeToRGBA(encoded: ByteArray): Bitmap? = try {
+        val bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.size, decodeOptions())
+        // Some sources, such as 16 bit PNGs, can still decode to another config and color space.
+        // Drawing into a new sRGB bitmap converts both, which copy() would not.
+        if (bitmap == null || bitmap.config == Bitmap.Config.ARGB_8888) {
+            bitmap
+        } else {
+            Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888).also {
+                Canvas(it).drawBitmap(bitmap, 0f, 0f, null)
+                bitmap.recycle()
+            }
+        }
     } catch (e: Exception) {
-        IntArray(0)
+        null
+    }
+
+    internal fun decodeOptions() = BitmapFactory.Options().apply {
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
+        }
     }
 }

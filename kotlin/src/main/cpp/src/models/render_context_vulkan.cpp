@@ -6,7 +6,12 @@
 #include <android/native_window.h>
 #include <cassert>
 #include <cstring>
+#include <fcntl.h>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <mutex>
+#include <unistd.h>
 #include <utility>
 #include <variant>
 #include <vulkan/vulkan.h>
@@ -45,6 +50,45 @@ constexpr VkImageUsageFlags
     HEADLESS_IMAGE_USAGE_FLAGS = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                                  VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                                  VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+std::mutex g_pipelineCacheDirMutex;
+std::string g_pipelineCacheDir;
+// Every worker shares one cache file.
+std::mutex g_pipelineCacheSaveMutex;
+
+std::vector<uint8_t> readFile(const std::string& path)
+{
+  std::ifstream file(path, std::ios::binary);
+  return {
+      std::istreambuf_iterator<char>(file),
+      std::istreambuf_iterator<char>()};
+}
+
+/**
+ * Writes beside the target, syncs, and renames, so readers never see a torn
+ * file, even after a power loss.
+ */
+bool writeFileAtomically(
+    const std::string& path,
+    const std::vector<uint8_t>& data)
+{
+  auto temp = path + "." + std::to_string(gettid());
+  int fd = open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+  if (fd < 0)
+  {
+    return false;
+  }
+  bool written = write(fd, data.data(), data.size()) ==
+                     static_cast<ssize_t>(data.size()) &&
+                 fsync(fd) == 0;
+  close(fd);
+  if (!written || rename(temp.c_str(), path.c_str()) != 0)
+  {
+    unlink(temp.c_str());
+    return false;
+  }
+  return true;
+}
 
 bool missingPreparedFrameResource(const char* operation, const char* resource)
 {
@@ -447,6 +491,12 @@ RenderContextVulkan::RenderContextVulkan(bool enableDebugNames)
 
 RenderContextVulkan::~RenderContextVulkan() = default;
 
+void RenderContextVulkan::SetPipelineCacheDir(std::string dir)
+{
+  std::lock_guard lock(g_pipelineCacheDirMutex);
+  g_pipelineCacheDir = std::move(dir);
+}
+
 StartupResult RenderContextVulkan::initialize()
 {
   using namespace rive_vkb;
@@ -485,6 +535,19 @@ StartupResult RenderContextVulkan::initialize()
         "Failed to create Vulkan device"};
   }
 
+  {
+    std::lock_guard lock(g_pipelineCacheDirMutex);
+    if (!g_pipelineCacheDir.empty())
+    {
+      m_pipelineCachePath = g_pipelineCacheDir + "/rive_vulkan_pipelines.bin";
+    }
+  }
+  std::vector<uint8_t> pipelineCacheData;
+  if (!m_pipelineCachePath.empty())
+  {
+    pipelineCacheData = readFile(m_pipelineCachePath);
+  }
+
   RiveLogD(TAG_RC, "Creating Rive RenderContextVulkan");
   if (!m_enableDebugNames)
   {
@@ -500,6 +563,9 @@ StartupResult RenderContextVulkan::initialize()
       m_instance->getVkGetInstanceProcAddrPtr(),
       rive::gpu::RenderContextVulkanImpl::ContextOptions{
           .enableDebugNames = m_enableDebugNames,
+          .pipelineCacheData = rive::make_span(
+              pipelineCacheData.data(),
+              pipelineCacheData.size()),
       });
   if (!riveContext)
   {
@@ -508,6 +574,10 @@ StartupResult RenderContextVulkan::initialize()
         VK_ERROR_INITIALIZATION_FAILED,
         "Failed to create Rive RenderContextVulkan"};
   }
+  // A rejected file is from another driver, so any new cache replaces it.
+  m_savedPipelineCacheSize = vk()->pipelineCacheSeeded()
+                                 ? vk()->pipelineCacheDataSize()
+                                 : 0;
 
   auto* renderContextImpl = impl();
   auto* vulkanContext = renderContextImpl->vulkanContext();
@@ -558,11 +628,54 @@ void RenderContextVulkan::precompileShaders()
   }
 }
 
+bool RenderContextVulkan::pipelineCacheGrew() const
+{
+  return !m_pipelineCachePath.empty() && riveContext != nullptr &&
+         vk()->pipelineCacheDataSize() > m_savedPipelineCacheSize;
+}
+
+bool RenderContextVulkan::pipelineCacheSaveRunning() const
+{
+  return m_pipelineCacheSave.valid() &&
+         m_pipelineCacheSave.wait_for(std::chrono::seconds(0)) !=
+             std::future_status::ready;
+}
+
+void RenderContextVulkan::savePipelineCache()
+{
+  size_t size = vk()->pipelineCacheDataSize();
+  std::lock_guard lock(g_pipelineCacheSaveMutex);
+  auto onDisk = readFile(m_pipelineCachePath);
+  auto data = vk()->pipelineCacheData(
+      rive::make_span(onDisk.data(), onDisk.size()));
+  // Keep what is on disk rather than replace it with a failed snapshot.
+  if (data.empty())
+  {
+    return;
+  }
+  if (writeFileAtomically(m_pipelineCachePath, data))
+  {
+    m_savedPipelineCacheSize = size;
+  }
+  else
+  {
+    LOGW("Failed to write the Vulkan pipeline cache");
+  }
+}
+
 void RenderContextVulkan::destroy()
 {
   if (m_device != nullptr)
   {
     m_device->waitUntilIdle();
+  }
+  if (m_pipelineCacheSave.valid())
+  {
+    m_pipelineCacheSave.wait();
+  }
+  if (pipelineCacheGrew())
+  {
+    savePipelineCache();
   }
 
   // Retain the Vulkan context while renderer shutdown drains deferred GPU
@@ -817,7 +930,7 @@ bool RenderContextVulkan::present(RenderSurface* nativeSurface)
   {
     return false;
   }
-  return std::visit(
+  auto presented = std::visit(
       Overloaded{
           [&](VulkanWindowSurface& window) {
             return presentWindowFrame(*this, surface, window, *vulkanTarget);
@@ -827,6 +940,22 @@ bool RenderContextVulkan::present(RenderSurface* nativeSurface)
           },
       },
       surface->backend);
+  // An app is usually killed rather than destroying us, so save after the
+  // first frame and then whenever new pipelines have compiled.
+  auto now = std::chrono::steady_clock::now();
+  if (now >= m_nextPipelineCacheSave && !pipelineCacheSaveRunning())
+  {
+    m_nextPipelineCacheSave = now + std::chrono::seconds(1);
+    if (pipelineCacheGrew())
+    {
+      // Off the worker, so file IO and fsync never delay a frame.
+      m_pipelineCacheSave = std::async(
+          std::launch::async,
+          &RenderContextVulkan::savePipelineCache,
+          this);
+    }
+  }
+  return presented;
 }
 
 bool RenderContextVulkan::readPixels(

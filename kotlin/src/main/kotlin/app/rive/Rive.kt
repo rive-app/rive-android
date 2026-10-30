@@ -1290,6 +1290,7 @@ private fun DrawRiveFramesEffect(
             }
             val framePacer = RiveFramePacer(frameRate)
             var lastFrameTimeNs = 0L
+            var drawn = false
             while (isActive) {
                 if (stateMachine.settled.value) {
                     traceSection("Rive/Frame/SettledSuspend") {
@@ -1308,7 +1309,10 @@ private fun DrawRiveFramesEffect(
                     continue
                 }
 
-                val frameTimeNs = withFrameNanos { frameTimeNs -> frameTimeNs }
+                // The first frame draws as soon as everything it needs is ready, a vsync earlier.
+                // It has no frame time, so the frame clock alone sets animation time and pacing.
+                val frameTimeNs = if (drawn) withFrameNanos { frameTimeNs -> frameTimeNs } else 0L
+                drawn = true
 
                 // Settled events can arrive while withFrameNanos is suspended.
                 if (stateMachine.settled.value) {
@@ -1320,7 +1324,7 @@ private fun DrawRiveFramesEffect(
                     return@repeatOnLifecycle
                 }
                 // FPS cap gate: skip platform frames that arrive before the next Rive frame is due.
-                if (!framePacer.tryScheduleFrame(frameTimeNs)) {
+                if (frameTimeNs != 0L && !framePacer.tryScheduleFrame(frameTimeNs)) {
                     continue
                 }
                 // The surface can close while this coroutine is suspended for a frame. The

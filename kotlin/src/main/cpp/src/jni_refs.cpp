@@ -874,6 +874,11 @@ jfieldID GetARGB8888Field()
       "Landroid/graphics/Bitmap$Config;");
 }
 
+jmethodID GetBitmapRecycleMethodId()
+{
+  return GetMethodId(GetAndroidBitmapClass(), "recycle", "()V");
+}
+
 jmethodID GetBitmapSetPixelsMethodId()
 {
   // void setPixels (int[] pixels, int offset, int stride, int x, int y, int
