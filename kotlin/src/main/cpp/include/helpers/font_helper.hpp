@@ -93,6 +93,8 @@ public:
     std::lock_guard<std::mutex> lock(FontHelper::s_fallbackFontsMutex);
     FontHelper::s_pickFontCache.clear();
     FontHelper::s_decodedByContent.clear();
+    // Text shaped with the old fallbacks shapes again.
+    rive::Font::fallbackFontsChanged();
   }
 
   static bool RegisterFallbackFont(jbyteArray);
@@ -102,6 +104,7 @@ public:
   static void InvalidateSystemFallbacks()
   {
     s_localeGeneration.fetch_add(1, std::memory_order_release);
+    rive::Font::fallbackFontsChanged();
   }
 
   static rive::rcp<rive::Font> FindFontFallback(

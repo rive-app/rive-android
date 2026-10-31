@@ -43,6 +43,8 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
 
   std::lock_guard<std::mutex> lock(s_fallbackFontsMutex);
   s_fallbackFonts.push_back(fallback);
+  // Text shaped without this fallback shapes again.
+  rive::Font::fallbackFontsChanged();
   return true;
 }
 /* static */ bool FontHelper::RefreshSystemFallbacks()
