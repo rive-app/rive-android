@@ -369,3 +369,10 @@ object NativeWorkerTestHelper {
      */
     external fun cppRunOnRiveWorker(runnable: Runnable): Boolean
 }
+
+/** Reads and pins native `ViewModelInstanceRuntime` reference counts. Debug builds only. */
+object NativeViewModelTestHelper {
+    external fun cppRefInstance(instancePointer: Long)
+    external fun cppUnrefInstance(instancePointer: Long)
+    external fun cppInstanceRefCount(instancePointer: Long): Int
+}

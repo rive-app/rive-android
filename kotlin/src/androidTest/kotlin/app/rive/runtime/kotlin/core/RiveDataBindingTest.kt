@@ -1664,4 +1664,128 @@ class RiveDataBindingTest {
         // Rethrow any exception from either thread.
         failure.get()?.let { throw it }
     }
+
+    /**
+     * Pins the native objects behind [instances], runs [teardown], and returns how many native
+     * references each still has besides the pin. A wrapper that dropped everything it took leaves 0.
+     * Never pin a parent with its child: the pinned parent's cache keeps the child referenced.
+     */
+    private fun nativeRefsLeftAfter(
+        vararg instances: ViewModelInstance,
+        teardown: () -> Unit,
+    ): List<Int> {
+        val pointers = instances.map { it.cppPointer }
+        pointers.forEach { NativeViewModelTestHelper.cppRefInstance(it) }
+        teardown()
+        val refs = pointers.map { NativeViewModelTestHelper.cppInstanceRefCount(it) - 1 }
+        pointers.forEach { NativeViewModelTestHelper.cppUnrefInstance(it) }
+        return refs
+    }
+
+    @Test
+    fun created_instances_drop_their_native_refs_with_the_file() {
+        val instances = arrayOf(
+            vm.createBlankInstance(),
+            vm.createDefaultInstance(),
+            vm.createInstanceFromIndex(0),
+            vm.createInstanceFromName("Test Default"),
+            vmi,
+        )
+        assertEquals(
+            List(instances.size) { 0 },
+            nativeRefsLeftAfter(*instances) { view.mockDetach(destroy = true) }
+        )
+    }
+
+    @Test
+    fun child_instance_drops_its_native_refs_with_the_file() {
+        val child = vmi.getInstanceProperty("Test Nested")
+        assertEquals(listOf(0), nativeRefsLeftAfter(child) { view.mockDetach(destroy = true) })
+    }
+
+    @Test
+    fun auto_bound_instance_drops_its_native_refs_with_the_file() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+        val autoBound = view.controller.stateMachines.first().viewModelInstance!!
+        assertEquals(listOf(0), nativeRefsLeftAfter(autoBound) { view.mockDetach(destroy = true) })
+    }
+
+    @Test
+    fun list_items_drop_their_native_refs_with_the_file() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+        val list = view.controller.stateMachines.first().viewModelInstance!!
+            .getListProperty("Test List")
+        val fileItem = list[0]
+        val addedItem =
+            view.controller.file!!.getViewModelByName("Test List Item VM").createDefaultInstance()
+        list.add(addedItem)
+
+        assertEquals(
+            listOf(0, 0),
+            nativeRefsLeftAfter(fileItem, addedItem) {
+                view.mockDetach(destroy = true)
+            }
+        )
+    }
+
+    @Test
+    fun list_item_lookups_drop_their_native_refs() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+        val list = view.controller.stateMachines.first().viewModelInstance!!
+            .getListProperty("Test List")
+        val item = list[0]
+
+        val refsLeft = nativeRefsLeftAfter(item) {
+            assertSame(item, list[0]) // Cached lookup
+            list.removeAt(0)
+        }
+        assertEquals(listOf(0), refsLeft)
+    }
+
+    @Test
+    fun transferred_instance_drops_its_native_refs_with_the_receiving_file() {
+        val view2 = TestUtils.MockRiveAnimationView(appContext)
+        view2.setRiveResource(R.raw.data_bind_test_impl)
+        val transfer = vmi.transfer()
+        view.mockDetach(destroy = true)
+        view2.controller.activeArtboard!!.receiveViewModelInstance(transfer)
+
+        // Still usable after its originating File is gone
+        vmi.getNumberProperty("Test Num").value = 456f
+        view2.play()
+        assertEquals("456", view2.getTextRunValue("Test Number Value"))
+
+        assertEquals(listOf(0), nativeRefsLeftAfter(vmi) { view2.mockDetach(destroy = true) })
+    }
+
+    @Test
+    fun disposed_transfer_drops_its_native_refs() {
+        val transfer = vmi.transfer()
+        val refsLeft = nativeRefsLeftAfter(vmi) {
+            view.mockDetach(destroy = true)
+            assertTrue(vmi.hasCppObject)
+            transfer.dispose()
+        }
+        assertEquals(listOf(0), refsLeft)
+    }
+
+    @Test
+    fun nested_property_is_released_with_the_instance_it_belongs_to() {
+        val view2 = TestUtils.MockRiveAnimationView(appContext)
+        view2.setRiveResource(R.raw.data_bind_test_impl)
+        val nested = view2.file!!.getViewModelByName("Nested VM").createDefaultInstance()
+        vmi.setInstanceProperty("Test Nested", nested)
+        val nestedNumber = vmi.getNumberProperty("Test Nested/Nested Number")
+
+        // vmi keeps the assigned instance alive after its File is released
+        view2.mockDetach(destroy = true)
+        nestedNumber.value = 300f
+        vmi.pollChanges()
+        assertEquals(300f, vmi.getNumberProperty("Test Nested/Nested Number").value)
+
+        // Replacing it frees the native instance, so its property must be disposed first
+        val replacement = view.file!!.getViewModelByName("Nested VM").createDefaultInstance()
+        vmi.setInstanceProperty("Test Nested", replacement)
+        assertFalse(nestedNumber.hasCppObject)
+    }
 }

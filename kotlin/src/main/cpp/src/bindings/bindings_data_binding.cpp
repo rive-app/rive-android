@@ -320,17 +320,7 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppRefInstance(
-      JNIEnv*,
-      jobject,
-      jlong ref)
-  {
-    auto vmi = reinterpret_cast<rive::ViewModelInstanceRuntime*>(ref);
-    vmi->ref();
-  }
-
-  JNIEXPORT void JNICALL
-  Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppDerefInstance(
+  Java_app_rive_runtime_kotlin_core_ViewModelInstance_cppReleaseInstance(
       JNIEnv*,
       jobject,
       jlong ref)
@@ -528,6 +518,17 @@ extern "C"
     auto property = reinterpret_cast<rive::ViewModelInstanceListRuntime*>(ref);
     auto vmi = property->instanceAt(index);
     return reinterpret_cast<jlong>(vmi.release());
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_ViewModelListProperty_cppDerefItem(
+      JNIEnv*,
+      jobject,
+      jlong itemRef)
+  {
+    // Null for a list item without an instance.
+    rive::safe_unref(
+        reinterpret_cast<rive::ViewModelInstanceRuntime*>(itemRef));
   }
 
   JNIEXPORT void JNICALL

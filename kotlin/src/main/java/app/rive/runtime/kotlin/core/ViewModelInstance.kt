@@ -138,7 +138,8 @@ private inline fun <R> withCurrentFileLock(
  * Instances can be created from one [File] and applied to another. See [transfer] for more
  * information.
  *
- * @param unsafeCppPointer Pointer to the C++ counterpart.
+ * @param unsafeCppPointer Pointer to the C++ counterpart, owning one native reference that this
+ *    wrapper adopts.
  * @param fileLock Lock shared by the [File] and native graph this instance belongs to. Updated
  *    through [updateFileLock] when assigned to another native graph.
  */
@@ -164,21 +165,14 @@ class ViewModelInstance internal constructor(
         instancePointer: Long,
     ): Boolean
 
-    private external fun cppRefInstance(cppPointer: Long)
-    private external fun cppDerefInstance(cppPointer: Long)
+    private external fun cppReleaseInstance(cppPointer: Long)
 
     protected var properties: MutableMap<String, ViewModelProperty<*>> = ConcurrentHashMap()
     protected var children: MutableMap<String, ViewModelInstance> = ConcurrentHashMap()
 
-    init {
-        // Keep an extra reference to the instance. Cleaned up in cppDelete.
-        // This is to facilitate the transfer use case where a user holds an instance after its
-        // originating file has been deleted.
-        synchronized(fileLock) { cppRefInstance(cppPointer) }
-    }
-
-    // Un-ref the extra reference created in init
-    override fun cppDelete(pointer: Long) = synchronized(fileLock) { cppDerefInstance(pointer) }
+    // The adopted native reference keeps the instance alive independently of its File. Drop it once
+    // the last Kotlin reference is released.
+    override fun cppDelete(pointer: Long) = synchronized(fileLock) { cppReleaseInstance(pointer) }
 
     /**
      * Release this instance while holding the current file lock.
@@ -217,7 +211,7 @@ class ViewModelInstance internal constructor(
 
     /** Get the [name] of the view model instance. */
     val name: String
-        get() = cppName(cppPointer)
+        get() = withCurrentFileLock({ fileLock }) { cppName(cppPointer) }
 
     /**
      * Poll all properties for changes. This is called from advance, and is therefore running on the
@@ -361,7 +355,7 @@ class ViewModelInstance internal constructor(
         val destinationFileLock = parentInstance.fileLock
         instance.updateFileLock(destinationFileLock)
 
-        synchronized(destinationFileLock) {
+        val replaced = synchronized(destinationFileLock) {
             if (!cppSetInstanceProperty(
                     parentInstance.cppPointer,
                     propertyName,
@@ -371,9 +365,15 @@ class ViewModelInstance internal constructor(
                 throw ViewModelException("Property not found: $path; or instance is incompatible.")
             }
 
-            // Update the parent's cache
-            parentInstance.children[propertyName] = instance
+            // The parent keeps the assigned instance alive while it is cached, and releases the one
+            // it replaces, along with any properties fetched through it.
+            instance.acquire()
+            parentInstance.dependencies.add(instance)
+            parentInstance.children.put(propertyName, instance)
+                ?.also { parentInstance.dependencies.remove(it) }
         }
+        // Outside the destination lock: the replaced instance may now use another File's lock
+        replaced?.release()
     }
 
     // `reified T` avoids type erasure so that we can type check the cached property.
@@ -407,7 +407,8 @@ class ViewModelInstance internal constructor(
 
                 val property = constructor(propertyPointer, finalInstance.fileLock)
                 finalInstance.properties[propertyName] = property
-                dependencies.add(property)
+                // The property's native object lives in finalInstance, so it is released with it
+                finalInstance.dependencies.add(property)
 
                 property
             }
@@ -461,13 +462,12 @@ class ViewModelInstance internal constructor(
                 throw ViewModelException("Cannot transfer a disposed ViewModelInstance.")
             }
 
-            synchronized(instance.fileLock) { instance.cppRefInstance(instance.cppPointer) }
             instance.acquire()
         }
 
         /**
-         * Dispose of the transfer. This will release the C++ reference to the instance. Call this
-         * manually to abort a transfer.
+         * Dispose of the transfer. This will release the transfer's reference to the instance. Call
+         * this manually to abort a transfer.
          *
          * Note: this operation is not idempotent. Calling this multiple times will throw an error.
          *
@@ -509,14 +509,15 @@ class ViewModelInstance internal constructor(
 
     /**
      * Start a transfer of this [ViewModelInstance] to another [File]. This is necessary because
-     * normally the C++ lifetime of the instance is managed by the File it belongs to. When
-     * transferring, the instance needs to survive the possible deletion of its owning File.
+     * the instance is released along with the File it was created from. When transferring, the
+     * instance needs to survive the possible deletion of its owning File.
      *
      * You can omit this if you're certain that the originating File will not be deleted before this
      * instance is assigned.
      *
-     * Important: once created, you *must* call [Transfer.end] or assign the instance to a
-     * [StateMachineInstance] or [Artboard], otherwise the internal C++ reference count will leak.
+     * Important: once created, you *must* pass the transfer to
+     * [Artboard.receiveViewModelInstance] or [StateMachineInstance.receiveViewModelInstance], or
+     * call [Transfer.dispose], otherwise the transfer's reference will leak.
      *
      * @throws [ViewModelException] if the instance has already been disposed.
      * @see [Artboard.viewModelInstance]
@@ -588,7 +589,7 @@ abstract class ViewModelProperty<T>(
 
     /** The name of the property. */
     val name: String
-        get() = cppName(cppPointer)
+        get() = withLock { cppName(cppPointer) }
 
     /**
      * The current value of the property, whether set by this property or by a data binding update.
@@ -761,7 +762,10 @@ class ViewModelImageProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
 class ViewModelListProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
     ViewModelProperty<Unit>(unsafeCppPointer, fileLock) {
     private external fun cppSize(cppPointer: Long): Int
+
+    /** @return The item's pointer, owning one native reference the caller must adopt or drop. */
     private external fun cppElementAt(cppPointer: Long, index: Int): Long
+    private external fun cppDerefItem(itemPointer: Long)
     private external fun cppAdd(cppPointer: Long, itemPointer: Long)
     private external fun cppAddAt(cppPointer: Long, index: Int, itemPointer: Long)
     private external fun cppRemove(cppPointer: Long, itemPointer: Long)
@@ -844,22 +848,27 @@ class ViewModelListProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
      * Get the [ViewModelInstance] at the specified [index].
      *
      * @throws IndexOutOfBoundsException if [index] is out of bounds.
+     * @throws ViewModelException if the item at [index] has no instance.
      */
-    @Throws(IndexOutOfBoundsException::class)
+    @Throws(IndexOutOfBoundsException::class, ViewModelException::class)
     fun elementAt(index: Int): ViewModelInstance = withLock {
         boundsCheck(index)
 
-        val cppPointer = cppElementAt(cppPointer, index)
-        // Check if the item is cached
-        cachedItems[cppPointer]?.instance ?: run {
-            /**
-             * If not cached, create a new instance and cache it. The instance will have a reference
-             * count of 1, which will be released when either the list is deleted or the item is
-             * removed from the list.
-             */
-            val newItem = ViewModelInstance(cppPointer, fileLock)
-            cachedItems[cppPointer] = CacheEntry(newItem, count = 1)
-            newItem
+        val itemPointer = cppElementAt(cppPointer, index)
+        if (itemPointer == NULL_POINTER) {
+            throw ViewModelException("List item at index $index has no instance.")
+        }
+        val cachedItem = cachedItems[itemPointer]?.instance
+        if (cachedItem != null) {
+            // The cached wrapper already owns a native reference
+            cppDerefItem(itemPointer)
+            cachedItem
+        } else {
+            // The new wrapper adopts the native reference. The cache holds its only Kotlin
+            // reference, released when either the list is deleted or the item is removed from it.
+            ViewModelInstance(itemPointer, fileLock).also {
+                cachedItems[itemPointer] = CacheEntry(it, count = 1)
+            }
         }
     }
 
@@ -937,18 +946,20 @@ class ViewModelListProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
      * @throws IndexOutOfBoundsException if [index] is out of bounds.
      */
     @Throws(IndexOutOfBoundsException::class)
-    fun removeAt(index: Int) = withLock {
+    fun removeAt(index: Int): Unit = withLock {
         boundsCheck(index)
 
         val itemPointer = cppElementAt(cppPointer, index)
+        cppRemoveAt(cppPointer, index)
+        // A cached wrapper still owns a native reference and drops it when released below
+        cppDerefItem(itemPointer)
+
         cachedItems[itemPointer]?.let { entry ->
             // Decrement the count and release the instance if it reaches zero
             if (--entry.count == 0) {
                 cachedItems.remove(itemPointer)?.also { it.instance.release() }
             }
         }
-
-        cppRemoveAt(cppPointer, index)
     }
 
     /**
