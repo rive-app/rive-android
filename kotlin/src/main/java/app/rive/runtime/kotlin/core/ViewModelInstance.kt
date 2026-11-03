@@ -929,14 +929,15 @@ class ViewModelListProperty(unsafeCppPointer: Long, fileLock: ReentrantLock) :
      * @throws IllegalArgumentException if [item] is disposed.
      */
     @Throws(IllegalArgumentException::class)
-    fun remove(item: ViewModelInstance) = withLock {
+    fun remove(item: ViewModelInstance): Unit = withLock {
         require(item.hasCppObject) {
             "Cannot remove a disposed ViewModelProperty from ViewModelListProperty."
         }
 
-        cachedItems.remove(item.cppPointer)?.also { it.instance.release() }
-
-        cppRemove(cppPointer, item.cppPointer)
+        val itemPointer = item.cppPointer
+        cppRemove(cppPointer, itemPointer)
+        // Releasing the cached wrapper can dispose item, so it comes after the native removal
+        cachedItems.remove(itemPointer)?.also { it.instance.release() }
     }
 
     /**

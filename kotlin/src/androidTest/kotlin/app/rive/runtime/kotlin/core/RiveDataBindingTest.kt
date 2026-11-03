@@ -1161,6 +1161,20 @@ class RiveDataBindingTest {
     }
 
     @Test
+    fun list_item_remove_by_value_after_lookup() {
+        view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
+
+        val vmi = view.controller.stateMachines.first().viewModelInstance!!
+        val list = vmi.getListProperty("Test List")
+
+        // Only the list holds this item, so removing it releases its last reference
+        list.remove(list[0])
+
+        assertEquals(1, list.size)
+        assertEquals(2f, list[0].getNumberProperty("Test Item Number").value)
+    }
+
+    @Test
     fun list_add_remove_disposed() {
         view.setRiveResource(R.raw.data_bind_test_impl, "Test List", autoBind = true)
 
