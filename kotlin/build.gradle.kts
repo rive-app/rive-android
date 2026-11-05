@@ -259,10 +259,10 @@ mavenPublishing {
     pom {
         name.set(publishArtifactId)
         description.set(
-            "Rive is a real-time interactive design and animation tool. Use our collaborative " +
-                "editor to create motion graphics that respond to different states and user " +
-                "inputs. Then load your animations into apps, games, and websites with our " +
-                "lightweight open-source runtimes."
+            "Rive is an agent-native 2D and 3D engine for games, apps, and interactive UI. " +
+                "Build with your coding agent through the Rive CLI, or by hand in the Rive " +
+                "Editor, on the same files. Open-source runtimes, no royalties or runtime fees. " +
+                "Rive files play natively on every major platform."
         )
         url.set("https://rive.app")
         licenses {
