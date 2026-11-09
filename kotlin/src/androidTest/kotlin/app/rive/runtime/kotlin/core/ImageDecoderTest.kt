@@ -83,6 +83,63 @@ class ImageDecoderTest {
         assertNull(decode(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03)))
     }
 
+    @Test
+    fun failedByteArrayAllocationFailsTheDecode() {
+        val heap = Runtime.getRuntime().maxMemory()
+        val encoded = ByteArray((heap / 8).toInt())
+        val png = raw(R.raw.image_decode_rgba8)
+        var thrown: OutOfMemoryError? = null
+        // Leaves enough for small allocations, which ART refuses below about 1% free.
+        val decoded = withFullHeap(leave = (heap / 32).toInt()) {
+            try {
+                decode(encoded)
+            } catch (e: OutOfMemoryError) {
+                thrown = e
+                null
+            }
+        }
+        assertNull(thrown)
+        assertNull(decoded)
+        assertTrue(decode(png) != null)
+    }
+
+    @Test
+    fun outOfMemoryWhileDecodingFailsTheDecode() {
+        val png = raw(R.raw.image_decode_rgba8)
+        var thrown: OutOfMemoryError? = null
+        withFullHeap(leave = 0) {
+            try {
+                ImageDecoder.decodeToRGBA(png)
+            } catch (e: OutOfMemoryError) {
+                thrown = e
+            }
+        }
+        assertNull(thrown)
+        assertTrue(ImageDecoder.decodeToRGBA(png) != null)
+    }
+
+    /** Runs [block] with the Java heap filled to within about [leave] bytes of its limit. */
+    private inline fun <T> withFullHeap(leave: Int, block: () -> T): T {
+        val filler = ArrayList<ByteArray>(1 shl 16)
+        var chunk = 1 shl 20
+        while (chunk >= 16) {
+            try {
+                filler.add(ByteArray(chunk))
+            } catch (e: OutOfMemoryError) {
+                chunk /= 2
+            }
+        }
+        var freed = 0
+        while (freed < leave && filler.isNotEmpty()) {
+            freed += filler.removeAt(filler.lastIndex).size
+        }
+        return try {
+            block()
+        } finally {
+            filler.clear()
+        }
+    }
+
     private class Decoded(val width: Int, val height: Int, val rgba: ByteArray)
 
     private fun decode(encoded: ByteArray): Decoded? {

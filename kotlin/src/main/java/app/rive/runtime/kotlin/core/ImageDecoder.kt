@@ -33,6 +33,9 @@ object ImageDecoder {
         }
     } catch (e: Exception) {
         null
+    } catch (e: OutOfMemoryError) {
+        // Runs on the command server thread, where anything uncaught ends the process.
+        null
     }
 
     internal fun decodeOptions() = BitmapFactory.Options().apply {

@@ -34,7 +34,12 @@ std::unique_ptr<uint8_t[]> decodeToPremultipliedRGBA(
   auto encoded = env->NewByteArray(SizeTToInt(encodedBytes.size()));
   if (!encoded)
   {
-    RiveLogE(TAG, "Failed to allocate NewByteArray");
+    // A pending OutOfMemoryError would otherwise be rethrown as fatal by the
+    // next JNIExceptionHandler call on this thread.
+    JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG,
+        "Failed to allocate NewByteArray");
     return nullptr;
   }
 

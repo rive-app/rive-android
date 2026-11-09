@@ -682,7 +682,10 @@ constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
   auto jByteArray = env->NewByteArray(jSize);
   if (jByteArray == nullptr)
   {
-    RiveLogE(TAG_RENDER_IMAGE, "CreateKtBitmapFrom() - NewByteArray() failed.");
+    JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG_RENDER_IMAGE,
+        "CreateKtBitmapFrom() - NewByteArray() failed.");
     return nullptr;
   }
 
