@@ -231,19 +231,20 @@ void CanvasRenderer::clipPath(rive::RenderPath* path)
       canvasPath->ktPath());
 }
 // Creates and applies a ColorMatrixColorFilter for opacity modulation.
-// Uses premultiplied alpha: scales R, G, B, A channels by the same opacity.
+// Scales only alpha: a ColorMatrix works on unpremultiplied colors, so scaling
+// R, G and B too would darken the color as well.
 static void ApplyOpacityColorFilter(JNIEnv* env, jobject ktPaint, float opacity)
 {
-  // Create the 4x5 color matrix for premultiplied alpha opacity
-  // [opacity,    0,       0,       0, 0]
-  // [0,          opacity, 0,       0, 0]
-  // [0,          0,       opacity, 0, 0]
-  // [0,          0,       0,       opacity, 0]
+  // Create the 4x5 color matrix that scales alpha
+  // [1, 0, 0, 0,       0]
+  // [0, 1, 0, 0,       0]
+  // [0, 0, 1, 0,       0]
+  // [0, 0, 0, opacity, 0]
   float colorMatrix[20] = {
-      opacity, 0,       0,       0,       0, // R
-      0,       opacity, 0,       0,       0, // G
-      0,       0,       opacity, 0,       0, // B
-      0,       0,       0,       opacity, 0  // A
+      1, 0, 0, 0,       0, // R
+      0, 1, 0, 0,       0, // G
+      0, 0, 1, 0,       0, // B
+      0, 0, 0, opacity, 0  // A
   };
 
   jclass colorMatrixClass = GetColorMatrixClass();
