@@ -280,16 +280,22 @@ mavenPublishing {
                 roles.set(listOf("Android DevRel"))
             }
             developer {
-                id.set("umberto-sonnino")
-                name.set("Umberto Sonnino")
-                email.set("umberto@rive.app")
-                roles.set(listOf("Original Author"))
+                id.set("wisemuji")
+                name.set("Suhyeon Kim")
+                email.set("suhyeon@rive.app")
+                roles.set(listOf("Android DevRel"))
             }
             developer {
                 id.set("luigi-rosso")
                 name.set("Luigi Rosso")
                 email.set("luigi@rive.app")
                 roles.set(listOf("Founder", "CTO"))
+            }
+            developer {
+                id.set("umberto-sonnino")
+                name.set("Umberto Sonnino")
+                email.set("umberto@rive.app")
+                roles.set(listOf("Original Author"))
             }
             developer {
                 id.set("mjtalbot")
