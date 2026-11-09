@@ -608,6 +608,7 @@ class RiveCanvasSession private constructor(
                         }
                         var lastFrameTimeNs = 0L
                         var loggedNoBuffer = false
+                        val loopTicker = ticker.firstFrameImmediate()
 
                         while (isActive && !closer.closed) {
                             if (riveWorker.renderContextStatus.value != RenderContextStatus.Ready) {
@@ -621,7 +622,7 @@ class RiveCanvasSession private constructor(
                                 lastFrameTimeNs = 0L
                                 continue
                             }
-                            ticker.withFrame { frameTimeNs ->
+                            loopTicker.withFrame { frameTimeNs ->
                                 if (closer.closed) {
                                     return@withFrame
                                 }
@@ -847,5 +848,21 @@ class RiveCanvasSession private constructor(
         }
 
         return handled
+    }
+}
+
+/**
+ * Wraps a [FrameTicker] to dispatch its first frame immediately with time `0L` upon starting,
+ * matching the first frame behavior of Compose `Rive()` (`app/rive/Rive.kt`).
+ */
+private fun FrameTicker.firstFrameImmediate(): FrameTicker {
+    var drawn = false
+    return FrameTicker { onFrame ->
+        if (drawn) {
+            withFrame(onFrame)
+        } else {
+            drawn = true
+            onFrame(0L)
+        }
     }
 }
