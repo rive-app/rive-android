@@ -33,6 +33,7 @@ import app.rive.RiveFocusDirection
 import app.rive.RiveFocusState
 import app.rive.RiveFontException
 import app.rive.RiveImageException
+import app.rive.RiveImplementationApi
 import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
@@ -2004,7 +2005,8 @@ class CommandQueue internal constructor(
      * @return A flow containing the latest accepted settled state.
      * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
-    internal fun stateMachineSettled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
+    @RiveImplementationApi
+    fun stateMachineSettled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
         stateMachineSettlingStore.settled(stateMachineHandle)
 
     /**
@@ -2016,7 +2018,8 @@ class CommandQueue internal constructor(
      * @param stateMachineHandle The state machine to mark unsettled.
      * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
-    internal fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
+    @RiveImplementationApi
+    fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
         stateMachineSettlingStore.unsettle(stateMachineHandle)
 
     /**

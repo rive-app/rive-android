@@ -4,6 +4,7 @@ import android.opengl.EGLSurface
 import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.WorkerThread
+import app.rive.RiveImplementationApi
 import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
@@ -190,7 +191,8 @@ abstract class RiveSurface internal constructor(
         RiveResourceClosedException::class,
         IllegalStateException::class
     )
-    internal fun resize(width: Int, height: Int) {
+    @RiveImplementationApi
+    fun resize(width: Int, height: Int) {
         checkOpen()
         require(width > 0 && height > 0) {
             "RiveSurface resize requires a positive width and height."
