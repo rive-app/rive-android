@@ -521,6 +521,11 @@ class RiveCanvasSession private constructor(
      * coroutine with a ticker loop, so it should typically be launched in a separate scope from the
      * caller's main work.
      *
+     * Set any view model instance values needed for the first frame before calling this function,
+     * either before launching the playback coroutine or inside it before this call. When the
+     * lifecycle is already RESUMED, playback can submit its first frame before the coroutine's
+     * launch call returns, so values set after launching may miss the first frame.
+     *
      * If the session is closed while this is running, the loop will exit, the function will return,
      * and the session will stop advancing and rendering frames.
      *
@@ -531,6 +536,9 @@ class RiveCanvasSession private constructor(
      * Ensure [setRegion] has been called with a valid region before calling this. Without a valid
      * region, the state machine will not be advanced and no frames will be rendered.
      *
+     * @param lifecycle The lifecycle controlling playback.
+     * @param ticker Supplies frame times after one immediate, zero-delta frame per RESUMED pass.
+     *    The immediate frame does not invoke this ticker.
      * @throws RiveResourceClosedException If this session or a Rive resource used while rendering
      *    has been closed, or if the owning Rive worker has been disposed.
      * @throws IllegalStateException If this session is already playing or the state machine is no
@@ -608,6 +616,7 @@ class RiveCanvasSession private constructor(
                         }
                         var lastFrameTimeNs = 0L
                         var loggedNoBuffer = false
+                        val loopTicker = ticker.withImmediateFirstFrame()
 
                         while (isActive && !closer.closed) {
                             if (riveWorker.renderContextStatus.value != RenderContextStatus.Ready) {
@@ -621,7 +630,7 @@ class RiveCanvasSession private constructor(
                                 lastFrameTimeNs = 0L
                                 continue
                             }
-                            ticker.withFrame { frameTimeNs ->
+                            loopTicker.withFrame { frameTimeNs ->
                                 if (closer.closed) {
                                     return@withFrame
                                 }
@@ -847,5 +856,27 @@ class RiveCanvasSession private constructor(
         }
 
         return handled
+    }
+}
+
+/**
+ * Wraps a [FrameTicker] so its first frame runs immediately with frame time `0L` and later frames
+ * come from the ticker, matching the first frame behavior of Compose `Rive()` (`app/rive/Rive.kt`).
+ *
+ * Frame time `0L` means no frame time: the render loop treats `lastFrameTimeNs == 0L` as having no
+ * previous frame, so both this frame and the first ticker frame advance by zero and animation time
+ * starts at the first ticker frame.
+ *
+ * @return A wrapper with its own first-frame state for one RESUMED pass.
+ */
+private fun FrameTicker.withImmediateFirstFrame(): FrameTicker {
+    var drawn = false
+    return FrameTicker { onFrame ->
+        if (drawn) {
+            withFrame(onFrame)
+        } else {
+            drawn = true
+            onFrame(0L)
+        }
     }
 }

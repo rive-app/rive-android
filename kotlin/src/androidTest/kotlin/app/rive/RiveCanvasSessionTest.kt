@@ -21,6 +21,8 @@ import app.rive.GlobalViewModelTestFixture.GLOBAL_VIEW_MODEL_2
 import app.rive.GlobalViewModelTestFixture.InstanceSpec
 import app.rive.GlobalViewModelTestFixture.MAIN_VIEW_MODEL
 import app.rive.GlobalViewModelTestFixture.withInstances
+import app.rive.core.ChoreographerFrameTicker
+import app.rive.core.FrameTicker
 import app.rive.core.RiveWorker
 import app.rive.core.StateMachineHandle
 import app.rive.core.withFrameNanosChoreographer
@@ -42,6 +44,7 @@ import kotlin.test.fail
 import kotlin.time.Duration.Companion.ZERO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -168,6 +171,30 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             resume()
 
             awaitFrameCountGreaterThan(0)
+        }
+    }
+
+    /** Verifies each lifecycle resume can publish a frame without a ticker callback. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun beginPlaying_withSuspendedTicker_emitsImmediateFrameOnEachResume() = runBlocking {
+        val tickerRequests = AtomicInteger(0)
+        val ticker = FrameTicker {
+            tickerRequests.incrementAndGet()
+            awaitCancellation()
+        }
+        withPlayingSession(ticker = ticker) {
+            resume()
+            awaitFrameCountGreaterThan(0)
+            assertEquals(1, tickerRequests.get())
+
+            pause()
+            val beforeResume = currentFrameCount()
+            // Resizing while paused makes the settled state machine need a fresh render.
+            setRegion(Rect(0, 0, 128, 128))
+            resume()
+            awaitFrameCountGreaterThan(beforeResume)
+            assertEquals(2, tickerRequests.get())
         }
     }
 
@@ -807,7 +834,16 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
-    private suspend fun withPlayingSession(block: suspend PlayingSession.() -> Unit) {
+    /**
+     * Creates a session and runs [block] with the supplied frame clock.
+     *
+     * @param ticker The playback frame clock.
+     * @param block The test operation to run with the playing session fixture.
+     */
+    private suspend fun withPlayingSession(
+        ticker: FrameTicker = ChoreographerFrameTicker,
+        block: suspend PlayingSession.() -> Unit,
+    ) {
         val res = loadRiveResources(R.raw.empty)
         val session = withContext(Dispatchers.Main.immediate) {
             RiveCanvasSession(
@@ -817,7 +853,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                 stateMachine = res.stateMachine,
             )
         }
-        withPlayingSession(session, res.stateMachine.stateMachineHandle, block)
+        withPlayingSession(session, res.stateMachine.stateMachineHandle, ticker, block)
     }
 
     /**
@@ -825,11 +861,13 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
      *
      * @param session The session to play and close after [block].
      * @param stateMachineHandle The handle used to inject settling callbacks in tests.
+     * @param ticker The playback frame clock.
      * @param block The test operation to run with the playing session fixture.
      */
     private suspend fun withPlayingSession(
         session: RiveCanvasSession,
         stateMachineHandle: StateMachineHandle,
+        ticker: FrameTicker = ChoreographerFrameTicker,
         block: suspend PlayingSession.() -> Unit,
     ) {
         coroutineScope {
@@ -847,7 +885,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             }
             val startPlaying = {
                 launch(Dispatchers.Main.immediate) {
-                    session.beginPlaying(lifecycleOwner.lifecycle)
+                    session.beginPlaying(lifecycleOwner.lifecycle, ticker)
                 }
             }
             val playJob = startPlaying()
@@ -1069,6 +1107,13 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         suspend fun resume() {
             withContext(Dispatchers.Main.immediate) {
                 lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
+            }
+        }
+
+        /** Pauses playback while keeping the session and its collectors alive. */
+        suspend fun pause() {
+            withContext(Dispatchers.Main.immediate) {
+                lifecycleOwner.moveToState(Lifecycle.State.STARTED)
             }
         }
 
