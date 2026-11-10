@@ -33,6 +33,7 @@ import app.rive.RiveFocusDirection
 import app.rive.RiveFocusState
 import app.rive.RiveFontException
 import app.rive.RiveImageException
+import app.rive.RiveImplementationApi
 import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveInitializationException
 import app.rive.RiveLog
@@ -1998,25 +1999,36 @@ class CommandQueue internal constructor(
         )
 
     /**
-     * Returns the latest settled state for a state machine owned by this command queue.
+     * Returns a flow of whether a state machine owned by this command queue has no meaningful
+     * changes left to apply.
      *
-     * @param stateMachineHandle The state machine whose state should be observed.
-     * @return A flow containing the latest accepted settled state.
+     * A renderer can skip advancing and drawing while the flow holds `true`. The flow starts at
+     * `false` and becomes `true` once an advance settles the state machine and [pollMessages]
+     * delivers that result. [unsettleStateMachine] sets it back to `false` synchronously. Deleting
+     * the state machine leaves it at `true`.
+     *
+     * @param stateMachineHandle The state machine to observe.
+     * @return A flow of whether the state machine is settled.
      * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
-    internal fun stateMachineSettled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
+    @RiveImplementationApi
+    fun stateMachineSettled(stateMachineHandle: StateMachineHandle): StateFlow<Boolean> =
         stateMachineSettlingStore.settled(stateMachineHandle)
 
     /**
-     * Begins a new unsettled generation for a state machine owned by this command queue.
+     * Marks a state machine owned by this command queue as having changes to apply, without
+     * advancing it.
      *
-     * This updates the observable state synchronously and invalidates settled callbacks from
-     * earlier advances without exposing the underlying request boundary.
+     * Sets [stateMachineSettled] to `false` synchronously, so a render loop waiting on it resumes
+     * advancing. Call it whenever something can change what a settled state machine shows, such as
+     * pointer input, a view model change, or a resize. Settled results from advances made before
+     * this call are ignored.
      *
      * @param stateMachineHandle The state machine to mark unsettled.
      * @throws IllegalStateException If the state machine is not registered with this command queue.
      */
-    internal fun unsettleStateMachine(stateMachineHandle: StateMachineHandle) =
+    @RiveImplementationApi
+    fun unsettleStateMachine(stateMachineHandle: StateMachineHandle): Unit =
         stateMachineSettlingStore.unsettle(stateMachineHandle)
 
     /**

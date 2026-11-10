@@ -4,6 +4,7 @@ import android.opengl.EGLSurface
 import android.view.Surface
 import androidx.annotation.CallSuper
 import androidx.annotation.WorkerThread
+import app.rive.RiveImplementationApi
 import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveLog
 import app.rive.RiveRenderException
@@ -173,11 +174,7 @@ abstract class RiveSurface internal constructor(
     /**
      * Resizes this surface without replacing the Android or backend window surface.
      *
-     * Cancels pending coalesced draws before queueing backend render-target invalidation, so a
-     * stale draw cannot run after the resize command but before the next draw phase. Render-target
-     * invalidation is queued because concrete backend targets are created and used on the command
-     * server thread; resizing them from the caller thread would race with draw execution and
-     * backend context ownership.
+     * Cancels pending coalesced draws for this surface, so draw again after resizing.
      *
      * @param width New surface width in physical pixels.
      * @param height New surface height in physical pixels.
@@ -190,7 +187,8 @@ abstract class RiveSurface internal constructor(
         RiveResourceClosedException::class,
         IllegalStateException::class
     )
-    internal fun resize(width: Int, height: Int) {
+    @RiveImplementationApi
+    fun resize(width: Int, height: Int) {
         checkOpen()
         require(width > 0 && height > 0) {
             "RiveSurface resize requires a positive width and height."

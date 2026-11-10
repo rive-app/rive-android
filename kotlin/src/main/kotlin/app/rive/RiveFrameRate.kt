@@ -64,7 +64,8 @@ sealed interface RiveFrameRate {
  * @param earlyWake Headroom subtracted from the coarse delay so callers wake before the target
  *    time and can still await the platform frame clock.
  */
-internal class RiveFramePacer(
+@RiveImplementationApi
+class RiveFramePacer(
     frameRate: RiveFrameRate,
     private val earlyWake: Duration = DEFAULT_EARLY_WAKE,
 ) {
