@@ -318,6 +318,28 @@ object NativeFontTestHelper {
      * @return Whether one was found at the font's weight, or one without a weight axis.
      */
     external fun cppSystemFallbackMatchesWeight(codePoint: Int, fontBytes: FontBytes): Boolean
+
+    /**
+     * Asks the registered request proc for a fallback, as the shaper does for text in [languages].
+     *
+     * @return Whether a request proc is registered and returned a font.
+     */
+    external fun cppRequestFallback(
+        codePoint: Int,
+        fontBytes: FontBytes,
+        languages: Array<String>,
+    ): Boolean
+
+    /**
+     * Requests the same Han character for Japanese and Simplified Chinese text.
+     *
+     * @param fontBytes A regular source font for the fallback requests.
+     * @return Whether each language gets its own face, cached separately for the same character.
+     */
+    external fun cppSystemFallbackFollowsRequestLanguage(fontBytes: FontBytes): Boolean
+
+    /** @return The languages native text inherits, as the host set them. */
+    external fun cppSystemLanguages(): Array<String>
     external fun cppCleanupFallbacks()
 }
 

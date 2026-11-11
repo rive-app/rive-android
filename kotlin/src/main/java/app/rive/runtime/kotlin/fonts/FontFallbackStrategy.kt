@@ -6,12 +6,14 @@ import java.lang.ref.WeakReference
 typealias FontBytes = ByteArray
 
 /**
- * Optionally supplies fallback fonts, per weight, for characters missing from a Rive file's fonts.
+ * Optionally supplies fallback fonts, per weight and language, for characters missing from a Rive
+ * file's fonts.
  *
  * Most apps don't need one. Without a strategy the runtime falls back through the system fonts,
- * which it maps rather than copies, using the device locale's face for Chinese, Japanese and
- * Korean. Fonts returned here are tried first, so set a strategy only to control how fallback text
- * looks, for example to use a brand font or the same CJK font on every device.
+ * which it maps rather than copies, using the text's language, else the device locale, to pick the
+ * face for Chinese, Japanese and Korean. Fonts returned here are tried first, so set a strategy
+ * only to control how fallback text looks, for example to use a brand font or the same CJK font on
+ * every device. Override the `getFont` that takes languages to pick fonts per language.
  *
  * ## Guidance
  * - Return fonts your app owns and keep them small, subset to the characters you need. Each one is
@@ -48,15 +50,17 @@ interface FontFallbackStrategy {
      * **Caching Behavior:** This function is invoked by the Rive runtime only when its internal
      * native cache does not contain fallback font data for the requested `weight`. The returned
      * list of `FontBytes` is immediately decoded into native font representations and cached
-     * internally, keyed by the `weight`. Subsequent requests for the *same weight* will use this
-     * cache, and this function **will not be called again for that weight**. Fonts with identical
-     * bytes are decoded once and shared, so returning the same font for every weight is cheap. The
-     * native cache associated with a particular [FontFallbackStrategy] instance is cleared only
-     * when a *new* strategy instance is configured for the Rive runtime (i.e. by setting a new
-     * [stylePicker] or equivalent configuration). Your implementation should return a complete
-     * and ordered list of fallback fonts for the requested `weight` during the initial call, as it
-     * represents the definitive set for that weight category while this strategy
-     * instance is active.
+     * internally, keyed by the `weight` and the text's most preferred language. Subsequent
+     * requests for the *same weight and language* will use this cache, and this function
+     * **will not be called again for them**. Text in another language, or a change to the
+     * device's languages, asks again through the `getFont` that takes languages, which calls
+     * this one unless overridden. Fonts with identical bytes are decoded once and shared, so
+     * returning the same font for every weight is cheap. The native cache associated with a
+     * particular [FontFallbackStrategy] instance is otherwise cleared only when a *new* strategy
+     * instance is configured for the Rive runtime (i.e. by setting a new [stylePicker] or
+     * equivalent configuration). Your implementation should return a complete and ordered list of
+     * fallback fonts for the requested `weight` during the initial call, as it represents the
+     * definitive set for that weight category while this strategy instance is active.
      *
      * If this function throws, the runtime reports the exception to [app.rive.RiveLog] and treats
      * the result as an empty list, so fallback continues as it does without a strategy. This
@@ -66,6 +70,26 @@ interface FontFallbackStrategy {
      * @return A list of font byte arrays to be used for character fallback, ordered by preference.
      */
     fun getFont(weight: Fonts.Weight): List<FontBytes>
+
+    /**
+     * Returns fonts for [weight] like the single-argument `getFont`, for text in [languages].
+     *
+     * Override this to pick fonts per language, for example a Japanese font for text in `ja` and
+     * a Simplified Chinese one for `zh-Hans`, which draw shared Han characters differently. The
+     * default ignores [languages] and returns `getFont(weight)`, so existing strategies are
+     * unaffected.
+     *
+     * It is cached like the single-argument `getFont`, keyed by [weight] and the first of
+     * [languages]. The rest of [languages] are the device's languages, so after those change the
+     * runtime asks again.
+     *
+     * @param weight The weight of the font for which fallbacks are needed.
+     * @param languages Language tags, usually BCP 47 such as `ja-JP` or `zh-Hans`, most preferred
+     *    first: the text's own language as written in the file when it has one, then the device's
+     *    languages. Empty when neither is known.
+     * @return A list of font byte arrays to be used for character fallback, ordered by preference.
+     */
+    fun getFont(weight: Fonts.Weight, languages: List<String>): List<FontBytes> = getFont(weight)
 
     companion object {
         external fun cppResetFontCache()
@@ -82,11 +106,21 @@ interface FontFallbackStrategy {
                 }
             }
 
+        @Suppress("unused") // Kept for binary compatibility; C++ calls the overload with languages.
+        fun pickFont(uWeight: Int): List<FontBytes> = pickFont(uWeight, emptyArray())
+
+        /**
+         * Asks the current strategy for fonts at [uWeight] for text in [languages].
+         *
+         * @param uWeight The weight of the text's font.
+         * @param languages BCP 47 tags, most preferred first.
+         * @return The strategy's fonts, or none without a strategy.
+         */
         @Suppress("unused") // Called statically from C++
-        fun pickFont(uWeight: Int): List<FontBytes> {
+        fun pickFont(uWeight: Int, languages: Array<String>): List<FontBytes> {
             val sp = stylePicker ?: return emptyList()
             val weight = Fonts.Weight.fromInt(uWeight)
-            return sp.getFont(weight)
+            return sp.getFont(weight, languages.asList())
         }
     }
 }

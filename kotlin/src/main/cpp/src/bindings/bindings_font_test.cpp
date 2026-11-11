@@ -5,15 +5,18 @@
 
 #include <jni.h>
 #include <stdint.h>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "helpers/jni_string.hpp"
 #include "rive/refcnt.hpp"
 #include "rive/span.hpp"
 #include "rive/text/font_hb.hpp"
+#include "rive/text/text_language.hpp"
 #include "rive/text_engine.hpp"
 
 namespace rive_android
@@ -35,37 +38,39 @@ struct FontHelperTestAccess
    */
   static bool systemFallbackProbesBeforePromotion()
   {
+    constexpr auto none = rive::TextLanguages::none;
     std::lock_guard<std::mutex> lock(FontHelper::s_fallbackFontsMutex);
-    if (!FontHelper::RefreshSystemFallbacks())
+    const auto* chain = FontHelper::SystemFallbackChain(none);
+    if (!chain)
     {
       return false;
     }
     FontHelper::s_systemFontByCodepoint.clear();
     FontHelper::s_weightInstances.clear();
-    for (auto& fallback : FontHelper::s_systemFallbacks)
+    for (auto& [_, fallback] : FontHelper::s_systemFonts)
     {
       fallback.font = nullptr;
       fallback.probe.reset();
       fallback.attempted = false;
     }
-    if (FontHelper::FindSystemFallback(0x10FFFF, 400))
+    if (FontHelper::FindSystemFallback(0x10FFFF, 400, none))
     {
       return false;
     }
     std::vector<HBFont::FileProbe*> probes;
     size_t probeCount = 0;
-    for (const auto& fallback : FontHelper::s_systemFallbacks)
+    for (const auto* fallback : *chain)
     {
-      if (fallback.font)
+      if (fallback->font)
       {
         return false;
       }
-      probes.push_back(fallback.probe.get());
-      probeCount += fallback.probe != nullptr;
+      probes.push_back(fallback->probe.get());
+      probeCount += fallback->probe != nullptr;
     }
     // Latin is guaranteed by Android and avoids requiring a particular CJK
     // installation.
-    auto selected = FontHelper::FindSystemFallback('A', 400);
+    auto selected = FontHelper::FindSystemFallback('A', 400, none);
     if (!selected || !selected->hasGlyph('A') || probeCount == 0)
     {
       return false;
@@ -73,7 +78,7 @@ struct FontHelperTestAccess
     size_t promoted = 0;
     for (size_t i = 0; i < probes.size(); ++i)
     {
-      const auto& fallback = FontHelper::s_systemFallbacks[i];
+      const auto& fallback = *(*chain)[i];
       if (fallback.font)
       {
         ++promoted;
@@ -88,8 +93,24 @@ struct FontHelperTestAccess
       }
     }
     return promoted == 1 &&
-           FontHelper::FindSystemFallback('A', 400) == selected &&
-           !FontHelper::FindSystemFallback(0x10FFFF, 400);
+           FontHelper::FindSystemFallback('A', 400, none) == selected &&
+           !FontHelper::FindSystemFallback(0x10FFFF, 400, none);
+  }
+
+  /**
+   * @return The system font cached for [missing] in text in [languageTag],
+   * or nullptr when there is no such entry.
+   */
+  static rive::rcp<rive::Font> cachedSystemFallback(
+      rive::Unichar missing,
+      const std::string& languageTag)
+  {
+    auto language = rive::TextLanguages::intern(languageTag);
+    std::lock_guard<std::mutex> lock(FontHelper::s_fallbackFontsMutex);
+    auto entry = FontHelper::s_systemFontByCodepoint.find(
+        FontHelper::CodepointKey(missing, language));
+    return entry == FontHelper::s_systemFontByCodepoint.end() ? nullptr
+                                                              : entry->second;
   }
 
   /**
@@ -134,6 +155,30 @@ struct FontHelperTestAccess
     return passed;
   }
 };
+
+/**
+ * Asks the registered request proc for a fallback, as the shaper does.
+ * @param languages The request's languages, most preferred first.
+ * @return The fallback, or nullptr when there is none or no proc is
+ * registered.
+ */
+static rive::rcp<rive::Font> RequestFallback(
+    rive::Unichar missing,
+    uint32_t fallbackIndex,
+    const rive::Font* font,
+    const std::vector<std::string>& languages)
+{
+  if (rive::Font::gFallbackRequestProc == nullptr)
+  {
+    return nullptr;
+  }
+  rive::Font::FallbackRequest request = {};
+  request.missing = missing;
+  request.fallbackIndex = fallbackIndex;
+  request.font = font;
+  request.languages = languages;
+  return rive::Font::gFallbackRequestProc(request);
+}
 } // namespace rive_android
 
 #ifdef __cplusplus
@@ -214,6 +259,77 @@ extern "C"
     auto restored = FontHelper::FindFontFallback(han, 0, source.get());
     // Regular faces should be reused when the chain is reordered again.
     return changed && restored == first;
+  }
+
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppRequestFallback(
+      JNIEnv* env,
+      jobject,
+      jint codePoint,
+      jbyteArray fontBytes,
+      jobjectArray languages)
+  {
+    auto font = HBFont::Decode(ByteArrayToUint8Vec(env, fontBytes));
+    if (!font)
+    {
+      return JNI_FALSE;
+    }
+    return RequestFallback(
+               codePoint,
+               0,
+               font.get(),
+               JStringArrayToVec(env, languages)) != nullptr;
+  }
+
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppSystemFallbackFollowsRequestLanguage(
+      JNIEnv* env,
+      jobject,
+      jbyteArray fontBytes)
+  {
+    auto source = HBFont::Decode(ByteArrayToUint8Vec(env, fontBytes));
+    if (!source)
+    {
+      return JNI_FALSE;
+    }
+    constexpr rive::Unichar
+        han = 0x4E16; // Shared Han character with regional forms.
+    auto request = [&](const std::vector<std::string>& languages) {
+      return RequestFallback(han, 0, source.get(), languages);
+    };
+    // The system languages follow the first, as the shaper lists them.
+    auto japanese = request({"ja", "en-US"});
+    auto chinese = request({"zh-Hans", "en-US"});
+    auto japaneseAgain = request({"ja", "en-US"});
+    auto chineseAgain = request({"zh-Hans", "en-US"});
+    // Both stay cached for the same character, one per language.
+    auto cachedJapanese = FontHelperTestAccess::cachedSystemFallback(han, "ja");
+    auto cachedChinese = FontHelperTestAccess::cachedSystemFallback(
+        han,
+        "zh-Hans");
+    return japanese && chinese && japanese != chinese &&
+           japanese == japaneseAgain && chinese == chineseAgain &&
+           japanese->hasGlyph(han) && chinese->hasGlyph(han) &&
+           cachedJapanese && cachedChinese && cachedJapanese != cachedChinese;
+  }
+
+  JNIEXPORT jobjectArray JNICALL
+  Java_app_rive_runtime_kotlin_core_NativeFontTestHelper_cppSystemLanguages(
+      JNIEnv* env,
+      jobject)
+  {
+    std::vector<std::string> languages = rive::TextLanguages::systemLanguages();
+    auto stringClass = FindClass(env, "java/lang/String");
+    jobjectArray out = env->NewObjectArray(
+        static_cast<jsize>(languages.size()),
+        stringClass.get(),
+        nullptr);
+    for (size_t i = 0; i < languages.size(); ++i)
+    {
+      auto tag = MakeJString(env, languages[i]);
+      env->SetObjectArrayElement(out, static_cast<jsize>(i), tag.get());
+    }
+    return out;
   }
 
   JNIEXPORT jboolean JNICALL

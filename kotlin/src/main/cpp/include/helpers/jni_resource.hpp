@@ -117,5 +117,7 @@ std::vector<uint8_t> ByteArrayToUint8Vec(JNIEnv*, jbyteArray);
 JniResource<jobject> VecStringToJStringList(
     JNIEnv*,
     const std::vector<std::string>&);
+/** Copies a String[] into UTF-8 strings, with null elements as empty ones. */
+std::vector<std::string> JStringArrayToVec(JNIEnv*, jobjectArray);
 
 } // namespace rive_android

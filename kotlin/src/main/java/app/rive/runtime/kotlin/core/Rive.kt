@@ -184,8 +184,11 @@ object Rive {
      * [FontHelper.invalidateSystemFallbacks] themselves after changing the locale.
      */
     @JvmStatic
-    fun initializeCppEnvironment() =
+    fun initializeCppEnvironment() {
         cppInitialize(disableOpenGL = hasKnownOpenGLDriverIssue(), pipelineCacheDir = null)
+        // Text without a language of its own shapes and falls back with the device's.
+        FontHelper.syncSystemLanguages()
+    }
 
     /**
      * Initializes JNI bindings and locale monitoring after native libraries have been loaded.
@@ -205,6 +208,8 @@ object Rive {
             disableOpenGL = hasKnownOpenGLDriverIssue(),
             pipelineCacheDir = context.codeCacheDir.path,
         )
+        // Text without a language of its own shapes and falls back with the device's.
+        FontHelper.syncSystemLanguages()
         FontHelper.watchLocaleChanges(context)
     }
 

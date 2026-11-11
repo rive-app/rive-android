@@ -83,7 +83,9 @@ extern "C"
     InitJNIClassLoader(env, jObj);
 
     RiveLogD(TAG, "Initializing fallback font global callback");
-    rive::Font::gFallbackProc = FontHelper::FindFontFallback;
+    // The request form also carries each text's languages, which order the
+    // system fonts and reach FontFallbackStrategy.
+    rive::Font::gFallbackRequestProc = FontHelper::FindFontFallback;
 
 #ifdef RIVE_VULKAN
     // Initializing again without a context keeps the directory set earlier.

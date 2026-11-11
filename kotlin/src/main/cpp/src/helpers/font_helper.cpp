@@ -15,16 +15,22 @@ constexpr auto* TAG = "RiveN/FontHelper";
 constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
 
 /* static */ std::vector<rive::rcp<rive::Font>> FontHelper::s_fallbackFonts;
-/* static */ std::unordered_map<uint16_t, std::vector<rive::rcp<rive::Font>>>
+/* static */ std::unordered_map<uint32_t, std::vector<rive::rcp<rive::Font>>>
     FontHelper::s_pickFontCache;
+/* static */ uint32_t FontHelper::s_pickLanguagesGeneration = 0;
 /* static */ std::
     map<std::pair<size_t, size_t>, std::vector<FontHelper::StrategyFont>>
         FontHelper::s_decodedByContent;
-/* static */ std::vector<FontHelper::SystemFallback>
-    FontHelper::s_systemFallbacks;
+/* static */ std::
+    map<std::pair<std::string, unsigned>, FontHelper::SystemFallback>
+        FontHelper::s_systemFonts;
+/* static */ std::unordered_map<
+    rive::TextLanguageId,
+    std::vector<FontHelper::SystemFallback*>>
+    FontHelper::s_systemChains;
 /* static */ std::atomic<uint32_t> FontHelper::s_localeGeneration{1};
 /* static */ uint32_t FontHelper::s_loadedGeneration = 0;
-/* static */ std::unordered_map<rive::Unichar, rive::rcp<rive::Font>>
+/* static */ std::unordered_map<uint64_t, rive::rcp<rive::Font>>
     FontHelper::s_systemFontByCodepoint;
 /* static */ std::
     map<std::pair<const rive::Font*, uint16_t>, rive::rcp<rive::Font>>
@@ -47,56 +53,133 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
   rive::Font::fallbackFontsChanged();
   return true;
 }
-/* static */ bool FontHelper::RefreshSystemFallbacks()
+/**
+ * Finds [name] and retains it for the process lifetime, so later lookups need
+ * no class loading.
+ * @return The class, or nullptr when it can't be found.
+ */
+static jclass RetainClass(JNIEnv* env, const char* name)
 {
-  uint32_t generation = s_localeGeneration.load(std::memory_order_acquire);
-  if (generation == s_loadedGeneration && !s_systemFallbacks.empty())
+  auto localClass = FindClass(env, name);
+  if (!localClass.get())
   {
-    return true;
+    return nullptr;
   }
+  auto retained = static_cast<jclass>(env->NewGlobalRef(localClass.get()));
+  if (JNIExceptionHandler::ClearAndLogErrors(env, TAG, "Retaining a class"))
+  {
+    return nullptr;
+  }
+  return retained;
+}
+
+/**
+ * Finds a static method, logging and clearing the error when it's missing.
+ * @return The method, or nullptr when it can't be found.
+ */
+static jmethodID FindStaticMethod(
+    JNIEnv* env,
+    jclass owner,
+    const char* name,
+    const char* signature)
+{
+  jmethodID method = env->GetStaticMethodID(owner, name, signature);
+  if (JNIExceptionHandler::ClearAndLogErrors(env, TAG, name))
+  {
+    return nullptr;
+  }
+  return method;
+}
+
+/* static */ std::vector<std::pair<std::string, unsigned>> FontHelper::
+    ListSystemFallbacks(const std::string& languageTag)
+{
+  std::vector<std::pair<std::string, unsigned>> files;
   JNIEnv* env = GetJNIEnv();
-  // Access is serialized by s_fallbackFontsMutex. Retain the class for the
-  // process lifetime so cache hits need no class lookup or string allocation.
+  // Access is serialized by s_fallbackFontsMutex. Retain the classes for the
+  // process lifetime so later chains need no class lookup.
   static jclass fontHelperClass = nullptr;
+  static jclass localeClass = nullptr;
   static jmethodID getChainMethodId = nullptr;
+  static jmethodID getChainForLocaleMethodId = nullptr;
+  static jmethodID forLanguageTagMethodId = nullptr;
   if (!fontHelperClass)
   {
-    auto localClass = FindClass(
+    fontHelperClass = RetainClass(
         env,
         "app/rive/runtime/kotlin/fonts/FontHelper");
-    if (!localClass.get())
-    {
-      return false;
-    }
-    fontHelperClass = static_cast<jclass>(env->NewGlobalRef(localClass.get()));
-    if (JNIExceptionHandler::ClearAndLogErrors(
-            env,
-            TAG,
-            "Retaining FontHelper class") ||
-        !fontHelperClass)
-    {
-      return false;
-    }
+  }
+  if (!localeClass)
+  {
+    localeClass = RetainClass(env, "java/util/Locale");
+  }
+  if (!fontHelperClass || !localeClass)
+  {
+    return files;
   }
   if (!getChainMethodId)
   {
-    getChainMethodId = env->GetStaticMethodID(
+    getChainMethodId = FindStaticMethod(
+        env,
         fontHelperClass,
         "getSystemFallbackChain",
         "()Ljava/util/List;");
+  }
+  if (!getChainForLocaleMethodId)
+  {
+    getChainForLocaleMethodId = FindStaticMethod(
+        env,
+        fontHelperClass,
+        "getSystemFallbackChain",
+        "(Ljava/util/Locale;)Ljava/util/List;");
+  }
+  if (!forLanguageTagMethodId)
+  {
+    forLanguageTagMethodId = FindStaticMethod(
+        env,
+        localeClass,
+        "forLanguageTag",
+        "(Ljava/lang/String;)Ljava/util/Locale;");
+  }
+  if (!getChainMethodId || !getChainForLocaleMethodId ||
+      !forLanguageTagMethodId)
+  {
+    return files;
+  }
+
+  JniResource<jobject> chainObj(nullptr, env);
+  if (languageTag.empty())
+  {
+    chainObj = JniResource<jobject>(
+        env->CallStaticObjectMethod(fontHelperClass, getChainMethodId),
+        env);
+  }
+  else
+  {
+    // The language's own families go first, as the default locale's do for
+    // text without one.
+    auto jTag = MakeJString(env, languageTag);
+    JniResource<jobject> locale(
+        env->CallStaticObjectMethod(
+            localeClass,
+            forLanguageTagMethodId,
+            jTag.get()),
+        env);
     if (JNIExceptionHandler::ClearAndLogErrors(
             env,
             TAG,
-            "Finding getSystemFallbackChain()") ||
-        !getChainMethodId)
+            "FontHelper couldn't make a Locale for a text language") ||
+        !locale.get())
     {
-      return false;
+      return files;
     }
+    chainObj = JniResource<jobject>(
+        env->CallStaticObjectMethod(
+            fontHelperClass,
+            getChainForLocaleMethodId,
+            locale.get()),
+        env);
   }
-
-  JniResource<jobject> chainObj(
-      env->CallStaticObjectMethod(fontHelperClass, getChainMethodId),
-      env);
   // A missing fallback must not take the app down, so log and carry on.
   if (JNIExceptionHandler::ClearAndLogErrors(
           env,
@@ -104,7 +187,7 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
           "FontHelper couldn't list the system fallback fonts") ||
       !chainObj.get())
   {
-    return false;
+    return files;
   }
   JniResource<jclass> fontFileClass = FindClass(
       env,
@@ -129,8 +212,7 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
       env,
       chainObj.get(),
       listSizeMethod);
-  std::vector<SystemFallback> fallbacks;
-  fallbacks.reserve(chainSize);
+  files.reserve(chainSize);
   for (jint i = 0; i < chainSize; ++i)
   {
     JniResource<jobject> fontFile = GetObjectFromMethod(
@@ -146,43 +228,60 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
         env,
         fontFile.get(),
         getTtcIndexMethod);
-    fallbacks.push_back(
-        {JStringToString(env, static_cast<jstring>(path.get())),
-         static_cast<unsigned>(ttcIndex)});
+    files.emplace_back(
+        JStringToString(env, static_cast<jstring>(path.get())),
+        static_cast<unsigned>(ttcIndex));
   }
-  if (fallbacks.empty())
+  return files;
+}
+
+/* static */ const std::vector<FontHelper::SystemFallback*>* FontHelper::
+    SystemFallbackChain(rive::TextLanguageId language)
+{
+  uint32_t generation = s_localeGeneration.load(std::memory_order_acquire);
+  if (generation != s_loadedGeneration)
   {
-    return false;
+    // Invalidate both hits and misses before selecting with new orderings.
+    // Fonts stay in s_systemFonts, and existing text retains its own font
+    // references, so clearing caches cannot unmap bytes still in use by a
+    // shaped run.
+    s_systemChains.clear();
+    s_systemFontByCodepoint.clear();
+    s_weightInstances.clear();
+    s_loadedGeneration = generation;
   }
-  for (auto& fallback : fallbacks)
+  auto cached = s_systemChains.find(language);
+  if (cached != s_systemChains.end())
   {
-    auto previous = std::find_if(
-        s_systemFallbacks.begin(),
-        s_systemFallbacks.end(),
-        [&](const SystemFallback& candidate) {
-          return candidate.path == fallback.path &&
-                 candidate.faceIndex == fallback.faceIndex;
-        });
-    if (previous != s_systemFallbacks.end())
+    return &cached->second;
+  }
+  std::vector<std::pair<std::string, unsigned>> files = ListSystemFallbacks(
+      rive::TextLanguages::tag(language));
+  if (files.empty())
+  {
+    return nullptr;
+  }
+  std::vector<SystemFallback*> chain;
+  chain.reserve(files.size());
+  for (auto& file : files)
+  {
+    // Chains for other languages list the same files in another order, so a
+    // face they already tried keeps its font or probe.
+    auto [entry, isNew] = s_systemFonts.try_emplace(file);
+    if (isNew)
     {
-      fallback.font = std::move(previous->font);
-      fallback.probe = std::move(previous->probe);
-      fallback.attempted = previous->attempted;
+      entry->second.path = file.first;
+      entry->second.faceIndex = file.second;
     }
+    chain.push_back(&entry->second);
   }
-  // Invalidate both hits and misses before selecting with the new ordering.
-  // Existing text retains its own font references, so clearing caches cannot
-  // unmap bytes still in use by a shaped run.
-  s_systemFontByCodepoint.clear();
-  s_weightInstances.clear();
-  s_systemFallbacks = std::move(fallbacks);
-  s_loadedGeneration = generation;
-  return true;
+  return &s_systemChains.emplace(language, std::move(chain)).first->second;
 }
 
 /* static */ rive::rcp<rive::Font> FontHelper::FindSystemFallback(
     rive::Unichar missing,
-    uint16_t weight)
+    uint16_t weight,
+    rive::TextLanguageId language)
 {
   // No font draws these, and a miss would map every system font.
   if (missing < 0x20 || (missing >= 0x7F && missing < 0xA0) ||
@@ -191,17 +290,23 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
   {
     return nullptr;
   }
-  if (!RefreshSystemFallbacks())
+  const std::vector<SystemFallback*>* chain = SystemFallbackChain(language);
+  if (!chain)
   {
     RiveLogW(TAG, "FindSystemFallback - No current system fonts found");
     return nullptr;
   }
 
-  auto [entry, isNew] = s_systemFontByCodepoint.try_emplace(missing);
+  auto [entry, isNew] = s_systemFontByCodepoint.try_emplace(
+      CodepointKey(missing, language));
   if (isNew)
   {
-    for (SystemFallback& fallback : s_systemFallbacks)
+    const char* languageTag = language == rive::TextLanguages::none
+                                  ? "default locale"
+                                  : rive::TextLanguages::tag(language).c_str();
+    for (SystemFallback* fallbackPtr : *chain)
     {
+      SystemFallback& fallback = *fallbackPtr;
       if (!fallback.attempted)
       {
         fallback.probe = HBFont::ProbeFile(
@@ -225,9 +330,10 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
         entry->second = fallback.font;
         RiveLogD(
             TAG,
-            "Fallback for U+%04X '%s': %s face %u",
+            "Fallback for U+%04X '%s' (%s): %s face %u",
             missing,
             DebugCodepoint(missing).c_str(),
+            languageTag,
             fallback.path.c_str(),
             fallback.faceIndex);
         break;
@@ -237,9 +343,10 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
     {
       RiveLogD(
           TAG,
-          "Fallback for U+%04X '%s': no system font has it",
+          "Fallback for U+%04X '%s' (%s): no system font has it",
           missing,
-          DebugCodepoint(missing).c_str());
+          DebugCodepoint(missing).c_str(),
+          languageTag);
     }
   }
   return entry->second ? AtWeight(entry->second, weight) : nullptr;
@@ -278,14 +385,17 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
 }
 
 /* static */ const std::vector<rive::rcp<rive::Font>>& FontHelper::PickFonts(
-    uint16_t weight)
+    uint16_t weight,
+    rive::TextLanguageId language,
+    rive::Span<const std::string> languages)
 {
   // Stable return value (referenced) when aborting due to errors.
   // Always empty.
   static const std::vector<rive::rcp<rive::Font>> ERROR_VEC;
 
-  // Check if weight exists in cache first
-  auto cacheIt = s_pickFontCache.find(weight);
+  // Check if weight and language exist in cache first
+  const uint32_t cacheKey = PickKey(weight, language);
+  auto cacheIt = s_pickFontCache.find(cacheKey);
   if (cacheIt != s_pickFontCache.end())
   {
     return cacheIt->second;
@@ -327,18 +437,47 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
   jmethodID pickFontMid = env->GetMethodID(
       pickerCompanionClass.get(),
       "pickFont",
-      "(I)Ljava/util/List;");
+      "(I[Ljava/lang/String;)Ljava/util/List;");
+
+  JniResource<jclass> stringClass = FindClass(env, "java/lang/String");
+  if (!stringClass.get())
+  {
+    return ERROR_VEC;
+  }
+  JniResource<jobjectArray> languageArray(
+      env->NewObjectArray(
+          static_cast<jsize>(languages.size()),
+          stringClass.get(),
+          nullptr),
+      env);
+  if (JNIExceptionHandler::ClearAndLogErrors(
+          env,
+          TAG,
+          "Allocating the strategy's languages") ||
+      !languageArray.get())
+  {
+    return ERROR_VEC;
+  }
+  for (size_t i = 0; i < languages.size(); ++i)
+  {
+    JniResource<jstring> tag = MakeJString(env, languages[i]);
+    env->SetObjectArrayElement(
+        languageArray.get(),
+        static_cast<jsize>(i),
+        tag.get());
+  }
 
   // Call the static pickFont method
   JniResource<jobject> fontListObj = GetObjectFromMethod(
       env,
       companionObject.get(),
       pickFontMid,
-      weight);
+      weight,
+      languageArray.get());
 
   // A strategy that throws or returns null (possible from Java) gets the
   // same result as an empty list. Caching it means the strategy is not
-  // called again for this weight.
+  // called again for this weight and language.
   if (JNIExceptionHandler::ClearAndLogErrors(
           env,
           TAG,
@@ -347,7 +486,7 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
   {
     RiveLogE(TAG, "No strategy fonts for weight %d.", weight);
     auto [iter, _] = s_pickFontCache.emplace(
-        weight,
+        cacheKey,
         std::vector<rive::rcp<rive::Font>>());
     return iter->second;
   }
@@ -416,7 +555,7 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
     }
   }
 
-  auto [iter, _] = s_pickFontCache.emplace(weight, std::move(decodedFonts));
+  auto [iter, _] = s_pickFontCache.emplace(cacheKey, std::move(decodedFonts));
 
   return iter->second;
 }
@@ -495,8 +634,8 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
 }
 
 /**
- * Finds and returns a potential fallback font when `riveFont` lacks the
- * `missing` character.
+ * Finds and returns a potential fallback font when `request.font` lacks the
+ * `request.missing` character.
  *
  * This function implements the fallback strategy used when the text shaper
  * encounters a glyph missing in the currently selected font for a text run.
@@ -506,12 +645,12 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  *
  * Fallback Strategy:
  *
- * 1.  **Weight-Matched Selection:** Uses the weight from `riveFont`
- * (captured on the first attempt where `fallbackIndex == 0`) to retrieve an
- * ordered list of potential fallback fonts via `PickFonts()`. This
- * internal helper interacts with the Kotlin
- * `FontFallbackStrategy.pickFont()` API and will cache decoded fonts
- * (`HBFont`). If `fallbackIndex` is within the bounds of the retrieved
+ * 1.  **Weight-Matched Selection:** Uses the weight from `request.font`
+ * (captured on the first attempt where `fallbackIndex == 0`) and the request's
+ * languages to retrieve an ordered list of potential fallback fonts via
+ * `PickFonts()`. This internal helper interacts with the Kotlin
+ * `FontFallbackStrategy.getFont(weight, languages)` API and will cache decoded
+ * fonts (`HBFont`). If `fallbackIndex` is within the bounds of the retrieved
  * list, the font at that index is returned directly. The caller (i.e. the
  * shaper) is attempts shaping the run with the returned font. If it can't,
  * it'll call this function again with an incremented `fallbackIndex`.
@@ -524,7 +663,10 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  *
  * 3.  **System Font Fallback:** If no registered fallback contains the
  * glyph, returns the first font in `FontHelper.getSystemFallbackChain()` that
- * does, at the desired weight when the font is variable.
+ * does, at the desired weight when the font is variable. The chain puts the
+ * families for the request's most preferred language first, or the default
+ * locale's when the request has none, so Japanese and Chinese text get their
+ * own forms of shared Han characters.
  *
  * Thread Safety: Access to shared fallback resources and internal state is
  * protected by a mutex (`s_fallbackFontsMutex`). State Preservation: The
@@ -532,17 +674,13 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  * `fallbackIndex` is 0 to ensure consistency across multiple fallback
  * attempts for the same missing glyph sequence.
  *
- * @param missing The Unicode character code that needs a fallback font.
- * @param fallbackIndex The zero-based index indicating the current attempt
- * number.
- * @param riveFont The font that failed to shape the character.
+ * @param request The character, attempt number, font that failed to shape
+ * it, and the languages of its text, most preferred first.
  * @return A reference-counted pointer (`rcp`) to a suitable fallback Font,
  * or `nullptr` if no suitable fallback could be found.
  */
 /* static */ rive::rcp<rive::Font> FontHelper::FindFontFallback(
-    const rive::Unichar missing,
-    const uint32_t fallbackIndex,
-    const rive::Font* riveFont)
+    const rive::Font::FallbackRequest& request)
 {
   // Let's lock this down for thread-safety.
   std::lock_guard<std::mutex> lock(s_fallbackFontsMutex);
@@ -550,28 +688,57 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
   // Keep a global variable here so we look for a valid match against the
   // original font weight.
   static uint16_t desiredWeight = 400;
-  if (fallbackIndex == 0)
+  if (request.fallbackIndex == 0)
   {
-    desiredWeight = riveFont->getWeight();
+    desiredWeight = request.font->getWeight();
+  }
+
+  // The most preferred language orders the system chain and keys both
+  // caches in one byte. The rest of a request's list is the system
+  // languages, so strategy fonts only go stale when those change. A tag the
+  // table has no room for shares the default locale's selections.
+  const rive::TextLanguageId language = request.languages.empty()
+                                            ? rive::TextLanguages::none
+                                            : rive::TextLanguages::intern(
+                                                  request.languages[0]);
+  const uint32_t languagesGeneration = rive::TextLanguages::generation();
+  if (languagesGeneration != s_pickLanguagesGeneration)
+  {
+    s_pickFontCache.clear();
+    s_pickLanguagesGeneration = languagesGeneration;
   }
 
   const std::vector<rive::rcp<rive::Font>>& pickedFonts = PickFonts(
-      desiredWeight);
-  if (fallbackIndex < pickedFonts.size())
+      desiredWeight,
+      language,
+      request.languages);
+  if (request.fallbackIndex < pickedFonts.size())
   {
-    return pickedFonts[fallbackIndex];
+    return pickedFonts[request.fallbackIndex];
   }
 
   // Use the old path - just try to find a match for this glyph.
   for (const rive::rcp<rive::Font>& fFont : s_fallbackFonts)
   {
-    if (fFont->hasGlyph(missing))
+    if (fFont->hasGlyph(request.missing))
     {
       return fFont;
     }
   }
 
-  return FindSystemFallback(missing, desiredWeight);
+  return FindSystemFallback(request.missing, desiredWeight, language);
+}
+
+/* static */ rive::rcp<rive::Font> FontHelper::FindFontFallback(
+    const rive::Unichar missing,
+    const uint32_t fallbackIndex,
+    const rive::Font* riveFont)
+{
+  rive::Font::FallbackRequest request = {};
+  request.missing = missing;
+  request.fallbackIndex = fallbackIndex;
+  request.font = riveFont;
+  return FindFontFallback(request);
 }
 
 } // namespace rive_android

@@ -3,6 +3,8 @@ package app.rive.runtime.kotlin.fonts
 import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.res.Configuration
+import android.os.Build
+import android.os.LocaleList
 import android.util.Xml
 import androidx.annotation.VisibleForTesting
 import app.rive.RiveLog
@@ -531,13 +533,44 @@ class FontHelper {
          * initialization overload does not install an observer. For application-specific language
          * handling, invalidate after the locale used by fallback selection has actually changed.
          *
-         * This marks caches stale for the next system fallback lookup. It does not automatically
-         * reshape displayed text or change the fonts already retained by shaped runs.
+         * This marks fallback caches stale for the next system fallback lookup, and hands the
+         * device's current languages to text without a language of its own. Existing text is
+         * marked to reshape on its next advance, even when the language list is unchanged. This
+         * call does not itself advance or redraw displayed content.
          *
          * @throws UnsatisfiedLinkError If called before the Rive native libraries are loaded.
          */
         @JvmStatic
-        fun invalidateSystemFallbacks() = NativeFontHelper.cppInvalidateSystemFallbacks()
+        fun invalidateSystemFallbacks() {
+            syncSystemLanguages()
+            NativeFontHelper.cppInvalidateSystemFallbacks()
+        }
+
+        /**
+         * The device's preferred languages as BCP 47 tags, most preferred first. The first is the
+         * default locale, which also orders [getSystemFallbackChain] for text without a language.
+         *
+         * Before API 24, which has no [LocaleList], only the default locale.
+         */
+        internal fun systemLanguageTags(): List<String> {
+            val tags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                // Not getDefault(): after LocaleList.setDefault(list, index) the default locale
+                // need not be first there.
+                val locales = LocaleList.getAdjustedDefault()
+                List(locales.size()) { locales[it].toLanguageTag() }
+            } else {
+                listOf(Locale.getDefault().toLanguageTag())
+            }
+            // An empty locale has the tag "und", which names no language.
+            return tags.filter { it.isNotEmpty() && it != "und" }
+        }
+
+        /**
+         * Hands the device's languages to native text, which shapes and falls back with them when
+         * it has no language of its own. Unchanged languages leave shaped text alone.
+         */
+        internal fun syncSystemLanguages() =
+            NativeFontHelper.cppSetSystemLanguages(systemLanguageTags().toTypedArray())
 
         /**
          * Observes changes to the default locale, registering once per process.
@@ -549,14 +582,15 @@ class FontHelper {
             if (localeWatcher != null) return
             val application = context.applicationContext
             val callback = object : ComponentCallbacks {
-                private var lastLocale = Locale.getDefault()
+                private var lastLanguages = systemLanguageTags()
 
                 /** Ignores configuration changes that leave fallback ordering unchanged. */
                 override fun onConfigurationChanged(newConfig: Configuration) {
-                    // Use the same source as getSystemFallbackChain, including its region/script.
-                    val locale = Locale.getDefault()
-                    if (locale != lastLocale) {
-                        lastLocale = locale
+                    // The first is the default locale getSystemFallbackChain uses, including its
+                    // region/script. The others only reorder text's languages.
+                    val languages = systemLanguageTags()
+                    if (languages != lastLanguages) {
+                        lastLanguages = languages
                         invalidateSystemFallbacks()
                     }
                 }
@@ -1329,4 +1363,12 @@ class SystemFontsParser {
 object NativeFontHelper {
     external fun cppRegisterFallbackFont(fontBytes: ByteArray): Boolean
     external fun cppInvalidateSystemFallbacks()
+
+    /**
+     * Sets the languages text is shaped and falls back with when it has none of its own.
+     *
+     * @param languageTags Language tags, usually BCP 47, most preferred first. Empty strings and
+     *    exact duplicates are dropped; the others are kept as written, without validation.
+     */
+    external fun cppSetSystemLanguages(languageTags: Array<String>)
 }

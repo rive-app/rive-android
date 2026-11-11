@@ -234,4 +234,17 @@ JniResource<jobject> VecStringToJStringList(
   return arrayList;
 }
 
+std::vector<std::string> JStringArrayToVec(JNIEnv* env, jobjectArray strings)
+{
+  std::vector<std::string> out;
+  jsize count = env->GetArrayLength(strings);
+  out.reserve(count);
+  for (jsize i = 0; i < count; ++i)
+  {
+    auto string = GetObjectArrayElement(env, strings, i);
+    out.push_back(JStringToString(env, static_cast<jstring>(string.get())));
+  }
+  return out;
+}
+
 } // namespace rive_android

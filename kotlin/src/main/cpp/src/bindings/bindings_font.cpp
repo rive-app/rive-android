@@ -4,6 +4,7 @@
 #include "helpers/font_helper.hpp"
 #include "helpers/general.hpp"
 #include "helpers/jni_resource.hpp"
+#include "rive/text/text_language.hpp"
 #include "rive/text/utf.hpp"
 
 #ifdef __cplusplus
@@ -27,6 +28,18 @@ extern "C"
       jobject)
   {
     FontHelper::InvalidateSystemFallbacks();
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_fonts_NativeFontHelper_cppSetSystemLanguages(
+      JNIEnv* env,
+      jobject,
+      jobjectArray languageTags)
+  {
+    // Text without a language of its own reshapes with these on its next
+    // advance. Unchanged languages leave shaped text alone.
+    rive::TextLanguages::setSystemLanguages(
+        JStringArrayToVec(env, languageTags));
   }
 
   JNIEXPORT void JNICALL

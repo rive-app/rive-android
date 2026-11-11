@@ -115,6 +115,103 @@ class FontPickerTest {
         }
     }
 
+    /** Verifies that Japanese and Chinese text get their own faces for the same Han character. */
+    @Test
+    fun systemFallbackFollowsRequestLanguage() {
+        val japanese = FontHelper.getSystemFallbackChain(Locale.forLanguageTag("ja"))
+            .firstOrNull { it.path.contains("CJK", ignoreCase = true) }
+        val chinese = FontHelper.getSystemFallbackChain(Locale.forLanguageTag("zh-Hans"))
+            .firstOrNull { it.path.contains("CJK", ignoreCase = true) }
+        assumeTrue(
+            "Requires distinct regional CJK faces",
+            japanese != null && chinese != null && japanese != chinese,
+        )
+        val regular = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        assertTrue(NativeFontTestHelper.cppSystemFallbackFollowsRequestLanguage(regular))
+    }
+
+    /** Verifies the registered request proc shows a strategy each language once. */
+    @Test
+    fun strategyReceivesRequestLanguages() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fallback = FontHelper.getFallbackFontBytes()!!
+        val requested = mutableListOf<List<String>>()
+        val picker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> =
+                throw AssertionError("The overload with languages replaces this one")
+
+            /** Records the languages it was asked for. */
+            override fun getFont(weight: Fonts.Weight, languages: List<String>): List<FontBytes> {
+                requested.add(languages)
+                return listOf(fallback)
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        val japanese = arrayOf("ja-JP", "en-US")
+        val chinese = arrayOf("zh-Hans", "en-US")
+        assertTrue(NativeFontTestHelper.cppRequestFallback('u'.code, limited, japanese))
+        assertTrue(NativeFontTestHelper.cppRequestFallback('u'.code, limited, japanese))
+        assertTrue(NativeFontTestHelper.cppRequestFallback('u'.code, limited, chinese))
+        assertEquals(listOf(japanese.asList(), chinese.asList()), requested)
+        // The strategy is held weakly, so keep it reachable through the native calls.
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** Verifies shaped text without a language of its own passes the system languages along. */
+    @Test
+    fun shapedTextPassesSystemLanguagesToStrategy() {
+        val fontBytes = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val requested = mutableListOf<List<String>>()
+        val picker = object : FontFallbackStrategy {
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> = listOf(fontBytes)
+
+            /** Records the languages it was asked for. */
+            override fun getFont(weight: Fonts.Weight, languages: List<String>): List<FontBytes> {
+                requested.add(languages)
+                return getFont(weight)
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        val file = context.resources.openRawResource(R.raw.style_fallback_fonts).use {
+            File(it.readBytes())
+        }
+        try {
+            NativeFontHelper.cppSetSystemLanguages(arrayOf("ja-JP", "en-US"))
+            file.firstArtboard.let { artboard ->
+                artboard.setTextRunValue("ultralight_start", "abc") // Not in the file's font.
+                artboard.advance(0f) // Shapes text and asks the strategy for fallbacks.
+            }
+            assertEquals(listOf(listOf("ja-JP", "en-US")), requested)
+        } finally {
+            FontHelper.syncSystemLanguages()
+            file.release()
+        }
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** Verifies the default locale reaches native text as its most preferred language. */
+    @Test
+    fun systemLanguagesFollowDefaultLocale() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.JAPAN)
+            FontHelper.invalidateSystemFallbacks()
+            assertEquals("ja-JP", NativeFontTestHelper.cppSystemLanguages().firstOrNull())
+            Locale.setDefault(Locale.CHINA)
+            FontHelper.invalidateSystemFallbacks()
+            assertEquals("zh-CN", NativeFontTestHelper.cppSystemLanguages().firstOrNull())
+        } finally {
+            Locale.setDefault(originalLocale)
+            FontHelper.invalidateSystemFallbacks()
+        }
+    }
+
     /** Verifies the observer installed by Rive.init changes cached Han selection. */
     @Test
     fun systemFallbackFollowsConfigurationCallbacks() {

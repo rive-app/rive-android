@@ -110,6 +110,11 @@ android {
             "-opt-in=app.rive.ExperimentalRiveFocus",
             "-opt-in=app.rive.ExperimentalDeferredRendering",
             "-opt-in=app.rive.RiveImplementationApi",
+            // Compiles interface members with bodies to JVM default methods, keeping DefaultImpls
+            // for clients built against older versions. Without it, a member added with a body
+            // (such as FontFallbackStrategy's getFont with languages) is abstract to Java
+            // implementers and throws AbstractMethodError on ones compiled before it existed.
+            "-Xjvm-default=all-compatibility",
         )
     }
 
