@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "helpers/canvas_render_objects.hpp"
+#include "helpers/general.hpp"
 #include "helpers/image_decode.hpp"
 #include "helpers/worker_ref.hpp"
 #include "rive/renderer/rive_render_image.hpp"
@@ -96,6 +97,50 @@ extern "C"
         byteCount,
         reinterpret_cast<const jbyte*>(pixels.get()));
     return out;
+  }
+
+  JNIEXPORT jboolean JNICALL
+  Java_app_rive_runtime_kotlin_core_NativeRendererTestHelper_cppDecodeCanvasImage(
+      JNIEnv* env,
+      jobject,
+      jbyteArray jEncoded)
+  {
+    auto count = env->GetArrayLength(jEncoded);
+    std::vector<uint8_t> encoded(count);
+    env->GetByteArrayRegion(
+        jEncoded,
+        0,
+        count,
+        reinterpret_cast<jbyte*>(encoded.data()));
+    auto image = GetFactory(RendererType::Canvas)
+                     ->decodeImage(
+                         rive::make_span(encoded.data(), encoded.size()));
+    return image != nullptr;
+  }
+
+  JNIEXPORT void JNICALL
+  Java_app_rive_runtime_kotlin_core_NativeRendererTestHelper_cppSimulateCanvasDecoderOutOfMemory(
+      JNIEnv* env,
+      jobject thiz,
+      jboolean simulate)
+  {
+    if (simulate != JNI_TRUE)
+    {
+      CanvasRenderImage::SetDecoderForTesting(env, nullptr, nullptr);
+      return;
+    }
+    auto helperClass = env->GetObjectClass(thiz);
+    auto decodeMethodID = env->GetStaticMethodID(
+        helperClass,
+        "decodeByteArrayOutOfMemory",
+        "([BII)Landroid/graphics/Bitmap;");
+    // If the method is missing, NoSuchMethodError stays pending and fails the
+    // test without setting a decoder that later decodes would call.
+    if (decodeMethodID != nullptr)
+    {
+      CanvasRenderImage::SetDecoderForTesting(env, helperClass, decodeMethodID);
+    }
+    env->DeleteLocalRef(helperClass);
   }
 
 #ifdef __cplusplus

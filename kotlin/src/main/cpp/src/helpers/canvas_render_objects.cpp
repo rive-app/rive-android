@@ -3,6 +3,7 @@
 #include <android/bitmap.h>
 #include <jni.h>
 #include <memory>
+#include <mutex>
 
 #include "helpers/conversions.hpp"
 #include "helpers/jni_exception_handler.hpp"
@@ -674,6 +675,29 @@ void CanvasRenderPaint::blendMode(rive::BlendMode blendMode)
 /* CanvasRenderImage */
 constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
 
+#ifdef DEBUG
+static std::mutex s_testDecoderMutex;
+static jclass s_testDecoderClass = nullptr;
+static jmethodID s_testDecodeMethodID = nullptr;
+
+/* static */ void CanvasRenderImage::SetDecoderForTesting(
+    JNIEnv* env,
+    jclass decoderClass,
+    jmethodID decodeMethodID)
+{
+  std::lock_guard lock(s_testDecoderMutex);
+  if (s_testDecoderClass != nullptr)
+  {
+    env->DeleteGlobalRef(s_testDecoderClass);
+  }
+  s_testDecoderClass = decoderClass == nullptr
+                           ? nullptr
+                           : static_cast<jclass>(
+                                 env->NewGlobalRef(decoderClass));
+  s_testDecodeMethodID = decodeMethodID;
+}
+#endif
+
 /* static */ jobject CanvasRenderImage::CreateKtBitmapFrom(
     JNIEnv* env,
     rive::Span<const uint8_t>& encodedBytes)
@@ -682,7 +706,10 @@ constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
   auto jByteArray = env->NewByteArray(jSize);
   if (jByteArray == nullptr)
   {
-    RiveLogE(TAG_RENDER_IMAGE, "CreateKtBitmapFrom() - NewByteArray() failed.");
+    JNIExceptionHandler::ClearAndLogErrors(
+        env,
+        TAG_RENDER_IMAGE,
+        "CreateKtBitmapFrom() - NewByteArray() failed.");
     return nullptr;
   }
 
@@ -692,18 +719,37 @@ constexpr auto* TAG_RENDER_IMAGE = "RiveLN/CanvasRenderImage";
       jSize,
       reinterpret_cast<const jbyte*>(encodedBytes.data()));
 
-  auto jBitmapFactoryClass = GetAndroidBitmapFactoryClass();
-  auto jDecodeByteArrayMethodID = GetDecodeByteArrayStaticMethodId();
+  auto jDecoderClass = GetAndroidBitmapFactoryClass();
+  auto jDecodeMethodID = GetDecodeByteArrayStaticMethodId();
+#ifdef DEBUG
+  {
+    std::lock_guard lock(s_testDecoderMutex);
+    if (s_testDecoderClass != nullptr)
+    {
+      env->DeleteLocalRef(jDecoderClass);
+      jDecoderClass = static_cast<jclass>(env->NewLocalRef(s_testDecoderClass));
+      jDecodeMethodID = s_testDecodeMethodID;
+    }
+  }
+#endif
 
-  auto jBitmap = JNIExceptionHandler::CallStaticObjectMethod(
-      env,
-      jBitmapFactoryClass,
-      jDecodeByteArrayMethodID,
+  // Called directly because JNIExceptionHandler treats any exception as
+  // fatal, and decoding can throw OutOfMemoryError.
+  auto jBitmap = env->CallStaticObjectMethod(
+      jDecoderClass,
+      jDecodeMethodID,
       jByteArray,
       0,
       SizeTToInt(encodedBytes.size()));
   env->DeleteLocalRef(jByteArray);
-  env->DeleteLocalRef(jBitmapFactoryClass);
+  env->DeleteLocalRef(jDecoderClass);
+  if (JNIExceptionHandler::ClearAndLogErrors(
+          env,
+          TAG_RENDER_IMAGE,
+          "CreateKtBitmapFrom() - decodeByteArray() threw."))
+  {
+    return nullptr;
+  }
   if (jBitmap == nullptr)
   {
     RiveLogE(

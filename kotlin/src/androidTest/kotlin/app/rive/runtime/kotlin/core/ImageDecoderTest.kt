@@ -5,23 +5,35 @@ import android.graphics.BitmapFactory
 import android.graphics.ColorSpace
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.RiveImageException
+import app.rive.core.RiveWorker
+import app.rive.core.assertDisposed
+import app.rive.core.withPolling
 import app.rive.runtime.kotlin.test.R
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.zip.InflaterInputStream
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Checks the premultiplied sRGB RGBA bytes that native code receives from Android's decoder. */
+/**
+ * Checks the premultiplied sRGB RGBA bytes that native code receives from Android's decoder, and
+ * that running out of memory fails a decode instead of crashing.
+ */
 @RunWith(AndroidJUnit4::class)
 class ImageDecoderTest {
     private val resources = TestUtils().context.resources
+    private val malformedPng = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03)
 
     @Test
     fun eightBitRgbaPremultiplies() {
@@ -80,7 +92,109 @@ class ImageDecoderTest {
 
     @Test
     fun malformedInputFails() {
-        assertNull(decode(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03)))
+        assertNull(decode(malformedPng))
+    }
+
+    @Test
+    fun failedByteArrayAllocationFailsTheDecode() {
+        val heap = Runtime.getRuntime().maxMemory()
+        val encoded = paddedPng(heap / 8)
+        var thrown: OutOfMemoryError? = null
+        val decoded = withHeapNearlyFull(free = heap / 32) {
+            try {
+                decode(encoded)
+            } catch (e: OutOfMemoryError) {
+                thrown = e
+                null
+            }
+        }
+        assertNull(thrown)
+        assertNull(decoded)
+        assertNotNull(decode(encoded))
+    }
+
+    @Test
+    fun failedAllocationOnTheWorkerFailsOnlyThatDecode() {
+        val heap = Runtime.getRuntime().maxMemory()
+        val encoded = paddedPng(heap / 8)
+        val worker = RiveWorker()
+        try {
+            worker.withPolling {
+                runBlocking {
+                    withHeapNearlyFull(free = heap / 32) {
+                        assertFailsWith<RiveImageException> { worker.decodeImage(encoded) }
+                    }
+                    worker.decodeImage(encoded)
+                }
+            }
+        } finally {
+            worker.release("ImageDecoderTest", "Test cleanup")
+            assertDisposed(worker)
+        }
+    }
+
+    @Test
+    fun canvasMalformedInputFails() {
+        assertFalse(NativeRendererTestHelper.cppDecodeCanvasImage(malformedPng))
+        assertTrue(NativeRendererTestHelper.cppDecodeCanvasImage(raw(R.raw.image_decode_rgba8)))
+    }
+
+    @Test
+    fun canvasFailedByteArrayAllocationFailsTheDecode() {
+        val heap = Runtime.getRuntime().maxMemory()
+        val encoded = paddedPng(heap / 8)
+        var thrown: OutOfMemoryError? = null
+        val decoded = withHeapNearlyFull(free = heap / 32) {
+            try {
+                NativeRendererTestHelper.cppDecodeCanvasImage(encoded)
+            } catch (e: OutOfMemoryError) {
+                thrown = e
+                false
+            }
+        }
+        assertNull(thrown)
+        assertFalse(decoded)
+        assertTrue(NativeRendererTestHelper.cppDecodeCanvasImage(encoded))
+    }
+
+    @Test
+    fun canvasDecoderOutOfMemoryFailsTheDecode() {
+        val png = raw(R.raw.image_decode_rgba8)
+        NativeRendererTestHelper.cppSimulateCanvasDecoderOutOfMemory(true)
+        val decoded = try {
+            NativeRendererTestHelper.cppDecodeCanvasImage(png)
+        } finally {
+            NativeRendererTestHelper.cppSimulateCanvasDecoderOutOfMemory(false)
+        }
+        assertFalse(decoded)
+        assertTrue(NativeRendererTestHelper.cppDecodeCanvasImage(png))
+    }
+
+    /**
+     * Returns a valid PNG padded with zeros to [size] bytes, so only running out of memory can
+     * fail its decode.
+     */
+    private fun paddedPng(size: Long) = raw(R.raw.image_decode_rgba8).copyOf(size.toInt())
+
+    /**
+     * Runs [block] while the Java heap has about [free] bytes left.
+     *
+     * Fills the heap in 1 MB steps without exhausting it, so other threads, such as ART's
+     * `FinalizerDaemon`, can still allocate.
+     */
+    private inline fun <T> withHeapNearlyFull(free: Long, block: () -> T): T {
+        val chunk = 1 shl 20
+        val runtime = Runtime.getRuntime()
+        runtime.gc()
+        val filler = mutableListOf<ByteArray>()
+        while (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory() > free + chunk) {
+            filler.add(ByteArray(chunk))
+        }
+        return try {
+            block()
+        } finally {
+            filler.clear()
+        }
     }
 
     private class Decoded(val width: Int, val height: Int, val rgba: ByteArray)

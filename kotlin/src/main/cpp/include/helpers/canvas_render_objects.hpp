@@ -158,6 +158,16 @@ public:
 
   jobject ktPaint() const { return m_ktPaint; }
 
+#ifdef DEBUG
+  // Decodes with decodeMethodID, a static method of decoderClass with the
+  // signature of BitmapFactory.decodeByteArray(), so tests can make decoding
+  // throw. Pass nullptr for both to decode with BitmapFactory again.
+  static void SetDecoderForTesting(
+      JNIEnv*,
+      jclass decoderClass,
+      jmethodID decodeMethodID);
+#endif
+
   static jobject CreateKtBitmapShader(jobject ktBitmap)
   {
     JNIEnv* env = GetJNIEnv();

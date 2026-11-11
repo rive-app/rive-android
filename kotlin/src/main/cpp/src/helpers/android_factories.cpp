@@ -229,7 +229,13 @@ rive::rcp<rive::RenderBuffer> AndroidCanvasFactory::makeRenderBuffer(
 rive::rcp<rive::RenderImage> AndroidCanvasFactory::decodeImage(
     rive::Span<const uint8_t> encodedBytes)
 {
-  return make_rcp<CanvasRenderImage>(encodedBytes);
+  auto image = make_rcp<CanvasRenderImage>(encodedBytes);
+  // Without a bitmap the image can't draw, so report a failed decode.
+  if (image->ktBitmap() == nullptr)
+  {
+    return nullptr;
+  }
+  return image;
 }
 
 rive::rcp<rive::RenderShader> AndroidCanvasFactory::makeLinearGradient(

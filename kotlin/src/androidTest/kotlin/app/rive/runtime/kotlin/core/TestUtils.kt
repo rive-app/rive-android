@@ -359,6 +359,24 @@ object NativeRendererTestHelper {
      * @return The premultiplied sRGB RGBA bytes native code receives, or null if decoding failed.
      */
     external fun cppDecodeImage(encoded: ByteArray, size: IntArray): ByteArray?
+
+    /** @return Whether the Canvas renderer decodes [encoded] into an image it can draw. */
+    external fun cppDecodeCanvasImage(encoded: ByteArray): Boolean
+
+    /**
+     * Makes the Canvas renderer decode with [decodeByteArrayOutOfMemory] instead of
+     * `BitmapFactory.decodeByteArray`.
+     *
+     * @param simulate Whether to decode with [decodeByteArrayOutOfMemory]. Pass false to restore
+     *    `BitmapFactory.decodeByteArray`.
+     */
+    external fun cppSimulateCanvasDecoderOutOfMemory(simulate: Boolean)
+
+    /** Throws [OutOfMemoryError], as `BitmapFactory.decodeByteArray` does on a full Java heap. */
+    @JvmStatic
+    @Suppress("UNUSED_PARAMETER") // Native code calls it with decodeByteArray's arguments.
+    fun decodeByteArrayOutOfMemory(data: ByteArray, offset: Int, length: Int): Bitmap =
+        throw OutOfMemoryError("Simulated by NativeRendererTestHelper")
 }
 
 object NativeWorkerTestHelper {
