@@ -44,7 +44,7 @@ class RiveWorkerComposeTest : RiveAndroidTest() {
         composeRule.setContent {
             showWorker = remember { mutableStateOf(true) }
             if (showWorker.value) {
-                worker = rememberRiveWorker(autoPoll = false)
+                worker = rememberRiveWorker()
             }
         }
 
@@ -56,6 +56,27 @@ class RiveWorkerComposeTest : RiveAndroidTest() {
 
         assertEquals(0, worker.refCount)
         assertTrue(worker.isDisposed)
+    }
+
+    /** The deprecated opt-out must no longer suppress resource replies. */
+    @Test
+    @Suppress("DEPRECATION")
+    fun legacyAutoPollFalse_stillDeliversResources() {
+        val loaded = AtomicReference(false)
+        composeRule.setContent {
+            val worker = rememberRiveWorker(autoPoll = false)
+            val resources =
+                rememberTestRiveResources(
+                    RiveFileSource.RawRes(R.raw.empty, context.resources),
+                    worker
+                )
+            SideEffect { loaded.set(resources is Result.Success) }
+        }
+        composeRule.awaitWithWallClock(timeoutMessage = {
+            "Worker did not deliver resource replies"
+        }) {
+            loaded.get()
+        }
     }
 
     /** Verifies warmup is fixed per worker and changing the option releases the old worker. */
@@ -70,7 +91,6 @@ class RiveWorkerComposeTest : RiveAndroidTest() {
             showWorker = remember { mutableStateOf(true) }
             if (showWorker.value) {
                 worker = rememberRiveWorker(
-                    autoPoll = false,
                     precompileShaders = precompileShaders.value,
                 )
             }

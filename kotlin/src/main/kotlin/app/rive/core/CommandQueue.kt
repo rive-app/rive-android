@@ -2,11 +2,9 @@ package app.rive.core
 
 import android.graphics.Color
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
-import android.os.MessageQueue.OnFileDescriptorEventListener
-import android.os.ParcelFileDescriptor
-import android.system.ErrnoException
-import android.system.Os
+import android.os.Message
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
 import androidx.annotation.MainThread
@@ -14,7 +12,6 @@ import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
 import app.rive.Artboard
 import app.rive.ExperimentalDeferredRendering
 import app.rive.ExperimentalRiveGlobalViewModels
@@ -56,7 +53,6 @@ import app.rive.runtime.kotlin.core.ViewModel
 import app.rive.semantics.SemanticActionType
 import app.rive.semantics.SemanticTreeModel
 import app.rive.semantics.SemanticsDiff
-import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -77,7 +73,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -140,9 +135,6 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  * be aware that these instances cannot share memory. This means that each file and asset must be
  * loaded into each command queue separately.
  *
- * A command queue needs to be polled to receive messages from the command server. This is handled
- * by the [rememberRiveWorker] composable or by calling [beginPolling].
- *
  * @param renderContext Render context owned by this command queue after native startup succeeds.
  * @param bridge Native bridge used to create and communicate with the command queue. This is
  *    injectable so unit tests can mock JNI calls without loading native code.
@@ -154,6 +146,7 @@ const val COMMAND_QUEUE_TAG = "Rive/CQ"
  *    before ownership is transferred to this instance.
  * @param settlingStore Settled-state store override used by unit tests without native code.
  * @param precompileShaders Whether to queue shader warmup after native startup.
+ * @param messageHandlerFactory Creates the main-thread delivery Handler, injectable for tests.
  */
 class CommandQueue internal constructor(
     private val renderContext: RenderContext,
@@ -163,6 +156,9 @@ class CommandQueue internal constructor(
     nativePointer: Long = createNativeCommandQueue(renderContext, bridge),
     settlingStore: StateMachineSettlingStore? = null,
     precompileShaders: Boolean = false,
+    private val messageHandlerFactory: (Handler.Callback) -> Handler = {
+        Handler(Looper.getMainLooper(), it)
+    },
 ) : RefCounted {
     /**
      * Creates a command queue using the requested render backend.
@@ -497,6 +493,14 @@ class CommandQueue internal constructor(
      * unusually long, without adding another synchronous wait to release.
      */
     private fun dispose(cppPointer: Long) {
+        synchronized(messageDeliveryLock) {
+            if (messageHandlerDelegate.isInitialized()) {
+                messageHandler.removeCallbacksAndMessages(
+                    null
+                )
+            }
+            messagePending = false
+        }
         cancelPendingContinuations()
         stateMachineSettlingStore.clear()
         focusStateStore.clear()
@@ -661,10 +665,6 @@ class CommandQueue internal constructor(
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal fun awaitShutdown(timeoutMillis: Long): Boolean =
         shutdownComplete.await(timeoutMillis, TimeUnit.MILLISECONDS)
-
-    /** @return The descriptor the command server signals replies on, or -1 where it has none. */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    internal fun wakeFd(): Int = bridge.cppWakeFd(cppPointer.pointer)
 
     /**
      * Enables or disables native command server tracing for draw and advance work.
@@ -887,7 +887,7 @@ class CommandQueue internal constructor(
      *
      * Currently the status only changes from [RenderContextStatus.Ready] to
      * [RenderContextStatus.Lost], and never changes back. Rive detects the loss when this worker
-     * next draws, and updates the status while this worker is being polled. Rive can miss a loss in
+     * next draws, and updates the status when its message is delivered. Rive can miss a loss in
      * two cases: when the loss first shows up while Rive prepares a new or resized surface, and on
      * OpenGL, when the driver reports the loss in a way Rive does not recognize.
      */
@@ -898,162 +898,117 @@ class CommandQueue internal constructor(
     }
 
     /**
-     * Begin polling this command queue for messages from the CommandServer. Without this, callbacks
-     * and errors will not be delivered. This should typically be called by tying to the lifecycle
-     * scope of the containing activity, fragment, or composable, e.g. with `lifecycleScope.launch`.
+     * Compatibility no-op. Worker messages are delivered automatically for its entire lifetime.
      *
-     * The polling will automatically start and stop based on the lifecycle state, only polling when
-     * the lifecycle is in the RESUMED state and while this command queue has not been disposed. The
-     * polling loop runs on the Android main thread regardless of the caller's coroutine context.
+     * Returns immediately, even if this worker is disposed. Code after this call or in a surrounding
+     * `finally` block no longer waits for [lifecycle] to be destroyed. Tie worker cleanup, such as
+     * releasing its owning reference, to the lifecycle or owning component instead of this call's
+     * completion.
      *
-     * @param lifecycle The lifecycle bounding the polling.
-     * @param ticker The frame ticker to use for polling. Defaults to [ChoreographerFrameTicker],
-     *    which uses the Choreographer to sync to the display refresh rate.
-     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @param lifecycle Ignored. Message delivery is independent of the UI lifecycle.
+     * @param ticker Ignored. Message delivery no longer waits for frames.
      */
-    @Throws(RiveResourceClosedException::class)
+    @Deprecated("Workers deliver messages automatically. Remove this call.")
+    @Suppress("UNUSED_PARAMETER")
     suspend fun beginPolling(lifecycle: Lifecycle, ticker: FrameTicker = ChoreographerFrameTicker) =
-        withContext(Dispatchers.Main.immediate) {
-            checkOpen()
-            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                RiveLog.d(COMMAND_QUEUE_TAG) { "Starting command queue polling" }
-                val replyListener = listenForReplies()
-                try {
-                    while (isActive && !isDisposed) {
-                        ticker.withFrame { }
-                        // Poll after the frame wait returns so coroutine context restoration
-                        // guarantees main-thread delivery even when an injected ticker waits on
-                        // another thread.
-                        if (!pollMessagesUnlessDisposed()) {
-                            break
-                        }
-                    }
-                } finally {
-                    replyListener?.close()
-                }
-                RiveLog.d(COMMAND_QUEUE_TAG) { "Stopping command queue polling" }
+        Unit
+
+    /** Serializes notification enqueueing with final release, including release off Main. */
+    private val messageDeliveryLock = Any()
+    private var messagePending = false
+    private var messageDeliveryPaused = false
+    private val messageHandlerDelegate = lazy {
+        messageHandlerFactory { _ ->
+            synchronized(messageDeliveryLock) {
+                // Clear before draining so messages arriving during callbacks schedule another batch.
+                messagePending = false
             }
-        }
-
-    /**
-     * While a reply is awaited, has the command server wake the main thread as soon as it posts
-     * one, so the reply lands before the next frame instead of a frame or two later.
-     */
-    private fun wakeOnReply() {
-        // Never throws, since a submission that native accepted must keep its continuation.
-        if (pendingContinuations.isEmpty() ||
-            !cppPointer.tryAcquire("Wake on reply", logged = false)
-        ) {
-            return
-        }
-        try {
-            bridge.cppRequestWake(cppPointer.pointer)
-        } finally {
-            cppPointer.release("Wake on reply", reason = "", logged = false)
+            if (!messageDeliveryPaused) drainMessages()
+            true
         }
     }
+    private val messageHandler by messageHandlerDelegate
 
     /**
-     * Polls whenever the command server signals a reply the poll loop is waiting on.
+     * Schedules one main-thread drain for any number of native notifications.
      *
-     * @return Closes the listener, or null where the main looper cannot watch the signal.
+     * Called on the command server after a batch produces messages. Only scheduling happens here,
+     * never callback delivery. The lock prevents enqueueing after disposal removes pending messages.
      */
-    private fun listenForReplies(): AutoCloseable? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
-        // The queue may have been released while polling waited to resume.
-        if (!cppPointer.tryAcquire("Listen for replies", logged = false)) return null
-        // A duplicate keeps the signal valid after native shutdown closes its own.
-        val wakeFd = try {
-            bridge.cppWakeFd(cppPointer.pointer).takeIf {
-                it >= 0
-            }?.let(ParcelFileDescriptor::fromFd)
-        } catch (_: IOException) {
-            // Out of descriptors; frame polling still delivers replies.
-            null
-        } finally {
-            cppPointer.release("Listen for replies", reason = "", logged = false)
-        } ?: return null
-        val queue = Looper.getMainLooper().queue
-        val signal = ByteArray(Long.SIZE_BYTES)
-        val listener = AutoCloseable {
-            queue.removeOnFileDescriptorEventListener(wakeFd.fileDescriptor)
-            wakeFd.close()
-        }
-        try {
-            queue.addOnFileDescriptorEventListener(
-                wakeFd.fileDescriptor,
-                OnFileDescriptorEventListener.EVENT_INPUT,
-            ) { descriptor, _ ->
-                try {
-                    Os.read(descriptor, signal, 0, signal.size)
-                } catch (_: ErrnoException) {
-                    // Already drained.
-                }
-                if (!isDisposed) {
-                    pollMessagesUnlessDisposed()
-                }
-                OnFileDescriptorEventListener.EVENT_INPUT
+    @Keep
+    @JvmName("onMessagesAvailable")
+    internal fun onMessagesAvailable() {
+        synchronized(messageDeliveryLock) {
+            // Final release zeros the count before disposal cancels messages. isDisposed is only
+            // set after disposal returns, so it cannot prevent enqueueing during that cleanup.
+            if (refCount <= 0 || messagePending || messageDeliveryPaused) return
+            messagePending = true
+            val message = Message.obtain(messageHandler, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                message.isAsynchronous = true
             }
-        } catch (e: Throwable) {
-            runCatching { listener.close() }
-            throw e
+            if (!messageHandler.sendMessage(message)) messagePending = false
         }
-        return listener
-    }
-
-    /** @return False if this queue was disposed before the poll could read it. */
-    private fun pollMessagesUnlessDisposed(): Boolean = try {
-        pollMessages()
-        true
-    } catch (e: RiveResourceClosedException) {
-        // Disposal can happen after the loop's checks but before pollMessages() reads the native
-        // pointer. Only swallow that expected disposal race; preserve a resource-closed error from
-        // another source rather than hiding it.
-        if (refCount > 0) {
-            throw e
-        }
-        false
     }
 
     /**
-     * Poll messages from the CommandServer to this command queue. This is the channel that all
-     * callbacks and errors arrive on. Should be called every frame, regardless of whether there is
-     * any advancing or drawing.
+     * Controls delivery for tests that inspect intermediate Compose states before native replies.
      *
-     * This synchronous method does not switch threads. It must be called from the Android main
-     * thread so callbacks that update UI-owned runtime state are delivered there. Call
-     * [beginPolling] instead when the caller's coroutine context is not known; it moves its polling
-     * loop to the main thread.
-     *
-     * This method represents a single poll operation. To continuously poll, use [beginPolling],
-     * which will handle starting and stopping the polling based on a lifecycle.
-     *
-     * @throws RiveResourceClosedException If this command queue has been disposed.
-     * @throws IllegalStateException If this method is called from a thread other than the Android
-     *    main thread.
-     * @see [beginPolling]
+     * @param paused Whether to defer automatic delivery. Resuming schedules any accumulated replies.
      */
+    @MainThread
+    @VisibleForTesting
+    internal fun setMessageDeliveryPaused(paused: Boolean) {
+        synchronized(messageDeliveryLock) {
+            messageDeliveryPaused = paused
+        }
+        if (!paused) onMessagesAvailable()
+    }
+
+    /**
+     * Synchronously delivers the currently queued messages on the Android main thread.
+     *
+     * Automatic delivery makes this unnecessary. Retained for callers that depend on synchronous
+     * delivery of callbacks already queued when this method begins.
+     *
+     * @throws RiveResourceClosedException If this worker has been disposed.
+     * @throws IllegalStateException If called off the Android main thread.
+     */
+    @Deprecated("Workers deliver messages automatically. Remove manual polling when possible.")
     @MainThread
     @Throws(RiveResourceClosedException::class, IllegalStateException::class)
     fun pollMessages() {
+        if (!drainMessages()) {
+            throw RiveResourceClosedException("RiveWorker is disposed")
+        }
+    }
+
+    /**
+     * Synchronously delivers queued messages while holding a temporary worker reference.
+     *
+     * @return false if final release prevents acquiring a reference, otherwise true.
+     * @throws IllegalStateException If called off the Android main thread.
+     */
+    @MainThread
+    private fun drainMessages(): Boolean {
         check(Looper.myLooper() == Looper.getMainLooper()) {
             "CommandQueue.pollMessages must be called on the main thread."
         }
         // A callback can release this worker's last owning reference, for example to recover from a
         // lost render context. Native shutdown would then delete the queue and its listeners while
-        // they are still delivering messages, so hold a reference until the poll returns. Polling
-        // runs every frame, so this reference is not logged.
+        // they are still delivering messages, so hold a reference until the drain returns. These
+        // frequent temporary references are not logged.
         if (!cppPointer.tryAcquire("Poll messages", logged = false)) {
-            throw RiveResourceClosedException("RiveWorker is disposed")
+            return false
         }
         try {
             traceSection("Rive/PollMessages") {
                 bridge.cppPollMessages(cppPointer.pointer)
             }
-            wakeOnReply()
         } finally {
             cppPointer.release("Poll messages", reason = "", logged = false)
         }
+        return true
     }
 
     /**
@@ -4266,6 +4221,11 @@ class CommandQueue internal constructor(
      */
     private val nextRequestID = AtomicLong()
 
+    init {
+        // Publish the receiver only after all callback-visible Kotlin state has been initialized.
+        bridge.cppStartMessageDelivery(cppPointer.pointer, this)
+    }
+
     /**
      * Completes a pending resource request and arranges cleanup if cancellation occurs before the
      * resumed value reaches the awaiting coroutine.
@@ -4442,7 +4402,6 @@ class CommandQueue internal constructor(
             pendingResourceCleanups[requestID] = cleanupOnce
 
             provisionalResource = nativeFn(requestID)
-            wakeOnReply()
         }
     }
 
@@ -4484,7 +4443,6 @@ class CommandQueue internal constructor(
 
             try {
                 nativeFn(requestID)
-                wakeOnReply()
             } catch (t: Throwable) {
                 // Bridge calls can fail before native work is accepted, for example if JNI raises
                 // an exception. Do not leave a continuation waiting for a callback that cannot come.

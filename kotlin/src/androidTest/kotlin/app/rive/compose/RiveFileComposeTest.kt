@@ -7,8 +7,8 @@ import app.rive.RiveAndroidTest
 import app.rive.RiveFileSource
 import app.rive.RiveResourceClosedException
 import app.rive.core.CommandQueue
-import app.rive.core.CommandQueuePoller
 import app.rive.core.assertDisposed
+import app.rive.core.withMessageDeliveryPaused
 import app.rive.rememberRiveFile
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
@@ -33,7 +33,7 @@ class RiveFileComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "RiveFile",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberRiveFile(sources[useReplacement.toIndex()], riveWorker)
             },
@@ -47,13 +47,12 @@ class RiveFileComposeTest : RiveAndroidTest() {
     @Test
     fun workerChange_reportsLoadingSynchronously() {
         val workers = listOf(CommandQueue(), CommandQueue())
-        val poller = CommandQueuePoller(workers)
         val source = RiveFileSource.RawRes(R.raw.empty, context.resources)
 
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "RiveFile",
-                withNativePollingPaused = poller::withPollingPaused,
+                withNativeDeliveryPaused = workers::withMessageDeliveryPaused,
                 result = { useReplacement ->
                     rememberRiveFile(source, workers[useReplacement.toIndex()])
                 },
@@ -62,7 +61,6 @@ class RiveFileComposeTest : RiveAndroidTest() {
                 },
             )
         } finally {
-            poller.close()
             workers.forEach { worker ->
                 if (!worker.isDisposed) {
                     worker.release(javaClass.simpleName, "Test cleanup")

@@ -62,8 +62,7 @@ internal class CommandQueueTestFixture {
         every { commandQueueBridgeMock.cppSetDeferredEnabled(any(), any()) } just runs
         every { commandQueueBridgeMock.cppCancelDraw(any(), any()) } just runs
         every { commandQueueBridgeMock.cppRunOnCommandServer(any(), any()) } just runs
-        every { commandQueueBridgeMock.cppWakeFd(any()) } returns -1
-        every { commandQueueBridgeMock.cppRequestWake(any()) } just runs
+        every { commandQueueBridgeMock.cppStartMessageDelivery(any(), any()) } just runs
     }
 
     /**

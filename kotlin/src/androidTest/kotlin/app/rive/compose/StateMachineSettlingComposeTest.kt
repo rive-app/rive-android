@@ -132,41 +132,45 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
 
             // Request the portrait layout while retaining explicit control of Compose frames.
             composeRule.mainClock.autoAdvance = false
-            composeRule.runOnUiThread {
-                portrait.value = true
-            }
+            // Hold delivery while asserting the intermediate unsettled state. Automatic Handler
+            // delivery can otherwise apply the new settlement before the test observes it.
+            withRiveWorkerDeliveryPaused {
+                composeRule.runOnUiThread {
+                    portrait.value = true
+                }
 
-            // Advance until resizing has unsettled the state machine and established its new
-            // request-ID boundary.
-            composeRule.mainClock.advanceTimeByFrame()
-            composeRule.waitForIdle()
-            // The explicit frame and waitForIdle above perform the resize. Advance only
-            // Compose time here so the test stops as soon as the resize effect publishes its
-            // unsettled boundary, before yielding long enough for a current settled callback
-            // to overtake this deliberately narrow test window.
-            composeRule.awaitWithComposeClock(
-                timeoutMessage = {
-                    "Resize did not finish: size=${observedSize.get()}, " +
-                        "settled=${stateMachine.get()?.settled?.value}"
-                },
-            ) {
-                val size = observedSize.get()
-                // Density conversion can differ by a pixel after rounding.
-                size.height > size.width &&
-                    stateMachine.get()?.settled?.value == false
-            }
-            composeRule.waitForIdle()
+                // Advance until resizing has unsettled the state machine and established its new
+                // request-ID boundary.
+                composeRule.mainClock.advanceTimeByFrame()
+                composeRule.waitForIdle()
+                // The explicit frame and waitForIdle above perform the resize. Advance only
+                // Compose time here so the test stops as soon as the resize effect publishes its
+                // unsettled boundary, before yielding long enough for a current settled callback
+                // to overtake this deliberately narrow test window.
+                composeRule.awaitWithComposeClock(
+                    timeoutMessage = {
+                        "Resize did not finish: size=${observedSize.get()}, " +
+                            "settled=${stateMachine.get()?.settled?.value}"
+                    },
+                ) {
+                    val size = observedSize.get()
+                    // Density conversion can differ by a pixel after rounding.
+                    size.height > size.width &&
+                        stateMachine.get()?.settled?.value == false
+                }
+                composeRule.waitForIdle()
 
-            // Verify that a callback from before the resize boundary cannot settle it again.
-            composeRule.runOnUiThread {
-                val activeStateMachine = checkNotNull(stateMachine.get())
-                riveWorker.onStateMachineSettled(
-                    Long.MIN_VALUE,
-                    activeStateMachine.stateMachineHandle
-                )
-                assertFalse(activeStateMachine.settled.value)
+                // Verify that a callback from before the resize boundary cannot settle it again.
+                composeRule.runOnUiThread {
+                    val activeStateMachine = checkNotNull(stateMachine.get())
+                    riveWorker.onStateMachineSettled(
+                        Long.MIN_VALUE,
+                        activeStateMachine.stateMachineHandle
+                    )
+                    assertFalse(activeStateMachine.settled.value)
+                }
+                composeRule.waitForIdle()
             }
-            composeRule.waitForIdle()
 
             // Resume automatic frames and verify responsive layout reaches its expanded state.
             composeRule.mainClock.autoAdvance = true
@@ -184,7 +188,7 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
                 stateMachine.get()?.settled?.value == true
             }
         } finally {
-            // The outer Rive rule keeps polling until Compose disposes its remembered resources.
+            // The outer Rive rule keeps the worker alive until Compose disposes its resources.
             composeRule.mainClock.autoAdvance = true
         }
     }
@@ -230,11 +234,11 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
                     assertTrue(secondResources.stateMachine.settled.value)
                 }
 
-                // Launch the replacement effects in a controlled frame, and pause polling so a
+                // Launch the replacement effects in a controlled frame, and pause delivery so a
                 // native callback cannot settle the replacement before its newly keyed effects
                 // are observed.
                 composeRule.mainClock.autoAdvance = false
-                withRiveWorkerPollingPaused {
+                withRiveWorkerDeliveryPaused {
                     composeRule.runOnUiThread {
                         activeResources.value = secondResources
                     }

@@ -67,15 +67,7 @@ class CanvasRenderContextRecoveryActivity : ComponentActivity() {
         setEdgeToEdgeContent(binding.root)
         binding.simulateLossButton.setOnClickListener { viewModel.simulateLoss() }
 
-        lifecycleScope.launch { pollWorker() }
         lifecycleScope.launch { showContent() }
-    }
-
-    private suspend fun pollWorker() {
-        viewModel.workerAndImage.collectLatest { result ->
-            val (worker, _) = (result as? Result.Success)?.value ?: return@collectLatest
-            worker.beginPolling(lifecycle)
-        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)

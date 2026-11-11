@@ -46,7 +46,6 @@ class BenchmarkHardwareBitmapCanvasActivity : ComponentActivity() {
 
         val riveWorker = RiveWorker().also { worker ->
             worker.withLifecycle(this, BENCHMARK_CANVAS_TAG)
-            lifecycleScope.launch { worker.beginPolling(lifecycle) }
         }
 
         lifecycleScope.launch {

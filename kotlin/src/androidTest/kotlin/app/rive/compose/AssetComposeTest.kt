@@ -7,8 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.RiveAndroidTest
 import app.rive.RiveResourceClosedException
 import app.rive.core.CommandQueue
-import app.rive.core.CommandQueuePoller
 import app.rive.core.assertDisposed
+import app.rive.core.withMessageDeliveryPaused
 import app.rive.rememberAudio
 import app.rive.rememberFont
 import app.rive.rememberImage
@@ -34,7 +34,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "ImageAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberImage(riveWorker, bytes[useReplacement.toIndex()])
             },
@@ -48,13 +48,12 @@ class AssetComposeTest : RiveAndroidTest() {
     @Test
     fun imageWorkerChange_reportsLoadingSynchronously() {
         val workers = listOf(CommandQueue(), CommandQueue())
-        val poller = CommandQueuePoller(workers)
         val bytes = readRawBytes(R.raw.eve)
 
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "ImageAsset",
-                withNativePollingPaused = poller::withPollingPaused,
+                withNativeDeliveryPaused = workers::withMessageDeliveryPaused,
                 result = { useReplacement ->
                     rememberImage(workers[useReplacement.toIndex()], bytes)
                 },
@@ -63,7 +62,6 @@ class AssetComposeTest : RiveAndroidTest() {
                 },
             )
         } finally {
-            poller.close()
             workers.forEach { worker ->
                 if (!worker.isDisposed) {
                     worker.release(javaClass.simpleName, "Test cleanup")
@@ -80,7 +78,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "AudioAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberAudio(riveWorker, bytes[useReplacement.toIndex()])
             },
@@ -97,7 +95,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "FontAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberFont(riveWorker, bytes[useReplacement.toIndex()])
             },
@@ -115,7 +113,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "registered ImageAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberRegisteredImage(
                     riveWorker,
@@ -137,7 +135,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "registered AudioAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberRegisteredAudio(
                     riveWorker,
@@ -159,7 +157,7 @@ class AssetComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "registered FontAsset",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberRegisteredFont(
                     riveWorker,

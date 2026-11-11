@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.Fit
 import app.rive.ImageAsset
@@ -28,7 +27,6 @@ import app.rive.RiveFile
 import app.rive.RiveFileSource
 import app.rive.RiveLog
 import app.rive.ViewModelInstance
-import app.rive.core.ComposeFrameTicker
 import app.rive.rememberImage
 import app.rive.rememberRiveFile
 import app.rive.rememberViewModelInstanceResult
@@ -47,12 +45,6 @@ class ComposeRenderContextRecoveryActivity : ComponentActivity() {
 
         setContent {
             val workerAndImageResult by viewModel.workerAndImage.collectAsStateWithLifecycle()
-            val lifecycleOwner = LocalLifecycleOwner.current
-            LaunchedEffect(lifecycleOwner, workerAndImageResult) {
-                val (riveWorker, _) = (workerAndImageResult as? Result.Success)?.value
-                    ?: return@LaunchedEffect
-                riveWorker.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
-            }
 
             val contentResult = workerAndImageResult.andThen { (riveWorker, imageBytes) ->
                 // Keyed on the worker, so a new worker loads these again and closes the old ones.

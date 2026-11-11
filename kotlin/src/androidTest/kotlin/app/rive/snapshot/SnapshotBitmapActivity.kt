@@ -58,9 +58,6 @@ class SnapshotBitmapActivity :
         lifecycleScope.launch {
             val riveWorker = RiveWorker().also { worker ->
                 worker.withLifecycle(this@SnapshotBitmapActivity, BITMAP_TAG)
-                lifecycleScope.launch {
-                    worker.beginPolling(lifecycle)
-                }
             }
             val file = try {
                 RiveFile.load(

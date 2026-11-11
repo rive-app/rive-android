@@ -36,7 +36,7 @@ class ArtboardComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "Artboard",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberArtboardResult(files[useReplacement.toIndex()])
                 },
@@ -63,7 +63,7 @@ class ArtboardComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "Artboard",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberArtboardResult(file, names[useReplacement.toIndex()])
                 },

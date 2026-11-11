@@ -18,11 +18,11 @@ import app.rive.Rive
 import app.rive.RiveAndroidTest
 import app.rive.RiveFile
 import app.rive.RiveFileSource
-import app.rive.core.CommandQueuePoller
 import app.rive.core.DefaultRiveResources
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
 import app.rive.core.loadDefaultRiveResources
+import app.rive.core.withMessageDeliveryPaused
 import app.rive.runtime.kotlin.test.R
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -91,7 +91,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
     @Test
     fun rive_surfaceDestroyedBeforeRecomposition_releasesSurface() = runBlocking<Unit> {
         val worker = RiveWorker()
-        val poller = CommandQueuePoller(worker)
         val file = RiveFile.load(RiveFileSource.RawRes(R.raw.empty, context.resources), worker)
         lateinit var showContent: MutableState<Boolean>
         val texture = SurfaceTexture(false)
@@ -132,7 +131,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
             composeRule.runOnUiThread { showContent.value = false }
             composeRule.waitForIdle()
             file.close()
-            poller.close()
             worker.release(javaClass.simpleName, "Test cleanup")
             assertDisposed(worker)
         }
@@ -143,7 +141,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
     fun rive_recreatesSurface_whenWorkerChanges() = runBlocking<Unit> {
         val firstResources = loadDefaultRiveResources(R.raw.empty)
         val secondWorker = RiveWorker()
-        val secondPoller = CommandQueuePoller(secondWorker)
         val secondResources = secondWorker.loadDefaultRiveResources(R.raw.empty)
         lateinit var activeResources: MutableState<DefaultRiveResources>
         var showContent: MutableState<Boolean>? = null
@@ -199,7 +196,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
                 composeRule.waitForIdle()
             }
             secondResources.close()
-            secondPoller.close()
             secondWorker.release(javaClass.simpleName, "Test cleanup")
             assertDisposed(secondWorker)
         }
@@ -209,7 +205,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
     @Test
     fun rive_preservesSurface_whileReplacementResourcesLoad() = runBlocking<Unit> {
         val worker = RiveWorker()
-        val poller = CommandQueuePoller(worker)
         val source = RiveFileSource.RawRes(R.raw.empty, context.resources)
         val firstFile = RiveFile.load(source, worker)
         val secondFile = RiveFile.load(source, worker)
@@ -241,7 +236,7 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
             assertTrue(initialTextureView.isAvailable)
             val initialSurfaceTexture = checkNotNull(initialTextureView.surfaceTexture)
 
-            poller.withPollingPaused {
+            listOf(worker).withMessageDeliveryPaused {
                 composeRule.runOnUiThread {
                     activeFile.value = secondFile
                 }
@@ -259,7 +254,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
             }
             firstFile.close()
             secondFile.close()
-            poller.close()
             worker.release(javaClass.simpleName, "Test cleanup")
             assertDisposed(worker)
         }
@@ -276,7 +270,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
         test: (TextureView.SurfaceTextureListener, SurfaceTexture, RiveWorker) -> Unit,
     ) = runBlocking<Unit> {
         val worker = RiveWorker()
-        val poller = CommandQueuePoller(worker)
         val file = RiveFile.load(RiveFileSource.RawRes(R.raw.empty, context.resources), worker)
         var showContent: MutableState<Boolean>? = null
 
@@ -332,7 +325,6 @@ class RiveSurfaceComposeTest : RiveAndroidTest() {
                 composeRule.waitForIdle()
             }
             file.close()
-            poller.close()
             worker.release(javaClass.simpleName, "Test cleanup")
             assertDisposed(worker)
         }

@@ -32,7 +32,7 @@ class ResourceChainingComposeTest : RiveAndroidTest() {
 
         composeRule.assertResultResetsToLoading(
             resourceName = "resource chain",
-            withNativePollingPaused = ::withRiveWorkerPollingPaused,
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
             result = { useReplacement ->
                 rememberRiveFile(sources[useReplacement.toIndex()], riveWorker).andThen { file ->
                     rememberArtboardResult(file).andThen { artboard ->

@@ -11,7 +11,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.rive.core.AudioEngine
 import app.rive.core.AudioHandle
-import app.rive.core.ComposeFrameTicker
 import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
 import app.rive.core.RiveWorker
@@ -28,14 +27,9 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
  * composable. It releases that reference when it falls out of scope. The worker fully disposes once
  * any other Rive resources that acquired it, such as files, assets, or surfaces, are also closed.
  *
- * A Rive worker needs to be polled to receive messages from the command server. This composable
- * creates a poll loop that runs while the [Lifecycle] is in the [Lifecycle.State.RESUMED] state.
- * The poll rate is once per frame, which is typically 60 FPS.
- *
  * This function throws a [RiveInitializationException] if the Rive worker cannot be created. If
  * you want to handle failure gracefully, use [rememberRiveWorkerOrNull] instead.
  *
- * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
  *    compatibility. Vulkan is available for higher performance and may become the default in a
@@ -54,24 +48,49 @@ const val RIVE_WORKER_TAG = "Rive/Worker"
 @Composable
 @Throws(RiveInitializationException::class)
 fun rememberRiveWorker(
-    autoPoll: Boolean = true,
-    tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    tracingEnabled: Boolean = false,
     precompileShaders: Boolean = false,
 ): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val riveWorker = rememberRiveWorkerOrNull(
         errorState,
-        autoPoll,
-        tracingEnabled,
-        renderBackend,
-        precompileShaders,
+        tracingEnabled = tracingEnabled,
+        renderBackend = renderBackend,
+        precompileShaders = precompileShaders,
     )
     return riveWorker ?: throw RiveInitializationException(
         "Failed to create Rive worker",
         errorState.value,
     )
 }
+
+/**
+ * Compatibility overload. Message delivery is always automatic, including when [autoPoll] is false.
+ *
+ * @param autoPoll Ignored. Remove this argument to use the replacement overload.
+ * @see rememberRiveWorker
+ */
+@Deprecated(
+    "Workers always deliver messages automatically. Use the overload without autoPoll.",
+    ReplaceWith(
+        "rememberRiveWorker(renderBackend = renderBackend, " +
+            "tracingEnabled = tracingEnabled, precompileShaders = precompileShaders)"
+    )
+)
+@Suppress("UNUSED_PARAMETER")
+@Composable
+@Throws(RiveInitializationException::class)
+fun rememberRiveWorker(
+    autoPoll: Boolean,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
+): RiveWorker = rememberRiveWorker(
+    renderBackend = renderBackend,
+    tracingEnabled = tracingEnabled,
+    precompileShaders = precompileShaders,
+)
 
 /**
  * A nullable variant of [rememberRiveWorker] that returns null if the Rive worker cannot be
@@ -82,7 +101,6 @@ fun rememberRiveWorker(
  *
  * @param errorState A mutable state that holds the error if the Rive worker creation fails. Useful
  *    if you want to display or pass the error.
- * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @param renderBackend Preferred render backend. OpenGL is used by default to preserve backward
  *    compatibility. Vulkan is available for higher performance and may become the default in a
@@ -97,17 +115,43 @@ fun rememberRiveWorker(
 @Composable
 fun rememberRiveWorkerOrNull(
     errorState: MutableState<Throwable?> = mutableStateOf(null),
-    autoPoll: Boolean = true,
-    tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    tracingEnabled: Boolean = false,
     precompileShaders: Boolean = false,
 ): RiveWorker? = rememberRiveWorkerImpl(
     errorState,
-    autoPoll,
     tracingEnabled,
     deferred = false,
     renderBackend,
     precompileShaders,
+)
+
+/**
+ * Compatibility overload. Message delivery is always automatic, including when [autoPoll] is false.
+ *
+ * @param autoPoll Ignored. Remove this argument to use the replacement overload.
+ * @see rememberRiveWorkerOrNull
+ */
+@Deprecated(
+    "Workers always deliver messages automatically. Use the overload without autoPoll.",
+    ReplaceWith(
+        "rememberRiveWorkerOrNull(errorState = errorState, renderBackend = renderBackend, " +
+            "tracingEnabled = tracingEnabled, precompileShaders = precompileShaders)"
+    )
+)
+@Suppress("UNUSED_PARAMETER")
+@Composable
+fun rememberRiveWorkerOrNull(
+    errorState: MutableState<Throwable?> = mutableStateOf(null),
+    autoPoll: Boolean,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
+): RiveWorker? = rememberRiveWorkerOrNull(
+    errorState = errorState,
+    renderBackend = renderBackend,
+    tracingEnabled = tracingEnabled,
+    precompileShaders = precompileShaders,
 )
 
 /**
@@ -118,7 +162,6 @@ fun rememberRiveWorkerOrNull(
  * performance yet. This function will be removed once every Rive worker can render GPU Canvas
  * content.
  *
- * @param autoPoll Whether to automatically poll the worker while lifecycle is RESUMED.
  * @param tracingEnabled Whether native draw/advance tracing is enabled for the worker.
  * @param renderBackend Preferred render backend, with the same fallback as [rememberRiveWorker].
  * @param precompileShaders Whether to start background warmup of common Rive draw shaders.
@@ -132,15 +175,13 @@ fun rememberRiveWorkerOrNull(
 @Composable
 @Throws(RiveInitializationException::class)
 fun rememberDeferredRiveWorker(
-    autoPoll: Boolean = true,
-    tracingEnabled: Boolean = false,
     renderBackend: RenderBackend = RenderBackend.OpenGL,
+    tracingEnabled: Boolean = false,
     precompileShaders: Boolean = false,
 ): RiveWorker {
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val riveWorker = rememberRiveWorkerImpl(
         errorState,
-        autoPoll,
         tracingEnabled,
         deferred = true,
         renderBackend,
@@ -152,10 +193,38 @@ fun rememberDeferredRiveWorker(
     )
 }
 
+/**
+ * Compatibility overload. Message delivery is always automatic, including when [autoPoll] is false.
+ *
+ * @param autoPoll Ignored. Remove this argument to use the replacement overload.
+ * @see rememberDeferredRiveWorker
+ */
+@ExperimentalDeferredRendering
+@Deprecated(
+    "Workers always deliver messages automatically. Use the overload without autoPoll.",
+    ReplaceWith(
+        "rememberDeferredRiveWorker(renderBackend = renderBackend, " +
+            "tracingEnabled = tracingEnabled, precompileShaders = precompileShaders)"
+    )
+)
+@Suppress("UNUSED_PARAMETER")
+@Composable
+@Throws(RiveInitializationException::class)
+fun rememberDeferredRiveWorker(
+    autoPoll: Boolean,
+    tracingEnabled: Boolean = false,
+    renderBackend: RenderBackend = RenderBackend.OpenGL,
+    precompileShaders: Boolean = false,
+): RiveWorker = rememberDeferredRiveWorker(
+    renderBackend = renderBackend,
+    tracingEnabled = tracingEnabled,
+    precompileShaders = precompileShaders,
+)
+
+/** Owns worker references and audio lifecycle integration for all public worker composables. */
 @Composable
 private fun rememberRiveWorkerImpl(
     errorState: MutableState<Throwable?>,
-    autoPoll: Boolean,
     tracingEnabled: Boolean,
     deferred: Boolean,
     renderBackend: RenderBackend,
@@ -185,18 +254,6 @@ private fun rememberRiveWorkerImpl(
     LaunchedEffect(worker, tracingEnabled) {
         if (worker == null) return@LaunchedEffect
         worker.setTracingEnabled(tracingEnabled)
-    }
-
-    /*
-     * Start polling the Rive worker for messages. This runs in a loop while the [Lifecycle] is in
-     * the [Lifecycle.State.RESUMED] state.
-     *
-     * Uses [ComposeFrameTicker] as the implementation for frame timing.
-     */
-    LaunchedEffect(lifecycleOwner, worker, autoPoll) {
-        if (worker == null || !autoPoll) return@LaunchedEffect
-
-        worker.beginPolling(lifecycleOwner.lifecycle, ComposeFrameTicker)
     }
 
     /*

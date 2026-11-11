@@ -157,8 +157,8 @@ internal class RiveFocusSession(
             // Cleared before handing off, whose synchronous focus loss must not see it in flight.
             traversal = null
             if (focusState == null) {
-                // Polling stops below RESUMED, so the answer may be late. Stop waiting, so the next
-                // key starts a new traversal instead of being dropped.
+                // A delayed reply must not leave traversal in flight indefinitely. Stop waiting
+                // so the next key starts a new traversal instead of being dropped.
                 return@launch
             }
             if (entering) {

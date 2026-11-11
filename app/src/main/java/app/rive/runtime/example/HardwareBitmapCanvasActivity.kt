@@ -56,7 +56,6 @@ class HardwareBitmapCanvasActivity : ComponentActivity() {
 
         val riveWorker = RiveWorker().also { worker ->
             worker.withLifecycle(this, TAG)
-            lifecycleScope.launch { worker.beginPolling(lifecycle) }
         }
 
         lifecycleScope.launch {

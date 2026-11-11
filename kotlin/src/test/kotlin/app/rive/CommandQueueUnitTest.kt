@@ -1,7 +1,9 @@
 package app.rive
 
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.os.Trace
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -16,6 +18,7 @@ import app.rive.core.ImageHandle
 import app.rive.core.RenderContext
 import app.rive.core.RiveSurface
 import app.rive.core.StateMachineHandle
+import app.rive.core.StateMachineSettlingStore
 import app.rive.core.ViewModelInstanceHandle
 import app.rive.runtime.kotlin.core.ViewModel.PropertyDataType
 import app.rive.semantics.SemanticActionType
@@ -558,7 +561,83 @@ class CommandQueueUnitTest : FunSpec({
         verify(exactly = 1) { lifecycle.removeObserver(any()) }
     }
 
-    test("beginPolling throws if called on disposed worker") {
+    test("Automatic delivery coalesces wakes and preserves wakes during a drain") {
+        asMainThread {
+            val handler = mockk<Handler>(relaxed = true)
+            val message = mockk<Message>(relaxed = true)
+            lateinit var callback: Handler.Callback
+            mockkStatic(Message::class)
+            try {
+                every { Message.obtain(handler, 0) } returns message
+                every { handler.sendMessage(message) } returns true
+                val queue = CommandQueue(
+                    renderContextMock,
+                    commandQueueBridgeMock,
+                    messageHandlerFactory = {
+                        callback = it
+                        handler
+                    }
+                )
+                repeat(100) { queue.onMessagesAvailable() }
+                verify(exactly = 1) { handler.sendMessage(message) }
+                every { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) } answers {
+                    repeat(100) { queue.onMessagesAvailable() }
+                }
+                callback.handleMessage(message)
+                verify(exactly = 2) { handler.sendMessage(message) }
+                every { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) } just runs
+                callback.handleMessage(message)
+                verify(exactly = 2) { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) }
+                queue.release(TEST_FINAL_RELEASE_SOURCE)
+                queue.awaitShutdown(1_000) shouldBe true
+            } finally {
+                unmockkStatic(Message::class)
+            }
+        }
+    }
+
+    test("Final release removes pending delivery and rejects late notifications") {
+        asMainThread {
+            val handler = mockk<Handler>(relaxed = true)
+            val message = mockk<Message>(relaxed = true)
+            val settlingStore = mockk<StateMachineSettlingStore>(relaxed = true)
+            lateinit var callback: Handler.Callback
+            mockkStatic(Message::class)
+            try {
+                every { Message.obtain(handler, 0) } returns message
+                every { handler.sendMessage(message) } returns true
+                val queue = CommandQueue(
+                    renderContextMock,
+                    commandQueueBridgeMock,
+                    settlingStore = settlingStore,
+                    messageHandlerFactory = {
+                        callback = it
+                        handler
+                    }
+                )
+                every { settlingStore.clear() } answers {
+                    // Disposal has canceled delivery and released its lock, but has not returned.
+                    verify(exactly = 1) { handler.removeCallbacksAndMessages(null) }
+                    queue.refCount shouldBe 0
+                    queue.isDisposed shouldBe false
+                    queue.onMessagesAvailable()
+                    verify(exactly = 1) { handler.sendMessage(message) }
+                }
+                queue.onMessagesAvailable()
+                queue.release(TEST_FINAL_RELEASE_SOURCE)
+                queue.awaitShutdown(1_000) shouldBe true
+                queue.onMessagesAvailable()
+                callback.handleMessage(message)
+                verify(exactly = 1) { handler.sendMessage(message) }
+                verify(exactly = 1) { handler.removeCallbacksAndMessages(null) }
+                verify(exactly = 0) { commandQueueBridgeMock.cppPollMessages(any()) }
+            } finally {
+                unmockkStatic(Message::class)
+            }
+        }
+    }
+
+    test("beginPolling is a no-op even on a disposed worker") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val lifecycle = mockk<Lifecycle>()
         val ticker = FrameTicker { error("Polling should not request a frame after disposal") }
@@ -566,9 +645,7 @@ class CommandQueueUnitTest : FunSpec({
         commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
         commandQueue.awaitShutdown(1000) shouldBe true
 
-        shouldThrow<RiveResourceClosedException> {
-            commandQueue.beginPolling(lifecycle, ticker)
-        }.message shouldContain "disposed"
+        commandQueue.beginPolling(lifecycle, ticker)
         verify(exactly = 0) { commandQueueBridgeMock.cppPollMessages(any()) }
     }
 
@@ -614,6 +691,25 @@ class CommandQueueUnitTest : FunSpec({
 
             disposedDuringPoll.get() shouldBe false
             commandQueue.isDisposed shouldBe true
+            commandQueue.awaitShutdown(1_000) shouldBe true
+            verify(exactly = 1) { commandQueueBridgeMock.cppDelete(COMMAND_QUEUE_ADDR) }
+        }
+    }
+
+    test("Drain propagates callback failure and releases its reference after final owner release") {
+        asMainThread {
+            val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+            val callbackFailure = RiveResourceClosedException("Callback resource is closed")
+            every { commandQueueBridgeMock.cppPollMessages(COMMAND_QUEUE_ADDR) } answers {
+                commandQueue.release(TEST_FINAL_RELEASE_SOURCE)
+                throw callbackFailure
+            }
+
+            shouldThrow<RiveResourceClosedException> {
+                commandQueue.pollMessages()
+            } shouldBe callbackFailure
+
+            commandQueue.refCount shouldBe 0
             commandQueue.awaitShutdown(1_000) shouldBe true
             verify(exactly = 1) { commandQueueBridgeMock.cppDelete(COMMAND_QUEUE_ADDR) }
         }

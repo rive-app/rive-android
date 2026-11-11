@@ -38,9 +38,6 @@ class RiveSnapshotActivity : ComponentActivity() {
 
         val riveWorker = RiveWorker().also {
             it.withLifecycle(this, TAG)
-            lifecycleScope.launch {
-                it.beginPolling(lifecycle)
-            }
         }
 
         lifecycleScope.launch {

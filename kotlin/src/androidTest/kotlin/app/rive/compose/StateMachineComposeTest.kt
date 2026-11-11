@@ -33,7 +33,7 @@ class StateMachineComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "StateMachine",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberStateMachineResult(owners[useReplacement.toIndex()].artboard)
                 },
@@ -66,7 +66,7 @@ class StateMachineComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "StateMachine",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberStateMachineResult(artboard, names[useReplacement.toIndex()])
                 },

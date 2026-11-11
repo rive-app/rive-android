@@ -8,7 +8,6 @@ import app.rive.core.RenderContextGL
 import app.rive.core.RenderContextVulkan
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.withPolling
 import app.rive.core.withRiveResources
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
@@ -116,7 +115,7 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
         try {
             val owningRes = loadRiveResources(R.raw.empty)
             val siblingRes = loadRiveResources(R.raw.empty)
-            foreignWorker.withPolling {
+            foreignWorker.run {
                 foreignWorker.withRiveResources(R.raw.empty) {
                     SoftwareRenderBuffer(64, 64, riveWorker).use { buffer ->
                         val destination = Bitmap.createBitmap(
@@ -180,7 +179,7 @@ class SoftwareRenderBufferTest : RiveAndroidTest() {
             return
         }
         try {
-            worker.withPolling {
+            worker.run {
                 runBlocking {
                     worker.withRiveResources(
                         R.raw.multipleartboards,

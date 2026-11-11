@@ -6,8 +6,6 @@
 #include <jni.h>
 #include <memory>
 #include <string>
-#include <sys/eventfd.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -1073,27 +1071,18 @@ public:
   CommandQueueWithThread() : rive::CommandQueue() {}
 
   /**
-   * Readable once messages arrive after requestWake(), for the main looper.
-   * -1 once the server thread has exited.
+   * Installs the managed notification receiver on the worker itself. Queuing
+   * installation also wakes the worker to deliver messages produced before
+   * Kotlin initialization finished.
+   *
+   * @param receiver Fully initialized Kotlin command queue.
    */
-  int wakeFd() const { return m_wakeFd; }
-
-  /**
-   * Signals wakeFd() when the server next posts messages, so a reply reaches
-   * the main thread without waiting for its next frame.
-   */
-  void requestWake()
+  void startMessageDelivery(std::shared_ptr<JCommandQueue> receiver)
   {
-    m_wakeRequested = true;
-    // The server may have posted the reply before the flag was set.
-    wakeIfRequested();
+    runOnce([this, receiver = std::move(receiver)](rive::CommandServer*) {
+      m_messageReceiver = receiver;
+    });
   }
-
-  /**
-   * ~CommandQueue is not virtual, so the fd is closed here and on failed
-   * startup. Kotlin polls through its own duplicate.
-   */
-  void closeWakeFd() { close(m_wakeFd.exchange(-1)); }
 
   /**
    * Starts the command server thread.
@@ -1215,7 +1204,14 @@ public:
         RiveLogD(TAG_CQ, "Beginning command server processing loop");
         while (commandServer.waitCommands())
         {
-          self->wakeIfRequested();
+          if (self->m_messageReceiver && self->hasMessages())
+          {
+            self->m_messageReceiver->call("onMessagesAvailable", "()V");
+            JNIExceptionHandler::ClearAndLogErrors(
+                env,
+                TAG_CQ,
+                "Failed to schedule command queue messages:");
+          }
         }
 
         RiveLogD(TAG_CQ, "Command server disconnected, cleaning up");
@@ -1258,7 +1254,10 @@ public:
     {
       m_commandServerThread.join();
     }
-    closeWakeFd();
+    // The base destructor is not virtual. Release JNI references explicitly
+    // after the worker stops using them, while this shutdown thread is still
+    // attached to the JVM.
+    m_messageReceiver.reset();
   }
 
   void setTracingEnabled(bool enabled) { m_tracingEnabled = enabled; }
@@ -1349,19 +1348,10 @@ public:
   }
 
 private:
-  void wakeIfRequested()
-  {
-    if (m_wakeRequested && hasMessages() && m_wakeRequested.exchange(false))
-    {
-      uint64_t one = 1;
-      write(m_wakeFd, &one, sizeof(one));
-    }
-  }
-
   std::thread m_commandServerThread;
   std::thread::id m_commandServerThreadId;
-  std::atomic<int> m_wakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-  std::atomic<bool> m_wakeRequested = false;
+  // Installed and read on the worker, then cleared by shutdown only after join.
+  std::shared_ptr<JCommandQueue> m_messageReceiver;
   // CommandQueue JNI calls are currently required to run on the main
   // thread, so this remains a plain bool. If it changes to accept commands
   // from other threads, this should become atomic.
@@ -1787,7 +1777,6 @@ extern "C"
     auto result = resultFuture.get();
     if (!result.success)
     {
-      commandQueue->closeWakeFd();
       // Surface error to Java
       auto jRiveInitializationExceptionClass = FindClass(
           env,
@@ -1915,21 +1904,15 @@ extern "C"
     commandQueue->processMessages();
   }
 
-  JNIEXPORT jint JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppWakeFd(
-      JNIEnv*,
-      jobject,
-      jlong ref)
-  {
-    return reinterpret_cast<CommandQueueWithThread*>(ref)->wakeFd();
-  }
-
   JNIEXPORT void JNICALL
-  Java_app_rive_core_CommandQueueJNIBridge_cppRequestWake(
-      JNIEnv*,
+  Java_app_rive_core_CommandQueueJNIBridge_cppStartMessageDelivery(
+      JNIEnv* env,
       jobject,
-      jlong ref)
+      jlong ref,
+      jobject receiver)
   {
-    reinterpret_cast<CommandQueueWithThread*>(ref)->requestWake();
+    reinterpret_cast<CommandQueueWithThread*>(ref)->startMessageDelivery(
+        std::make_shared<JCommandQueue>(env, receiver));
   }
 
   JNIEXPORT void JNICALL

@@ -102,15 +102,12 @@ annotation class ExperimentalHardwareBitmapRendering
  * must outlive this session. The session verifies that the supplied resources are open and have
  * compatible ownership and ancestry, but cannot otherwise verify their native initialization.
  *
- * The supplied [riveWorker] must be polled for messages. This is done separately from this session
- * using [RiveWorker.beginPolling][CommandQueue.beginPolling], so that the caller can manage the
- * worker lifecycle and share it across multiple sessions.
+ * The caller manages the supplied [riveWorker]'s lifetime and can share it across multiple sessions.
  *
  * @param context Android context used to observe platform accessibility state when [semantics] is
  *    [RiveSemanticsMode.Automatic]. The session retains only the application context. Requiring it
  *    explicitly keeps automatic behavior synchronized without relying on process-global state.
- * @param riveWorker The Rive worker that holds the resources to render. See the note above
- *    regarding polling.
+ * @param riveWorker The Rive worker that holds the resources to render.
  * @param artboard The artboard to render. Must be from the supplied [riveWorker].
  * @param stateMachine The state machine to advance and render. Must be from the supplied
  *    [artboard] and should not be used by another active rendering session.

@@ -14,8 +14,9 @@ interface CommandQueueBridge {
     fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
 
     fun cppPollMessages(pointer: Long)
-    fun cppWakeFd(pointer: Long): Int
-    fun cppRequestWake(pointer: Long)
+
+    /** Enables worker-owned notification after the receiver is fully initialized. */
+    fun cppStartMessageDelivery(pointer: Long, receiver: CommandQueue)
     fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
     fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
 
@@ -539,8 +540,7 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
 
     external override fun cppPollMessages(pointer: Long)
-    external override fun cppWakeFd(pointer: Long): Int
-    external override fun cppRequestWake(pointer: Long)
+    external override fun cppStartMessageDelivery(pointer: Long, receiver: CommandQueue)
     external override fun cppSetTracingEnabled(pointer: Long, enabled: Boolean)
     external override fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
     external override fun isCurrentThreadCommandServer(pointer: Long): Boolean

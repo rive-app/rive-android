@@ -9,132 +9,22 @@ import app.rive.RiveFileException
 import app.rive.RiveFileSource
 import app.rive.RiveResourceClosedException
 import app.rive.StateMachine
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.thread
-import kotlin.concurrent.withLock
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Continuously dispatches polling for one or more [CommandQueue] instances to the Android main
- * thread until closed.
+ * Defers automatic delivery while tests inspect intermediate UI state.
  *
- * @param commandQueues The command queues whose callbacks should be delivered.
+ * @param block Work to perform before queued replies may be delivered.
  */
-internal class CommandQueuePoller(private val commandQueues: List<CommandQueue>) : AutoCloseable {
-    /**
-     * Creates a poller for a single command queue.
-     *
-     * @param commandQueue The command queue whose callbacks should be delivered.
-     */
-    constructor(commandQueue: CommandQueue) : this(listOf(commandQueue))
-
-    private val pollingStateLock = ReentrantLock()
-    private val pollingStateChanged = pollingStateLock.newCondition()
-    private var isRunning = true
-    private var pauseDepth = 0
-    private var isPollInProgress = false
-    private val instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val pollThread = thread(name = "RiveTestPoll") {
-        while (beginPoll()) {
-            try {
-                instrumentation.runOnMainSync {
-                    commandQueues.forEach(CommandQueue::pollMessages)
-                }
-            } finally {
-                finishPoll()
-            }
-            Thread.sleep(1)
-        }
-    }
-
-    /**
-     * Pauses polling and waits for any poll already in progress to finish.
-     *
-     * Polling resumes in `finally` after [block] finishes. Pause scopes may be nested.
-     *
-     * @param block The operation to run without native message polling.
-     * @return The value produced by [block].
-     * @throws IllegalStateException If this poller has already been closed.
-     */
-    internal fun <T> withPollingPaused(block: () -> T): T {
-        pausePolling()
-        return try {
-            block()
-        } finally {
-            resumePolling()
-        }
-    }
-
-    /** Stops polling and waits for the background thread to finish. */
-    override fun close() {
-        pollingStateLock.withLock {
-            isRunning = false
-            pollingStateChanged.signalAll()
-        }
-        pollThread.join(2_000)
-    }
-
-    /** Waits until polling is allowed and reserves the next poll operation. */
-    private fun beginPoll(): Boolean = pollingStateLock.withLock {
-        while (isRunning && pauseDepth > 0) {
-            pollingStateChanged.await()
-        }
-        if (!isRunning) {
-            return false
-        }
-        isPollInProgress = true
-        true
-    }
-
-    /** Marks the current poll operation complete and wakes a thread waiting to pause. */
-    private fun finishPoll() {
-        pollingStateLock.withLock {
-            isPollInProgress = false
-            pollingStateChanged.signalAll()
-        }
-    }
-
-    /** Pauses polling after any poll already in progress finishes. */
-    private fun pausePolling() {
-        pollingStateLock.withLock {
-            check(isRunning) { "Cannot pause a closed command queue poller" }
-            pauseDepth++
-            while (isPollInProgress) {
-                pollingStateChanged.await()
-            }
-        }
-    }
-
-    /** Resumes one nested polling pause. */
-    private fun resumePolling() {
-        pollingStateLock.withLock {
-            check(pauseDepth > 0) { "Command queue polling is not paused" }
-            pauseDepth--
-            if (pauseDepth == 0) {
-                pollingStateChanged.signalAll()
-            }
-        }
-    }
-}
-
-/**
- * Runs [block] while a temporary background coordinator continuously dispatches command queue
- * polling to the Android main thread.
- *
- * Android instrumentation tests that enqueue command server work need polling even when the code
- * under test is not running inside the normal lifecycle-driven polling loop. Each poll runs on main
- * to preserve [CommandQueue] callback confinement. Polling is stopped in `finally` so failures
- * inside [block] do not leak the helper thread.
- */
-internal inline fun <T> CommandQueue.withPolling(block: CommandQueue.() -> T): T {
-    val poller = CommandQueuePoller(this)
-
+internal fun <T> List<CommandQueue>.withMessageDeliveryPaused(block: () -> T): T {
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    instrumentation.runOnMainSync { forEach { it.setMessageDeliveryPaused(true) } }
     return try {
         block()
     } finally {
-        poller.close()
+        instrumentation.runOnMainSync { forEach { it.setMessageDeliveryPaused(false) } }
     }
 }
 
@@ -256,15 +146,14 @@ internal suspend inline fun <T> RiveWorker.withDefaultRiveResources(
 
 /** Verifies that final release started and completed command queue teardown. */
 internal fun assertDisposed(commandQueue: CommandQueue) {
-    assertTrue(
-        commandQueue.isDisposed,
-        "CommandQueue was not disposed after final release"
-    )
-    assertEquals(0, commandQueue.refCount)
+    // A reply can resume the test before Main releases the drain's temporary worker reference.
+    // Wait for teardown before asserting the terminal state, rather than racing that reference.
     assertTrue(
         commandQueue.awaitShutdown(2_000),
         "CommandQueue native shutdown did not complete after final release"
     )
+    assertTrue(commandQueue.isDisposed, "CommandQueue was not disposed after final release")
+    assertEquals(0, commandQueue.refCount)
 }
 
 /**

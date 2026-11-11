@@ -38,7 +38,7 @@ class ViewModelInstanceComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "ViewModelInstance",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberViewModelInstanceResult(
                         files[useReplacement.toIndex()],
@@ -69,7 +69,7 @@ class ViewModelInstanceComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "ViewModelInstance",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberViewModelInstanceResult(
                         file,
@@ -100,7 +100,7 @@ class ViewModelInstanceComposeTest : RiveAndroidTest() {
         try {
             composeRule.assertResultResetsToLoading(
                 resourceName = "implicit ViewModelInstance chain",
-                withNativePollingPaused = ::withRiveWorkerPollingPaused,
+                withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
                 result = { useReplacement ->
                     rememberViewModelInstanceResult(files[useReplacement.toIndex()])
                 },

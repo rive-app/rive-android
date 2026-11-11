@@ -126,13 +126,13 @@ internal fun ComposeContentTestRule.awaitWithComposeClock(
 /**
  * Verifies a remembered resource synchronously resets to loading when its creation key changes.
  *
- * Native polling is deliberately paused between changing the key and inspecting [Result]. This
+ * Native message delivery is deliberately paused between changing the key and inspecting [Result]. This
  * distinguishes the committed Compose state from a fast replacement that might otherwise finish
- * before the loading transition can be observed. Polling resumes before awaiting the replacement.
+ * before the loading transition can be observed. Delivery resumes before awaiting the replacement.
  *
  * @param resourceName The resource label used in timeout diagnostics.
- * @param withNativePollingPaused Runs an operation while every worker that may confirm replacement
- *    creation is paused, then resumes polling.
+ * @param withNativeDeliveryPaused Runs an operation while every worker that may confirm replacement
+ *    creation is paused, then resumes delivery.
  * @param result Produces the resource result for the initial or replacement key.
  * @param assertClosed Verifies that the resource from the initial success has been closed.
  * @throws AssertionError If either creation does not succeed, the transition does not report
@@ -140,7 +140,7 @@ internal fun ComposeContentTestRule.awaitWithComposeClock(
  */
 internal fun <T> ComposeContentTestRule.assertResultResetsToLoading(
     resourceName: String,
-    withNativePollingPaused: (block: () -> Unit) -> Unit,
+    withNativeDeliveryPaused: (block: () -> Unit) -> Unit,
     result: @Composable (useReplacement: Boolean) -> Result<T>,
     assertClosed: (T) -> Unit,
 ) {
@@ -165,7 +165,7 @@ internal fun <T> ComposeContentTestRule.assertResultResetsToLoading(
         }
         val initialResource = assertIs<Result.Success<T>>(observedResult.get()).value
 
-        withNativePollingPaused {
+        withNativeDeliveryPaused {
             // Keep the replacement pending while inspecting the committed result and disposal of
             // the preceding generation.
             runOnUiThread {
