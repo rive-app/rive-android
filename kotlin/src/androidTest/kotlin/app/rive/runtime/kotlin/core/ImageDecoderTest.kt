@@ -8,7 +8,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rive.RiveImageException
 import app.rive.core.RiveWorker
 import app.rive.core.assertDisposed
-import app.rive.core.withPolling
 import app.rive.runtime.kotlin.test.R
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -119,7 +118,7 @@ class ImageDecoderTest {
         val encoded = paddedPng(heap / 8)
         val worker = RiveWorker()
         try {
-            worker.withPolling {
+            worker.run {
                 runBlocking {
                     withHeapNearlyFull(free = heap / 32) {
                         assertFailsWith<RiveImageException> { worker.decodeImage(encoded) }
