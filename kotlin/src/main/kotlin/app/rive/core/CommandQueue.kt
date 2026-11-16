@@ -4052,6 +4052,9 @@ class CommandQueue internal constructor(
     /**
      * Draw the artboard with the given state machine.
      *
+     * Unchanged draws are skipped when this surface already presents the same artboard revision
+     * and presentation parameters. This does not advance or settle the state machine.
+     *
      * @param artboardHandle The handle of the artboard to draw.
      * @param stateMachineHandle The handle of the state machine to use for drawing.
      * @param surface The surface to draw to.

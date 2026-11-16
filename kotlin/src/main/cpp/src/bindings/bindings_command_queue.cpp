@@ -1623,6 +1623,39 @@ static void executeDrawWork(
   constexpr bool useDeferredRenderer = false;
 #endif
 
+  const RenderSurface::DrawState drawState{
+      static_cast<uint64_t>(longFromHandle(artboardHandle)),
+      artboard->changeSerial(),
+      fit,
+      alignment,
+      scaleFactor,
+      clearColor,
+  };
+  bool backendWorkPending = false;
+#if defined(RIVE_CANVAS) && defined(RIVE_ORE)
+  if (useDeferredRenderer)
+  {
+    auto* session = commandQueue->ensureDeferredSession(riveContext);
+    // Destructions queued since the last resetFrame are not recorded yet.
+    // Drain both queues so cleanup cannot remain stranded behind a draw skip.
+    session->commandBuffer().drainDestroys();
+    session->oreContext().drainPendingDestroys();
+    // Query before beginRecord adds work of its own to the session.
+    backendWorkPending = session->recordedThisFrame();
+  }
+#endif
+  // Draw skip optimization: retain the last presented frame when the artboard
+  // and surface parameters are unchanged and the backend has no pending work.
+  if (!artboard->didChange() && !backendWorkPending &&
+      nativeSurface->hasPresented(drawState))
+  {
+    return;
+  }
+
+  // Drawing consumes didChange even if flush/present fails. Keep retries
+  // eligible until this surface successfully presents the new contents.
+  nativeSurface->invalidateDraw();
+
   rive::gpu::RenderTarget* concreteRenderTarget = nullptr;
   {
     [[maybe_unused]] TraceScope<TracerType> beginTrace(
@@ -1704,7 +1737,10 @@ static void executeDrawWork(
           [[maybe_unused]] TraceScope<TracerType> presentTrace(
               *tracer,
               "Rive/Frame/Draw/Present");
-          renderContext->present(nativeSurface);
+          if (renderContext->present(nativeSurface))
+          {
+            nativeSurface->savePresentedDraw(drawState);
+          }
         });
     return;
   }
@@ -1746,6 +1782,7 @@ static void executeDrawWork(
     {
       return;
     }
+    nativeSurface->savePresentedDraw(drawState);
   }
 }
 
@@ -3779,6 +3816,8 @@ extern "C"
       auto factory = serverImmediateFactory(server);
       auto riveContext = factory->getRenderContext()->riveContext.get();
 
+      // Snapshot rendering can overwrite a surface used by ordinary draws.
+      nativeSurface->invalidateDraw();
       auto* concreteRenderTarget = renderContext->beginFrame(nativeSurface);
       if (concreteRenderTarget == nullptr ||
           concreteRenderTarget->width() == 0 ||

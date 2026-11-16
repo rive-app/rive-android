@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
+#include "rive/layout.hpp"
 #include "rive/renderer/render_target.hpp"
 
 namespace rive_android
@@ -20,6 +22,45 @@ class RenderContext;
 class RenderSurface
 {
 public:
+  /**
+   * Parameters and artboard revision compared against the last successful
+   * presentation to determine whether this surface can skip an unchanged draw.
+   */
+  struct DrawState
+  {
+    uint64_t artboardHandle;
+    // Artboard::didChange() is consumed by any draw. The serial lets each
+    // surface observe changes even after another surface draws this artboard.
+    uint32_t changeSerial;
+    rive::Fit fit;
+    rive::Alignment alignment;
+    float scaleFactor;
+    uint32_t clearColor;
+
+    /** @return Whether both draws would produce the same surface contents. */
+    bool operator==(const DrawState& other) const;
+  };
+
+  /**
+   * Tests the last successful presentation on the command server thread.
+   * Size and target changes invalidate the saved state through resize/reset.
+   *
+   * @param state Parameters and revision about to be drawn.
+   * @return Whether this surface already presents that draw.
+   */
+  bool hasPresented(const DrawState& state) const;
+
+  /**
+   * Saves the comparison state used to skip subsequent unchanged draws.
+   * Call only after successful presentation on the worker thread.
+   *
+   * @param state Parameters and revision captured before drawing.
+   */
+  void savePresentedDraw(const DrawState& state);
+
+  /** Forces the next draw, including retries after a failed presentation. */
+  void invalidateDraw();
+
   RenderSurface(uint32_t requestedWidth, uint32_t requestedHeight);
   virtual ~RenderSurface() = default;
 
@@ -66,6 +107,8 @@ private:
     void operator()(rive::gpu::RenderTarget* renderTarget) const;
   };
 
+  // Worker-thread only. Never retains an artboard or its borrowed pointer.
+  std::optional<DrawState> m_lastPresentedDraw;
   uint32_t m_requestedWidth;
   uint32_t m_requestedHeight;
   std::unique_ptr<rive::gpu::RenderTarget, RenderTargetUnref> m_renderTarget;

@@ -244,7 +244,8 @@ class HardwareRenderBuffer private constructor(
     /**
      * Enqueues rendering into this hardware surface and returns without waiting for the frame.
      *
-     * Collect [frameAvailable] to know when [consumeLatestBitmap] has a new frame.
+     * Collect [frameAvailable] to know when [consumeLatestBitmap] has a new frame. An unchanged
+     * draw is skipped and does not emit a new frame. The previously published bitmap remains valid.
      *
      * @throws RiveResourceClosedException If this buffer, its surface, [artboard], or
      *    [stateMachine] has been closed, or if the owning Rive worker has been disposed.

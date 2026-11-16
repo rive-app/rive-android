@@ -387,17 +387,24 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    /** Touch wakes and advances the session even when the artboard stays visually unchanged. */
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
-    fun onTouchEvent_afterSettled_emitsFrame() = runBlocking {
+    fun onTouchEvent_afterSettled_advancesAgain() = runBlocking {
         withPlayingSession {
             resume()
             awaitFrameCountGreaterThan(0)
-            val settledFrameCount = awaitFrameCountSettled()
+            awaitStateMachineSettled()
 
-            touchDownUp(24f, 24f)
-
-            awaitFrameCountGreaterThan(settledFrameCount)
+            val releaseWorker = holdWorker()
+            try {
+                touchDownUp(24f, 24f)
+                assertStateMachineUnsettled()
+            } finally {
+                releaseWorker.countDown()
+            }
+            // Settling again requires playback to have advanced the awakened state machine.
+            awaitStateMachineSettled()
         }
     }
 
@@ -525,10 +532,10 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
-    /** Verifies a semantic action wakes a settled session for another advance and render. */
+    /** Verifies a semantic action wakes and advances a session without requiring visual changes. */
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
-    fun semanticAction_afterSettledEmitsFrame() = runBlocking {
+    fun semanticAction_afterSettledAdvancesAgain() = runBlocking<Unit> {
         val resources = loadDefaultRiveResources(R.raw.tabtest)
         val viewModelInstance = ViewModelInstance.create(
             resources.file,
@@ -539,7 +546,6 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                 lateinit var lifecycleOwner: TestLifecycleOwner
                 lateinit var session: RiveCanvasSession
                 lateinit var tree: SemanticTreeModel
-                val frameCount = AtomicInteger(0)
                 withContext(Dispatchers.Main.immediate) {
                     lifecycleOwner = TestLifecycleOwner()
                     session = RiveCanvasSession(
@@ -553,9 +559,6 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         created.setRegion(INITIAL_SEMANTICS_REGION)
                     }
                     tree = resources.stateMachine.semanticTree
-                }
-                val frameCollector = launch {
-                    session.frameAvailable.collect { frameCount.incrementAndGet() }
                 }
                 val playJob = launch(Dispatchers.Main.immediate) {
                     session.beginPlaying(lifecycleOwner.lifecycle)
@@ -572,27 +575,29 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                     withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
                         resources.stateMachine.settled.first { settled -> settled }
                     }
-                    val settledFrameCount = frameCount.awaitSettledFrameCount()
                     val semanticNodeId = withContext(Dispatchers.Main.immediate) {
                         tree.nodeIdForLabel(SEMANTIC_NODE_LABEL)
                     }
 
-                    withContext(Dispatchers.Main.immediate) {
-                        resources.stateMachine.fireSemanticAction(
-                            semanticNodeId,
-                            SemanticActionType.Tap,
-                        )
-                    }
-
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
-                        while (frameCount.get() <= settledFrameCount) {
-                            delay(16)
+                    val releaseWorker = holdWorker()
+                    try {
+                        withContext(Dispatchers.Main.immediate) {
+                            resources.stateMachine.fireSemanticAction(
+                                semanticNodeId,
+                                SemanticActionType.Tap,
+                            )
+                            assertFalse(resources.stateMachine.settled.value)
                         }
+                    } finally {
+                        releaseWorker.countDown()
+                    }
+                    // The action need not change pixels, but playback must evaluate it.
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                        resources.stateMachine.settled.first { settled -> settled }
                     }
                 } finally {
                     withContext(Dispatchers.Main.immediate) { session.close() }
                     playJob.cancelAndJoin()
-                    frameCollector.cancelAndJoin()
                 }
             }
         } finally {
@@ -791,12 +796,18 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         withPlayingSession {
             resume()
             awaitFrameCountGreaterThan(0)
-            val settledFrameCount = awaitFrameCountSettled()
+            awaitStateMachineSettled()
 
-            restartPlaying()
-            emitStaleSettledCallback()
-
-            awaitFrameCountGreaterThan(settledFrameCount)
+            val releaseWorker = holdWorker()
+            try {
+                restartPlaying()
+                assertStateMachineUnsettled()
+                emitStaleSettledCallback()
+                assertStateMachineUnsettled()
+            } finally {
+                releaseWorker.countDown()
+            }
+            awaitStateMachineSettled()
         }
     }
 
@@ -1103,6 +1114,20 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
             return lastCount
         }
 
+        /** Waits for an actual settled callback, independent of whether drawing changed pixels. */
+        suspend fun awaitStateMachineSettled() {
+            withTimeout(5_000L) {
+                riveWorker.stateMachineSettled(stateMachineHandle).first { it }
+            }
+        }
+
+        /** Asserts wakeup while the caller holds the worker to prevent it from settling again. */
+        suspend fun assertStateMachineUnsettled() {
+            withContext(Dispatchers.Main.immediate) {
+                assertFalse(riveWorker.stateMachineSettled(stateMachineHandle).value)
+            }
+        }
+
         /** Moves the test lifecycle to RESUMED so [RiveCanvasSession.beginPlaying] can render. */
         suspend fun resume() {
             withContext(Dispatchers.Main.immediate) {
@@ -1259,30 +1284,4 @@ private fun SemanticTreeModel.nodeIdForLabel(label: String): Int {
 private fun SemanticTreeModel.isNodeFocused(nodeId: Int): Boolean {
     val node = requireNotNull(nodeById(nodeId)) { "Semantic node '$nodeId' was not published" }
     return SemanticState.has(node.stateFlags, SemanticState.Focused)
-}
-
-/**
- * Waits for frame publication to remain unchanged, then returns the stable count.
- *
- * @param quietMs Duration without a new frame required to consider publication settled.
- * @param timeoutMs Maximum total wait duration.
- * @return Stable frame count after the quiet interval.
- */
-private suspend fun AtomicInteger.awaitSettledFrameCount(
-    quietMs: Long = 250L,
-    timeoutMs: Long = 5_000L,
-): Int {
-    var lastCount = get()
-    var lastChangedAt = SystemClock.uptimeMillis()
-    withTimeout(timeoutMs) {
-        while (SystemClock.uptimeMillis() - lastChangedAt < quietMs) {
-            delay(16)
-            val count = get()
-            if (count != lastCount) {
-                lastCount = count
-                lastChangedAt = SystemClock.uptimeMillis()
-            }
-        }
-    }
-    return lastCount
 }

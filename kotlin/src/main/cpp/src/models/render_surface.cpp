@@ -55,7 +55,32 @@ void RenderSurface::resize(uint32_t requestedWidth, uint32_t requestedHeight)
   resetRenderTarget();
 }
 
-void RenderSurface::resetRenderTarget() { m_renderTarget.reset(); }
+void RenderSurface::resetRenderTarget()
+{
+  invalidateDraw();
+  m_renderTarget.reset();
+}
+
+bool RenderSurface::DrawState::operator==(const DrawState& other) const
+{
+  return artboardHandle == other.artboardHandle &&
+         changeSerial == other.changeSerial && fit == other.fit &&
+         alignment.x() == other.alignment.x() &&
+         alignment.y() == other.alignment.y() &&
+         scaleFactor == other.scaleFactor && clearColor == other.clearColor;
+}
+
+bool RenderSurface::hasPresented(const DrawState& state) const
+{
+  return m_lastPresentedDraw.has_value() && *m_lastPresentedDraw == state;
+}
+
+void RenderSurface::savePresentedDraw(const DrawState& state)
+{
+  m_lastPresentedDraw = state;
+}
+
+void RenderSurface::invalidateDraw() { m_lastPresentedDraw.reset(); }
 
 void RenderSurface::RenderTargetUnref::operator()(
     rive::gpu::RenderTarget* renderTarget) const

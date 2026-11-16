@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -585,7 +586,10 @@ class RiveCanvasSession private constructor(
                     renderBufferState
                         .collectLatest { activeBuffer ->
                             activeBuffer ?: return@collectLatest
-                            activeBuffer.frameAvailable.collect {
+                            // A frame may have arrived while playback was stopped. Subscribe
+                            // before reading it so publication cannot race past the collector.
+                            // An unchanged draw will not publish a replacement frame.
+                            activeBuffer.frameAvailable.onSubscription { emit(Unit) }.collect {
                                 traceSection("$TAG/PublishLatestBitmap") {
                                     /* Hardware publication is async, so consume the latest buffer
                                      * snapshot when signaled rather than assuming render->read
