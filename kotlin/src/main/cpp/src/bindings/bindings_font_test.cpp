@@ -176,6 +176,7 @@ static rive::rcp<rive::Font> RequestFallback(
   request.missing = missing;
   request.fallbackIndex = fallbackIndex;
   request.font = font;
+  request.startingWeight = font->getWeight();
   request.languages = languages;
   return rive::Font::gFallbackRequestProc(request);
 }

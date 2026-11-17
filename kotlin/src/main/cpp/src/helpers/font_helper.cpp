@@ -645,10 +645,9 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  *
  * Fallback Strategy:
  *
- * 1.  **Weight-Matched Selection:** Uses the weight from `request.font`
- * (captured on the first attempt where `fallbackIndex == 0`) and the request's
- * languages to retrieve an ordered list of potential fallback fonts via
- * `PickFonts()`. This internal helper interacts with the Kotlin
+ * 1.  **Weight-Matched Selection:** Uses the original run's weight and the
+ * request's languages to retrieve an ordered list of potential fallback fonts
+ * via `PickFonts()`. This internal helper interacts with the Kotlin
  * `FontFallbackStrategy.getFont(weight, languages)` API and will cache decoded
  * fonts (`HBFont`). If `fallbackIndex` is within the bounds of the retrieved
  * list, the font at that index is returned directly. The caller (i.e. the
@@ -669,10 +668,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  * own forms of shared Han characters.
  *
  * Thread Safety: Access to shared fallback resources and internal state is
- * protected by a mutex (`s_fallbackFontsMutex`). State Preservation: The
- * `desiredWeight` for steps 1 and 3 is stored statically and updated only when
- * `fallbackIndex` is 0 to ensure consistency across multiple fallback
- * attempts for the same missing glyph sequence.
+ * protected by a mutex (`s_fallbackFontsMutex`).
  *
  * @param request The character, attempt number, font that failed to shape
  * it, and the languages of its text, most preferred first.
@@ -684,14 +680,6 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
 {
   // Let's lock this down for thread-safety.
   std::lock_guard<std::mutex> lock(s_fallbackFontsMutex);
-
-  // Keep a global variable here so we look for a valid match against the
-  // original font weight.
-  static uint16_t desiredWeight = 400;
-  if (request.fallbackIndex == 0)
-  {
-    desiredWeight = request.font->getWeight();
-  }
 
   // The most preferred language orders the system chain and keys both
   // caches in one byte. The rest of a request's list is the system
@@ -709,7 +697,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
   }
 
   const std::vector<rive::rcp<rive::Font>>& pickedFonts = PickFonts(
-      desiredWeight,
+      request.startingWeight,
       language,
       request.languages);
   if (request.fallbackIndex < pickedFonts.size())
@@ -726,7 +714,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
     }
   }
 
-  return FindSystemFallback(request.missing, desiredWeight, language);
+  return FindSystemFallback(request.missing, request.startingWeight, language);
 }
 
 /* static */ rive::rcp<rive::Font> FontHelper::FindFontFallback(
@@ -738,6 +726,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
   request.missing = missing;
   request.fallbackIndex = fallbackIndex;
   request.font = riveFont;
+  request.startingWeight = riveFont->getWeight();
   return FindFontFallback(request);
 }
 
