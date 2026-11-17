@@ -220,7 +220,7 @@ class RiveFocusSessionUnitTest : FunSpec({
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    test("A traversal whose answer never arrives stops swallowing keys after its timeout") {
+    test("A timed-out traversal allows the next keypress to submit a new traversal") {
         runTest {
             // Polling stops below RESUMED, so an answer can stall while the window still gets keys.
             val fixture = FocusSessionTestFixture(this)

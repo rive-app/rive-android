@@ -23,12 +23,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -534,15 +529,8 @@ private fun Modifier.riveFocus(
             )
         }
         .onPreviewKeyEvent { event ->
-            if (event.type != KeyEventType.KeyDown || event.key != Key.Tab) {
-                false
-            } else {
-                val direction = when {
-                    event.isShiftPressed -> RiveFocusDirection.Previous
-                    else -> RiveFocusDirection.Next
-                }
-                activeSession.onTraversalKey(direction)
-            }
+            val direction = event.nativeKeyEvent.traversalDirection()
+            direction != null && activeSession.onTraversalKey(direction)
         }
         // Observes without consuming, so Rive still receives the press.
         .pointerInput(surfaceState.focusRequester) {
@@ -715,13 +703,8 @@ private fun RiveSurfaceHost(
                     }
                 )
             },
-            clearFocus = {
-                try {
-                    stateMachine.clearFocus()
-                } catch (_: RiveResourceClosedException) {
-                    // Focus loss can coincide with teardown; a closed state machine holds no focus.
-                }
-            },
+            // Focus loss can coincide with teardown, when the state machine may already be closed.
+            clearFocus = stateMachine::clearFocusForLifecycleCleanup,
             requestFrame = { currentRequestPausedFrame() },
         )
     }

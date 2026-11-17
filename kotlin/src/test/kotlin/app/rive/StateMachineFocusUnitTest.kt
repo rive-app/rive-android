@@ -3,6 +3,7 @@ package app.rive
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.StateMachineHandle
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
@@ -75,6 +76,40 @@ class StateMachineFocusUnitTest : FunSpec({
             worker.clearFocus(stateMachineHandle)
             worker.unsettleStateMachine(stateMachineHandle)
         }
+    }
+
+    test("Lifecycle clear focus skips a closed state machine") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.deleteStateMachine(stateMachineHandle) } just runs
+        val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+        stateMachine.close()
+
+        stateMachine.clearFocusForLifecycleCleanup()
+
+        verify(exactly = 0) { worker.clearFocus(any()) }
+    }
+
+    test("Lifecycle clear focus ignores a disposed worker") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.clearFocus(stateMachineHandle) } throws
+            RiveResourceClosedException("RiveWorker is disposed")
+        val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+
+        stateMachine.clearFocusForLifecycleCleanup()
+
+        verify(exactly = 0) { worker.unsettleStateMachine(any()) }
+    }
+
+    test("Lifecycle clear focus preserves invariant failures") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.clearFocus(stateMachineHandle) } throws
+            IllegalStateException("State machine is not registered")
+        val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+
+        shouldThrow<IllegalStateException> { stateMachine.clearFocusForLifecycleCleanup() }
     }
 
     test("Request focus state delegates without unsettling") {

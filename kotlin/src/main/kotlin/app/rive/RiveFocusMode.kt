@@ -36,6 +36,7 @@ enum class RiveFocusMode {
      * remains available in either mode.
      *
      * @see androidx.compose.ui.platform.LocalInputModeManager
+     * @see android.view.View.isInTouchMode
      */
     @ExperimentalRiveFocus
     Automatic,
@@ -51,6 +52,23 @@ enum class RiveFocusMode {
         Off -> false
         On -> true
         Automatic -> keyboardActive
+    }
+
+    /**
+     * Resolves this mode to the [RiveFocusability] of a view hosting the Rive instance.
+     *
+     * @param hasFocusNodes Whether the Rive instance has focusable content, or null before the
+     *    first answer, which counts as focusable content.
+     * @return [RiveFocusability.None] without focusable content, otherwise the mode's focusability.
+     */
+    internal fun focusability(hasFocusNodes: Boolean?): RiveFocusability = when {
+        hasFocusNodes == false -> RiveFocusability.None
+
+        else -> when (this) {
+            Off -> RiveFocusability.None
+            On -> RiveFocusability.KeyboardAndTouch
+            Automatic -> RiveFocusability.Keyboard
+        }
     }
 }
 

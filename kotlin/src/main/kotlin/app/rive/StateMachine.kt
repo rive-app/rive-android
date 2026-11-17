@@ -640,6 +640,21 @@ class StateMachine internal constructor(
     }
 
     /**
+     * Attempts to clear Rive focus during lifecycle cleanup.
+     *
+     * A closed state machine or disposed worker cannot hold focus, so its
+     * [RiveResourceClosedException] is ignored. Other failures still indicate a runtime invariant
+     * violation and propagate to the caller.
+     */
+    internal fun clearFocusForLifecycleCleanup() {
+        try {
+            clearFocus()
+        } catch (_: RiveResourceClosedException) {
+            // The resource that could hold focus no longer exists.
+        }
+    }
+
+    /**
      * Attempts to clear semantic focus during lifecycle cleanup.
      *
      * A closed state machine or disposed worker cannot retain semantic focus, so its

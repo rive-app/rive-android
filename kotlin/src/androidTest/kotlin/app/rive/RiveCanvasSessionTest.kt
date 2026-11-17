@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.view.MotionEvent
 import androidx.annotation.MainThread
+import androidx.annotation.RawRes
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -42,6 +43,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
@@ -59,6 +61,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @OptIn(
     ExperimentalHardwareBitmapRendering::class,
+    ExperimentalRiveFocus::class,
     ExperimentalRiveGlobalViewModels::class,
 )
 class RiveCanvasSessionTest : RiveAndroidTest() {
@@ -103,6 +106,11 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                 "Changing semantics mode should fail after close"
             ) {
                 session.semantics = RiveSemanticsMode.On
+            }
+            assertFailsWith<RiveResourceClosedException>(
+                "Changing focus mode should fail after close"
+            ) {
+                session.focus = RiveFocusMode.On
             }
             assertFailsWith<RiveResourceClosedException>(
                 "beginPlaying should fail after close"
@@ -240,7 +248,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         try {
             val failure = withContext(Dispatchers.Main.immediate) {
                 lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
-                withTimeout(WORKER_HOLD_TIMEOUT_MILLIS) {
+                withTimeout(WORKER_HOLD_TIMEOUT_MILLIS.milliseconds) {
                     assertFailsWith<RiveRenderException> {
                         session.beginPlaying(lifecycleOwner.lifecycle)
                     }
@@ -445,7 +453,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         assertFalse(resources.stateMachine.settled.value)
                         lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         resources.stateMachine.settled.first { settled -> settled }
                     }
 
@@ -503,7 +511,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         session.semantics = RiveSemanticsMode.On
                         session.semantics = RiveSemanticsMode.On
                     }
-                    val initialVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    val initialVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version -> version > 0 }
                     }
                     val initialBounds = withContext(Dispatchers.Main.immediate) {
@@ -513,7 +521,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                     withContext(Dispatchers.Main.immediate) {
                         session.setRegion(RESIZED_SEMANTICS_REGION)
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version -> version > initialVersion }
                     }
                     val resizedBounds = withContext(Dispatchers.Main.immediate) {
@@ -569,10 +577,10 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
                         session.semantics = RiveSemanticsMode.On
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version -> version > 0 }
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         resources.stateMachine.settled.first { settled -> settled }
                     }
                     val semanticNodeId = withContext(Dispatchers.Main.immediate) {
@@ -592,7 +600,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         releaseWorker.countDown()
                     }
                     // The action need not change pixels, but playback must evaluate it.
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         resources.stateMachine.settled.first { settled -> settled }
                     }
                 } finally {
@@ -643,7 +651,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
                         session.semantics = RiveSemanticsMode.On
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version -> version > 0 }
                     }
                     val focusNodeId = withContext(Dispatchers.Main.immediate) {
@@ -652,7 +660,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                     withContext(Dispatchers.Main.immediate) {
                         resources.stateMachine.requestSemanticFocus(focusNodeId)
                     }
-                    val focusedVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    val focusedVersion = withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first {
                             withContext(Dispatchers.Main.immediate) {
                                 tree.isNodeFocused(focusNodeId)
@@ -674,7 +682,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                             surfaceHeight = INITIAL_SEMANTICS_REGION.height().toFloat(),
                         )
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version ->
                             version > focusedVersion && withContext(Dispatchers.Main.immediate) {
                                 !tree.isNodeFocused(focusNodeId)
@@ -789,6 +797,21 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         }
     }
 
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    fun focusability_withoutFocusNodes_isNone() = runBlocking {
+        withPlayingSession(fixture = R.raw.empty, focus = RiveFocusMode.On) {
+            resume()
+
+            // Only the render loop's poll can report that the instance has no focus nodes.
+            withTimeout(FOCUS_TIMEOUT_MILLIS.milliseconds) {
+                session.focusability.first { focusability ->
+                    focusability == RiveFocusability.None
+                }
+            }
+        }
+    }
+
     /** Verifies that restarting playback establishes a boundary against prior settled callbacks. */
     @Test
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
@@ -848,20 +871,25 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
     /**
      * Creates a session and runs [block] with the supplied frame clock.
      *
+     * @param fixture The Rive file to load.
+     * @param focus The focus mode the session starts with.
      * @param ticker The playback frame clock.
      * @param block The test operation to run with the playing session fixture.
      */
     private suspend fun withPlayingSession(
+        @RawRes fixture: Int = R.raw.empty,
+        focus: RiveFocusMode = RiveFocusMode.Off,
         ticker: FrameTicker = ChoreographerFrameTicker,
         block: suspend PlayingSession.() -> Unit,
     ) {
-        val res = loadRiveResources(R.raw.empty)
+        val res = loadRiveResources(fixture)
         val session = withContext(Dispatchers.Main.immediate) {
             RiveCanvasSession(
                 context = context,
                 riveWorker = riveWorker,
                 artboard = res.artboard,
                 stateMachine = res.stateMachine,
+                focus = focus,
             )
         }
         withPlayingSession(session, res.stateMachine.stateMachineHandle, ticker, block)
@@ -974,7 +1002,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
                         lifecycleOwner.moveToState(Lifecycle.State.RESUMED)
                         session.semantics = RiveSemanticsMode.On
                     }
-                    withTimeout(SEMANTICS_TIMEOUT_MILLIS) {
+                    withTimeout(SEMANTICS_TIMEOUT_MILLIS.milliseconds) {
                         tree.versionFlow.first { version -> version > 0 }
                     }
                     withContext(Dispatchers.Main.immediate) {
@@ -1085,7 +1113,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
          * available after lifecycle, resize, or input changes.
          */
         suspend fun awaitFrameCountGreaterThan(count: Int, timeoutMs: Long = 5_000L) {
-            withTimeout(timeoutMs) {
+            withTimeout(timeoutMs.milliseconds) {
                 while (frameCount.get() <= count) {
                     delay(16)
                 }
@@ -1101,7 +1129,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         suspend fun awaitFrameCountSettled(quietMs: Long = 250L, timeoutMs: Long = 5_000L): Int {
             var lastCount = frameCount.get()
             var lastChangedAt = SystemClock.uptimeMillis()
-            withTimeout(timeoutMs) {
+            withTimeout(timeoutMs.milliseconds) {
                 while (SystemClock.uptimeMillis() - lastChangedAt < quietMs) {
                     delay(16)
                     val count = frameCount.get()
@@ -1228,6 +1256,7 @@ class RiveCanvasSessionTest : RiveAndroidTest() {
         const val FOCUS_NODE_LABEL = "Element 1"
         const val SEMANTICS_TIMEOUT_MILLIS = 5_000L
         const val WORKER_HOLD_TIMEOUT_MILLIS = 10_000L
+        const val FOCUS_TIMEOUT_MILLIS = 5_000L
     }
 }
 

@@ -6,7 +6,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.os.Build
+import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.View
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.ColorInt
 import androidx.annotation.MainThread
@@ -33,6 +35,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onSubscription
@@ -79,6 +82,51 @@ annotation class ExperimentalHardwareBitmapRendering
  * machine. Coordinates of the events are expected to be in the same space as the destination canvas
  * of [draw], and will be mapped into the render region.
  *
+ * To support keyboard focus, set [focus] and apply [focusability] to the host view with
+ * [RiveFocusability.applyTo] whenever it changes. Forward the host's [View.onFocusChanged] calls to
+ * [onFocusChanged], and its key events to [onKeyEvent] before handling them. `Tab` and `Shift+Tab`
+ * then move focus between the focusable elements inside the Rive instance, and move Android input
+ * focus to the surrounding UI when traversal leaves the instance. The session never changes view
+ * properties itself. The host is also responsible for the following:
+ * - If the host view already holds focus when the session is attached, report it once with
+ *   `onFocusChanged(view, true, View.FOCUS_DOWN)`. That direction doesn't enter the instance.
+ * - To let a tap give the host view focus, call [View.requestFocus] on `ACTION_DOWN`. It only
+ *   succeeds when [focusability] allows focus in touch mode.
+ * - Stop forwarding once the session is closed. Closing makes the host view lose focus, and that
+ *   change must not reach the closed session.
+ *
+ * A host view with focus support looks like this, with drawing and region updates omitted:
+ * ```kotlin
+ * class RiveHostView(context: Context) : View(context) {
+ *     private var session: RiveCanvasSession? = null
+ *
+ *     private val openSession: RiveCanvasSession?
+ *         get() = session?.takeUnless { it.closed }
+ *
+ *     fun attach(newSession: RiveCanvasSession) {
+ *         session = newSession
+ *         if (isFocused) newSession.onFocusChanged(this, true, View.FOCUS_DOWN)
+ *     }
+ *
+ *     override fun onFocusChanged(gainFocus: Boolean, direction: Int, previous: Rect?) {
+ *         super.onFocusChanged(gainFocus, direction, previous)
+ *         openSession?.onFocusChanged(this, gainFocus, direction)
+ *     }
+ *
+ *     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+ *         openSession?.onKeyEvent(event) == true || super.dispatchKeyEvent(event)
+ *
+ *     override fun onTouchEvent(event: MotionEvent): Boolean {
+ *         val current = openSession ?: return false
+ *         if (event.actionMasked == MotionEvent.ACTION_DOWN) requestFocus()
+ *         return current.onTouchEvent(event)
+ *     }
+ * }
+ *
+ * // On the main thread, while the session is attached:
+ * lifecycleScope.launch { session.focusability.collect { it.applyTo(hostView) } }
+ * ```
+ *
  * All instance methods are expected to be called on Android's main thread. Calling instance methods
  * after [close] throws [RiveResourceClosedException] (except repeated [close], which remains
  * idempotent).
@@ -124,6 +172,8 @@ annotation class ExperimentalHardwareBitmapRendering
  * @param semantics Controls whether Rive-authored semantics are produced. Defaults to
  *    [RiveSemanticsMode.Off]. Automatic mode follows Android's accessibility-enabled state.
  *    Enabling semantics requires opting into [ExperimentalRiveSemantics].
+ * @param focus Controls whether Rive can receive Android input focus. Defaults to
+ *    [RiveFocusMode.Off]. Enabling focus support requires opting into [ExperimentalRiveFocus].
  * @param globalViewModelInstances Explicit global view model instances keyed by global view model
  *    name. Omitted names create instances from their authored defaults. Implicit instances are not
  *    exposed. The map is snapshotted during construction, and every instance must be from the
@@ -150,6 +200,7 @@ class RiveCanvasSession private constructor(
     private val fit: Fit,
     @param:ColorInt private val clearColor: Int,
     semantics: RiveSemanticsMode,
+    focus: RiveFocusMode,
     globalViewModelInstances: Map<String, ViewModelInstance>,
     @Suppress("UNUSED_PARAMETER") initializationToken: Unit,
 ) : CheckableAutoCloseable {
@@ -164,11 +215,13 @@ class RiveCanvasSession private constructor(
      * @param fit The fit used when rendering.
      * @param clearColor The color used to clear the draw region before each frame.
      * @param semantics Controls whether Rive-authored semantics are produced.
+     * @param focus Controls whether Rive can receive Android input focus.
      * @throws RiveResourceClosedException If the worker or a supplied resource has been closed.
      * @throws RiveIncompatibleResourceException If the resources have incompatible ownership or
      *    ancestry.
      * @throws IllegalStateException If hardware rendering is unsupported.
      */
+    @MainThread
     @Throws(
         RiveResourceClosedException::class,
         RiveIncompatibleResourceException::class,
@@ -183,6 +236,7 @@ class RiveCanvasSession private constructor(
         fit: Fit = RenderingDefaults.defaultFit(),
         @ColorInt clearColor: Int = RenderingDefaults.CLEAR_COLOR,
         semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+        focus: RiveFocusMode = RiveFocusMode.Off,
     ) : this(
         context = context,
         riveWorker = riveWorker,
@@ -192,6 +246,7 @@ class RiveCanvasSession private constructor(
         fit = fit,
         clearColor = clearColor,
         semantics = semantics,
+        focus = focus,
         globalViewModelInstances = emptyMap(),
         initializationToken = Unit,
     )
@@ -207,6 +262,7 @@ class RiveCanvasSession private constructor(
      * @param fit The fit used when rendering.
      * @param clearColor The color used to clear the draw region before each frame.
      * @param semantics Controls whether Rive-authored semantics are produced.
+     * @param focus Controls whether Rive can receive Android input focus.
      * @param globalViewModelInstances Explicit global view model instances keyed by global view
      *    model name.
      * @throws RiveResourceClosedException If the worker or a supplied resource has been closed.
@@ -215,6 +271,7 @@ class RiveCanvasSession private constructor(
      * @throws IllegalStateException If hardware rendering is unsupported.
      */
     @ExperimentalRiveGlobalViewModels
+    @MainThread
     @Throws(
         RiveResourceClosedException::class,
         RiveIncompatibleResourceException::class,
@@ -229,6 +286,7 @@ class RiveCanvasSession private constructor(
         fit: Fit = RenderingDefaults.defaultFit(),
         @ColorInt clearColor: Int = RenderingDefaults.CLEAR_COLOR,
         semantics: RiveSemanticsMode = RiveSemanticsMode.Off,
+        focus: RiveFocusMode = RiveFocusMode.Off,
         globalViewModelInstances: Map<String, ViewModelInstance>,
     ) : this(
         context = context,
@@ -239,6 +297,7 @@ class RiveCanvasSession private constructor(
         fit = fit,
         clearColor = clearColor,
         semantics = semantics,
+        focus = focus,
         globalViewModelInstances = globalViewModelInstances,
         initializationToken = Unit,
     )
@@ -297,9 +356,14 @@ class RiveCanvasSession private constructor(
     private val closeSignal = CompletableDeferred<Unit>()
     private val closer = CloseOnce("RiveCanvasSession") {
         try {
-            semanticsModeController.close()
-            if (semanticsEnabled) {
-                stateMachine.clearSemanticFocusForLifecycleCleanup()
+            try {
+                // Clears Rive focus, so no focus ring outlives the session.
+                focusController.close()
+            } finally {
+                semanticsModeController.close()
+                if (semanticsEnabled) {
+                    stateMachine.clearSemanticFocusForLifecycleCleanup()
+                }
             }
         } finally {
             // Session-owned rendering resources must be released even if the caller closed a
@@ -314,13 +378,16 @@ class RiveCanvasSession private constructor(
     }
 
     /**
-     * Stops playback, clears authored semantic focus when enabled, and releases session resources.
+     * Stops playback, clears any Rive focus and authored semantic focus, and releases session
+     * resources. [focusability] becomes [RiveFocusability.None], so a host that applies it gives
+     * up Android input focus. That focus change arrives after the session is closed, so the host
+     * must not forward it.
      *
-     * Semantic focus cleanup is best effort if the supplied state machine or its Rive worker was
-     * closed first. Repeated calls are safe and perform no additional work.
+     * Focus cleanup is best effort if the supplied state machine or its Rive worker was closed
+     * first. Repeated calls are safe and perform no additional work.
      *
-     * @throws IllegalStateException If semantics were enabled but the state machine is no longer
-     *    registered with its worker.
+     * @throws IllegalStateException If semantics or focus were enabled but the state machine is no
+     *    longer registered with its worker.
      */
     @MainThread
     @Throws(IllegalStateException::class)
@@ -421,6 +488,45 @@ class RiveCanvasSession private constructor(
         }
         semanticsEnabled = enabled
     }
+
+    private val focusController = RiveCanvasFocusController(
+        initialMode = focus,
+        stateMachine = stateMachine,
+        hasFocusNodes = riveWorker.reportedHasFocusNodes(stateMachine.stateMachineHandle),
+    )
+
+    /**
+     * Whether and when the host view can receive Android input focus. Apply both of its properties
+     * to the host view whenever it changes.
+     *
+     * This is [RiveFocusability.None] while [focus] is [RiveFocusMode.Off] or the Rive instance has
+     * no focusable content. Until the session first checks the instance, it is treated as having
+     * focusable content. Otherwise [RiveFocusMode.On] gives [RiveFocusability.KeyboardAndTouch] and
+     * [RiveFocusMode.Automatic] gives [RiveFocusability.Keyboard].
+     */
+    @ExperimentalRiveFocus
+    val focusability: StateFlow<RiveFocusability> = focusController.focusability
+
+    /**
+     * Controls whether Rive can receive Android input focus.
+     *
+     * While not [RiveFocusMode.Off], the render loop refreshes [StateMachine.focusState] and
+     * [focusability] after each advance. Setting the current mode does nothing.
+     *
+     * @throws RiveResourceClosedException If this session has been closed, or if focus is turned on
+     *    after the state machine has been closed.
+     * @throws IllegalStateException If the state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @set:MainThread
+    var focus: RiveFocusMode
+        get() = focusController.mode
+
+        @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+        set(value) {
+            closer.checkOpen()
+            focusController.mode = value
+        }
 
     /**
      * Update the target draw region for rendering. This should be called at least once to
@@ -669,6 +775,8 @@ class RiveCanvasSession private constructor(
                                         traceSection("Rive/Frame/Advance") {
                                             stateMachine.advance(deltaNs.nanoseconds)
                                         }
+                                        // After advancing, so the poll sees the focus it changed.
+                                        focusController.onAdvanced()
                                         if (semanticsEnabled) {
                                             traceSection("Rive/Frame/DrainSemantics") {
                                                 stateMachine.drainSemanticsDiff(
@@ -857,6 +965,54 @@ class RiveCanvasSession private constructor(
         }
 
         return handled
+    }
+
+    /**
+     * Forwards a change in the host view's Android input focus.
+     *
+     * Call from the host's [View.onFocusChanged]. When focus arrives by `Tab` or `Shift+Tab`, Rive
+     * focus enters the instance at its first or last focusable element. Losing focus clears Rive
+     * focus, which also runs any blur behavior authored in the file.
+     *
+     * @param host The view that gained or lost focus. The session keeps a reference while the view
+     *    holds focus, to move Android input focus to the surrounding UI when traversal leaves the
+     *    instance.
+     * @param gainFocus Whether the host gained focus.
+     * @param direction The direction focus moved in, as passed to [View.onFocusChanged]. Pass
+     *    [View.FOCUS_DOWN] to report focus the host view already held when the session was
+     *    attached.
+     * @throws RiveResourceClosedException If this session has been closed.
+     * @throws IllegalStateException If the state machine is no longer registered with its worker.
+     */
+    @ExperimentalRiveFocus
+    @MainThread
+    @Throws(RiveResourceClosedException::class, IllegalStateException::class)
+    fun onFocusChanged(host: View, gainFocus: Boolean, direction: Int) {
+        closer.checkOpen()
+        focusController.onFocusChanged(host, gainFocus, direction)
+    }
+
+    /**
+     * Forwards a key event to move Rive focus.
+     *
+     * Call from the host's [View.dispatchKeyEvent] before handling the event itself. Only `Tab` and
+     * `Shift+Tab` are handled.
+     *
+     * The session consumes the keypress immediately, before Rive finishes moving focus. If focus
+     * moves past the first or last element, the session then moves Android input focus to the next
+     * view in that direction. If there is no such view, the next keypress moves focus back into the
+     * instance.
+     *
+     * @param event The key event the host received.
+     * @return true when the session consumed the event, so the host must not handle it.
+     * @throws RiveResourceClosedException If this session has been closed.
+     */
+    @ExperimentalRiveFocus
+    @MainThread
+    @Throws(RiveResourceClosedException::class)
+    fun onKeyEvent(event: KeyEvent): Boolean {
+        closer.checkOpen()
+        return focusController.onKeyEvent(event)
     }
 }
 
