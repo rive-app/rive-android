@@ -23,6 +23,7 @@
 #include "rive/command_queue.hpp"
 #include "rive/command_server.hpp"
 #include "rive/file.hpp"
+#include "rive/input/focus_manager.hpp"
 #include "rive/renderer/rive_render_image.hpp"
 
 #if defined(RIVE_CANVAS) && defined(RIVE_ORE)
@@ -507,6 +508,19 @@ public:
         static_cast<jboolean>(focusState.expectsKeyboardInput));
   }
 
+  void onKeyInputHandled(
+      const rive::StateMachineHandle smHandle,
+      uint64_t requestID,
+      bool handled) override
+  {
+    m_queue.call(
+        "onKeyInputHandled",
+        "(JJZ)V",
+        requestID,
+        longFromHandle(smHandle),
+        static_cast<jboolean>(handled));
+  }
+
   void onHasFocusNodesReceived(
       const rive::StateMachineHandle smHandle,
       uint64_t,
@@ -757,27 +771,85 @@ private:
   JCommandQueue m_queue;
 };
 
+/** Runtime message tag for the outcome of cppMoveFocus. */
+constexpr static uint32_t FOCUS_MOVED_MESSAGE_TAG = 1;
+
 /**
- * Runtime message tag for a lost render context. Tag 1 is reserved for
- * focus moves.
+ * The outcome of a focus move, posted from the command server as a runtime
+ * message.
  */
+struct FocusMovedMessage
+{
+  uint64_t requestID;
+  jlong stateMachineHandle;
+  /** Whether the command server has the state machine. */
+  bool found;
+  bool moved;
+  bool hasFocus;
+  bool expectsKeyboardInput;
+};
+
+/** Runtime message tag for a lost render context. */
 constexpr static uint32_t CONTEXT_LOST_MESSAGE_TAG = 2;
 
-/** Forwards Android-defined runtime messages to the Kotlin CommandQueue. */
+/**
+ * Forwards Android-defined runtime messages to the Kotlin CommandQueue. They
+ * share the message stream with the other callbacks, so a focus move's outcome
+ * arrives in order with focus state answers.
+ */
 class RuntimeMessageListener : public rive::CommandQueue::RuntimeMessageListener
 {
 public:
   RuntimeMessageListener(JNIEnv* env, jobject jQueue) : m_queue(env, jQueue) {}
 
-  void onRuntimeMessage(uint32_t tag, std::vector<uint8_t>) override
+  void onRuntimeMessage(uint32_t tag, std::vector<uint8_t> payload) override
   {
-    if (tag == CONTEXT_LOST_MESSAGE_TAG)
+    switch (tag)
     {
-      m_queue.call("onRenderContextLost", "()V");
+      case FOCUS_MOVED_MESSAGE_TAG:
+        onFocusMoved(payload);
+        break;
+      case CONTEXT_LOST_MESSAGE_TAG:
+        m_queue.call("onRenderContextLost", "()V");
+        break;
+      default:
+        break;
     }
   }
 
 private:
+  void onFocusMoved(const std::vector<uint8_t>& payload)
+  {
+    if (payload.size() != sizeof(FocusMovedMessage))
+    {
+      return;
+    }
+    FocusMovedMessage message;
+    std::memcpy(&message, payload.data(), sizeof(message));
+    if (!message.found)
+    {
+      // Fails the pending move the same way a core command reports a
+      // missing state machine.
+      auto jError = MakeJString(
+          GetJNIEnv(),
+          "State machine not found for moveFocus.");
+      m_queue.call(
+          "onStateMachineError",
+          "(JLjava/lang/String;)V",
+          message.requestID,
+          jError.get());
+      return;
+    }
+    m_queue.call(
+        "onFocusMoved",
+        "(JJZZZ)V",
+        message.requestID,
+        message.stateMachineHandle,
+        static_cast<jboolean>(message.moved),
+        static_cast<jboolean>(message.hasFocus),
+        static_cast<jboolean>(message.expectsKeyboardInput));
+  }
+
   JCommandQueue m_queue;
 };
 
@@ -2389,36 +2461,110 @@ extern "C"
     commandQueue->clearSemanticFocus(stateMachineHandle);
   }
 
-  JNIEXPORT void JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppFocusNext(
+  JNIEXPORT void JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppMoveFocus(
       JNIEnv*,
       jobject,
       jlong ref,
       jlong jStateMachineHandle,
+      jint direction,
       jlong requestID)
   {
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto stateMachineHandle = handleFromLong<rive::StateMachineHandle>(
         jStateMachineHandle);
 
-    commandQueue->focusNext(
-        stateMachineHandle,
-        static_cast<uint64_t>(requestID));
+    // Core has no queued command that reports whether focus moved. So run
+    // the move on the command server, after the commands already queued,
+    // and post the outcome as a runtime message. `direction` is
+    // RiveFocusDirection.nativeMapping.
+    commandQueue->runOnce([stateMachineHandle,
+                           jStateMachineHandle,
+                           direction,
+                           requestID](rive::CommandServer* server) {
+      FocusMovedMessage message{};
+      message.requestID = static_cast<uint64_t>(requestID);
+      message.stateMachineHandle = jStateMachineHandle;
+      auto* stateMachine = server->getStateMachineInstance(stateMachineHandle);
+      message.found = stateMachine != nullptr;
+      if (message.found)
+      {
+        // Reads focus state without the state machine lock. That's
+        // safe because Android uses the state machine only from
+        // command server work on this thread, and never calls a
+        // Synchronized method from another thread.
+        auto currentFocusState = [stateMachine]() {
+          auto state = stateMachine->focusState();
+          return rive::CommandQueue::FocusState{
+              state.hasFocus,
+              state.expectsKeyboardInput};
+        };
+        auto moveSpatially = [&](rive::Direction spatialDirection) {
+          rive::CommandQueue::FocusTraversalResult moveResult;
+          moveResult.moved = server->focusInDirectionSynchronized(
+              stateMachineHandle,
+              spatialDirection);
+          moveResult.focusState = currentFocusState();
+          return moveResult;
+        };
+        rive::CommandQueue::FocusTraversalResult result;
+        switch (direction)
+        {
+          case 0:
+            result = server->focusNextWithResultSynchronized(
+                stateMachineHandle);
+            break;
+          case 1:
+            result = server->focusPreviousWithResultSynchronized(
+                stateMachineHandle);
+            break;
+          case 2:
+            result = moveSpatially(rive::Direction::left);
+            break;
+          case 3:
+            result = moveSpatially(rive::Direction::right);
+            break;
+          case 4:
+            result = moveSpatially(rive::Direction::up);
+            break;
+          case 5:
+            result = moveSpatially(rive::Direction::down);
+            break;
+          default:
+            RiveLogE(TAG_CQ, "Unknown focus direction: %d", direction);
+            result.focusState = currentFocusState();
+            break;
+        }
+        message.moved = result.moved;
+        message.hasFocus = result.focusState.hasFocus;
+        message.expectsKeyboardInput = result.focusState.expectsKeyboardInput;
+      }
+      std::vector<uint8_t> payload(sizeof(message));
+      std::memcpy(payload.data(), &message, sizeof(message));
+      server->postRuntimeMessage(FOCUS_MOVED_MESSAGE_TAG, std::move(payload));
+    });
   }
 
-  JNIEXPORT void JNICALL
-  Java_app_rive_core_CommandQueueJNIBridge_cppFocusPrevious(
+  JNIEXPORT void JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppKeyInput(
       JNIEnv*,
       jobject,
       jlong ref,
       jlong jStateMachineHandle,
+      jint key,
+      jint modifiers,
+      jboolean isPressed,
+      jboolean isRepeat,
       jlong requestID)
   {
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto stateMachineHandle = handleFromLong<rive::StateMachineHandle>(
         jStateMachineHandle);
 
-    commandQueue->focusPrevious(
+    commandQueue->keyInput(
         stateMachineHandle,
+        static_cast<rive::Key>(key),
+        static_cast<rive::KeyModifiers>(modifiers),
+        isPressed,
+        isRepeat,
         static_cast<uint64_t>(requestID));
   }
 

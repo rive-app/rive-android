@@ -1,5 +1,6 @@
 package app.rive
 
+import android.view.KeyEvent
 import app.rive.core.CommandQueue
 import app.rive.core.CommandQueueBridge
 import app.rive.core.StateMachineHandle
@@ -11,9 +12,12 @@ import io.mockk.just
 import io.mockk.runs
 import io.mockk.verify
 import io.mockk.verifyOrder
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 /**
  * Captures the request IDs of every focus-state poll submitted to [bridge].
@@ -30,13 +34,17 @@ private fun captureFocusStatePolls(bridge: CommandQueueBridge): List<Long> {
 }
 
 /**
- * Stubs both traversal commands on [bridge] to be accepted without effect.
+ * Accepts every focus move on [bridge] without effect and records its request ID.
  *
  * @param bridge The mocked bridge to stub.
+ * @return A live list of the request IDs of submitted moves.
  */
-private fun stubTraversals(bridge: CommandQueueBridge) {
-    every { bridge.cppFocusNext(COMMAND_QUEUE_ADDR, HANDLE_NUM, any()) } just runs
-    every { bridge.cppFocusPrevious(COMMAND_QUEUE_ADDR, HANDLE_NUM, any()) } just runs
+private fun stubMoves(bridge: CommandQueueBridge): List<Long> {
+    val requestIDs = mutableListOf<Long>()
+    every {
+        bridge.cppMoveFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM, any(), capture(requestIDs))
+    } just runs
+    return requestIDs
 }
 
 /** A focus submission, in the order the command server receives it. */
@@ -98,11 +106,10 @@ private fun deliverInOrder(
 class CommandQueueFocusUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
 
-    test("Move focus submits the command for its direction, then polls") {
+    test("Move focus submits one command carrying its direction") {
         val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
         val stateMachineHandle = fixture.registerStateMachine(commandQueue)
-        val pollRequestIDs = captureFocusStatePolls(fixture.commandQueueBridgeMock)
-        stubTraversals(fixture.commandQueueBridgeMock)
+        stubMoves(fixture.commandQueueBridgeMock)
 
         for (direction in RiveFocusDirection.entries) {
             coroutineScope {
@@ -110,21 +117,12 @@ class CommandQueueFocusUnitTest : FunSpec({
                     commandQueue.moveFocus(stateMachineHandle, direction)
                 }
 
-                // The command must precede its poll, or the answer would describe the old state.
-                verifyOrder {
-                    when (direction) {
-                        RiveFocusDirection.Next ->
-                            fixture.commandQueueBridgeMock
-                                .cppFocusNext(COMMAND_QUEUE_ADDR, HANDLE_NUM, any())
-
-                        RiveFocusDirection.Previous ->
-                            fixture.commandQueueBridgeMock
-                                .cppFocusPrevious(COMMAND_QUEUE_ADDR, HANDLE_NUM, any())
-                    }
-                    fixture.commandQueueBridgeMock.cppRequestFocusState(
+                verify(exactly = 1) {
+                    fixture.commandQueueBridgeMock.cppMoveFocus(
                         COMMAND_QUEUE_ADDR,
                         HANDLE_NUM,
-                        pollRequestIDs.last(),
+                        direction.nativeMapping,
+                        any(),
                     )
                 }
                 move.cancel()
@@ -132,11 +130,38 @@ class CommandQueueFocusUnitTest : FunSpec({
         }
     }
 
-    test("Move focus resumes with the answer to its own follow-up poll") {
+    test("Move focus resumes with its own outcome and publishes the focus state") {
+        val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+        val moveRequestIDs = stubMoves(fixture.commandQueueBridgeMock)
+
+        coroutineScope {
+            val move = async(start = CoroutineStart.UNDISPATCHED) {
+                commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Down)
+            }
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = false,
+                hasFocus = true,
+                expectsKeyboardInput = true,
+            )
+
+            move.await() shouldBe RiveFocusMoveResult(
+                moved = false,
+                focusState = RiveFocusState.Focused(expectsKeyboardInput = true),
+            )
+        }
+        commandQueue.focusState(stateMachineHandle).value shouldBe
+            RiveFocusState.Focused(expectsKeyboardInput = true)
+    }
+
+    test("Move focus discards the answer to a poll requested before it") {
         val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
         val stateMachineHandle = fixture.registerStateMachine(commandQueue)
         val pollRequestIDs = captureFocusStatePolls(fixture.commandQueueBridgeMock)
-        stubTraversals(fixture.commandQueueBridgeMock)
+        stubMoves(fixture.commandQueueBridgeMock)
+        commandQueue.requestFocusState(stateMachineHandle)
 
         coroutineScope {
             val move = async(start = CoroutineStart.UNDISPATCHED) {
@@ -146,44 +171,11 @@ class CommandQueueFocusUnitTest : FunSpec({
                 requestID = pollRequestIDs.single(),
                 stateMachineHandle = stateMachineHandle,
                 hasFocus = true,
-                expectsKeyboardInput = true,
-            )
-
-            move.await() shouldBe RiveFocusState.Focused(expectsKeyboardInput = true)
-        }
-        commandQueue.focusState(stateMachineHandle).value shouldBe
-            RiveFocusState.Focused(expectsKeyboardInput = true)
-    }
-
-    test("Move focus ignores an answer to a poll requested before it") {
-        val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
-        val stateMachineHandle = fixture.registerStateMachine(commandQueue)
-        val pollRequestIDs = captureFocusStatePolls(fixture.commandQueueBridgeMock)
-        stubTraversals(fixture.commandQueueBridgeMock)
-        commandQueue.requestFocusState(stateMachineHandle)
-        val staleRequestID = pollRequestIDs.single()
-
-        coroutineScope {
-            val move = async(start = CoroutineStart.UNDISPATCHED) {
-                commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Next)
-            }
-            commandQueue.onFocusStateReceived(
-                requestID = staleRequestID,
-                stateMachineHandle = stateMachineHandle,
-                hasFocus = true,
                 expectsKeyboardInput = false,
             )
 
-            move.isCompleted shouldBe false
             commandQueue.focusState(stateMachineHandle).value shouldBe RiveFocusState.Unfocused
-
-            commandQueue.onFocusStateReceived(
-                requestID = pollRequestIDs.last(),
-                stateMachineHandle = stateMachineHandle,
-                hasFocus = true,
-                expectsKeyboardInput = false,
-            )
-            move.await() shouldBe RiveFocusState.Focused(expectsKeyboardInput = false)
+            move.cancel()
         }
     }
 
@@ -191,8 +183,14 @@ class CommandQueueFocusUnitTest : FunSpec({
         val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
         val stateMachineHandle = fixture.registerStateMachine(commandQueue)
         val submissions = recordFocusStatePolls(fixture.commandQueueBridgeMock)
+        val moveRequestIDs = mutableListOf<Long>()
         every {
-            fixture.commandQueueBridgeMock.cppFocusNext(COMMAND_QUEUE_ADDR, HANDLE_NUM, any())
+            fixture.commandQueueBridgeMock.cppMoveFocus(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                any(),
+                capture(moveRequestIDs)
+            )
         } answers {
             // A poll from another thread reaches the server ahead of the command.
             commandQueue.requestFocusState(stateMachineHandle)
@@ -210,18 +208,159 @@ class CommandQueueFocusUnitTest : FunSpec({
                 stateMachineHandle,
                 submissions,
                 initiallyFocused = true
-            ) shouldBe
-                listOf(RiveFocusState.Unfocused, RiveFocusState.Unfocused)
-            move.await() shouldBe RiveFocusState.Unfocused
+            ) shouldBe listOf(RiveFocusState.Unfocused)
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = false,
+                hasFocus = false,
+                expectsKeyboardInput = false,
+            )
+            move.await().focusState shouldBe RiveFocusState.Unfocused
+        }
+    }
+
+    test("A clear another thread submits while a move is being submitted stays current") {
+        val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+        val pollRequestIDs = captureFocusStatePolls(fixture.commandQueueBridgeMock)
+        every {
+            fixture.commandQueueBridgeMock.cppClearFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM, any())
+        } just runs
+        val moveRequestIDs = mutableListOf<Long>()
+        lateinit var clearing: Thread
+        every {
+            fixture.commandQueueBridgeMock.cppMoveFocus(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                any(),
+                capture(moveRequestIDs),
+            )
+        } answers {
+            // Another thread clears focus while the move is being submitted. Wait until it either
+            // finishes or waits for the move's submission to complete.
+            clearing = thread { commandQueue.clearFocus(stateMachineHandle) }
+            while (clearing.isAlive && clearing.state != Thread.State.BLOCKED) {
+                Thread.sleep(1)
+            }
+        }
+
+        coroutineScope {
+            val move = async(start = CoroutineStart.UNDISPATCHED) {
+                commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Next)
+            }
+            clearing.join()
+
+            // The command server ran the move, then the clear, then the clear's poll.
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = true,
+                hasFocus = true,
+                expectsKeyboardInput = false,
+            )
+            commandQueue.onFocusStateReceived(
+                requestID = pollRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                hasFocus = false,
+                expectsKeyboardInput = false,
+            )
+            move.await()
+        }
+        commandQueue.focusState(stateMachineHandle).value shouldBe RiveFocusState.Unfocused
+    }
+
+    test("A move's outcome doesn't overwrite a later focus-changing command") {
+        val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+        val moveRequestIDs = stubMoves(fixture.commandQueueBridgeMock)
+        captureFocusStatePolls(fixture.commandQueueBridgeMock)
+        every {
+            fixture.commandQueueBridgeMock.cppClearFocus(COMMAND_QUEUE_ADDR, HANDLE_NUM, any())
+        } just runs
+
+        coroutineScope {
+            val move = async(start = CoroutineStart.UNDISPATCHED) {
+                commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Next)
+            }
+            commandQueue.clearFocus(stateMachineHandle)
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = true,
+                hasFocus = true,
+                expectsKeyboardInput = false,
+            )
+
+            move.await().moved shouldBe true
+        }
+        // The clear was submitted after the move, so the move's outcome must not show as current.
+        commandQueue.focusState(stateMachineHandle).value shouldBe RiveFocusState.Unfocused
+    }
+
+    test("A poll answered after a move's outcome keeps its newer state") {
+        runTest {
+            val commandQueue =
+                CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+            val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+            val moveRequestIDs = stubMoves(fixture.commandQueueBridgeMock)
+            val pollRequestIDs = captureFocusStatePolls(fixture.commandQueueBridgeMock)
+            // The test dispatcher resumes the move only when the test yields, as a caller on a
+            // dispatching main dispatcher does.
+            val move = async { commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Next) }
+            runCurrent()
+            commandQueue.requestFocusState(stateMachineHandle)
+
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = true,
+                hasFocus = true,
+                expectsKeyboardInput = false,
+            )
+            // The advance after the move cleared focus, and the poll after it reports that.
+            commandQueue.onFocusStateReceived(
+                requestID = pollRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                hasFocus = false,
+                expectsKeyboardInput = false,
+            )
+            move.await()
+
+            commandQueue.focusState(stateMachineHandle).value shouldBe RiveFocusState.Unfocused
+        }
+    }
+
+    test("A move publishes its outcome after its caller stops waiting") {
+        runTest {
+            val commandQueue =
+                CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+            val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+            val moveRequestIDs = stubMoves(fixture.commandQueueBridgeMock)
+            val move = async { commandQueue.moveFocus(stateMachineHandle, RiveFocusDirection.Next) }
+            runCurrent()
+            move.cancel()
+            runCurrent()
+
+            commandQueue.onFocusMoved(
+                requestID = moveRequestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                moved = true,
+                hasFocus = true,
+                expectsKeyboardInput = true,
+            )
+
+            commandQueue.focusState(stateMachineHandle).value shouldBe
+                RiveFocusState.Focused(expectsKeyboardInput = true)
         }
     }
 
     test("Disposing the worker cancels a move awaiting its answer") {
-        // No callback can arrive after disposal, so the move must not wait forever.
+        // The command server stops answering at disposal, so the move must not wait forever.
         val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
         val stateMachineHandle = fixture.registerStateMachine(commandQueue)
-        captureFocusStatePolls(fixture.commandQueueBridgeMock)
-        stubTraversals(fixture.commandQueueBridgeMock)
+        val moveRequestIDs = stubMoves(fixture.commandQueueBridgeMock)
+        val focusState = commandQueue.focusState(stateMachineHandle)
 
         coroutineScope {
             val move = async(start = CoroutineStart.UNDISPATCHED) {
@@ -233,6 +372,55 @@ class CommandQueueFocusUnitTest : FunSpec({
 
             move.join()
             move.isCancelled shouldBe true
+        }
+
+        // An answer still in flight at disposal must not revive the retained flow.
+        commandQueue.onFocusMoved(
+            requestID = moveRequestIDs.single(),
+            stateMachineHandle = stateMachineHandle,
+            moved = true,
+            hasFocus = true,
+            expectsKeyboardInput = true,
+        )
+        focusState.value shouldBe RiveFocusState.Unfocused
+    }
+
+    test("Key input forwards the press and resumes with whether it was handled") {
+        val commandQueue = CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
+        val stateMachineHandle = fixture.registerStateMachine(commandQueue)
+        val requestIDs = mutableListOf<Long>()
+        every {
+            fixture.commandQueueBridgeMock.cppKeyInput(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                257,
+                1,
+                true,
+                false,
+                capture(requestIDs)
+            )
+        } just runs
+        val press = RiveKeyPress(
+            keyCode = KeyEvent.KEYCODE_ENTER,
+            key = 257,
+            modifiers = 1,
+            isPressed = true,
+            isRepeat = false,
+            navigation = null,
+            isChord = false,
+        )
+
+        coroutineScope {
+            val handled = async(start = CoroutineStart.UNDISPATCHED) {
+                commandQueue.keyInput(stateMachineHandle, press)
+            }
+            commandQueue.onKeyInputHandled(
+                requestID = requestIDs.single(),
+                stateMachineHandle = stateMachineHandle,
+                handled = true,
+            )
+
+            handled.await() shouldBe true
         }
     }
 
@@ -361,7 +549,4 @@ class CommandQueueFocusUnitTest : FunSpec({
         }
         pollRequestIDs shouldHaveSize 1
     }
-
-    // The bit layout the JNI layer packs a FocusTraversalResult into. Spelled out as literals so
-    // these tests pin the wire format rather than restating whatever production code chose.
 })

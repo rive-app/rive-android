@@ -193,7 +193,11 @@ internal fun validateRiveResourceArguments(
  *    semantics because it follows Android's accessibility-enabled state. Enabling semantics is
  *    experimental and requires opting into [ExperimentalRiveSemantics].
  * @param focus Controls whether Rive can receive Android input focus. Defaults to
- *    [RiveFocusMode.Off].
+ *    [RiveFocusMode.Off]. When focus is enabled, `Tab`, `Shift+Tab`, and the arrow keys move focus
+ *    between the focusable elements inside the Rive instance, and other keys reach the focused
+ *    element. Rive consumes them only when that element expects keyboard input, such as a text
+ *    input or an element with key listeners. Shortcuts with Ctrl or Meta reach it too but are
+ *    never consumed, so the app may also act on them.
  * @param onBitmapAvailable Optional callback that is invoked when the first bitmap frame is
  *    available. The callback provides a function to get the current [Bitmap] from the underlying
  *    [TextureView]. This can be used for snapshot testing or storing rendered output. The bitmap
@@ -490,13 +494,13 @@ private class RiveSurfaceState {
 private fun rememberRiveSurfaceState(): RiveSurfaceState = remember { RiveSurfaceState() }
 
 /**
- * Makes the Rive surface a focus stop and routes traversal keys into the Rive instance.
+ * Makes the Rive surface focusable and routes key events into the Rive instance.
  *
  * `onEnter` never fires for a focusable leaf, so an unfocusable group around the surface catches
  * the direction focus arrives in. A tap focuses the surface without entering the instance.
  *
- * @param session The session deciding whether a traversal key belongs to Rive, or null while the
- *    Rive instance has no state machine yet.
+ * @param session The session deciding whether a key event belongs to Rive, or null while the Rive
+ *    instance has no state machine yet.
  * @param enabled Whether Rive can receive Android input focus.
  * @param surfaceState Shared mutable surface state. This modifier updates its
  *    [RiveSurfaceState.focused] and [RiveSurfaceState.entryDirection] properties when Android
@@ -523,14 +527,23 @@ private fun Modifier.riveFocus(
                 focused = state.isFocused,
                 entryDirection = when (entryDirection) {
                     FocusDirection.Next -> RiveFocusDirection.Next
+
                     FocusDirection.Previous -> RiveFocusDirection.Previous
+
+                    // A spatial move needs a focused node to start from, so an arrival by arrow key
+                    // enters with Next or Previous: Right and Down land on the first node, Left and
+                    // Up on the last. A tap arrives as FocusDirection.Enter, so it doesn't enter.
+                    FocusDirection.Right, FocusDirection.Down -> RiveFocusDirection.Next
+
+                    FocusDirection.Left, FocusDirection.Up -> RiveFocusDirection.Previous
+
                     else -> null
                 },
             )
         }
         .onPreviewKeyEvent { event ->
-            val direction = event.nativeKeyEvent.traversalDirection()
-            direction != null && activeSession.onTraversalKey(direction)
+            val press = RiveKeyPress.from(event.nativeKeyEvent)
+            press != null && activeSession.onKeyEvent(press)
         }
         // Observes without consuming, so Rive still receives the press.
         .pointerInput(surfaceState.focusRequester) {
@@ -693,13 +706,18 @@ private fun RiveSurfaceHost(
         if (stateMachine == null) return@remember null
         RiveFocusSession(
             scope = focusScope,
-            traverse = stateMachine::moveFocus,
-            // The key that left the tree was consumed, so move focus as the key would have.
+            move = stateMachine::moveFocus,
+            sendKey = stateMachine::keyInput,
+            // The key that left the instance was consumed, so move focus as the key would have.
             handOff = { direction ->
                 focusManager.moveFocus(
                     when (direction) {
                         RiveFocusDirection.Next -> FocusDirection.Next
                         RiveFocusDirection.Previous -> FocusDirection.Previous
+                        RiveFocusDirection.Left -> FocusDirection.Left
+                        RiveFocusDirection.Right -> FocusDirection.Right
+                        RiveFocusDirection.Up -> FocusDirection.Up
+                        RiveFocusDirection.Down -> FocusDirection.Down
                     }
                 )
             },
@@ -734,7 +752,7 @@ private fun RiveSurfaceHost(
     val polledFocus = stateMachine?.focusState?.collectAsState()?.value
     LaunchedEffect(focusSession, focusAttached, polledFocus) {
         if (focusAttached && polledFocus != null) {
-            focusSession?.onRiveFocusChanged(polledFocus is RiveFocusState.Focused)
+            focusSession?.onRiveFocusChanged(polledFocus)
         }
     }
 

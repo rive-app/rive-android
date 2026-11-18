@@ -27,12 +27,14 @@ import app.rive.RiveFile
 import app.rive.RiveFileAsset
 import app.rive.RiveFileException
 import app.rive.RiveFocusDirection
+import app.rive.RiveFocusMoveResult
 import app.rive.RiveFocusState
 import app.rive.RiveFontException
 import app.rive.RiveImageException
 import app.rive.RiveImplementationApi
 import app.rive.RiveIncompatibleResourceException
 import app.rive.RiveInitializationException
+import app.rive.RiveKeyPress
 import app.rive.RiveLog
 import app.rive.RiveRenderException
 import app.rive.RiveResourceClosedException
@@ -759,6 +761,9 @@ class CommandQueue internal constructor(
     private val focusStateStore = FocusStateStore {
         nextRequestID.getAndIncrement()
     }
+
+    /** Held while a focus-changing command is submitted and recorded; see [submitFocusCommand]. */
+    private val focusCommandLock = Any()
 
     /** Semantic trees maintained per state machine handle. */
     private val semanticTrees = mutableMapOf<Long, SemanticTreeModel>()
@@ -2102,56 +2107,96 @@ class CommandQueue internal constructor(
     )
 
     /**
-     * Move Rive focus one step and suspend until the resulting focus state arrives.
+     * Move Rive focus one step and suspend until the outcome arrives.
      *
-     * Submits the traversal command and a follow-up focus-state poll, then awaits that poll's
-     * answer without blocking the calling thread. Running off the end of the tree clears focus, so
-     * the result is [RiveFocusState.Unfocused]; a scope authored to stop at its edge keeps focus.
-     *
-     * The command is enqueued before this suspends, so cancelling only stops waiting for the
-     * result; focus still moves.
+     * The outcome is also published to the flow returned by [focusState], unless a later move or
+     * [clearFocus] was submitted before it arrived. The command is enqueued before this suspends,
+     * so cancelling only stops waiting for the outcome; focus still moves.
      *
      * @param stateMachineHandle The state machine whose focus should move.
      * @param direction The direction to move focus in.
-     * @return The focus state the traversal left behind.
+     * @return Whether focus moved, and the focus state right after.
      * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * @throws RiveStateMachineException If the command server has no such state machine.
      * @throws CancellationException If the coroutine is cancelled, or the owning worker is disposed,
      *    before the answer arrives.
      */
-    @Throws(RiveResourceClosedException::class, CancellationException::class)
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveStateMachineException::class,
+        CancellationException::class,
+    )
     suspend fun moveFocus(
         stateMachineHandle: StateMachineHandle,
         direction: RiveFocusDirection,
-    ): RiveFocusState {
+    ): RiveFocusMoveResult {
         val pointer = requireNativePointer()
-        val submitTraversal = when (direction) {
-            RiveFocusDirection.Next -> bridge::cppFocusNext
-            RiveFocusDirection.Previous -> bridge::cppFocusPrevious
-        }
-        enqueueFocusCommand(pointer, stateMachineHandle, submitTraversal)
-        // Reserved after the boundary moved, so the store accepts this answer as the result.
         return suspendNativeRequest { requestID ->
-            bridge.cppRequestFocusState(pointer, stateMachineHandle.handle, requestID)
+            submitFocusCommand(stateMachineHandle, requestID) {
+                bridge.cppMoveFocus(
+                    pointer,
+                    stateMachineHandle.handle,
+                    direction.nativeMapping,
+                    requestID,
+                )
+            }
         }
     }
 
     /**
-     * Enqueues a focus-changing command and retires focus-state polls already in flight.
+     * Delivers a key event to the focused element and its ancestors, and suspends until the
+     * answer arrives.
      *
-     * Keeps the ordering in one place: invalidating after enqueueing lets any later poll describe
-     * post-command state; see [FocusStateStore.invalidate].
-     *
-     * @param pointer The native command queue pointer.
-     * @param stateMachineHandle The state machine the command targets.
-     * @param submitCommand The bridge call that enqueues the command.
+     * @param stateMachineHandle The state machine receiving the key.
+     * @param press The translated key event.
+     * @return Whether an element handled the key.
+     * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
+     * @throws RiveStateMachineException If the command server has no such state machine.
+     * @throws CancellationException If the coroutine is cancelled, or the owning worker is disposed,
+     *    before the answer arrives.
      */
-    private fun enqueueFocusCommand(
-        pointer: Long,
+    @Throws(
+        RiveResourceClosedException::class,
+        RiveStateMachineException::class,
+        CancellationException::class,
+    )
+    internal suspend fun keyInput(
         stateMachineHandle: StateMachineHandle,
-        submitCommand: (pointer: Long, stateMachineHandle: Long, requestID: Long) -> Unit,
-    ) {
-        submitCommand(pointer, stateMachineHandle.handle, nextRequestID.getAndIncrement())
-        focusStateStore.invalidate(stateMachineHandle)
+        press: RiveKeyPress,
+    ): Boolean {
+        val pointer = requireNativePointer()
+        return suspendNativeRequest { requestID ->
+            bridge.cppKeyInput(
+                pointer,
+                stateMachineHandle.handle,
+                press.key,
+                press.modifiers,
+                press.isPressed,
+                press.isRepeat,
+                requestID,
+            )
+        }
+    }
+
+    /**
+     * Submits a focus-changing command and records it as the state machine's latest, as one step.
+     *
+     * [clearFocus] can run on any thread while [moveFocus] submits on the main thread, so both
+     * hold [focusCommandLock]. The latest command [focusStateStore] records is then the one the
+     * command server receives last. Recording after submitting discards polls already in flight;
+     * see [FocusStateStore.invalidate].
+     *
+     * @param stateMachineHandle The state machine the command targets.
+     * @param requestID The command's request ID.
+     * @param submit Enqueues the command on the command server.
+     */
+    private inline fun submitFocusCommand(
+        stateMachineHandle: StateMachineHandle,
+        requestID: Long,
+        submit: () -> Unit,
+    ) = synchronized(focusCommandLock) {
+        submit()
+        focusStateStore.invalidate(stateMachineHandle, commandRequestID = requestID)
     }
 
     /**
@@ -2166,7 +2211,11 @@ class CommandQueue internal constructor(
      */
     @Throws(RiveResourceClosedException::class)
     fun clearFocus(stateMachineHandle: StateMachineHandle) {
-        enqueueFocusCommand(requireNativePointer(), stateMachineHandle, bridge::cppClearFocus)
+        val pointer = requireNativePointer()
+        val requestID = nextRequestID.getAndIncrement()
+        submitFocusCommand(stateMachineHandle, requestID) {
+            bridge.cppClearFocus(pointer, stateMachineHandle.handle, requestID)
+        }
         requestFocusState(stateMachineHandle)
     }
 
@@ -2261,9 +2310,8 @@ class CommandQueue internal constructor(
     /**
      * Callback when the command server reports a state machine's focus state.
      *
-     * Triggered by [requestFocusState], including the poll [moveFocus] awaits. Answers to polls
-     * that were already in flight when a focus-changing command was submitted are discarded, so an
-     * observer never reads pre-command focus state as though it reflected the command.
+     * Triggered by [requestFocusState]. An answer to a poll sent before a focus-changing command
+     * is dropped, because it describes focus from before that command.
      *
      * @param requestID The request that produced this answer.
      * @param stateMachineHandle The state machine the answer describes.
@@ -2281,9 +2329,52 @@ class CommandQueue internal constructor(
     ) {
         val focusState = riveFocusStateOf(hasFocus, expectsKeyboardInput)
         focusStateStore.applyFocusState(requestID, stateMachineHandle, focusState)
-        // Resume a traversal awaiting this poll, even if a newer command has moved the store on.
-        (pendingContinuations.remove(requestID) as? Continuation<RiveFocusState>)
-            ?.resume(focusState)
+    }
+
+    /**
+     * Callback when the command server reports whether [keyInput] was handled.
+     *
+     * @param requestID The key input's request ID.
+     * @param stateMachineHandle The state machine that received the key.
+     * @param handled Whether an element handled the key.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onKeyInputHandled")
+    internal fun onKeyInputHandled(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle,
+        handled: Boolean,
+    ) {
+        (pendingContinuations.remove(requestID) as? Continuation<Boolean>)?.resume(handled)
+    }
+
+    /**
+     * Callback when the command server reports the outcome of [moveFocus].
+     *
+     * Publishes the focus state here, in order with poll answers, so a poll answered after the move
+     * stays current. A later focus-changing command supersedes it.
+     *
+     * @param requestID The move's request ID.
+     * @param stateMachineHandle The state machine whose focus moved.
+     * @param moved Whether focus moved.
+     * @param hasFocus Whether an element holds focus after the move.
+     * @param expectsKeyboardInput Whether that element accepts key and text input.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onFocusMoved")
+    internal fun onFocusMoved(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle,
+        moved: Boolean,
+        hasFocus: Boolean,
+        expectsKeyboardInput: Boolean,
+    ) {
+        val result = RiveFocusMoveResult(moved, riveFocusStateOf(hasFocus, expectsKeyboardInput))
+        focusStateStore.applyCommandResult(requestID, stateMachineHandle, result.focusState)
+        (pendingContinuations.remove(requestID) as? Continuation<RiveFocusMoveResult>)
+            ?.resume(result)
     }
 
     /**

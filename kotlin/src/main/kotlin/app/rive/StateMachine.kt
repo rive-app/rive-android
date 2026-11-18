@@ -535,35 +535,62 @@ class StateMachine internal constructor(
     }
 
     /**
-     * Move Rive focus one step and suspend until the resulting focus state arrives, without
-     * blocking the calling thread.
+     * Move Rive focus one step and suspend until the outcome arrives, without blocking the calling
+     * thread.
      *
-     * Traversal order follows the artboard structure. Running off the end of the tree clears
-     * focus, so the result is [RiveFocusState.Unfocused]: the host's cue to move focus to the
-     * surrounding UI. A scope authored to stop at its edge keeps focus.
+     * [RiveFocusDirection.Next] and [RiveFocusDirection.Previous] follow the artboard structure.
+     * Running off the end clears focus. A scope authored to stop at its edge keeps focus instead.
+     * The spatial directions move to the nearest element in that direction. When there is none,
+     * focus stays where it is and [RiveFocusMoveResult.moved] is false.
+     *
+     * This function never moves Android input focus. Custom integrations can move it to the
+     * surrounding UI when a sequential move clears focus, or when a spatial move reports that
+     * focus didn't move.
      *
      * The state machine is marked unsettled so an active renderer advances and draws the result.
      * The move is submitted before this suspends, so cancelling only stops waiting for the result;
      * focus still moves.
      *
      * @param direction The direction to move focus in.
-     * @return The focus state the traversal left behind.
+     * @return Whether focus moved, and the focus state right after.
      * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
      *    has been disposed.
      * @throws IllegalStateException If this state machine is no longer registered with its worker.
-     * @throws CancellationException If the coroutine is cancelled before the answer arrives.
+     * @throws RiveStateMachineException If the Rive worker has no such state machine.
+     * @throws CancellationException If the coroutine is cancelled, or the Rive worker is disposed,
+     *    before the answer arrives.
      */
     @ExperimentalRiveFocus
     @Throws(
         RiveResourceClosedException::class,
         IllegalStateException::class,
+        RiveStateMachineException::class,
         CancellationException::class,
     )
-    suspend fun moveFocus(direction: RiveFocusDirection): RiveFocusState {
+    suspend fun moveFocus(direction: RiveFocusDirection): RiveFocusMoveResult {
         closer.checkOpen()
         // Unsettle first, since the call suspends once it submits.
         unsettle()
         return riveWorker.moveFocus(stateMachineHandle, direction)
+    }
+
+    /**
+     * Delivers a key event to the focused element and its ancestors.
+     *
+     * @param press The translated key event.
+     * @return Whether an element handled the key.
+     * @throws RiveResourceClosedException If this state machine has been closed or its Rive worker
+     *    has been disposed.
+     * @throws IllegalStateException If this state machine is no longer registered with its worker.
+     * @throws RiveStateMachineException If the Rive worker has no such state machine.
+     * @throws CancellationException If the coroutine is cancelled, or the Rive worker is disposed,
+     *    before the answer arrives.
+     */
+    internal suspend fun keyInput(press: RiveKeyPress): Boolean {
+        closer.checkOpen()
+        // Unsettle first, since the call suspends once it submits.
+        unsettle()
+        return riveWorker.keyInput(stateMachineHandle, press)
     }
 
     /**

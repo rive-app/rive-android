@@ -27,6 +27,8 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
      * @param requestIDBoundary The request ID before which focus callbacks are stale.
      */
     private class Slot(var requestIDBoundary: Long) {
+        /** The last focus-changing command, whose own answer [applyCommandResult] accepts. */
+        var commandRequestID: Long? = null
         val mutableFocusState = MutableStateFlow<RiveFocusState>(RiveFocusState.Unfocused)
         val focusState = mutableFocusState.asStateFlow()
         val mutableHasFocusNodes = MutableStateFlow(false)
@@ -153,17 +155,48 @@ internal class FocusStateStore(private val reserveNextRequestID: () -> Long) {
      * the command server answers it with post-command state. Reserving the boundary first would
      * let a poll from another thread take an ID above it yet reach the server ahead of the
      * command. A poll that races into the window between enqueueing and this call is discarded
-     * even though its answer is current, which is safe because the command's own follow-up poll
-     * always reports the result.
+     * even though its answer is current, which is safe because the command reports its result
+     * itself, through [applyCommandResult] or a follow-up poll. If the command's own answer is
+     * delivered before this call, which can happen when another thread polls, it is discarded too,
+     * and the next poll reports the state.
      *
      * Unregistered state machines are ignored: a focus command can reach the queue while its state
      * machine is being deleted, and there is no state left to invalidate.
      *
      * @param stateMachineHandle The state machine whose focus state is about to change.
+     * @param commandRequestID The command's request ID, whose answer [applyCommandResult] accepts.
      */
-    fun invalidate(stateMachineHandle: StateMachineHandle) = synchronized(lock) {
+    fun invalidate(stateMachineHandle: StateMachineHandle, commandRequestID: Long) =
+        synchronized(lock) {
+            val slot = slots[stateMachineHandle] ?: return@synchronized
+            slot.requestIDBoundary = reserveNextRequestID()
+            slot.commandRequestID = commandRequestID
+        }
+
+    /**
+     * Applies the focus state a focus-changing command reported about itself.
+     *
+     * [applyFocusState] would discard this answer, since the command's request ID is below the
+     * boundary [invalidate] reserved after it. Call this as the answer arrives, in order with poll
+     * answers, so a poll answered after it stays current.
+     *
+     * Does nothing if a later focus-changing command was submitted, or the state machine is
+     * unregistered.
+     *
+     * @param requestID The command's request ID.
+     * @param stateMachineHandle The state machine the command targeted.
+     * @param focusState The focus state the command reported.
+     */
+    fun applyCommandResult(
+        requestID: Long,
+        stateMachineHandle: StateMachineHandle,
+        focusState: RiveFocusState,
+    ): Unit = synchronized(lock) {
         val slot = slots[stateMachineHandle] ?: return@synchronized
-        slot.requestIDBoundary = reserveNextRequestID()
+        if (slot.commandRequestID != requestID) {
+            return@synchronized
+        }
+        slot.mutableFocusState.value = focusState
     }
 
     /**

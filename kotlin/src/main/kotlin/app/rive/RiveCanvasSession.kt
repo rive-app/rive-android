@@ -84,12 +84,13 @@ annotation class ExperimentalHardwareBitmapRendering
  *
  * To support keyboard focus, set [focus] and apply [focusability] to the host view with
  * [RiveFocusability.applyTo] whenever it changes. Forward the host's [View.onFocusChanged] calls to
- * [onFocusChanged], and its key events to [onKeyEvent] before handling them. `Tab` and `Shift+Tab`
- * then move focus between the focusable elements inside the Rive instance, and move Android input
- * focus to the surrounding UI when traversal leaves the instance. The session never changes view
- * properties itself. The host is also responsible for the following:
+ * [onFocusChanged], and its key events to [onKeyEvent] before handling them. `Tab`, `Shift+Tab`,
+ * and the arrow keys then move focus between the focusable elements inside the Rive instance, and
+ * move Android input focus to the surrounding UI when navigation leaves the instance. Other keys
+ * reach the focused element. The session never changes view properties itself. The host is also
+ * responsible for the following:
  * - If the host view already holds focus when the session is attached, report it once with
- *   `onFocusChanged(view, true, View.FOCUS_DOWN)`. That direction doesn't enter the instance.
+ *   `onFocusChanged(view, true)`. Without a direction, focus doesn't enter the instance.
  * - To let a tap give the host view focus, call [View.requestFocus] on `ACTION_DOWN`. It only
  *   succeeds when [focusability] allows focus in touch mode.
  * - Stop forwarding once the session is closed. Closing makes the host view lose focus, and that
@@ -105,7 +106,7 @@ annotation class ExperimentalHardwareBitmapRendering
  *
  *     fun attach(newSession: RiveCanvasSession) {
  *         session = newSession
- *         if (isFocused) newSession.onFocusChanged(this, true, View.FOCUS_DOWN)
+ *         if (isFocused) newSession.onFocusChanged(this, true)
  *     }
  *
  *     override fun onFocusChanged(gainFocus: Boolean, direction: Int, previous: Rect?) {
@@ -970,38 +971,56 @@ class RiveCanvasSession private constructor(
     /**
      * Forwards a change in the host view's Android input focus.
      *
-     * Call from the host's [View.onFocusChanged]. When focus arrives by `Tab` or `Shift+Tab`, Rive
-     * focus enters the instance at its first or last focusable element. Losing focus clears Rive
+     * Call from the host's [View.onFocusChanged]. When focus arrives by `Tab`, `Right`, or `Down`,
+     * Rive focus enters the instance at its first focusable element, and by `Shift+Tab`, `Left`, or
+     * `Up` at its last, unless an element inside already holds focus. Losing focus clears Rive
      * focus, which also runs any blur behavior authored in the file.
      *
+     * Android is in touch mode after the user touches the screen, and leaves it when they press a
+     * key. Outside touch mode, focus that arrives by an arrow key enters the instance, and so does
+     * a call to [View.requestFocus], which reports `FOCUS_DOWN`. In touch mode neither enters, so a
+     * tap doesn't enter.
+     *
      * @param host The view that gained or lost focus. The session keeps a reference while the view
-     *    holds focus, to move Android input focus to the surrounding UI when traversal leaves the
+     *    holds focus, to move Android input focus to the surrounding UI when navigation leaves the
      *    instance.
      * @param gainFocus Whether the host gained focus.
-     * @param direction The direction focus moved in, as passed to [View.onFocusChanged]. Pass
-     *    [View.FOCUS_DOWN] to report focus the host view already held when the session was
-     *    attached.
+     * @param direction The direction focus moved in, as passed to [View.onFocusChanged]. Omit it to
+     *    report focus the host view already held when the session was attached; focus then doesn't
+     *    enter the instance.
      * @throws RiveResourceClosedException If this session has been closed.
      * @throws IllegalStateException If the state machine is no longer registered with its worker.
+     * @see View.isInTouchMode
      */
     @ExperimentalRiveFocus
     @MainThread
     @Throws(RiveResourceClosedException::class, IllegalStateException::class)
-    fun onFocusChanged(host: View, gainFocus: Boolean, direction: Int) {
+    fun onFocusChanged(host: View, gainFocus: Boolean, direction: Int? = null) {
         closer.checkOpen()
         focusController.onFocusChanged(host, gainFocus, direction)
     }
 
     /**
-     * Forwards a key event to move Rive focus.
+     * Forwards a key event to the Rive instance.
      *
-     * Call from the host's [View.dispatchKeyEvent] before handling the event itself. Only `Tab` and
-     * `Shift+Tab` are handled.
+     * Call from the host's [View.dispatchKeyEvent] before handling the event itself. The session
+     * decides right away whether to consume the key, before Rive has answered:
+     * - `Tab` and `Shift+Tab` are consumed, and so are arrow keys without modifiers while an
+     *   element inside the instance holds focus. The focused element gets them first, and if it
+     *   doesn't use them, focus moves. When focus moves past the edge of the instance, Android
+     *   input focus moves to the next view in that direction, if there is one.
+     * - Other keys reach the focused element, and are consumed only when it expects keyboard input,
+     *   such as a text input or an element with key listeners.
+     * - Shortcuts with Ctrl or Meta reach the focused element but are never consumed, so the app's
+     *   own shortcuts keep working. Both the element and the app may act on the same shortcut.
+     * - Keys pressed while focus is still moving are consumed, apart from shortcuts, and handled
+     *   in order once focus settles. A new `Tab` or arrow press moves focus as usual. Other keys
+     *   reach the focused element, or are dropped if no element inside the instance holds focus.
+     * - A key release is consumed whenever its press was.
      *
-     * The session consumes the keypress immediately, before Rive finishes moving focus. If focus
-     * moves past the first or last element, the session then moves Android input focus to the next
-     * view in that direction. If there is no such view, the next keypress moves focus back into the
-     * instance.
+     * While focus isn't moving and no element inside the instance holds focus, keys pass through,
+     * except `Tab` and `Shift+Tab`, which enter the instance, even after Rive clears focus on its
+     * own.
      *
      * @param event The key event the host received.
      * @return true when the session consumed the event, so the host must not handle it.

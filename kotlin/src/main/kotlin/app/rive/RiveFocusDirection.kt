@@ -1,27 +1,31 @@
 package app.rive
 
-import android.view.KeyEvent
-
-/** The direction to move Rive focus in. */
+/**
+ * The direction to move Rive focus in.
+ *
+ * [Left], [Right], [Up], and [Down] move from the focused element, so they do nothing while no
+ * element holds focus. Use [Next] or [Previous] to move focus into the Rive instance.
+ *
+ * @param nativeMapping A code the JNI layer maps to a core focus move. The core runtime does not use
+ *    these values, so the mapping only exists in JNI.
+ */
 @ExperimentalRiveFocus
-enum class RiveFocusDirection {
+enum class RiveFocusDirection(internal val nativeMapping: Int) {
     /** The next focusable element in traversal order. */
-    Next,
+    Next(0),
 
     /** The previous focusable element in traversal order. */
-    Previous,
-}
+    Previous(1),
 
-/**
- * Resolves the traversal direction of a key event.
- *
- * @return [RiveFocusDirection.Next] for a `Tab` press, [RiveFocusDirection.Previous] for
- *    `Shift+Tab`, or null for any other key event.
- */
-internal fun KeyEvent.traversalDirection(): RiveFocusDirection? {
-    val isTabPress = action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_TAB
-    if (!isTabPress) {
-        return null
-    }
-    return if (isShiftPressed) RiveFocusDirection.Previous else RiveFocusDirection.Next
+    /** The nearest focusable element to the left. */
+    Left(2),
+
+    /** The nearest focusable element to the right. */
+    Right(3),
+
+    /** The nearest focusable element above. */
+    Up(4),
+
+    /** The nearest focusable element below. */
+    Down(5),
 }

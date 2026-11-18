@@ -54,7 +54,7 @@ class FocusStateStoreTest : FunSpec({
         val pollRequestID = nextRequestID.getAndIncrement()
 
         // A focus-changing command reserves a new boundary while the poll above is in flight.
-        store.invalidate(stateMachineHandle)
+        store.invalidate(stateMachineHandle, commandRequestID = nextRequestID.getAndIncrement())
         store.applyFocusState(
             requestID = pollRequestID,
             stateMachineHandle = stateMachineHandle,
@@ -67,6 +67,32 @@ class FocusStateStoreTest : FunSpec({
             requestID = nextRequestID.getAndIncrement(),
             stateMachineHandle = stateMachineHandle,
             focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+        )
+
+        focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = false)
+    }
+
+    test("A command's own result applies until another command is submitted") {
+        val nextRequestID = AtomicLong()
+        val store = FocusStateStore(nextRequestID::getAndIncrement)
+        store.register(stateMachineHandle)
+        val focusState = store.focusState(stateMachineHandle)
+        val commandRequestID = nextRequestID.getAndIncrement()
+        store.invalidate(stateMachineHandle, commandRequestID = commandRequestID)
+
+        // The command's answer was requested before its boundary, but describes post-command state.
+        store.applyCommandResult(
+            requestID = commandRequestID,
+            stateMachineHandle = stateMachineHandle,
+            focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+        )
+        focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = false)
+
+        store.invalidate(stateMachineHandle, commandRequestID = nextRequestID.getAndIncrement())
+        store.applyCommandResult(
+            requestID = commandRequestID,
+            stateMachineHandle = stateMachineHandle,
+            focusState = RiveFocusState.Unfocused,
         )
 
         focusState.value shouldBe RiveFocusState.Focused(expectsKeyboardInput = false)
@@ -110,7 +136,7 @@ class FocusStateStoreTest : FunSpec({
         store.register(stateMachineHandle)
         store.applyHasFocusNodes(stateMachineHandle, hasFocusNodes = true)
 
-        store.invalidate(stateMachineHandle)
+        store.invalidate(stateMachineHandle, commandRequestID = nextRequestID.getAndIncrement())
 
         store.hasFocusNodes(stateMachineHandle).value shouldBe true
     }
@@ -167,6 +193,6 @@ class FocusStateStoreTest : FunSpec({
 
         // A focus command can reach the queue while the state machine is being deleted, so this
         // must not throw the way reading a flow for an unregistered handle does.
-        store.invalidate(stateMachineHandle)
+        store.invalidate(stateMachineHandle, commandRequestID = nextRequestID.getAndIncrement())
     }
 })

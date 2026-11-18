@@ -1,5 +1,6 @@
 package app.rive
 
+import android.view.KeyEvent
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.StateMachineHandle
@@ -43,23 +44,48 @@ private fun focusTestStateMachine(
 class StateMachineFocusUnitTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
 
-    test("Move focus unsettles, delegates, and returns the resulting state") {
+    test("Move focus unsettles, delegates, and returns the outcome") {
         val worker = mockk<CommandQueue>()
         val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
         every { worker.unsettleStateMachine(stateMachineHandle) } just runs
         val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+        val resulting = RiveFocusMoveResult(
+            moved = true,
+            focusState = RiveFocusState.Focused(expectsKeyboardInput = false),
+        )
+        coEvery { worker.moveFocus(stateMachineHandle, RiveFocusDirection.Down) } returns resulting
 
-        for (direction in RiveFocusDirection.entries) {
-            val resulting = RiveFocusState.Focused(expectsKeyboardInput = false)
-            coEvery { worker.moveFocus(stateMachineHandle, direction) } returns resulting
+        stateMachine.moveFocus(RiveFocusDirection.Down) shouldBe resulting
 
-            stateMachine.moveFocus(direction) shouldBe resulting
+        // Unsettled before the call suspends, so the renderer draws the move as it lands.
+        coVerifyOrder {
+            worker.unsettleStateMachine(stateMachineHandle)
+            worker.moveFocus(stateMachineHandle, RiveFocusDirection.Down)
+        }
+    }
 
-            // Unsettled before the call suspends, so the renderer draws the move as it lands.
-            coVerifyOrder {
-                worker.unsettleStateMachine(stateMachineHandle)
-                worker.moveFocus(stateMachineHandle, direction)
-            }
+    test("Key input unsettles, delegates, and returns whether the key was handled") {
+        val worker = mockk<CommandQueue>()
+        val stateMachineHandle = StateMachineHandle(HANDLE_NUM)
+        every { worker.unsettleStateMachine(stateMachineHandle) } just runs
+        val press = RiveKeyPress(
+            keyCode = KeyEvent.KEYCODE_A,
+            key = 65,
+            modifiers = 0,
+            isPressed = true,
+            isRepeat = false,
+            navigation = null,
+            isChord = false,
+        )
+        coEvery { worker.keyInput(stateMachineHandle, press) } returns true
+        val stateMachine = focusTestStateMachine(worker, stateMachineHandle)
+
+        stateMachine.keyInput(press) shouldBe true
+
+        // Unsettled first, so a settled instance draws what the key changed.
+        coVerifyOrder {
+            worker.unsettleStateMachine(stateMachineHandle)
+            worker.keyInput(stateMachineHandle, press)
         }
     }
 

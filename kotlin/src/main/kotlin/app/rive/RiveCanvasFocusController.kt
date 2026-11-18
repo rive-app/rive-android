@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
  * properties. Call members on the main thread.
  *
  * @param initialMode Initial focus mode.
- * @param stateMachine State machine whose focus is traversed, polled, and cleared.
+ * @param stateMachine State machine that receives key events, and whose focus is moved, polled,
+ *    and cleared.
  * @param hasFocusNodes Whether the Rive instance has focusable content, or null until the first
  *    answer arrives.
  */
@@ -32,7 +33,7 @@ internal class RiveCanvasFocusController(
     private val stateMachine: StateMachine,
     private val hasFocusNodes: StateFlow<Boolean?>,
 ) : AutoCloseable {
-    /** Runs traversals and observes focus reports. Cancelled on [close]. */
+    /** Runs key deliveries and focus moves, and observes focus reports. Cancelled on [close]. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _focusability = MutableStateFlow(RiveFocusability.None)
@@ -75,7 +76,7 @@ internal class RiveCanvasFocusController(
         // Only the poll can report focus the Rive instance moved on its own.
         scope.launch {
             stateMachine.focusState.collect { focusState ->
-                session?.onRiveFocusChanged(focusState is RiveFocusState.Focused)
+                session?.onRiveFocusChanged(focusState)
             }
         }
     }
@@ -94,29 +95,42 @@ internal class RiveCanvasFocusController(
      *
      * @param host View that gained or lost focus.
      * @param gainFocus Whether the host gained focus.
-     * @param direction Direction focus moved in, as passed to [View.onFocusChanged].
+     * @param direction Direction focus moved in, as passed to [View.onFocusChanged], or null for
+     *    focus the host already held.
      */
-    fun onFocusChanged(host: View, gainFocus: Boolean, direction: Int) {
+    fun onFocusChanged(host: View, gainFocus: Boolean, direction: Int? = null) {
         focusedHost = host.takeIf { gainFocus }
         session?.onSurfaceFocusChanged(
             focused = gainFocus,
             entryDirection = when (direction) {
                 View.FOCUS_FORWARD -> RiveFocusDirection.Next
+
                 View.FOCUS_BACKWARD -> RiveFocusDirection.Previous
+
+                // A spatial move needs a focused node to start from, so an arrival by arrow key
+                // enters with Next or Previous: Right and Down land on the first node, Left and Up
+                // on the last. A tap's requestFocus() also reports FOCUS_DOWN, but in touch mode,
+                // so it doesn't enter.
+                View.FOCUS_RIGHT, View.FOCUS_DOWN ->
+                    RiveFocusDirection.Next.takeUnless { host.isInTouchMode }
+
+                View.FOCUS_LEFT, View.FOCUS_UP ->
+                    RiveFocusDirection.Previous.takeUnless { host.isInTouchMode }
+
                 else -> null
             },
         )
     }
 
     /**
-     * Starts a traversal for `Tab` or `Shift+Tab`.
+     * Routes a key event into the Rive instance.
      *
      * @param event Key event the host received.
      * @return Whether the event was consumed.
      */
     fun onKeyEvent(event: KeyEvent): Boolean {
-        val direction = event.traversalDirection() ?: return false
-        return session?.onTraversalKey(direction) ?: false
+        val keyPress = RiveKeyPress.from(event) ?: return false
+        return session?.onKeyEvent(keyPress) ?: false
     }
 
     /**
@@ -153,20 +167,23 @@ internal class RiveCanvasFocusController(
         } else {
             RiveFocusSession(
                 scope = scope,
-                traverse = stateMachine::moveFocus,
-                // The key that left the tree was consumed, so move focus as the key would have.
+                move = stateMachine::moveFocus,
+                sendKey = stateMachine::keyInput,
+                // The key that left the instance was consumed, so move focus as the key would have.
                 handOff = { direction ->
                     val androidDirection = when (direction) {
                         RiveFocusDirection.Next -> View.FOCUS_FORWARD
                         RiveFocusDirection.Previous -> View.FOCUS_BACKWARD
+                        RiveFocusDirection.Left -> View.FOCUS_LEFT
+                        RiveFocusDirection.Right -> View.FOCUS_RIGHT
+                        RiveFocusDirection.Up -> View.FOCUS_UP
+                        RiveFocusDirection.Down -> View.FOCUS_DOWN
                     }
                     val host = focusedHost
                     val next = host?.focusSearch(androidDirection)
-                    // If the only view found is the host itself, focus has nowhere to go. Report
-                    // that it didn't move, so the next keypress goes back into the instance.
-                    if (next == null || next === host) {
-                        false
-                    } else {
+                    // If the only view found is the host itself, focus has nowhere to go, so it
+                    // stays with the Rive instance for the next key.
+                    if (next != null && next !== host) {
                         next.requestFocus(androidDirection)
                     }
                 },
@@ -182,7 +199,7 @@ internal class RiveCanvasFocusController(
             ).apply {
                 // The host may already hold focus, and it reports focus only when it changes.
                 onSurfaceFocusChanged(focusedHost != null)
-                onRiveFocusChanged(stateMachine.focusState.value is RiveFocusState.Focused)
+                onRiveFocusChanged(stateMachine.focusState.value)
             }
         }
     }

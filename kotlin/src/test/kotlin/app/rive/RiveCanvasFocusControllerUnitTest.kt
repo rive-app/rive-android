@@ -4,6 +4,7 @@ import android.view.KeyEvent
 import android.view.View
 import io.kotest.assertions.throwables.shouldThrowUnit
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -35,8 +36,9 @@ private class FocusControllerTestFixture(
     val focusState = MutableStateFlow<RiveFocusState>(RiveFocusState.Unfocused)
     val hasFocusNodes = MutableStateFlow(hasFocusNodes)
 
-    /** The direction and pending result of every traversal the controller started. */
-    val traversals = mutableListOf<Pair<RiveFocusDirection, CompletableDeferred<RiveFocusState>>>()
+    /** The direction and pending result of every move the controller started. */
+    val traversals =
+        mutableListOf<Pair<RiveFocusDirection, CompletableDeferred<RiveFocusMoveResult>>>()
 
     val stateMachine = mockk<StateMachine>().also { stateMachine ->
         every { stateMachine.focusState } returns focusState
@@ -44,24 +46,35 @@ private class FocusControllerTestFixture(
         every { stateMachine.pollFocus() } just runs
         every { stateMachine.clearFocusForLifecycleCleanup() } just runs
         coEvery { stateMachine.moveFocus(any()) } coAnswers {
-            val result = CompletableDeferred<RiveFocusState>()
+            val result = CompletableDeferred<RiveFocusMoveResult>()
             traversals += firstArg<RiveFocusDirection>() to result
             result.await()
         }
+        // The focused element never uses a key here, so navigation keys always move focus.
+        coEvery { stateMachine.keyInput(any()) } returns false
     }
 
-    /** The view that takes focus when traversal leaves the instance. */
+    /** The view that takes focus when navigation leaves the instance. */
     val nextView = mockk<View>().also { every { it.requestFocus(any()) } returns true }
 
     val host = mockk<View>().also { host ->
         every { host.focusSearch(any()) } returns nextView
+        every { host.isInTouchMode } returns false
     }
 
     val controller = RiveCanvasFocusController(mode, stateMachine, this.hasFocusNodes)
 
-    /** Delivers the result of the latest traversal. */
-    fun completeTraversal(hasFocus: Boolean) {
-        traversals.last().second.complete(riveFocusStateOf(hasFocus, expectsKeyboardInput = false))
+    /**
+     * Delivers the result of the latest move.
+     *
+     * @param hasFocus Whether Rive still holds focus after the move.
+     * @param moved Whether focus moved. Defaults to [hasFocus], which fits a sequential move that
+     *    lands on a node or runs off the end.
+     */
+    fun completeTraversal(hasFocus: Boolean, moved: Boolean = hasFocus) {
+        traversals.last().second.complete(
+            RiveFocusMoveResult(moved, riveFocusStateOf(hasFocus, expectsKeyboardInput = false))
+        )
     }
 
     /** Focuses the host by forward traversal and lets Rive take its first node. */
@@ -73,15 +86,32 @@ private class FocusControllerTestFixture(
 }
 
 /**
+ * Creates a mocked key press with no modifiers other than Shift.
+ *
+ * @param keyCode The Android key code.
+ * @param shift Whether Shift is held.
+ */
+private fun keyPress(keyCode: Int, shift: Boolean = false): KeyEvent =
+    mockk<KeyEvent>().also { event ->
+        every { event.keyCode } returns keyCode
+        every { event.action } returns KeyEvent.ACTION_DOWN
+        every { event.repeatCount } returns 0
+        every { event.isShiftPressed } returns shift
+        every { event.isCtrlPressed } returns false
+        every { event.isAltPressed } returns false
+        every { event.isMetaPressed } returns false
+        every { event.hasNoModifiers() } returns !shift
+        every { event.hasModifiers(any()) } answers {
+            shift && firstArg<Int>() == KeyEvent.META_SHIFT_ON
+        }
+    }
+
+/**
  * Creates a mocked `Tab` press.
  *
  * @param shift Whether Shift is held.
  */
-private fun tabPress(shift: Boolean = false): KeyEvent = mockk<KeyEvent>().also { event ->
-    every { event.keyCode } returns KeyEvent.KEYCODE_TAB
-    every { event.action } returns KeyEvent.ACTION_DOWN
-    every { event.isShiftPressed } returns shift
-}
+private fun tabPress(shift: Boolean = false): KeyEvent = keyPress(KeyEvent.KEYCODE_TAB, shift)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RiveCanvasFocusControllerUnitTest : FunSpec({
@@ -183,7 +213,7 @@ class RiveCanvasFocusControllerUnitTest : FunSpec({
 
         test("A host focused before focus turned on can enter with the next Tab") {
             val fixture = fixture(mode = RiveFocusMode.Off)
-            fixture.controller.onFocusChanged(fixture.host, gainFocus = true, direction = 0)
+            fixture.controller.onFocusChanged(fixture.host, gainFocus = true)
 
             fixture.controller.mode = RiveFocusMode.On
 
@@ -239,18 +269,21 @@ class RiveCanvasFocusControllerUnitTest : FunSpec({
     }
 
     context("onFocusChanged") {
-        test("Arriving forward traverses to the next element and backward to the previous one") {
-            val fixture = fixture()
+        test("Tab, Right, and Down enter with Next; Shift+Tab, Left, and Up with Previous") {
+            listOf(
+                View.FOCUS_FORWARD to RiveFocusDirection.Next,
+                View.FOCUS_RIGHT to RiveFocusDirection.Next,
+                View.FOCUS_DOWN to RiveFocusDirection.Next,
+                View.FOCUS_BACKWARD to RiveFocusDirection.Previous,
+                View.FOCUS_LEFT to RiveFocusDirection.Previous,
+                View.FOCUS_UP to RiveFocusDirection.Previous,
+            ).forAll { (androidDirection, expected) ->
+                val fixture = fixture()
 
-            fixture.controller.onFocusChanged(fixture.host, true, View.FOCUS_FORWARD)
-            fixture.completeTraversal(hasFocus = true)
-            fixture.controller.onFocusChanged(fixture.host, false, View.FOCUS_FORWARD)
-            fixture.controller.onFocusChanged(fixture.host, true, View.FOCUS_BACKWARD)
+                fixture.controller.onFocusChanged(fixture.host, true, androidDirection)
 
-            fixture.traversals.map { it.first } shouldContainExactly listOf(
-                RiveFocusDirection.Next,
-                RiveFocusDirection.Previous,
-            )
+                fixture.traversals.map { it.first } shouldContainExactly listOf(expected)
+            }
         }
 
         test("A host that already holds focus enters with Tab once it reports that focus") {
@@ -258,25 +291,30 @@ class RiveCanvasFocusControllerUnitTest : FunSpec({
             // A new controller can't know the host already holds focus.
             fixture.controller.onKeyEvent(tabPress()) shouldBe false
 
-            fixture.controller.onFocusChanged(fixture.host, true, View.FOCUS_DOWN)
+            fixture.controller.onFocusChanged(fixture.host, true)
 
             fixture.traversals.shouldBeEmpty()
             fixture.controller.onKeyEvent(tabPress()) shouldBe true
         }
 
-        test("Arriving any other way, such as a tap, does not enter") {
-            val fixture = fixture()
+        test("Arrow-direction arrivals in touch mode, like a tap's FOCUS_DOWN, don't enter") {
+            val spatialDirections =
+                listOf(View.FOCUS_LEFT, View.FOCUS_RIGHT, View.FOCUS_UP, View.FOCUS_DOWN)
+            spatialDirections.forAll { androidDirection ->
+                val fixture = fixture()
+                every { fixture.host.isInTouchMode } returns true
 
-            fixture.controller.onFocusChanged(fixture.host, true, View.FOCUS_DOWN)
+                fixture.controller.onFocusChanged(fixture.host, true, androidDirection)
 
-            coVerify(exactly = 0) { fixture.stateMachine.moveFocus(any()) }
+                coVerify(exactly = 0) { fixture.stateMachine.moveFocus(any()) }
+            }
         }
 
         test("Losing focus clears Rive focus") {
             val fixture = fixture()
             fixture.enter()
 
-            fixture.controller.onFocusChanged(fixture.host, false, 0)
+            fixture.controller.onFocusChanged(fixture.host, false)
 
             verify { fixture.stateMachine.clearFocusForLifecycleCleanup() }
         }
@@ -305,6 +343,16 @@ class RiveCanvasFocusControllerUnitTest : FunSpec({
             fixture.completeTraversal(hasFocus = false)
 
             verify { fixture.nextView.requestFocus(View.FOCUS_BACKWARD) }
+        }
+
+        test("Hands off spatially through focusSearch") {
+            val fixture = fixture()
+            fixture.enter()
+
+            fixture.controller.onKeyEvent(keyPress(KeyEvent.KEYCODE_DPAD_DOWN))
+            fixture.completeTraversal(hasFocus = true, moved = false)
+
+            verify { fixture.nextView.requestFocus(View.FOCUS_DOWN) }
         }
 
         test("A search that wraps back to the host lets the next Tab enter again") {

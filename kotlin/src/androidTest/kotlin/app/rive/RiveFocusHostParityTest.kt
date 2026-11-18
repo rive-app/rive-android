@@ -23,6 +23,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
@@ -243,6 +246,121 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
         )
     }
 
+    @Test
+    fun anArrowFromTheStopAboveEntersAtTheFirstNode() {
+        show(RiveFocusMode.On, fixture = R.raw.focus_buttons_row)
+        focus(Stop.Before)
+
+        pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+
+        assertTrue(awaitRiveFocus(expected = true), "Down onto the host did not enter")
+        pressTab(shift = true)
+        assertTrue(awaitStopFocused(Stop.Before), "the arrow entry did not land on the first node")
+    }
+
+    @Test
+    fun anArrowFromTheStopBelowEntersAtTheLastNode() {
+        show(RiveFocusMode.On, fixture = R.raw.focus_buttons_row)
+        focus(Stop.After)
+
+        pressKey(KeyEvent.KEYCODE_DPAD_UP)
+
+        assertTrue(awaitRiveFocus(expected = true), "Up onto the host did not enter")
+        pressTab()
+        assertTrue(awaitStopFocused(Stop.After), "the arrow entry did not land on the last node")
+    }
+
+    @Test
+    fun anArrowMovesBetweenNodesInsideTheInstance() {
+        enterRow()
+
+        pressKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+        // Keys pressed while focus is moving never navigate, so wait until Right has landed or
+        // been given up on.
+        Thread.sleep(NAVIGATION_SETTLE_MS)
+        // From the second button, Shift+Tab stays inside the row.
+        pressTab(shift = true)
+
+        Thread.sleep(SETTLE_MS)
+        assertTrue(stateMachine.focusState.value is RiveFocusState.Focused, "focus left the row")
+        assertFalse(onMain { activeHost.isStopFocused(Stop.Before) }, "Right did not move focus")
+    }
+
+    @Test
+    fun anArrowDownWithNoNodeBelowHandsOffToTheStopBelow() {
+        enterRow()
+
+        pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+
+        assertTrue(awaitStopFocused(Stop.After), "Down did not hand off to the stop below")
+        assertTrue(awaitRiveFocus(expected = false), "Rive kept focus after the arrow left")
+        // Android would move focus the same way, so check that Rive, not the host, handled Down.
+        assertFalse(
+            onMain { KeyEvent.KEYCODE_DPAD_DOWN in activeHost.keysLeftToHost },
+            "Down was left to the host",
+        )
+    }
+
+    @Test
+    fun anArrowUpWithNoNodeAboveHandsOffToTheStopAbove() {
+        enterRow()
+
+        pressKey(KeyEvent.KEYCODE_DPAD_UP)
+
+        assertTrue(awaitStopFocused(Stop.Before), "Up did not hand off to the stop above")
+        assertTrue(awaitRiveFocus(expected = false), "Rive kept focus after the arrow left")
+        // Android would move focus the same way, so check that Rive, not the host, handled Up.
+        assertFalse(
+            onMain { KeyEvent.KEYCODE_DPAD_UP in activeHost.keysLeftToHost },
+            "Up was left to the host",
+        )
+    }
+
+    @Test
+    fun anArrowAfterATapDoesNotEnter() {
+        show(RiveFocusMode.On, fixture = R.raw.focus_buttons_row)
+        tapHost()
+        assertTrue(awaitCondition { onMain { activeHost.hostHasFocus() } }, "tapping did not focus")
+
+        pressKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+
+        assertTrue(
+            awaitCondition {
+                onMain { KeyEvent.KEYCODE_DPAD_RIGHT in activeHost.keysLeftToHost }
+            },
+            "the arrow was consumed instead of left to the host",
+        )
+        Thread.sleep(SETTLE_MS)
+        assertEquals(RiveFocusState.Unfocused, stateMachine.focusState.value, "the arrow entered")
+    }
+
+    @Test
+    fun ctrlTabIsLeftToTheHost() {
+        enterRow()
+        // Compose also records the Tab that entered the row, which a stop above received.
+        val earlierKeys = onMain { activeHost.keysLeftToHost.size }
+
+        pressKey(KeyEvent.KEYCODE_TAB, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON)
+
+        assertTrue(
+            awaitCondition {
+                onMain { KeyEvent.KEYCODE_TAB in activeHost.keysLeftToHost.drop(earlierKeys) }
+            },
+            "Ctrl+Tab was consumed instead of left to the host",
+        )
+    }
+
+    @Test
+    fun shiftArrowDoesNotMoveRiveFocus() {
+        enterRow()
+
+        pressKey(KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
+        // Still on the first button, so Shift+Tab leaves the row.
+        pressTab(shift = true)
+
+        assertTrue(awaitStopFocused(Stop.Before), "Shift+Right moved Rive focus")
+    }
+
     /**
      * Shows [fixture] in the host under test between two focus stops, and plays it.
      *
@@ -282,6 +400,24 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_SHIFT_LEFT)
         instrumentation.runOnMainSync { activeHost.focusStop(stop) }
         assertTrue(awaitStopFocused(stop), "could not focus $stop")
+    }
+
+    private fun pressKey(keyCode: Int, metaState: Int = 0) {
+        val downAt = SystemClock.uptimeMillis()
+        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+            instrumentation.sendKeySync(
+                KeyEvent(downAt, SystemClock.uptimeMillis(), action, keyCode, 0, metaState)
+            )
+        }
+        instrumentation.waitForIdleSync()
+    }
+
+    /** Shows the button row and enters it at its first button by Tab from the stop above. */
+    private fun enterRow() {
+        show(RiveFocusMode.On, fixture = R.raw.focus_buttons_row)
+        focus(Stop.Before)
+        pressTab()
+        assertTrue(awaitRiveFocus(expected = true), "Tab did not enter")
     }
 
     private fun pressTab(shift: Boolean = false) {
@@ -361,6 +497,12 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
 
         /** Takes the host out of the layout. */
         fun hide()
+
+        /**
+         * Key codes of presses that reached the surrounding UI unconsumed, in order. The Compose
+         * host also records presses a focus stop received.
+         */
+        val keysLeftToHost: List<Int>
     }
 
     /** Hosts the fixture through [RiveCanvasSession] between two views. */
@@ -376,7 +518,8 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
             stateMachine = resources.stateMachine,
             focus = focus,
         )
-        private val hostView = CanvasHostView(activity, session)
+        override val keysLeftToHost = mutableListOf<Int>()
+        private val hostView = CanvasHostView(activity, session, keysLeftToHost)
         private val stops = Stop.entries.associateWith {
             View(activity).apply {
                 isFocusable = true
@@ -423,10 +566,17 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
         override fun close() = session.close()
     }
 
-    /** Forwards focus, keys, and touches to [session]. Stops forwarding once it closes. */
+    /**
+     * Forwards focus, keys, and touches to [session]. Stops forwarding once it closes.
+     *
+     * @param keysLeftToHost Receives the key code of each press [session] didn't consume.
+     */
     @SuppressLint("ViewConstructor")
-    private class CanvasHostView(context: Context, private val session: RiveCanvasSession) :
-        View(context) {
+    private class CanvasHostView(
+        context: Context,
+        private val session: RiveCanvasSession,
+        private val keysLeftToHost: MutableList<Int>,
+    ) : View(context) {
         override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
             if (!session.closed) session.setRegion(Rect(0, 0, width, height))
         }
@@ -440,8 +590,13 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
             if (!session.closed) session.onFocusChanged(this, gainFocus, direction)
         }
 
-        override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-            (!session.closed && session.onKeyEvent(event)) || super.dispatchKeyEvent(event)
+        override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+            val consumed = !session.closed && session.onKeyEvent(event)
+            if (!consumed && event.action == KeyEvent.ACTION_DOWN) {
+                keysLeftToHost += event.keyCode
+            }
+            return consumed || super.dispatchKeyEvent(event)
+        }
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -462,10 +617,19 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
         private val requesters = Stop.entries.associateWith { FocusRequester() }
         private val stopFocused = Stop.entries.associateWith { mutableStateOf(false) }
         private var hostFocused = false
+        override val keysLeftToHost = mutableListOf<Int>()
 
         override val content: View = ComposeView(activity).apply {
             setContent {
-                Column {
+                // Keys the Rive surface didn't consume bubble up to its ancestors.
+                Column(
+                    Modifier.onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown) {
+                            keysLeftToHost += event.nativeKeyEvent.keyCode
+                        }
+                        false
+                    }
+                ) {
                     FocusStop(Stop.Before)
                     if (visible.value) {
                         Rive(
@@ -534,5 +698,8 @@ class RiveFocusHostParityTest(private val kind: HostKind) : RiveAndroidTest() {
         private const val AWAIT_ATTEMPTS = 60
         private const val AWAIT_STEP_MS = 50L
         private const val SETTLE_MS = 500L
+
+        /** Longer than the session's one-second navigation timeout. */
+        private const val NAVIGATION_SETTLE_MS = 1_500L
     }
 }

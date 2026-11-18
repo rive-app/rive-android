@@ -112,9 +112,17 @@ interface CommandQueueBridge {
 
     fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
 
-    fun cppFocusNext(pointer: Long, stateMachineHandle: Long, requestID: Long)
+    fun cppMoveFocus(pointer: Long, stateMachineHandle: Long, direction: Int, requestID: Long)
 
-    fun cppFocusPrevious(pointer: Long, stateMachineHandle: Long, requestID: Long)
+    fun cppKeyInput(
+        pointer: Long,
+        stateMachineHandle: Long,
+        key: Int,
+        modifiers: Int,
+        isPressed: Boolean,
+        isRepeat: Boolean,
+        requestID: Long,
+    )
 
     fun cppClearFocus(pointer: Long, stateMachineHandle: Long, requestID: Long)
 
@@ -653,11 +661,20 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
 
     external override fun cppClearSemanticFocus(pointer: Long, stateMachineHandle: Long)
 
-    external override fun cppFocusNext(pointer: Long, stateMachineHandle: Long, requestID: Long)
-
-    external override fun cppFocusPrevious(
+    external override fun cppMoveFocus(
         pointer: Long,
         stateMachineHandle: Long,
+        direction: Int,
+        requestID: Long,
+    )
+
+    external override fun cppKeyInput(
+        pointer: Long,
+        stateMachineHandle: Long,
+        key: Int,
+        modifiers: Int,
+        isPressed: Boolean,
+        isRepeat: Boolean,
         requestID: Long,
     )
 
