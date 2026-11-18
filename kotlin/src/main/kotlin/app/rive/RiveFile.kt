@@ -4,8 +4,12 @@ import android.content.res.Resources
 import androidx.annotation.RawRes as RawResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.rive.core.ArtboardHandle
 import app.rive.core.CheckableAutoCloseable
@@ -81,6 +85,11 @@ class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: 
          *
          * @param source The source of the Rive file.
          * @param riveWorker The Rive worker that owns the file.
+         * @param deferDecoding Lazily decode eligible artboards, animations, and view model
+         *    instances when first used instead of during loading. This can reduce initial loading
+         *    time, especially for large files whose contents are only partly used, but may increase
+         *    latency on first use. The file bytes are still read upfront, and the first artboard is
+         *    decoded during loading. Defaults to false.
          * @return The loaded Rive file.
          * @throws RiveFileException If the file cannot be loaded by the Rive worker.
          * @throws RiveResourceClosedException If [riveWorker] has been disposed.
@@ -95,7 +104,11 @@ class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: 
             IOException::class,
             CancellationException::class
         )
-        suspend fun load(source: RiveFileSource, riveWorker: RiveWorker): RiveFile {
+        suspend fun load(
+            source: RiveFileSource,
+            riveWorker: RiveWorker,
+            deferDecoding: Boolean = false,
+        ): RiveFile {
             RiveLog.d(FILE_TAG) { "Loading Rive file from source: $source" }
             riveWorker.acquire(FILE_TAG)
             val file = try {
@@ -113,7 +126,7 @@ class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: 
                 RiveLog.v(FILE_TAG) {
                     "Loaded Rive file bytes from source: $source; sending to Rive worker"
                 }
-                val fileHandle = riveWorker.loadFile(fileBytes)
+                val fileHandle = riveWorker.loadFile(fileBytes, deferDecoding)
 
                 RiveLog.d(FILE_TAG) { "Loaded Rive file from source: $source; $fileHandle" }
                 RiveFile(fileHandle, riveWorker)
@@ -372,18 +385,41 @@ sealed interface RiveFileSource {
  * The lifetime of the [RiveFile] is managed by this composable. It will release the resources
  * allocated to the file, including its reference to [riveWorker], when it falls out of scope.
  *
+ * Changing [deferDecoding] from `false` to `true` retains the current file or in-progress load.
+ * Eager decoding has already started or finished and can't be cancelled, so we keep that work.
+ * Changing it from `true` to `false` reloads the file with a full decode, unless we're already
+ * retaining an eager load. Changing the source or worker starts a new load using the current option.
+ *
+ * Reloading also recreates dependent artboards, state machines, and view model instances. Their
+ * runtime state is not preserved automatically.
+ *
  * @param source The source of the Rive file, which can be a byte array or a raw resource ID.
  * @param riveWorker The Rive worker that owns the file.
+ * @param deferDecoding Lazily decode eligible artboards, animations, and view model instances
+ *    when first used instead of during loading. This can reduce initial loading time, especially
+ *    for large files whose contents are only partly used, but may increase latency on first use.
+ *    The file bytes are still read upfront, and the first artboard is decoded during loading.
+ *    Defaults to false.
  * @return The [Result] of loading the Rive file, which can be either loading, error, or success
  *    with the [RiveFile]. Changing [source] or [riveWorker] synchronously returns loading while the
  *    replacement is created.
  */
 @Composable
-fun rememberRiveFile(source: RiveFileSource, riveWorker: RiveWorker): Result<RiveFile> =
-    key(source, riveWorker) {
+fun rememberRiveFile(
+    source: RiveFileSource,
+    riveWorker: RiveWorker,
+    deferDecoding: Boolean = false,
+): Result<RiveFile> = key(source, riveWorker) {
+    // Snapshot state keeps the eager choice across recompositions without leaking changes from
+    // abandoned compositions. A source or worker change resets it through the enclosing key.
+    var loadDeferred by remember { mutableStateOf(deferDecoding) }
+    if (!deferDecoding) loadDeferred = false
+    // Capture this load's policy so the coroutine doesn't read a later mutable-state value.
+    val effectiveDeferDecoding = loadDeferred
+    key(effectiveDeferDecoding) {
         produceState<Result<RiveFile>>(Result.Loading) {
             val file = try {
-                RiveFile.load(source, riveWorker)
+                RiveFile.load(source, riveWorker, effectiveDeferDecoding)
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Exception) {
@@ -395,3 +431,4 @@ fun rememberRiveFile(source: RiveFileSource, riveWorker: RiveWorker): Result<Riv
             awaitDispose { file.close() }
         }.value
     }
+}

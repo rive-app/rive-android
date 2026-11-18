@@ -1175,6 +1175,7 @@ class CommandQueue internal constructor(
      * order so a later successful load cannot orphan it.
      *
      * @param bytes The bytes of the Rive file to load.
+     * @param deferDecoding Whether eligible file contents decode on first use instead of at import.
      * @return A [FileHandle] that represents the loaded Rive file.
      * @throws RiveFileException If the file could not be loaded.
      * @throws RiveResourceClosedException If this command queue has been disposed.
@@ -1185,9 +1186,9 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun loadFile(bytes: ByteArray): FileHandle =
+    suspend fun loadFile(bytes: ByteArray, deferDecoding: Boolean = false): FileHandle =
         suspendNativeResourceRequest(::deleteFile) { requestID ->
-            FileHandle(bridge.cppLoadFile(requireNativePointer(), requestID, bytes))
+            FileHandle(bridge.cppLoadFile(requireNativePointer(), requestID, bytes, deferDecoding))
         }
 
     /**

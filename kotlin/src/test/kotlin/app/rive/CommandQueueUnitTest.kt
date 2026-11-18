@@ -408,7 +408,7 @@ class CommandQueueUnitTest : FunSpec({
             val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
             val submissionStarted = CountDownLatch(1)
             every {
-                commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
+                commandQueueBridgeMock.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES, false)
             } answers {
                 submissionStarted.countDown()
                 HANDLE_NUM
@@ -508,7 +508,7 @@ class CommandQueueUnitTest : FunSpec({
 
         commandQueue.awaitShutdown(1000) shouldBe true
         verify(exactly = 0) {
-            commandQueueBridgeMock.cppLoadFile(any(), any(), any())
+            commandQueueBridgeMock.cppLoadFile(any(), any(), any(), any())
         }
     }
 

@@ -54,7 +54,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         val requestID = slot<Long>()
         val expected = FileHandle(CONFIRMED_FILE_HANDLE)
         every {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES, false)
         } answers {
             queue.onFileLoaded(requestID.captured, expected)
             expected.handle
@@ -62,7 +62,23 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
 
         queue.loadFile(FILE_BYTES) shouldBe expected
         verify(exactly = 1) {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, FILE_BYTES, false)
+        }
+    }
+
+    test("File creation forwards deferred decoding to native") {
+        val queue = CommandQueue(renderContext, bridge)
+        val expected = FileHandle(CONFIRMED_FILE_HANDLE)
+        every {
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES, true)
+        } answers {
+            queue.onFileLoaded(secondArg(), expected)
+            expected.handle
+        }
+
+        queue.loadFile(FILE_BYTES, deferDecoding = true) shouldBe expected
+        verify(exactly = 1) {
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES, true)
         }
     }
 
@@ -71,7 +87,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         val requestID = slot<Long>()
         val errorMessage = "Failed to load"
         every {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES, false)
         } answers {
             queue.onFileError(requestID.captured, errorMessage)
             CONFIRMED_FILE_HANDLE
@@ -81,7 +97,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
             queue.loadFile(FILE_BYTES)
         }.message shouldContain errorMessage
         verify(exactly = 1) {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, requestID.captured, FILE_BYTES, false)
         }
     }
 
@@ -90,7 +106,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         val expected = FileHandle(CONFIRMED_FILE_HANDLE)
         val requestIDs = mutableListOf<Long>()
         every {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestIDs), FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestIDs), FILE_BYTES, false)
         } answers {
             queue.onFileError(requestIDs.last(), "Failed to load")
             expected.handle
@@ -103,7 +119,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         queue.loadFile(FILE_BYTES) shouldBe expected
 
         verify(exactly = 2) {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES, false)
         }
         requestIDs[0] shouldBeLessThan requestIDs[1]
     }
@@ -112,7 +128,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
         val queue = CommandQueue(renderContext, bridge)
         val expectedError = IllegalStateException("Submission failed")
         every {
-            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES)
+            bridge.cppLoadFile(COMMAND_QUEUE_ADDR, any(), FILE_BYTES, false)
         } throws expectedError
 
         shouldThrow<IllegalStateException> {
@@ -133,7 +149,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
             mainDispatcher.scheduler.advanceUntilIdle()
 
             verify(exactly = 0) {
-                bridge.cppLoadFile(any(), any(), any())
+                bridge.cppLoadFile(any(), any(), any(), any())
             }
             verify(exactly = 0) {
                 bridge.cppDeleteFile(any(), any(), any())
@@ -147,7 +163,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
             val requestID = slot<Long>()
             val expected = FileHandle(CONFIRMED_FILE_HANDLE)
             every {
-                bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+                bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES, false)
             } returns expected.handle
             every {
                 bridge.cppDeleteFile(COMMAND_QUEUE_ADDR, any(), expected.handle)
@@ -178,7 +194,7 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
             val expected = FileHandle(CONFIRMED_FILE_HANDLE)
             val callerDispatcher = StandardTestDispatcher()
             every {
-                bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+                bridge.cppLoadFile(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES, false)
             } returns expected.handle
             every {
                 bridge.cppDeleteFile(COMMAND_QUEUE_ADDR, any(), expected.handle)

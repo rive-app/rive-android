@@ -2066,12 +2066,22 @@ extern "C"
       jobject,
       jlong ref,
       jlong requestID,
-      jbyteArray bytes)
+      jbyteArray bytes,
+      jboolean deferDecoding)
   {
     auto* commandQueue = reinterpret_cast<CommandQueueWithThread*>(ref);
     auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
-    auto fileHandle = commandQueue->loadFile(byteVec, nullptr, requestID);
+    rive::FileImportOptions importOptions;
+    importOptions.deferDecoding = static_cast<bool>(deferDecoding);
+    auto fileHandle = commandQueue->loadFile(
+        std::move(byteVec),
+        nullptr,
+        requestID,
+#ifdef WITH_RIVE_SCRIPTING
+        nullptr,
+#endif
+        std::move(importOptions));
 
     return longFromHandle(fileHandle);
   }

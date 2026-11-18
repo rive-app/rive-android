@@ -24,7 +24,16 @@ interface CommandQueueBridge {
     fun cppPrecompileShaders(pointer: Long)
     fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
-    fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
+    /**
+     * Queues a native file import with its decoding policy fixed at submission.
+     *
+     * @param pointer The native command queue address.
+     * @param requestID The request identifier used for the eventual load response.
+     * @param bytes The exported file bytes to copy into the queue.
+     * @param deferDecoding Whether eligible contents decode on first use instead of at import.
+     * @return The provisional file handle, whose success is confirmed asynchronously.
+     */
+    fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray, deferDecoding: Boolean): Long
     fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
 
     fun cppGetArtboardNames(pointer: Long, requestID: Long, fileHandle: Long)
@@ -542,7 +551,6 @@ interface CommandQueueBridge {
 internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppConstructor(renderContextPointer: Long): Long
 
-    /** Queues shader warmup on the worker identified by [pointer]. */
     external override fun cppPrecompileShaders(pointer: Long)
     external override fun cppDelete(pointer: Long)
     external override fun cppCreateListeners(pointer: Long, receiver: CommandQueue): Listeners
@@ -553,7 +561,12 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppSetDeferredEnabled(pointer: Long, enabled: Boolean)
     external override fun isCurrentThreadCommandServer(pointer: Long): Boolean
 
-    external override fun cppLoadFile(pointer: Long, requestID: Long, bytes: ByteArray): Long
+    external override fun cppLoadFile(
+        pointer: Long,
+        requestID: Long,
+        bytes: ByteArray,
+        deferDecoding: Boolean,
+    ): Long
     external override fun cppDeleteFile(pointer: Long, requestID: Long, fileHandle: Long)
 
     external override fun cppGetArtboardNames(pointer: Long, requestID: Long, fileHandle: Long)

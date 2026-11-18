@@ -1,33 +1,18 @@
 package app.rive
 
-import android.os.Trace
-import androidx.compose.runtime.AbstractApplier
-import androidx.compose.runtime.BroadcastFrameClock
-import androidx.compose.runtime.Composition
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.Snapshot
 import app.rive.core.ArtboardHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.StateMachineHandle
+import app.rive.testutil.RuntimeComposition
+import app.rive.testutil.installTraceMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.every
-import io.mockk.just
-import io.mockk.mockkStatic
-import io.mockk.runs
-import io.mockk.unmockkStatic
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 /**
@@ -40,23 +25,17 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class ComposeResourceLifecycleTest : FunSpec({
     val fixture = installCommandQueueTestFixture()
-    beforeTest {
-        mockkStatic(Trace::class)
-        every { Trace.beginSection(any()) } just runs
-        every { Trace.endSection() } just runs
-    }
-    afterTest { unmockkStatic(Trace::class) }
+    installTraceMock()
 
     for (cancelRecomposer in listOf(false, true)) {
         for (useKey in listOf(false, true)) {
             test("Teardown cancelRecomposer=$cancelRecomposer key=$useKey") {
                 runTest {
                     val events = mutableListOf<String>()
-                    val failures = mutableListOf<Throwable>()
                     val worker =
                         CommandQueue(fixture.renderContextMock, fixture.commandQueueBridgeMock)
                     val bridge = fixture.commandQueueBridgeMock
-                    every { bridge.cppLoadFile(any(), any(), any()) } answers {
+                    every { bridge.cppLoadFile(any(), any(), any(), any()) } answers {
                         worker.onFileLoaded(secondArg(), FileHandle(1))
                         1L
                     }
@@ -70,14 +49,7 @@ class ComposeResourceLifecycleTest : FunSpec({
                     every { bridge.cppDeleteStateMachine(any(), any(), any()) } answers {
                         events.add("state machine")
                     }
-                    val frameClock = BroadcastFrameClock()
-                    val scope = CoroutineScope(
-                        SupervisorJob() + StandardTestDispatcher(testScheduler) + frameClock +
-                            CoroutineExceptionHandler { _, error -> failures.add(error) },
-                    )
-                    val recomposer = Recomposer(scope.coroutineContext)
-                    val composition = Composition(TeardownApplier(), recomposer)
-                    scope.launch { recomposer.runRecomposeAndApplyChanges() }
+                    val composition = RuntimeComposition(this)
                     var stateMachine: StateMachine? = null
                     val source = RiveFileSource.Bytes(byteArrayOf())
                     try {
@@ -118,23 +90,14 @@ class ComposeResourceLifecycleTest : FunSpec({
                                 }
                             }
                         }
-                        repeat(4) {
-                            runCurrent()
-                            Snapshot.sendApplyNotifications()
-                            runCurrent()
-                            frameClock.sendFrame(it.toLong())
-                        }
-                        runCurrent()
+                        composition.runUntilIdle()
                         check(stateMachine != null) { "State machine was not composed" }
                         worker.refCount shouldBe 2
 
                         // Window/lifecycle shutdown can cancel effects before composition disposal.
-                        if (cancelRecomposer) recomposer.cancel()
+                        if (cancelRecomposer) composition.cancelRecomposer()
                         composition.dispose()
-                        runCurrent()
 
-                        println("cancel=$cancelRecomposer key=$useKey events=$events")
-                        failures shouldBe emptyList()
                         stateMachine!!.closed shouldBe true
                         worker.refCount shouldBe 0
                         if (cancelRecomposer) {
@@ -143,10 +106,7 @@ class ComposeResourceLifecycleTest : FunSpec({
                             events shouldBe listOf("worker reference", "state machine", "file")
                         }
                     } finally {
-                        composition.dispose()
-                        recomposer.cancel()
-                        scope.cancel()
-                        runCurrent()
+                        composition.close()
                         // Do not let the native shutdown thread outlive the fixture's bridge mocks.
                         worker.awaitShutdown(5_000) shouldBe true
                     }
@@ -155,21 +115,3 @@ class ComposeResourceLifecycleTest : FunSpec({
         }
     }
 })
-
-/** Runs effect-only compositions without Android UI nodes. */
-private class TeardownApplier : AbstractApplier<Unit>(Unit) {
-    /** No nodes are emitted by the test content. */
-    override fun insertTopDown(index: Int, instance: Unit) = Unit
-
-    /** No nodes are emitted by the test content. */
-    override fun insertBottomUp(index: Int, instance: Unit) = Unit
-
-    /** No nodes are emitted by the test content. */
-    override fun remove(index: Int, count: Int) = Unit
-
-    /** No nodes are emitted by the test content. */
-    override fun move(from: Int, to: Int, count: Int) = Unit
-
-    /** No nodes are retained by this applier. */
-    override fun onClear() = Unit
-}

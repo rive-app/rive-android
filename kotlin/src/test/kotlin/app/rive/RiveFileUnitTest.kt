@@ -41,6 +41,21 @@ class RiveFileUnitTest : FunSpec({
         verify(exactly = 1) { worker.release(any(), "RiveFile closed") }
     }
 
+    for (deferDecoding in listOf(false, true)) {
+        test("Factory forwards deferDecoding=$deferDecoding") {
+            val worker = mockk<CommandQueue>(relaxed = true)
+            val bytes = byteArrayOf(1, 2, 3)
+            val handle = FileHandle(TEST_RIVE_FILE_HANDLE)
+            coEvery { worker.loadFile(bytes, deferDecoding) } returns handle
+
+            val file = RiveFile.load(RiveFileSource.Bytes(bytes), worker, deferDecoding)
+
+            file.fileHandle shouldBe handle
+            coVerify(exactly = 1) { worker.loadFile(bytes, deferDecoding) }
+            file.close()
+        }
+    }
+
     test("Directly constructed file owns a worker reference until close") {
         val worker = mockk<CommandQueue>(relaxed = true)
 
