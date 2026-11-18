@@ -8,6 +8,7 @@ import android.os.Trace
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import app.rive.core.ArtboardHandle
+import app.rive.core.BlobHandle
 import app.rive.core.CommandQueue
 import app.rive.core.DefaultViewModelInfo
 import app.rive.core.DrawKey
@@ -1247,6 +1248,59 @@ class CommandQueueUnitTest : FunSpec({
 
         verify(exactly = 1) {
             commandQueueBridgeMock.cppSetFontProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
+            )
+        }
+    }
+
+    test("Set blob property invokes native") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val blobHandle = BlobHandle(902L)
+        val propertyPath = "blob/path"
+
+        every {
+            commandQueueBridgeMock.cppSetBlobProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                902L
+            )
+        } just runs
+
+        commandQueue.setBlobProperty(instanceHandle, propertyPath, blobHandle)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetBlobProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                902L
+            )
+        }
+    }
+
+    test("Set blob property with null clears native property") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val instanceHandle = ViewModelInstanceHandle(HANDLE_NUM)
+        val propertyPath = "blob/path"
+
+        every {
+            commandQueueBridgeMock.cppSetBlobProperty(
+                COMMAND_QUEUE_ADDR,
+                HANDLE_NUM,
+                propertyPath,
+                0L
+            )
+        } just runs
+
+        commandQueue.setBlobProperty(instanceHandle, propertyPath, null)
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppSetBlobProperty(
                 COMMAND_QUEUE_ADDR,
                 HANDLE_NUM,
                 propertyPath,

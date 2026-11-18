@@ -2,6 +2,7 @@ package app.rive
 
 import app.rive.core.ArtboardHandle
 import app.rive.core.AudioHandle
+import app.rive.core.BlobHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.FontHandle
@@ -41,6 +42,7 @@ private const val CONFIRMED_VMI_HANDLE = 400L
 private const val CONFIRMED_IMAGE_HANDLE = 500L
 private const val CONFIRMED_AUDIO_HANDLE = 600L
 private const val CONFIRMED_FONT_HANDLE = 700L
+private const val CONFIRMED_BLOB_HANDLE = 800L
 
 /** Tests creation, cancellation cleanup, and deletion for command-queue-owned resources. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -826,6 +828,82 @@ class CommandQueueResourceLifecycleUnitTest : FunSpec({
 
         verify(exactly = 1) {
             bridge.cppDeleteFont(COMMAND_QUEUE_ADDR, fontHandle.handle)
+        }
+    }
+    test("Blob creation waits for native success") {
+        coroutineScope {
+            val queue = CommandQueue(renderContext, bridge)
+            val requestID = slot<Long>()
+            val expected = BlobHandle(CONFIRMED_BLOB_HANDLE)
+            every {
+                bridge.cppDecodeBlob(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+            } returns expected.handle
+
+            val creation = async(start = CoroutineStart.UNDISPATCHED) {
+                queue.decodeBlob(FILE_BYTES)
+            }
+
+            creation.isCompleted.shouldBeFalse()
+            queue.onBlobDecoded(requestID.captured, expected)
+
+            creation.await() shouldBe expected
+            verify(exactly = 0) { bridge.cppDeleteBlob(any(), any()) }
+        }
+    }
+
+    test("Blob creation reports native failure") {
+        val queue = CommandQueue(renderContext, bridge)
+        val requestID = slot<Long>()
+        val errorMessage = "Blob allocation failed"
+        every {
+            bridge.cppDecodeBlob(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+        } answers {
+            queue.onBlobError(requestID.captured, errorMessage)
+            CONFIRMED_BLOB_HANDLE
+        }
+
+        shouldThrow<RiveBlobException> {
+            queue.decodeBlob(FILE_BYTES)
+        }.message shouldContain errorMessage
+    }
+
+    test("Cancelled blob creation deletes its provisional handle once") {
+        coroutineScope {
+            val queue = CommandQueue(renderContext, bridge)
+            val requestID = slot<Long>()
+            val expected = BlobHandle(CONFIRMED_BLOB_HANDLE)
+            every {
+                bridge.cppDecodeBlob(COMMAND_QUEUE_ADDR, capture(requestID), FILE_BYTES)
+            } returns expected.handle
+            every { bridge.cppDeleteBlob(COMMAND_QUEUE_ADDR, expected.handle) } just runs
+
+            val creation = async(start = CoroutineStart.UNDISPATCHED) {
+                queue.decodeBlob(FILE_BYTES)
+            }
+            creation.cancelAndJoin()
+
+            verify(exactly = 1) {
+                bridge.cppDeleteBlob(COMMAND_QUEUE_ADDR, expected.handle)
+            }
+
+            // A late success must not schedule a second deletion.
+            queue.onBlobDecoded(requestID.captured, expected)
+
+            verify(exactly = 1) {
+                bridge.cppDeleteBlob(COMMAND_QUEUE_ADDR, expected.handle)
+            }
+        }
+    }
+
+    test("Blob deletion invokes native") {
+        val queue = CommandQueue(renderContext, bridge)
+        val blobHandle = BlobHandle(CONFIRMED_BLOB_HANDLE)
+        every { bridge.cppDeleteBlob(COMMAND_QUEUE_ADDR, blobHandle.handle) } just runs
+
+        queue.deleteBlob(blobHandle)
+
+        verify(exactly = 1) {
+            bridge.cppDeleteBlob(COMMAND_QUEUE_ADDR, blobHandle.handle)
         }
     }
 })

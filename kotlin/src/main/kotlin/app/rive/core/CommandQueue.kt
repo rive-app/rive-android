@@ -21,6 +21,7 @@ import app.rive.RenderContextStatus
 import app.rive.Rive
 import app.rive.RiveArtboardException
 import app.rive.RiveAudioException
+import app.rive.RiveBlobException
 import app.rive.RiveCanvasSession
 import app.rive.RiveDrawToBufferException
 import app.rive.RiveFile
@@ -3428,6 +3429,28 @@ class CommandQueue internal constructor(
     )
 
     /**
+     * Assign a blob to a blob property on the view model instance, or clear the property if
+     * [blobHandle] is null.
+     *
+     * @param viewModelInstanceHandle The handle of the view model instance that the property
+     *    belongs to.
+     * @param propertyPath The path to the property that should be assigned to. Slash delimited.
+     * @param blobHandle The handle of the blob to assign, or null to clear the property.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun setBlobProperty(
+        viewModelInstanceHandle: ViewModelInstanceHandle,
+        propertyPath: String,
+        blobHandle: BlobHandle?,
+    ) = bridge.cppSetBlobProperty(
+        requireNativePointer(),
+        viewModelInstanceHandle.handle,
+        propertyPath,
+        blobHandle?.handle ?: 0L
+    )
+
+    /**
      * Assign an artboard to a bindable artboard property on the view model instance, or clear the
      * property if [artboardHandle] is null.
      *
@@ -3922,6 +3945,71 @@ class CommandQueue internal constructor(
      */
     @Throws(RiveResourceClosedException::class)
     fun unregisterFont(name: String) = bridge.cppUnregisterFont(requireNativePointer(), name)
+
+    /**
+     * Creates a blob from arbitrary bytes and suspends until the command server confirms the
+     * decode. The blob is stored on the command server.
+     *
+     * If the coroutine is cancelled after submission, the provisional blob is deleted in command
+     * order so a later successful decode cannot orphan it.
+     *
+     * @param bytes The binary data to copy into the blob.
+     * @return A handle to the decoded blob.
+     * @throws RiveBlobException If the blob could not be created.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     */
+    @Throws(
+        RiveBlobException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun decodeBlob(bytes: ByteArray): BlobHandle =
+        suspendNativeResourceRequest(::deleteBlob) { requestID ->
+            BlobHandle(bridge.cppDecodeBlob(requireNativePointer(), requestID, bytes))
+        }
+
+    /**
+     * Callback when a blob is decoded, from [decodeBlob].
+     *
+     * @param requestID The request ID used when decoding the blob, used to complete the
+     *    continuation.
+     * @param blobHandle The handle of the decoded blob.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onBlobDecoded")
+    internal fun onBlobDecoded(requestID: Long, blobHandle: BlobHandle) {
+        resumeResourceRequest(requestID, blobHandle)
+    }
+
+    /**
+     * Callback when a blob fails to decode, from [decodeBlob]. This will resume the continuation
+     * with an exception.
+     *
+     * @param requestID The request ID used when decoding the blob, used to complete the
+     *    continuation.
+     * @param error The error message describing the failure.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onBlobError")
+    internal fun onBlobError(requestID: Long, error: String) {
+        // The current native BlobAsset decoder always returns true, even for empty data.
+        // Keep this error path wired to the command queue's callback if that behavior changes.
+        failNativeRequest(requestID, RiveBlobException("Failed to decode blob: $error"))
+    }
+
+    /**
+     * Delete a blob and free its resources. This is useful when you no longer need the blob and
+     * want to free up memory. Counterpart to [decodeBlob].
+     *
+     * @param blobHandle The handle of the blob to delete.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     */
+    @Throws(RiveResourceClosedException::class)
+    fun deleteBlob(blobHandle: BlobHandle) =
+        bridge.cppDeleteBlob(requireNativePointer(), blobHandle.handle)
 
     /**
      * Notify the state machine that the pointer (typically a user's touch) has moved. This is used
@@ -4629,6 +4717,18 @@ value class FontHandle(val handle: Long) {
     override fun toString(): String = "FontHandle($handle)"
 }
 
+/**
+ * A handle to a Blob on the CommandServer. Created with [CommandQueue.decodeBlob] and deleted with
+ * [CommandQueue.deleteBlob].
+ *
+ * @param handle The handle issued by the native CommandQueue.
+ */
+@JvmInline
+value class BlobHandle(val handle: Long) {
+    /** Returns a diagnostic description of this native handle. */
+    override fun toString(): String = "BlobHandle($handle)"
+}
+
 data class DefaultViewModelInfo(val viewModelName: String, val instanceName: String)
 
 /**
@@ -4657,6 +4757,7 @@ data class Listeners(
     val imageListener: Long,
     val audioListener: Long,
     val fontListener: Long,
+    val blobListener: Long,
     val runtimeMessageListener: Long,
 ) : AutoCloseable {
     private external fun cppDelete(
@@ -4667,6 +4768,7 @@ data class Listeners(
         imageListener: Long,
         audioListener: Long,
         fontListener: Long,
+        blobListener: Long,
         runtimeMessageListener: Long,
     )
 
@@ -4682,6 +4784,7 @@ data class Listeners(
         imageListener,
         audioListener,
         fontListener,
+        blobListener,
         runtimeMessageListener,
     )
 }

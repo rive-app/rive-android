@@ -10,6 +10,7 @@ import app.rive.core.CommandQueue
 import app.rive.core.assertDisposed
 import app.rive.core.withMessageDeliveryPaused
 import app.rive.rememberAudio
+import app.rive.rememberBlob
 import app.rive.rememberFont
 import app.rive.rememberImage
 import app.rive.rememberRegisteredAudio
@@ -101,6 +102,23 @@ class AssetComposeTest : RiveAndroidTest() {
             },
             assertClosed = { font ->
                 assertFailsWith<RiveResourceClosedException> { font.checkOpen() }
+            },
+        )
+    }
+
+    /** Verifies changing blob bytes synchronously resets a remembered blob result. */
+    @Test
+    fun blobBytesChange_reportsLoadingSynchronously() {
+        val bytes = listOf(byteArrayOf(0, 1, -1), byteArrayOf())
+
+        composeRule.assertResultResetsToLoading(
+            resourceName = "BlobAsset",
+            withNativeDeliveryPaused = ::withRiveWorkerDeliveryPaused,
+            result = { useReplacement ->
+                rememberBlob(riveWorker, bytes[useReplacement.toIndex()])
+            },
+            assertClosed = { blob ->
+                assertFailsWith<RiveResourceClosedException> { blob.checkOpen() }
             },
         )
     }

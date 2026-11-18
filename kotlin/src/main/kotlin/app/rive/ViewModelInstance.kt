@@ -848,6 +848,32 @@ class ViewModelInstance internal constructor(
     }
 
     /**
+     * Assigns the given blob to the blob property on this view model instance, or clears the
+     * property if [blob] is null.
+     *
+     * ℹ️ Changes to bound Rive elements will not be reflected until the next state machine advance.
+     *
+     * ℹ️ [blob] may be closed once assigned. The property holds its own reference. Closing it does
+     * not clear the assigned property.
+     *
+     * @param propertyPath The path to the property from this view model instance. Slash delimited
+     *    to refer to nested properties.
+     * @param blob The blob to assign to the property, or null to clear the property.
+     * @throws RiveResourceClosedException If this view model instance or [blob] has been closed, or
+     *    if the owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [blob] is owned by another Rive worker.
+     */
+    @Throws(RiveIncompatibleResourceException::class, RiveResourceClosedException::class)
+    fun setBlob(propertyPath: String, blob: BlobAsset?) {
+        closer.checkOpen()
+        blob?.checkOpen()
+        blob?.requireOwnedBy(riveWorker)
+        val message = blob?.let { "Assigning $it" } ?: "Clearing blob"
+        RiveLog.d(VM_INSTANCE_TAG) { "$message for $propertyPath ($fileHandle)" }
+        setProperty(propertyPath, blob?.handle, riveWorker::setBlobProperty)
+    }
+
+    /**
      * Assigns the given artboard to the bindable artboard property on this view model instance, or
      * clears the property if [artboard] is null.
      *

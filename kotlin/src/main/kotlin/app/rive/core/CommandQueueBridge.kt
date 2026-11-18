@@ -373,6 +373,14 @@ interface CommandQueueBridge {
         fontHandle: Long,
     )
 
+    /** Assigns a blob handle, or clears the property when the handle is zero. */
+    fun cppSetBlobProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        blobHandle: Long,
+    )
+
     fun cppSetArtboardProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
@@ -446,6 +454,12 @@ interface CommandQueueBridge {
     fun cppRegisterFont(pointer: Long, name: String, fontHandle: Long)
 
     fun cppUnregisterFont(pointer: Long, name: String)
+
+    /** Copies binary data into a blob and returns its provisional native handle. */
+    fun cppDecodeBlob(pointer: Long, requestID: Long, bytes: ByteArray): Long
+
+    /** Deletes the blob handle on the command server. */
+    fun cppDeleteBlob(pointer: Long, blobHandle: Long)
     fun cppPointerMove(
         pointer: Long,
         stateMachineHandle: Long,
@@ -916,6 +930,14 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         fontHandle: Long,
     )
 
+    /** Assigns a blob handle, or clears the property when the handle is zero. */
+    external override fun cppSetBlobProperty(
+        pointer: Long,
+        viewModelInstanceHandle: Long,
+        propertyPath: String,
+        blobHandle: Long,
+    )
+
     external override fun cppSetArtboardProperty(
         pointer: Long,
         viewModelInstanceHandle: Long,
@@ -989,6 +1011,12 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
     external override fun cppRegisterFont(pointer: Long, name: String, fontHandle: Long)
 
     external override fun cppUnregisterFont(pointer: Long, name: String)
+
+    /** Copies binary data into a blob and returns its provisional native handle. */
+    external override fun cppDecodeBlob(pointer: Long, requestID: Long, bytes: ByteArray): Long
+
+    /** Deletes the blob handle on the command server. */
+    external override fun cppDeleteBlob(pointer: Long, blobHandle: Long)
     external override fun cppPointerMove(
         pointer: Long,
         stateMachineHandle: Long,

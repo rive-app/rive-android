@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key as compositionKey
 import androidx.compose.runtime.produceState
 import app.rive.core.AudioHandle
+import app.rive.core.BlobHandle
 import app.rive.core.CheckableAutoCloseable
 import app.rive.core.CloseOnce
 import app.rive.core.FontHandle
@@ -14,6 +15,7 @@ import kotlin.coroutines.cancellation.CancellationException
 private const val IMAGE_TAG = "Rive/Image"
 private const val AUDIO_TAG = "Rive/Audio"
 private const val FONT_TAG = "Rive/Font"
+private const val BLOB_TAG = "Rive/Blob"
 
 /**
  * A worker reference already acquired for an asset to own.
@@ -56,14 +58,17 @@ internal interface AssetOps<H, A : Asset<H>> {
     /** Delete the asset from the provided Rive worker. */
     fun delete(worker: RiveWorker, handle: H)
 
-    /** Register the asset with the provided Rive worker under the given key. */
-    fun register(worker: RiveWorker, key: String, handle: H) {}
-
-    /** Unregister the asset from the provided Rive worker for the given key. */
-    fun unregister(worker: RiveWorker, key: String) {}
-
     /** Construct the asset by taking ownership of the worker reference acquired by the factory. */
     fun construct(handle: H, worker: RiveWorker): A
+}
+
+/** Native operations for assets that can fulfill referenced assets in a Rive file. */
+internal interface RegisterableAssetOps<H, A : Asset<H>> : AssetOps<H, A> {
+    /** Registers the asset under the given key on its worker. */
+    fun register(worker: RiveWorker, key: String, handle: H)
+
+    /** Removes the key from the worker's referenced asset registry. */
+    fun unregister(worker: RiveWorker, key: String)
 }
 
 /**
@@ -73,8 +78,7 @@ internal interface AssetOps<H, A : Asset<H>> {
  *
  * Each asset holds a reference to its [RiveWorker]. When creating assets manually, call [close]
  * when you no longer need the asset; releasing the worker alone is not enough to purge asset or
- * worker memory while the asset remains open. Closing the asset does not unregister its keys;
- * unregister them explicitly, preferably before calling [close].
+ * worker memory while the asset remains open.
  *
  * @param handle The handle to the asset on the command server.
  * @param riveWorker The Rive worker that owns the asset.
@@ -95,9 +99,7 @@ sealed class Asset<H>(
     /**
      * Closes this asset and schedules deletion on its Rive worker.
      *
-     * Closing does not unregister keys registered through this asset. Prefer to unregister them
-     * before closing; [unregister] remains available afterward while the worker is open. Repeated
-     * calls are safe and have no effect after the first call.
+     * Repeated calls are safe and have no effect after the first call.
      *
      * @throws RiveResourceClosedException If the owning Rive worker has been disposed.
      */
@@ -176,7 +178,23 @@ sealed class Asset<H>(
             }
         }
     }
+}
 
+/**
+ * Shared registration implementation for image, audio, and font assets.
+ *
+ * Closing releases the asset handle but does not remove registrations. Remove them explicitly,
+ * preferably before closing. [unregister] remains available afterward while the worker is open.
+ *
+ * @param handle The native asset handle.
+ * @param riveWorker The worker that owns the asset and registry.
+ * @param ops The lifecycle and registration operations for this asset type.
+ */
+sealed class ReferencedAsset<H>(
+    handle: H,
+    riveWorker: RiveWorker,
+    private val ops: RegisterableAssetOps<H, out Asset<H>>,
+) : Asset<H>(handle, riveWorker, ops) {
     /**
      * Register the asset with the given key. When Rive fulfills a referenced asset, it will
      * look for an asset registered under that key. The key comes from the zip file created when
@@ -191,7 +209,7 @@ sealed class Asset<H>(
      */
     @Throws(RiveResourceClosedException::class)
     fun register(key: String) {
-        closer.checkOpen()
+        checkOpen()
         RiveLog.d(ops.tag) { "Registering ${ops.label} with key: $key and handle: $handle" }
         ops.register(riveWorker, key, handle)
     }
@@ -220,7 +238,7 @@ sealed class Asset<H>(
 class ImageAsset private constructor(
     handle: ImageHandle,
     workerReference: AcquiredWorkerReference,
-) : Asset<ImageHandle>(handle, workerReference.worker, ImageAsset) {
+) : ReferencedAsset<ImageHandle>(handle, workerReference.worker, Ops) {
     /**
      * Creates an image asset for an existing decoded handle and acquires its worker reference.
      *
@@ -238,9 +256,13 @@ class ImageAsset private constructor(
         worker.acquireForAsset(IMAGE_TAG),
     )
 
-    companion object : AssetOps<ImageHandle, ImageAsset> {
+    companion object {
         /**
          * Creates and decodes an image asset from the given byte array on the provided Rive worker.
+         *
+         * The input is copied during creation. Mutating [bytes] concurrently can produce
+         * inconsistent image data or cause decoding to fail. After this function returns,
+         * changes to [bytes] do not affect the image.
          *
          * The image can only be used on the same [RiveWorker] it was created on.
          *
@@ -269,7 +291,7 @@ class ImageAsset private constructor(
             CancellationException::class
         )
         suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): ImageAsset =
-            createAsset(this, riveWorker, bytes)
+            createAsset(Ops, riveWorker, bytes)
 
         /**
          * Decodes an image asset from [bytes].
@@ -294,19 +316,28 @@ class ImageAsset private constructor(
         } catch (e: Exception) {
             Result.Error(e)
         }
+    }
 
+    /** Internal lifecycle operations. Construction transfers an already-acquired worker reference. */
+    private object Ops : RegisterableAssetOps<ImageHandle, ImageAsset> {
         override val tag = IMAGE_TAG
         override val label = "image"
+
+        /** Decodes bytes on the owning worker. */
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): ImageHandle =
             worker.decodeImage(bytes)
 
+        /** Deletes the native asset handle. */
         override fun delete(worker: RiveWorker, handle: ImageHandle) = worker.deleteImage(handle)
 
+        /** Registers the asset under the referenced asset key. */
         override fun register(worker: RiveWorker, key: String, handle: ImageHandle) =
             worker.registerImage(key, handle)
 
+        /** Removes the referenced asset registration. */
         override fun unregister(worker: RiveWorker, key: String) = worker.unregisterImage(key)
 
+        /** Takes ownership of the worker reference acquired by the factory. */
         override fun construct(handle: ImageHandle, worker: RiveWorker) =
             ImageAsset(handle, AcquiredWorkerReference(worker))
     }
@@ -319,7 +350,7 @@ class ImageAsset private constructor(
 class AudioAsset private constructor(
     handle: AudioHandle,
     workerReference: AcquiredWorkerReference,
-) : Asset<AudioHandle>(handle, workerReference.worker, AudioAsset) {
+) : ReferencedAsset<AudioHandle>(handle, workerReference.worker, Ops) {
     /**
      * Creates an audio asset for an existing decoded handle and acquires its worker reference.
      *
@@ -337,7 +368,7 @@ class AudioAsset private constructor(
         worker.acquireForAsset(AUDIO_TAG),
     )
 
-    companion object : AssetOps<AudioHandle, AudioAsset> {
+    companion object {
         /**
          * Creates and decodes an audio asset from the given byte array on the provided Rive worker.
          *
@@ -368,7 +399,7 @@ class AudioAsset private constructor(
             CancellationException::class
         )
         suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): AudioAsset =
-            createAsset(this, riveWorker, bytes)
+            createAsset(Ops, riveWorker, bytes)
 
         /**
          * Decodes an audio asset from [bytes].
@@ -393,19 +424,28 @@ class AudioAsset private constructor(
         } catch (e: Exception) {
             Result.Error(e)
         }
+    }
 
+    /** Internal lifecycle operations. Construction transfers an already-acquired worker reference. */
+    private object Ops : RegisterableAssetOps<AudioHandle, AudioAsset> {
         override val tag = AUDIO_TAG
         override val label = "audio"
+
+        /** Decodes bytes on the owning worker. */
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): AudioHandle =
             worker.decodeAudio(bytes)
 
+        /** Deletes the native asset handle. */
         override fun delete(worker: RiveWorker, handle: AudioHandle) = worker.deleteAudio(handle)
 
+        /** Registers the asset under the referenced asset key. */
         override fun register(worker: RiveWorker, key: String, handle: AudioHandle) =
             worker.registerAudio(key, handle)
 
+        /** Removes the referenced asset registration. */
         override fun unregister(worker: RiveWorker, key: String) = worker.unregisterAudio(key)
 
+        /** Takes ownership of the worker reference acquired by the factory. */
         override fun construct(handle: AudioHandle, worker: RiveWorker) =
             AudioAsset(handle, AcquiredWorkerReference(worker))
     }
@@ -416,7 +456,7 @@ class AudioAsset private constructor(
  *
  */
 class FontAsset private constructor(handle: FontHandle, workerReference: AcquiredWorkerReference) :
-    Asset<FontHandle>(handle, workerReference.worker, FontAsset) {
+    ReferencedAsset<FontHandle>(handle, workerReference.worker, Ops) {
     /**
      * Creates a font asset for an existing decoded handle and acquires its worker reference.
      *
@@ -434,9 +474,13 @@ class FontAsset private constructor(handle: FontHandle, workerReference: Acquire
         worker.acquireForAsset(FONT_TAG),
     )
 
-    companion object : AssetOps<FontHandle, FontAsset> {
+    companion object {
         /**
          * Creates and decodes a font asset from the given byte array on the provided Rive worker.
+         *
+         * The input is copied during creation. Mutating [bytes] concurrently can produce
+         * inconsistent font data or cause decoding to fail. After this function returns,
+         * changes to [bytes] do not affect the font.
          *
          * The font can only be used on the same [RiveWorker] it was created on.
          *
@@ -465,7 +509,7 @@ class FontAsset private constructor(handle: FontHandle, workerReference: Acquire
             CancellationException::class
         )
         suspend fun create(riveWorker: RiveWorker, bytes: ByteArray): FontAsset =
-            createAsset(this, riveWorker, bytes)
+            createAsset(Ops, riveWorker, bytes)
 
         /**
          * Decodes a font asset from [bytes].
@@ -490,23 +534,99 @@ class FontAsset private constructor(handle: FontHandle, workerReference: Acquire
         } catch (e: Exception) {
             Result.Error(e)
         }
+    }
 
+    /** Internal lifecycle operations. Construction transfers an already-acquired worker reference. */
+    private object Ops : RegisterableAssetOps<FontHandle, FontAsset> {
         override val tag = FONT_TAG
         override val label = "font"
+
+        /** Decodes bytes on the owning worker. */
         override suspend fun decode(worker: RiveWorker, bytes: ByteArray): FontHandle =
             worker.decodeFont(bytes)
 
+        /** Deletes the native asset handle. */
         override fun delete(worker: RiveWorker, handle: FontHandle) = worker.deleteFont(handle)
 
+        /** Registers the asset under the referenced asset key. */
         override fun register(worker: RiveWorker, key: String, handle: FontHandle) =
             worker.registerFont(key, handle)
 
+        /** Removes the referenced asset registration. */
         override fun unregister(worker: RiveWorker, key: String) = worker.unregisterFont(key)
 
+        /** Takes ownership of the worker reference acquired by the factory. */
         override fun construct(handle: FontHandle, worker: RiveWorker) =
             FontAsset(handle, AcquiredWorkerReference(worker))
     }
 }
+
+/**
+ * Arbitrary binary data managed by a [RiveWorker], for assignment with [ViewModelInstance.setBlob].
+ *
+ * The blob owns a copy of the input bytes. Close it when no longer needed. Assigned properties
+ * retain their own native reference, so the blob may be closed after assignment.
+ */
+class BlobAsset private constructor(handle: BlobHandle, workerReference: AcquiredWorkerReference) :
+    Asset<BlobHandle>(handle, workerReference.worker, Ops) {
+    companion object {
+        /**
+         * Creates a blob by copying arbitrary binary data, including an empty array.
+         *
+         * The input is copied during creation. Mutating [bytes] concurrently can produce
+         * inconsistent blob contents. After this function returns, changes to [bytes] do not
+         * affect the blob.
+         *
+         * The returned blob can only be used with its owning worker and must be closed to release
+         * its handle and worker reference.
+         *
+         * @param riveWorker The worker that owns the blob.
+         * @param bytes The binary data to copy.
+         * @return The created blob asset.
+         * @throws RiveBlobException If native blob creation fails.
+         * @throws RiveResourceClosedException If [riveWorker] has been disposed.
+         * @throws CancellationException If creation is cancelled.
+         */
+        @Throws(
+            RiveBlobException::class,
+            RiveResourceClosedException::class,
+            CancellationException::class
+        )
+        suspend fun fromBytes(riveWorker: RiveWorker, bytes: ByteArray): BlobAsset =
+            createAsset(Ops, riveWorker, bytes)
+    }
+
+    /** Internal lifecycle operations. Construction transfers an already-acquired worker reference. */
+    private object Ops : AssetOps<BlobHandle, BlobAsset> {
+        override val tag = BLOB_TAG
+        override val label = "blob"
+
+        /** Copies the bytes into a blob on the worker. */
+        override suspend fun decode(worker: RiveWorker, bytes: ByteArray): BlobHandle =
+            worker.decodeBlob(bytes)
+
+        /** Deletes the worker's blob handle. */
+        override fun delete(worker: RiveWorker, handle: BlobHandle) = worker.deleteBlob(handle)
+
+        /** Takes ownership of the handle and the worker reference acquired by the factory. */
+        override fun construct(handle: BlobHandle, worker: RiveWorker) =
+            BlobAsset(handle, AcquiredWorkerReference(worker))
+    }
+}
+
+/**
+ * Creates a blob from [bytes], closing it when the inputs change or it leaves composition.
+ *
+ * The blob can only be assigned to view models on the same worker. Treat [bytes] as immutable
+ * while remembered, supplying a new array to replace the blob.
+ *
+ * @param riveWorker The worker that owns the blob.
+ * @param bytes The binary data to copy, including an empty array.
+ * @return Loading, an error, or the created [BlobAsset].
+ */
+@Composable
+fun rememberBlob(riveWorker: RiveWorker, bytes: ByteArray): Result<BlobAsset> =
+    rememberAsset(riveWorker, bytes, BlobAsset::fromBytes)
 
 /**
  * Decode an image from the given [bytes] on the provided [RiveWorker]. The decoded image can only
@@ -550,7 +670,7 @@ fun rememberRegisteredImage(
     riveWorker: RiveWorker,
     key: String,
     bytes: ByteArray,
-): Result<ImageAsset> = rememberAsset(riveWorker, bytes, ImageAsset::create, key)
+): Result<ImageAsset> = rememberRegisteredAsset(riveWorker, bytes, ImageAsset::create, key)
 
 /**
  * Decode audio from the given [bytes] on the provided [RiveWorker]. The decoded audio can only be
@@ -594,7 +714,7 @@ fun rememberRegisteredAudio(
     riveWorker: RiveWorker,
     key: String,
     bytes: ByteArray,
-): Result<AudioAsset> = rememberAsset(riveWorker, bytes, AudioAsset::create, key)
+): Result<AudioAsset> = rememberRegisteredAsset(riveWorker, bytes, AudioAsset::create, key)
 
 /**
  * Decode a font from the given [bytes] on the provided [RiveWorker]. The decoded font can only be
@@ -638,23 +758,42 @@ fun rememberRegisteredFont(
     riveWorker: RiveWorker,
     name: String,
     bytes: ByteArray,
-): Result<FontAsset> = rememberAsset(riveWorker, bytes, FontAsset::create, name)
+): Result<FontAsset> = rememberRegisteredAsset(riveWorker, bytes, FontAsset::create, name)
 
 /**
- * Internal helper to unify the implementation of asset loading and registering.
+ * Remembers a registered asset, requiring registration support at compile time.
  *
- * It handles the registration and un-registration of the asset if a [key] is provided, and it
- * deletes the asset when the composable leaves the composition.
+ * @param riveWorker The owning worker.
+ * @param bytes The asset bytes.
+ * @param constructFn The asset factory.
+ * @param key The referenced asset registration key.
+ * @return The loading, error, or registered asset result.
+ */
+@Composable
+private fun <T : ReferencedAsset<H>, H> rememberRegisteredAsset(
+    riveWorker: RiveWorker,
+    bytes: ByteArray,
+    constructFn: suspend (RiveWorker, ByteArray) -> T,
+    key: String,
+): Result<T> = rememberAsset(
+    riveWorker,
+    bytes,
+    constructFn,
+    key,
+    onCreated = { it.register(key) },
+    onDispose = { it.unregister(key) },
+)
+
+/**
+ * Remembers an asset and closes it on replacement or disposal, including setup failures.
  *
- * @param riveWorker The Rive worker that owns and performs operations on this asset.
- * @param bytes The byte array containing the asset data to decode.
- * @param constructFn The function to use to decode and construct the asset from the given
- *    [riveWorker], [bytes], and optional [key].
- * @param key The key of the asset, used for registration. If null, the asset will not be
- *    registered.
- * @return A [Result] containing the result of the asset decoding (and possible registration), which
- *    can be either loading, error, or success with the decoded asset. Changing an input
- *    synchronously returns loading while the replacement is decoded.
+ * @param riveWorker The owning worker.
+ * @param bytes The asset bytes.
+ * @param constructFn The asset factory.
+ * @param key An additional key that requires recreation when changed.
+ * @param onCreated Optional setup after creation, before publishing success.
+ * @param onDispose Optional cleanup before closing a successfully created asset.
+ * @return Loading, error, or success. Input changes synchronously reset the result to loading.
  */
 @Composable
 private fun <T : Asset<H>, H> rememberAsset(
@@ -662,6 +801,8 @@ private fun <T : Asset<H>, H> rememberAsset(
     bytes: ByteArray,
     constructFn: suspend (RiveWorker, ByteArray) -> T,
     key: String? = null,
+    onCreated: ((T) -> Unit)? = null,
+    onDispose: ((T) -> Unit)? = null,
 ): Result<T> = compositionKey(riveWorker, bytes, key) {
     produceState<Result<T>>(Result.Loading) {
         val asset = try {
@@ -673,9 +814,9 @@ private fun <T : Asset<H>, H> rememberAsset(
             return@produceState
         }
 
-        if (key != null) {
+        if (onCreated != null) {
             try {
-                asset.register(key)
+                onCreated(asset)
             } catch (ce: CancellationException) {
                 try {
                     asset.close()
@@ -697,13 +838,9 @@ private fun <T : Asset<H>, H> rememberAsset(
         value = Result.Success(asset)
 
         awaitDispose {
-            if (key != null) {
-                try {
-                    asset.unregister(key)
-                } finally {
-                    asset.close()
-                }
-            } else {
+            try {
+                onDispose?.invoke(asset)
+            } finally {
                 asset.close()
             }
         }

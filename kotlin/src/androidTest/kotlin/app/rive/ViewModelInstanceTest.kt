@@ -1,10 +1,12 @@
 package app.rive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.rive.core.RiveWorker
 import app.rive.runtime.kotlin.test.R
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -22,6 +24,45 @@ private const val UPDATED_NUMBER_VALUE = 42f
 
 @RunWith(AndroidJUnit4::class)
 class ViewModelInstanceTest : RiveAndroidTest() {
+    /** Verifies blob copying, replacement, retention after close, and clearing through JNI. */
+    @Test
+    fun blobAssignment_copiesAndRetainsBinaryData() = runBlocking {
+        RiveFile.load(
+            RiveFileSource.RawRes(R.raw.data_bind_blob_test, context.resources),
+            riveWorker
+        ).use { file ->
+            Artboard.create(file).use { artboard ->
+                ViewModelInstance.create(
+                    file,
+                    ViewModelSource.DefaultForArtboard(artboard).defaultInstance()
+                ).use { instance ->
+                    val bytes = byteArrayOf(0, 1, -1, -128, 42)
+                    val expected = bytes.copyOf()
+                    BlobAsset.fromBytes(riveWorker, bytes).use { blob ->
+                        bytes.fill(7)
+                        instance.setBlob("xml", blob)
+                    }
+                    assertTrue(cppBlobMatches(riveWorker, instance.instanceHandle.handle, expected))
+                    BlobAsset.fromBytes(riveWorker, byteArrayOf()).use { blob ->
+                        instance.setBlob("xml", blob)
+                    }
+                    assertTrue(
+                        cppBlobMatches(riveWorker, instance.instanceHandle.handle, byteArrayOf())
+                    )
+                    instance.setBlob("xml", null)
+                    assertTrue(cppBlobMatches(riveWorker, instance.instanceHandle.handle, null))
+                }
+            }
+        }
+    }
+
+    /** Checks blob contents on the command server after preceding mutations have completed. */
+    private external fun cppBlobMatches(
+        worker: RiveWorker,
+        instance: Long,
+        expected: ByteArray?,
+    ): Boolean
+
     /** Verifies instance and view model names for each public creation source. */
     @Test
     fun names_matchFixtureForAllCreationSources() {

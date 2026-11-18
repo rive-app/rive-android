@@ -37,6 +37,10 @@ class RiveAudioException(message: String, cause: Throwable? = null) :
 class RiveFontException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
+/** Exceptions reported while decoding a Rive blob asset. */
+class RiveBlobException(message: String, cause: Throwable? = null) :
+    RuntimeException(message, cause)
+
 /** Exceptions related to drawing to a buffer. */
 class RiveDrawToBufferException(message: String, cause: Throwable? = null) :
     Exception(message, cause)

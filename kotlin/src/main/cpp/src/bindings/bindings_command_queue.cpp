@@ -771,6 +771,38 @@ private:
   JCommandQueue m_queue;
 };
 
+/** Forwards blob creation results to the Kotlin command queue. */
+class BlobListener : public rive::CommandQueue::BlobAssetListener
+{
+public:
+  BlobListener(JNIEnv* env, jobject jQueue)
+      : rive::CommandQueue::BlobAssetListener()
+      , m_queue(env, jQueue)
+  {}
+
+  virtual ~BlobListener() = default;
+
+  void onBlobAssetDecoded(
+      const rive::BlobAssetHandle handle,
+      uint64_t requestID) override
+  {
+    m_queue.call("onBlobDecoded", "(JJ)V", requestID, longFromHandle(handle));
+  }
+
+  void onBlobAssetError(
+      const rive::BlobAssetHandle,
+      uint64_t requestID,
+      std::string error) override
+  {
+    auto jError = MakeJString(GetJNIEnv(), error);
+    m_queue
+        .call("onBlobError", "(JLjava/lang/String;)V", requestID, jError.get());
+  }
+
+private:
+  JCommandQueue m_queue;
+};
+
 /** Runtime message tag for the outcome of cppMoveFocus. */
 constexpr static uint32_t FOCUS_MOVED_MESSAGE_TAG = 1;
 
@@ -1964,7 +1996,7 @@ extern "C"
     auto listenersConstructor = env->GetMethodID(
         listenersClass.get(),
         "<init>",
-        "(JJJJJJJJ)V");
+        "(JJJJJJJJJ)V");
 
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
 
@@ -1977,6 +2009,7 @@ extern "C"
     auto imageListener = new ImageListener(env, jReceiver);
     auto audioListener = new AudioListener(env, jReceiver);
     auto fontListener = new FontListener(env, jReceiver);
+    auto blobListener = new BlobListener(env, jReceiver);
     auto runtimeMessageListener = new RuntimeMessageListener(env, jReceiver);
 
     commandQueue->setGlobalFileListener(fileListener);
@@ -1986,6 +2019,7 @@ extern "C"
     commandQueue->setGlobalRenderImageListener(imageListener);
     commandQueue->setGlobalAudioSourceListener(audioListener);
     commandQueue->setGlobalFontListener(fontListener);
+    commandQueue->setGlobalBlobAssetListener(blobListener);
     commandQueue->setGlobalRuntimeMessageListener(runtimeMessageListener);
 
     auto listeners = MakeObject(
@@ -1999,6 +2033,7 @@ extern "C"
         reinterpret_cast<jlong>(imageListener),
         reinterpret_cast<jlong>(audioListener),
         reinterpret_cast<jlong>(fontListener),
+        reinterpret_cast<jlong>(blobListener),
         reinterpret_cast<jlong>(runtimeMessageListener));
     return listeners.release();
   }
@@ -3238,6 +3273,28 @@ extern "C"
   }
 
   JNIEXPORT void JNICALL
+  Java_app_rive_core_CommandQueueJNIBridge_cppSetBlobProperty(
+      JNIEnv* env,
+      jobject,
+      jlong ref,
+      jlong jViewModelInstanceHandle,
+      jstring jPropertyPath,
+      jlong jBlobHandle)
+  {
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto
+        viewModelInstanceHandle = handleFromLong<rive::ViewModelInstanceHandle>(
+            jViewModelInstanceHandle);
+    auto propertyPath = JStringToString(env, jPropertyPath);
+    auto blobHandle = handleFromLong<rive::BlobAssetHandle>(jBlobHandle);
+
+    commandQueue->setViewModelInstanceBlob(
+        viewModelInstanceHandle,
+        propertyPath,
+        blobHandle);
+  }
+
+  JNIEXPORT void JNICALL
   Java_app_rive_core_CommandQueueJNIBridge_cppSetArtboardProperty(
       JNIEnv* env,
       jobject,
@@ -3555,6 +3612,33 @@ extern "C"
     auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
 
     commandQueue->deleteFont(fontHandle);
+  }
+
+  JNIEXPORT jlong JNICALL
+  Java_app_rive_core_CommandQueueJNIBridge_cppDecodeBlob(
+      JNIEnv* env,
+      jobject,
+      jlong ref,
+      jlong requestID,
+      jbyteArray bytes)
+  {
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto byteVec = ByteArrayToUint8Vec(env, bytes);
+
+    return longFromHandle(
+        commandQueue->decodeBlob(std::move(byteVec), nullptr, requestID));
+  }
+
+  JNIEXPORT void JNICALL Java_app_rive_core_CommandQueueJNIBridge_cppDeleteBlob(
+      JNIEnv*,
+      jobject,
+      jlong ref,
+      jlong jBlobHandle)
+  {
+    auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
+    auto blobHandle = handleFromLong<rive::BlobAssetHandle>(jBlobHandle);
+
+    commandQueue->deleteBlob(blobHandle);
   }
 
   JNIEXPORT void JNICALL
@@ -4150,6 +4234,7 @@ extern "C"
       jlong imageListenerRef,
       jlong audioListenerRef,
       jlong fontListenerRef,
+      jlong blobListenerRef,
       jlong runtimeMessageListenerRef)
   {
     auto fileListener = reinterpret_cast<FileListener*>(fileListenerRef);
@@ -4172,6 +4257,7 @@ extern "C"
     delete imageListener;
     delete audioListener;
     delete fontListener;
+    delete reinterpret_cast<BlobListener*>(blobListenerRef);
     delete runtimeMessageListener;
   }
 }

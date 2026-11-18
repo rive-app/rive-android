@@ -3,6 +3,7 @@
 package app.rive
 
 import app.rive.core.AudioHandle
+import app.rive.core.BlobHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FontHandle
 import app.rive.core.ImageHandle
@@ -67,6 +68,41 @@ class AssetUnitTest : FunSpec({
 
             verify(exactly = 1) { worker.acquire(any()) }
             verify(exactly = 1) { worker.release(any(), "Cancellation") }
+        }
+    }
+
+    test("Blob close deletes its handle and releases its worker exactly once") {
+        val worker = mockk<CommandQueue>(relaxed = true)
+        val bytes = byteArrayOf(0, -1, 42)
+        coEvery { worker.decodeBlob(bytes) } returns BlobHandle(104L)
+        val blob = BlobAsset.fromBytes(worker, bytes)
+        blob.close()
+        blob.close()
+        verifyOrder {
+            worker.deleteBlob(BlobHandle(104L))
+            worker.release("Rive/Blob", "Asset closed")
+        }
+        verify(exactly = 1) { worker.deleteBlob(BlobHandle(104L)) }
+        verify(exactly = 1) { worker.release(any(), any()) }
+    }
+
+    test("Asset companions expose factories without internal ownership operations") {
+        val internalMethods =
+            setOf("construct", "decode", "delete", "register", "unregister", "getTag", "getLabel")
+        for (companion in listOf(ImageAsset, AudioAsset, FontAsset, BlobAsset)) {
+            companion.javaClass.methods.any {
+                it.name.substringBefore('-') in internalMethods
+            } shouldBe false
+        }
+    }
+
+    test("Only referenced assets expose registration") {
+        ReferencedAsset::class.java.isAssignableFrom(ImageAsset::class.java) shouldBe true
+        ReferencedAsset::class.java.isAssignableFrom(AudioAsset::class.java) shouldBe true
+        ReferencedAsset::class.java.isAssignableFrom(FontAsset::class.java) shouldBe true
+        ReferencedAsset::class.java.isAssignableFrom(BlobAsset::class.java) shouldBe false
+        for (type in listOf(Asset::class.java, BlobAsset::class.java)) {
+            type.methods.any { it.name == "register" || it.name == "unregister" } shouldBe false
         }
     }
 
@@ -225,12 +261,24 @@ private val assetFactoryCases = listOf(
             coEvery { worker.decodeFont(any()) } throws error
         },
     ),
+    AssetFactoryCase(
+        name = "Blob asset",
+        handle = BlobHandle(104L),
+        create = { worker -> BlobAsset.fromBytes(worker, byteArrayOf()) },
+        createFailure = { RiveBlobException("Invalid blob") },
+        stubSuccess = { worker ->
+            coEvery { worker.decodeBlob(any()) } returns BlobHandle(104L)
+        },
+        stubFailure = { worker, error ->
+            coEvery { worker.decodeBlob(any()) } throws error
+        },
+    ),
 )
 
 private data class ClosedAssetCase(
     val name: String,
     val handle: Long,
-    val create: (CommandQueue) -> Asset<*>,
+    val create: (CommandQueue) -> ReferencedAsset<*>,
     val verifyUnregistered: (CommandQueue, String) -> Unit,
 )
 

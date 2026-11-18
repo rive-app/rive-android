@@ -3,6 +3,7 @@
 package app.rive
 
 import app.rive.core.ArtboardHandle
+import app.rive.core.BlobHandle
 import app.rive.core.CommandQueue
 import app.rive.core.FileHandle
 import app.rive.core.FontHandle
@@ -43,6 +44,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -230,6 +232,7 @@ class ViewModelInstanceUnitTest : FunSpec({
         expectClosed { subject.instance.fireTrigger("trigger") }
         expectClosed { subject.instance.setImage("image", subject.image) }
         expectClosed { subject.instance.setFont("font", subject.font) }
+        expectClosed { subject.instance.setBlob("blob", subject.blob) }
         expectClosed { subject.instance.setArtboard("artboard", subject.artboard) }
         expectClosed {
             subject.instance.setViewModelInstance("nested", subject.nestedInstance)
@@ -746,6 +749,7 @@ class ViewModelInstanceUnitTest : FunSpec({
     test("Resource arguments are checked before property mutations") {
         val subject = ViewModelInstanceDirtySubject()
         subject.image.close()
+        subject.blob.close()
         subject.font.close()
         subject.artboard.close()
         subject.nestedInstance.close()
@@ -757,6 +761,9 @@ class ViewModelInstanceUnitTest : FunSpec({
         shouldThrow<RiveResourceClosedException> {
             subject.instance.setFont("font", subject.font)
         }.message shouldContain TEST_FONT_HANDLE.toString()
+        shouldThrow<RiveResourceClosedException> {
+            subject.instance.setBlob("blob", subject.blob)
+        }.message shouldContain "104"
         shouldThrow<RiveResourceClosedException> {
             subject.instance.setArtboard("artboard", subject.artboard)
         }.message shouldContain TEST_ARTBOARD_HANDLE.toString()
@@ -778,6 +785,8 @@ class ViewModelInstanceUnitTest : FunSpec({
         val subject = ViewModelInstanceDirtySubject()
         val foreignWorker = mockk<CommandQueue>(relaxed = true)
         val foreignImage = ImageAsset(ImageHandle(TEST_IMAGE_HANDLE + 10), foreignWorker)
+        coEvery { foreignWorker.decodeBlob(any()) } returns BlobHandle(105L)
+        val foreignBlob = BlobAsset.fromBytes(foreignWorker, byteArrayOf())
         val foreignFont = FontAsset(FontHandle(TEST_FONT_HANDLE + 10), foreignWorker)
         val foreignArtboard = Artboard(
             ArtboardHandle(TEST_ARTBOARD_HANDLE + 10),
@@ -798,6 +807,9 @@ class ViewModelInstanceUnitTest : FunSpec({
         shouldThrow<RiveIncompatibleResourceException> {
             subject.instance.setFont("font", foreignFont)
         }.message shouldContain (TEST_FONT_HANDLE + 10).toString()
+        shouldThrow<RiveIncompatibleResourceException> {
+            subject.instance.setBlob("blob", foreignBlob)
+        }.message shouldContain "105"
         shouldThrow<RiveIncompatibleResourceException> {
             subject.instance.setArtboard("artboard", foreignArtboard)
         }.message shouldContain (TEST_ARTBOARD_HANDLE + 10).toString()
@@ -898,6 +910,54 @@ class ViewModelInstanceUnitTest : FunSpec({
             subject.instance.setFont("font", subject.font)
         }
     }
+
+    test("setBlob forwards the blob handle to the worker") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setBlob("blob", subject.blob)
+
+        verify(exactly = 1) {
+            subject.worker.setBlobProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "blob",
+                BlobHandle(104L),
+            )
+        }
+    }
+
+    test("setBlob with null clears the blob property") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setBlob("blob", null)
+
+        verify(exactly = 1) {
+            subject.worker.setBlobProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "blob",
+                null,
+            )
+        }
+    }
+
+    test("setBlob accepts a blob that was closed after assignment") {
+        val subject = ViewModelInstanceDirtySubject()
+
+        subject.instance.setBlob("blob", subject.blob)
+        subject.blob.close()
+
+        // The worker is mocked, so this only checks that the assignment was submitted before the
+        // asset was closed, and that reusing the closed asset is rejected afterwards.
+        verify(exactly = 1) {
+            subject.worker.setBlobProperty(
+                ViewModelInstanceHandle(TEST_INSTANCE_HANDLE),
+                "blob",
+                BlobHandle(104L),
+            )
+        }
+        shouldThrow<RiveResourceClosedException> {
+            subject.instance.setBlob("blob", subject.blob)
+        }
+    }
 })
 
 private data class ViewModelInstanceDirtyMutation(
@@ -923,6 +983,12 @@ private val viewModelInstanceDirtyMutations = listOf(
     },
     ViewModelInstanceDirtyMutation("fireTrigger") { subject ->
         subject.instance.fireTrigger("trigger")
+    },
+    ViewModelInstanceDirtyMutation("setBlob") { subject ->
+        subject.instance.setBlob("blob", subject.blob)
+    },
+    ViewModelInstanceDirtyMutation("clearBlob") { subject ->
+        subject.instance.setBlob("blob", null)
     },
     ViewModelInstanceDirtyMutation("setFont") { subject ->
         subject.instance.setFont("font", subject.font)
@@ -978,6 +1044,11 @@ private class ViewModelInstanceDirtySubject {
     )
     val image = ImageAsset(ImageHandle(TEST_IMAGE_HANDLE), worker)
     val font = FontAsset(FontHandle(TEST_FONT_HANDLE), worker)
+    val blob = runBlocking {
+        // Mock decoding completes immediately, so fixture construction does not await native work.
+        coEvery { worker.decodeBlob(any()) } returns BlobHandle(104L)
+        BlobAsset.fromBytes(worker, byteArrayOf())
+    }
     val artboard = Artboard(
         ArtboardHandle(TEST_ARTBOARD_HANDLE),
         worker,
