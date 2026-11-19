@@ -1007,6 +1007,17 @@ public:
   RenderContext* getRenderContext() { return m_renderContext; }
 
 private:
+  rive::rcp<rive::RenderImage> onMakeImageFromPixels(
+      uint32_t width,
+      uint32_t height,
+      rive::Span<const uint8_t> rgbaPremul) override
+  {
+    return m_renderContext->riveContext->makeImageFromPixels(
+        width,
+        height,
+        rgbaPremul);
+  }
+
   RenderContext* const m_renderContext = nullptr;
 };
 
@@ -1152,6 +1163,18 @@ public:
   }
 
 private:
+  rive::rcp<rive::RenderImage> onMakeImageFromPixels(
+      uint32_t width,
+      uint32_t height,
+      rive::Span<const uint8_t> rgbaPremul) override
+  {
+    if (auto* session = importSession())
+    {
+      return session->makeImageFromPixels(width, height, rgbaPremul);
+    }
+    return m_immediate->makeImageFromPixels(width, height, rgbaPremul);
+  }
+
   // Defined after CommandQueueWithThread, which owns the session.
   rive::cmd::DeferredSession* importSession();
 
