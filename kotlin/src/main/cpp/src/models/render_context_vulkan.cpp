@@ -1047,10 +1047,6 @@ bool RenderContextVulkan::ensureSwapchain(
                   .format = VK_FORMAT_R8G8B8A8_UNORM,
                   .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
               },
-              {
-                  .format = VK_FORMAT_B8G8R8A8_UNORM,
-                  .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-              },
           },
       .presentModePreferences =
           {
@@ -1060,6 +1056,10 @@ bool RenderContextVulkan::ensureSwapchain(
                          VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                          VK_IMAGE_USAGE_TRANSFER_DST_BIT,
       .initialFrameNumber = pending->initialFrameNumber,
+      // The Android loader always lists RGBA8 UNORM with sRGB nonlinear, so
+      // skip the surface format query. On some devices that query crashes in
+      // the vendor's gralloc.
+      .assumeFirstSurfaceFormatIsValid = true,
   };
 
   if ((windowCapabilities.supportedUsageFlags &
