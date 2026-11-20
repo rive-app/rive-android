@@ -181,6 +181,9 @@ class Artboard(
     /**
      * Get the state machine at a given 0-based [index] in the artboard.
      *
+     * Construction can initialize scripts on the file's shared VM, so it uses the same monitor
+     * as frame advancement.
+     *
      * @param index The zero-based index of the state machine to retrieve.
      * @throws StateMachineException If the state machine does not exist.
      * @deprecated Multiple state machines are deprecated. Use only the first state machine.
@@ -190,14 +193,12 @@ class Artboard(
         level = DeprecationLevel.WARNING
     )
     @Throws(StateMachineException::class)
-    fun stateMachine(index: Int): StateMachineInstance {
+    fun stateMachine(index: Int): StateMachineInstance = synchronized(fileLock) {
         val stateMachinePointer = cppStateMachineByIndex(cppPointer, index)
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found at index $index.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, fileLock)
-        dependencies.add(smi)
-        return smi
+        StateMachineInstance(stateMachinePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**
@@ -212,14 +213,12 @@ class Artboard(
         level = DeprecationLevel.WARNING
     )
     @Throws(StateMachineException::class)
-    fun stateMachine(name: String): StateMachineInstance {
+    fun stateMachine(name: String): StateMachineInstance = synchronized(fileLock) {
         val stateMachinePointer = cppStateMachineByName(cppPointer, name)
         if (stateMachinePointer == NULL_POINTER) {
             throw StateMachineException("No StateMachine found with name $name.")
         }
-        val smi = StateMachineInstance(stateMachinePointer, fileLock)
-        dependencies.add(smi)
-        return smi
+        StateMachineInstance(stateMachinePointer, fileLock).also { dependencies.add(it) }
     }
 
     /**

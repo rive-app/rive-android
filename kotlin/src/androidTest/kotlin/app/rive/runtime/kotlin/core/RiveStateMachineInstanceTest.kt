@@ -20,6 +20,31 @@ class RiveStateMachineInstanceTest {
         )
     }
 
+    /** Checks that constructing a machine with a scripted listener waits for the file monitor. */
+    private fun assertCreationWaitsForFileLock(create: (Artboard) -> StateMachineInstance) {
+        val scriptedFile = File(
+            appContext.resources.openRawResource(R.raw.scripted_state_machine_init).readBytes()
+        )
+        try {
+            val artboard = scriptedFile.firstArtboard
+            TestUtils.assertBlocksOnLock(scriptedFile.fileLock) { create(artboard) }
+        } finally {
+            scriptedFile.release()
+        }
+    }
+
+    /** Index lookup constructs the machine used by firstStateMachine. */
+    @Test
+    fun stateMachineByIndexWaitsForFileLock() {
+        assertCreationWaitsForFileLock { it.stateMachine(0) }
+    }
+
+    /** Name lookup constructs a machine through its own JNI entry point. */
+    @Test
+    fun stateMachineByNameWaitsForFileLock() {
+        assertCreationWaitsForFileLock { it.stateMachine("Scripted") }
+    }
+
     @Test
     fun nothing() {
         val stateMachine = file.firstArtboard.stateMachine("nothing")
