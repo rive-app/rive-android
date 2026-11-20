@@ -1,67 +1,20 @@
-name: Publish API Docs
-
-# Generates the Dokka HTML API reference and publishes it to the runtime API
-# docs bucket, served at https://api-docs.rive.app/android/<version>/ with a
-# /android/latest/ alias. Runs in the rive-app/rive-android mirror.
-#
-# Required repo configuration (rive-app/rive-android):
-#   - Environment "runtime-api-docs" (add required reviewers here to gate publishes)
-#   - Secret  RUNTIME_API_DOCS_ROLE_ARN        -> terraform output rive_android_api_docs_deploy_role_arn
-#   - Variable RUNTIME_API_DOCS_DISTRIBUTION_ID -> terraform output rive_runtime_api_docs_distribution_id
-
+name: Profile Android API docs
+run-name: Profile Dokka 11.16.2 (${{ inputs.cache_mode }})
 on:
-  workflow_call:
-    inputs:
-      version:
-        description: "Published release tag to document"
-        required: true
-        type: string
-    secrets:
-      PAT_GITHUB:
-        required: true
-      RUNTIME_API_DOCS_ROLE_ARN:
-        description: "Docs deploy role, also configurable in the runtime-api-docs environment"
-        required: false
   workflow_dispatch:
     inputs:
-      version:
-        description: "Existing release tag to build and publish (e.g. 11.16.3)"
+      cache_mode:
+        type: choice
         required: true
-        type: string
-
-concurrency:
-  group: publish-api-docs-${{ inputs.version }}
-  cancel-in-progress: false
-
+        options: [cold, warm]
+permissions:
+  contents: read
 env:
-  AWS_REGION: us-west-1
-  S3_BUCKET: rive-runtime-api-docs
-  RUNTIME: android
-  VERSION: ${{ inputs.version }}
-
+  VERSION: 11.16.2
 jobs:
-  publish:
-    name: Generate and publish Dokka HTML
+  profile-dokka-11162:
     runs-on: ubuntu-latest
-    environment: runtime-api-docs
-    permissions:
-      id-token: write # required to assume the OIDC publish role
-      contents: read
     steps:
-      - name: Validate release tag
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # The tag also becomes one S3 directory directly under android/.
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$ ]]
-          published_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" \
-            --jq 'select(.draft == false) | .tag_name')
-          if [[ "$published_tag" != "$VERSION" ]]; then
-            echo "Expected a published GitHub Release for tag $VERSION" >&2
-            exit 1
-          fi
-
       - name: Check out release tag
         uses: actions/checkout@v4
         with:
@@ -79,37 +32,36 @@ jobs:
           echo "JAVA_HOME=${JAVA_HOME_21_X64:?}" >> "$GITHUB_ENV"
           echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
 
-      - name: Generate Dokka HTML
-        run: ./gradlew kotlin:dokkaHtml
-
-      # v5 specifically: it sends session tags on AssumeRoleWithWebIdentity, which
-      # the deploy role's trust policy allows (sts:TagSession). v2 would not tag.
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
         with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.RUNTIME_API_DOCS_ROLE_ARN }}
+          cache-write-only: ${{ inputs.cache_mode == 'cold' }}
+          cache-read-only: false
+          gradle-home-cache-strict-match: true
 
-      - name: Publish versioned docs to S3
-        run: |
-          set -euo pipefail
-          aws s3 sync kotlin/build/dokka/html "s3://${S3_BUCKET}/${RUNTIME}/${VERSION}/" --delete
-
-      # Backfills of historical releases only write their versioned directory.
-      - name: Update latest alias
+      - name: Verify expected cache state
         env:
-          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.cache_mode }}
         run: |
-          set -euo pipefail
-          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
-          if [[ "$VERSION" != "$latest" ]]; then
-            echo "Keeping latest at $latest"
-            exit 0
+          home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+          shopt -s nullglob
+          wrappers=("$home"/wrapper/dists/gradle-8.13-bin/*/gradle-8.13/bin/gradle)
+          dependencies=("$home"/caches/modules-2/files-2.1/org.jetbrains.dokka/*)
+          echo "Before Gradle invocation: ${#wrappers[@]} wrappers and ${#dependencies[@]} Dokka modules"
+          if [[ "$MODE" == cold ]]; then
+            (( ${#wrappers[@]} == 0 && ${#dependencies[@]} == 0 ))
+          else
+            (( ${#wrappers[@]} > 0 && ${#dependencies[@]} > 0 ))
           fi
-          aws s3 sync kotlin/build/dokka/html "s3://${S3_BUCKET}/${RUNTIME}/latest/" --delete
 
-      - name: Invalidate CloudFront
+      - name: Generate and profile Dokka HTML
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id "${{ vars.RUNTIME_API_DOCS_DISTRIBUTION_ID }}" \
-            --paths "/${RUNTIME}/*"
+          ./gradlew -Dorg.gradle.welcome=never :kotlin:dokkaHtml --profile
+          test -s kotlin/build/dokka/html/index.html
+
+      - name: Archive Gradle profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: dokka-profile-${{ inputs.cache_mode }}
+          path: build/reports/profile/
+          if-no-files-found: error
