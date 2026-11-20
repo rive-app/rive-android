@@ -2,6 +2,7 @@ package app.rive.compose
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.MutableState
@@ -27,6 +28,7 @@ import app.rive.core.DefaultRiveResources
 import app.rive.core.loadDefaultRiveResources
 import app.rive.rememberViewModelInstanceResult
 import app.rive.runtime.kotlin.test.R
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
@@ -191,6 +193,48 @@ class StateMachineSettlingComposeTest : RiveAndroidTest() {
             // The outer Rive rule keeps the worker alive until Compose disposes its resources.
             composeRule.mainClock.autoAdvance = true
         }
+    }
+
+    /** Verifies layout fit resizes a supplied artboard even when the surface keeps its size. */
+    @Test
+    fun fitLayout_resizesReplacementArtboardAtFixedSize() = runBlocking<Unit> {
+        val replacement = loadDefaultRiveResources(R.raw.resize_test)
+        val useReplacement = mutableStateOf(false)
+        val initialFrameRendered = AtomicBoolean()
+        val replacementViewModelInstance = AtomicReference<ViewModelInstance?>()
+
+        composeRule.setContent {
+            val result = rememberViewModelInstanceResult(
+                replacement.file,
+                ViewModelSource.DefaultForArtboard(replacement.artboard).defaultInstance(),
+            )
+            if (result !is Result.Success) return@setContent
+            replacementViewModelInstance.set(result.value)
+
+            // Supply the prepared state machine with the artboard so both generations are ready
+            // during the swap. An intermediate loading state would restart the layout effect.
+            val supplied = replacement.takeIf { useReplacement.value }
+            Rive(
+                file = replacement.file,
+                modifier = Modifier.requiredSize(VIEW_WIDTH_DP.dp, PORTRAIT_HEIGHT_DP.dp),
+                artboard = supplied?.artboard,
+                stateMachine = supplied?.stateMachine,
+                viewModelInstance = if (supplied != null) result.value else null,
+                fit = Fit.Layout(LocalDensity.current.density / ARTBOARD_TO_VIEW_RATIO),
+                onBitmapAvailable = { initialFrameRendered.set(true) },
+            )
+        }
+
+        composeRule.awaitWithWallClock(
+            timeoutMessage = { "The implicit artboard did not render" },
+        ) { initialFrameRendered.get() }
+        val viewModelInstance = checkNotNull(replacementViewModelInstance.get())
+        composeRule.awaitProperty("expanded", viewModelInstance::getBooleanFlow, expected = false)
+
+        composeRule.runOnIdle { useReplacement.value = true }
+
+        // The fixture starts at 500 x 500. Only the 500 x 1000 layout activates Expanded.
+        composeRule.awaitProperty("expanded", viewModelInstance::getBooleanFlow, expected = true)
     }
 
     /** Verifies a new resource generation reruns effects when presentation settings are unchanged. */
