@@ -62,7 +62,8 @@ class File(
      *
      * The legacy runtime can touch a file's artboards, state machines, and view model instances
      * from both the main thread and the Rive worker thread. Wrappers created from this file use this
-     * same lock so native mutations and frame advancement cannot overlap.
+     * same lock so native mutations and frame advancement cannot overlap. Artboard factories hold
+     * it while running script initialization and registering the child for release with this file.
      */
     internal val fileLock = ReentrantLock()
 
@@ -125,8 +126,7 @@ class File(
      * Reuse the returned [Artboard] instead of calling this repeatedly.
      */
     @Throws(RiveException::class)
-    fun artboard(name: String): Artboard {
-        // Creates a new artboard instance.
+    fun artboard(name: String): Artboard = synchronized(fileLock) {
         val artboardPointer = cppArtboardByName(cppPointer, name)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException(
@@ -135,9 +135,7 @@ class File(
             )
         }
 
-        val ab = Artboard(artboardPointer, fileLock, this)
-        dependencies.add(ab)
-        return ab
+        Artboard(artboardPointer, fileLock, this).also { dependencies.add(it) }
     }
 
     /**
@@ -149,15 +147,12 @@ class File(
      * Reuse the returned [Artboard] instead of calling this repeatedly.
      */
     @Throws(RiveException::class)
-    fun artboard(index: Int): Artboard {
-        // Creates a new Artboard instance.
+    fun artboard(index: Int): Artboard = synchronized(fileLock) {
         val artboardPointer = cppArtboardByIndex(cppPointer, index)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No Artboard found at index $index.")
         }
-        val ab = Artboard(artboardPointer, fileLock, this)
-        dependencies.add(ab)
-        return ab
+        Artboard(artboardPointer, fileLock, this).also { dependencies.add(it) }
     }
 
     /**
@@ -176,12 +171,12 @@ class File(
     fun createBindableArtboardByName(
         name: String,
         viewModelInstance: ViewModelInstance? = null,
-    ): BindableArtboard {
+    ): BindableArtboard = synchronized(fileLock) {
         val artboardPointer = cppCreateBindableArtboardByName(cppPointer, name)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No BindableArtboard found with name $name.")
         }
-        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
+        BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /**
@@ -198,12 +193,12 @@ class File(
      */
     fun createDefaultBindableArtboard(
         viewModelInstance: ViewModelInstance? = null,
-    ): BindableArtboard {
+    ): BindableArtboard = synchronized(fileLock) {
         val artboardPointer = cppCreateDefaultBindableArtboard(cppPointer)
         if (artboardPointer == NULL_POINTER) {
             throw ArtboardException("No default BindableArtboard.")
         }
-        return BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
+        BindableArtboard(artboardPointer, viewModelInstance).also { dependencies.add(it) }
     }
 
     /** Get the number of artboards in the file. Useful for index-based iteration. */

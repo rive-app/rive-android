@@ -40,6 +40,31 @@ class RiveArtboardLoadTest {
         assertEquals(listOf("artboard2", "artboard1"), file.artboardNames)
     }
 
+    /** Every artboard factory must wait while frame advancement owns the file monitor. */
+    @Test
+    fun artboardFactoriesWaitForFileLock() {
+        val file =
+            File(appContext.resources.openRawResource(R.raw.scripted_artboard_init).readBytes())
+        var named: BindableArtboard? = null
+        var default: BindableArtboard? = null
+        try {
+            TestUtils.assertBlocksOnLock(file.fileLock) { file.artboard("Main") }
+            TestUtils.assertBlocksOnLock(file.fileLock) { file.artboard(0) }
+            TestUtils.assertBlocksOnLock(file.fileLock) {
+                named =
+                    file.createBindableArtboardByName("Main")
+            }
+            TestUtils.assertBlocksOnLock(file.fileLock) {
+                default =
+                    file.createDefaultBindableArtboard()
+            }
+        } finally {
+            named?.release()
+            default?.release()
+            file.release()
+        }
+    }
+
     @Test(expected = RiveException::class)
     fun loadArtboardNoArtboard() {
         val file = File(appContext.resources.openRawResource(R.raw.noartboard).readBytes())
