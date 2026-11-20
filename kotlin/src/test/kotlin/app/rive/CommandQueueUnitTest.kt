@@ -27,10 +27,12 @@ import app.rive.semantics.SemanticsBoundsUpdate
 import app.rive.semantics.SemanticsChildrenUpdate
 import app.rive.semantics.SemanticsDiff
 import app.rive.semantics.SemanticsDiffNode
+import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -833,7 +835,7 @@ class CommandQueueUnitTest : FunSpec({
             )
         }
 
-        val result = commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
+        val result = commandQueue.getDefaultViewModelInfoOrNull(fileHandle, artboardHandle)
 
         result shouldBe DefaultViewModelInfo("Test All", "default")
         verify(exactly = 1) {
@@ -864,9 +866,12 @@ class CommandQueueUnitTest : FunSpec({
             commandQueue.onArtboardError(requestID.captured, errorMessage)
         }
 
-        shouldThrow<RiveArtboardException> {
-            commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
-        }.message shouldContain errorMessage
+        recordingErrorLogs { errorLogs ->
+            shouldThrow<RiveArtboardException> {
+                commandQueue.getDefaultViewModelInfoOrNull(fileHandle, artboardHandle)
+            }.message shouldContain errorMessage
+            errorLogs shouldHaveSize 1
+        }
 
         verify(exactly = 1) {
             commandQueueBridgeMock.cppGetDefaultViewModelInfo(
@@ -875,6 +880,111 @@ class CommandQueueUnitTest : FunSpec({
                 HANDLE_NUM,
                 ARTBOARD_HANDLE_NUM
             )
+        }
+    }
+
+    test("Default view model info is null when the artboard has no default view model") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onNoDefaultViewModel(requestID.captured)
+        }
+
+        recordingErrorLogs { errorLogs ->
+            commandQueue.getDefaultViewModelInfoOrNull(fileHandle, artboardHandle).shouldBeNull()
+            errorLogs.shouldBeEmpty()
+        }
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Deprecated default view model info throws without logging when no default exists") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+        val expectedMessage = "Artboard error: Could not find default view model for artboard " +
+            "when getting default view model info"
+
+        every {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onNoDefaultViewModel(requestID.captured)
+        }
+
+        recordingErrorLogs { errorLogs ->
+            @Suppress("DEPRECATION")
+            shouldThrow<RiveArtboardException> {
+                commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
+            }.message shouldBe expectedMessage
+            errorLogs.shouldBeEmpty()
+        }
+
+        verify(exactly = 1) {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                requestID.captured,
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        }
+    }
+
+    test("Deprecated default view model info returns the info when a default exists") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val fileHandle = FileHandle(HANDLE_NUM)
+        val artboardHandle = ArtboardHandle(ARTBOARD_HANDLE_NUM)
+
+        every {
+            commandQueueBridgeMock.cppGetDefaultViewModelInfo(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                HANDLE_NUM,
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onDefaultViewModelInfoReceived(
+                requestID.captured,
+                "Test All",
+                "default"
+            )
+        }
+
+        @Suppress("DEPRECATION")
+        val result = commandQueue.getDefaultViewModelInfo(fileHandle, artboardHandle)
+
+        result shouldBe DefaultViewModelInfo("Test All", "default")
+    }
+
+    test("A reply without a default view model for an unknown request is ignored") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+
+        recordingErrorLogs { errorLogs ->
+            shouldNotThrowAny { commandQueue.onNoDefaultViewModel(999L) }
+            errorLogs.shouldBeEmpty()
         }
     }
 
@@ -1917,5 +2027,21 @@ private inline fun <T> asMainThread(block: () -> T): T {
         return block()
     } finally {
         unmockkStatic(Looper::class, Trace::class)
+    }
+}
+
+/** Runs [block] with a logger that records error messages, then restores the previous logger. */
+private inline fun <T> recordingErrorLogs(block: (errorLogs: List<String>) -> T): T {
+    val errorLogs = mutableListOf<String>()
+    val previousLogger = RiveLog.logger
+    RiveLog.logger = object : RiveLog.Logger {
+        override fun e(tag: String, t: Throwable?, msg: () -> String) {
+            errorLogs.add(msg())
+        }
+    }
+    try {
+        return block(errorLogs)
+    } finally {
+        RiveLog.logger = previousLogger
     }
 }

@@ -458,6 +458,15 @@ class CommandQueue internal constructor(
                 throw startupFailure
             }
         }
+
+        /**
+         * Creates the exception that the deprecated `getDefaultViewModelInfo` functions throw for
+         * an artboard without a default view model, with the message they threw before.
+         */
+        internal fun noDefaultViewModelException(): RiveArtboardException = RiveArtboardException(
+            "Artboard error: Could not find default view model for artboard when getting " +
+                "default view model info"
+        )
     }
 
     /**
@@ -1375,11 +1384,14 @@ class CommandQueue internal constructor(
 
     /**
      * Query the default view model info for an artboard. Returns on
-     * [onDefaultViewModelInfoReceived].
+     * [onDefaultViewModelInfoReceived] or [onNoDefaultViewModel].
+     *
+     * The `OrNull` suffix is temporary. This method will be renamed to
+     * `getDefaultViewModelInfo` in 12.0 when the throwing method is removed.
      *
      * @param fileHandle The handle of the file containing the artboard.
      * @param artboardHandle The handle of the artboard to query.
-     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     * @return The default view model info, or null if the artboard has no default view model.
      * @throws RiveArtboardException If the artboard operation fails.
      * @throws RiveResourceClosedException If this command queue has been disposed.
      * @throws CancellationException If the coroutine is cancelled before the operation completes.
@@ -1389,10 +1401,10 @@ class CommandQueue internal constructor(
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun getDefaultViewModelInfo(
+    suspend fun getDefaultViewModelInfoOrNull(
         fileHandle: FileHandle,
         artboardHandle: ArtboardHandle,
-    ): DefaultViewModelInfo = suspendNativeRequest { requestID ->
+    ): DefaultViewModelInfo? = suspendNativeRequest { requestID ->
         bridge.cppGetDefaultViewModelInfo(
             requireNativePointer(),
             requestID,
@@ -1402,7 +1414,39 @@ class CommandQueue internal constructor(
     }
 
     /**
-     * Callback when the default view model info is received, from [getDefaultViewModelInfo].
+     * Query the default view model info for an artboard.
+     *
+     * @param fileHandle The handle of the file containing the artboard.
+     * @param artboardHandle The handle of the artboard to query.
+     * @return A [DefaultViewModelInfo] containing the view model name and view model instance
+     *    name.
+     * @throws RiveArtboardException If the artboard has no default view model, or if the request
+     *    fails.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     * @deprecated Use [getDefaultViewModelInfoOrNull]. This throwing implementation will be
+     *    removed in 12.0, when [getDefaultViewModelInfoOrNull] will be renamed to
+     *    `getDefaultViewModelInfo` and return null for an artboard without a default view model.
+     */
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    @Deprecated(
+        "Use getDefaultViewModelInfoOrNull. This throwing implementation will be removed in " +
+            "12.0, when getDefaultViewModelInfoOrNull will be renamed to getDefaultViewModelInfo " +
+            "and return null for an artboard without a default view model."
+    )
+    suspend fun getDefaultViewModelInfo(
+        fileHandle: FileHandle,
+        artboardHandle: ArtboardHandle,
+    ): DefaultViewModelInfo = getDefaultViewModelInfoOrNull(fileHandle, artboardHandle)
+        ?: throw noDefaultViewModelException()
+
+    /**
+     * Callback when the default view model info is received, from
+     * [getDefaultViewModelInfoOrNull].
      *
      * @param requestID The request ID used when querying, used to complete the continuation.
      * @param viewModelName The name of the default view model for the artboard.
@@ -1416,8 +1460,22 @@ class CommandQueue internal constructor(
         viewModelName: String,
         instanceName: String,
     ) {
-        (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo>)
+        (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo?>)
             ?.resume(DefaultViewModelInfo(viewModelName, instanceName))
+    }
+
+    /**
+     * Callback when the artboard has no default view model, from
+     * [getDefaultViewModelInfoOrNull].
+     *
+     * @param requestID The request ID used when querying, used to complete the continuation.
+     */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onNoDefaultViewModel")
+    internal fun onNoDefaultViewModel(requestID: Long) {
+        (pendingContinuations.remove(requestID) as? Continuation<DefaultViewModelInfo?>)
+            ?.resume(null)
     }
 
     /**

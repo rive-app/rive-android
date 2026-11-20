@@ -321,8 +321,11 @@ class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: 
     }
 
     /**
+     * The `OrNull` suffix is temporary. This method will be renamed to
+     * `getDefaultViewModelInfo` in 12.0 when the throwing method is removed.
+     *
      * @param artboard The artboard to query for default view model information.
-     * @return A [DefaultViewModelInfo] containing the view model name and instance name.
+     * @return The default view model info, or null if [artboard] has no default view model.
      * @throws RiveResourceClosedException If this file or [artboard] has been closed, or if the
      *    owning Rive worker has been disposed.
      * @throws RiveIncompatibleResourceException If [artboard] was created from another file.
@@ -335,21 +338,49 @@ class RiveFile internal constructor(val fileHandle: FileHandle, val riveWorker: 
         RiveResourceClosedException::class,
         CancellationException::class
     )
-    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo {
+    suspend fun getDefaultViewModelInfoOrNull(artboard: Artboard): DefaultViewModelInfo? {
         closer.checkOpen()
         artboard.checkOpen()
         artboard.requireFromFile(this)
         return synchronized(defaultViewModelInfoCache) {
             defaultViewModelInfoCache.getOrPut(artboard.artboardHandle) {
                 SuspendLazy {
-                    riveWorker.getDefaultViewModelInfo(fileHandle, artboard.artboardHandle)
+                    riveWorker.getDefaultViewModelInfoOrNull(fileHandle, artboard.artboardHandle)
                 }
             }
         }.await()
     }
 
+    /**
+     * @param artboard The artboard to query for default view model information.
+     * @return A [DefaultViewModelInfo] containing the view model name and view model instance
+     *    name.
+     * @throws RiveResourceClosedException If this file or [artboard] has been closed, or if the
+     *    owning Rive worker has been disposed.
+     * @throws RiveIncompatibleResourceException If [artboard] was created from another file.
+     * @throws RiveArtboardException If [artboard] has no default view model, or if the artboard
+     *    operation fails.
+     * @throws CancellationException If the coroutine is cancelled before the operation completes.
+     * @deprecated Use [getDefaultViewModelInfoOrNull]. This throwing implementation will be
+     *    removed in 12.0, when [getDefaultViewModelInfoOrNull] will be renamed to
+     *    `getDefaultViewModelInfo` and return null for an artboard without a default view model.
+     */
+    @Throws(
+        RiveIncompatibleResourceException::class,
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    @Deprecated(
+        "Use getDefaultViewModelInfoOrNull. This throwing implementation will be removed in " +
+            "12.0, when getDefaultViewModelInfoOrNull will be renamed to getDefaultViewModelInfo " +
+            "and return null for an artboard without a default view model."
+    )
+    suspend fun getDefaultViewModelInfo(artboard: Artboard): DefaultViewModelInfo =
+        getDefaultViewModelInfoOrNull(artboard) ?: throw RiveWorker.noDefaultViewModelException()
+
     private val defaultViewModelInfoCache =
-        mutableMapOf<ArtboardHandle, SuspendLazy<DefaultViewModelInfo>>()
+        mutableMapOf<ArtboardHandle, SuspendLazy<DefaultViewModelInfo?>>()
 }
 
 /**

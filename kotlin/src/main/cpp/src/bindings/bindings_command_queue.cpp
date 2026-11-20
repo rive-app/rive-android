@@ -422,12 +422,16 @@ public:
   void onDefaultViewModelInfoReceived(
       const rive::ArtboardHandle,
       uint64_t requestID,
-      std::string viewModelName,
-      std::string instanceName) override
+      std::optional<rive::CommandQueue::DefaultViewModelInfo> info) override
   {
+    if (!info)
+    {
+      m_queue.call("onNoDefaultViewModel", "(J)V", requestID);
+      return;
+    }
     auto env = GetJNIEnv();
-    auto jViewModelName = MakeJString(env, viewModelName);
-    auto jInstanceName = MakeJString(env, instanceName);
+    auto jViewModelName = MakeJString(env, info->viewModelName);
+    auto jInstanceName = MakeJString(env, info->instanceName);
     m_queue.call(
         "onDefaultViewModelInfoReceived",
         "(JLjava/lang/String;Ljava/lang/String;)V",
