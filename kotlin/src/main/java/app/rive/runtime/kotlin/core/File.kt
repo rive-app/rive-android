@@ -77,6 +77,9 @@ class File(
     val lock: ReentrantLock
         get() = fileLock
 
+    /** One [ViewModel] per native view model pointer, guarded by [fileLock]. */
+    private val viewModels = mutableMapOf<Long, ViewModel>()
+
     private external fun import(
         bytes: ByteArray,
         length: Int,
@@ -223,48 +226,70 @@ class File(
     /**
      * Get the [ViewModel] definition from the file.
      *
+     * This [File] owns the returned [ViewModel] and releases it when the file is released. Every
+     * lookup of a view model returns the same object, so don't call [ViewModel.release] on it
+     * unless you called [ViewModel.acquire] first.
+     *
      * @param viewModelIdx The Rive file 0-based index of the ViewModel.
      * @return The [ViewModel] definition.
      * @throws ViewModelException If the ViewModel is not found.
      */
-    fun getViewModelByIndex(viewModelIdx: Int): ViewModel {
+    fun getViewModelByIndex(viewModelIdx: Int): ViewModel = synchronized(fileLock) {
         val vmPointer = cppViewModelByIndex(cppPointer, viewModelIdx)
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found at index $viewModelIdx.")
         }
-        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
+        viewModel(vmPointer)
     }
 
     /**
      * Get the [ViewModel] definition from the file.
      *
+     * This [File] owns the returned [ViewModel] and releases it when the file is released. Every
+     * lookup of a view model returns the same object, so don't call [ViewModel.release] on it
+     * unless you called [ViewModel.acquire] first.
+     *
      * @param viewModelName The Rive file name of the ViewModel.
      * @return The [ViewModel] definition.
      * @throws ViewModelException If the ViewModel is not found.
      */
-    fun getViewModelByName(viewModelName: String): ViewModel {
+    fun getViewModelByName(viewModelName: String): ViewModel = synchronized(fileLock) {
         val vmPointer = cppViewModelByName(cppPointer, viewModelName)
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No ViewModel found with name $viewModelName.")
         }
-        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
+        viewModel(vmPointer)
     }
 
     /**
      * Get the default [ViewModel] for an [Artboard]. Usually this will be the ViewModel intended
      * for use with this artboard.
      *
+     * This [File] owns the returned [ViewModel] and releases it when the file is released. Every
+     * lookup of a view model returns the same object, so don't call [ViewModel.release] on it
+     * unless you called [ViewModel.acquire] first.
+     *
      * @param artboard The artboard to get the default ViewModel for.
      * @return The default ViewModel for the artboard.
      * @throws ViewModelException If the default ViewModel is not found.
      */
-    fun defaultViewModelForArtboard(artboard: Artboard): ViewModel {
+    fun defaultViewModelForArtboard(artboard: Artboard): ViewModel = synchronized(fileLock) {
         val vmPointer = cppDefaultViewModelForArtboard(cppPointer, artboard.cppPointer)
         if (vmPointer == NULL_POINTER) {
             throw ViewModelException("No default ViewModel found for artboard ${artboard.name}.")
         }
-        return ViewModel(vmPointer, fileLock).also { dependencies.add(it) }
+        viewModel(vmPointer)
     }
+
+    /**
+     * Returns the [ViewModel] this file tracks for [pointer], creating it on the first lookup.
+     *
+     * The native file returns the same pointer for a view model on every lookup and keeps it until
+     * the file is destroyed, so the pointer identifies the view model. The file holds the
+     * [ViewModel]'s initial reference and releases it on disposal. Call while holding [fileLock].
+     */
+    private fun viewModel(pointer: Long): ViewModel =
+        viewModels.getOrPut(pointer) { ViewModel(pointer, fileLock).also { dependencies.add(it) } }
 
     /**
      * Releases this File's reference to [artboard], an instance it created, and stops tracking it.

@@ -378,6 +378,34 @@ class RiveDataBindingTest {
         assertEquals("Test All", vm.name)
     }
 
+    /** View model lookups must wait while frame advancement owns the file monitor. */
+    @Test
+    fun vm_lookups_wait_for_file_lock() {
+        val file = view.file!!
+        val artboard = view.controller.activeArtboard!!
+        TestUtils.assertBlocksOnLock(file.fileLock) { file.getViewModelByIndex(0) }
+        TestUtils.assertBlocksOnLock(file.fileLock) { file.getViewModelByName("Test All") }
+        TestUtils.assertBlocksOnLock(file.fileLock) { file.defaultViewModelForArtboard(artboard) }
+    }
+
+    /** Every lookup of a view model returns the one wrapper the file already tracks. */
+    @Test
+    fun vm_lookups_reuse_one_wrapper() {
+        val file = view.file!!
+        val trackedCount = file.dependencies.size
+
+        val byIndex = (0 until file.viewModelCount).map { file.getViewModelByIndex(it) }
+        assertSame(vm, byIndex.single { it.name == "Test All" })
+        assertSame(vm, file.getViewModelByName("Test All"))
+        assertSame(vm, file.defaultViewModelForArtboard(view.controller.activeArtboard!!))
+        byIndex.forEachIndexed { index, viewModel ->
+            assertSame(viewModel, file.getViewModelByIndex(index))
+        }
+
+        // Only the view models not looked up before this test add a wrapper.
+        assertEquals(trackedCount + file.viewModelCount - 1, file.dependencies.size)
+    }
+
     @Test
     fun default_instance() {
         val vmi = vm.createDefaultInstance()
