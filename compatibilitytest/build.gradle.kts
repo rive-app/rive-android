@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "app.rive.runtime.compatibilitytest"
     compileSdk = 36
-    ndkVersion = "27.2.12479018"
+    ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {
         applicationId = "app.rive.runtime.compatibilitytest"

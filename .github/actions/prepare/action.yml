@@ -3,7 +3,7 @@
 # - Configuring AWS credentials
 # - Updating Java
 # - Setting up the Android SDK
-# - Installing the NDK & build tools
+# - Installing Android build tools
 # - Configuring the Python virtual environment
 # - Installing build dependencies
 # - Setting the signing key
@@ -47,16 +47,13 @@ runs:
         # Avoid the obsolete default `tools` package; install required packages below.
         packages: ""
 
-    - name: Install NDK & tools
+    - name: Install Android build tools
       shell: bash
       # Starts from: pwd => /home/runner/work/rive/rive
       # ANDROID_HOME => /usr/local/lib/android/sdk
       run: |
         set -x 
         echo "y" | sdkmanager --install 'build-tools;34.0.0' platform-tools --sdk_root=${ANDROID_SDK_ROOT}
-        cd ${ANDROID_HOME} 
-        wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
-        unzip -q android-ndk-r27c-linux.zip
         echo "y" | sdkmanager --install 'cmake;3.22.1' --channel=0 --sdk_root=${ANDROID_SDK_ROOT}
 
     - name: Configure venv

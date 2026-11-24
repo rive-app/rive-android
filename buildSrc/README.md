@@ -4,7 +4,7 @@
 
 `buildSrc/src/main/kotlin` is Gradle's conventional directory for Kotlin build logic. Gradle compiles it automatically and exposes its classes to the project build scripts. Tests live in `buildSrc/src/test/kotlin`.
 
-The check rejects full symbol tables, DWARF debug sections, and unexpected Rive dynamic exports. It also requires the JNI exports, build IDs, runtime unwind information, and one Rive and libc++ library per requested ABI. The export policy matches `kotlin/src/main/cpp/rive-android.map.txt` and must be updated deliberately if the library gains a new public native interface.
+The check rejects ELF TLS relocations in the Rive library because Android versions below API 29 cannot load them. It also rejects full symbol tables, DWARF debug sections, and unexpected Rive dynamic exports. It also requires the JNI exports, build IDs, runtime unwind information, and one Rive and libc++ library per requested ABI. The export policy matches `kotlin/src/main/cpp/rive-android.map.txt` and must be updated deliberately if the library gains a new public native interface.
 
 AGP can warn and package an unstripped library when stripping fails. Checking the finished AAR makes that a publication failure. Keep the linker version script as well: stripping alone does not remove exported core symbols.
 
@@ -19,7 +19,7 @@ Omit `abiFilters` for release verification of all four supported ABIs.
 The verifier tests compile small ARM64 ELF fixtures and exercise both acceptance and rejection, including an unstripped dependency and exported core symbols:
 
 ```sh
-ANDROID_NDK_HOME=/path/to/ndk/27.2.12479018 ./gradlew :buildSrc:test
+ANDROID_NDK_HOME=/path/to/the/selected/ndk ./gradlew :buildSrc:test
 ```
 
 The root `spotlessApply` and `spotlessCheck` tasks also cover these Kotlin sources.
@@ -34,7 +34,7 @@ Omit `abiFilters` to generate the complete release artifact. The ZIP is written 
 
 The Android Premake entry point enables release debug information for the core, renderer, and static dependencies without changing optimization or LTO. CMake also retains debug information for the JNI library. Both builds remap the checkout root to `.` in source paths so published Rive debug information uses repository-relative paths. `extractReleaseNativeSymbols` reads AGP's `MERGED_NATIVE_LIBS` output and runs the selected NDK's `llvm-objcopy --only-keep-debug`. It never modifies these inputs. AGP independently strips the libraries packaged in the AAR.
 
-ZIP creation depends on release-AAR verification. Extraction additionally requires matching build IDs in the unstripped input, packaged library, and debug companion. Rive's companion must include a symbol table and DWARF information. libc++ must include a symbol table, but DWARF is not required because NDK r27c does not supply it. The manifest describes the actual information present. If a consuming app packages a different libc++, it must obtain symbols matching that binary's build ID.
+ZIP creation depends on release-AAR verification. Extraction additionally requires matching build IDs in the unstripped input, packaged library, and debug companion. Rive's companion must include a symbol table and DWARF information. libc++ must include a symbol table, but DWARF is not required because the NDK may omit it. The manifest describes the actual information present. If a consuming app packages a different libc++, it must obtain symbols matching that binary's build ID.
 
 ## Maven publication and retrieval
 

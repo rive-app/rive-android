@@ -123,7 +123,7 @@ The runtime here should be updated to point to the latest `rive-runtime` submodu
 #### Pre-requisites
 
 1. Install Ninja and the shader toolchain - `brew install ninja glslang`
-2. Install NDK - Gradle auto-downloads the version pinned by `ndkVersion` in `kotlin/build.gradle.kts`, but [only if the SDK licenses are already accepted](https://developer.android.com/studio/projects/install-ndk#auto-download-ndk). Accept them once with `sdkmanager --licenses`, or install the NDK yourself with `sdkmanager --install "ndk;{ndk-version}"`.
+2. Install NDK - Gradle auto-downloads the version pinned by `ndk` in `gradle/libs.versions.toml`, but [only if the SDK licenses are already accepted](https://developer.android.com/studio/projects/install-ndk#auto-download-ndk). Accept them once with `sdkmanager --licenses`, or install the NDK yourself with `sdkmanager --install "ndk;{ndk-version}"`.
 
 #### Steps
 

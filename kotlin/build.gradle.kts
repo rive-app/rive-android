@@ -33,7 +33,7 @@ val asanEnabled = project.hasProperty("asan")
 
 android {
     compileSdk = 36
-    ndkVersion = "27.2.12479018"
+    ndkVersion = libs.versions.ndk.get()
     namespace = "app.rive.runtime.kotlin"
 
     buildFeatures {
@@ -145,7 +145,7 @@ androidComponents {
         val verifyNativeRelease = tasks.register<VerifyNativeReleaseTask>("verifyReleaseNativeLibraries") {
             group = "verification"
             description =
-                "Rejects unstripped native libraries and unintended Rive exports in the release AAR."
+                "Checks stripping, JNI exports, and ELF TLS relocations in the release AAR."
             this.aar.set(aar)
             abis.set(releaseAbis.map { it.toSet() })
             readelf.fileProvider(readelfFile)

@@ -97,6 +97,29 @@ class NativeReleaseVerifierTest {
         )
     }
 
+    /** Rejects native ELF TLS in an otherwise valid JNI library targeting Android API 29. */
+    @Test
+    fun nativeTlsRelocation() {
+        val source = directory.resolve("tls.c")
+        source.writeText(
+            "static __thread int value; int JNI_OnLoad(void) { return 1; } " +
+                "int *Java_app_rive_test(void) { return &value; }"
+        )
+        run(
+            listOf(
+                tool("clang"), "--target=aarch64-linux-android29", "-shared", "-nostdlib",
+                "-fPIC", "-funwind-tables", "-Wl,--build-id=sha1", "-s",
+                source.path, "-o", directory.resolve("tls.so").path
+            )
+        )
+        assertEquals(
+            listOf(
+                "jni/arm64-v8a/librive-android.so: unexpected TLS relocations: R_AARCH64_TLSDESC"
+            ),
+            checkArchive(rive = "tls.so")
+        )
+    }
+
     /** Detects a missing linker version script even when stripping succeeds. */
     @Test
     fun exportedCoreSymbols() {
@@ -263,6 +286,8 @@ class NativeReleaseVerifierTest {
                     tool("llvm-readelf"),
                     "--elf-output-style=JSON",
                     "--sections",
+                    "--relocations",
+                    "--expand-relocs",
                     "--dyn-symbols",
                     "--notes",
                     library.path

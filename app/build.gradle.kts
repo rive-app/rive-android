@@ -6,7 +6,6 @@ plugins {
 android {
     compileSdk = 36
     namespace = "app.rive.runtime.example"
-    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "app.rive.runtime.example"

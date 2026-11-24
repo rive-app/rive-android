@@ -162,8 +162,8 @@ else ()
     message(FATAL_ERROR "Unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif ()
 
-# Promote our ${ANDROID_NDK} to an environment var so Premake uses the same one.
-set(ENV{ANDROID_NDK} "${ANDROID_NDK}")
+# Pass the NDK selected by AGP to Premake.
+set(ENV{NDK_PATH} "${ANDROID_NDK}")
 
 # Declare Android's required default features explicitly. Scoping this environment variable to the
 # child process prevents build_rive.sh from prepending the same defaults a second time.

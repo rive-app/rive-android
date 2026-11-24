@@ -47,6 +47,8 @@ abstract class VerifyNativeReleaseTask @Inject constructor(
                     readelf.get().asFile.absolutePath,
                     "--elf-output-style=JSON",
                     "--sections",
+                    "--relocations",
+                    "--expand-relocs",
                     "--dyn-symbols",
                     "--notes",
                     library.absolutePath,
@@ -154,6 +156,14 @@ internal class NativeReleaseVerifier(private val inspect: (File) -> String) {
             errors += "missing runtime unwind information"
         }
         if (isRive) {
+            // Android's dynamic linker supports ELF TLS starting at API 29. Rive supports API 21.
+            val tlsRelocations = (elf["Relocations"] as List<*>).flatMap { section ->
+                (section as Map<*, *>).objects("Relocs", "Relocation").map { it.label("Type") }
+            }.filter { "TLS" in it || "DTPMOD" in it || "TPOFF" in it }.toSortedSet()
+            if (tlsRelocations.isNotEmpty()) {
+                errors += "unexpected TLS relocations: ${tlsRelocations.joinToString(", ")}"
+            }
+
             // Undefined imports are resolved by other libraries and are not Rive exports.
             val exports = elf.objects("DynamicSymbols", "Symbol").filter {
                 ((it["Section"] as Map<*, *>)["Value"] as Number).toLong() != 0L &&
