@@ -24,6 +24,8 @@ jobs:
   publish:
     name: Release build and publish
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.target_version }}
     permissions:
       id-token: write
       contents: write # allows release-it to pick up GITHUB_TOKEN
@@ -183,3 +185,15 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+
+  publish-api-docs:
+    needs: publish
+    uses: ./.github/workflows/publish_api_docs.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      version: ${{ needs.publish.outputs.tag }}
+    secrets:
+      PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
+      RUNTIME_API_DOCS_ROLE_ARN: ${{ secrets.RUNTIME_API_DOCS_ROLE_ARN }}
