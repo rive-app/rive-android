@@ -13,6 +13,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import app.rive.Artboard
+import app.rive.ArtboardSize
 import app.rive.ExperimentalDeferredRendering
 import app.rive.ExperimentalRiveGlobalViewModels
 import app.rive.Fit
@@ -1342,6 +1343,35 @@ class CommandQueue internal constructor(
     @JvmName("onStateMachinesListed")
     internal fun onStateMachinesListed(requestID: Long, names: List<String>) {
         (pendingContinuations.remove(requestID) as? Continuation<List<String>>)?.resume(names)
+    }
+
+    /**
+     * Query the artboard's current dimensions. Returns on [onArtboardSizeReceived].
+     *
+     * @param artboardHandle The handle of the artboard to query.
+     * @return The width and height in artboard coordinates.
+     * @throws RiveArtboardException If the artboard cannot be found.
+     * @throws RiveResourceClosedException If this command queue has been disposed.
+     * @throws CancellationException If the coroutine is cancelled before the query completes.
+     */
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getArtboardSize(artboardHandle: ArtboardHandle): ArtboardSize =
+        suspendNativeRequest { requestID ->
+            bridge.cppGetArtboardSize(requireNativePointer(), requestID, artboardHandle.handle)
+        }
+
+    /** Completes [requestID] with the artboard's current [width] and [height]. */
+    @Keep // Called from JNI
+    @Suppress("Unused")
+    @JvmName("onArtboardSizeReceived")
+    internal fun onArtboardSizeReceived(requestID: Long, width: Float, height: Float) {
+        (pendingContinuations.remove(requestID) as? Continuation<ArtboardSize>)?.resume(
+            ArtboardSize(width, height)
+        )
     }
 
     /**

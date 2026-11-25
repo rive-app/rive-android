@@ -283,6 +283,18 @@ class ArtboardUnitTest : FunSpec({
         }
     }
 
+    test("Get size throws after close without querying worker") {
+        val subject = ClosedArtboardSubject()
+
+        shouldThrow<RiveResourceClosedException> {
+            subject.artboard.getSize()
+        }.message shouldContain TEST_ARTBOARD_HANDLE.toString()
+
+        coVerify(exactly = 0) {
+            subject.worker.getArtboardSize(any())
+        }
+    }
+
     test("Set volume delegates to the worker") {
         val worker = mockk<CommandQueue>(relaxed = true)
         val handle = ArtboardHandle(TEST_ARTBOARD_HANDLE)

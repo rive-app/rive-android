@@ -17,6 +17,14 @@ import kotlin.coroutines.cancellation.CancellationException
 private const val ARTBOARD_TAG = "Rive/Artboard"
 
 /**
+ * The dimensions of an artboard in artboard coordinates.
+ *
+ * @property width The horizontal extent.
+ * @property height The vertical extent.
+ */
+data class ArtboardSize(val width: Float, val height: Float)
+
+/**
  * An instantiated artboard from a [RiveFile].
  *
  * Can be queried for state machine names, and used to create a [Rive] composable.
@@ -262,10 +270,29 @@ class Artboard internal constructor(
     }
 
     /**
-     * Set this artboard's volume multiplier.
+     * Returns the artboard's current dimensions. After [resizeArtboard], these reflect the new
+     * size. After [resetArtboardSize], they reflect the artboard's original dimensions.
+     *
+     * @return The width and height in artboard coordinates.
+     * @throws RiveResourceClosedException If this artboard or its Rive worker has been closed.
+     * @throws RiveArtboardException If the artboard cannot be found.
+     * @throws CancellationException If the coroutine is cancelled before the query completes.
+     */
+    @Throws(
+        RiveArtboardException::class,
+        RiveResourceClosedException::class,
+        CancellationException::class
+    )
+    suspend fun getSize(): ArtboardSize {
+        closer.checkOpen()
+        return riveWorker.getArtboardSize(artboardHandle)
+    }
+
+    /**
+     * Sets this artboard's volume multiplier asynchronously.
      *
      * This updates audio events driven by this artboard and any nested artboards that inherit its
-     * volume. The operation is queued on this artboard's [RiveWorker].
+     * volume.
      *
      * @param volume The volume multiplier to apply.
      * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
@@ -278,11 +305,7 @@ class Artboard internal constructor(
     }
 
     /**
-     * Get this artboard's current volume multiplier.
-     *
-     * This suspends while the value is requested from the Rive worker.
-     *
-     * @return The current artboard volume multiplier.
+     * @return This artboard's current volume multiplier.
      * @throws RiveResourceClosedException If this artboard has been closed or its Rive worker has
      *    been disposed.
      * @throws RiveArtboardException If the artboard operation fails.

@@ -1131,6 +1131,26 @@ class CommandQueueUnitTest : FunSpec({
         }
     }
 
+    test("Get artboard size propagates a native artboard error") {
+        val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
+        val requestID = slot<Long>()
+        val error = "Invalid artboard handle"
+
+        every {
+            commandQueueBridgeMock.cppGetArtboardSize(
+                COMMAND_QUEUE_ADDR,
+                capture(requestID),
+                ARTBOARD_HANDLE_NUM
+            )
+        } answers {
+            commandQueue.onArtboardError(requestID.captured, error)
+        }
+
+        shouldThrow<RiveArtboardException> {
+            commandQueue.getArtboardSize(ArtboardHandle(ARTBOARD_HANDLE_NUM))
+        }.message shouldContain error
+    }
+
     test("Get artboard volume returns native value") {
         val commandQueue = CommandQueue(renderContextMock, commandQueueBridgeMock)
         val requestID = slot<Long>()

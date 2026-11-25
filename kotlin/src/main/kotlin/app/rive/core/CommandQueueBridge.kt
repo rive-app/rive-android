@@ -42,6 +42,9 @@ interface CommandQueueBridge {
 
     fun cppGetStateMachineNames(pointer: Long, requestID: Long, artboardHandle: Long)
 
+    /** Requests the current dimensions of [artboardHandle] on [pointer] under [requestID]. */
+    fun cppGetArtboardSize(pointer: Long, requestID: Long, artboardHandle: Long)
+
     fun cppGetArtboardVolume(pointer: Long, requestID: Long, artboardHandle: Long)
 
     fun cppGetDefaultViewModelInfo(
@@ -592,6 +595,8 @@ internal class CommandQueueJNIBridge : CommandQueueBridge {
         requestID: Long,
         artboardHandle: Long,
     )
+
+    external override fun cppGetArtboardSize(pointer: Long, requestID: Long, artboardHandle: Long)
 
     external override fun cppGetArtboardVolume(pointer: Long, requestID: Long, artboardHandle: Long)
 
