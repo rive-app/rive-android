@@ -11,6 +11,10 @@ import app.rive.runtime.kotlin.core.Rive
 import app.rive.runtime.kotlin.core.TestUtils
 import app.rive.runtime.kotlin.test.R
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -377,6 +381,165 @@ class FontPickerTest {
         }
         FontFallbackStrategy.stylePicker = picker
         assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** A strategy can register a font without deadlocking the native cache. */
+    @Test(timeout = 10000)
+    fun strategyCanRegisterFallback() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fallback = FontHelper.getFallbackFontBytes()!!
+        val picker = object : FontFallbackStrategy {
+            /** Registers fallback bytes from inside the callback. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                Rive.setFallbackFont(fallback)
+                return emptyList()
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(0, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(picker, FontFallbackStrategy.stylePicker)
+    }
+
+    /** A replacement prevents the old callback from filling the replacement's cache. */
+    @Test(timeout = 10000)
+    fun strategyCanReplaceItself() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fallback = FontHelper.getFallbackFontBytes()!!
+        var replacementCalls = 0
+        val replacement = object : FontFallbackStrategy {
+            /** Places a font without coverage first to distinguish this strategy. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                replacementCalls++
+                return listOf(limited, fallback)
+            }
+        }
+        val picker = object : FontFallbackStrategy {
+            /** Replaces itself before returning obsolete font bytes. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                FontFallbackStrategy.stylePicker = replacement
+                return listOf(fallback)
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(0, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(1, replacementCalls)
+        assertEquals(replacement, FontFallbackStrategy.stylePicker)
+    }
+
+    /** The first result cached for a weight and language wins for both concurrent lookups. */
+    @Test
+    fun concurrentMissesUseFirstCachedResult() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fallback = FontHelper.getFallbackFontBytes()!!
+        val calls = AtomicInteger()
+        val firstEntered = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val picker = object : FontFallbackStrategy {
+            /** Holds the first callback open so the second can cache its candidates first. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                if (calls.incrementAndGet() == 1) {
+                    firstEntered.countDown()
+                    releaseFirst.await()
+                    return listOf(fallback) // 'u' at index 0
+                }
+                return listOf(limited, fallback) // 'u' at index 1
+            }
+        }
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            FontFallbackStrategy.stylePicker = picker
+            val first = executor.submit<Int> {
+                NativeFontTestHelper.cppFindFontFallback('u'.code, limited)
+            }
+            assertTrue(firstEntered.await(5, TimeUnit.SECONDS))
+            val second = executor.submit<Int> {
+                NativeFontTestHelper.cppFindFontFallback('u'.code, limited)
+            }
+            assertEquals(1, second.get(5, TimeUnit.SECONDS))
+            releaseFirst.countDown()
+            assertEquals(1, first.get(5, TimeUnit.SECONDS))
+            assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+            assertEquals(2, calls.get())
+            // Keep the weakly held picker reachable through the last lookup.
+            assertEquals(picker, FontFallbackStrategy.stylePicker)
+        } finally {
+            releaseFirst.countDown()
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+        }
+    }
+
+    /** Replacing a strategy on another thread invalidates its outstanding callback. */
+    @Test(timeout = 15000)
+    fun replacementDiscardsConcurrentCallback() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        val fallback = FontHelper.getFallbackFontBytes()!!
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        var releasedBeforeTimeout = false
+        val replacement = object : FontFallbackStrategy {
+            /** Makes the replacement's selection distinguishable by its fallback index. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> = listOf(limited, fallback)
+        }
+        val picker = object : FontFallbackStrategy {
+            /** Blocks until the main test thread has installed the replacement. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                entered.countDown()
+                releasedBeforeTimeout = release.await(5, TimeUnit.SECONDS)
+                return listOf(fallback)
+            }
+        }
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            FontFallbackStrategy.stylePicker = picker
+            val pending = executor.submit<Int> {
+                NativeFontTestHelper.cppFindFontFallback('u'.code, limited)
+            }
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            FontFallbackStrategy.stylePicker = replacement
+            release.countDown()
+            assertEquals(0, pending.get(5, TimeUnit.SECONDS))
+            // Future.get() makes the callback's write visible to this thread.
+            assertTrue("Callback timed out waiting for strategy replacement", releasedBeforeTimeout)
+            assertEquals(1, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+            assertEquals(replacement, FontFallbackStrategy.stylePicker)
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS))
+        }
+    }
+
+    /** Nested shaping uses system fallback without recursively calling the strategy. */
+    @Test(timeout = 10000)
+    fun strategyCanPerformNestedLookup() {
+        val limited = context.resources.openRawResource(R.raw.inter_24pt_regular_abcdef).use {
+            it.readBytes()
+        }
+        var calls = 0
+        var nestedResult = -1
+        val picker = object : FontFallbackStrategy {
+            /** Performs another native fallback lookup before returning. */
+            override fun getFont(weight: Fonts.Weight): List<FontBytes> {
+                calls++
+                nestedResult = NativeFontTestHelper.cppFindFontFallback('u'.code, limited)
+                return emptyList()
+            }
+        }
+        FontFallbackStrategy.stylePicker = picker
+        assertEquals(0, NativeFontTestHelper.cppFindFontFallback('u'.code, limited))
+        assertEquals(0, nestedResult)
+        assertEquals(1, calls)
         assertEquals(picker, FontFallbackStrategy.stylePicker)
     }
 

@@ -15,6 +15,11 @@ typealias FontBytes = ByteArray
  * only to control how fallback text looks, for example to use a brand font or the same CJK font on
  * every device. Override the `getFont` that takes languages to pick fonts per language.
  *
+ * Callbacks run on the shaping thread and may run concurrently, including for the same
+ * uncached weight and language. Keep returned data stable and synchronize shared mutable state.
+ * Replacing the strategy discards results from callbacks still running. Nested fallback lookups
+ * made by a callback use cached strategy fonts when available, otherwise registered/system fonts.
+ *
  * ## Guidance
  * - Return fonts your app owns and keep them small, subset to the characters you need. Each one is
  *   copied into native memory, and the system fonts still cover anything they lack.
@@ -52,7 +57,8 @@ interface FontFallbackStrategy {
      * list of `FontBytes` is immediately decoded into native font representations and cached
      * internally, keyed by the `weight` and the text's most preferred language. Subsequent
      * requests for the *same weight and language* will use this cache, and this function
-     * **will not be called again for them**. Text in another language, or a change to the
+     * **will not be called again for them once cached**. Concurrent cache misses may invoke
+     * this function more than once. Text in another language, or a change to the
      * device's languages, asks again through the `getFont` that takes languages, which calls
      * this one unless overridden. Fonts with identical bytes are decoded once and shared, so
      * returning the same font for every weight is cheap. The native cache associated with a
@@ -63,8 +69,9 @@ interface FontFallbackStrategy {
      * definitive set for that weight category while this strategy instance is active.
      *
      * If this function throws, the runtime reports the exception to [app.rive.RiveLog] and treats
-     * the result as an empty list, so fallback continues as it does without a strategy. This
-     * function is not called again for that weight.
+     * the result as an empty list. Concurrent calls for the same weight and preferred language
+     * use whichever result is cached first. If the empty list is cached, lookups for that pair
+     * continue through registered and system fonts until the cache is invalidated.
      *
      * @param weight The weight of the font for which fallbacks are needed.
      * @return A list of font byte arrays to be used for character fallback, ordered by preference.
@@ -97,6 +104,9 @@ interface FontFallbackStrategy {
         // Use a WeakReference so these can be automatically cleaned up by the JVM.
         private var stylePickerRef: WeakReference<FontFallbackStrategy>? = null
 
+        /** Publishes a strategy and invalidates its native cache as one synchronized update. */
+        @get:Synchronized
+        @set:Synchronized
         var stylePicker: FontFallbackStrategy?
             get() = stylePickerRef?.get()
             set(value) {

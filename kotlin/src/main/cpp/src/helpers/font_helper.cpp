@@ -18,6 +18,7 @@ constexpr uint32_t kWeightAxis = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
 /* static */ std::unordered_map<uint32_t, std::vector<rive::rcp<rive::Font>>>
     FontHelper::s_pickFontCache;
 /* static */ uint32_t FontHelper::s_pickLanguagesGeneration = 0;
+/* static */ uint64_t FontHelper::s_strategyGeneration = 0;
 /* static */ std::
     map<std::pair<size_t, size_t>, std::vector<FontHelper::StrategyFont>>
         FontHelper::s_decodedByContent;
@@ -384,24 +385,20 @@ static jmethodID FindStaticMethod(
   return instance;
 }
 
-/* static */ const std::vector<rive::rcp<rive::Font>>& FontHelper::PickFonts(
+struct StrategyFontBytes
+{
+  jint listIndex; // Preserve positions across skipped JNI entries.
+  std::vector<uint8_t> bytes;
+};
+
+/**
+ * Calls the Kotlin strategy and copies its font data without the cache mutex.
+ * @return Owned bytes for each valid list entry, or an empty list on failure.
+ */
+static std::vector<StrategyFontBytes> ReadStrategyBytes(
     uint16_t weight,
-    rive::TextLanguageId language,
     rive::Span<const std::string> languages)
 {
-  // Stable return value (referenced) when aborting due to errors.
-  // Always empty.
-  static const std::vector<rive::rcp<rive::Font>> ERROR_VEC;
-
-  // Check if weight and language exist in cache first
-  const uint32_t cacheKey = PickKey(weight, language);
-  auto cacheIt = s_pickFontCache.find(cacheKey);
-  if (cacheIt != s_pickFontCache.end())
-  {
-    return cacheIt->second;
-  }
-
-  // Original JNI implementation for cache misses
   JNIEnv* env = GetJNIEnv();
   JniResource<jclass> pickerClass = FindClass(
       env,
@@ -409,7 +406,7 @@ static jmethodID FindStaticMethod(
   if (!pickerClass.get())
   {
     RiveLogE(TAG, "FontFallbackStrategy class not found");
-    return ERROR_VEC;
+    return {};
   }
 
   // Get the Companion field ID
@@ -431,7 +428,7 @@ static jmethodID FindStaticMethod(
   if (!pickerCompanionClass.get())
   {
     RiveLogE(TAG, "FontFallbackStrategy Companion class not found");
-    return ERROR_VEC;
+    return {};
   }
 
   jmethodID pickFontMid = env->GetMethodID(
@@ -442,7 +439,7 @@ static jmethodID FindStaticMethod(
   JniResource<jclass> stringClass = FindClass(env, "java/lang/String");
   if (!stringClass.get())
   {
-    return ERROR_VEC;
+    return {};
   }
   JniResource<jobjectArray> languageArray(
       env->NewObjectArray(
@@ -456,7 +453,7 @@ static jmethodID FindStaticMethod(
           "Allocating the strategy's languages") ||
       !languageArray.get())
   {
-    return ERROR_VEC;
+    return {};
   }
   for (size_t i = 0; i < languages.size(); ++i)
   {
@@ -485,10 +482,7 @@ static jmethodID FindStaticMethod(
       fontListObj.get() == nullptr)
   {
     RiveLogE(TAG, "No strategy fonts for weight %d.", weight);
-    auto [iter, _] = s_pickFontCache.emplace(
-        cacheKey,
-        std::vector<rive::rcp<rive::Font>>());
-    return iter->second;
+    return {};
   }
 
   // Convert Java List<ByteArray> to std::vector<_>
@@ -510,8 +504,8 @@ static jmethodID FindStaticMethod(
     listSize = 0;
   }
 
-  std::vector<rive::rcp<rive::Font>> decodedFonts;
-  decodedFonts.reserve(listSize);
+  std::vector<StrategyFontBytes> fontBytes;
+  fontBytes.reserve(listSize);
 
   for (jint i = 0; i < listSize; ++i)
   {
@@ -534,30 +528,114 @@ static jmethodID FindStaticMethod(
       continue;
     }
 
-    rive::rcp<rive::Font> decodedFont = DecodeShared(ByteArrayToUint8Vec(
-        env,
-        reinterpret_cast<jbyteArray>(byteArrayObj.get())));
-    if (!decodedFont)
+    fontBytes.push_back(
+        {i,
+         ByteArrayToUint8Vec(
+             env,
+             reinterpret_cast<jbyteArray>(byteArrayObj.get()))});
+  }
+  return fontBytes;
+}
+
+/* static */ rive::rcp<rive::Font> FontHelper::PickFont(
+    const rive::Font::FallbackRequest& request,
+    rive::TextLanguageId language,
+    std::unique_lock<std::mutex>& lock)
+{
+  const auto candidateAtIndex =
+      [index = request.fallbackIndex](
+          const std::vector<rive::rcp<rive::Font>>& fonts)
+      -> rive::rcp<rive::Font> {
+    return index < fonts.size() ? fonts[index] : nullptr;
+  };
+  const uint32_t cacheKey = PickKey(request.startingWeight, language);
+  auto cacheIt = s_pickFontCache.find(cacheKey);
+  if (cacheIt != s_pickFontCache.end())
+  {
+    return candidateAtIndex(cacheIt->second);
+  }
+
+  // Nested shaping falls through to registered/system fonts instead of
+  // recursively entering the application strategy.
+  static thread_local bool callingStrategy = false;
+  if (callingStrategy)
+  {
+    return {};
+  }
+  const auto generation = s_strategyGeneration;
+  // The caller validated the cache at this generation. A fresh global read
+  // could already describe newer languages than the ones we are about to pass.
+  const auto languagesGeneration = s_pickLanguagesGeneration;
+  struct CallbackScope
+  {
+    bool& active;
+    std::unique_lock<std::mutex>& lock;
+    /** Releases the cache mutex before entering application code. */
+    CallbackScope(bool& active, std::unique_lock<std::mutex>& lock)
+        : active(active)
+        , lock(lock)
     {
-      RiveLogE(
-          TAG,
-          "Failed to decode fallback font at index %d for weight %d",
-          i,
-          weight);
+      active = true;
+      lock.unlock();
     }
-    // A repeat would end the shaper's walk, which stops when a fallback
-    // returns the font it is already using.
-    else if (
-        std::find(decodedFonts.begin(), decodedFonts.end(), decodedFont) ==
+    /** Restores cache ownership even when native allocation throws. */
+    ~CallbackScope()
+    {
+      lock.lock();
+      active = false;
+    }
+  };
+  std::vector<StrategyFontBytes> bytes;
+  {
+    CallbackScope callback(callingStrategy, lock);
+    bytes = ReadStrategyBytes(request.startingWeight, request.languages);
+  }
+  // Discard callbacks invalidated while the mutex was released. This
+  // attempt can still use registered/system fallback.
+  if (generation != s_strategyGeneration ||
+      languagesGeneration != rive::TextLanguages::generation())
+  {
+    return {};
+  }
+  cacheIt = s_pickFontCache.find(cacheKey);
+  if (cacheIt != s_pickFontCache.end())
+  {
+    return candidateAtIndex(cacheIt->second);
+  }
+  std::vector<rive::rcp<rive::Font>> decodedFonts;
+  std::vector<jint> failedIndices;
+  for (auto& [listIndex, data] : bytes)
+  {
+    auto font = DecodeShared(std::move(data));
+    if (!font)
+    {
+      failedIndices.push_back(listIndex);
+      continue;
+    }
+    if (std::find(decodedFonts.begin(), decodedFonts.end(), font) ==
         decodedFonts.end())
     {
-      decodedFonts.push_back(std::move(decodedFont));
+      decodedFonts.push_back(std::move(font));
     }
   }
 
   auto [iter, _] = s_pickFontCache.emplace(cacheKey, std::move(decodedFonts));
 
-  return iter->second;
+  auto candidate = candidateAtIndex(iter->second);
+  if (!failedIndices.empty())
+  {
+    // The application's logger may reenter fallback or clear the cache.
+    CallbackScope callback(callingStrategy, lock);
+    for (jint index : failedIndices)
+    {
+      RiveLogE(
+          TAG,
+          "Failed to decode fallback font at index %d for weight %d",
+          index,
+          request.startingWeight);
+    }
+  }
+  return candidate;
 }
 
 /* static */ rive::rcp<rive::Font> FontHelper::DecodeShared(
@@ -645,14 +723,10 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
  *
  * Fallback Strategy:
  *
- * 1.  **Weight-Matched Selection:** Uses the original run's weight and the
- * request's languages to retrieve an ordered list of potential fallback fonts
- * via `PickFonts()`. This internal helper interacts with the Kotlin
- * `FontFallbackStrategy.getFont(weight, languages)` API and will cache decoded
- * fonts (`HBFont`). If `fallbackIndex` is within the bounds of the retrieved
- * list, the font at that index is returned directly. The caller (i.e. the
- * shaper) is attempts shaping the run with the returned font. If it can't,
- * it'll call this function again with an incremented `fallbackIndex`.
+ * 1.  **Weight-Matched Selection:** PickFont() returns the strategy font at
+ * the requested fallback index. It caches decoded candidates by the original
+ * run's weight and preferred language. If shaping with this candidate fails,
+ * the shaper requests the next index.
  *
  * 2.  **Registered Fallback Search (Deprecated):** If the weight-matched
  * list is exhausted (`fallbackIndex` is out of bounds), iterates through
@@ -679,7 +753,7 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
     const rive::Font::FallbackRequest& request)
 {
   // Let's lock this down for thread-safety.
-  std::lock_guard<std::mutex> lock(s_fallbackFontsMutex);
+  std::unique_lock<std::mutex> lock(s_fallbackFontsMutex);
 
   // The most preferred language orders the system chain and keys both
   // caches in one byte. The rest of a request's list is the system
@@ -696,13 +770,9 @@ std::string FontHelper::DebugCodepoint(rive::Unichar cp)
     s_pickLanguagesGeneration = languagesGeneration;
   }
 
-  const std::vector<rive::rcp<rive::Font>>& pickedFonts = PickFonts(
-      request.startingWeight,
-      language,
-      request.languages);
-  if (request.fallbackIndex < pickedFonts.size())
+  if (auto font = PickFont(request, language, lock))
   {
-    return pickedFonts[request.fallbackIndex];
+    return font;
   }
 
   // Use the old path - just try to find a match for this glyph.

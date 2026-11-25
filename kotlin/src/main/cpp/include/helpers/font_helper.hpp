@@ -27,6 +27,8 @@ private:
   // The TextLanguages::generation() s_pickFontCache was filled in. Strategies
   // are shown the system languages, so they're asked again once those change.
   static uint32_t s_pickLanguagesGeneration;
+  // Protected by s_fallbackFontsMutex, invalidates callbacks running unlocked.
+  static uint64_t s_strategyGeneration;
   struct StrategyFont
   {
     rive::rcp<rive::Font> font;
@@ -85,15 +87,17 @@ private:
   }
 
   /**
-   * The strategy's fonts for [weight] and [languages], asking Kotlin on a
-   * cache miss. The caller must hold s_fallbackFontsMutex.
-   * @param language The slot of languages[0], which keys the cache.
-   * @param languages BCP 47 tags passed on to the strategy.
+   * Selects the strategy font for the current fallback attempt. Releases
+   * the supplied lock while asking Kotlin for candidates on a cache miss.
+   * @param request Supplies the weight, languages, and fallback index.
+   * @param language The preferred language slot used to key the cache.
+   * @param lock Owns s_fallbackFontsMutex on entry and return.
+   * @return An owning reference, or nullptr if this attempt has no candidate.
    */
-  static const std::vector<rive::rcp<rive::Font>>& PickFonts(
-      uint16_t weight,
+  static rive::rcp<rive::Font> PickFont(
+      const rive::Font::FallbackRequest& request,
       rive::TextLanguageId language,
-      rive::Span<const std::string> languages);
+      std::unique_lock<std::mutex>& lock);
   /**
    * Reuses an identical strategy font or adopts and decodes its bytes.
    * The caller must hold s_fallbackFontsMutex.
@@ -144,6 +148,7 @@ public:
   {
     // Make sure we're not using the cache by locking on that same mutex.
     std::lock_guard<std::mutex> lock(FontHelper::s_fallbackFontsMutex);
+    ++s_strategyGeneration;
     FontHelper::s_pickFontCache.clear();
     FontHelper::s_decodedByContent.clear();
     // Text shaped with the old fallbacks shapes again.
