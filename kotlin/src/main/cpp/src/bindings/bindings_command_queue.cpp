@@ -927,7 +927,7 @@ void setProperty(
 
   (commandQueue->*setter)(
       viewModelInstanceHandle,
-      propertyPath,
+      std::move(propertyPath),
       std::move(value),
       0); // Pass 0 for requestID
 }
@@ -951,7 +951,10 @@ void getProperty(
       jViewModelInstanceHandle);
   auto propertyPath = JStringToString(env, jPropertyPath);
 
-  (commandQueue->*getter)(viewModelInstanceHandle, propertyPath, requestID);
+  (commandQueue->*getter)(
+      viewModelInstanceHandle,
+      std::move(propertyPath),
+      requestID);
 }
 
 constexpr static auto* TAG_CQ = "RiveN/CQ";
@@ -2263,7 +2266,10 @@ extern "C"
     auto name = JStringToString(env, jViewModelName);
     auto fileHandle = handleFromLong<rive::FileHandle>(jFileHandle);
 
-    commandQueue->requestViewModelInstanceNames(fileHandle, name, requestID);
+    commandQueue->requestViewModelInstanceNames(
+        fileHandle,
+        std::move(name),
+        requestID);
   }
 
   JNIEXPORT void JNICALL
@@ -2281,7 +2287,7 @@ extern "C"
 
     commandQueue->requestViewModelPropertyDefinitions(
         fileHandle,
-        name,
+        std::move(name),
         requestID);
   }
 
@@ -2329,7 +2335,7 @@ extern "C"
 
     auto artboard = commandQueue->instantiateArtboardNamed(
         handleFromLong<rive::FileHandle>(jFileHandle),
-        nativeName,
+        std::move(nativeName),
         nullptr,
         requestID);
     return longFromHandle(artboard);
@@ -2380,7 +2386,7 @@ extern "C"
 
     auto stateMachine = commandQueue->instantiateStateMachineNamed(
         handleFromLong<rive::ArtboardHandle>(jArtboardHandle),
-        nativeName,
+        std::move(nativeName),
         nullptr,
         requestID);
     return longFromHandle(stateMachine);
@@ -2705,7 +2711,7 @@ extern "C"
 
     auto viewModelInstance = commandQueue->instantiateBlankViewModelInstance(
         fileHandle,
-        viewModelName,
+        std::move(viewModelName),
         nullptr,
         requestID);
     return longFromHandle(viewModelInstance);
@@ -2747,7 +2753,7 @@ extern "C"
 
     auto viewModelInstance = commandQueue->instantiateDefaultViewModelInstance(
         fileHandle,
-        viewModelName,
+        std::move(viewModelName),
         nullptr,
         requestID);
     return longFromHandle(viewModelInstance);
@@ -2791,8 +2797,8 @@ extern "C"
 
     auto viewModelInstance = commandQueue->instantiateViewModelInstanceNamed(
         fileHandle,
-        viewModelName,
-        instanceName,
+        std::move(viewModelName),
+        std::move(instanceName),
         nullptr,
         requestID);
     return longFromHandle(viewModelInstance);
@@ -2816,7 +2822,7 @@ extern "C"
     auto viewModelInstance = commandQueue->instantiateViewModelInstanceNamed(
         fileHandle,
         artboardHandle,
-        instanceName,
+        std::move(instanceName),
         nullptr,
         requestID);
     return longFromHandle(viewModelInstance);
@@ -2840,7 +2846,7 @@ extern "C"
     auto nestedViewModelInstance = commandQueue
                                        ->referenceNestedViewModelInstance(
                                            viewModelInstanceHandle,
-                                           path,
+                                           std::move(path),
                                            nullptr,
                                            requestID);
     return longFromHandle(nestedViewModelInstance);
@@ -2864,7 +2870,7 @@ extern "C"
 
     auto nestedViewModelInstance = commandQueue->referenceListViewModelInstance(
         viewModelInstanceHandle,
-        path,
+        std::move(path),
         static_cast<int32_t>(index),
         nullptr,
         requestID);
@@ -3061,7 +3067,7 @@ extern "C"
         ref,
         jViewModelInstanceHandle,
         jPropertyPath,
-        value,
+        std::move(value),
         &rive::CommandQueue::setViewModelInstanceString);
   }
 
@@ -3134,7 +3140,7 @@ extern "C"
         ref,
         jViewModelInstanceHandle,
         jPropertyPath,
-        value,
+        std::move(value),
         &rive::CommandQueue::setViewModelInstanceEnum);
   }
 
@@ -3208,7 +3214,9 @@ extern "C"
             jViewModelInstanceHandle);
     auto propertyPath = JStringToString(env, jPropertyPath);
 
-    commandQueue->fireViewModelTrigger(viewModelInstanceHandle, propertyPath);
+    commandQueue->fireViewModelTrigger(
+        viewModelInstanceHandle,
+        std::move(propertyPath));
   }
 
   JNIEXPORT void JNICALL
@@ -3229,7 +3237,7 @@ extern "C"
 
     commandQueue->subscribeToViewModelProperty(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         dataType);
   }
 
@@ -3251,7 +3259,7 @@ extern "C"
 
     commandQueue->unsubscribeToViewModelProperty(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         dataType);
   }
 
@@ -3273,7 +3281,7 @@ extern "C"
 
     commandQueue->setViewModelInstanceImage(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         imageHandle);
   }
 
@@ -3295,7 +3303,7 @@ extern "C"
 
     commandQueue->setViewModelInstanceFont(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         fontHandle);
   }
 
@@ -3317,7 +3325,7 @@ extern "C"
 
     commandQueue->setViewModelInstanceBlob(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         blobHandle);
   }
 
@@ -3339,7 +3347,7 @@ extern "C"
 
     commandQueue->setViewModelInstanceArtboard(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         artboardHandle);
   }
 
@@ -3362,7 +3370,7 @@ extern "C"
 
     commandQueue->setViewModelInstanceNestedViewModel(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         valueHandle);
   }
 
@@ -3383,7 +3391,7 @@ extern "C"
 
     commandQueue->requestViewModelInstanceListSize(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         requestID);
   }
 
@@ -3407,7 +3415,7 @@ extern "C"
 
     commandQueue->insertViewModelInstanceListViewModel(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         itemHandle,
         static_cast<int32_t>(index));
   }
@@ -3431,7 +3439,7 @@ extern "C"
 
     commandQueue->appendViewModelInstanceListViewModel(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         itemHandle);
   }
 
@@ -3452,7 +3460,7 @@ extern "C"
 
     commandQueue->removeViewModelInstanceListViewModel(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         static_cast<int32_t>(index));
   }
 
@@ -3475,7 +3483,7 @@ extern "C"
 
     commandQueue->removeViewModelInstanceListViewModel(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         itemHandle);
   }
 
@@ -3497,7 +3505,7 @@ extern "C"
 
     commandQueue->swapViewModelInstanceListValues(
         viewModelInstanceHandle,
-        propertyPath,
+        std::move(propertyPath),
         static_cast<int32_t>(indexA),
         static_cast<int32_t>(indexB));
   }
@@ -3514,7 +3522,7 @@ extern "C"
     auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
     return longFromHandle(
-        commandQueue->decodeImage(byteVec, nullptr, requestID));
+        commandQueue->decodeImage(std::move(byteVec), nullptr, requestID));
   }
 
   JNIEXPORT void JNICALL
@@ -3542,7 +3550,7 @@ extern "C"
     auto path = JStringToString(env, jPath);
     auto imageHandle = handleFromLong<rive::RenderImageHandle>(jImageHandle);
 
-    commandQueue->addGlobalImageAsset(path, imageHandle);
+    commandQueue->addGlobalImageAsset(std::move(path), imageHandle);
   }
 
   JNIEXPORT void JNICALL
@@ -3555,7 +3563,7 @@ extern "C"
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto path = JStringToString(env, jPath);
 
-    commandQueue->removeGlobalImageAsset(path);
+    commandQueue->removeGlobalImageAsset(std::move(path));
   }
 
   JNIEXPORT jlong JNICALL
@@ -3570,7 +3578,7 @@ extern "C"
     auto byteVec = ByteArrayToUint8Vec(env, bytes);
 
     return longFromHandle(
-        commandQueue->decodeAudio(byteVec, nullptr, requestID));
+        commandQueue->decodeAudio(std::move(byteVec), nullptr, requestID));
   }
 
   JNIEXPORT void JNICALL
@@ -3598,7 +3606,7 @@ extern "C"
     auto path = JStringToString(env, jPath);
     auto audioHandle = handleFromLong<rive::AudioSourceHandle>(jAudioHandle);
 
-    commandQueue->addGlobalAudioAsset(path, audioHandle);
+    commandQueue->addGlobalAudioAsset(std::move(path), audioHandle);
   }
 
   JNIEXPORT void JNICALL
@@ -3611,7 +3619,7 @@ extern "C"
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto path = JStringToString(env, jPath);
 
-    commandQueue->removeGlobalAudioAsset(path);
+    commandQueue->removeGlobalAudioAsset(std::move(path));
   }
 
   JNIEXPORT jlong JNICALL
@@ -3680,7 +3688,7 @@ extern "C"
     auto path = JStringToString(env, jPath);
     auto fontHandle = handleFromLong<rive::FontHandle>(jFontHandle);
 
-    commandQueue->addGlobalFontAsset(path, fontHandle);
+    commandQueue->addGlobalFontAsset(std::move(path), fontHandle);
   }
 
   JNIEXPORT void JNICALL
@@ -3693,7 +3701,7 @@ extern "C"
     auto commandQueue = reinterpret_cast<rive::CommandQueue*>(ref);
     auto path = JStringToString(env, jPath);
 
-    commandQueue->removeGlobalFontAsset(path);
+    commandQueue->removeGlobalFontAsset(std::move(path));
   }
 
   JNIEXPORT void JNICALL
