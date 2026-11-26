@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
         Pair(R.id.go_legacy_data_binding, LegacyDataBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_artboards, ComposeArtboardBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_images, ComposeImageBindingActivity::class.java),
+        Pair(R.id.go_compose_data_binding_fonts, ComposeFontBindingActivity::class.java),
         Pair(R.id.go_compose_data_binding_lists, ComposeListActivity::class.java),
         Pair(R.id.go_compose_layout, ComposeLayoutActivity::class.java),
         Pair(R.id.go_compose_audio, ComposeAudioActivity::class.java),
